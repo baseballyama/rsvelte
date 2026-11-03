@@ -31,11 +31,11 @@ The code-name guard checks every first-party Rust source file and its path, plus
 in the site's TypeScript and Svelte scripts, not just the subset quoted by the guide.
 It skips comments and string literals because these may contain
 source-language examples or protocol keys. Add new shortened forms and their full words to
-`scripts/code-names.mjs` when they are found; no suppression baseline is allowed.
+`scripts/code-names.ts` when they are found; no suppression baseline is allowed.
 
 The rules use [Japanese technical writing](https://github.com/textlint-ja/textlint-rule-preset-ja-technical-writing),
 [AI writing patterns](https://github.com/textlint-ja/textlint-rule-preset-ai-writing), and
-[prh](https://github.com/textlint-rule/textlint-rule-prh). The configuration is `.textlintrc.cjs`;
+[prh](https://github.com/textlint-rule/textlint-rule-prh). The configuration is `.textlintrc.json`, plus the `scripts/no-abbreviations.ts` rule that `scripts/prose.ts` adds;
 the terminology dictionary is `writing.yml`. The extractor uses the Svelte and TypeScript
 parsers. It checks visible static text and reader-facing strings, but does not evaluate
 runtime expressions or rewrite quoted code. Review dynamic labels when adding them.

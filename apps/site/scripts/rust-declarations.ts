@@ -1,25 +1,31 @@
 import { scan } from '../src/lib/build/rust-items.ts';
 
+type Token = { text: string; line: number; kind: 'literal' | 'lifetime' | 'identifier' | 'punctuation' };
+export type Declaration = { name: string; line: number; owner: string | undefined };
+type TraitImplementation = { start: number; end: number; trait: string };
+// The options ride on `add` so every helper that declares names can read them.
+type Add = ((index: number, owner?: string) => void) & { traitParameterNamesEnforced: boolean; source: string };
+
 const ITEMS = new Set(['fn', 'struct', 'enum', 'trait', 'type', 'const', 'static', 'mod', 'union']);
 const NOT_BINDINGS = new Set(['mut', 'ref', 'box', 'true', 'false', 'in', 'if', 'self', 'Self', 'crate', 'super', '_']);
 const EXPRESSION_START_KEYWORDS = new Set(['return', 'move', 'break', 'yield', 'in', 'async', 'static', 'box', 'else']);
 const PAIRS = new Set(['::', '=>', '->', '..', '==', '!=', '<=', '>=', '&&', '||']);
 const OPENING = new Set(['(', '[', '{', '<']);
 const CLOSING = new Set([')', ']', '}', '>']);
-const CLOSER = { '(': ')', '[': ']', '{': '}', '<': '>' };
+const CLOSER: Record<string, string> = { '(': ')', '[': ']', '{': '}', '<': '>' };
 
 /**
  * Names that a Rust file declares, with their lines. Uses of names from std or dependencies are not declarations.
  * A field or variant also has `owner`, the type that declares it. With `traitParameterNamesEnforced`, the `buf`
  * parameter of `std::io::Write::write` is skipped, because the workspace lint keeps it equal to std's declaration.
  */
-export function rustDeclarations(source, { traitParameterNamesEnforced = false } = {}) {
+export function rustDeclarations(source: string, { traitParameterNamesEnforced = false } = {}): Declaration[] {
 	const tokens = tokenize(source);
-	const found = [];
-	const add = (index, owner) => found.push({ name: tokens[index].text.replace(/^'/, ''), line: tokens[index].line, owner });
+	const found: Declaration[] = [];
+	const add = (index: number, owner?: string) => found.push({ name: tokens[index].text.replace(/^'/, ''), line: tokens[index].line, owner });
 	add.traitParameterNamesEnforced = traitParameterNamesEnforced;
 	add.source = source;
-	const traitImplementations = [];
+	const traitImplementations: TraitImplementation[] = [];
 	for (let index = 0; index < tokens.length; index++) {
 		const token = tokens[index];
 		const previous = tokens[index - 1]?.text;
@@ -48,9 +54,9 @@ export function rustDeclarations(source, { traitParameterNamesEnforced = false }
 }
 
 // A literal stays as one token so `"a" | "b"` is not read as the start of a closure.
-function tokenize(source) {
+function tokenize(source: string): Token[] {
 	const visible = scan(source);
-	const tokens = [];
+	const tokens: Token[] = [];
 	let line = 1;
 	for (let offset = 0; offset < source.length;) {
 		const character = source[offset];
@@ -74,7 +80,7 @@ function tokenize(source) {
 	return tokens;
 }
 
-function closingIndex(tokens, open) {
+function closingIndex(tokens: Token[], open: number) {
 	const opening = tokens[open].text;
 	let depth = 0;
 	for (let index = open; index < tokens.length; index++) {
@@ -87,7 +93,7 @@ function closingIndex(tokens, open) {
 }
 
 // Method, type and constant names inside `impl Trait for Type` are chosen by the trait.
-function implementationHeader(tokens, index, add, traitImplementations) {
+function implementationHeader(tokens: Token[], index: number, add: Add, traitImplementations: TraitImplementation[]) {
 	let next = index + 1;
 	if (tokens[next]?.text === '<') next = genericParameters(tokens, next, add) + 1;
 	const start = next;
@@ -100,7 +106,7 @@ function implementationHeader(tokens, index, add, traitImplementations) {
 	return next;
 }
 
-function useAliases(tokens, index, add) {
+function useAliases(tokens: Token[], index: number, add: Add) {
 	let next = index;
 	for (; next < tokens.length && tokens[next].text !== ';'; next++) {
 		if (tokens[next].text === 'as' && tokens[next + 1]?.kind === 'identifier') add(next + 1);
@@ -108,7 +114,7 @@ function useAliases(tokens, index, add) {
 	return next;
 }
 
-function item(tokens, index, add, traitImplementations) {
+function item(tokens: Token[], index: number, add: Add, traitImplementations: TraitImplementation[]) {
 	const keyword = tokens[index].text;
 	if (keyword === 'const' && ['fn', 'unsafe', 'async'].includes(tokens[index + 1].text)) return;
 	const name = index + 1;
@@ -129,7 +135,7 @@ function item(tokens, index, add, traitImplementations) {
 	}
 }
 
-function genericParameters(tokens, open, add) {
+function genericParameters(tokens: Token[], open: number, add: Add) {
 	const end = closingIndex(tokens, open);
 	let depth = 0;
 	let start = true;
@@ -148,13 +154,13 @@ function genericParameters(tokens, open, add) {
 	return end;
 }
 
-function isStdWrite(trait, source) {
+function isStdWrite(trait: string, source: string) {
 	if (trait === 'std::io::Write') return true;
 	if (trait === 'io::Write') return /\buse\s+std::io(\s*;|::\{[^}]*\bself\b)/.test(source);
 	return trait === 'Write' && /\buse\s+std::io::(Write\s*;|\{[^}]*\bWrite\b)/.test(source);
 }
 
-function functionParameters(tokens, open, add, keepsWriteBuffer) {
+function functionParameters(tokens: Token[], open: number, add: Add, keepsWriteBuffer: boolean | undefined) {
 	const end = closingIndex(tokens, open);
 	let depth = 0;
 	let segment = open + 1;
@@ -172,7 +178,7 @@ function functionParameters(tokens, open, add, keepsWriteBuffer) {
 	}
 }
 
-function topLevelColon(tokens, from, to) {
+function topLevelColon(tokens: Token[], from: number, to: number) {
 	let depth = 0;
 	for (let index = from; index < to; index++) {
 		const text = tokens[index].text;
@@ -183,7 +189,7 @@ function topLevelColon(tokens, from, to) {
 	return to;
 }
 
-function fields(tokens, open, add, owner) {
+function fields(tokens: Token[], open: number, add: Add, owner: string) {
 	const end = closingIndex(tokens, open);
 	let depth = 0;
 	for (let index = open + 1; index < end; index++) {
@@ -194,7 +200,7 @@ function fields(tokens, open, add, owner) {
 	}
 }
 
-function variants(tokens, open, add, owner) {
+function variants(tokens: Token[], open: number, add: Add, owner: string) {
 	const end = closingIndex(tokens, open);
 	let depth = 0;
 	let start = true;
@@ -221,7 +227,7 @@ function variants(tokens, open, add, owner) {
 	}
 }
 
-function statementPattern(tokens, index, add) {
+function statementPattern(tokens: Token[], index: number, add: Add) {
 	const stops = tokens[index].text === 'let' ? ['=', ':', ';'] : ['in'];
 	let end = index + 1;
 	let depth = 0;
@@ -233,7 +239,7 @@ function statementPattern(tokens, index, add) {
 }
 
 // A binding is a lower-case name that is not a path segment, a call, a macro or a field label.
-function patternBindings(tokens, from, to, add) {
+function patternBindings(tokens: Token[], from: number, to: number, add: Add) {
 	for (let index = from; index < to; index++) {
 		const token = tokens[index];
 		if (token.kind !== 'identifier' || NOT_BINDINGS.has(token.text) || /^[A-Z]/.test(token.text)) continue;
@@ -245,7 +251,7 @@ function patternBindings(tokens, from, to, add) {
 	}
 }
 
-function insideBraces(tokens, from, at) {
+function insideBraces(tokens: Token[], from: number, at: number) {
 	let depth = 0;
 	for (let index = at - 1; index >= from; index--) {
 		if (tokens[index].text === '}') depth++;
@@ -254,14 +260,14 @@ function insideBraces(tokens, from, at) {
 	return false;
 }
 
-function endsExpression(token) {
+function endsExpression(token: Token | undefined) {
 	if (!token) return false;
 	if (token.kind === 'literal' || token.kind === 'lifetime') return true;
 	if (token.kind === 'identifier') return !EXPRESSION_START_KEYWORDS.has(token.text);
 	return [')', ']', '}', '?'].includes(token.text) || /^\d$/.test(token.text);
 }
 
-function closureParameters(tokens, open, add) {
+function closureParameters(tokens: Token[], open: number, add: Add) {
 	let depth = 0;
 	let segment = open + 1;
 	let typed = false;
@@ -283,7 +289,7 @@ function closureParameters(tokens, open, add) {
 }
 
 // An arm's pattern ends at `=>` or at a top-level `if` guard.
-function matchArms(tokens, index, add) {
+function matchArms(tokens: Token[], index: number, add: Add) {
 	const open = bodyOpening(tokens, index);
 	const end = closingIndex(tokens, open);
 	for (let arm = open + 1; arm < end;) {
@@ -303,7 +309,7 @@ function matchArms(tokens, index, add) {
 	}
 }
 
-function bodyOpening(tokens, index) {
+function bodyOpening(tokens: Token[], index: number) {
 	let depth = 0;
 	for (let open = index + 1; open < tokens.length; open++) {
 		const text = tokens[open].text;
@@ -314,7 +320,7 @@ function bodyOpening(tokens, index) {
 	return tokens.length;
 }
 
-function armEnd(tokens, arrow, end) {
+function armEnd(tokens: Token[], arrow: number, end: number) {
 	const block = tokens[arrow + 1]?.text === '{';
 	let depth = 0;
 	for (let next = arrow + 1; next < end; next++) {

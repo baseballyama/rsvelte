@@ -1,14 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { createLinter, loadTextlintrc } from 'textlint';
-import { extractProse, proseFiles } from './prose.mjs';
+import { extractProse, proseFiles, writingLinter } from './prose.ts';
 import { moduleDescription } from '../src/lib/module-descriptions.ts';
 import { sources } from '../src/lib/build/sources.ts';
 
-const descriptor = await loadTextlintrc({ configFilePath: '.textlintrc.cjs' });
-assert.ok(descriptor.configBaseDir, 'Writing configuration must load');
-const linter = createLinter({ descriptor });
+const linter = await writingLinter();
 
 test('rejects abbreviations, jargon, hype, redundancy and long sentences', async () => {
 	for (const [text, rule] of [

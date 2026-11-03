@@ -1,4 +1,4 @@
-import { checkCodeNames } from './code-names.mjs';
+import { checkCodeNames } from './code-names.ts';
 import path from 'node:path';
 
 const result = checkCodeNames(path.resolve(import.meta.dirname, '../../..'));

@@ -1,8 +1,16 @@
-module.exports = function (context) {
+import type { loadTextlintrc } from 'textlint';
+
+// textlint's rule types live in @textlint/types, which the site does not depend on directly.
+type Descriptor = Awaited<ReturnType<typeof loadTextlintrc>>;
+type RuleModule = ReturnType<Descriptor['rule']['toKernelRulesFormat']>[number]['rule'];
+type Rule = Extract<RuleModule, (...parameters: never[]) => unknown>;
+type TextNode = NonNullable<Parameters<Parameters<Rule>[0]['getSource']>[0]>;
+
+const rule: Rule = context => {
 	const { Syntax, RuleError, report, getSource } = context;
 	const technicalTerms = new Set(['AST', 'HIR']);
 	const pattern = /(?<![\w])(?:[A-Z]{2,}(?:-\d+)?|db(?:\.rs)?|idx(?:\.rs)?|diag(?:\.rs)?|doc\.rs|Ctx|Loc|Idx|TsView|TsDoc)(?![\w])/g;
-	function check(node, code = false) {
+	function check(node: TextNode, code = false) {
 		const source = getSource(node);
 		for (const match of source.matchAll(pattern)) {
 			if (technicalTerms.has(match[0])) continue;
@@ -12,3 +20,5 @@ module.exports = function (context) {
 	}
 	return { [Syntax.Str]: node => check(node), [Syntax.Code]: node => check(node, true) };
 };
+
+export default rule;

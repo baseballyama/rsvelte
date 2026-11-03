@@ -1,9 +1,6 @@
-import { createLinter, loadTextlintrc } from 'textlint';
-import { proseFiles, readProse } from './prose.mjs';
+import { proseFiles, readProse, writingLinter } from './prose.ts';
 
-const descriptor = await loadTextlintrc({ configFilePath: '.textlintrc.cjs' });
-if (!descriptor.configBaseDir) throw new Error('The writing rules failed to load');
-const linter = createLinter({ descriptor });
+const linter = await writingLinter();
 const files = proseFiles('src');
 let passages = 0;
 let errors = 0;

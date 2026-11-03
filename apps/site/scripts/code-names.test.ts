@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
 	nameFindings, sourceFindings, scriptFindings, checkCodeNames, manifestFindings, upstreamNames, traitParameterNamesEnforced, pathFindings, keepsWriteBuffer, WRITE_BUFFER_FILE
-} from './code-names.mjs';
+} from './code-names.ts';
 
 test('rejects abbreviated names in paths and identifiers, not substrings', () => {
 	for (const name of ['db.rs', 'rsv_kernel/src/idx.rs', 'Ctx', 'TsDoc', 'NodeIdx', 'source_pos', 'Ast']) {
@@ -37,7 +37,7 @@ test('rejects shortened script declarations while allowing external property nam
 	assert.deepEqual(scriptFindings('const { params: parameters } = request;', 'example.ts'), []);
 });
 
-const declared = source => sourceFindings(source).map(finding => `${finding.name}@${finding.line}`);
+const declared = (source: string) => sourceFindings(source).map(finding => `${finding.name}@${finding.line}`);
 
 test('reports each first-party declaration once and not its uses', () => {
 	assert.deepEqual(declared('fn f() { let ctx = 1; ctx + ctx; }'), ['ctx@1']);
@@ -88,7 +88,7 @@ test('checks crate names where the manifest declares them', () => {
 	assert.deepEqual(manifestFindings('[package]\nname = "rsvelte_kernel"\n[dependencies]\nhir = { path = "x" }\n'), []);
 });
 
-const kept = (source, options) => sourceFindings(source, options).map(finding => `${finding.qualified}@${finding.line}`);
+const kept = (source: string, options?: Parameters<typeof sourceFindings>[1]) => sourceFindings(source, options).map(finding => `${finding.qualified}@${finding.line}`);
 
 test('keeps a Rust name only where it copies a public Svelte name that the installed types still declare', () => {
 	const names = upstreamNames([{ file: 'a.rs', name: 'Namespace::Html', upstream: "type Namespace = 'html'" }], "type Namespace = 'html' | 'svg';");
@@ -101,7 +101,7 @@ test('keeps a Rust name only where it copies a public Svelte name that the insta
 
 test('skips only the buf parameter of std::io::Write::write, and only while the workspace lint keeps it', () => {
 	const options = { traitParameterNamesEnforced: true };
-	const write = (header, parameter = 'buf: &[u8]') => `${header}\nimpl Write for B {\n fn write(&mut self, ${parameter}) -> usize { 0 } }`;
+	const write = (header: string, parameter = 'buf: &[u8]') => `${header}\nimpl Write for B {\n fn write(&mut self, ${parameter}) -> usize { 0 } }`;
 	assert.deepEqual(kept(write('use std::io::{Read, Write};'), options), []);
 	assert.deepEqual(kept(write('use std::io::Write;'), options), []);
 	assert.deepEqual(kept('impl std::io::Write for B {\n fn write(&mut self, buf: &[u8]) -> usize { 0 } }', options), []);
@@ -139,7 +139,7 @@ test('keeps the std Write::write buf only in the one file that implements it, an
 	assert.equal(keepsWriteBuffer(wire.replace('buf: &[u8]', 'bytes: &[u8]')), false);
 	assert.equal(keepsWriteBuffer('use std::io::Read;\nimpl Read for X {\n fn read(&mut self, buf: &mut [u8]) -> usize { 0 } }'), false);
 	const root = mkdtempSync(path.join(tmpdir(), 'code-names-'));
-	const put = (file, text) => { mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); writeFileSync(path.join(root, file), text); };
+	const put = (file: string, text: string) => { mkdirSync(path.dirname(path.join(root, file)), { recursive: true }); writeFileSync(path.join(root, file), text); };
 	put('Cargo.toml', '[workspace.lints.clippy]\nrenamed_function_params = "deny"\n');
 	put('apps/site/src/empty.ts', '');
 	put(path.join('crates', WRITE_BUFFER_FILE), wire);
