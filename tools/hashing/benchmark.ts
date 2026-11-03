@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const output = path.resolve(process.argv[2] ?? 'target/hashing-report');
+const output = path.resolve(process.argv[2] ?? path.join(root, 'tools/hashing/generated/report'));
 const baselineRev = process.argv[3] ?? 'a25573c64087dd1f417321f19139b3edd709bf03';
 fs.mkdirSync(output, { recursive: true });
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-hashing-'));

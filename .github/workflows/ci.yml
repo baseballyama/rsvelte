@@ -127,7 +127,7 @@ jobs:
       - run: pnpm run build
 
   performance:
-    # The instruction baseline is recorded on arm64 Linux (tools/performance/linux.sh runs the same
+    # The instruction baseline is recorded on arm64 Linux (tools/performance/linux.ts runs the same
     # environment locally); allocation counts are the same on every platform.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30

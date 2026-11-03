@@ -5,6 +5,8 @@
 /target-*/
 /tools/performance/workloads/*/target/
 /tools/*/node_modules/
+# Measurement output, kept next to the tool that writes it.
+/tools/*/generated/
 # Per-unit implementation output and cached snapshots. Original path segments with these names are
 # stored as `~actual` / `~cache` (tools/fixtures/src/paths.ts), so the patterns reach only unit children.
 /fixtures/**/actual/

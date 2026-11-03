@@ -3,7 +3,7 @@
 | Command | Measures |
 |---|---|
 | `mise run performance` | Allocation ratchet over the corpus |
-| `tools/performance/linux.sh` | Allocation and instruction ratchets in Linux |
+| `node tools/performance/linux.ts` | Allocation and instruction ratchets in Linux |
 | `mise run performance:cache <config.json> <report.json>` | Cachegrind cache simulation and an optional baseline gate |
 | `mise run performance:hardware <config.json> <report.json>` | Linux `perf` CPU and cache hardware events |
 | `node tools/performance/bin/macos-cycles.ts <config.json> <report.json> [--max-load <n>] [--allow-busy]` | macOS hardware CPU cycles and instructions, P-core share, peak footprint |

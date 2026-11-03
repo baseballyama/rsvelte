@@ -16,6 +16,8 @@ import { parseArgs } from 'node:util';
 
 const ROOT = path.resolve(import.meta.dirname, '../../..');
 const BASE = path.join(ROOT, 'target', 'buildtime');
+// Reports stay next to the tool; the cargo target directories stay under ./target.
+const GENERATED = path.join(import.meta.dirname, '../generated');
 
 type Edit = {
 	/** `touch`: the bytes stay, only the mtime moves (the floor of an edit-compile cycle).
@@ -190,7 +192,7 @@ if (values.timings) {
 		const dir = path.join(BASE, s.name);
 		fs.rmSync(dir, { recursive: true, force: true });
 		cargo(s, ['--timings']);
-		fs.cpSync(path.join(dir, 'cargo-timings'), path.join(BASE, 'timings', s.name), { recursive: true });
+		fs.cpSync(path.join(dir, 'cargo-timings'), path.join(GENERATED, 'timings', s.name), { recursive: true });
 	}
 }
 
@@ -218,7 +220,7 @@ const result = {
 console.error('');
 for (const s of result.scenarios)
 	console.error(`${s.name.padEnd(26)} median ${s.medianSeconds.toFixed(2).padStart(7)} s  [${s.minSeconds.toFixed(2)} – ${s.maxSeconds.toFixed(2)}]  ${s.packages} packages`);
-if (values.timings) console.error(`\ncargo --timings reports (clean scenarios): ${path.join(BASE, 'timings')}`);
+if (values.timings) console.error(`\ncargo --timings reports (clean scenarios): ${path.join(GENERATED, 'timings')}`);
 
 const out = JSON.stringify(result, null, '\t') + '\n';
 if (values.json) fs.writeFileSync(values.json, out);

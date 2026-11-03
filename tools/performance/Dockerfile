@@ -1,5 +1,5 @@
 # The CI runner's environment (ubuntu-24.04, the pinned Rust, Node 26, valgrind), for recording the
-# instruction baseline locally: `tools/performance/linux.sh [--update]` (python3 is for cg_annotate).
+# instruction baseline locally: `node tools/performance/linux.ts [--update]` (python3 is for cg_annotate).
 FROM ubuntu:24.04
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl build-essential git python3 valgrind xz-utils \
