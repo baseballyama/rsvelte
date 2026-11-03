@@ -738,8 +738,22 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
     let mut async_stmts: Vec<AsyncStmt> = Vec::new();
     let mut hoisted_vars: Vec<String> = Vec::new();
     let mut found_await = false;
+    // The splitter cuts a line comment off a following keyword statement; it
+    // still leads that statement. The analyses below read `statements` as split.
+    let mut pending_comments = String::new();
 
     for stmt in &statements {
+        let merged;
+        let stmt = if pending_comments.is_empty() {
+            stmt
+        } else {
+            merged = format!(
+                "{}\n{}",
+                std::mem::take(&mut pending_comments),
+                stmt.trim_start()
+            );
+            &merged
+        };
         let trimmed_stmt = stmt.trim();
         if trimmed_stmt.is_empty() {
             continue;
@@ -751,6 +765,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
             split_leading_comments(trimmed_stmt)
         };
         if trimmed_stmt.is_empty() {
+            pending_comments = leading_comments.to_string();
             continue;
         }
         let (leading_comments, leading_break) = if leading_comments.is_empty() {
@@ -2325,7 +2340,7 @@ fn is_function_var_declaration(s: &str) -> bool {
     }
     // Look for = followed by function or arrow
     if let Some(eq_pos) = find_assignment_in_decl(s) {
-        let after_eq = s[eq_pos + 1..].trim();
+        let after_eq = split_leading_comments(&s[eq_pos + 1..]).1.trim();
         after_eq.starts_with("function ")
             || after_eq.starts_with("function(")
             || after_eq.starts_with("async function")

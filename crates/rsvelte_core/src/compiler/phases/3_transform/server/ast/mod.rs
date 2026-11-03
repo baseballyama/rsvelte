@@ -1164,7 +1164,7 @@ impl<'a> ServerTransformState<'a> {
     /// rehome the sync/async-split TEXT (`var …; var $$promises = …`) emitted by
     /// `transform_async_body` back into oxc statements. Records a failure and
     /// returns an empty vec on a parse failure.
-    pub fn reparse_program(&self, src: &str) -> Vec<Statement<'a>> {
+    pub fn reparse_program(&mut self, src: &str) -> Vec<Statement<'a>> {
         let owned = self.allocator.alloc_str(src.trim());
         let ret =
             oxc_parser::Parser::new(self.allocator, owned, oxc_span::SourceType::mjs()).parse();
@@ -1186,13 +1186,20 @@ impl<'a> ServerTransformState<'a> {
             ));
             return Vec::new();
         }
-        hoisted_directives(
+        let mut body: Vec<Statement<'a>> = hoisted_directives(
             &oxc_ast::builder::AstBuilder::new(self.allocator),
             ret.program.directives,
         )
         .into_iter()
         .chain(ret.program.body)
-        .collect()
+        .collect();
+        if let Some(base) = self.comments.register(owned, &ret.program.comments) {
+            let mut place = comments::Place::Shift(base);
+            for stmt in &mut body {
+                oxc_ast_visit::VisitMut::visit_statement(&mut place, stmt);
+            }
+        }
+        body
     }
 
     /// Re-parse a single declarator slice (`x = init` / `{ a } = init`) by
