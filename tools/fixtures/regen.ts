@@ -50,7 +50,7 @@ export async function regen({
 				const keep = new Set<string>();
 				if (applies(task, variant.id, unit)) {
 					counts.units++;
-					// oxlint-disable-next-line no-await-in-loop -- oracles run one unit at a time, in order
+					// oxlint-disable-next-line no-await-in-loop -- behaviour traces share the one DOM in behaviour/client.ts
 					const artifacts = await task.run(
 						unit,
 						fs.readFileSync(inputFile(unit, unit.ext), 'utf8'),

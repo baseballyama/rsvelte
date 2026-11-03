@@ -22,7 +22,7 @@ export async function main(args: string[]): Promise<void> {
 	const now: Record<string, string> = {};
 	for (const t of TASKS) {
 		for (const v of t.variants) {
-			// oxlint-disable-next-line no-await-in-loop -- one task at a time bounds memory
+			// oxlint-disable-next-line no-await-in-loop -- behaviour traces share the one DOM in behaviour/client.ts
 			const r = await compare({ taskId: t.id, variantId: v.id });
 			const units = new Map<string, typeof r.rows>();
 			for (const x of r.rows) units.set(x.key, [...(units.get(x.key) ?? []), x]);

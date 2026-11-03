@@ -108,7 +108,7 @@ export async function compare({ taskId, variantId, sourceIds, families }: Compar
 	for (const unit of units) {
 		const key = `${unit.family}/${unit.source}/${unit.path}`;
 		if (task.observe) {
-			// oxlint-disable-next-line no-await-in-loop -- units are compared in order
+			// oxlint-disable-next-line no-await-in-loop -- behaviour traces share the one DOM in behaviour/client.ts
 			rows.push(...(await observeRows(task, variantId, unit, key)));
 			continue;
 		}

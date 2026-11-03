@@ -7,7 +7,6 @@ import { test } from 'node:test';
 
 const source = import.meta.dirname;
 const WAIT_MS = 20_000;
-const POLL_MS = 50;
 // A stand-in for cargo that "builds" an rsvelte which writes a report, then waits on a file barrier.
 // The report's `rev` is the path the ratchet ran, so a test can see which binary was measured.
 const CARGO = `#!/bin/sh
@@ -28,14 +27,29 @@ chmod +x "$CARGO_TARGET_DIR/release/rsvelte.$$"
 mv "$CARGO_TARGET_DIR/release/rsvelte.$$" "$CARGO_TARGET_DIR/release/rsvelte"
 `;
 
-async function waitFor(file: string, exited: () => boolean): Promise<void> {
-	const deadline = Date.now() + WAIT_MS;
-	while (!fs.existsSync(file)) {
-		if (exited()) throw new Error(`the first run exited before writing ${path.basename(file)}`);
-		if (Date.now() > deadline) throw new Error(`timed out waiting for ${path.basename(file)}`);
-		// oxlint-disable-next-line no-await-in-loop -- polls until the file appears
-		await new Promise((resolve) => setTimeout(resolve, POLL_MS));
-	}
+/** Resolves when `file` exists; fails when `exit` settles first or after WAIT_MS. */
+function waitFor(file: string, exit: Promise<unknown>): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const name = path.basename(file);
+		const watcher = fs.watch(path.dirname(file));
+		const timer = setTimeout(() => settle(new Error(`timed out waiting for ${name}`)), WAIT_MS);
+		let settled = false;
+		function settle(error?: Error) {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			watcher.close();
+			if (error) reject(error);
+			else resolve();
+		}
+		const check = () => fs.existsSync(file) && settle();
+		watcher.on('change', check);
+		void exit.then(
+			() => check() || settle(new Error(`the first run exited before writing ${name}`)),
+		);
+		// The file may have appeared before the watcher started.
+		check();
+	});
 }
 
 test(
@@ -63,14 +77,8 @@ test(
 			first = spawn(process.execPath, [ratchet, 'ratchet'], { cwd: root, env: env('first', 1111) });
 			let firstOut = '';
 			first.stdout!.on('data', (chunk) => (firstOut += chunk));
-			let exited = false;
-			const firstExit = new Promise((resolve) =>
-				first!.on('exit', () => {
-					exited = true;
-					resolve(undefined);
-				}),
-			);
-			await waitFor(path.join(directory, 'wrote-first'), () => exited);
+			const firstExit = new Promise((resolve) => first!.on('exit', resolve));
+			await waitFor(path.join(directory, 'wrote-first'), firstExit);
 			const second = spawnSync(process.execPath, [ratchet, 'ratchet'], {
 				cwd: root,
 				env: env('second', 2222),
