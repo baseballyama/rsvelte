@@ -56,11 +56,10 @@ export function performanceHistory(root: string): PerformanceRecord[] {
 			.split('\n')
 			.find((candidate) => candidate === file || candidate === historicalFile);
 		if (!recordedFile) throw new Error(`Missing baseline at ${sha}`);
-		return {
+		return Object.assign(counters(JSON.parse(git('show', `${sha}:${recordedFile}`))), {
 			sha: sha.slice(0, 10),
 			subject: git('log', '-1', '--format=%s', sha),
-			...counters(JSON.parse(git('show', `${sha}:${recordedFile}`))),
-		};
+		});
 	});
 	const now = counters(JSON.parse(readFileSync(path.join(root, file), 'utf8')));
 	const last = records.at(-1)!;

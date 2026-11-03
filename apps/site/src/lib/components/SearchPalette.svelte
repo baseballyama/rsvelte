@@ -30,23 +30,25 @@
 			kind: 'section' as const,
 			haystack: `${section.title} 使い方 ガイド`.toLowerCase(),
 		})),
-		...chapters.flatMap((c) => [
-			{
+		...chapters.flatMap((c) => {
+			const chapter: Entry = {
 				href: c.href,
 				title: c.title,
 				context: c.abstract,
-				kind: 'chapter' as const,
+				kind: 'chapter',
 				number: c.number,
 				haystack: `${c.number} ${c.title} ${c.abstract}`.toLowerCase(),
-			},
-			...c.sections.map((s) => ({
-				href: `${c.href}#${s.id}`,
-				title: s.title,
-				context: `${c.number} ${c.title}`,
-				kind: 'section' as const,
-				haystack: `${s.title} ${c.title}`.toLowerCase(),
-			})),
-		]),
+			};
+			return [chapter].concat(
+				c.sections.map((s) => ({
+					href: `${c.href}#${s.id}`,
+					title: s.title,
+					context: `${c.number} ${c.title}`,
+					kind: 'section',
+					haystack: `${s.title} ${c.title}`.toLowerCase(),
+				})),
+			);
+		}),
 		...appendix.map((a) => ({
 			href: a.href,
 			title: a.title,

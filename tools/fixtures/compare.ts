@@ -35,7 +35,7 @@ function artifactExts(
 			if (name.startsWith(`${variantId}.`)) exts.add(name.slice(variantId.length + 1));
 		}
 	}
-	return [...exts].sort();
+	return [...exts].toSorted();
 }
 
 interface LintFile {
@@ -108,6 +108,7 @@ export async function compare({ taskId, variantId, sourceIds, families }: Compar
 	for (const unit of units) {
 		const key = `${unit.family}/${unit.source}/${unit.path}`;
 		if (task.observe) {
+			// oxlint-disable-next-line no-await-in-loop -- units are compared in order
 			rows.push(...(await observeRows(task, variantId, unit, key)));
 			continue;
 		}

@@ -24,7 +24,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		encoding: 'utf8',
 	})
 		.filter((file) => file.endsWith('.rs'))
-		.sort()
+		.toSorted()
 		.map((file) => ({
 			key: `kernel/${file.replaceAll(path.sep, '/').replace(/(?:\/mod)?\.rs$/, '')}`,
 			file: `kernel/src/${file}`,

@@ -9,13 +9,13 @@ import { parseArgs } from 'node:util';
 import getExePath from './node_modules/typescript-7/lib/getExePath.js';
 import { FIXTURES, ROOT } from './paths.ts';
 
+const pkg = (name: string) => fs.realpathSync(path.join(import.meta.dirname, 'node_modules', name));
+
 export async function main(args: string[]): Promise<void> {
 	const { values } = parseArgs({
 		args,
 		options: { binary: { type: 'string', default: path.join(ROOT, 'target/release/rsvelte') } },
 	});
-	const pkg = (name: string) =>
-		fs.realpathSync(path.join(import.meta.dirname, 'node_modules', name));
 	const families = fs
 		.readdirSync(FIXTURES)
 		.filter((d) => !d.startsWith('_') && fs.statSync(path.join(FIXTURES, d)).isDirectory());

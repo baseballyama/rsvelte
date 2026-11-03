@@ -58,6 +58,11 @@ interface Row {
 	verdict: 'ok' | 'REGRESSED' | 'IMPROVED (baseline not updated)' | 'NEW' | 'GONE';
 }
 
+const fmt = (n: number) => n.toLocaleString('en-US');
+
+const pct = (a: number, b: number) =>
+	a === 0 ? (b === 0 ? '0%' : '+inf') : `${b >= a ? '+' : ''}${(((b - a) / a) * 100).toFixed(2)}%`;
+
 export async function main(args: string[]): Promise<void> {
 	const ROOT = path.resolve(import.meta.dirname, '../..');
 	const BASELINE = path.join(ROOT, 'tools/performance/baseline.json');
@@ -174,14 +179,6 @@ export async function main(args: string[]): Promise<void> {
 		? (JSON.parse(fs.readFileSync(BASELINE, 'utf8')) as Baseline)
 		: undefined;
 
-	const pct = (a: number, b: number) =>
-		a === 0
-			? b === 0
-				? '0%'
-				: '+inf'
-			: `${b >= a ? '+' : ''}${(((b - a) / a) * 100).toFixed(2)}%`;
-	const fmt = (n: number) => n.toLocaleString('en-US');
-
 	function compare(a: Baseline, b: Baseline): { rows: Row[]; population: string[] } {
 		const population: string[] = [];
 		if (JSON.stringify(a.population) !== JSON.stringify(b.population)) {
@@ -206,7 +203,9 @@ export async function main(args: string[]): Promise<void> {
 		exact('allocs', a.allocs, b.allocs);
 		exact('alloc_bytes', a.alloc_bytes, b.alloc_bytes);
 		exact('peak_live_growth_bytes', a.peak_live_growth_bytes, b.peak_live_growth_bytes);
-		for (const name of [...new Set([...Object.keys(a.phases), ...Object.keys(b.phases)])].sort()) {
+		for (const name of [
+			...new Set([...Object.keys(a.phases), ...Object.keys(b.phases)]),
+		].toSorted()) {
 			for (const k of ['calls', 'allocs', 'alloc_bytes'] as const)
 				exact(`phase ${name} ${k}`, a.phases[name]?.[k], b.phases[name]?.[k]);
 		}

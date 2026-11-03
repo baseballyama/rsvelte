@@ -73,7 +73,7 @@ export class Emitter {
 			if (last && last[0] === g) last[1] = s;
 			else points.push([g, s]);
 		};
-		for (const m of [...this.mappings].sort((a, b) => a.generated - b.generated)) {
+		for (const m of [...this.mappings].toSorted((a, b) => a.generated - b.generated)) {
 			if (m.len === 0) put(m.generated, m.source);
 			for (let k = 0; k < m.len; k++) put(m.generated + k, m.source + k);
 		}

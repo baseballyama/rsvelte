@@ -71,7 +71,7 @@ function named(target: Role): string[] {
 	return [...roles]
 		.filter(([, r]) => r === target)
 		.map(([name]) => name)
-		.sort();
+		.toSorted();
 }
 
 test('every workspace crate has a role from its path', () => {

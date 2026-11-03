@@ -21,14 +21,17 @@ describe('playground highlighting', () => {
 		);
 	});
 	it('highlights each output language with theme variables', async () => {
-		for (const [language, source] of Object.entries({
+		const cases = Object.entries({
 			javascript: 'const count = 42;',
 			typescript: 'const count: number = 42;',
 			'css': 'button { color: royalblue; }',
 			'json': '{"count":42}',
 			rust: 'Root { nodes: [], count: 42 }',
-		}) as [Parameters<typeof highlight>[1], string][]) {
-			const tokens = await highlight(source, language);
+		}) as [Parameters<typeof highlight>[1], string][];
+		const highlighted = await Promise.all(
+			cases.map(([language, source]) => highlight(source, language)),
+		);
+		for (const tokens of highlighted) {
 			expect(tokens.flat().every((token) => token.color?.startsWith('var(--shiki-'))).toBe(true);
 			expect(new Set(tokens.flat().map((token) => token.color)).size).toBeGreaterThan(1);
 		}

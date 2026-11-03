@@ -21,6 +21,8 @@ import {
 
 type Sample = { arm: string; counters: Counters; stdout_sha256: string; load_1m: number };
 
+const hash = (value: string | Buffer) => crypto.createHash('sha256').update(value).digest('hex');
+
 export async function main(args: string[]): Promise<void> {
 	if (process.platform !== 'darwin') throw new Error('CPU counter collection requires macOS');
 	const { values, positionals } = parseArgs({
@@ -56,7 +58,6 @@ export async function main(args: string[]): Promise<void> {
 		encoding: 'utf8',
 	});
 	if (build.status !== 0) throw new Error(build.stderr);
-	const hash = (value: string | Buffer) => crypto.createHash('sha256').update(value).digest('hex');
 	const identities = new Map(
 		[...executables].map(([name, file]) => [
 			name,

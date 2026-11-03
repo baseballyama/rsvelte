@@ -270,6 +270,15 @@ test(
 	},
 );
 
+const alive = (pid: number) => {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch {
+		return false;
+	}
+};
+
 test('a child that outlives the parent cannot rewrite the accepted sample', darwin, async () => {
 	const { directory, executable, report, measure } = fixture();
 	try {
@@ -282,20 +291,13 @@ test('a child that outlives the parent cannot rewrite the accepted sample', darw
 		const files = [0, 1].map((index) => path.join(`${report}.samples`, `sample-${index}.json`));
 		const accepted = files.map((file) => fs.readFileSync(file, 'utf8'));
 		const deadline = Date.now() + 20_000;
-		const alive = (pid: number) => {
-			try {
-				process.kill(pid, 0);
-				return true;
-			} catch {
-				return false;
-			}
-		};
 		for (;;) {
 			const children = fs.existsSync(pids)
 				? fs.readFileSync(pids, 'utf8').trim().split('\n').filter(Boolean).map(Number)
 				: [];
 			if (children.length === 2 && !children.some(alive)) break;
 			assert.ok(Date.now() < deadline, `children did not finish: ${children.join(',')}`);
+			// oxlint-disable-next-line no-await-in-loop -- polls until the children exit
 			await new Promise((resolve) => setTimeout(resolve, 50));
 		}
 		assert.deepEqual(

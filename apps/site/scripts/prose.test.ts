@@ -6,9 +6,15 @@ import { moduleDescription } from '../src/lib/module-descriptions.ts';
 import { sources } from '../src/lib/build/sources.ts';
 
 const linter = await writingLinter();
+const lintSvelte = (source: string) =>
+	Promise.all(
+		extractProse(source, 'control.svelte').map((chunk) =>
+			linter.lintText(chunk.text, 'control.md'),
+		),
+	);
 
 test('rejects abbreviations, jargon, hype, redundancy and long sentences', async () => {
-	for (const [text, rule] of [
+	const cases = [
 		['CFG を作ります。', 'no-abbreviations'],
 		['32 MB を使います。', 'no-abbreviations'],
 		['`db.rs` と `Ctx` を使います。', 'no-abbreviations'],
@@ -16,10 +22,11 @@ test('rejects abbreviations, jargon, hype, redundancy and long sentences', async
 		['革命的な技術です。', 'no-ai-hype-expressions'],
 		['検査を実行します。', 'ja-no-redundant-expression'],
 		['これは' + '長い説明を続けます'.repeat(15) + '。', 'sentence-length'],
-	]) {
-		const result = await linter.lintText(text, 'control.md');
+	] as const;
+	const results = await Promise.all(cases.map(([text]) => linter.lintText(text, 'control.md')));
+	for (const [i, [text, rule]] of cases.entries()) {
 		assert.ok(
-			result.messages.some((message) => message.ruleId.includes(rule)),
+			results[i]!.messages.some((message) => message.ruleId.includes(rule)),
 			`${rule} must reject ${text}`,
 		);
 	}
@@ -27,13 +34,14 @@ test('rejects abbreviations, jargon, hype, redundancy and long sentences', async
 		(await linter.lintText('構文解析の結果を保存して再利用します。', 'control.md')).messages,
 		[],
 	);
-	for (const text of [
-		'AST（抽象構文木）を保持します。',
-		'HIR（高水準の中間表現）を生成します。',
-		'`AST` と `HIR` を保持します。',
-	]) {
-		assert.deepEqual((await linter.lintText(text, 'control.md')).messages, []);
-	}
+	const clean = await Promise.all(
+		[
+			'AST（抽象構文木）を保持します。',
+			'HIR（高水準の中間表現）を生成します。',
+			'`AST` と `HIR` を保持します。',
+		].map((text) => linter.lintText(text, 'control.md')),
+	);
+	for (const result of clean) assert.deepEqual(result.messages, []);
 });
 
 test('reads prose from templates, attributes, expressions, branches and scripts', () => {
@@ -82,30 +90,29 @@ test('reads prose from templates, attributes, expressions, branches and scripts'
 });
 
 test('AI pattern rules reject rendered emphasis and lists from Svelte', async () => {
-	for (const [source, rule] of [
+	const rejected = [
 		['<p><strong>重要</strong>：解析結果を共有します。</p>', 'no-ai-emphasis-patterns'],
 		['<ul><li><strong>速度</strong>：解析結果を共有します。</li></ul>', 'no-ai-list-formatting'],
 		['<h2><strong>解析結果を共有する</strong></h2>', 'no-ai-emphasis-patterns'],
 		['<p>それでは詳しく見ていきましょう。</p>', 'prh'],
-	]) {
-		const chunks = extractProse(source, 'control.svelte');
-		const results = await Promise.all(
-			chunks.map((chunk) => linter.lintText(chunk.text, 'control.md')),
-		);
+	] as const;
+	const rejectedResults = await Promise.all(rejected.map(([source]) => lintSvelte(source)));
+	for (const [i, [, rule]] of rejected.entries()) {
 		assert.ok(
-			results.some((result) => result.messages.some((message) => message.ruleId.includes(rule))),
+			rejectedResults[i]!.some((result) =>
+				result.messages.some((message) => message.ruleId.includes(rule)),
+			),
 			`${rule} must reject rendered prose`,
 		);
 	}
-	for (const source of [
-		'<p>構文解析は<strong>一度だけ</strong>です。</p>',
-		'<ul><li>結果を保存します。</li></ul>',
-		'<h2>解析結果を共有する</h2>',
-	]) {
-		for (const chunk of extractProse(source, 'control.svelte')) {
-			assert.deepEqual((await linter.lintText(chunk.text, 'control.md')).messages, []);
-		}
-	}
+	const accepted = await Promise.all(
+		[
+			'<p>構文解析は<strong>一度だけ</strong>です。</p>',
+			'<ul><li>結果を保存します。</li></ul>',
+			'<h2>解析結果を共有する</h2>',
+		].map(lintSvelte),
+	);
+	for (const result of accepted.flat()) assert.deepEqual(result.messages, []);
 });
 
 test('new kernel modules need a reader description', () => {

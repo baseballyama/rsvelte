@@ -22,6 +22,7 @@ export async function main(args: string[]): Promise<void> {
 	const now: Record<string, string> = {};
 	for (const t of TASKS) {
 		for (const v of t.variants) {
+			// oxlint-disable-next-line no-await-in-loop -- one task at a time bounds memory
 			const r = await compare({ taskId: t.id, variantId: v.id });
 			const units = new Map<string, typeof r.rows>();
 			for (const x of r.rows) units.set(x.key, [...(units.get(x.key) ?? []), x]);
@@ -50,7 +51,7 @@ export async function main(args: string[]): Promise<void> {
 		}
 	}
 	const sorted = Object.fromEntries(
-		Object.entries(now).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+		Object.entries(now).toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
 	);
 	if (values.update) {
 		fs.writeFileSync(file, JSON.stringify(sorted, null, '\t') + '\n');
@@ -64,7 +65,7 @@ export async function main(args: string[]): Promise<void> {
 		: {};
 	const moved = [...new Set([...Object.keys(known), ...Object.keys(now)])]
 		.filter((k) => known[k] !== now[k])
-		.sort();
+		.toSorted();
 	for (const k of moved)
 		console.log(
 			`MOVED  ${(known[k] ?? 'refused').padEnd(11)} -> ${(now[k] ?? 'refused').padEnd(11)} ${k}`,

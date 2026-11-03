@@ -154,8 +154,10 @@ try {
 		stepIndex++;
 		measureMotion = 'wait' in step;
 		if ('click' in step) find(step.click).click();
+		// oxlint-disable-next-line no-await-in-loop -- each step acts on the page the last one left
 		else if ('wait' in step) await new Promise((resolve) => setTimeout(resolve, step.wait));
 		else throw new Error(`unsupported browser action: ${JSON.stringify(step)}`);
+		// oxlint-disable-next-line no-await-in-loop -- each step acts on the page the last one left
 		await flush();
 		steps.push(record());
 	}

@@ -20,7 +20,7 @@ type StoredUnit = UnitKey & UnitMeta;
 export function readSourceUnits(source: string, families: string[] = FAMILIES): StoredUnit[] {
 	const out = families.flatMap((family) => readFamilySource(family, source));
 	const key = (u: StoredUnit) => `${u.family}\0${u.path}`;
-	return out.sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
+	return out.toSorted((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
 }
 
 function readFamilySource(family: string, source: string): StoredUnit[] {
@@ -64,7 +64,7 @@ export function allUnits(sourceIds?: string[], families?: string[]): Unit[] {
 	const ids = sourceIds ?? includedSources().map((s) => s.id);
 	return ids
 		.flatMap((id) => readSourceUnits(id, families))
-		.map((u) => ({ ...u, fixture: readFixture(u), ext: languageById(u.lang).ext }));
+		.map((u) => Object.assign(u, { fixture: readFixture(u), ext: languageById(u.lang).ext }));
 }
 
 export function applies(task: Task, variantId: string, unit: Unit): boolean {

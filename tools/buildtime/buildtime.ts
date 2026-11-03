@@ -157,14 +157,14 @@ function busiest(): string {
 		.split('\n')
 		.map((l) => l.trim().split(/\s+/))
 		.map(([cpu, ...cmd]) => [Number(cpu), cmd.join(' ')] as const)
-		.sort((a, b) => b[0] - a[0])
+		.toSorted((a, b) => b[0] - a[0])
 		.slice(0, 3)
 		.map(([cpu, cmd]) => `${cpu}% ${path.basename(cmd)}`)
 		.join(', ');
 }
 
 const median = (xs: number[]): number => {
-	const s = [...xs].sort((a, b) => a - b);
+	const s = [...xs].toSorted((a, b) => a - b);
 	const m = s.length >> 1;
 	return s.length % 2 ? (s[m] as number) : ((s[m - 1] as number) + (s[m] as number)) / 2;
 };

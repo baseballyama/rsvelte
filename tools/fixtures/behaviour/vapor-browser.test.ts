@@ -1,3 +1,4 @@
+/* oxlint-disable no-await-in-loop -- Every case runs in the one browser, in turn. */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';

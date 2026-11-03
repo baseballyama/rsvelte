@@ -227,7 +227,7 @@ export class SemanticChecker {
 					right: diagnosticObservations(rightDiagnostics, observations),
 				};
 				const keys = (rows: DiagnosticObservation[]) =>
-					[...new Set(rows.flatMap((row) => (row.key === null ? [] : [row.key])))].sort();
+					[...new Set(rows.flatMap((row) => (row.key === null ? [] : [row.key])))].toSorted();
 				const unmappedDiagnostic = [...diagnostics.left, ...diagnostics.right].some(
 					(diagnostic) => diagnostic.key === null,
 				);
@@ -291,6 +291,8 @@ function compareQueries(
 	rightNodes: Map<string, Node[]>,
 ): QueryResult[] {
 	const project = info.project;
+	const describe = (type: Type | undefined) =>
+		type ? project.checker.typeToString(type) : '<missing>';
 	const query = (nodes: Map<string, Node[]>) => {
 		const all = [...nodes.values()].flat();
 		const types = info.typesOf(all);
@@ -309,8 +311,6 @@ function compareQueries(
 				detail: `mapped node missing: rsvelte=${a?.length ?? 0}, oracle=${b?.length ?? 0}`,
 			};
 		const first = leftTypes.get(a[0]!);
-		const describe = (type: Type | undefined) =>
-			type ? project.checker.typeToString(type) : '<missing>';
 		try {
 			for (const node of [...a, ...b]) {
 				const other = leftTypes.has(node) ? leftTypes.get(node) : rightTypes.get(node);

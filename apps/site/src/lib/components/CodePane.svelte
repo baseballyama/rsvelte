@@ -28,13 +28,14 @@
 
 	onMount(() => {
 		let disposed = false;
-		import('#lib/kernel/highlight.ts')
-			.then((module) => {
+		void (async () => {
+			try {
+				const module = await import('#lib/kernel/highlight.ts');
 				if (!disposed) tokenizer = module.highlight;
-			})
-			.catch(() => {
+			} catch {
 				if (!disposed) error = '色分けを読み込めませんでした。ソースはそのまま表示します。';
-			});
+			}
+		})();
 		return () => {
 			disposed = true;
 		};
@@ -45,17 +46,18 @@
 		const tokenize = tokenizer;
 		let disposed = false;
 		if (tokenize) {
-			void tokenize(source, lang)
-				.then((result) => {
+			void (async () => {
+				try {
+					const result = await tokenize(source, lang);
 					if (disposed) return;
 					tokens = result;
 					paintedSource = source;
 					paintedLanguage = lang;
 					error = '';
-				})
-				.catch(() => {
+				} catch {
 					if (!disposed) error = '色分けできませんでした。ソースはそのまま表示します。';
-				});
+				}
+			})();
 		}
 		return () => {
 			disposed = true;

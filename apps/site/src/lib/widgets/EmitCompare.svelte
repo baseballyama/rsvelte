@@ -17,7 +17,7 @@
 	const perChar = decodeMappings(JSON.parse(map).mappings);
 	// One segment per mapping: the example is one ASCII line, so a byte offset is also the column.
 	const perMapping = [...e.mappings]
-		.sort((a, b) => a.generated - b.generated)
+		.toSorted((a, b) => a.generated - b.generated)
 		.map((m) => ({ genLine: 1, genCol: m.generated, sourceLine: 1, sourceCol: m.source }));
 
 	let coarse = $state(false);

@@ -133,38 +133,38 @@
 			notice = 'リンクをコピーできませんでした。ブラウザのアドレス欄の文字列を使ってください。';
 		}
 	}
-	function keydown(event: KeyboardEvent) {
+	async function keydown(event: KeyboardEvent) {
 		if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
 			event.preventDefault();
-			void execute().then(() => {
-				if (pane === 'source') pane = 'result';
-			});
+			await execute();
+			if (pane === 'source') pane = 'result';
 		}
 	}
 	onMount(() => {
 		let disposed = false;
-		decodeState(location.hash)
-			.then((state) => {
-				if (!state || disposed) return;
-				exampleId = state.example;
-				drafts[state.example] = state.source;
-				enabledPlugins = state.plugins;
-				selectedOperations = state.operations;
-				shared = state.shared;
-			})
-			.catch(() => {
+		void (async () => {
+			try {
+				const state = await decodeState(location.hash);
+				if (state && !disposed) {
+					exampleId = state.example;
+					drafts[state.example] = state.source;
+					enabledPlugins = state.plugins;
+					selectedOperations = state.operations;
+					shared = state.shared;
+				}
+			} catch {
 				notice = 'リンクの内容を読めなかったので、最初のサンプルを表示しています。';
-			})
-			.then(() => initializePipeline())
-			.then(() => {
+			}
+			try {
+				await initializePipeline();
 				if (!disposed) {
 					ready = true;
 					void execute();
 				}
-			})
-			.catch((error: unknown) => {
+			} catch (error: unknown) {
 				if (!disposed) loadError = error instanceof Error ? error.message : String(error);
-			});
+			}
+		})();
 		return () => {
 			disposed = true;
 		};

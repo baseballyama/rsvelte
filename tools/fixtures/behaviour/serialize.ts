@@ -95,7 +95,7 @@ function attributes(el: Element): string[] {
 		if (a.name === 'class') {
 			const tokens = [
 				...new Set(value.split(/[ \t\n\f\r]+/).filter((t) => t && !/^svelte-[a-z0-9]+$/.test(t))),
-			].sort();
+			].toSorted();
 			if (tokens.length === 0) continue;
 			value = tokens.join(' ');
 		} else if (a.name === 'style') {
@@ -107,11 +107,13 @@ function attributes(el: Element): string[] {
 				decls.push(`${name}: ${style.getPropertyValue(name)}${priority ? ` !${priority}` : ''}`);
 			}
 			if (decls.length === 0) continue;
-			value = decls.sort().join('; ');
+			value = decls.toSorted().join('; ');
 		}
 		out.push([a.name, value]);
 	}
-	return out.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([n, v]) => `${n}=${quote(v)}`);
+	return out
+		.toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+		.map(([n, v]) => `${n}=${quote(v)}`);
 }
 
 function properties(el: Element): string[] {

@@ -1,3 +1,4 @@
+/* oxlint-disable no-await-in-loop -- Rounds are timed, so they run one after another. */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -20,7 +21,7 @@ export async function main(args: string[]): Promise<void> {
 	const population = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-hashing-vue-'));
 	const cases = path.join(root, 'crates/languages/vue/compile/tests/fixtures');
 	const units: { unit: Unit; src: string }[] = [];
-	for (const name of fs.readdirSync(cases).sort()) {
+	for (const name of fs.readdirSync(cases).toSorted()) {
 		const input = path.join(cases, name, 'input.vue');
 		if (!fs.existsSync(input)) continue;
 		const src = fs.readFileSync(input, 'utf8');

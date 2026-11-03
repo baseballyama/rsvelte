@@ -18,7 +18,7 @@ export class ObservationIndex {
 	private readonly roots: ObservationBranch[] = [];
 	constructor(observations: readonly Observation[]) {
 		const stack: ObservationBranch[] = [];
-		for (const observation of [...observations].sort(
+		for (const observation of [...observations].toSorted(
 			(a, b) => a.start - b.start || b.end - a.end,
 		)) {
 			while (
@@ -135,7 +135,7 @@ export function sourceObservations(source: string): {
 		),
 	);
 	return {
-		observations: [...observations.values()].sort((a, b) => a.start - b.start || a.end - b.end),
+		observations: [...observations.values()].toSorted((a, b) => a.start - b.start || a.end - b.end),
 		isTsFile,
 	};
 }

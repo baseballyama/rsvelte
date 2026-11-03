@@ -50,4 +50,5 @@ async function render({
 	}
 }
 
+// oxlint-disable-next-line unicorn/require-post-message-target-origin -- a worker port takes no origin
 parentPort!.on('message', async (req: Request) => parentPort!.postMessage(await render(req)));

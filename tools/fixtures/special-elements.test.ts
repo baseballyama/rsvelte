@@ -9,7 +9,7 @@ const root = path.resolve(
 	import.meta.dirname,
 	'../../crates/languages/svelte/compile/tests/fixtures/special-elements',
 );
-const cases = fs.readdirSync(root).sort();
+const cases = fs.readdirSync(root).toSorted();
 assert.ok(cases.length > 0, 'special element cases must exist');
 
 for (const name of cases) {

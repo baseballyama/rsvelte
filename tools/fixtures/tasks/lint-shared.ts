@@ -7,7 +7,7 @@ export const CORE_ALL: Record<string, Linter.RuleEntry> = Object.fromEntries(
 	[...builtinRules]
 		.filter(([, rule]) => !rule.meta?.deprecated)
 		.map(([id]) => [id, 'error'] as const)
-		.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+		.toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
 );
 
 const severity = (e: Linter.RuleEntry): unknown => (Array.isArray(e) ? e[0] : e);

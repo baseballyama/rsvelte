@@ -11,7 +11,7 @@ const VUE_ALL: Record<string, Linter.RuleEntry> = Object.fromEntries(
 	Object.entries(vuePlugin.rules)
 		.filter(([, rule]) => !rule.meta?.deprecated)
 		.map(([id]) => [`vue/${id}`, 'error'] as const)
-		.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+		.toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
 );
 
 const CONFIG: Linter.Config[] = [

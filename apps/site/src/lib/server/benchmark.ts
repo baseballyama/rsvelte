@@ -87,6 +87,12 @@ export interface PolishArm {
 	after: number[];
 }
 
+const median = (r: { arms: { name: string; median_ms?: unknown }[] }, name: string) => {
+	const a = r.arms.find((x) => x.name === name);
+	if (!a) throw new Error(`arm ${name} missing`);
+	return num(a.median_ms, `${name}.median_ms`);
+};
+
 /**
  * Plain-build medians around the kernel fixes, run before → after → after → before. Both builds
  * report the same `build.rev` (the "after" binary was built from that commit plus the uncommitted
@@ -99,11 +105,6 @@ export function polishArms(): { documents: number; arms: PolishArm[] } {
 	);
 	// The four runs are compared with each other only, so they must agree with each other, not with the other reports.
 	if (new Set(docs).size !== 1) throw new Error(`populations differ: ${docs.join(', ')}`);
-	const median = (r: { arms: { name: string; median_ms?: unknown }[] }, name: string) => {
-		const a = r.arms.find((x) => x.name === name);
-		if (!a) throw new Error(`arm ${name} missing`);
-		return num(a.median_ms, `${name}.median_ms`);
-	};
 	return {
 		documents: docs[0],
 		arms: before1.arms.map(({ name }) => ({

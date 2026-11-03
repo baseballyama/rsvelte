@@ -104,9 +104,10 @@ export function traceDiff(expected: Trace, actual: Trace): string | null {
 	return 'traces differ';
 }
 
+const show = (l: string | undefined) => (l === undefined ? '<end>' : l.trim());
+
 function linesDiff(expected: string[], actual: string[]): string {
 	let i = 0;
 	while (i < expected.length && expected[i] === actual[i]) i++;
-	const show = (l: string | undefined) => (l === undefined ? '<end>' : l.trim());
 	return `line ${i + 1}: expected ${show(expected[i])}, actual ${show(actual[i])}`;
 }

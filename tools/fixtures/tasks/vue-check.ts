@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import Module, { createRequire } from 'node:module';
+import { createRequire } from 'node:module';
+import vm from 'node:vm';
 import type * as TS from 'typescript';
 import * as core from '@vue/language-core';
 import { sourceDir } from '../paths.ts';
@@ -33,13 +34,16 @@ const ts: typeof TS = (() => {
 		['vue'],
 		[],
 	);
-	const m = new Module(file) as Module & { _compile(code: string, file: string): void };
-	m.filename = file;
-	m.paths = (Module as unknown as { _nodeModulePaths(dir: string): string[] })._nodeModulePaths(
+	const cjs = { exports: {} };
+	const params = ['exports', 'require', 'module', '__filename', '__dirname'];
+	vm.compileFunction(code, params, { filename: file })(
+		cjs.exports,
+		createRequire(file),
+		cjs,
+		file,
 		path.dirname(file),
 	);
-	m._compile(code, file);
-	return m.exports as typeof TS;
+	return cjs.exports as typeof TS;
 })();
 
 const NODE_MODULES = path.resolve(import.meta.dirname, '../node_modules');

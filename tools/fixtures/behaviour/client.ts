@@ -153,6 +153,7 @@ async function trace({
 		for (const step of behaviour.steps ?? []) {
 			try {
 				perform(root, step);
+				// oxlint-disable-next-line no-await-in-loop -- each step acts on the page the last one left
 				await app.flush();
 			} catch (e) {
 				steps.push({ do: step, error: message(e) });
@@ -185,4 +186,5 @@ function record(what: ClientStep['do'], root: Element, includeHead?: boolean): C
 	};
 }
 
+// oxlint-disable-next-line unicorn/require-post-message-target-origin -- a worker port takes no origin
 parentPort!.on('message', async (req: TraceRequest) => parentPort!.postMessage(await trace(req)));

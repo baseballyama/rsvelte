@@ -13,11 +13,7 @@
 	const steps = $derived(simulate(sizes, enabled, budget));
 	const other = $derived(simulate(sizes, !enabled, budget));
 	const cur = $derived(steps[Math.min(step, steps.length - 1)]);
-	const maxCap = $derived(
-		Math.max(
-			...steps.flatMap((s) => [...s.pool, s.event.kind === 'take' ? s.event.cap : s.event.cap]),
-		),
-	);
+	const maxCap = $derived(Math.max(...steps.flatMap((s) => s.pool.concat(s.event.cap))));
 </script>
 
 <Figure label="図 12.1 · 1 ワーカー、1 つの鍵" wide>

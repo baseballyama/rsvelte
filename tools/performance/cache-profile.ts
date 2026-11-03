@@ -28,6 +28,27 @@ type Config = Workload & {
 	tolerance?: number;
 };
 
+const median = (values: number[]) => {
+	const sorted = values.toSorted((a, b) => a - b);
+	const middle = Math.floor(sorted.length / 2);
+	return sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
+};
+
+const hash = (bytes: Buffer) => crypto.createHash('sha256').update(bytes).digest('hex');
+
+function manifest(files: string[]) {
+	if (!Array.isArray(files) || !files.length || files.some((file) => typeof file !== 'string'))
+		throw new Error('inputs and sources must list measured files');
+	return files.toSorted().map((file) => {
+		const bytes = fs.readFileSync(file);
+		return {
+			path: path.relative(process.cwd(), path.resolve(file)),
+			bytes: bytes.length,
+			sha256: hash(bytes),
+		};
+	});
+}
+
 export async function main(args: string[]): Promise<void> {
 	const [configPath, reportPath] = args;
 	if (!configPath || !reportPath) throw new Error('expected <config.json> <report.json>');
@@ -35,19 +56,6 @@ export async function main(args: string[]): Promise<void> {
 	validateWorkload(config);
 	if (config.baseline && path.resolve(config.baseline) === path.resolve(reportPath))
 		throw new Error('baseline and output report must be separate files');
-	const hash = (bytes: Buffer) => crypto.createHash('sha256').update(bytes).digest('hex');
-	function manifest(files: string[]) {
-		if (!Array.isArray(files) || !files.length || files.some((file) => typeof file !== 'string'))
-			throw new Error('inputs and sources must list measured files');
-		return files.toSorted().map((file) => {
-			const bytes = fs.readFileSync(file);
-			return {
-				path: path.relative(process.cwd(), path.resolve(file)),
-				bytes: bytes.length,
-				sha256: hash(bytes),
-			};
-		});
-	}
 	const model = config.model ?? DEFAULT_CACHE_MODEL;
 	const modelKey = cacheModelKey(model);
 	const version = spawnSync('valgrind', ['--version'], { encoding: 'utf8' });
@@ -111,11 +119,6 @@ export async function main(args: string[]): Promise<void> {
 		});
 		save({ status: 'running' });
 	}
-	const median = (values: number[]) => {
-		const sorted = values.toSorted((a, b) => a - b);
-		const middle = Math.floor(sorted.length / 2);
-		return sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
-	};
 	const summary = config.arms.map((arm) => {
 		const selected = samples.filter((sample) => sample.arm === arm.name);
 		const counts = Object.fromEntries(
@@ -151,10 +154,9 @@ export async function main(args: string[]): Promise<void> {
 		const rows = summary.flatMap((arm) => {
 			const prior = before.summary.find((row: { arm: string }) => row.arm === arm.arm);
 			if (!prior) throw new Error(`baseline has no arm ${arm.arm}`);
-			return compareCache(prior.counts, arm.counts, config.tolerance ?? 0.02).map((row) => ({
-				arm: arm.arm,
-				...row,
-			}));
+			return compareCache(prior.counts, arm.counts, config.tolerance ?? 0.02).map((row) =>
+				Object.assign(row, { arm: arm.arm }),
+			);
 		});
 		failed = rows.some((row) => row.moved);
 		gate = { status: failed ? 'CHANGED' : 'PASS', rows };

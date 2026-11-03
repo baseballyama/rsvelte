@@ -75,17 +75,16 @@ function defect(original: string, replacement: string): Projection {
 	);
 	const start = Buffer.byteLength(projection.code!.slice(0, projection.code!.indexOf(original)));
 	const end = start + Buffer.byteLength(original);
-	const mappings = projection
-		.mappings!.flatMap(([lo, length, from, copied, kind]) => {
-			assert.equal(length, copied);
-			if (lo + length <= start || lo >= end) return [[lo, length, from, copied, kind] as const];
-			const ranges = [];
-			if (lo < start) ranges.push([lo, start - lo, from, start - lo, kind] as const);
-			if (lo + length > end)
-				ranges.push([end, lo + length - end, from + end - lo, lo + length - end, kind] as const);
-			return ranges;
-		})
-		.map((mapping) => [...mapping] as [number, number, number, number, number]);
+	const mappings = projection.mappings!.flatMap(([lo, length, from, copied, kind]) => {
+		assert.equal(length, copied);
+		type Mapping = [number, number, number, number, number];
+		if (lo + length <= start || lo >= end) return [[lo, length, from, copied, kind] as Mapping];
+		const ranges: Mapping[] = [];
+		if (lo < start) ranges.push([lo, start - lo, from, start - lo, kind]);
+		if (lo + length > end)
+			ranges.push([end, lo + length - end, from + end - lo, lo + length - end, kind]);
+		return ranges;
+	});
 	return { ...projection, code: projection.code!.replace(original, replacement), mappings };
 }
 
@@ -119,9 +118,12 @@ test('missing mappings, dependencies and unsupported projections are never accep
 		{
 			...projection,
 			code: prefix + projection.code,
-			mappings: projection.mappings!.map(([lo, ...rest]) => [
+			mappings: projection.mappings!.map(([lo, length, from, copied, kind]) => [
 				lo + Buffer.byteLength(prefix),
-				...rest,
+				length,
+				from,
+				copied,
+				kind,
 			]),
 		},
 		source,

@@ -282,7 +282,7 @@ export function proseFiles(root: string): string[] {
 				!/\.test\.ts$|\.d\.ts$/.test(file) &&
 				!file.includes(`${path.sep}data${path.sep}`),
 		)
-		.sort()
+		.toSorted()
 		.map((file) => path.join(root, file));
 }
 

@@ -23,7 +23,7 @@
 		return out;
 	});
 	// Array.prototype.sort is stable, like Rust's sort_by_key.
-	const sorted = $derived([...reported].sort((p, q) => p.startOffset - q.startOffset));
+	const sorted = $derived([...reported].toSorted((p, q) => p.startOffset - q.startOffset));
 	const position = (b: number) => {
 		const lc = index.lineCol(b);
 		return `${lc.line}:${lc.column + 1}`;

@@ -9,7 +9,7 @@ fs.mkdirSync(output, { recursive: true });
 const cases = path.join(root, 'crates/languages/svelte/lint/tests/fixtures/rsvelte');
 const inputs = fs
 	.readdirSync(cases)
-	.sort()
+	.toSorted()
 	.map((name) =>
 		path.join(root, 'crates/languages/svelte/compile/tests/fixtures/rsvelte', name, 'input.svelte'),
 	);

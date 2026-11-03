@@ -269,6 +269,9 @@ export async function encodeState(state: PlaygroundState): Promise<string> {
 	return STATE_PREFIX + toBase64Url(await pipe(json, new CompressionStream('deflate-raw')));
 }
 
+const strings = (list: unknown) =>
+	Array.isArray(list) && list.every((item) => typeof item === 'string');
+
 /** `null` when the hash holds no state; throws when it holds state that cannot be read. */
 export async function decodeState(hash: string): Promise<PlaygroundState | null> {
 	if (!hash.startsWith(STATE_PREFIX)) return null;
@@ -277,8 +280,6 @@ export async function decodeState(hash: string): Promise<PlaygroundState | null>
 		new DecompressionStream('deflate-raw'),
 	);
 	const value = JSON.parse(new TextDecoder().decode(bytes)) as Partial<PlaygroundState>;
-	const strings = (list: unknown) =>
-		Array.isArray(list) && list.every((item) => typeof item === 'string');
 	if (
 		!examples.some((item) => item.id === value.example) ||
 		typeof value.source !== 'string' ||

@@ -15,8 +15,13 @@ export const load = () => {
 			load: b.load_instructions[PLATFORM],
 			platform: PLATFORM,
 			phases: Object.entries(b.phases)
-				.map(([name, p]) => ({ name, ...p }))
-				.sort((x, y) => y.allocations - x.allocations),
+				.map(([name, { calls, allocations, alloc_bytes }]) => ({
+					name,
+					calls,
+					allocations,
+					alloc_bytes,
+				}))
+				.toSorted((x, y) => y.allocations - x.allocations),
 			last: performanceHistory().at(-1)!,
 		},
 		parity: paritySummary(),

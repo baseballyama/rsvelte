@@ -77,7 +77,7 @@ export function simulate(docs: SimDoc[], workers: number, projectCost: number): 
 		}
 		let live = 0;
 		const out: [number, number][] = [[0, 0]];
-		for (const t of [...deltas.keys()].sort((a, b) => a - b)) {
+		for (const t of [...deltas.keys()].toSorted((a, b) => a - b)) {
 			live += deltas.get(t)!;
 			out.push([t, live]);
 		}

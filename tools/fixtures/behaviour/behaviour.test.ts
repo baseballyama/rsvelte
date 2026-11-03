@@ -1,3 +1,4 @@
+/* oxlint-disable no-await-in-loop -- Every trace goes through the one worker, in turn. */
 // Official twins and broken translations check the oracle itself; Vapor snapshots check rsvelte.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -35,7 +36,7 @@ const CASES = [
 const units: Unit[] = CASES.flatMap(({ dir, lang, ext }) =>
 	fs
 		.readdirSync(path.join(ROOT, dir))
-		.sort()
+		.toSorted()
 		.map((name) => {
 			const caseDir = path.join(ROOT, dir, name);
 			const behaviourFile = path.join(caseDir, 'behaviour.toml');
@@ -425,9 +426,9 @@ const controls: Control[] = JSON.parse(
 );
 
 test('every wrong translation is a mismatch naming the step and the difference', async () => {
-	const files = fs.readdirSync(path.join(import.meta.dirname, 'tests/wrong')).sort();
+	const files = fs.readdirSync(path.join(import.meta.dirname, 'tests/wrong')).toSorted();
 	assert.deepEqual(
-		controls.map((c) => c.file).sort(),
+		controls.map((c) => c.file).toSorted(),
 		files,
 		'controls.json lists exactly the files in wrong/',
 	);

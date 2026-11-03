@@ -55,7 +55,7 @@
 	const runs = $derived.by(() => {
 		const tone = Array.from({ length: d.source.length }, (): Tone => '');
 		// Wider spans first, so a nested span (a reference inside a node) wins where they overlap.
-		for (const s of [...spans].sort((a, b) => b.span[1] - b.span[0] - (a.span[1] - a.span[0])))
+		for (const s of [...spans].toSorted((a, b) => b.span[1] - b.span[0] - (a.span[1] - a.span[0])))
 			for (let i = s.span[0]; i < s.span[1]; i++) tone[i] = s.tone;
 		const out: { text: string; tone: Tone }[] = [];
 		for (let i = 0; i < d.source.length; i++) {

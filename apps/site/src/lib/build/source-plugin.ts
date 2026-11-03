@@ -94,7 +94,7 @@ export function crateSizes(cratesDir: string): CrateSize[] {
 			);
 			return { name: entry.name, files: files.length, lines };
 		})
-		.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+		.toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 
 interface ParityRow {
@@ -112,7 +112,7 @@ function paritySummary(entries: Record<string, string>): { units: number; rows: 
 		byTask.set(task, row);
 	}
 	const rows = [...byTask]
-		.sort(([a], [b]) => a.localeCompare(b))
+		.toSorted(([a], [b]) => a.localeCompare(b))
 		.map(([task, verdicts]) => ({ task, verdicts }));
 	return { units: Object.keys(entries).length, rows };
 }
@@ -145,10 +145,9 @@ export function rsvelteSource(): Plugin {
 				const full = path.join(cratesDir, file);
 				this.addWatchFile(full);
 				const m: RustModule = parseRustModule(key, `crates/${file}`, readFileSync(full, 'utf8'));
-				return {
-					...m,
-					items: m.items.map((it) => ({ ...it, markup: highlight(h, it.code, 'rust') })),
-				};
+				return Object.assign(m, {
+					items: m.items.map((it) => Object.assign(it, { markup: highlight(h, it.code, 'rust') })),
+				});
 			});
 			const root = path.dirname(cratesDir);
 			const { rev, clean } = revision(root);

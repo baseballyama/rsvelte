@@ -33,6 +33,7 @@ async function waitFor(file: string, exited: () => boolean): Promise<void> {
 	while (!fs.existsSync(file)) {
 		if (exited()) throw new Error(`the first run exited before writing ${path.basename(file)}`);
 		if (Date.now() > deadline) throw new Error(`timed out waiting for ${path.basename(file)}`);
+		// oxlint-disable-next-line no-await-in-loop -- polls until the file appears
 		await new Promise((resolve) => setTimeout(resolve, POLL_MS));
 	}
 }

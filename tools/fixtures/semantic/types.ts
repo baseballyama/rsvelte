@@ -19,6 +19,14 @@ const READONLY_CHECK_FLAG = 8;
 
 export class UnmeasuredType extends Error {}
 
+const structured = (type: Type) => type.isObjectType() || type.isIntersectionType();
+
+const leaf = (value: Type | undefined): string => {
+	if (!value || value.isErrorType()) throw new UnmeasuredType('unresolved type');
+	if (value.isLiteralType()) return `${value.flags}:${typeof value.value}:${value.value}`;
+	return structured(value) ? 'structured' : String(value.flags);
+};
+
 export class TypeComparison {
 	private readonly active = new Set<string>();
 	private readonly parameters = new Map<number, number>();
@@ -60,7 +68,6 @@ export class TypeComparison {
 		this.active.add(key);
 		try {
 			if (left.flags !== right.flags) {
-				const structured = (type: Type) => type.isObjectType() || type.isIntersectionType();
 				return structured(left) && structured(right) && this.object(left, right, depth);
 			}
 			if (left.isIntrinsicType() && right.isIntrinsicType())
@@ -169,7 +176,7 @@ export class TypeComparison {
 			);
 		}
 		const properties = (type: Type) =>
-			[...this.checker.getPropertiesOfType(type)].sort((a, b) =>
+			[...this.checker.getPropertiesOfType(type)].toSorted((a, b) =>
 				a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
 			);
 		const a = properties(left),
@@ -226,15 +233,8 @@ export class TypeComparison {
 	}
 
 	private memberKey(type: Type): string {
-		const leaf = (value: Type | undefined): string => {
-			if (!value || value.isErrorType()) throw new UnmeasuredType('unresolved type');
-			if (value.isLiteralType()) return `${value.flags}:${typeof value.value}:${value.value}`;
-			return value.isObjectType() || value.isIntersectionType()
-				? 'structured'
-				: String(value.flags);
-		};
 		if (!type.isObjectType() && !type.isIntersectionType()) return leaf(type);
-		const properties = [...this.checker.getPropertiesOfType(type)].sort((a, b) =>
+		const properties = [...this.checker.getPropertiesOfType(type)].toSorted((a, b) =>
 			a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
 		);
 		const values = this.checker.getTypeOfSymbol(properties);

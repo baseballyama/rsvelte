@@ -6,6 +6,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const median = (values: number[]) => {
+	assert(values.length > 0, 'a median needs at least one value');
+	const sorted = values.toSorted((a, b) => a - b);
+	return (
+		(sorted[Math.floor((sorted.length - 1) / 2)]! + sorted[Math.floor(sorted.length / 2)]!) / 2
+	);
+};
+
+const verify = (actual: string, expected: string) => assert.equal(actual, expected);
+
 export async function main(args: string[]): Promise<void> {
 	const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 	const output = path.resolve(args[0] ?? path.join(root, 'tools/hashing/generated/report'));
@@ -40,7 +50,7 @@ lto = "thin"
 codegen-units = 1
 `,
 	);
-	const paths = run('rg', ['--files', 'crates', '-g', '*.vue']).trim().split('\n').sort();
+	const paths = run('rg', ['--files', 'crates', '-g', '*.vue']).trim().split('\n').toSorted();
 	fs.writeFileSync(path.join(output, 'paths.txt'), paths.join('\n') + '\n');
 	const env = { ...process.env, CARGO_TARGET_DIR: path.join(root, 'target/hashing-comparison') };
 	console.error(`Benchmark manifest: ${path.join(scratch, 'Cargo.toml')}`);
@@ -53,7 +63,6 @@ codegen-units = 1
 	const binary = path.join(env.CARGO_TARGET_DIR, 'release/rsvelte-hashing-comparison');
 	const verification = run(binary, ['verify']);
 	fs.writeFileSync(path.join(output, 'verification.csv'), verification);
-	const verify = (actual: string, expected: string) => assert.equal(actual, expected);
 	assert.throws(() => verify('00'.repeat(32), createHash('sha256').update('').digest('hex')));
 	const populations = new Map<string, Set<number>>();
 	for (const line of verification.trim().split('\n')) {
@@ -82,13 +91,6 @@ codegen-units = 1
 		fs.closeSync(stdout);
 		fs.closeSync(stderr);
 	}
-	const median = (values: number[]) => {
-		assert(values.length > 0, 'a median needs at least one value');
-		const sorted = values.toSorted((a, b) => a - b);
-		return (
-			(sorted[Math.floor((sorted.length - 1) / 2)]! + sorted[Math.floor(sorted.length / 2)]!) / 2
-		);
-	};
 	const groups = new Map<string, number[]>();
 	for (const line of fs
 		.readFileSync(path.join(output, 'timings.csv'), 'utf8')

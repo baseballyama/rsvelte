@@ -162,10 +162,13 @@ const maybe: ArrayLike<number> | null = null as ArrayLike<number> | null;
 			assert.deepEqual(program.getProgramDiagnostics(), []);
 			assert.deepEqual(program.getSyntacticDiagnostics(file), []);
 			const diagnostics = program.getSemanticDiagnostics(file);
-			assert.deepEqual(diagnostics.map((diagnostic) => diagnostic.code).sort(), [2304, 2339, 2551]);
+			assert.deepEqual(
+				diagnostics.map((diagnostic) => diagnostic.code).toSorted(),
+				[2304, 2339, 2551],
+			);
 			const ast = program.getSourceFile(file)!;
 			assert.deepEqual(
-				diagnostics.map((diagnostic) => source.slice(diagnostic.pos, diagnostic.end)).sort(),
+				diagnostics.map((diagnostic) => source.slice(diagnostic.pos, diagnostic.end)).toSorted(),
 				['itemName', 'toFixed', 'toUpperCase'],
 			);
 			for (const diagnostic of diagnostics) {
@@ -330,7 +333,7 @@ import './Component.svelte';`;
 						program
 							.getSemanticDiagnostics(path.join(path.dirname(file), 'consumer.ts'))
 							.map((diagnostic) => diagnostic.code)
-							.sort(),
+							.toSorted(),
 						[2322, 2339, 2345],
 					);
 				} finally {
@@ -358,7 +361,10 @@ let { count = initial, title = 'ok', select = (value: number) => value, binding 
 				const program = snapshot.getConfiguredProject(config)!.program;
 				assert.deepEqual(program.getProgramDiagnostics(), []);
 				const parent = program.getSemanticDiagnostics(file);
-				assert.deepEqual(parent.map((diagnostic) => diagnostic.code).sort(), [2322, 2339, 2345]);
+				assert.deepEqual(
+					parent.map((diagnostic) => diagnostic.code).toSorted(),
+					[2322, 2339, 2345],
+				);
 				const diagnostics = program.getSemanticDiagnostics(
 					path.join(path.dirname(file), 'Child.svelte'),
 				);

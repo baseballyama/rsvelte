@@ -101,10 +101,11 @@ describe('chapter positions', () => {
 
 	it('point anchors at sections that exist', () => {
 		const anchors = new Set(
-			chapters.flatMap((chapter) => [
-				...chapter.sections.map((section) => `${chapter.href}#${section.id}`),
-				`${chapter.href}#overview`,
-			]),
+			chapters.flatMap((chapter) =>
+				chapter.sections
+					.map((section) => `${chapter.href}#${section.id}`)
+					.concat(`${chapter.href}#overview`),
+			),
 		);
 		const links = overviewNodes.map((node) => node.href).filter((href) => href.includes('#'));
 		expect(links.length).toBeGreaterThan(0);

@@ -38,11 +38,9 @@ interface Applied {
 }
 
 function loadAdjustments(unit: Unit): Loaded[] {
-	return (unit.fixture.adjust ?? []).map((a, index) => ({
-		...a,
-		artifact: a.artifact ?? 'js',
-		index,
-	}));
+	return (unit.fixture.adjust ?? []).map((a, index) =>
+		Object.assign(a, { artifact: a.artifact ?? 'js', index }),
+	);
 }
 
 const appliesTo = (adj: Loaded, taskId: string, variantId: string, artifact: string): boolean =>

@@ -2,20 +2,17 @@ import { proseFiles, readProse, writingLinter } from './prose.ts';
 
 const linter = await writingLinter();
 const files = proseFiles('src');
-let passages = 0;
+const passages = files.flatMap((file) => readProse(file).map((chunk) => ({ file, chunk })));
+if (!passages.length) throw new Error('No visible prose was checked');
+const results = await Promise.all(
+	passages.map(({ chunk }) => linter.lintText(chunk.text, 'prose.md')),
+);
 let errors = 0;
-for (const file of files) {
-	for (const chunk of readProse(file)) {
-		passages++;
-		const result = await linter.lintText(chunk.text, 'prose.md');
-		for (const message of result.messages) {
-			console.error(
-				`${file}:${chunk.line} [${message.ruleId}] ${message.message}\n  ${chunk.text}`,
-			);
-			errors++;
-		}
+for (const [i, { file, chunk }] of passages.entries()) {
+	for (const message of results[i]!.messages) {
+		console.error(`${file}:${chunk.line} [${message.ruleId}] ${message.message}\n  ${chunk.text}`);
+		errors++;
 	}
 }
-if (!passages) throw new Error('No visible prose was checked');
-console.log(`Checked ${passages} passages in ${files.length} files; ${errors} errors.`);
+console.log(`Checked ${passages.length} passages in ${files.length} files; ${errors} errors.`);
 process.exitCode = errors ? 1 : 0;

@@ -27,6 +27,7 @@ export function rpc<Req, Res>(
 		worker.ref();
 		return new Promise((resolve) => {
 			pending.push(resolve);
+			// oxlint-disable-next-line unicorn/require-post-message-target-origin -- a worker port takes no origin
 			worker!.postMessage(req);
 		});
 	};

@@ -65,6 +65,11 @@ describe('playground labels follow the real Rust registry', () => {
 	});
 });
 
+const computed = (shared: boolean) =>
+	everyStep(shared)
+		.flatMap((step) => step.accesses)
+		.filter((access) => !access.cached).length;
+
 describe('the record table', () => {
 	it('counts computed and reused results per task, and leaves unused cells empty', () => {
 		const steps = [
@@ -108,10 +113,6 @@ describe('the record table', () => {
 	});
 
 	it('shows more computation without sharing than with sharing', () => {
-		const computed = (shared: boolean) =>
-			everyStep(shared)
-				.flatMap((step) => step.accesses)
-				.filter((access) => !access.cached).length;
 		expect(computed(false)).toBeGreaterThan(computed(true));
 	});
 });
@@ -138,19 +139,20 @@ describe('the link state', () => {
 	});
 });
 
+const run = (source: string) => {
+	const result = runPipeline({
+		source,
+		filename: 'Counter.svelte',
+		plugins: ['svelte'],
+		operations: ['lint'],
+		shared: true,
+	});
+	if (!result.ok) throw new Error(result.message);
+	return problems(result.steps[0]);
+};
+
 describe('problems', () => {
 	it('lists lint findings with their source position, and none for a clean example', () => {
-		const run = (source: string) => {
-			const result = runPipeline({
-				source,
-				filename: 'Counter.svelte',
-				plugins: ['svelte'],
-				operations: ['lint'],
-				shared: true,
-			});
-			if (!result.ok) throw new Error(result.message);
-			return problems(result.steps[0]);
-		};
 		const found = run('<script>\n  let unused = 1;\n</script>\n');
 		expect(found).toEqual([
 			expect.objectContaining({

@@ -71,7 +71,7 @@ export function checkFiles(
 	const remaining = new Set(Object.keys(limits.exceptions));
 	let measured = 0;
 	let largest = 0;
-	for (const file of [...new Set(files)].filter(isSource).sort()) {
+	for (const file of [...new Set(files)].filter(isSource).toSorted()) {
 		const count = lineCount(readFileSync(resolve(root, file), 'utf8'));
 		const exception = limits.exceptions[file];
 		const limit = exception?.maxLines ?? limits.maxLines;
@@ -83,7 +83,7 @@ export function checkFiles(
 			failures.push(`${file}: remove the exception; it now fits ${limits.maxLines} lines`);
 		}
 	}
-	for (const file of [...remaining].sort())
+	for (const file of [...remaining].toSorted())
 		failures.push(`${file}: exception has no measured source file`);
 	if (measured === 0) failures.push('UNMEASURED: no source files found');
 	return { measured, largest, failures };

@@ -119,7 +119,7 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 		const nestedLicenses = new Set<string>();
 		const previous = readSourceUnits(source.id);
 
-		for (const file of trackedFiles(root).sort()) {
+		for (const file of trackedFiles(root).toSorted()) {
 			const relPath = rel(root, file);
 			const lang = languageOf(relPath);
 			if (!lang) continue;

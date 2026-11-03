@@ -6,14 +6,15 @@ import { crateSizes } from '#lib/server/source.ts';
 
 export const prerender = true;
 
+const alloc = (name: string) => {
+	const a = metricsA.arms.find((x) => x.name === name);
+	if (!a || typeof a.allocations !== 'number' || typeof a.peak_live_growth_bytes !== 'number') {
+		throw new Error(`metrics-a.json has no allocation figures for arm ${name}`);
+	}
+	return a;
+};
+
 export const load = () => {
-	const alloc = (name: string) => {
-		const a = metricsA.arms.find((x) => x.name === name);
-		if (!a || typeof a.allocations !== 'number' || typeof a.peak_live_growth_bytes !== 'number') {
-			throw new Error(`metrics-a.json has no allocation figures for arm ${name}`);
-		}
-		return a;
-	};
 	return {
 		counter,
 		crates: crateSizes(),

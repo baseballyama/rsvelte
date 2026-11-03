@@ -213,10 +213,11 @@ test('keeps a Rust name only where it copies a public Svelte name that the insta
 	);
 });
 
+const write = (header: string, parameter = 'buf: &[u8]') =>
+	`${header}\nimpl Write for B {\n fn write(&mut self, ${parameter}) -> usize { 0 } }`;
+
 test('skips only the buf parameter of std::io::Write::write, and only while the workspace lint keeps it', () => {
 	const options = { traitParameterNamesEnforced: true };
-	const write = (header: string, parameter = 'buf: &[u8]') =>
-		`${header}\nimpl Write for B {\n fn write(&mut self, ${parameter}) -> usize { 0 } }`;
 	assert.deepEqual(kept(write('use std::io::{Read, Write};'), options), []);
 	assert.deepEqual(kept(write('use std::io::Write;'), options), []);
 	assert.deepEqual(
@@ -317,7 +318,7 @@ test('keeps the std Write::write buf only in the one file that implements it, an
 	assert.deepEqual(
 		bufferErrors()
 			.map((error) => error.split(':')[0])
-			.sort(),
+			.toSorted(),
 		[WRITE_BUFFER_FILE, 'hosts/other/src/lib.rs'],
 	);
 });

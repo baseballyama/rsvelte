@@ -33,6 +33,8 @@ function tryGit(gitArgs: string[]): string | null {
 	}
 }
 
+const count = (s: string) => (s === '-' ? 0 : Number(s));
+
 // --no-renames: a rename shows as "old => new", which is not a real path.
 function numstat(ref: string): FileChange[] | null {
 	const out = tryGit(['diff', '--numstat', '--no-renames', `${ref}...HEAD`]);
@@ -42,10 +44,11 @@ function numstat(ref: string): FileChange[] | null {
 		.filter(Boolean)
 		.map((line) => {
 			const [adds, dels, ...rest] = line.split('\t');
-			const count = (s: string) => (s === '-' ? 0 : Number(s));
 			return { path: rest.join('\t'), lines: count(adds) + count(dels) };
 		});
 }
+
+const size = (ref: string) => (numstat(ref) ?? []).reduce((sum, f) => sum + f.lines, 0);
 
 function selectBase(): string {
 	const existing = BASE_CANDIDATES.filter((ref) => tryGit(['merge-base', ref, 'HEAD']) !== null);
@@ -55,7 +58,6 @@ function selectBase(): string {
 		);
 		process.exit(1);
 	}
-	const size = (ref: string) => (numstat(ref) ?? []).reduce((sum, f) => sum + f.lines, 0);
 	return existing.reduce((best, ref) => (size(ref) < size(best) ? ref : best));
 }
 
@@ -156,7 +158,7 @@ for (const f of files) {
 const order: Category[] = ['rust', 'tools', 'fixtures', 'ci', 'docs', 'other'];
 const chunks = order
 	.flatMap((cat) => chunkFiles(cat, buckets.get(cat) ?? []))
-	.map((c, i, all) => ({ index: i + 1, total: all.length, ...c }));
+	.map((c, i, all) => Object.assign(c, { index: i + 1, total: all.length }));
 
 if (format === 'md') {
 	const skippedText =

@@ -9,6 +9,17 @@ const baseline = JSON.parse(
 	readFileSync(path.join(root, 'tools/performance/baseline.json'), 'utf8'),
 );
 
+const counters = (text: string) => {
+	const recorded = JSON.parse(text);
+	return [
+		recorded.allocs,
+		recorded.alloc_bytes,
+		recorded.peak_live_growth_bytes,
+		recorded.instructions?.[PLATFORM],
+		recorded.load_instructions?.[PLATFORM],
+	];
+};
+
 describe('performance history', () => {
 	const records = performanceHistory(root);
 
@@ -29,16 +40,6 @@ describe('performance history', () => {
 	});
 
 	it('adds a working-tree record only when the uncommitted baseline records other counters', () => {
-		const counters = (text: string) => {
-			const recorded = JSON.parse(text);
-			return [
-				recorded.allocs,
-				recorded.alloc_bytes,
-				recorded.peak_live_growth_bytes,
-				recorded.instructions?.[PLATFORM],
-				recorded.load_instructions?.[PLATFORM],
-			];
-		};
 		const recordedFile = execFileSync(
 			'git',
 			[

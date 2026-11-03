@@ -25,7 +25,8 @@
 		return data.modules
 			.filter((m) => crate === 'all' || (crate === 'kernel') === m.key.startsWith('kernel/'))
 			.map((m) => ({
-				...m,
+				key: m.key,
+				lines: m.lines,
 				items: m.items.filter(
 					(i) =>
 						!needle ||

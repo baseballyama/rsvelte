@@ -28,11 +28,12 @@ interface Diagnostic {
 	end: Position | null;
 }
 
+const at = (p: Position) => `${p.line}:${p.column + 1}`;
+
 /** The harness's diagnostics format (crates/fixture_test/src/snapshots.rs): 1-based lines and columns. */
 function diagnosticsText(severity: string, diagnostics: Diagnostic[]): string {
 	return diagnostics
 		.map((d) => {
-			const at = (p: Position) => `${p.line}:${p.column + 1}`;
 			const span = d.start ? ` ${at(d.start)}${d.end ? `-${at(d.end)}` : ''}` : '';
 			return `${severity} ${d.code}${span} ${d.message.replaceAll('\n', '\n    ')}\n`;
 		})

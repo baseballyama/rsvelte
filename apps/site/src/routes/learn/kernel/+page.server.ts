@@ -9,7 +9,8 @@ export const load = () => {
 			key: m.key,
 			file: m.path.slice(m.path.indexOf('/src/') + 5),
 			lines: m.lines,
-			...moduleDescription(m.key),
+			title: moduleDescription(m.key).title,
+			summary: moduleDescription(m.key).summary,
 			chapter: chapters.find(
 				(c) =>
 					c.module === m.key ||

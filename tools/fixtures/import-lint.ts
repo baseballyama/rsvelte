@@ -4,6 +4,30 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 
+function walk(directory: string): string[] {
+	return fs
+		.readdirSync(directory, { withFileTypes: true })
+		.flatMap((entry) =>
+			entry.isDirectory()
+				? walk(path.join(directory, entry.name))
+				: [path.join(directory, entry.name)],
+		)
+		.toSorted();
+}
+
+function rustString(value: string) {
+	if (value.length < 65) return JSON.stringify(value);
+	const parts = value.match(/.{1,60}/g)!;
+	return `concat!(${parts.map((part) => JSON.stringify(part)).join(', ')})`;
+}
+
+function rustRule(rule: string, options: Record<string, boolean>) {
+	if (rule === 'svelte/button-has-type')
+		return `RuleConfiguration::ButtonHasType { severity: Severity::Error, allowed: Allowed { button: ${options.button ?? true}, submit: ${options.submit ?? true}, reset: ${options.reset ?? true} } }`;
+	if (rule === 'svelte/valid-each-key') return 'RuleConfiguration::ValidEachKey(Severity::Error)';
+	throw new Error(`unsupported rule: ${rule}`);
+}
+
 export async function main(args: string[]): Promise<void> {
 	const root = path.resolve(import.meta.dirname, '../..');
 	const require = createRequire(path.join(root, 'tools/fixtures/package.json'));
@@ -78,19 +102,6 @@ export async function main(args: string[]): Promise<void> {
 				2,
 			) + '\n',
 		);
-	}
-
-	function rustRule(rule: string, options: Record<string, boolean>) {
-		if (rule === 'svelte/button-has-type')
-			return `RuleConfiguration::ButtonHasType { severity: Severity::Error, allowed: Allowed { button: ${options.button ?? true}, submit: ${options.submit ?? true}, reset: ${options.reset ?? true} } }`;
-		if (rule === 'svelte/valid-each-key') return 'RuleConfiguration::ValidEachKey(Severity::Error)';
-		throw new Error(`unsupported rule: ${rule}`);
-	}
-
-	function rustString(value: string) {
-		if (value.length < 65) return JSON.stringify(value);
-		const parts = value.match(/.{1,60}/g)!;
-		return `concat!(${parts.map((part) => JSON.stringify(part)).join(', ')})`;
 	}
 
 	function add(
@@ -171,17 +182,6 @@ export async function main(args: string[]): Promise<void> {
 		suite.cases.push(
 			`    CaseConfiguration { name: ${rustString(name)}, document: ${rustString(document)}, ${configuration}, strict: ${strict} },`,
 		);
-	}
-
-	function walk(directory: string): string[] {
-		return fs
-			.readdirSync(directory, { withFileTypes: true })
-			.flatMap((entry) =>
-				entry.isDirectory()
-					? walk(path.join(directory, entry.name))
-					: [path.join(directory, entry.name)],
-			)
-			.sort();
 	}
 
 	const fixtures = path.join(upstream, 'packages/eslint-plugin-svelte/tests/fixtures/rules');
