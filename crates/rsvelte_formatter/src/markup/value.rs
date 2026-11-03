@@ -6,7 +6,7 @@ use crate::error::FormatError;
 use crate::expression::format_attribute_value_expression;
 use crate::options::FormatOptions;
 
-use super::value_sequence::render_attribute_value_sequence;
+use super::value_sequence::{render_attribute_value_sequence, render_directive_value_sequence_doc};
 use crate::width::{VisualWidth, tab_width};
 
 /// Return the source text of an `ExpressionTag`'s inner expression, without
@@ -485,6 +485,7 @@ pub(super) fn render_attribute_value_for_directive(
     attr_depth: usize,
     narrow_value: bool,
     prefix: usize,
+    pre_content: bool,
 ) -> Result<String, FormatError> {
     let tw = tab_width(options);
     match value {
@@ -546,8 +547,18 @@ pub(super) fn render_attribute_value_for_directive(
                 }
             }
             // Directive value body starts after `style:name="`: prefix + the `"`.
-            // `regular_attr = false`: directive text prints as a `fill`, so it
-            // stays on the legacy path (not the whole-value Doc model).
+            if !pre_content
+                && let Some(body) = render_directive_value_sequence_doc(
+                    parts,
+                    source,
+                    options,
+                    attr_depth,
+                    prefix + 1,
+                    narrow_value,
+                )?
+            {
+                return Ok(format!("\"{body}\""));
+            }
             let body = render_attribute_value_sequence(
                 parts,
                 source,
