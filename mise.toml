@@ -1,5 +1,6 @@
 [tools]
 node = "26.7.0"
+pnpm = "10.33.4"
 
 # The Rust toolchain itself is pinned by rust-toolchain.toml; rustfmt runs on a pinned nightly
 # because the strict options in rustfmt.toml are unstable (stable rustfmt ignores them silently).

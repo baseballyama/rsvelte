@@ -1,4 +1,4 @@
-import { ProjectTypeInfo } from '../../../type-information/src/index.ts';
+import { ProjectTypeInfo } from '@rsvelte-experimental/type-information';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

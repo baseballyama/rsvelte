@@ -385,7 +385,7 @@
 		を転送するようになりました（2f8bef970a、<a href="/learn/kernel/measurement#phases">11</a>）。
 	</p>
 
-	{@render item('M4', '命令数の基準値を作業ツリーのテスト用の入力と期待値で測っていた', 'fixed', 'tools/performance/linux.sh')}
+	{@render item('M4', '命令数の基準値を作業ツリーのテスト用の入力と期待値で測っていた', 'fixed', 'tools/performance/linux.ts')}
 	<p>ステージしたテスト用の入力と期待値のスナップショットを測るようにしました（201b86fd6b、<a href="/learn/measure#ci">13</a>）。</p>
 </div>
 

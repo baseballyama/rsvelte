@@ -7,7 +7,8 @@
 #   and cachegrind's instruction counts (a warm round, and loading) on the platform the baseline
 #   records (arm64 Linux);
 # - site: the /learn course's tests (every quoted kernel item still exists and its marked lines
-#   still occur; the performance history ends at the current baseline), svelte-check and the build.
+#   still occur; the performance history ends at the current baseline), svelte-check and the build;
+# - typescript: oxfmt, oxlint, knip and the type check over the pnpm workspace (the site and tools).
 # The two ratchets are two-sided: an improvement that is not recorded fails as a regression does.
 name: CI
 
@@ -48,10 +49,7 @@ jobs:
         with:
           node-version: 26.7.0
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with:
-          version: 10.33.4
-      - run: pnpm install --frozen-lockfile
-        working-directory: tools/fixtures
+      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/fixtures-tools...
       - run: cargo test --offline --workspace
       - run: cargo run --offline -p rsvelte_command_line --example repo_layout > type-layout.json
       - if: always()
@@ -72,13 +70,7 @@ jobs:
         with:
           node-version: 26.7.0
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with:
-          version: 10.33.4
-      - run: pnpm install --frozen-lockfile
-        working-directory: tools/fixtures
-      # The fixture tools import tools/type-information by path, so its packages are needed too.
-      - run: pnpm install --frozen-lockfile
-        working-directory: tools/type-information
+      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/fixtures-tools...
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: node --test tools/structure/test/*.test.ts
       - run: node tools/structure/bin/structure.ts
@@ -93,12 +85,20 @@ jobs:
       # The behaviour oracle against hand-written twins and deliberately wrong translations.
       - run: pnpm test
         working-directory: tools/fixtures
-      - name: typecheck the tools
-        run: |
-          (cd tools/fixtures && pnpm run typecheck)
-          (cd tools/performance && node ../fixtures/node_modules/typescript-7/bin/tsc -p .)
-          (cd tools/buildtime && node ../fixtures/node_modules/typescript-7/bin/tsc -p .)
-          (cd tools/structure && node ../fixtures/node_modules/typescript-7/bin/tsc -p .)
+
+  typescript:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 26.7.0
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check
 
   site:
     runs-on: ubuntu-24.04
@@ -116,8 +116,6 @@ jobs:
         with:
           node-version: 26.7.0
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with:
-          version: 10.33.4
       - run: rustup target add wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo install wasm-pack --version 0.14.0 --locked

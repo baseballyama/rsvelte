@@ -55,7 +55,10 @@ for (let round = 0; round < 12; round++) {
 let sink = 0;
 const run = async () => {
     for (const { unit, src } of units) {
-        const out = await task.run(unit, src, task.variants[0]);
+        const variant = task.variants[0];
+        assert(variant, 'the task has no variant');
+        const out = await task.run(unit, src, variant);
+        assert(out.js, 'the task printed no JavaScript');
         assert(out.js.text.length > 0);
         sink += out.js.text.length;
     }

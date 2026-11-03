@@ -1,16 +1,4 @@
 {
-	"compilerOptions": {
-		"target": "esnext",
-		"module": "nodenext",
-		"moduleResolution": "nodenext",
-		"types": ["node"],
-		"strict": true,
-		"noUncheckedIndexedAccess": true,
-		"noEmit": true,
-		"allowImportingTsExtensions": true,
-		"verbatimModuleSyntax": true,
-		"erasableSyntaxOnly": true,
-		"skipLibCheck": true
-	},
-	"include": ["bin", "src", "test"]
+	"extends": "../../tsconfig.base.json",
+	"include": ["bin", "lint", "src", "test"]
 }

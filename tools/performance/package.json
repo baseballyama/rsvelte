@@ -11,6 +11,6 @@
 	},
 	"scripts": {
 		"performance": "node bin/performance.ts",
-		"typecheck": "node ../fixtures/node_modules/typescript-7/bin/tsc -p ."
+		"typecheck": "tsc -p ."
 	}
 }

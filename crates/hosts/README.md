@@ -54,7 +54,7 @@ The browser host exposes Rust functions through `wasm-bindgen`. Web application
 developers call these functions from JavaScript. People using the Learn site use
 its playground UI, which calls the same bindings.
 
-Build the bindings with `pnpm run build:wasm` from `apps/site/`.
+Build the bindings with `pnpm run generate` from `apps/site/`.
 See [the site setup](../../apps/site/README.md) for prerequisites and build steps.
 Initialize the generated module before calling its functions:
 

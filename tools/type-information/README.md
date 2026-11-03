@@ -24,8 +24,8 @@ All files must belong to that Project and have a content mapper. Rust callers ke
 and byte spans in their own source side tables.
 
 ```sh
-pnpm --dir tools/type-information install --frozen-lockfile
-node tools/type-information/node_modules/typescript-7/bin/tsc -p tools/type-information
+pnpm install --frozen-lockfile
+pnpm --filter @rsvelte-experimental/type-information run typecheck
 ```
 
 The integration tests live in `tools/fixtures/test/content-mapper.test.ts`. They use the

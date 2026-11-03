@@ -165,10 +165,10 @@
 	<p>
 		意図して計数を動かした変更は、同じコミットで基準値を書き換えます。割り当ては <code>mise run performance:update</code>
 		で更新します。命令数は64ビットの Arm プロセッサーを使う Linux 上で測ります。
-		<code>tools/performance/linux.sh --update</code> は自動検査と同じ Docker 環境で計測します。その結果を基準値として書き戻します。
+		<code>node tools/performance/linux.ts --update</code> は自動検査と同じ Docker 環境で計測します。その結果を基準値として書き戻します。
 	</p>
 	<p>
-		<code>linux.sh</code> は作業ツリーではなく、ステージしたソースとテスト用の入力と期待値のスナップショットを測ります。次のコミットに入るものを、変更時の自動検査
+		<code>linux.ts</code> は作業ツリーではなく、ステージしたソースとテスト用の入力と期待値のスナップショットを測ります。次のコミットに入るものを、変更時の自動検査
 		のクリーンなチェックアウトと同じ形で測るためです。以前はテスト用の入力と期待値だけ作業ツリーのものを使っていて、手元の実行が各検証例の横に残した
 		<code>actual/</code> まで読み込みの走査が数えていました。そのため読み込みの命令数は手元で 345,677,577、変更時の自動検査 のクリーンなチェックアウトでは 292,546,145
 		と食い違っていました。クリーンなワークツリーから基準値との比較検査を走らせて見つかったものです（201b86fd6b）。
@@ -360,8 +360,8 @@ mise run performance
 mise run performance:update
 
 # 命令数（CI と同じ arm64 Linux のコンテナで）
-tools/performance/linux.sh
-tools/performance/linux.sh --update
+node tools/performance/linux.ts
+node tools/performance/linux.ts --update
 
 # 壁時計のベンチマーク
 cargo build --release -p rsvelte_command_line --features metrics

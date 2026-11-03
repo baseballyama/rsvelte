@@ -7,7 +7,7 @@ import { before, test } from 'node:test';
 import { API } from 'typescript-7/unstable/sync';
 import { SyntaxKind, SpanMapFeature, SpanMapFidelity } from 'typescript-7/unstable/ast';
 
-import { ProjectTypeInfo } from '../../type-information/src/index.ts';
+import { ProjectTypeInfo } from '@rsvelte-experimental/type-information';
 
 const repository = path.resolve(import.meta.dirname, '../../..');
 const tools = path.join(repository, 'tools/fixtures');

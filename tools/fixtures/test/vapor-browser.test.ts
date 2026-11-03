@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
-import { createRequire } from 'node:module';
+import { createRequire, stripTypeScriptTypes } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -30,7 +30,7 @@ const VUE = path.join(
 );
 const RUNNER = path.join(
 	import.meta.dirname,
-	'../src/behaviour/browser-runner.js',
+	'../src/behaviour/browser-runner.ts',
 );
 
 interface Result {
@@ -138,6 +138,7 @@ test(
 						return;
 					}
 					text = fs.readFileSync(file, 'utf8');
+					if (file === RUNNER) text = stripTypeScriptTypes(text);
 				}
 				response
 					.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' })

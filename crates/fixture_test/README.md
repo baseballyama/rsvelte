@@ -112,7 +112,7 @@ fn main() -> ExitCode {
 
 Type-check tasks need native TypeScript 7.1 and the framework packages.
 `NodePackages::locate()` finds them in `tools/fixtures/node_modules`; install them with
-`(cd tools/fixtures && pnpm install --frozen-lockfile)`.
+`pnpm install --frozen-lockfile` at the repository root.
 
 ## Where the cases are
 

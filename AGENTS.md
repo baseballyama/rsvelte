@@ -36,7 +36,11 @@ mise exec -- node $F compare --task svelte.compile --variant client --report <fi
 cargo test -p rsvelte_svelte_compile --test fixtures            # UPDATE_EXPECT=1 to accept
 cargo fmt && cargo clippy --all-targets -- -D warnings && cargo test
 mise run structure
+pnpm install && pnpm run check    # the site and tools/: oxfmt, oxlint, knip, tsc
 ```
+
+All JavaScript-side code is TypeScript that Node 26 runs directly, in one pnpm workspace
+(`apps/site`, `tools/*`). A tool writes local output to its own ignored `generated/`.
 
 ## Measuring
 

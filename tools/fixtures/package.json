@@ -17,6 +17,7 @@
 	},
 	"dependencies": {
 		"@jridgewell/trace-mapping": "0.3.31",
+		"@rsvelte-experimental/type-information": "workspace:*",
 		"@typescript-eslint/parser": "8.71.0",
 		"@volar/typescript": "2.4.28",
 		"@vue/compiler-sfc": "3.5.43",

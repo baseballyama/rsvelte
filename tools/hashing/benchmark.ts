@@ -45,6 +45,7 @@ assert.throws(() => verify('00'.repeat(32), createHash('sha256').update('').dige
 const populations = new Map<string, Set<number>>();
 for (const line of verification.trim().split('\n')) {
     const [length, arm, digest] = line.split(',');
+    assert(length !== undefined && arm !== undefined && digest !== undefined, `malformed verification line: ${line}`);
     const len = Number(length);
     assert(Number.isSafeInteger(len) && len >= 0, `${arm}: invalid length`);
     const input = Buffer.allocUnsafe(len);
@@ -66,8 +67,9 @@ try {
     fs.closeSync(stderr);
 }
 const median = (values: number[]) => {
+    assert(values.length > 0, 'a median needs at least one value');
     const sorted = values.toSorted((a, b) => a - b);
-    return (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2;
+    return (sorted[Math.floor((sorted.length - 1) / 2)]! + sorted[Math.floor(sorted.length / 2)]!) / 2;
 };
 const groups = new Map<string, number[]>();
 for (const line of fs.readFileSync(path.join(output, 'timings.csv'), 'utf8').trim().split('\n').slice(1)) {
@@ -93,7 +95,7 @@ for (const [group, inputs] of oracleGroups) {
     for (let round = 0; round < 16; round++) {
         const start = process.hrtime.bigint();
         for (let repeat = 0; repeat < repeats; repeat++) {
-            for (const input of inputs) sink ^= createHash('sha256').update(input).digest()[0];
+            for (const input of inputs) sink ^= createHash('sha256').update(input).digest()[0]!;
         }
         const ns = Number(process.hrtime.bigint() - start) / (repeats * inputs.length);
         oracleRows.push(`${group},node-crypto,${round},${ns},${repeats * inputs.length},${inputs.length}`);

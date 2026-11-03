@@ -4,6 +4,7 @@
 /target/
 /target-*/
 /tools/performance/workloads/*/target/
+/node_modules/
 /tools/*/node_modules/
 # Measurement output, kept next to the tool that writes it.
 /tools/*/generated/

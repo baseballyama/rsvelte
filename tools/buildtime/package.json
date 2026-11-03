@@ -11,6 +11,6 @@
 	},
 	"scripts": {
 		"buildtime": "node bin/buildtime.ts",
-		"typecheck": "node ../fixtures/node_modules/typescript-7/bin/tsc -p ."
+		"typecheck": "tsc -p ."
 	}
 }

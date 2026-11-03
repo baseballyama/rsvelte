@@ -30,14 +30,14 @@ Type checking needs an external TypeScript process and is not offered here.
 
 ## Local development
 
-Use the repository's pinned Rust toolchain, Node 26+, pnpm 10, and wasm-pack 0.14.0:
+Use the repository's pinned Rust toolchain, the Node and pnpm versions in `mise.toml`, and wasm-pack 0.14.0.
+The site is one package of the repository's pnpm workspace, so install from the root:
 
 ```sh
 rustup target add wasm32-unknown-unknown
 cargo install wasm-pack --version 0.14.0 --locked
-cd apps/site
 pnpm install --frozen-lockfile
-pnpm run dev
+pnpm --dir apps/site run dev
 ```
 
 `dev`, `test`, `check`, `build`, and `deploy` first run `pnpm run generate`. It writes

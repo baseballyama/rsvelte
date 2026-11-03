@@ -9,17 +9,20 @@ const require = createRequire(path.join(root, 'tools/fixtures/package.json'));
 const { Linter } = require('eslint');
 const plugin = require('eslint-plugin-svelte').default;
 const parser = require('@typescript-eslint/parser');
-const upstream = fs.realpathSync(process.argv[2]);
+const upstreamArgument = process.argv[2];
+if (!upstreamArgument) throw new Error('usage: import-svelte.ts <eslint-plugin-svelte checkout>');
+const upstream = fs.realpathSync(upstreamArgument);
 const manifest = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, 'svelte-upstream-hashes.json'), 'utf8'));
 const revision: string = manifest.commit;
 for (const [relative, expected] of Object.entries(manifest.files)) {
   const actual = crypto.createHash('sha256').update(fs.readFileSync(path.join(upstream, relative))).digest('hex');
   if (actual !== expected) throw new Error(`upstream file differs from ${revision}: ${relative}`);
 }
-const suites = ['lint', 'lint_typed'].map(name => {
+const suite = (name: string) => {
   const directory = path.join(root, 'crates/languages/svelte', name, 'tests/rules');
   return { directory, sourceRoot: path.join(directory, 'eslint-plugin-svelte'), cases: [] as string[], imported: {} as Record<string, string> };
-});
+};
+const suites = [suite('lint'), suite('lint_typed')] as const;
 const suiteFor = (rule: string) => suites[rule === 'svelte/@typescript-eslint/no-unnecessary-condition' ? 1 : 0];
 const project = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-lint-oracle-'));
 fs.symlinkSync(path.join(root, 'tools/fixtures/node_modules'), path.join(project, 'node_modules'), 'dir');
