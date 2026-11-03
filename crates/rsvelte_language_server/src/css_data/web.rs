@@ -1,14 +1,14 @@
 //! CSS property, at-directive and selector data, generated — do not edit.
 //!
-//! Source: vscode-css-languageservice@6.3.5 (MIT), the build `package.json` `main`
+//! Source: vscode-css-languageservice@6.3.10 (MIT), the build `package.json` `main`
 //! resolves to, which is the one the official language server loads.
 //!
 //!   lib/umd/data/webCustomData.js
-//!     sha256 aff53c93671133d16aea94b46015ba76e12757427556388af45aa64dcbfbdc40
+//!     sha256 12aac0c80a0212329076d17503e81da415a7767cc854165ea8355f82721d00cf
 //!   lib/umd/languageFacts/builtinData.js
-//!     sha256 de2466c7ff539e5ec8f364147b4d5fefab2dc989ef7debecde2ab1981d1df8d7
+//!     sha256 3ae0ea3e218bf86f646b1f5da7fafc3476238c0f57739f0cb73743cf1768365e
 //!   lib/umd/languageFacts/colors.js
-//!     sha256 b9bd9620bcd97a6f2d6865978ac24007c995670a80b20bdd1613c610fc0785a7
+//!     sha256 eac6ae658876ce75769eb249fe51f984c1991872add3818c1ca17ae9296ad37e
 //!   lib/umd/languageFacts/entry.js
 //!     sha256 54b4fb7ab16c956b81d5fa6e7892692c97af9fec32cffb7544ef51e9ff052147
 //!
@@ -118,7 +118,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/align-content",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/align-content",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -129,7 +129,7 @@ pub const PROPERTIES: &[Property] = &[
         syntax: Some(
             "normal | <baseline-position> | <content-distribution> | <overflow-position>? <content-position>",
         ),
-        relevance: 67,
+        relevance: 68,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -177,7 +177,9 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "normal",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF28", "FFA28", "S9", "SM9", "C29", "CA29", "IE11", "O16",
+                ]),
             },
             Value {
                 name: "baseline",
@@ -237,7 +239,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/align-items",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/align-items",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -246,9 +248,9 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some(
-            "normal | stretch | <baseline-position> | [ <overflow-position>? <self-position> ]",
+            "normal | stretch | <baseline-position> | [ <overflow-position>? <self-position> ] | anchor-center",
         ),
-        relevance: 88,
+        relevance: 90,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -349,7 +351,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/justify-items",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/justify-items",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -358,9 +360,9 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some(
-            "normal | stretch | <baseline-position> | <overflow-position>? [ <self-position> | left | right ] | legacy | legacy && [ left | right | center ]",
+            "normal | stretch | <baseline-position> | <overflow-position>? [ <self-position> | left | right ] | legacy | legacy && [ left | right | center ] | anchor-center",
         ),
-        relevance: 57,
+        relevance: 58,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -412,17 +414,17 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The items are packed flush to each other toward the center of the of the alignment container.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF20", "FFA20", "S9", "SM9", "C52", "CA52", "O39"]),
             },
             Value {
                 name: "left",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF20", "FFA20", "S9", "SM9", "C52", "CA52", "O39"]),
             },
             Value {
                 name: "right",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF20", "FFA20", "S9", "SM9", "C52", "CA52", "O39"]),
             },
             Value {
                 name: "baseline",
@@ -459,7 +461,7 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "legacy",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF20", "FFA20", "S9", "SM9", "C52", "CA52", "O39"]),
             },
         ],
         at_rule: None,
@@ -474,7 +476,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/justify-self",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/justify-self",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -483,20 +485,24 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some(
-            "auto | normal | stretch | <baseline-position> | <overflow-position>? [ <self-position> | left | right ]",
+            "auto | normal | stretch | <baseline-position> | <overflow-position>? [ <self-position> | left | right ] | anchor-center",
         ),
-        relevance: 56,
+        relevance: 59,
         restrictions: &["enum"],
         values: &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF45", "FFA45", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "normal",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF45", "FFA45", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "end",
@@ -542,12 +548,16 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "left",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF45", "FFA45", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "right",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF45", "FFA45", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "baseline",
@@ -569,7 +579,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "If the cross size property of the flex item computes to auto, and neither of the cross-axis margins are auto, the flex item is stretched.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF45", "FFA45", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "save",
@@ -594,7 +606,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/align-self",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/align-self",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -603,9 +615,9 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some(
-            "auto | normal | stretch | <baseline-position> | <overflow-position>? <self-position>",
+            "auto | normal | stretch | <baseline-position> | <overflow-position>? <self-position> | anchor-center",
         ),
-        relevance: 75,
+        relevance: 76,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -613,12 +625,12 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Computes to the value of 'align-items' on the element's parent, or 'stretch' if the element has no parent. On absolutely positioned elements, it computes to itself.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
             },
             Value {
                 name: "normal",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
             },
             Value {
                 name: "self-end",
@@ -663,7 +675,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "If the cross size property of the flex item computes to auto, and neither of the cross-axis margins are auto, the flex item is stretched.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
             },
             Value {
                 name: "baseline",
@@ -703,7 +715,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/all",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/all",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -746,7 +758,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -755,7 +767,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<single-animation>#"),
-        relevance: 83,
+        relevance: 84,
         restrictions: &["time", "timing-function", "enum", "identifier", "number"],
         values: &[
             Value {
@@ -763,55 +775,55 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The animation cycle iterations that are odd counts are played in the normal direction, and the animation cycle iterations that are even counts are played in a reverse direction.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
             },
             Value {
                 name: "alternate-reverse",
                 description: Some(
                     "The animation cycle iterations that are odd counts are played in the reverse direction, and the animation cycle iterations that are even counts are played in a normal direction.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
             },
             Value {
                 name: "backwards",
                 description: Some(
                     "The beginning property value (as defined in the first @keyframes at-rule) is applied before the animation is displayed, during the period defined by 'animation-delay'.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
             },
             Value {
                 name: "both",
                 description: Some("Both forwards and backwards fill modes are applied."),
-                browsers: None,
+                browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
             },
             Value {
                 name: "forwards",
                 description: Some(
                     "The final property value (as defined in the last @keyframes at-rule) is maintained after the animation completes.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
             },
             Value {
                 name: "infinite",
                 description: Some("Causes the animation to repeat forever."),
-                browsers: None,
+                browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
             },
             Value {
                 name: "none",
                 description: Some("No animation is performed"),
-                browsers: None,
+                browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
             },
             Value {
                 name: "normal",
                 description: Some("Normal playback."),
-                browsers: None,
+                browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
             },
             Value {
                 name: "reverse",
                 description: Some(
                     "All iterations of the animation are played in the reverse direction from the way they were specified.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -824,7 +836,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation-delay",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation-delay",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -848,7 +860,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation-direction",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation-direction",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -857,7 +869,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<single-animation-direction>#"),
-        relevance: 58,
+        relevance: 56,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -865,26 +877,34 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The animation cycle iterations that are odd counts are played in the normal direction, and the animation cycle iterations that are even counts are played in a reverse direction.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "IE10", "O15",
+                ]),
             },
             Value {
                 name: "alternate-reverse",
                 description: Some(
                     "The animation cycle iterations that are odd counts are played in the reverse direction, and the animation cycle iterations that are even counts are played in a normal direction.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF16", "FFA16", "S6", "SM6", "C19", "CA25", "IE10", "O12.1",
+                ]),
             },
             Value {
                 name: "normal",
                 description: Some("Normal playback."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "IE10", "O15",
+                ]),
             },
             Value {
                 name: "reverse",
                 description: Some(
                     "All iterations of the animation are played in the reverse direction from the way they were specified.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF16", "FFA16", "S6", "SM6", "C19", "CA25", "IE10", "O12.1",
+                ]),
             },
         ],
         at_rule: None,
@@ -899,7 +919,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation-duration",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation-duration",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -907,7 +927,7 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-03-30"),
         }),
         status: None,
-        syntax: Some("<time>#"),
+        syntax: Some("[ auto | <time [0s,∞]> ]#"),
         relevance: 72,
         restrictions: &["time"],
         values: &[],
@@ -923,7 +943,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation-fill-mode",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation-fill-mode",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -932,7 +952,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<single-animation-fill-mode>#"),
-        relevance: 65,
+        relevance: 63,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -940,26 +960,34 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The beginning property value (as defined in the first @keyframes at-rule) is applied before the animation is displayed, during the period defined by 'animation-delay'.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF5", "FFA5", "S5", "SM4.2", "C3", "CA18", "IE10", "O15",
+                ]),
             },
             Value {
                 name: "both",
                 description: Some("Both forwards and backwards fill modes are applied."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF5", "FFA5", "S5", "SM4.2", "C3", "CA18", "IE10", "O15",
+                ]),
             },
             Value {
                 name: "forwards",
                 description: Some(
                     "The final property value (as defined in the last @keyframes at-rule) is maintained after the animation completes.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF5", "FFA5", "S5", "SM4.2", "C3", "CA18", "IE10", "O15",
+                ]),
             },
             Value {
                 name: "none",
                 description: Some(
                     "There is no change to the property value between the time the animation is applied and the time the animation begins playing or after the animation completes.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF5", "FFA5", "S5", "SM4.2", "C3", "CA18", "IE10", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -974,7 +1002,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation-iteration-count",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation-iteration-count",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -983,12 +1011,14 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<single-animation-iteration-count>#"),
-        relevance: 66,
+        relevance: 63,
         restrictions: &["number", "enum"],
         values: &[Value {
             name: "infinite",
             description: Some("Causes the animation to repeat forever."),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "IE10", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -1002,7 +1032,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation-name",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation-name",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1016,7 +1046,9 @@ pub const PROPERTIES: &[Property] = &[
         values: &[Value {
             name: "none",
             description: Some("No animation is performed"),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "IE10", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -1028,7 +1060,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation-play-state",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation-play-state",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1037,18 +1069,22 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<single-animation-play-state>#"),
-        relevance: 55,
+        relevance: 57,
         restrictions: &["enum"],
         values: &[
             Value {
                 name: "paused",
                 description: Some("A running animation will be paused."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "IE10", "O15",
+                ]),
             },
             Value {
                 name: "running",
                 description: Some("Resume playback of a paused animation."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF5", "FFA5", "S4", "SM3.2", "C3", "CA18", "IE10", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -1063,7 +1099,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation-timing-function",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation-timing-function",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1087,7 +1123,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/backface-visibility",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/backface-visibility",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1096,18 +1132,18 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("visible | hidden"),
-        relevance: 59,
+        relevance: 60,
         restrictions: &["enum"],
         values: &[
             Value {
                 name: "hidden",
                 description: Some("Back side is hidden."),
-                browsers: None,
+                browsers: Some(&["E12", "FF10", "FFA10", "S5.1", "SM5", "C12", "CA18", "O15"]),
             },
             Value {
                 name: "visible",
                 description: Some("Back side is visible."),
-                browsers: None,
+                browsers: Some(&["E12", "FF10", "FFA10", "S5.1", "SM5", "C12", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -1122,7 +1158,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/background",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/background",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1130,7 +1166,7 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("[ <bg-layer> , ]* <final-bg-layer>"),
+        syntax: Some("<bg-layer>#? , <final-bg-layer>"),
         relevance: 93,
         restrictions: &[
             "enum",
@@ -1148,26 +1184,28 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The background is fixed with regard to the viewport. In paged media where there is no viewport, a 'fixed' background is fixed with respect to the page box and therefore replicated on every page.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E15", "FF50", "FFA50", "S9.1", "SM9.3", "C15", "CA18", "O15",
+                ]),
             },
             Value {
                 name: "local",
                 description: Some(
                     "The background is fixed with regard to the element's contents: if the element has a scrolling mechanism, the background scrolls with the element's contents.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "none",
                 description: Some("A value of 'none' counts as an image layer but draws nothing."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "scroll",
                 description: Some(
                     "The background is fixed with regard to the element itself and does not scroll with its contents. (It is effectively attached to the element's border.)",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -1182,7 +1220,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/background-attachment",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/background-attachment",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1199,7 +1237,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The background is fixed with regard to the viewport. In paged media where there is no viewport, a 'fixed' background is fixed with respect to the page box and therefore replicated on every page.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF2", "FFA4", "S15.4", "C1", "CA18", "IE9", "O10.5"]),
             },
             Value {
                 name: "local",
@@ -1207,7 +1245,7 @@ pub const PROPERTIES: &[Property] = &[
                     "The background is fixed with regard to the element's contents: if the element has a scrolling mechanism, the background scrolls with the element's contents.",
                 ),
                 browsers: Some(&[
-                    "E12", "FF1", "FFA4", "S1", "SM3.2", "C1", "CA18", "IE4", "O3.5",
+                    "E12", "FF25", "FFA25", "S15.4", "SM15.4", "C1", "CA18", "IE9", "O10.5",
                 ]),
             },
             Value {
@@ -1215,7 +1253,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The background is fixed with regard to the element itself and does not scroll with its contents. (It is effectively attached to the element's border.)",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM3.2", "C1", "CA18", "IE4", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -1226,7 +1266,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF30", "FFA30", "S8", "SM8", "C35", "CA35", "O22"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/background-blend-mode",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/background-blend-mode",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1235,7 +1275,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<blend-mode>#"),
-        relevance: 53,
+        relevance: 51,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -1351,7 +1391,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/background-clip",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/background-clip",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1373,7 +1413,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/background-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/background-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1395,7 +1435,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/background-image",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/background-image",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1404,12 +1444,14 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<bg-image>#"),
-        relevance: 89,
+        relevance: 88,
         restrictions: &["image", "enum"],
         values: &[Value {
             name: "none",
             description: Some("Counts as an image layer but draws nothing."),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -1423,7 +1465,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/background-origin",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/background-origin",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1432,7 +1474,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<visual-box>#"),
-        relevance: 53,
+        relevance: 54,
         restrictions: &["box"],
         values: &[],
         at_rule: None,
@@ -1447,7 +1489,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/background-position",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/background-position",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1471,7 +1513,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/background-position-x",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/background-position-x",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1480,7 +1522,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("[ center | [ [ left | right | x-start | x-end ]? <length-percentage>? ]! ]#"),
-        relevance: 56,
+        relevance: 57,
         restrictions: &["length", "percentage"],
         values: &[
             Value {
@@ -1517,7 +1559,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/background-position-y",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/background-position-y",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1526,7 +1568,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("[ center | [ [ top | bottom | y-start | y-end ]? <length-percentage>? ]! ]#"),
-        relevance: 53,
+        relevance: 54,
         restrictions: &["length", "percentage"],
         values: &[
             Value {
@@ -1563,7 +1605,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/background-repeat",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/background-repeat",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1585,7 +1627,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/background-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/background-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1602,21 +1644,27 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Resolved by using the image's intrinsic ratio and the size of the other dimension, or failing that, using the image's intrinsic size, or failing that, treating it as 100%.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.6", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "contain",
                 description: Some(
                     "Scale the image, while preserving its intrinsic aspect ratio (if any), to the largest size such that both its width and its height can fit inside the background positioning area.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.6", "FFA4", "S5", "SM4.2", "C3", "CA18", "IE9", "O10",
+                ]),
             },
             Value {
                 name: "cover",
                 description: Some(
                     "Scale the image, while preserving its intrinsic aspect ratio (if any), to the smallest size such that both its width and its height can completely cover the background positioning area.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.6", "FFA4", "S5", "SM4.2", "C3", "CA18", "IE9", "O10",
+                ]),
             },
         ],
         at_rule: None,
@@ -1644,7 +1692,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/block-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/block-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1653,12 +1701,12 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'width'>"),
-        relevance: 54,
+        relevance: 55,
         restrictions: &["length", "percentage"],
         values: &[Value {
             name: "auto",
             description: Some("Depends on the values of other properties."),
-            browsers: None,
+            browsers: Some(&["E79", "FF41", "FFA41", "S5.1", "SM5", "C8", "CA18", "O15"]),
         }],
         at_rule: None,
     },
@@ -1670,7 +1718,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1694,7 +1742,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-block-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-block-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1703,7 +1751,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'border-top-width'> || <'border-top-style'> || <color>"),
-        relevance: 54,
+        relevance: 53,
         restrictions: &["length", "line-width", "line-style", "color"],
         values: &[],
         at_rule: None,
@@ -1718,7 +1766,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-block-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-block-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1742,7 +1790,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-block-end-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-block-end-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1766,7 +1814,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-block-start-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-block-start-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1790,7 +1838,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-block-end-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-block-end-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1814,7 +1862,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-block-start-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-block-start-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1838,7 +1886,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-block-end-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-block-end-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1862,7 +1910,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-block-start-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-block-start-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1871,7 +1919,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'border-top-width'>"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &["length", "line-width"],
         values: &[],
         at_rule: None,
@@ -1884,7 +1932,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-bottom",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-bottom",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1893,7 +1941,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<line-width> || <line-style> || <color>"),
-        relevance: 88,
+        relevance: 87,
         restrictions: &["length", "line-width", "line-style", "color"],
         values: &[],
         at_rule: None,
@@ -1906,7 +1954,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-bottom-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-bottom-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1928,7 +1976,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-bottom-left-radius",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-bottom-left-radius",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1936,8 +1984,8 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length-percentage>{1,2}"),
-        relevance: 76,
+        syntax: Some("<length-percentage [0,∞]>{1,2}"),
+        relevance: 75,
         restrictions: &["length", "percentage"],
         values: &[],
         at_rule: None,
@@ -1950,7 +1998,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-bottom-right-radius",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-bottom-right-radius",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1958,8 +2006,8 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length-percentage>{1,2}"),
-        relevance: 76,
+        syntax: Some("<length-percentage [0,∞]>{1,2}"),
+        relevance: 75,
         restrictions: &["length", "percentage"],
         values: &[],
         at_rule: None,
@@ -1972,7 +2020,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-bottom-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-bottom-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -1994,7 +2042,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-bottom-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-bottom-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2003,7 +2051,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<line-width>"),
-        relevance: 64,
+        relevance: 67,
         restrictions: &["length", "line-width"],
         values: &[],
         at_rule: None,
@@ -2016,7 +2064,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-collapse",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-collapse",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2024,19 +2072,19 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("collapse | separate"),
-        relevance: 74,
+        syntax: Some("separate | collapse"),
+        relevance: 73,
         restrictions: &["enum"],
         values: &[
             Value {
                 name: "collapse",
                 description: Some("Selects the collapsing borders model."),
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S1.1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "separate",
                 description: Some("Selects the separated borders border model."),
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S1.1", "SM1", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -2049,7 +2097,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2073,7 +2121,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-image",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-image",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2097,36 +2145,38 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "fill",
                 description: Some("Causes the middle part of the border-image to be preserved."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF15", "FFA15", "S6", "SM6", "C16", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "none",
                 description: Some("Use the border styles."),
-                browsers: None,
+                browsers: Some(&["E12", "FF3.5", "FFA4", "S3", "SM2", "C16", "CA18", "O15"]),
             },
             Value {
                 name: "repeat",
                 description: Some("The image is tiled (repeated) to fill the area."),
-                browsers: None,
+                browsers: Some(&["E12", "FF3.5", "FFA4", "S3", "SM2", "C16", "CA18", "O15"]),
             },
             Value {
                 name: "round",
                 description: Some(
                     "The image is tiled (repeated) to fill the area. If it does not fill the area with a whole number of tiles, the image is rescaled so that it does.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF3.5", "FFA4", "S3", "SM2", "C16", "CA18", "O15"]),
             },
             Value {
                 name: "space",
                 description: Some(
                     "The image is tiled (repeated) to fill the area. If it does not fill the area with a whole number of tiles, the extra space is distributed around the tiles.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF3.5", "FFA4", "S3", "SM2", "C16", "CA18", "O15"]),
             },
             Value {
                 name: "stretch",
                 description: Some("The image is stretched to fill the area."),
-                browsers: None,
+                browsers: Some(&["E12", "FF3.5", "FFA4", "S3", "SM2", "C16", "CA18", "O15"]),
             },
             Value {
                 name: "url()",
@@ -2146,7 +2196,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-image-outset",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-image-outset",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2154,7 +2204,7 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("[ <length> | <number> ]{1,4}"),
+        syntax: Some("[ <length [0,∞]> | <number [0,∞]> ]{1,4}"),
         relevance: 50,
         restrictions: &["length", "number"],
         values: &[],
@@ -2170,7 +2220,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-image-repeat",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-image-repeat",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2185,26 +2235,34 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "repeat",
                 description: Some("The image is tiled (repeated) to fill the area."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF15", "FFA15", "S6", "SM9.3", "C15", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "round",
                 description: Some(
                     "The image is tiled (repeated) to fill the area. If it does not fill the area with a whole number of tiles, the image is rescaled so that it does.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF15", "FFA15", "S9.1", "SM9.3", "C30", "CA30", "IE11", "O17",
+                ]),
             },
             Value {
                 name: "space",
                 description: Some(
                     "The image is tiled (repeated) to fill the area. If it does not fill the area with a whole number of tiles, the extra space is distributed around the tiles.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF50", "FFA50", "S9.1", "SM9.3", "C56", "CA56", "IE11", "O43",
+                ]),
             },
             Value {
                 name: "stretch",
                 description: Some("The image is stretched to fill the area."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF15", "FFA15", "S6", "SM9.3", "C15", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -2219,7 +2277,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-image-slice",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-image-slice",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2227,7 +2285,7 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<number-percentage>{1,4} && fill?"),
+        syntax: Some("[ <number [0,∞]> | <percentage [0,∞]> ]{1,4} && fill?"),
         relevance: 50,
         restrictions: &["number", "percentage"],
         values: &[Value {
@@ -2247,7 +2305,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-image-source",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-image-source",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2261,7 +2319,7 @@ pub const PROPERTIES: &[Property] = &[
         values: &[Value {
             name: "none",
             description: Some("Use the border styles."),
-            browsers: None,
+            browsers: Some(&["E12", "FF15", "FFA15", "S6", "SM6", "C15", "CA18", "O15"]),
         }],
         at_rule: None,
     },
@@ -2275,7 +2333,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-image-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-image-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2283,7 +2341,7 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("[ <length-percentage> | <number> | auto ]{1,4}"),
+        syntax: Some("[ <length-percentage [0,∞]> | <number [0,∞]> | auto ]{1,4}"),
         relevance: 50,
         restrictions: &["length", "percentage", "number"],
         values: &[Value {
@@ -2291,7 +2349,9 @@ pub const PROPERTIES: &[Property] = &[
             description: Some(
                 "The border image width is the intrinsic width or height (whichever is applicable) of the corresponding image slice. If the image does not have the required intrinsic dimension then the corresponding border-width is used instead.",
             ),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF15", "FFA15", "S6", "SM6", "C16", "CA18", "IE11", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -2305,7 +2365,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-inline-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-inline-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2314,7 +2374,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'border-top-width'> || <'border-top-style'> || <color>"),
-        relevance: 54,
+        relevance: 53,
         restrictions: &["length", "line-width", "line-style", "color"],
         values: &[],
         at_rule: None,
@@ -2329,7 +2389,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-inline-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-inline-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2353,7 +2413,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-inline-end-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-inline-end-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2362,7 +2422,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'border-top-color'>"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &["color"],
         values: &[],
         at_rule: None,
@@ -2377,7 +2437,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-inline-start-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-inline-start-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2386,7 +2446,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'border-top-color'>"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &["color"],
         values: &[],
         at_rule: None,
@@ -2401,7 +2461,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-inline-end-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-inline-end-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2425,7 +2485,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-inline-start-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-inline-start-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2449,7 +2509,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-inline-end-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-inline-end-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2458,7 +2518,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'border-top-width'>"),
-        relevance: 51,
+        relevance: 52,
         restrictions: &["length", "line-width"],
         values: &[],
         at_rule: None,
@@ -2473,7 +2533,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-inline-start-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-inline-start-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2482,7 +2542,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'border-top-width'>"),
-        relevance: 51,
+        relevance: 52,
         restrictions: &["length", "line-width"],
         values: &[],
         at_rule: None,
@@ -2495,7 +2555,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-left",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-left",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2504,7 +2564,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<line-width> || <line-style> || <color>"),
-        relevance: 82,
+        relevance: 80,
         restrictions: &["length", "line-width", "line-style", "color"],
         values: &[],
         at_rule: None,
@@ -2517,7 +2577,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-left-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-left-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2539,7 +2599,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-left-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-left-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2561,7 +2621,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-left-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-left-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2570,7 +2630,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<line-width>"),
-        relevance: 65,
+        relevance: 64,
         restrictions: &["length", "line-width"],
         values: &[],
         at_rule: None,
@@ -2583,7 +2643,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-radius",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-radius",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2591,8 +2651,8 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length-percentage>{1,4} [ / <length-percentage>{1,4} ]?"),
-        relevance: 92,
+        syntax: Some("<length-percentage [0,∞]>{1,4} [ / <length-percentage [0,∞]>{1,4} ]?"),
+        relevance: 93,
         restrictions: &["length", "percentage"],
         values: &[],
         at_rule: None,
@@ -2605,7 +2665,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-right",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-right",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2614,7 +2674,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<line-width> || <line-style> || <color>"),
-        relevance: 81,
+        relevance: 79,
         restrictions: &["length", "line-width", "line-style", "color"],
         values: &[],
         at_rule: None,
@@ -2627,7 +2687,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-right-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-right-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2636,7 +2696,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<color>"),
-        relevance: 66,
+        relevance: 65,
         restrictions: &["color"],
         values: &[],
         at_rule: None,
@@ -2649,7 +2709,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-right-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-right-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2671,7 +2731,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-right-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-right-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2680,7 +2740,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<line-width>"),
-        relevance: 64,
+        relevance: 63,
         restrictions: &["length", "line-width"],
         values: &[],
         at_rule: None,
@@ -2693,7 +2753,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-spacing",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-spacing",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2701,8 +2761,8 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length> <length>?"),
-        relevance: 66,
+        syntax: Some("<length>{1,2}"),
+        relevance: 65,
         restrictions: &["length"],
         values: &[],
         at_rule: None,
@@ -2715,7 +2775,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2737,7 +2797,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-top",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-top",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2759,7 +2819,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-top-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-top-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2768,7 +2828,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<color>"),
-        relevance: 71,
+        relevance: 70,
         restrictions: &["color"],
         values: &[],
         at_rule: None,
@@ -2781,7 +2841,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-top-left-radius",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-top-left-radius",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2789,7 +2849,7 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length-percentage>{1,2}"),
+        syntax: Some("<length-percentage [0,∞]>{1,2}"),
         relevance: 76,
         restrictions: &["length", "percentage"],
         values: &[],
@@ -2803,7 +2863,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-top-right-radius",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-top-right-radius",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2811,7 +2871,7 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length-percentage>{1,2}"),
+        syntax: Some("<length-percentage [0,∞]>{1,2}"),
         relevance: 76,
         restrictions: &["length", "percentage"],
         values: &[],
@@ -2825,7 +2885,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-top-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-top-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2847,7 +2907,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-top-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-top-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2856,7 +2916,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<line-width>"),
-        relevance: 63,
+        relevance: 66,
         restrictions: &["length", "line-width"],
         values: &[],
         at_rule: None,
@@ -2871,7 +2931,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2880,7 +2940,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<line-width>{1,4}"),
-        relevance: 83,
+        relevance: 82,
         restrictions: &["length", "line-width"],
         values: &[],
         at_rule: None,
@@ -2893,7 +2953,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE5", "O6"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/bottom",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/bottom",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2901,7 +2961,7 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length> | <percentage> | auto"),
+        syntax: Some("auto | <length-percentage> | <anchor()> | <anchor-size()>"),
         relevance: 90,
         restrictions: &["length", "percentage"],
         values: &[Value {
@@ -2909,7 +2969,9 @@ pub const PROPERTIES: &[Property] = &[
             description: Some(
                 "For non-replaced elements, the effect of this value depends on which of related properties have the value 'auto' as well",
             ),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -2921,7 +2983,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E130", "FF32", "FFA32", "C130", "CA130", "O115"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/box-decoration-break",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/box-decoration-break",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -2936,14 +2998,18 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "clone",
                 description: Some("Each box is independently wrapped with the border and padding."),
-                browsers: None,
+                browsers: Some(&[
+                    "E130", "FF32", "FFA32", "S7", "SM7", "C130", "CA130", "O115",
+                ]),
             },
             Value {
                 name: "slice",
                 description: Some(
                     "The effect is as though the element were rendered with no breaks present, and then sliced by the breaks afterward.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E130", "FF32", "FFA32", "S7", "SM7", "C130", "CA130", "O115",
+                ]),
             },
         ],
         at_rule: None,
@@ -2958,7 +3024,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/box-shadow",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/box-shadow",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -2967,7 +3033,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | <shadow>#"),
-        relevance: 90,
+        relevance: 91,
         restrictions: &["length", "color", "enum"],
         values: &[
             Value {
@@ -2975,12 +3041,14 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Changes the drop shadow from an outer shadow (one that shadows the box onto the canvas, as if it were lifted above the canvas) to an inner shadow (one that shadows the canvas onto the box, as if the box were cut out of the canvas and shifted behind it).",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.5", "FFA4", "S5", "SM4.2", "C1", "CA18", "IE9", "O10.5",
+                ]),
             },
             Value {
                 name: "none",
                 description: Some("No shadow."),
-                browsers: None,
+                browsers: Some(&["E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -2993,7 +3061,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/box-sizing",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/box-sizing",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3010,14 +3078,18 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The specified width and height (and respective min/max properties) on this element determine the border box of the element.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "content-box",
                 description: Some(
                     "Behavior of width and height as specified by CSS2.1. The specified width and height (and respective min/max properties) apply to the width and height respectively of the content box of the element.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -3032,7 +3104,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/break-after",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/break-after",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3049,53 +3121,53 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "always",
                 description: Some("Always force a page break before/after the generated box."),
-                browsers: None,
+                browsers: Some(&["FF65", "FFA65"]),
             },
             Value {
                 name: "auto",
                 description: Some(
                     "Neither force nor forbid a page/column break before/after the principal box.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a break before/after the principal box."),
-                browsers: None,
+                browsers: Some(&["E79", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "avoid-column",
                 description: Some("Avoid a column break before/after the principal box."),
-                browsers: None,
+                browsers: Some(&["E79", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "avoid-page",
                 description: Some("Avoid a page break before/after the principal box."),
-                browsers: None,
+                browsers: Some(&["E79", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "column",
                 description: Some("Always force a column break before/after the principal box."),
-                browsers: None,
+                browsers: Some(&["E79", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "left",
                 description: Some(
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a left page.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "page",
                 description: Some("Always force a page break before/after the principal box."),
-                browsers: None,
+                browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "right",
                 description: Some(
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a right page.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
             },
         ],
         at_rule: None,
@@ -3110,7 +3182,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/break-before",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/break-before",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3127,53 +3199,53 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "always",
                 description: Some("Always force a page break before/after the generated box."),
-                browsers: None,
+                browsers: Some(&["FF65", "FFA65"]),
             },
             Value {
                 name: "auto",
                 description: Some(
                     "Neither force nor forbid a page/column break before/after the principal box.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a break before/after the principal box."),
-                browsers: None,
+                browsers: Some(&["E79", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "avoid-column",
                 description: Some("Avoid a column break before/after the principal box."),
-                browsers: None,
+                browsers: Some(&["E79", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "avoid-page",
                 description: Some("Avoid a page break before/after the principal box."),
-                browsers: None,
+                browsers: Some(&["E79", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "column",
                 description: Some("Always force a column break before/after the principal box."),
-                browsers: None,
+                browsers: Some(&["E79", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "left",
                 description: Some(
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a left page.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "page",
                 description: Some("Always force a page break before/after the principal box."),
-                browsers: None,
+                browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "right",
                 description: Some(
                     "Force one or two page breaks before/after the generated box so that the next page is formatted as a right page.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
             },
         ],
         at_rule: None,
@@ -3188,7 +3260,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/break-inside",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/break-inside",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3203,22 +3275,22 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: Some("Impose no additional breaking constraints within the box."),
-                browsers: None,
+                browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid breaks within the box."),
-                browsers: None,
+                browsers: Some(&["E79", "FF65", "FFA65", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "avoid-column",
                 description: Some("Avoid a column break within the box."),
-                browsers: None,
+                browsers: Some(&["E79", "FF92", "FFA92", "S10", "SM10", "C50", "CA50", "O37"]),
             },
             Value {
                 name: "avoid-page",
                 description: Some("Avoid a page break within the box."),
-                browsers: None,
+                browsers: Some(&["E79", "FF92", "FFA92", "S10", "SM10", "C50", "CA50", "O37"]),
             },
         ],
         at_rule: None,
@@ -3231,7 +3303,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/caption-side",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/caption-side",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3246,12 +3318,12 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "bottom",
                 description: Some("Positions the caption box below the table box."),
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "top",
                 description: Some("Positions the caption box above the table box."),
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -3264,7 +3336,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/caret-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/caret-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3280,7 +3352,9 @@ pub const PROPERTIES: &[Property] = &[
             description: Some(
                 "The user agent selects an appropriate color for the caret. This is generally currentcolor, but the user agent may choose a different color to ensure good visibility and contrast with the surrounding content, taking into account the value of currentcolor, the background, shadows, and other factors.",
             ),
-            browsers: None,
+            browsers: Some(&[
+                "E79", "FF53", "FFA53", "S11.1", "SM11.3", "C57", "CA57", "O44",
+            ]),
         }],
         at_rule: None,
     },
@@ -3294,7 +3368,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/clear",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/clear",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3303,7 +3377,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | left | right | both | inline-start | inline-end"),
-        relevance: 82,
+        relevance: 81,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -3311,26 +3385,32 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The clearance of the generated box is set to the amount necessary to place the top border edge below the bottom outer edge of any right-floating and left-floating boxes that resulted from elements earlier in the source document.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "left",
                 description: Some(
                     "The clearance of the generated box is set to the amount necessary to place the top border edge below the bottom outer edge of any left-floating boxes that resulted from elements earlier in the source document.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "none",
                 description: Some("No constraint on the box's position with respect to floats."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "right",
                 description: Some(
                     "The clearance of the generated box is set to the amount necessary to place the top border edge below the bottom outer edge of any right-floating boxes that resulted from elements earlier in the source document.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -3343,7 +3423,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/clip",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/clip",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -3358,7 +3438,7 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: Some("The element does not clip."),
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "rect()",
@@ -3378,7 +3458,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/clip-path",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/clip-path",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3387,7 +3467,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<clip-source> | [ <basic-shape> || <geometry-box> ] | none"),
-        relevance: 67,
+        relevance: 70,
         restrictions: &["url", "shape", "geometry-box", "enum"],
         values: &[
             Value {
@@ -3411,7 +3491,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF3.5", "FFA4", "S5", "SM4.2", "C15", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/clip-rule",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/clip-rule",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3428,14 +3508,14 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Determines the 'insideness' of a point on the canvas by drawing a ray from that point to infinity in any direction and counting the number of path segments from the given shape that the ray crosses.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF3.5", "FFA4", "S5", "SM4.2", "C15", "CA18", "O15"]),
             },
             Value {
                 name: "nonzero",
                 description: Some(
                     "Determines the 'insideness' of a point on the canvas by drawing a ray from that point to infinity in any direction and then examining the places where a segment of the shape crosses the ray.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF3.5", "FFA4", "S5", "SM4.2", "C15", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -3448,7 +3528,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3470,7 +3550,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF3", "FFA4", "S3", "SM2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/color-interpolation-filters",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/color-interpolation-filters",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3487,19 +3567,19 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Color operations are not required to occur in a particular color space.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF3", "FFA4", "S3", "SM2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "linearRGB",
                 description: Some(
                     "Color operations should occur in the linearized RGB color space.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF22", "FFA22", "S9", "SM9", "C28", "CA28", "O15"]),
             },
             Value {
                 name: "sRGB",
                 description: Some("Color operations should occur in the sRGB color space."),
-                browsers: None,
+                browsers: Some(&["E79", "FF22", "FFA22", "S9", "SM9", "C28", "CA28", "O15"]),
             },
         ],
         at_rule: None,
@@ -3514,7 +3594,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/column-count",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-count",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3530,7 +3610,7 @@ pub const PROPERTIES: &[Property] = &[
             description: Some(
                 "Determines the number of columns by the 'column-width' property and the element width.",
             ),
-            browsers: None,
+            browsers: Some(&["E12", "FF1.5", "FFA4", "S3", "SM2", "C1", "CA18", "O15"]),
         }],
         at_rule: None,
     },
@@ -3544,7 +3624,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/column-fill",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-fill",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3559,12 +3639,16 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: Some("Fills columns sequentially."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF17", "FFA17", "S8", "SM8", "C50", "CA50", "IE11", "O37",
+                ]),
             },
             Value {
                 name: "balance",
                 description: Some("Balance content equally between columns, if possible."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF17", "FFA17", "S8", "SM8", "C50", "CA50", "IE11", "O37",
+                ]),
             },
         ],
         at_rule: None,
@@ -3579,7 +3663,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/column-gap",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-gap",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3588,12 +3672,14 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("normal | <length-percentage>"),
-        relevance: 65,
+        relevance: 67,
         restrictions: &["length", "enum"],
         values: &[Value {
             name: "normal",
             description: Some("User agent specific and typically equivalent to 1em."),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE10", "O11.1",
+            ]),
         }],
         at_rule: None,
     },
@@ -3607,7 +3693,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/column-rule",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3629,7 +3715,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/column-rule-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3651,7 +3737,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/column-rule-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3675,7 +3761,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/column-rule-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-rule-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3699,7 +3785,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/columns",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/columns",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3707,13 +3793,13 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2019-09-07"),
         }),
         status: None,
-        syntax: Some("<'column-width'> || <'column-count'>"),
+        syntax: Some("[ <'column-width'> || <'column-count'> ] [ / <'column-height'> ]?"),
         relevance: 51,
         restrictions: &["length", "integer", "enum"],
         values: &[Value {
             name: "auto",
             description: Some("The width depends on the values of other properties."),
-            browsers: None,
+            browsers: Some(&["E12", "FF9", "FFA22", "S3", "SM3.2", "C50", "CA50", "O37"]),
         }],
         at_rule: None,
     },
@@ -3725,7 +3811,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/column-span",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-span",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3742,12 +3828,12 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The element spans across all columns. Content in the normal flow that appears before the element is automatically balanced across all columns before the element appear.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF71", "FFA79", "S5.1", "SM5", "C6", "CA18", "O15"]),
             },
             Value {
                 name: "none",
                 description: Some("The element does not span multiple columns."),
-                browsers: None,
+                browsers: Some(&["E12", "FF71", "FFA79", "S5.1", "SM5", "C6", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -3760,7 +3846,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/column-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/column-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3768,13 +3854,13 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2019-05-15"),
         }),
         status: None,
-        syntax: Some("<length> | auto"),
+        syntax: Some("auto | <length [0,∞]>"),
         relevance: 51,
         restrictions: &["length", "enum"],
         values: &[Value {
             name: "auto",
             description: Some("The width depends on the values of other properties."),
-            browsers: None,
+            browsers: Some(&["E12", "FF1.5", "FFA4", "S3", "SM2", "C1", "CA18", "O15"]),
         }],
         at_rule: None,
     },
@@ -3788,7 +3874,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/contain",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/contain",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3805,39 +3891,53 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: Some("Indicates that the property has no effect."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF69", "FFA79", "S15.4", "SM15.4", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "strict",
                 description: Some("Turns on all forms of containment for the element."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF69", "FFA79", "S15.4", "SM15.4", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "content",
                 description: Some("All containment rules except size are applied to the element."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF69", "FFA79", "S15.4", "SM15.4", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "size",
                 description: Some(
                     "For properties that can have effects on more than just an element and its descendants, those effects don't escape the containing element.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF69", "FFA79", "S15.4", "SM15.4", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "layout",
                 description: Some("Turns on layout containment for the element."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF69", "FFA79", "S15.4", "SM15.4", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "style",
                 description: Some("Turns on style containment for the element."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF103", "FFA103", "S15.4", "SM15.4", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "paint",
                 description: Some("Turns on paint containment for the element."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF69", "FFA79", "S15.4", "SM15.4", "C52", "CA52", "O39",
+                ]),
             },
         ],
         at_rule: None,
@@ -3850,7 +3950,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/content",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/content",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3859,7 +3959,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some(
-            "normal | none | [ <content-replacement> | <content-list> ] [/ [ <string> | <counter> ]+ ]?",
+            "normal | none | [ <content-replacement> | <content-list> ] [ / [ <string> | <counter> | <attr()> ]+ ]?",
         ),
         relevance: 90,
         restrictions: &["string", "url"],
@@ -3890,14 +3990,18 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "On elements, this inhibits the children of the element from being rendered as children of this element, as if the element was empty. On pseudo-elements it causes the pseudo-element to have no content.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "normal",
                 description: Some(
                     "See http://www.w3.org/TR/css3-content/#content for computation rules.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "url()",
@@ -3915,7 +4019,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/counter-increment",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/counter-increment",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3929,7 +4033,9 @@ pub const PROPERTIES: &[Property] = &[
         values: &[Value {
             name: "none",
             description: Some("This element does not alter the value of any counters."),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA25", "S3", "SM2", "C2", "CA18", "IE11", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -3943,7 +4049,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/counter-reset",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/counter-reset",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3957,7 +4063,9 @@ pub const PROPERTIES: &[Property] = &[
         values: &[Value {
             name: "none",
             description: Some("The counter is not modified."),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA25", "S3", "SM2", "C2", "CA18", "IE11", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -3969,7 +4077,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/cursor",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/cursor",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -3977,9 +4085,7 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2024-06-07"),
         }),
         status: None,
-        syntax: Some(
-            "[ [ <url> [ <x> <y> ]? , ]* [ auto | default | none | context-menu | help | pointer | progress | wait | cell | crosshair | text | vertical-text | alias | copy | move | no-drop | not-allowed | e-resize | n-resize | ne-resize | nw-resize | s-resize | se-resize | sw-resize | w-resize | ew-resize | ns-resize | nesw-resize | nwse-resize | col-resize | row-resize | all-scroll | zoom-in | zoom-out | grab | grabbing ] ]",
-        ),
+        syntax: Some("[ [ <url> [ <x> <y> ]? , ]* <cursor-predefined> ]"),
         relevance: 92,
         restrictions: &["url", "number", "enum"],
         values: &[
@@ -3988,99 +4094,99 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Indicates an alias of/shortcut to something is to be created. Often rendered as an arrow with a small curved arrow next to it.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
             },
             Value {
                 name: "all-scroll",
                 description: Some(
                     "Indicates that the something can be scrolled in any direction. Often rendered as arrows pointing up, down, left, and right with a dot in the middle.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE6", "O10.6"]),
             },
             Value {
                 name: "auto",
                 description: Some(
                     "The UA determines the cursor to display based on the current context.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
+                ]),
             },
             Value {
                 name: "cell",
                 description: Some(
                     "Indicates that a cell or set of cells may be selected. Often rendered as a thick plus-sign with a dot in the middle.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1.5", "FFA95", "S3", "SM13.4", "C1", "CA18", "IE10", "O10.6",
+                ]),
             },
             Value {
                 name: "col-resize",
                 description: Some(
                     "Indicates that the item/column can be resized horizontally. Often rendered as arrows pointing left and right with a vertical bar separating them.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE6", "O10.6"]),
             },
             Value {
                 name: "context-menu",
                 description: Some(
                     "A context menu is available for the object under the cursor. Often rendered as an arrow with a small menu-like graphic next to it.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
             },
             Value {
                 name: "copy",
                 description: Some(
                     "Indicates something is to be copied. Often rendered as an arrow with a small plus sign next to it.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
             },
             Value {
                 name: "crosshair",
                 description: Some(
                     "A simple crosshair (e.g., short line segments resembling a '+' sign). Often used to indicate a two dimensional bitmap selection mode.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "default",
                 description: Some(
                     "The platform-dependent default cursor. Often rendered as an arrow.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "e-resize",
                 description: Some("Indicates that east edge is to be moved."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "ew-resize",
                 description: Some("Indicates a bidirectional east-west resize cursor."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
             },
             Value {
                 name: "grab",
                 description: Some("Indicates that something can be grabbed."),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
-                ]),
+                browsers: Some(&["E14", "FF27", "FFA95", "S11", "C68", "CA68", "O55"]),
             },
             Value {
                 name: "grabbing",
                 description: Some("Indicates that something is being grabbed."),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
-                ]),
+                browsers: Some(&["E79", "FF27", "FFA95", "S11", "C68", "CA68", "O55"]),
             },
             Value {
                 name: "help",
                 description: Some(
                     "Help is available for the object under the cursor. Often rendered as a question mark or a balloon.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "move",
                 description: Some("Indicates something is to be moved."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "-moz-grab",
@@ -4113,106 +4219,108 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "ne-resize",
                 description: Some("Indicates that movement starts from north-east corner."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "nesw-resize",
                 description: Some("Indicates a bidirectional north-east/south-west cursor."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
             },
             Value {
                 name: "no-drop",
                 description: Some(
                     "Indicates that the dragged item cannot be dropped at the current cursor location. Often rendered as a hand or pointer with a small circle with a line through it.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE6", "O10.6"]),
             },
             Value {
                 name: "none",
                 description: Some("No cursor is rendered for the element."),
-                browsers: None,
+                browsers: Some(&["E12", "FF3", "FFA95", "S5", "C5", "CA18", "IE9", "O15"]),
             },
             Value {
                 name: "not-allowed",
                 description: Some(
                     "Indicates that the requested action will not be carried out. Often rendered as a circle with a line through it.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE6", "O10.6"]),
             },
             Value {
                 name: "n-resize",
                 description: Some("Indicates that north edge is to be moved."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "ns-resize",
                 description: Some("Indicates a bidirectional north-south cursor."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
             },
             Value {
                 name: "nw-resize",
                 description: Some("Indicates that movement starts from north-west corner."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "nwse-resize",
                 description: Some("Indicates a bidirectional north-west/south-east cursor."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE10", "O10.6"]),
             },
             Value {
                 name: "pointer",
                 description: Some("The cursor is a pointer that indicates a link."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE6", "O7"]),
             },
             Value {
                 name: "progress",
                 description: Some(
                     "A progress indicator. The program is performing some processing, but is different from 'wait' in that the user may still interact with the program. Often rendered as a spinning beach ball, or an arrow with a watch or hourglass.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE6", "O7"]),
             },
             Value {
                 name: "row-resize",
                 description: Some(
                     "Indicates that the item/row can be resized vertically. Often rendered as arrows pointing up and down with a horizontal bar separating them.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "IE6", "O10.6"]),
             },
             Value {
                 name: "se-resize",
                 description: Some("Indicates that movement starts from south-east corner."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "s-resize",
                 description: Some("Indicates that south edge is to be moved."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "sw-resize",
                 description: Some("Indicates that movement starts from south-west corner."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "text",
                 description: Some(
                     "Indicates text that may be selected. Often rendered as a vertical I-beam.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
+                ]),
             },
             Value {
                 name: "vertical-text",
                 description: Some(
                     "Indicates vertical-text that may be selected. Often rendered as a horizontal I-beam.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA95", "S3", "C1", "CA18", "O10.6"]),
             },
             Value {
                 name: "wait",
                 description: Some(
                     "Indicates that the program is busy and the user should wait. Often rendered as a watch or hourglass.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "-webkit-grab",
@@ -4245,21 +4353,17 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "w-resize",
                 description: Some("Indicates that west edge is to be moved."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA95", "S1.2", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "zoom-in",
                 description: Some("Indicates that something can be zoomed (magnified) in."),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
-                ]),
+                browsers: Some(&["E12", "FF24", "FFA95", "S9", "C37", "CA37", "O24"]),
             },
             Value {
                 name: "zoom-out",
                 description: Some("Indicates that something can be zoomed (magnified) out."),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA95", "S1.2", "SM13.4", "C1", "CA18", "IE4", "O7",
-                ]),
+                browsers: Some(&["E12", "FF24", "FFA95", "S9", "C37", "CA37", "O24"]),
             },
         ],
         at_rule: None,
@@ -4274,7 +4378,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/direction",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/direction",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -4289,12 +4393,16 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "ltr",
                 description: Some("Left-to-right direction."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C2", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "rtl",
                 description: Some("Right-to-left direction."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C2", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -4307,7 +4415,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/display",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/display",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -4324,21 +4432,25 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "block",
                 description: Some("The element generates a block-level box"),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "contents",
                 description: Some(
                     "The element itself does not generate any boxes, but its children and pseudo-elements still generate boxes as normal.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                browsers: Some(&[
+                    "E79", "FF37", "FFA37", "S11.1", "SM11.3", "C65", "CA65", "O52",
+                ]),
             },
             Value {
                 name: "flex",
                 description: Some(
                     "The element generates a principal flex container box and establishes a flex formatting context.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                browsers: Some(&[
+                    "E12", "FF20", "FFA20", "S9", "SM9", "C29", "CA29", "IE11", "O16",
+                ]),
             },
             Value {
                 name: "flexbox",
@@ -4352,31 +4464,35 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The element generates a block container box, and lays out its contents using flow layout.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                browsers: Some(&["E79", "FF53", "FFA53", "S13", "SM13", "C58", "CA58", "O45"]),
             },
             Value {
                 name: "grid",
                 description: Some(
                     "The element generates a principal grid container box, and establishes a grid formatting context.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                browsers: Some(&[
+                    "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "IE10", "O44",
+                ]),
             },
             Value {
                 name: "inline",
                 description: Some("The element generates an inline-level box."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "inline-block",
                 description: Some(
                     "A block box, which itself is flowed as a single inline box, similar to a replaced element. The inside of an inline-block is formatted as a block box, and the box itself is formatted as an inline box.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
             },
             Value {
                 name: "inline-flex",
                 description: Some("Inline-level flex container."),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                browsers: Some(&[
+                    "E12", "FF20", "FFA20", "S9", "SM9", "C29", "CA29", "IE11", "O16",
+                ]),
             },
             Value {
                 name: "inline-flexbox",
@@ -4386,12 +4502,12 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "inline-table",
                 description: Some("Inline-level table wrapper box containing table box."),
-                browsers: None,
+                browsers: Some(&["E12", "FF3", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
             },
             Value {
                 name: "list-item",
                 description: Some("One or more block boxes and one marker box."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O7"]),
             },
             Value {
                 name: "-moz-box",
@@ -4482,34 +4598,34 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: Some("The element and its descendants generates no boxes."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "ruby",
                 description: Some(
                     "The element generates a principal ruby container box, and establishes a ruby formatting context.",
                 ),
-                browsers: None,
+                browsers: Some(&["FF38", "FFA38", "C121", "CA121", "IE7", "O107"]),
             },
             Value {
                 name: "ruby-base",
                 description: None,
-                browsers: None,
+                browsers: Some(&["FF38", "FFA38", "IE7"]),
             },
             Value {
                 name: "ruby-base-container",
                 description: None,
-                browsers: None,
+                browsers: Some(&["FF38", "FFA38", "IE7"]),
             },
             Value {
                 name: "ruby-text",
                 description: None,
-                browsers: None,
+                browsers: Some(&["FF38", "FFA38", "C121", "CA121", "IE7", "O107"]),
             },
             Value {
                 name: "ruby-text-container",
                 description: None,
-                browsers: None,
+                browsers: Some(&["FF38", "FFA38", "IE7"]),
             },
             Value {
                 name: "run-in",
@@ -4523,47 +4639,47 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The element generates a principal table wrapper box containing an additionally-generated table box, and establishes a table formatting context.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
             },
             Value {
                 name: "table-caption",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E15", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "table-cell",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
             },
             Value {
                 name: "table-column",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
             },
             Value {
                 name: "table-column-group",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
             },
             Value {
                 name: "table-footer-group",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
             },
             Value {
                 name: "table-header-group",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
             },
             Value {
                 name: "table-row",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
             },
             Value {
                 name: "table-row-group",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
             },
             Value {
                 name: "-webkit-box",
@@ -4602,7 +4718,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/empty-cells",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/empty-cells",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -4617,7 +4733,9 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "hide",
                 description: Some("No borders or backgrounds are drawn around/behind empty cells."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE8", "O4",
+                ]),
             },
             Value {
                 name: "-moz-show-background",
@@ -4631,7 +4749,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Borders and backgrounds are drawn around/behind empty cells (like normal cells).",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE8", "O4",
+                ]),
             },
         ],
         at_rule: None,
@@ -4687,7 +4807,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/fill",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/fill",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -4696,7 +4816,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<paint>"),
-        relevance: 80,
+        relevance: 81,
         restrictions: &["color", "enum", "url"],
         values: &[
             Value {
@@ -4709,7 +4829,7 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: Some("No paint is applied in this layer."),
-                browsers: None,
+                browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -4722,7 +4842,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/fill-opacity",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/fill-opacity",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -4731,7 +4851,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'opacity'>"),
-        relevance: 55,
+        relevance: 56,
         restrictions: &["number(0-1)"],
         values: &[],
         at_rule: None,
@@ -4744,7 +4864,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/fill-rule",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/fill-rule",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -4761,14 +4881,14 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Determines the 'insideness' of a point on the canvas by drawing a ray from that point to infinity in any direction and counting the number of path segments from the given shape that the ray crosses.",
                 ),
-                browsers: None,
+                browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "nonzero",
                 description: Some(
                     "Determines the 'insideness' of a point on the canvas by drawing a ray from that point to infinity in any direction and then examining the places where a segment of the shape crosses the ray.",
                 ),
-                browsers: None,
+                browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -4783,7 +4903,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/filter",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/filter",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -4792,13 +4912,13 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | <filter-value-list>"),
-        relevance: 72,
+        relevance: 74,
         restrictions: &["enum", "url"],
         values: &[
             Value {
                 name: "none",
                 description: Some("No filter effects are applied."),
-                browsers: None,
+                browsers: Some(&["E12", "FF35", "FFA35", "S6", "SM6", "C18", "CA18", "O15"]),
             },
             Value {
                 name: "blur()",
@@ -4868,11 +4988,11 @@ pub const PROPERTIES: &[Property] = &[
             "Specifies the components of a flexible length: the flex grow factor and flex shrink factor, and the flex basis.",
         ),
         browsers: Some(&[
-            "E12", "FF20", "FFA20", "S9", "SM9", "C29", "CA29", "IE11", "O12.1",
+            "E12", "FF22", "FFA22", "S9", "SM9", "C29", "CA29", "IE11", "O12.1",
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/flex",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/flex",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -4881,7 +5001,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | [ <'flex-grow'> <'flex-shrink'>? || <'flex-basis'> ]"),
-        relevance: 82,
+        relevance: 84,
         restrictions: &["length", "number", "percentage"],
         values: &[
             Value {
@@ -4889,19 +5009,19 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Retrieves the value of the main size property as the used 'flex-basis'.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF22", "FFA22", "S7", "SM7", "C21", "CA25", "O15"]),
             },
             Value {
                 name: "content",
                 description: Some("Indicates automatic sizing, based on the flex item's content."),
-                browsers: Some(&[
-                    "E12", "FF20", "FFA20", "S9", "SM9", "C29", "CA29", "IE11", "O12.1",
-                ]),
+                browsers: Some(&["E94", "FF61", "FFA61", "S15", "SM15", "C94", "CA94", "O80"]),
             },
             Value {
                 name: "none",
                 description: Some("Expands to '0 0 auto'."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF22", "FFA22", "S7", "SM7", "C21", "CA25", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -4914,7 +5034,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/flex-basis",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/flex-basis",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -4923,7 +5043,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("content | <'width'>"),
-        relevance: 70,
+        relevance: 71,
         restrictions: &["length", "number", "percentage"],
         values: &[
             Value {
@@ -4931,13 +5051,15 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Retrieves the value of the main size property as the used 'flex-basis'.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF22", "FFA22", "S9", "SM9", "C22", "CA25", "IE11", "O12.1",
+                ]),
             },
             Value {
                 name: "content",
                 description: Some("Indicates automatic sizing, based on the flex item's content."),
                 browsers: Some(&[
-                    "E12", "FF22", "FFA22", "S9", "SM9", "C29", "CA29", "IE11", "O12.1",
+                    "E94", "FF61", "FFA61", "S15.4", "SM15.4", "C94", "CA94", "O80",
                 ]),
             },
         ],
@@ -4949,11 +5071,11 @@ pub const PROPERTIES: &[Property] = &[
             "Specifies how flex items are placed in the flex container, by setting the direction of the flex container's main axis.",
         ),
         browsers: Some(&[
-            "E12", "FF20", "FFA20", "S9", "SM9", "C29", "CA29", "IE11", "O12.1",
+            "E12", "FF22", "FFA22", "S9", "SM9", "C29", "CA29", "IE11", "O12.1",
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/flex-direction",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/flex-direction",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -4962,7 +5084,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("row | row-reverse | column | column-reverse"),
-        relevance: 86,
+        relevance: 87,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -4970,28 +5092,36 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The flex container's main axis has the same orientation as the block axis of the current writing mode.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF22", "FFA22", "S7", "SM7", "C21", "CA25", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "column-reverse",
                 description: Some(
                     "Same as 'column', except the main-start and main-end directions are swapped.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF81", "FFA81", "S7", "SM7", "C21", "CA25", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "row",
                 description: Some(
                     "The flex container's main axis has the same orientation as the inline axis of the current writing mode.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF22", "FFA22", "S7", "SM7", "C21", "CA25", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "row-reverse",
                 description: Some(
                     "Same as 'row', except the main-start and main-end directions are swapped.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF81", "FFA81", "S7", "SM7", "C21", "CA25", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -5004,7 +5134,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/flex-flow",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/flex-flow",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -5013,7 +5143,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'flex-direction'> || <'flex-wrap'>"),
-        relevance: 64,
+        relevance: 65,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -5021,45 +5151,45 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The flex container's main axis has the same orientation as the block axis of the current writing mode.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
             },
             Value {
                 name: "column-reverse",
                 description: Some(
                     "Same as 'column', except the main-start and main-end directions are swapped.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
             },
             Value {
                 name: "nowrap",
                 description: Some("The flex container is single-line."),
-                browsers: None,
+                browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
             },
             Value {
                 name: "row",
                 description: Some(
                     "The flex container's main axis has the same orientation as the inline axis of the current writing mode.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
             },
             Value {
                 name: "row-reverse",
                 description: Some(
                     "Same as 'row', except the main-start and main-end directions are swapped.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
             },
             Value {
                 name: "wrap",
                 description: Some("The flexbox is multi-line."),
-                browsers: None,
+                browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
             },
             Value {
                 name: "wrap-reverse",
                 description: Some(
                     "Same as 'wrap', except the cross-start and cross-end directions are swapped.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "O15"]),
             },
         ],
         at_rule: None,
@@ -5072,7 +5202,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/flex-grow",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/flex-grow",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -5094,7 +5224,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/flex-shrink",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/flex-shrink",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -5103,7 +5233,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<number>"),
-        relevance: 78,
+        relevance: 80,
         restrictions: &["number"],
         values: &[],
         at_rule: None,
@@ -5118,7 +5248,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/flex-wrap",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/flex-wrap",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -5127,25 +5257,31 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("nowrap | wrap | wrap-reverse"),
-        relevance: 83,
+        relevance: 85,
         restrictions: &["enum"],
         values: &[
             Value {
                 name: "nowrap",
                 description: Some("The flex container is single-line."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "wrap",
                 description: Some("The flexbox is multi-line."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "wrap-reverse",
                 description: Some(
                     "Same as 'wrap', except the cross-start and cross-end directions are swapped.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF28", "FFA28", "S7", "SM7", "C21", "CA25", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -5158,7 +5294,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/float",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/float",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -5167,7 +5303,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("left | right | none | inline-start | inline-end"),
-        relevance: 88,
+        relevance: 87,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -5175,33 +5311,43 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "A keyword indicating that the element must float on the end side of its containing block. That is the right side with ltr scripts, and the left side with rtl scripts.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                browsers: Some(&[
+                    "E118", "FF55", "FFA55", "S15", "SM15", "C118", "CA118", "O104",
+                ]),
             },
             Value {
                 name: "inline-start",
                 description: Some(
                     "A keyword indicating that the element must float on the start side of its containing block. That is the left side with ltr scripts, and the right side with rtl scripts.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                browsers: Some(&[
+                    "E118", "FF55", "FFA55", "S15", "SM15", "C118", "CA118", "O104",
+                ]),
             },
             Value {
                 name: "left",
                 description: Some(
                     "The element generates a block box that is floated to the left. Content flows on the right side of the box, starting at the top (subject to the 'clear' property).",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "none",
                 description: Some("The box is not floated."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "right",
                 description: Some(
                     "Similar to 'left', except the box is floated to the right, and content flows on the left side of the box, starting at the top.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -5216,7 +5362,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/flood-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/flood-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -5240,7 +5386,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/flood-opacity",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/flood-opacity",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -5249,7 +5395,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'opacity'>"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &["number(0-1)", "percentage"],
         values: &[],
         at_rule: None,
@@ -5264,7 +5410,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -5273,7 +5419,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some(
-            "[ [ <'font-style'> || <font-variant-css21> || <'font-weight'> || <'font-stretch'> ]? <'font-size'> [ / <'line-height'> ]? <'font-family'> ] | caption | icon | menu | message-box | small-caption | status-bar",
+            "[ [ <'font-style'> || <font-variant-css2> || <'font-weight'> || <font-width-css3> ]? <'font-size'> [ / <'line-height'> ]? <'font-family'># ] | <system-family-name>",
         ),
         relevance: 82,
         restrictions: &["font"],
@@ -5340,12 +5486,12 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The font used for captioned controls (e.g., buttons, drop-downs, etc.).",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O6"]),
             },
             Value {
                 name: "icon",
                 description: Some("The font used to label icons."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O6"]),
             },
             Value {
                 name: "italic",
@@ -5379,12 +5525,12 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "menu",
                 description: Some("The font used in menus (e.g., dropdown menus and menu lists)."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O6"]),
             },
             Value {
                 name: "message-box",
                 description: Some("The font used in dialog boxes."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O6"]),
             },
             Value {
                 name: "normal",
@@ -5411,7 +5557,7 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "small-caption",
                 description: Some("The font used for labeling small controls."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O6"]),
             },
             Value {
                 name: "smaller",
@@ -5421,7 +5567,7 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "status-bar",
                 description: Some("The font used in window status bars."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O6"]),
             },
             Value {
                 name: "x-large",
@@ -5456,7 +5602,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-family",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-family",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -5491,12 +5637,12 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "cursive",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "fantasy",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif",
@@ -5526,12 +5672,12 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "monospace",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "sans-serif",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
@@ -5541,7 +5687,7 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "serif",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "'Times New Roman', Times, serif",
@@ -5571,7 +5717,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-feature-settings",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-feature-settings",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -5580,7 +5726,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("normal | <feature-tag-value>#"),
-        relevance: 60,
+        relevance: 59,
         restrictions: &["string", "integer"],
         values: &[
             Value {
@@ -6219,7 +6365,9 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "normal",
                 description: Some("No change in glyph substitution or positioning occurs."),
-                browsers: None,
+                browsers: Some(&[
+                    "E15", "FF15", "FFA15", "S9.1", "SM9.3", "C16", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "off",
@@ -6242,7 +6390,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF32", "FFA32", "S9", "SM9", "C33", "CA33", "O20"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-kerning",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-kerning",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -6259,17 +6407,17 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Specifies that kerning is applied at the discretion of the user agent.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S9", "SM9", "C33", "CA33", "O20"]),
             },
             Value {
                 name: "none",
                 description: Some("Specifies that kerning is not applied."),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S9", "SM9", "C33", "CA33", "O20"]),
             },
             Value {
                 name: "normal",
                 description: Some("Specifies that kerning is applied."),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S9", "SM9", "C33", "CA33", "O20"]),
             },
         ],
         at_rule: None,
@@ -6279,10 +6427,10 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The value of 'normal' implies that when rendering with OpenType fonts the language of the document is used to infer the OpenType language system, used to select language specific features when rendering.",
         ),
-        browsers: Some(&["FF34", "FFA34"]),
+        browsers: Some(&["E143", "FF34", "FFA34", "C143", "CA143"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-language-override",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-language-override",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -6298,7 +6446,7 @@ pub const PROPERTIES: &[Property] = &[
             description: Some(
                 "Implies that when rendering with OpenType fonts the language of the document is used to infer the OpenType language system, used to select language specific features when rendering.",
             ),
-            browsers: None,
+            browsers: Some(&["E143", "FF4", "FFA4", "C143", "CA143"]),
         }],
         at_rule: None,
     },
@@ -6312,7 +6460,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -6382,7 +6530,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-size-adjust",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-size-adjust",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -6398,7 +6546,9 @@ pub const PROPERTIES: &[Property] = &[
         values: &[Value {
             name: "none",
             description: Some("Do not preserve the font's x-height."),
-            browsers: None,
+            browsers: Some(&[
+                "E127", "FF3", "FFA4", "S16.4", "SM16.4", "C127", "CA127", "O113",
+            ]),
         }],
         at_rule: None,
     },
@@ -6410,37 +6560,37 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-stretch",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-stretch",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
-            high_date: None,
+            status: BaselineStatus::High,
+            low_date: Some("2017-09-19"),
+            high_date: Some("2020-03-19"),
         }),
         status: Some("obsolete"),
         syntax: Some("<font-stretch-absolute>{1,2}"),
-        relevance: 10,
+        relevance: 13,
         restrictions: &["enum"],
         values: &[
             Value {
                 name: "condensed",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
             },
             Value {
                 name: "expanded",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
             },
             Value {
                 name: "extra-condensed",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
             },
             Value {
                 name: "extra-expanded",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
             },
             Value {
                 name: "narrower",
@@ -6454,27 +6604,27 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "normal",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
             },
             Value {
                 name: "semi-condensed",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
             },
             Value {
                 name: "semi-expanded",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
             },
             Value {
                 name: "ultra-condensed",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
             },
             Value {
                 name: "ultra-expanded",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF9", "FFA9", "S11", "SM11", "C60", "CA60", "O47"]),
             },
             Value {
                 name: "wider",
@@ -6496,7 +6646,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -6513,19 +6663,23 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Selects a font that is labeled as an 'italic' face, or an 'oblique' face if one is not",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "normal",
                 description: Some("Selects a face that is classified as 'normal'."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "oblique",
                 description: Some(
                     "Selects a font that is labeled as an 'oblique' face, or an 'italic' face if one is not.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: Some("@font-face"),
@@ -6538,7 +6692,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E97", "FF34", "FFA34", "S9", "SM9", "C97", "CA97", "O83"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-synthesis",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-synthesis",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -6553,17 +6707,21 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: Some("Disallow all synthetic faces."),
-                browsers: None,
+                browsers: Some(&["E97", "FF34", "FFA34", "S9", "SM9", "C97", "CA97", "O83"]),
             },
             Value {
                 name: "style",
                 description: Some("Allow synthetic italic faces."),
-                browsers: None,
+                browsers: Some(&[
+                    "E97", "FF34", "FFA34", "S10.1", "SM10.3", "C97", "CA97", "O83",
+                ]),
             },
             Value {
                 name: "weight",
                 description: Some("Allow synthetic bold faces."),
-                browsers: None,
+                browsers: Some(&[
+                    "E97", "FF34", "FFA34", "S10.1", "SM10.3", "C97", "CA97", "O83",
+                ]),
             },
         ],
         at_rule: None,
@@ -6576,7 +6734,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-variant",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-variant",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -6593,7 +6751,9 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "normal",
                 description: Some("Specifies a face that is not labeled as a small-caps font."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "small-caps",
@@ -6615,12 +6775,12 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-variant-alternates",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-variant-alternates",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2023-03-13"),
-            high_date: None,
+            high_date: Some("2025-09-13"),
         }),
         status: None,
         syntax: Some(
@@ -6642,12 +6802,16 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "historical-forms",
                 description: Some("Enables display of historical forms."),
-                browsers: None,
+                browsers: Some(&[
+                    "E111", "FF34", "FFA34", "S9.1", "SM9.3", "C111", "CA111", "O97",
+                ]),
             },
             Value {
                 name: "normal",
                 description: Some("None of the features are enabled."),
-                browsers: None,
+                browsers: Some(&[
+                    "E111", "FF34", "FFA34", "S9.1", "SM9.3", "C111", "CA111", "O97",
+                ]),
             },
             Value {
                 name: "ornaments()",
@@ -6682,7 +6846,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-variant-caps",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-variant-caps",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -6701,43 +6865,57 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Enables display of petite capitals for both upper and lowercase letters.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "all-small-caps",
                 description: Some(
                     "Enables display of small capitals for both upper and lowercase letters.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "normal",
                 description: Some("None of the features are enabled."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "petite-caps",
                 description: Some("Enables display of petite capitals."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "small-caps",
                 description: Some(
                     "Enables display of small capitals. Small-caps glyphs typically use the form of uppercase letters but are reduced to the size of lowercase letters.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "titling-caps",
                 description: Some("Enables display of titling capitals."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "unicase",
                 description: Some(
                     "Enables display of mixture of small capitals for uppercase letters with normal lowercase letters.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
         ],
         at_rule: None,
@@ -6750,7 +6928,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-variant-east-asian",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-variant-east-asian",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -6767,52 +6945,72 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "full-width",
                 description: Some("Enables rendering of full-width variants."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
+                ]),
             },
             Value {
                 name: "jis04",
                 description: Some("Enables rendering of JIS04 forms."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
+                ]),
             },
             Value {
                 name: "jis78",
                 description: Some("Enables rendering of JIS78 forms."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
+                ]),
             },
             Value {
                 name: "jis83",
                 description: Some("Enables rendering of JIS83 forms."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
+                ]),
             },
             Value {
                 name: "jis90",
                 description: Some("Enables rendering of JIS90 forms."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
+                ]),
             },
             Value {
                 name: "normal",
                 description: Some("None of the features are enabled."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
+                ]),
             },
             Value {
                 name: "proportional-width",
                 description: Some("Enables rendering of proportionally-spaced variants."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
+                ]),
             },
             Value {
                 name: "ruby",
                 description: Some("Enables display of ruby variant glyphs."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
+                ]),
             },
             Value {
                 name: "simplified",
                 description: Some("Enables rendering of simplified forms."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
+                ]),
             },
             Value {
                 name: "traditional",
                 description: Some("Enables rendering of traditional forms."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C63", "CA63", "O50",
+                ]),
             },
         ],
         at_rule: None,
@@ -6827,7 +7025,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-variant-ligatures",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-variant-ligatures",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -6838,7 +7036,7 @@ pub const PROPERTIES: &[Property] = &[
         syntax: Some(
             "normal | none | [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> ]",
         ),
-        relevance: 53,
+        relevance: 52,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -6849,24 +7047,22 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "common-ligatures",
                 description: Some("Enables display of common ligatures."),
-                browsers: None,
+                browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "contextual",
                 description: Some("Enables display of contextual alternates."),
-                browsers: Some(&[
-                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C34", "CA34", "O21",
-                ]),
+                browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "discretionary-ligatures",
                 description: Some("Enables display of discretionary ligatures."),
-                browsers: None,
+                browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "historical-ligatures",
                 description: Some("Enables display of historical ligatures."),
-                browsers: None,
+                browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "no-additional-ligatures",
@@ -6876,36 +7072,32 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "no-common-ligatures",
                 description: Some("Disables display of common ligatures."),
-                browsers: None,
+                browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "no-contextual",
                 description: Some("Disables display of contextual alternates."),
-                browsers: Some(&[
-                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C34", "CA34", "O21",
-                ]),
+                browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "no-discretionary-ligatures",
                 description: Some("Disables display of discretionary ligatures."),
-                browsers: None,
+                browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "no-historical-ligatures",
                 description: Some("Disables display of historical ligatures."),
-                browsers: None,
+                browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "none",
                 description: Some("Disables all ligatures."),
-                browsers: Some(&[
-                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C34", "CA34", "O21",
-                ]),
+                browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "normal",
                 description: Some("Implies that the defaults set by the font are used."),
-                browsers: None,
+                browsers: Some(&["E79", "FF34", "FFA34", "S7", "SM7", "C31", "CA31", "O18"]),
             },
         ],
         at_rule: None,
@@ -6918,7 +7110,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-variant-numeric",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-variant-numeric",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -6935,47 +7127,65 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "diagonal-fractions",
                 description: Some("Enables display of lining diagonal fractions."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "lining-nums",
                 description: Some("Enables display of lining numerals."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "normal",
                 description: Some("None of the features are enabled."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "oldstyle-nums",
                 description: Some("Enables display of old-style numerals."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "ordinal",
                 description: Some("Enables display of letter forms used with ordinal numbers."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "proportional-nums",
                 description: Some("Enables display of proportional numerals."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "slashed-zero",
                 description: Some("Enables display of slashed zeros."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "stacked-fractions",
                 description: Some("Enables display of lining stacked fractions."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
             Value {
                 name: "tabular-nums",
                 description: Some("Enables display of tabular numerals."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF34", "FFA34", "S9.1", "SM9.3", "C52", "CA52", "O39",
+                ]),
             },
         ],
         at_rule: None,
@@ -6983,14 +7193,16 @@ pub const PROPERTIES: &[Property] = &[
     Property {
         name: "font-variant-position",
         description: Some("Specifies the vertical position"),
-        browsers: Some(&["FF34", "FFA34", "S9.1", "SM9.3"]),
+        browsers: Some(&[
+            "E117", "FF34", "FFA34", "S9.1", "SM9.3", "C117", "CA117", "O103",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-variant-position",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-variant-position",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2023-09-15"),
             high_date: None,
         }),
         status: None,
@@ -7001,21 +7213,23 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "normal",
                 description: Some("None of the features are enabled."),
-                browsers: None,
+                browsers: Some(&[
+                    "E117", "FF34", "FFA34", "S9.1", "SM9.3", "C117", "CA117", "O103",
+                ]),
             },
             Value {
                 name: "sub",
                 description: Some(
                     "Enables display of subscript variants (OpenType feature: subs).",
                 ),
-                browsers: None,
+                browsers: Some(&["FF34", "FFA34", "O103"]),
             },
             Value {
                 name: "super",
                 description: Some(
                     "Enables display of superscript variants (OpenType feature: sups).",
                 ),
-                browsers: None,
+                browsers: Some(&["FF34", "FFA34", "O103"]),
             },
         ],
         at_rule: None,
@@ -7030,7 +7244,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-weight",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-weight",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7090,26 +7304,34 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "bold",
                 description: Some("Same as 700"),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C2", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "bolder",
                 description: Some(
                     "Specifies the weight of the face bolder than the inherited value.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C2", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "lighter",
                 description: Some(
                     "Specifies the weight of the face lighter than the inherited value.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C2", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "normal",
                 description: Some("Same as 400"),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C2", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: Some("@font-face"),
@@ -7164,7 +7386,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-area",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-area",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7173,7 +7395,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<grid-line> [ / <grid-line> ]{0,3}"),
-        relevance: 59,
+        relevance: 61,
         restrictions: &["identifier", "integer"],
         values: &[
             Value {
@@ -7181,7 +7403,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The property contributes nothing to the grid item's placement, indicating auto-placement, an automatic span, or a default span of one.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "span",
@@ -7203,7 +7427,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7227,7 +7451,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-auto-columns",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-auto-columns",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7236,7 +7460,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<track-size>+"),
-        relevance: 52,
+        relevance: 54,
         restrictions: &["length", "percentage"],
         values: &[
             Value {
@@ -7244,21 +7468,23 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Represents the largest min-content contribution of the grid items occupying the grid track.",
                 ),
-                browsers: None,
+                browsers: Some(&["E16", "FF52", "FFA52", "S11", "SM11", "C57", "CA57", "O44"]),
             },
             Value {
                 name: "max-content",
                 description: Some(
                     "Represents the largest max-content contribution of the grid items occupying the grid track.",
                 ),
-                browsers: None,
+                browsers: Some(&["E16", "FF52", "FFA52", "S11", "SM11", "C57", "CA57", "O44"]),
             },
             Value {
                 name: "auto",
                 description: Some(
                     "As a maximum, identical to 'max-content'. As a minimum, represents the largest minimum size (as specified by min-width/min-height) of the grid items occupying the grid track.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "minmax()",
@@ -7280,7 +7506,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-auto-flow",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-auto-flow",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7289,7 +7515,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("[ row | column ] || dense"),
-        relevance: 55,
+        relevance: 57,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -7297,21 +7523,27 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The auto-placement algorithm places items by filling each row in turn, adding new rows as necessary.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "column",
                 description: Some(
                     "The auto-placement algorithm places items by filling each column in turn, adding new columns as necessary.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "dense",
                 description: Some(
                     "If specified, the auto-placement algorithm uses a \"dense\" packing algorithm, which attempts to fill in holes earlier in the grid if smaller items come up later.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
         ],
         at_rule: None,
@@ -7324,7 +7556,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-auto-rows",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-auto-rows",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7333,7 +7565,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<track-size>+"),
-        relevance: 53,
+        relevance: 55,
         restrictions: &["length", "percentage"],
         values: &[
             Value {
@@ -7341,21 +7573,23 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Represents the largest min-content contribution of the grid items occupying the grid track.",
                 ),
-                browsers: None,
+                browsers: Some(&["E16", "FF52", "FFA52", "S11", "SM11", "C57", "CA57", "O44"]),
             },
             Value {
                 name: "max-content",
                 description: Some(
                     "Represents the largest max-content contribution of the grid items occupying the grid track.",
                 ),
-                browsers: None,
+                browsers: Some(&["E16", "FF52", "FFA52", "S11", "SM11", "C57", "CA57", "O44"]),
             },
             Value {
                 name: "auto",
                 description: Some(
                     "As a maximum, identical to 'max-content'. As a minimum, represents the largest minimum size (as specified by min-width/min-height) of the grid items occupying the grid track.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "minmax()",
@@ -7375,7 +7609,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-column",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-column",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7392,7 +7626,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The property contributes nothing to the grid item's placement, indicating auto-placement, an automatic span, or a default span of one.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "span",
@@ -7414,7 +7650,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-column-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-column-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7431,7 +7667,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The property contributes nothing to the grid item's placement, indicating auto-placement, an automatic span, or a default span of one.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "span",
@@ -7453,7 +7691,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: Some("obsolete"),
         syntax: Some("<length-percentage>"),
-        relevance: 5,
+        relevance: 0,
         restrictions: &["length"],
         values: &[],
         at_rule: None,
@@ -7468,7 +7706,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-column-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-column-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7485,7 +7723,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The property contributes nothing to the grid item's placement, indicating auto-placement, an automatic span, or a default span of one.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "span",
@@ -7507,7 +7747,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: Some("obsolete"),
         syntax: Some("<'grid-row-gap'> <'grid-column-gap'>?"),
-        relevance: 9,
+        relevance: 0,
         restrictions: &["length"],
         values: &[],
         at_rule: None,
@@ -7520,7 +7760,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-row",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-row",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7529,7 +7769,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<grid-line> [ / <grid-line> ]?"),
-        relevance: 58,
+        relevance: 57,
         restrictions: &["identifier", "integer", "enum"],
         values: &[
             Value {
@@ -7537,7 +7777,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The property contributes nothing to the grid item's placement, indicating auto-placement, an automatic span, or a default span of one.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "span",
@@ -7559,7 +7801,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-row-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-row-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7576,7 +7818,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The property contributes nothing to the grid item's placement, indicating auto-placement, an automatic span, or a default span of one.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "span",
@@ -7598,7 +7842,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: Some("obsolete"),
         syntax: Some("<length-percentage>"),
-        relevance: 2,
+        relevance: 0,
         restrictions: &["length"],
         values: &[],
         at_rule: None,
@@ -7613,7 +7857,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-row-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-row-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7622,7 +7866,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<grid-line>"),
-        relevance: 53,
+        relevance: 55,
         restrictions: &["identifier", "integer", "enum"],
         values: &[
             Value {
@@ -7630,7 +7874,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The property contributes nothing to the grid item's placement, indicating auto-placement, an automatic span, or a default span of one.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E16", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "span",
@@ -7652,7 +7898,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-template",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-template",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7669,7 +7915,9 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: Some("Sets all three properties to their initial values."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "min-content",
@@ -7726,7 +7974,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-template-areas",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-template-areas",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7735,12 +7983,14 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | <string>+"),
-        relevance: 55,
+        relevance: 58,
         restrictions: &["string"],
         values: &[Value {
             name: "none",
             description: Some("The grid container doesn't define any named grid areas."),
-            browsers: None,
+            browsers: Some(&[
+                "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+            ]),
         }],
         at_rule: None,
     },
@@ -7754,7 +8004,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-template-columns",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-template-columns",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7763,7 +8013,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | <track-list> | <auto-track-list> | subgrid <line-name-list>?"),
-        relevance: 70,
+        relevance: 72,
         restrictions: &["identifier", "length", "percentage", "enum"],
         values: &[
             Value {
@@ -7771,35 +8021,45 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "There is no explicit grid; any rows/columns will be implicitly generated.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "min-content",
                 description: Some(
                     "Represents the largest min-content contribution of the grid items occupying the grid track.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "max-content",
                 description: Some(
                     "Represents the largest max-content contribution of the grid items occupying the grid track.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "auto",
                 description: Some(
                     "As a maximum, identical to 'max-content'. As a minimum, represents the largest minimum size (as specified by min-width/min-height) of the grid items occupying the grid track.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "subgrid",
                 description: Some(
                     "Indicates that the grid will align to its parent grid in that axis.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E117", "FF71", "FFA79", "S16", "SM16", "C117", "CA117", "O103",
+                ]),
             },
             Value {
                 name: "minmax()",
@@ -7828,7 +8088,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/grid-template-rows",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/grid-template-rows",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7837,7 +8097,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | <track-list> | <auto-track-list> | subgrid <line-name-list>?"),
-        relevance: 61,
+        relevance: 63,
         restrictions: &["identifier", "length", "percentage", "string", "enum"],
         values: &[
             Value {
@@ -7845,35 +8105,45 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "There is no explicit grid; any rows/columns will be implicitly generated.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "min-content",
                 description: Some(
                     "Represents the largest min-content contribution of the grid items occupying the grid track.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "max-content",
                 description: Some(
                     "Represents the largest max-content contribution of the grid items occupying the grid track.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "auto",
                 description: Some(
                     "As a maximum, identical to 'max-content'. As a minimum, represents the largest minimum size (as specified by min-width/min-height) of the grid items occupying the grid track.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF52", "FFA52", "S10.1", "SM10.3", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "subgrid",
                 description: Some(
                     "Indicates that the grid will align to its parent grid in that axis.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E117", "FF71", "FFA79", "S16", "SM16", "C117", "CA117", "O103",
+                ]),
             },
             Value {
                 name: "minmax()",
@@ -7900,7 +8170,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/height",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/height",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -7917,28 +8187,30 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: Some("The height depends on the values of other properties."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "fit-content",
                 description: Some(
                     "Use the fit-content inline size or fit-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                browsers: Some(&["E79", "FF94", "FFA94", "S11", "SM11", "C46", "CA46", "O33"]),
             },
             Value {
                 name: "max-content",
                 description: Some(
                     "Use the max-content inline size or max-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
             },
             Value {
                 name: "min-content",
                 description: Some(
                     "Use the min-content inline size or min-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
+                browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
             },
         ],
         at_rule: None,
@@ -7953,7 +8225,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/hyphens",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/hyphens",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -7970,21 +8242,21 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Conditional hyphenation characters inside a word, if present, take priority over automatic resources when determining hyphenation points within the word.",
                 ),
-                browsers: None,
+                browsers: Some(&["E88", "FF6", "FFA6", "S5.1", "SM4.2", "C88", "CA55", "O74"]),
             },
             Value {
                 name: "manual",
                 description: Some(
                     "Words are only broken at line breaks where there are characters inside the word that suggest line break opportunities",
                 ),
-                browsers: None,
+                browsers: Some(&["E88", "FF6", "FFA6", "S5.1", "SM4.2", "C88", "CA55", "O74"]),
             },
             Value {
                 name: "none",
                 description: Some(
                     "Words are not broken at line breaks, even if characters inside the word suggest line break points.",
                 ),
-                browsers: None,
+                browsers: Some(&["E88", "FF6", "FFA6", "S5.1", "SM4.2", "C88", "CA55", "O74"]),
             },
         ],
         at_rule: None,
@@ -7999,7 +8271,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/image-orientation",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/image-orientation",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8023,7 +8295,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "If the image has an orientation specified in its metadata, such as EXIF, this value computes to the angle that the metadata specifies is necessary to correctly orient the image.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E81", "FF26", "FFA26", "S13.1", "SM13.4", "C81", "CA81", "O68",
+                ]),
             },
         ],
         at_rule: None,
@@ -8036,7 +8310,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF3.6", "FFA4", "S6", "SM6", "C13", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/image-rendering",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/image-rendering",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8053,14 +8327,14 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The image should be scaled with an algorithm that maximizes the appearance of the image.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF3.6", "FFA4", "S6", "SM6", "C13", "CA18", "O15"]),
             },
             Value {
                 name: "crisp-edges",
                 description: Some(
                     "The image must be scaled with an algorithm that preserves contrast and edges in the image, and which does not smooth colors or introduce blur to the image in the process.",
                 ),
-                browsers: None,
+                browsers: Some(&["FF65", "FFA65", "S7", "SM7", "O15"]),
             },
             Value {
                 name: "-moz-crisp-edges",
@@ -8070,19 +8344,19 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "optimizeQuality",
                 description: Some("Deprecated."),
-                browsers: None,
+                browsers: Some(&["FF3.6", "FFA4", "S7", "SM7"]),
             },
             Value {
                 name: "optimizeSpeed",
                 description: Some("Deprecated."),
-                browsers: None,
+                browsers: Some(&["FF3.6", "FFA4", "S7", "SM7"]),
             },
             Value {
                 name: "pixelated",
                 description: Some(
                     "When scaling the image up, the 'nearest neighbor' or similar algorithm must be used, so that the image appears to be simply composed of very large pixels.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF93", "FFA93", "S10", "SM10", "C41", "CA41", "O26"]),
             },
         ],
         at_rule: None,
@@ -8148,7 +8422,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/inline-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/inline-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8157,12 +8431,12 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'width'>"),
-        relevance: 54,
+        relevance: 55,
         restrictions: &["length", "percentage"],
         values: &[Value {
             name: "auto",
             description: Some("Depends on the values of other properties."),
-            browsers: None,
+            browsers: Some(&["E79", "FF41", "FFA41", "S5.1", "SM5", "C8", "CA18", "O15"]),
         }],
         at_rule: None,
     },
@@ -8171,10 +8445,10 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "In CSS setting to 'isolate' will turn the element into a stacking context. In SVG, it defines whether an element is isolated or not.",
         ),
-        browsers: Some(&["E79", "FF36", "FFA36", "S8", "SM8", "C41", "CA41", "O30"]),
+        browsers: Some(&["E79", "FF36", "FFA36", "S8", "SM8", "C41", "CA41", "O28"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/isolation",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/isolation",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8183,7 +8457,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("auto | isolate"),
-        relevance: 56,
+        relevance: 57,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -8191,12 +8465,12 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Elements are not isolated unless an operation is applied that causes the creation of a stacking context.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF36", "FFA36", "S8", "SM8", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "isolate",
                 description: Some("In CSS will turn the element into a stacking context."),
-                browsers: None,
+                browsers: Some(&["E79", "FF36", "FFA36", "S8", "SM8", "C41", "CA41", "O28"]),
             },
         ],
         at_rule: None,
@@ -8211,7 +8485,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/justify-content",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/justify-content",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8222,7 +8496,7 @@ pub const PROPERTIES: &[Property] = &[
         syntax: Some(
             "normal | <content-distribution> | <overflow-position>? [ <content-position> | left | right ]",
         ),
-        relevance: 88,
+        relevance: 90,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -8249,14 +8523,14 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The items are packed flush to each other toward the left edge of the alignment container in the main axis.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF20", "FFA20", "S7", "SM7", "C21", "CA25", "O15"]),
             },
             Value {
                 name: "right",
                 description: Some(
                     "The items are packed flush to each other toward the right edge of the alignment container in the main axis.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF20", "FFA20", "S7", "SM7", "C21", "CA25", "O15"]),
             },
             Value {
                 name: "safe",
@@ -8357,7 +8631,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/left",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/left",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8365,7 +8639,7 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length> | <percentage> | auto"),
+        syntax: Some("auto | <length-percentage> | <anchor()> | <anchor-size()>"),
         relevance: 94,
         restrictions: &["length", "percentage"],
         values: &[Value {
@@ -8373,7 +8647,9 @@ pub const PROPERTIES: &[Property] = &[
             description: Some(
                 "For non-replaced elements, the effect of this value depends on which of related properties have the value 'auto' as well",
             ),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -8387,7 +8663,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/letter-spacing",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/letter-spacing",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8396,14 +8672,16 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("normal | <length>"),
-        relevance: 82,
+        relevance: 83,
         restrictions: &["length"],
         values: &[Value {
             name: "normal",
             description: Some(
                 "The spacing is the normal spacing for the current font. It is typically zero-length.",
             ),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -8417,7 +8695,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/lighting-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/lighting-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8441,7 +8719,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/line-break",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/line-break",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8458,33 +8736,33 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The UA determines the set of line-breaking restrictions to use for CJK scripts, and it may vary the restrictions based on the length of the line; e.g., use a less restrictive set of line-break rules for short lines.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF69", "FFA79", "S7", "SM7", "C25", "CA25", "O15"]),
             },
             Value {
                 name: "loose",
                 description: Some(
                     "Breaks text using the least restrictive set of line-breaking rules. Typically used for short lines, such as in newspapers.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF69", "FFA79", "S8", "SM8", "C25", "CA25", "O15"]),
             },
             Value {
                 name: "normal",
                 description: Some("Breaks text using the most common set of line-breaking rules."),
-                browsers: None,
+                browsers: Some(&["E79", "FF69", "FFA79", "S2", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "strict",
                 description: Some(
                     "Breaks CJK scripts using a more restrictive set of line-breaking rules than 'normal'.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF69", "FFA79", "S8", "SM8", "C25", "CA25", "O15"]),
             },
             Value {
                 name: "anywhere",
                 description: Some(
                     "There is a soft wrap opportunity around every typographic character unit, including around any punctuation character or preserved white spaces, or in the middle of words, disregarding any prohibition against line breaks, even those introduced by characters with the GL, WJ, or ZWJ line breaking classes or mandated by the word-break property.",
                 ),
-                browsers: None,
+                browsers: Some(&["E83", "FF69", "FFA79", "S13", "SM13", "C83", "CA83", "O69"]),
             },
         ],
         at_rule: None,
@@ -8497,7 +8775,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/line-height",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/line-height",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8513,7 +8791,9 @@ pub const PROPERTIES: &[Property] = &[
             description: Some(
                 "Tells user agents to set the computed value to a 'reasonable' value based on the font size of the element.",
             ),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -8525,7 +8805,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/list-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/list-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8572,7 +8852,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The marker box is outside the principal block box, as described in the section on the ::marker pseudo-element below.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "lower-alpha",
@@ -8597,14 +8877,14 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "outside",
                 description: Some(
                     "The ::marker pseudo-element is an inline element placed immediately before all ::before pseudo-elements in the principal block box, after which the element's content flows.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "square",
@@ -8647,7 +8927,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/list-style-image",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/list-style-image",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8663,7 +8943,9 @@ pub const PROPERTIES: &[Property] = &[
             description: Some(
                 "The default contents of the of the list item's marker are given by 'list-style-type' instead.",
             ),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -8677,7 +8959,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/list-style-position",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/list-style-position",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8686,7 +8968,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("inside | outside"),
-        relevance: 55,
+        relevance: 56,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -8694,14 +8976,18 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The marker box is outside the principal block box, as described in the section on the ::marker pseudo-element below.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "outside",
                 description: Some(
                     "The ::marker pseudo-element is an inline element placed immediately before all ::before pseudo-elements in the principal block box, after which the element's content flows.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -8714,7 +9000,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/list-style-type",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/list-style-type",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8729,62 +9015,72 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "armenian",
                 description: Some("Traditional uppercase Armenian numbering."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
             },
             Value {
                 name: "circle",
                 description: Some("A hollow circle."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O3.5",
+                ]),
             },
             Value {
                 name: "decimal",
                 description: Some("Western decimal numbers."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O3.5",
+                ]),
             },
             Value {
                 name: "decimal-leading-zero",
                 description: Some("Decimal numbers padded by initial zeros."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O8"]),
             },
             Value {
                 name: "disc",
                 description: Some("A filled circle."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O3.5",
+                ]),
             },
             Value {
                 name: "georgian",
                 description: Some("Traditional Georgian numbering."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
             },
             Value {
                 name: "lower-alpha",
                 description: Some("Lowercase ASCII letters."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
             },
             Value {
                 name: "lower-greek",
                 description: Some("Lowercase classical Greek."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
             },
             Value {
                 name: "lower-latin",
                 description: Some("Lowercase ASCII letters."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
             },
             Value {
                 name: "lower-roman",
                 description: Some("Lowercase ASCII Roman numerals."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
             },
             Value {
                 name: "none",
                 description: Some("No marker"),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "square",
                 description: Some("A filled square."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O3.5",
+                ]),
             },
             Value {
                 name: "symbols()",
@@ -8796,17 +9092,17 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "upper-alpha",
                 description: Some("Uppercase ASCII letters."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
             },
             Value {
                 name: "upper-latin",
                 description: Some("Uppercase ASCII letters."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
             },
             Value {
                 name: "upper-roman",
                 description: Some("Uppercase ASCII Roman numerals."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O6"]),
             },
         ],
         at_rule: None,
@@ -8821,7 +9117,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/margin",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/margin",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8835,7 +9131,9 @@ pub const PROPERTIES: &[Property] = &[
         values: &[Value {
             name: "auto",
             description: None,
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O3.5",
+            ]),
         }],
         at_rule: None,
     },
@@ -8849,7 +9147,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/margin-block-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/margin-block-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8863,7 +9161,9 @@ pub const PROPERTIES: &[Property] = &[
         values: &[Value {
             name: "auto",
             description: None,
-            browsers: None,
+            browsers: Some(&[
+                "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C69", "CA69", "O56",
+            ]),
         }],
         at_rule: None,
     },
@@ -8877,7 +9177,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/margin-block-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/margin-block-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8886,12 +9186,14 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'margin-top'>"),
-        relevance: 54,
+        relevance: 58,
         restrictions: &["length", "percentage"],
         values: &[Value {
             name: "auto",
             description: None,
-            browsers: None,
+            browsers: Some(&[
+                "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C69", "CA69", "O56",
+            ]),
         }],
         at_rule: None,
     },
@@ -8905,7 +9207,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/margin-bottom",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/margin-bottom",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8913,13 +9215,15 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length-percentage> | auto"),
+        syntax: Some("<length-percentage> | auto | <anchor-size()>"),
         relevance: 91,
         restrictions: &["length", "percentage"],
         values: &[Value {
             name: "auto",
             description: None,
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O3.5",
+            ]),
         }],
         at_rule: None,
     },
@@ -8933,7 +9237,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/margin-inline-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/margin-inline-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8942,12 +9246,14 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'margin-top'>"),
-        relevance: 59,
+        relevance: 61,
         restrictions: &["length", "percentage"],
         values: &[Value {
             name: "auto",
             description: None,
-            browsers: None,
+            browsers: Some(&[
+                "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C69", "CA69", "O56",
+            ]),
         }],
         at_rule: None,
     },
@@ -8961,7 +9267,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/margin-inline-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/margin-inline-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8970,12 +9276,14 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'margin-top'>"),
-        relevance: 60,
+        relevance: 62,
         restrictions: &["length", "percentage"],
         values: &[Value {
             name: "auto",
             description: None,
-            browsers: None,
+            browsers: Some(&[
+                "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C69", "CA69", "O56",
+            ]),
         }],
         at_rule: None,
     },
@@ -8989,7 +9297,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/margin-left",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/margin-left",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -8997,13 +9305,15 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length-percentage> | auto"),
+        syntax: Some("<length-percentage> | auto | <anchor-size()>"),
         relevance: 91,
         restrictions: &["length", "percentage"],
         values: &[Value {
             name: "auto",
             description: None,
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O3.5",
+            ]),
         }],
         at_rule: None,
     },
@@ -9017,7 +9327,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/margin-right",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/margin-right",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9025,13 +9335,15 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length-percentage> | auto"),
+        syntax: Some("<length-percentage> | auto | <anchor-size()>"),
         relevance: 91,
         restrictions: &["length", "percentage"],
         values: &[Value {
             name: "auto",
             description: None,
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O3.5",
+            ]),
         }],
         at_rule: None,
     },
@@ -9045,7 +9357,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/margin-top",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/margin-top",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9053,13 +9365,15 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length-percentage> | auto"),
+        syntax: Some("<length-percentage> | auto | <anchor-size()>"),
         relevance: 94,
         restrictions: &["length", "percentage"],
         values: &[Value {
             name: "auto",
             description: None,
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O3.5",
+            ]),
         }],
         at_rule: None,
     },
@@ -9071,7 +9385,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/marker",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/marker",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9088,7 +9402,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Indicates that no marker symbol will be drawn at the given vertex or vertices.",
                 ),
-                browsers: None,
+                browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "url()",
@@ -9106,7 +9420,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/marker-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/marker-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9123,7 +9437,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Indicates that no marker symbol will be drawn at the given vertex or vertices.",
                 ),
-                browsers: None,
+                browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "url()",
@@ -9141,7 +9455,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/marker-mid",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/marker-mid",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9158,7 +9472,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Indicates that no marker symbol will be drawn at the given vertex or vertices.",
                 ),
-                browsers: None,
+                browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "url()",
@@ -9176,7 +9490,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/marker-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/marker-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9193,7 +9507,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Indicates that no marker symbol will be drawn at the given vertex or vertices.",
                 ),
-                browsers: None,
+                browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "url()",
@@ -9211,7 +9525,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-image",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-image",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -9220,7 +9534,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<mask-reference>#"),
-        relevance: 58,
+        relevance: 61,
         restrictions: &["url", "image", "enum"],
         values: &[
             Value {
@@ -9246,7 +9560,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-mode",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-mode",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -9263,7 +9577,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Alpha values of the mask layer image should be used as the mask values.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E120", "FF53", "FFA53", "S15.4", "SM15.4", "C120", "CA120", "O106",
+                ]),
             },
             Value {
                 name: "auto",
@@ -9277,7 +9593,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Luminance values of the mask layer image should be used as the mask values.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E120", "FF53", "FFA53", "S15.4", "SM15.4", "C120", "CA120", "O106",
+                ]),
             },
         ],
         at_rule: None,
@@ -9290,7 +9608,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-origin",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-origin",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -9312,7 +9630,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-position",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-position",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -9336,7 +9654,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-repeat",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-repeat",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -9358,7 +9676,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -9402,7 +9720,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF35", "FFA35", "S7", "SM7", "C24", "CA25", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-type",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-type",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9417,14 +9735,14 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "alpha",
                 description: Some("Indicates that the alpha values of the mask should be used."),
-                browsers: None,
+                browsers: Some(&["E79", "FF35", "FFA35", "S7", "SM7", "C24", "CA25", "O15"]),
             },
             Value {
                 name: "luminance",
                 description: Some(
                     "Indicates that the luminance values of the mask should be used.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF35", "FFA35", "S7", "SM7", "C24", "CA25", "O15"]),
             },
         ],
         at_rule: None,
@@ -9439,7 +9757,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/max-block-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/max-block-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9448,12 +9766,14 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'max-width'>"),
-        relevance: 54,
+        relevance: 55,
         restrictions: &["length", "percentage"],
         values: &[Value {
             name: "none",
             description: Some("No limit on the width of the box."),
-            browsers: None,
+            browsers: Some(&[
+                "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C57", "CA57", "O44",
+            ]),
         }],
         at_rule: None,
     },
@@ -9465,7 +9785,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/max-height",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/max-height",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9482,34 +9802,28 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: Some("No limit on the height of the box."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1.3", "SM1", "C18", "CA18", "O15"]),
             },
             Value {
                 name: "fit-content",
                 description: Some(
                     "Use the fit-content inline size or fit-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA4", "S1.3", "SM1", "C1", "CA18", "IE7", "O7",
-                ]),
+                browsers: Some(&["E79", "FF94", "FFA94", "S11", "SM11", "C46", "CA46", "O44"]),
             },
             Value {
                 name: "max-content",
                 description: Some(
                     "Use the max-content inline size or max-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA4", "S1.3", "SM1", "C1", "CA18", "IE7", "O7",
-                ]),
+                browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
             },
             Value {
                 name: "min-content",
                 description: Some(
                     "Use the min-content inline size or min-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA4", "S1.3", "SM1", "C1", "CA18", "IE7", "O7",
-                ]),
+                browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
             },
         ],
         at_rule: None,
@@ -9524,7 +9838,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/max-inline-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/max-inline-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9533,12 +9847,14 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'max-width'>"),
-        relevance: 54,
+        relevance: 55,
         restrictions: &["length", "percentage"],
         values: &[Value {
             name: "none",
             description: Some("No limit on the height of the box."),
-            browsers: None,
+            browsers: Some(&[
+                "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C57", "CA57", "O44",
+            ]),
         }],
         at_rule: None,
     },
@@ -9548,7 +9864,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE7", "O4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/max-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/max-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9565,28 +9881,30 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: Some("No limit on the width of the box."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "fit-content",
                 description: Some(
                     "Use the fit-content inline size or fit-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE7", "O4"]),
+                browsers: Some(&["E79", "FF94", "FFA94", "S11", "SM11", "C46", "CA46", "O44"]),
             },
             Value {
                 name: "max-content",
                 description: Some(
                     "Use the max-content inline size or max-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE7", "O4"]),
+                browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
             },
             Value {
                 name: "min-content",
                 description: Some(
                     "Use the min-content inline size or min-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE7", "O4"]),
+                browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
             },
         ],
         at_rule: None,
@@ -9601,7 +9919,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/min-block-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/min-block-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9610,7 +9928,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'min-width'>"),
-        relevance: 54,
+        relevance: 55,
         restrictions: &["length", "percentage"],
         values: &[],
         at_rule: None,
@@ -9623,7 +9941,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/min-height",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/min-height",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9634,42 +9952,34 @@ pub const PROPERTIES: &[Property] = &[
         syntax: Some(
             "auto | <length-percentage [0,∞]> | min-content | max-content | fit-content | fit-content(<length-percentage [0,∞]>) | <calc-size()> | <anchor-size()>",
         ),
-        relevance: 89,
+        relevance: 90,
         restrictions: &["length", "percentage"],
         values: &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: Some(&[
-                    "E12", "FF3", "FFA4", "S1.3", "SM1", "C1", "CA18", "IE7", "O4",
-                ]),
+                browsers: Some(&["E12", "FF34", "FFA34", "S7", "SM7", "C21", "CA25", "O12.1"]),
             },
             Value {
                 name: "fit-content",
                 description: Some(
                     "Use the fit-content inline size or fit-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&[
-                    "E12", "FF3", "FFA4", "S1.3", "SM1", "C1", "CA18", "IE7", "O4",
-                ]),
+                browsers: Some(&["E79", "FF94", "FFA94", "S11", "SM11", "C46", "CA46", "O44"]),
             },
             Value {
                 name: "max-content",
                 description: Some(
                     "Use the max-content inline size or max-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&[
-                    "E12", "FF3", "FFA4", "S1.3", "SM1", "C1", "CA18", "IE7", "O4",
-                ]),
+                browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
             },
             Value {
                 name: "min-content",
                 description: Some(
                     "Use the min-content inline size or min-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&[
-                    "E12", "FF3", "FFA4", "S1.3", "SM1", "C1", "CA18", "IE7", "O4",
-                ]),
+                browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
             },
         ],
         at_rule: None,
@@ -9684,7 +9994,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/min-inline-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/min-inline-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9693,7 +10003,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'min-width'>"),
-        relevance: 54,
+        relevance: 55,
         restrictions: &["length", "percentage"],
         values: &[],
         at_rule: None,
@@ -9704,7 +10014,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE7", "O4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/min-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/min-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9721,28 +10031,28 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE7", "O4"]),
+                browsers: Some(&["E12", "FF34", "FFA34", "S7", "SM7", "C21", "CA25", "O12.1"]),
             },
             Value {
                 name: "fit-content",
                 description: Some(
                     "Use the fit-content inline size or fit-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE7", "O4"]),
+                browsers: Some(&["E79", "FF94", "FFA94", "S11", "SM11", "C46", "CA46", "O33"]),
             },
             Value {
                 name: "max-content",
                 description: Some(
                     "Use the max-content inline size or max-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE7", "O4"]),
+                browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O33"]),
             },
             Value {
                 name: "min-content",
                 description: Some(
                     "Use the min-content inline size or min-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE7", "O4"]),
+                browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O33"]),
             },
         ],
         at_rule: None,
@@ -9755,7 +10065,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mix-blend-mode",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mix-blend-mode",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -9763,111 +10073,111 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2022-07-15"),
         }),
         status: None,
-        syntax: Some("<blend-mode> | plus-lighter"),
-        relevance: 54,
+        syntax: Some("<blend-mode> | plus-darker | plus-lighter"),
+        relevance: 55,
         restrictions: &["enum"],
         values: &[
             Value {
                 name: "normal",
                 description: Some("Default attribute which specifies no blending"),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "multiply",
                 description: Some(
                     "The source color is multiplied by the destination color and replaces the destination.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "screen",
                 description: Some(
                     "Multiplies the complements of the backdrop and source color values, then complements the result.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "overlay",
                 description: Some(
                     "Multiplies or screens the colors, depending on the backdrop color value.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "darken",
                 description: Some("Selects the darker of the backdrop and source colors."),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "lighten",
                 description: Some("Selects the lighter of the backdrop and source colors."),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "color-dodge",
                 description: Some("Brightens the backdrop color to reflect the source color."),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "color-burn",
                 description: Some("Darkens the backdrop color to reflect the source color."),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "hard-light",
                 description: Some(
                     "Multiplies or screens the colors, depending on the source color value.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "soft-light",
                 description: Some(
                     "Darkens or lightens the colors, depending on the source color value.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "difference",
                 description: Some(
                     "Subtracts the darker of the two constituent colors from the lighter color..",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "exclusion",
                 description: Some(
                     "Produces an effect similar to that of the Difference mode but lower in contrast.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "hue",
                 description: Some(
                     "Creates a color with the hue of the source color and the saturation and luminosity of the backdrop color.",
                 ),
-                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                browsers: Some(&["E79", "FF32", "FFA32", "S10", "SM10", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "saturation",
                 description: Some(
                     "Creates a color with the saturation of the source color and the hue and luminosity of the backdrop color.",
                 ),
-                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                browsers: Some(&["E79", "FF32", "FFA32", "S10", "SM10", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "color",
                 description: Some(
                     "Creates a color with the hue and saturation of the source color and the luminosity of the backdrop color.",
                 ),
-                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                browsers: Some(&["E79", "FF32", "FFA32", "S10", "SM10", "C41", "CA41", "O28"]),
             },
             Value {
                 name: "luminosity",
                 description: Some(
                     "Creates a color with the luminosity of the source color and the hue and saturation of the backdrop color.",
                 ),
-                browsers: Some(&["E79", "FF32", "FFA32", "S8", "SM8", "C41", "CA41", "O28"]),
+                browsers: Some(&["E79", "FF32", "FFA32", "S10", "SM10", "C41", "CA41", "O28"]),
             },
         ],
         at_rule: None,
@@ -11756,7 +12066,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: None,
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-moz-user-focus",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-moz-user-focus",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -15096,7 +15406,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF36", "FFA36", "S10", "SM10", "C32", "CA32", "O19"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/object-fit",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/object-fit",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -15105,7 +15415,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("fill | contain | cover | none | scale-down"),
-        relevance: 74,
+        relevance: 76,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -15113,35 +15423,35 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The replaced content is sized to maintain its aspect ratio while fitting within the element's content box: its concrete object size is resolved as a contain constraint against the element's used width and height.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF36", "FFA36", "S10", "SM10", "C32", "CA32", "O19"]),
             },
             Value {
                 name: "cover",
                 description: Some(
                     "The replaced content is sized to maintain its aspect ratio while filling the element's entire content box: its concrete object size is resolved as a cover constraint against the element's used width and height.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF36", "FFA36", "S10", "SM10", "C32", "CA32", "O19"]),
             },
             Value {
                 name: "fill",
                 description: Some(
                     "The replaced content is sized to fill the element's content box: the object's concrete object size is the element's used width and height.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF36", "FFA36", "S10", "SM10", "C32", "CA32", "O19"]),
             },
             Value {
                 name: "none",
                 description: Some(
                     "The replaced content is not resized to fit inside the element's content box",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF36", "FFA36", "S10", "SM10", "C32", "CA32", "O19"]),
             },
             Value {
                 name: "scale-down",
                 description: Some(
                     "Size the content as if 'none' or 'contain' were specified, whichever would result in a smaller concrete object size.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF36", "FFA36", "S10", "SM10", "C32", "CA32", "O19"]),
             },
         ],
         at_rule: None,
@@ -15152,7 +15462,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF36", "FFA36", "S10", "SM10", "C32", "CA32", "O19"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/object-position",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/object-position",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -15161,7 +15471,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<position>"),
-        relevance: 58,
+        relevance: 59,
         restrictions: &["position", "length", "percentage"],
         values: &[],
         at_rule: None,
@@ -15295,7 +15605,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S2", "SM1", "C1", "CA18", "IE9", "O9"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/opacity",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/opacity",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -15319,7 +15629,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/order",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/order",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -15328,7 +15638,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<integer>"),
-        relevance: 68,
+        relevance: 70,
         restrictions: &["integer"],
         values: &[],
         at_rule: None,
@@ -15341,7 +15651,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "S1.3", "SM1", "C25", "CA25", "IE8", "O9.2"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/orphans",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/orphans",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -15782,12 +16092,12 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/outline",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/outline",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2023-03-27"),
-            high_date: None,
+            high_date: Some("2025-09-27"),
         }),
         status: None,
         syntax: Some("<'outline-width'> || <'outline-style'> || <'outline-color'>"),
@@ -15799,7 +16109,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Permits the user agent to render a custom outline style, typically the default platform style.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "invert",
@@ -15819,7 +16129,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/outline-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/outline-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -15845,7 +16155,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF1.5", "FFA4", "S1.2", "SM1", "C1", "CA18", "O9.5"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/outline-offset",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/outline-offset",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -15867,7 +16177,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/outline-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/outline-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -15883,7 +16193,9 @@ pub const PROPERTIES: &[Property] = &[
             description: Some(
                 "Permits the user agent to render a custom outline style, typically the default platform style.",
             ),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1.5", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -15895,7 +16207,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/outline-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/outline-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -15904,7 +16216,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<line-width>"),
-        relevance: 63,
+        relevance: 64,
         restrictions: &["length", "line-width"],
         values: &[],
         at_rule: None,
@@ -15915,7 +16227,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overflow",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overflow",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -15932,14 +16244,18 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The behavior of the 'auto' value is UA-dependent, but should cause a scrolling mechanism to be provided for overflowing boxes.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "hidden",
                 description: Some(
                     "Content is clipped and no scrolling mechanism should be provided to view the content outside the clipping region.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "-moz-hidden-unscrollable",
@@ -15953,14 +16269,18 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Content is clipped and if the user agent uses a scrolling mechanism that is visible on the screen (such as a scroll bar or a panner), that mechanism should be displayed for a box whether or not any of its content is clipped.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "visible",
                 description: Some(
                     "Content is not clipped, i.e., it may be rendered outside the content box.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -15975,7 +16295,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overflow-wrap",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overflow-wrap",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -15984,7 +16304,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("normal | break-word | anywhere"),
-        relevance: 67,
+        relevance: 69,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -15992,19 +16312,25 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "An otherwise unbreakable sequence of characters may be broken at an arbitrary point if there are no otherwise-acceptable break points in the line.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.5", "FFA4", "S1", "SM1", "C1", "CA18", "IE5.5", "O10.5",
+                ]),
             },
             Value {
                 name: "normal",
                 description: Some("Lines may break only at allowed break points."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.5", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "anywhere",
                 description: Some(
                     "There is a soft wrap opportunity around every typographic character unit, including around any punctuation character or preserved white spaces, or in the middle of words, disregarding any prohibition against line breaks, even those introduced by characters with the GL, WJ, or ZWJ line breaking classes or mandated by the word-break property.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E80", "FF65", "FFA65", "S15.4", "SM15.4", "C80", "CA80", "O67",
+                ]),
             },
         ],
         at_rule: None,
@@ -16017,7 +16343,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overflow-x",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overflow-x",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16034,28 +16360,36 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The behavior of the 'auto' value is UA-dependent, but should cause a scrolling mechanism to be provided for overflowing boxes.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "hidden",
                 description: Some(
                     "Content is clipped and no scrolling mechanism should be provided to view the content outside the clipping region.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "scroll",
                 description: Some(
                     "Content is clipped and if the user agent uses a scrolling mechanism that is visible on the screen (such as a scroll bar or a panner), that mechanism should be displayed for a box whether or not any of its content is clipped.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "visible",
                 description: Some(
                     "Content is not clipped, i.e., it may be rendered outside the content box.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -16068,7 +16402,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overflow-y",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overflow-y",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16085,28 +16419,36 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The behavior of the 'auto' value is UA-dependent, but should cause a scrolling mechanism to be provided for overflowing boxes.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "hidden",
                 description: Some(
                     "Content is clipped and no scrolling mechanism should be provided to view the content outside the clipping region.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "scroll",
                 description: Some(
                     "Content is clipped and if the user agent uses a scrolling mechanism that is visible on the screen (such as a scroll bar or a panner), that mechanism should be displayed for a box whether or not any of its content is clipped.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "visible",
                 description: Some(
                     "Content is not clipped, i.e., it may be rendered outside the content box.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF3.5", "FFA4", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -16120,7 +16462,7 @@ pub const PROPERTIES: &[Property] = &[
         references: &[],
         baseline: None,
         status: None,
-        syntax: Some("<integer> && <symbol>"),
+        syntax: Some("<integer [0,∞]> && <symbol>"),
         relevance: 50,
         restrictions: &["integer", "image", "string", "identifier"],
         values: &[],
@@ -16136,7 +16478,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/padding",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/padding",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16160,7 +16502,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/padding-bottom",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/padding-bottom",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16184,7 +16526,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/padding-block-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/padding-block-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16193,7 +16535,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'padding-top'>"),
-        relevance: 54,
+        relevance: 55,
         restrictions: &["length", "percentage"],
         values: &[],
         at_rule: None,
@@ -16208,7 +16550,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/padding-block-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/padding-block-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16217,7 +16559,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'padding-top'>"),
-        relevance: 54,
+        relevance: 55,
         restrictions: &["length", "percentage"],
         values: &[],
         at_rule: None,
@@ -16232,31 +16574,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/padding-inline-end",
-        }],
-        baseline: Some(Baseline {
-            status: BaselineStatus::High,
-            low_date: Some("2020-01-15"),
-            high_date: Some("2022-07-15"),
-        }),
-        status: None,
-        syntax: Some("<'padding-top'>"),
-        relevance: 57,
-        restrictions: &["length", "percentage"],
-        values: &[],
-        at_rule: None,
-    },
-    Property {
-        name: "padding-inline-start",
-        description: Some(
-            "Logical 'padding-left'. Mapping depends on the parent element's 'writing-mode', 'direction', and 'text-orientation'.",
-        ),
-        browsers: Some(&[
-            "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C69", "CA69", "O56",
-        ]),
-        references: &[Reference {
-            name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/padding-inline-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/padding-inline-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16271,6 +16589,30 @@ pub const PROPERTIES: &[Property] = &[
         at_rule: None,
     },
     Property {
+        name: "padding-inline-start",
+        description: Some(
+            "Logical 'padding-left'. Mapping depends on the parent element's 'writing-mode', 'direction', and 'text-orientation'.",
+        ),
+        browsers: Some(&[
+            "E79", "FF41", "FFA41", "S12.1", "SM12.2", "C69", "CA69", "O56",
+        ]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/padding-inline-start",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::High,
+            low_date: Some("2020-01-15"),
+            high_date: Some("2022-07-15"),
+        }),
+        status: None,
+        syntax: Some("<'padding-top'>"),
+        relevance: 61,
+        restrictions: &["length", "percentage"],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
         name: "padding-left",
         description: Some(
             "Shorthand property to set values for the thickness of the padding area. If left is omitted, it is the same as right. If bottom is omitted it is the same as top, if right is omitted it is the same as top. The value may not be negative.",
@@ -16280,7 +16622,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/padding-left",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/padding-left",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16289,7 +16631,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<length-percentage [0,∞]>"),
-        relevance: 90,
+        relevance: 89,
         restrictions: &["length", "percentage"],
         values: &[],
         at_rule: None,
@@ -16304,7 +16646,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/padding-right",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/padding-right",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16328,7 +16670,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/padding-top",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/padding-top",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16337,7 +16679,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<length-percentage [0,∞]>"),
-        relevance: 90,
+        relevance: 89,
         restrictions: &["length", "percentage"],
         values: &[],
         at_rule: None,
@@ -16350,7 +16692,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/page-break-after",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/page-break-after",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -16365,31 +16707,39 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "always",
                 description: Some("Always force a page break after the generated box."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "auto",
                 description: Some("Neither force nor forbid a page break after generated box."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a page break after the generated box."),
-                browsers: None,
+                browsers: Some(&["E12", "C1", "CA18", "IE11", "O15"]),
             },
             Value {
                 name: "left",
                 description: Some(
                     "Force one or two page breaks after the generated box so that the next page is formatted as a left page.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "right",
                 description: Some(
                     "Force one or two page breaks after the generated box so that the next page is formatted as a right page.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -16402,7 +16752,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/page-break-before",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/page-break-before",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -16417,33 +16767,41 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "always",
                 description: Some("Always force a page break before the generated box."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "auto",
                 description: Some(
                     "Neither force nor forbid a page break before the generated box.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a page break before the generated box."),
-                browsers: None,
+                browsers: Some(&["E12", "C1", "CA18", "IE11", "O15"]),
             },
             Value {
                 name: "left",
                 description: Some(
                     "Force one or two page breaks before the generated box so that the next page is formatted as a left page.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "right",
                 description: Some(
                     "Force one or two page breaks before the generated box so that the next page is formatted as a right page.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.2", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -16456,7 +16814,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/page-break-inside",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/page-break-inside",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -16473,12 +16831,16 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Neither force nor forbid a page break inside the generated box.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF19", "FFA19", "S1.3", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "avoid",
                 description: Some("Avoid a page break inside the generated box."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF19", "FFA19", "S1.3", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -16493,7 +16855,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/paint-order",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/paint-order",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -16508,24 +16870,24 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "fill",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF60", "FFA60", "S8", "SM8", "C35", "CA35", "O22"]),
             },
             Value {
                 name: "markers",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF60", "FFA60", "S8", "SM8", "C35", "CA35", "O22"]),
             },
             Value {
                 name: "normal",
                 description: Some(
                     "The element is painted with the standard order of painting operations: the 'fill' is painted first, then its 'stroke' and finally its markers.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF60", "FFA60", "S8", "SM8", "C35", "CA35", "O22"]),
             },
             Value {
                 name: "stroke",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF60", "FFA60", "S8", "SM8", "C35", "CA35", "O22"]),
             },
         ],
         at_rule: None,
@@ -16540,7 +16902,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/perspective",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/perspective",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16549,12 +16911,14 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | <length>"),
-        relevance: 54,
+        relevance: 55,
         restrictions: &["length", "enum"],
         values: &[Value {
             name: "none",
             description: Some("No perspective transform is applied."),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF10", "FFA10", "S4", "SM3.2", "C12", "CA18", "IE11", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -16568,7 +16932,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/perspective-origin",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/perspective-origin",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16592,7 +16956,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/pointer-events",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/pointer-events",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16603,7 +16967,7 @@ pub const PROPERTIES: &[Property] = &[
         syntax: Some(
             "auto | none | visiblePainted | visibleFill | visibleStroke | visible | painted | fill | stroke | all | inherit",
         ),
-        relevance: 83,
+        relevance: 84,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -16611,61 +16975,61 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The given element can be the target element for pointer events whenever the pointer is over either the interior or the perimeter of the element.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "fill",
                 description: Some(
                     "The given element can be the target element for pointer events whenever the pointer is over the interior of the element.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "none",
                 description: Some("The given element does not receive pointer events."),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "painted",
                 description: Some(
                     "The given element can be the target element for pointer events when the pointer is over a \"painted\" area. ",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "stroke",
                 description: Some(
                     "The given element can be the target element for pointer events whenever the pointer is over the perimeter of the element.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "visible",
                 description: Some(
                     "The given element can be the target element for pointer events when the 'visibility' property is set to visible and the pointer is over either the interior or the perimeter of the element.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "visibleFill",
                 description: Some(
                     "The given element can be the target element for pointer events when the 'visibility' property is set to visible and when the pointer is over the interior of the element.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF50", "FFA50", "S4", "SM3.2", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "visiblePainted",
                 description: Some(
                     "The given element can be the target element for pointer events when the 'visibility' property is set to visible and when the pointer is over a 'painted' area.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF50", "FFA50", "S4", "SM3.2", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "visibleStroke",
                 description: Some(
                     "The given element can be the target element for pointer events when the 'visibility' property is set to visible and when the pointer is over the perimeter of the element.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF50", "FFA50", "S4", "SM3.2", "C31", "CA31", "O18"]),
             },
         ],
         at_rule: None,
@@ -16678,7 +17042,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/position",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/position",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16695,14 +17059,16 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The box's position (and possibly size) is specified with the 'top', 'right', 'bottom', and 'left' properties. These properties specify offsets with respect to the box's 'containing block'.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "fixed",
                 description: Some(
                     "The box's position is calculated according to the 'absolute' model, but in addition, the box is fixed with respect to some reference. As with the 'absolute' model, the box's margins do not collapse with any other margins.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE7", "O4"]),
             },
             Value {
                 name: "-ms-page",
@@ -16716,21 +17082,25 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The box's position is calculated according to the normal flow (this is called the position in normal flow). Then the box is offset relative to its normal position.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "static",
                 description: Some(
                     "The box is a normal box, laid out according to the normal flow. The 'top', 'right', 'bottom', and 'left' properties do not apply.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "sticky",
                 description: Some(
                     "The box's position is calculated according to the normal flow. Then the box is offset relative to its flow root and containing block and in all cases, including table elements, does not affect the position of any following boxes.",
                 ),
-                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O4"]),
+                browsers: Some(&["E16", "FF32", "FFA32", "S13", "SM13", "C56", "CA56", "O43"]),
             },
             Value {
                 name: "-webkit-sticky",
@@ -16765,7 +17135,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/quotes",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/quotes",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16781,7 +17151,9 @@ pub const PROPERTIES: &[Property] = &[
             description: Some(
                 "The 'open-quote' and 'close-quote' values of the 'content' property produce no quotations marks, as if they were 'no-open-quote' and 'no-close-quote' respectively.",
             ),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1.5", "FFA4", "S9", "SM9", "C11", "CA18", "IE11", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -16818,10 +17190,10 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "Specifies whether or not an element is resizable by the user, and if so, along which axis/axes.",
         ),
-        browsers: Some(&["E79", "FF4", "FFA4", "S3", "C1", "CA18", "O12.1"]),
+        browsers: Some(&["E79", "FF4", "S3", "C1", "CA18", "O12.1"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/resize",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/resize",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -16830,7 +17202,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | both | horizontal | vertical | block | inline"),
-        relevance: 67,
+        relevance: 66,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -16838,28 +17210,28 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The UA presents a bidirectional resizing mechanism to allow the user to adjust both the height and the width of the element.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF4", "FFA4", "S3", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "horizontal",
                 description: Some(
                     "The UA presents a unidirectional horizontal resizing mechanism to allow the user to adjust only the width of the element.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF4", "FFA4", "S3", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "none",
                 description: Some(
                     "The UA does not present a resizing mechanism on the element, and the user is given no direct manipulation mechanism to resize the element.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF4", "FFA4", "S3", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "vertical",
                 description: Some(
                     "The UA presents a unidirectional vertical resizing mechanism to allow the user to adjust only the height of the element.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF4", "FFA4", "S3", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -16874,7 +17246,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/right",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/right",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -16882,7 +17254,7 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length> | <percentage> | auto"),
+        syntax: Some("auto | <length-percentage> | <anchor()> | <anchor-size()>"),
         relevance: 91,
         restrictions: &["length", "percentage"],
         values: &[Value {
@@ -16890,7 +17262,9 @@ pub const PROPERTIES: &[Property] = &[
             description: Some(
                 "For non-replaced elements, the effect of this value depends on which of related properties have the value 'auto' as well",
             ),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -16904,7 +17278,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/ruby-align",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/ruby-align",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -16928,7 +17302,9 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "center",
                 description: Some("The ruby content is centered within its box."),
-                browsers: None,
+                browsers: Some(&[
+                    "E128", "FF38", "FFA38", "S18.2", "SM18.2", "C128", "CA128", "O114",
+                ]),
             },
             Value {
                 name: "distribute-letter",
@@ -17009,14 +17385,17 @@ pub const PROPERTIES: &[Property] = &[
             "Determines whether, and on which side, ruby text is allowed to partially overhang any adjacent text in addition to its own base, when the ruby text is wider than the ruby base.",
         ),
         browsers: Some(&["S18.2", "SM18.2"]),
-        references: &[],
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/ruby-overhang",
+        }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
         status: None,
-        syntax: None,
+        syntax: Some("auto | none"),
         relevance: 50,
         restrictions: &["enum"],
         values: &[
@@ -17025,7 +17404,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The ruby text can overhang text adjacent to the base on either side. This is the initial value.",
                 ),
-                browsers: None,
+                browsers: Some(&["S18.2", "SM18.2"]),
             },
             Value {
                 name: "end",
@@ -17037,7 +17416,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The ruby text cannot overhang any text adjacent to its base, only its own base.",
                 ),
-                browsers: None,
+                browsers: Some(&["S18.2", "SM18.2"]),
             },
             Value {
                 name: "start",
@@ -17057,7 +17436,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/ruby-position",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/ruby-position",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -17250,7 +17629,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-behavior",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-behavior",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17259,20 +17638,24 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("auto | smooth"),
-        relevance: 57,
+        relevance: 60,
         restrictions: &["enum"],
         values: &[
             Value {
                 name: "auto",
                 description: Some("Scrolls in an instant fashion."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF36", "FFA36", "S15.4", "SM15.4", "C61", "CA61", "O48",
+                ]),
             },
             Value {
                 name: "smooth",
                 description: Some(
                     "Scrolls in a smooth fashion using a user-agent-defined timing function and time period.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF36", "FFA36", "S15.4", "SM15.4", "C61", "CA61", "O48",
+                ]),
             },
         ],
         at_rule: None,
@@ -17375,7 +17758,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-snap-type",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-snap-type",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17384,7 +17767,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | [ x | y | block | inline | both ] [ mandatory | proximity ]?"),
-        relevance: 56,
+        relevance: 58,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -17392,7 +17775,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The visual viewport of this scroll container must ignore snap points, if any, when scrolled.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF39", "FFA39", "S11", "SM11", "C69", "CA69", "O56"]),
             },
             Value {
                 name: "mandatory",
@@ -17421,7 +17804,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/shape-image-threshold",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/shape-image-threshold",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17445,7 +17828,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/shape-margin",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/shape-margin",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17469,7 +17852,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/shape-outside",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/shape-outside",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17484,12 +17867,16 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "margin-box",
                 description: Some("The background is painted within (clipped to) the margin box."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF62", "FFA62", "S10.1", "SM10.3", "C37", "CA37", "O24",
+                ]),
             },
             Value {
                 name: "none",
                 description: Some("The float area is unaffected."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF62", "FFA62", "S10.1", "SM10.3", "C37", "CA37", "O24",
+                ]),
             },
         ],
         at_rule: None,
@@ -17502,7 +17889,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/shape-rendering",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/shape-rendering",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17517,26 +17904,26 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: Some("Suppresses aural rendering."),
-                browsers: None,
+                browsers: Some(&["E79", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "crispEdges",
                 description: Some(
                     "Emphasize the contrast between clean edges of artwork over rendering speed and geometric precision.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF50", "FFA50", "S4", "SM3.2", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "geometricPrecision",
                 description: Some("Emphasize geometric precision over speed and crisp edges."),
-                browsers: None,
+                browsers: Some(&["E79", "FF50", "FFA50", "S4", "SM3.2", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "optimizeSpeed",
                 description: Some(
                     "Emphasize rendering speed over geometric precision and crisp edges.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF50", "FFA50", "S4", "SM3.2", "C31", "CA31", "O18"]),
             },
         ],
         at_rule: None,
@@ -17566,7 +17953,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: None,
         syntax: Some("[ <url> [ format( <string># ) ]? | local( <family-name> ) ]#"),
-        relevance: 86,
+        relevance: 85,
         restrictions: &["enum", "url", "identifier"],
         values: &[
             Value {
@@ -17595,7 +17982,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/stop-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/stop-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17615,7 +18002,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/stop-opacity",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/stop-opacity",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17635,7 +18022,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/stroke",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/stroke",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17644,7 +18031,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<paint>"),
-        relevance: 70,
+        relevance: 69,
         restrictions: &["color", "enum", "url"],
         values: &[
             Value {
@@ -17657,7 +18044,7 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: Some("No paint is applied in this layer."),
-                browsers: None,
+                browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -17668,7 +18055,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/stroke-dasharray",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/stroke-dasharray",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17682,7 +18069,7 @@ pub const PROPERTIES: &[Property] = &[
         values: &[Value {
             name: "none",
             description: Some("Indicates that no dashing is used."),
-            browsers: None,
+            browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         }],
         at_rule: None,
     },
@@ -17692,7 +18079,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/stroke-dashoffset",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/stroke-dashoffset",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17714,7 +18101,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/stroke-linecap",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/stroke-linecap",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17723,7 +18110,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("butt | round | square"),
-        relevance: 54,
+        relevance: 55,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -17731,21 +18118,21 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Indicates that the stroke for each subpath does not extend beyond its two endpoints.",
                 ),
-                browsers: None,
+                browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "round",
                 description: Some(
                     "Indicates that at each end of each subpath, the shape representing the stroke will be extended by a half circle with a radius equal to the stroke width.",
                 ),
-                browsers: None,
+                browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "square",
                 description: Some(
                     "Indicates that at the end of each subpath, the shape representing the stroke will be extended by a rectangle with the same width as the stroke width and whose length is half of the stroke width.",
                 ),
-                browsers: None,
+                browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -17758,7 +18145,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/stroke-linejoin",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/stroke-linejoin",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17775,21 +18162,21 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Indicates that a bevelled corner is to be used to join path segments.",
                 ),
-                browsers: None,
+                browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "miter",
                 description: Some(
                     "Indicates that a sharp corner is to be used to join path segments.",
                 ),
-                browsers: None,
+                browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "round",
                 description: Some(
                     "Indicates that a round corner is to be used to join path segments.",
                 ),
-                browsers: None,
+                browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -17802,7 +18189,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/stroke-miterlimit",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/stroke-miterlimit",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17811,7 +18198,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<number>"),
-        relevance: 53,
+        relevance: 54,
         restrictions: &["number"],
         values: &[],
         at_rule: None,
@@ -17824,7 +18211,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/stroke-opacity",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/stroke-opacity",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17844,7 +18231,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF1.5", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/stroke-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/stroke-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17853,7 +18240,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<length-percentage> | <number>"),
-        relevance: 70,
+        relevance: 71,
         restrictions: &["percentage", "length"],
         values: &[],
         at_rule: None,
@@ -17965,7 +18352,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/table-layout",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/table-layout",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -17980,12 +18367,16 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: Some("Use any automatic table layout algorithm."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM3", "C14", "CA18", "IE5", "O7",
+                ]),
             },
             Value {
                 name: "fixed",
                 description: Some("Use the fixed table layout algorithm."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM3", "C14", "CA18", "IE5", "O7",
+                ]),
             },
         ],
         at_rule: None,
@@ -17998,7 +18389,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF91", "FFA91", "S7", "SM7", "C21", "CA25", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/tab-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/tab-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18007,7 +18398,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<integer> | <length>"),
-        relevance: 55,
+        relevance: 56,
         restrictions: &["integer", "length"],
         values: &[],
         at_rule: None,
@@ -18022,7 +18413,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-align",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-align",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18037,46 +18428,44 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "center",
                 description: Some("The inline contents are centered within the line box."),
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "end",
                 description: Some(
                     "The inline contents are aligned to the end edge of the line box.",
                 ),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE3", "O3.5",
-                ]),
+                browsers: Some(&["E79", "FF1", "FFA4", "S3.1", "SM2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "justify",
                 description: Some(
                     "The text is justified according to the method specified by the 'text-justify' property.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "left",
                 description: Some(
                     "The inline contents are aligned to the left edge of the line box. In vertical text, 'left' aligns to the edge of the line box that would be the start edge for left-to-right text.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "right",
                 description: Some(
                     "The inline contents are aligned to the right edge of the line box. In vertical text, 'right' aligns to the edge of the line box that would be the end edge for left-to-right text.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "start",
                 description: Some(
                     "The inline contents are aligned to the start edge of the line box.",
                 ),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE3", "O3.5",
-                ]),
+                browsers: Some(&["E79", "FF1", "FFA4", "S3.1", "SM2", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -18091,7 +18480,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-align-last",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-align-last",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18108,33 +18497,35 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Content on the affected line is aligned per 'text-align' unless 'text-align' is set to 'justify', in which case it is 'start-aligned'.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF12", "FFA14", "S16", "SM16", "C47", "CA47", "IE11", "O34",
+                ]),
             },
             Value {
                 name: "center",
                 description: Some("The inline contents are centered within the line box."),
-                browsers: None,
+                browsers: Some(&["E12", "FF12", "FFA14", "S16", "SM16", "C47", "CA47", "O34"]),
             },
             Value {
                 name: "justify",
                 description: Some(
                     "The text is justified according to the method specified by the 'text-justify' property.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF12", "FFA14", "S16", "SM16", "C47", "CA47", "O34"]),
             },
             Value {
                 name: "left",
                 description: Some(
                     "The inline contents are aligned to the left edge of the line box. In vertical text, 'left' aligns to the edge of the line box that would be the start edge for left-to-right text.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF12", "FFA14", "S16", "SM16", "C47", "CA47", "O34"]),
             },
             Value {
                 name: "right",
                 description: Some(
                     "The inline contents are aligned to the right edge of the line box. In vertical text, 'right' aligns to the edge of the line box that would be the end edge for left-to-right text.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF12", "FFA14", "S16", "SM16", "C47", "CA47", "O34"]),
             },
         ],
         at_rule: None,
@@ -18147,7 +18538,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E14", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-anchor",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-anchor",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18164,21 +18555,21 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The rendered characters are aligned such that the end of the resulting rendered text is at the initial current text position.",
                 ),
-                browsers: None,
+                browsers: Some(&["E14", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "middle",
                 description: Some(
                     "The rendered characters are aligned such that the geometric middle of the resulting rendered text is at the initial current text position.",
                 ),
-                browsers: None,
+                browsers: Some(&["E14", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "start",
                 description: Some(
                     "The rendered characters are aligned such that the start of the resulting rendered text is at the initial current text position.",
                 ),
-                browsers: None,
+                browsers: Some(&["E14", "FF3", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -18191,7 +18582,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-decoration",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-decoration",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18202,53 +18593,63 @@ pub const PROPERTIES: &[Property] = &[
         syntax: Some(
             "<'text-decoration-line'> || <'text-decoration-style'> || <'text-decoration-color'> || <'text-decoration-thickness'>",
         ),
-        relevance: 91,
+        relevance: 92,
         restrictions: &["enum", "color"],
         values: &[
             Value {
                 name: "dashed",
                 description: Some("Produces a dashed line style."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF50", "FFA50", "S26.2", "SM26.2", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "dotted",
                 description: Some("Produces a dotted line."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF50", "FFA50", "S26.2", "SM26.2", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "double",
                 description: Some("Produces a double line."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF50", "FFA50", "S26.2", "SM26.2", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "line-through",
                 description: Some("Each line of text has a line through the middle."),
-                browsers: None,
+                browsers: Some(&["E12", "FF3", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "none",
                 description: Some("Produces no line."),
-                browsers: None,
+                browsers: Some(&["E12", "FF3", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "overline",
                 description: Some("Each line of text has a line above it."),
-                browsers: None,
+                browsers: Some(&["E12", "FF3", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "solid",
                 description: Some("Produces a solid line."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF50", "FFA50", "S26.2", "SM26.2", "C57", "CA57", "O44",
+                ]),
             },
             Value {
                 name: "underline",
                 description: Some("Each line of text is underlined."),
-                browsers: None,
+                browsers: Some(&["E12", "FF3", "FFA4", "S1", "SM1", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "wavy",
                 description: Some("Produces a wavy line."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF50", "FFA50", "S26.2", "SM26.2", "C57", "CA57", "O44",
+                ]),
             },
         ],
         at_rule: None,
@@ -18263,7 +18664,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-decoration-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-decoration-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18272,7 +18673,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<color>"),
-        relevance: 57,
+        relevance: 58,
         restrictions: &["color"],
         values: &[],
         at_rule: None,
@@ -18285,7 +18686,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-decoration-line",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-decoration-line",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18296,28 +18697,28 @@ pub const PROPERTIES: &[Property] = &[
         syntax: Some(
             "none | [ underline || overline || line-through || blink ] | spelling-error | grammar-error",
         ),
-        relevance: 58,
+        relevance: 61,
         restrictions: &["enum"],
         values: &[
             Value {
                 name: "line-through",
                 description: Some("Each line of text has a line through the middle."),
-                browsers: None,
+                browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
             },
             Value {
                 name: "none",
                 description: Some("Neither produces nor inhibits text decoration."),
-                browsers: None,
+                browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
             },
             Value {
                 name: "overline",
                 description: Some("Each line of text has a line above it."),
-                browsers: None,
+                browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
             },
             Value {
                 name: "underline",
                 description: Some("Each line of text is underlined."),
-                browsers: None,
+                browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
             },
         ],
         at_rule: None,
@@ -18332,7 +18733,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-decoration-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-decoration-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18341,23 +18742,23 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("solid | double | dotted | dashed | wavy"),
-        relevance: 51,
+        relevance: 56,
         restrictions: &["enum"],
         values: &[
             Value {
                 name: "dashed",
                 description: Some("Produces a dashed line style."),
-                browsers: None,
+                browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
             },
             Value {
                 name: "dotted",
                 description: Some("Produces a dotted line."),
-                browsers: None,
+                browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
             },
             Value {
                 name: "double",
                 description: Some("Produces a double line."),
-                browsers: None,
+                browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
             },
             Value {
                 name: "none",
@@ -18367,12 +18768,12 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "solid",
                 description: Some("Produces a solid line."),
-                browsers: None,
+                browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
             },
             Value {
                 name: "wavy",
                 description: Some("Produces a wavy line."),
-                browsers: None,
+                browsers: Some(&["E79", "FF6", "FFA6", "S8", "SM8", "C57", "CA57", "O44"]),
             },
         ],
         at_rule: None,
@@ -18387,7 +18788,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-indent",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-indent",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18406,10 +18807,10 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "Selects the justification algorithm used when 'text-align' is set to 'justify'. The property applies to block containers, but the UA may (but is not required to) also support it on inline elements.",
         ),
-        browsers: Some(&["FF55", "FFA55", "IE11", "O19"]),
+        browsers: Some(&["E145", "FF55", "FFA55", "C145", "CA145", "IE11"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-justify",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-justify",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -18426,7 +18827,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The UA determines the justification algorithm to follow, based on a balance between performance and adequate presentation quality.",
                 ),
-                browsers: None,
+                browsers: Some(&["E145", "FF55", "FFA55", "C145", "CA145"]),
             },
             Value {
                 name: "distribute",
@@ -18459,7 +18860,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Justification primarily changes spacing at word separators. This value is typically used for languages that separate words using spaces, like English or (sometimes) Korean.",
                 ),
-                browsers: None,
+                browsers: Some(&["E145", "FF55", "FFA55", "C145", "CA145"]),
             },
             Value {
                 name: "kashida",
@@ -18482,7 +18883,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF41", "FFA41", "S14", "SM14", "C48", "CA48", "O35"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-orientation",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-orientation",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18499,7 +18900,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "This value is equivalent to 'sideways-right' in 'vertical-rl' writing mode and equivalent to 'sideways-left' in 'vertical-lr' writing mode.",
                 ),
-                browsers: Some(&["E79", "FF41", "FFA41", "S14", "SM14", "C48", "CA48", "O35"]),
+                browsers: Some(&["E79", "FF44", "FFA44", "S7", "SM7", "C12", "CA18", "O15"]),
             },
             Value {
                 name: "sideways-right",
@@ -18513,7 +18914,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "In vertical writing modes, characters from horizontal-only scripts are rendered upright, i.e. in their standard horizontal orientation.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF41", "FFA41", "S13.1", "SM13.4", "C12", "CA18", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -18526,7 +18929,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-overflow",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-overflow",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18543,14 +18946,18 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Clip inline content that overflows. Characters may be only partially rendered.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF7", "FFA7", "S1.3", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "ellipsis",
                 description: Some(
                     "Render an ellipsis character (U+2026) to represent clipped inline content.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF7", "FFA7", "S1.3", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -18563,7 +18970,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF1", "FFA46", "S5", "SM4.2", "C4", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-rendering",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-rendering",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18572,34 +18979,34 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("auto | optimizeSpeed | optimizeLegibility | geometricPrecision"),
-        relevance: 67,
+        relevance: 66,
         restrictions: &["enum"],
         values: &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA46", "S5", "SM4.2", "C4", "CA18", "O15"]),
             },
             Value {
                 name: "geometricPrecision",
                 description: Some(
                     "Indicates that the user agent shall emphasize geometric precision over legibility and rendering speed.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA46", "S6", "SM6", "C13", "CA18", "O15"]),
             },
             Value {
                 name: "optimizeLegibility",
                 description: Some(
                     "Indicates that the user agent shall emphasize legibility over rendering speed and geometric precision.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF50", "FFA50", "S5", "SM4.2", "C31", "CA31", "O18"]),
             },
             Value {
                 name: "optimizeSpeed",
                 description: Some(
                     "Indicates that the user agent shall emphasize rendering speed over legibility and geometric precision.",
                 ),
-                browsers: None,
+                browsers: Some(&["E79", "FF50", "FFA50", "S5", "SM4.2", "C31", "CA31", "O18"]),
             },
         ],
         at_rule: None,
@@ -18612,7 +19019,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-shadow",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-shadow",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18626,7 +19033,7 @@ pub const PROPERTIES: &[Property] = &[
         values: &[Value {
             name: "none",
             description: Some("No shadow."),
-            browsers: None,
+            browsers: Some(&["E12", "FF3.5", "FFA4", "S1.1", "SM1", "C2", "CA18", "O15"]),
         }],
         at_rule: None,
     },
@@ -18636,7 +19043,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-transform",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-transform",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18655,22 +19062,28 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Puts the first typographic letter unit of each word in titlecase.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O7"]),
             },
             Value {
                 name: "lowercase",
                 description: Some("Puts all letters in lowercase."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "none",
                 description: Some("No effects."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "uppercase",
                 description: Some("Puts all letters in uppercase."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -18685,7 +19098,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-underline-position",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-underline-position",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18694,7 +19107,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("auto | from-font | [ under || [ left | right ] ]"),
-        relevance: 50,
+        relevance: 52,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -18707,7 +19120,9 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The user agent may use any algorithm to determine the underline's position. In horizontal line layout, the underline should be aligned as for alphabetic. In vertical line layout, if the language is set to Japanese or Korean, the underline should be aligned as for over.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF74", "FFA79", "S12.1", "SM12.2", "C33", "CA33", "IE6", "O20",
+                ]),
             },
             Value {
                 name: "below",
@@ -18727,7 +19142,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE5", "O6"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/top",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/top",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18735,7 +19150,7 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2018-01-29"),
         }),
         status: None,
-        syntax: Some("<length> | <percentage> | auto"),
+        syntax: Some("auto | <length-percentage> | <anchor()> | <anchor-size()>"),
         relevance: 95,
         restrictions: &["length", "percentage"],
         values: &[Value {
@@ -18743,7 +19158,9 @@ pub const PROPERTIES: &[Property] = &[
             description: Some(
                 "For non-replaced elements, the effect of this value depends on which of related properties have the value 'auto' as well",
             ),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -18757,7 +19174,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/touch-action",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/touch-action",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18768,7 +19185,7 @@ pub const PROPERTIES: &[Property] = &[
         syntax: Some(
             "auto | none | [ [ pan-x | pan-left | pan-right ] || [ pan-y | pan-up | pan-down ] || pinch-zoom ] | manipulation",
         ),
-        relevance: 70,
+        relevance: 71,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -18804,34 +19221,42 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The user agent may consider touches that begin on the element only for the purposes of scrolling and continuous zooming.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF52", "FFA52", "S13", "SM9.3", "C36", "CA36", "IE11", "O23",
+                ]),
             },
             Value {
                 name: "none",
                 description: Some(
                     "Touches that begin on the element must not trigger default touch behaviors.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF52", "FFA52", "S13", "SM13", "C36", "CA36", "IE11", "O23",
+                ]),
             },
             Value {
                 name: "pan-x",
                 description: Some(
                     "The user agent may consider touches that begin on the element only for the purposes of horizontally scrolling the element's nearest ancestor with horizontally scrollable content.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF52", "FFA52", "S13", "SM13", "C36", "CA36", "IE11", "O23",
+                ]),
             },
             Value {
                 name: "pan-y",
                 description: Some(
                     "The user agent may consider touches that begin on the element only for the purposes of vertically scrolling the element's nearest ancestor with vertically scrollable content.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF52", "FFA52", "S13", "SM13", "C36", "CA36", "IE11", "O23",
+                ]),
             },
             Value {
                 name: "pinch-zoom",
                 description: None,
                 browsers: Some(&[
-                    "E12", "FF52", "FFA52", "S13", "SM9.3", "C36", "CA36", "IE11", "O23",
+                    "E12", "FF85", "FFA85", "S13", "SM13", "C56", "CA56", "IE11", "O43",
                 ]),
             },
         ],
@@ -18847,7 +19272,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/transform",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/transform",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -18856,7 +19281,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | <transform-list>"),
-        relevance: 91,
+        relevance: 92,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -18876,7 +19301,7 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E12", "FF3.5", "FFA4", "S3.1", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "perspective()",
@@ -19020,7 +19445,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/transform-origin",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/transform-origin",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -19031,7 +19456,7 @@ pub const PROPERTIES: &[Property] = &[
         syntax: Some(
             "[ <length-percentage> | left | center | right | top | bottom ] | [ [ <length-percentage> | left | center | right ] && [ <length-percentage> | top | center | bottom ] ] <length>?",
         ),
-        relevance: 76,
+        relevance: 77,
         restrictions: &["position", "length", "percentage"],
         values: &[],
         at_rule: None,
@@ -19042,7 +19467,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF16", "FFA16", "S9", "SM9", "C36", "CA36", "O23"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/transform-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/transform-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -19051,7 +19476,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("flat | preserve-3d"),
-        relevance: 55,
+        relevance: 56,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -19059,14 +19484,14 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "All children of this element are rendered flattened into the 2D plane of the element.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF10", "FFA10", "S4", "SM3.2", "C12", "CA18", "O15"]),
             },
             Value {
                 name: "preserve-3d",
                 description: Some(
                     "Flattening is not performed, so children maintain their position in 3D space.",
                 ),
-                browsers: Some(&["E12", "FF16", "FFA16", "S9", "SM9", "C36", "CA36", "O23"]),
+                browsers: Some(&["E12", "FF10", "FFA10", "S4", "SM3.2", "C12", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -19081,7 +19506,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/transition",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/transition",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -19090,7 +19515,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<single-transition>#"),
-        relevance: 89,
+        relevance: 90,
         restrictions: &["time", "property", "timing-function", "enum"],
         values: &[
             Value {
@@ -19098,12 +19523,12 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Every property that is able to undergo a transition will do so.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF4", "FFA4", "S3.1", "SM2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "none",
                 description: Some("No property will transition."),
-                browsers: None,
+                browsers: Some(&["E12", "FF4", "FFA4", "S3.1", "SM2", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -19118,7 +19543,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/transition-delay",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/transition-delay",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -19127,7 +19552,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<time>#"),
-        relevance: 65,
+        relevance: 64,
         restrictions: &["time"],
         values: &[],
         at_rule: None,
@@ -19142,7 +19567,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/transition-duration",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/transition-duration",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -19151,7 +19576,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<time>#"),
-        relevance: 70,
+        relevance: 71,
         restrictions: &["time"],
         values: &[],
         at_rule: None,
@@ -19166,7 +19591,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/transition-property",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/transition-property",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -19175,7 +19600,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | <single-transition-property>#"),
-        relevance: 69,
+        relevance: 71,
         restrictions: &["property"],
         values: &[
             Value {
@@ -19183,12 +19608,16 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Every property that is able to undergo a transition will do so.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF4", "FFA4", "S3.1", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "none",
                 description: Some("No property will transition."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF4", "FFA4", "S3.1", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -19203,7 +19632,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/transition-timing-function",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/transition-timing-function",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -19212,7 +19641,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<easing-function>#"),
-        relevance: 68,
+        relevance: 69,
         restrictions: &["timing-function"],
         values: &[],
         at_rule: None,
@@ -19225,7 +19654,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/unicode-bidi",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/unicode-bidi",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -19242,48 +19671,48 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Inside the element, reordering is strictly in sequence according to the 'direction' property; the implicit part of the bidirectional algorithm is ignored.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.3", "SM1", "C2", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "embed",
                 description: Some(
                     "If the element is inline-level, this value opens an additional level of embedding with respect to the bidirectional algorithm. The direction of this embedding level is given by the 'direction' property.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.3", "SM1", "C2", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "isolate",
                 description: Some(
                     "The contents of the element are considered to be inside a separate, independent paragraph.",
                 ),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA4", "S1.3", "SM1", "C2", "CA18", "IE5.5", "O9.2",
-                ]),
+                browsers: Some(&["E79", "FF50", "FFA50", "S11", "SM11", "C48", "CA48", "O35"]),
             },
             Value {
                 name: "isolate-override",
                 description: Some(
                     "This combines the isolation behavior of 'isolate' with the directional override behavior of 'bidi-override'",
                 ),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA4", "S1.3", "SM1", "C2", "CA18", "IE5.5", "O9.2",
-                ]),
+                browsers: Some(&["E79", "FF50", "FFA50", "S11", "SM11", "C48", "CA48", "O35"]),
             },
             Value {
                 name: "normal",
                 description: Some(
                     "The element does not open an additional level of embedding with respect to the bidirectional algorithm. For inline-level elements, implicit reordering works across element boundaries.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.3", "SM1", "C2", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "plaintext",
                 description: Some(
                     "For the purposes of the Unicode bidirectional algorithm, the base directionality of each bidi paragraph for which the element forms the containing block is determined not by the element's computed 'direction'.",
                 ),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA4", "S1.3", "SM1", "C2", "CA18", "IE5.5", "O9.2",
-                ]),
+                browsers: Some(&["E79", "FF50", "FFA50", "S11", "SM11", "C48", "CA48", "O35"]),
             },
         ],
         at_rule: None,
@@ -19729,7 +20158,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF69", "FFA79", "C54", "CA54", "IE10", "O41"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/user-select",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/user-select",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -19744,12 +20173,14 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "all",
                 description: Some("The content of the element must be selected atomically"),
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S16", "SM16", "C53", "CA53", "O40"]),
             },
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S2", "SM3", "C1", "CA18", "IE10", "O15",
+                ]),
             },
             Value {
                 name: "contain",
@@ -19763,12 +20194,16 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "The UA must not allow selections to be started in this element.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF21", "FFA21", "S2", "SM3", "C1", "CA18", "IE10", "O15",
+                ]),
             },
             Value {
                 name: "text",
                 description: Some("The element imposes no constraint on the selection."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S2", "SM3", "C1", "CA18", "IE10", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -19781,7 +20216,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/vertical-align",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/vertical-align",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -19792,7 +20227,7 @@ pub const PROPERTIES: &[Property] = &[
         syntax: Some(
             "baseline | sub | super | text-top | text-bottom | middle | top | bottom | <percentage> | <length>",
         ),
-        relevance: 91,
+        relevance: 90,
         restrictions: &["percentage", "length"],
         values: &[
             Value {
@@ -19807,56 +20242,72 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Align the 'alphabetic' baseline of the element with the 'alphabetic' baseline of the parent element.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "bottom",
                 description: Some(
                     "Align the after edge of the extended inline box with the after-edge of the line box.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "middle",
                 description: Some(
                     "Align the 'middle' baseline of the inline element with the middle baseline of the parent.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "sub",
                 description: Some(
                     "Lower the baseline of the box to the proper position for subscripts of the parent's box. (This value has no effect on the font size of the element's text.)",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "super",
                 description: Some(
                     "Raise the baseline of the box to the proper position for superscripts of the parent's box. (This value has no effect on the font size of the element's text.)",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "text-bottom",
                 description: Some(
                     "Align the bottom of the box with the after-edge of the parent element's font.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "text-top",
                 description: Some(
                     "Align the top of the box with the before-edge of the parent element's font.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "top",
                 description: Some(
                     "Align the before edge of the extended inline box with the before-edge of the line box.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "-webkit-baseline-middle",
@@ -19874,7 +20325,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/visibility",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/visibility",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -19883,7 +20334,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("visible | hidden | collapse"),
-        relevance: 88,
+        relevance: 87,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -19891,19 +20342,25 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Table-specific. If used on elements other than rows, row groups, columns, or column groups, 'collapse' has the same meaning as 'hidden'.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1.3", "SM1", "C1", "CA18", "IE10", "O4",
+                ]),
             },
             Value {
                 name: "hidden",
                 description: Some(
                     "The generated box is invisible (fully transparent, nothing is drawn), but still affects layout.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "visible",
                 description: Some("The generated box is visible."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -20838,7 +21295,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "S4", "SM3.2", "C4", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-webkit-box-reflect",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-webkit-box-reflect",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -22047,7 +22504,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "SM4", "C16", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-webkit-tap-highlight-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-webkit-tap-highlight-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -22067,7 +22524,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF49", "FFA49", "S3", "SM2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-webkit-text-fill-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-webkit-text-fill-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -22117,7 +22574,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF49", "FFA49", "S3", "SM2", "C4", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-webkit-text-stroke",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-webkit-text-stroke",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -22137,7 +22594,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF49", "FFA49", "S3", "SM2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-webkit-text-stroke-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-webkit-text-stroke-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -22157,7 +22614,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E15", "FF49", "FFA49", "S3", "SM2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-webkit-text-stroke-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-webkit-text-stroke-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -22177,7 +22634,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["SM2"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-webkit-touch-callout",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-webkit-touch-callout",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -22650,7 +23107,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "S1.3", "SM1", "C25", "CA25", "IE8", "O9.2"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/widows",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/widows",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -22674,7 +23131,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -22691,34 +23148,30 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: Some("The width depends on the values of other properties."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "fit-content",
                 description: Some(
                     "Use the fit-content inline size or fit-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O3.5",
-                ]),
+                browsers: Some(&["E79", "FF94", "FFA94", "S11", "SM11", "C46", "CA46", "O33"]),
             },
             Value {
                 name: "max-content",
                 description: Some(
                     "Use the max-content inline size or max-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O3.5",
-                ]),
+                browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O44"]),
             },
             Value {
                 name: "min-content",
                 description: Some(
                     "Use the min-content inline size or min-content block size, as appropriate to the writing mode.",
                 ),
-                browsers: Some(&[
-                    "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O3.5",
-                ]),
+                browsers: Some(&["E79", "FF66", "FFA66", "S11", "SM11", "C46", "CA46", "O33"]),
             },
         ],
         at_rule: None,
@@ -22733,7 +23186,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/will-change",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/will-change",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -22742,27 +23195,33 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("auto | <animateable-feature>#"),
-        relevance: 67,
+        relevance: 68,
         restrictions: &["enum", "identifier"],
         values: &[
             Value {
                 name: "auto",
                 description: Some("Expresses no particular intent."),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF36", "FFA36", "S9.1", "SM9.3", "C36", "CA36", "O23",
+                ]),
             },
             Value {
                 name: "contents",
                 description: Some(
                     "Indicates that the author expects to animate or change something about the element's contents in the near future.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF36", "FFA36", "S9.1", "SM9.3", "C36", "CA36", "O23",
+                ]),
             },
             Value {
                 name: "scroll-position",
                 description: Some(
                     "Indicates that the author expects to animate or change the scroll position of the element in the near future.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF36", "FFA36", "S9.1", "SM9.3", "C36", "CA36", "O23",
+                ]),
             },
         ],
         at_rule: None,
@@ -22775,7 +23234,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/word-break",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/word-break",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -22784,7 +23243,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("normal | break-all | keep-all | break-word | auto-phrase"),
-        relevance: 77,
+        relevance: 78,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -22792,17 +23251,23 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Lines may break between any two grapheme clusters for non-CJK scripts.",
                 ),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF15", "FFA15", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
             Value {
                 name: "keep-all",
                 description: Some("Block characters can no longer create implied break points."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF15", "FFA15", "S9", "SM9", "C44", "CA44", "IE5.5", "O31",
+                ]),
             },
             Value {
                 name: "normal",
                 description: Some("Breaks non-CJK scripts according to their own rules."),
-                browsers: None,
+                browsers: Some(&[
+                    "E12", "FF15", "FFA15", "S3", "SM2", "C1", "CA18", "IE11", "O15",
+                ]),
             },
         ],
         at_rule: None,
@@ -22815,7 +23280,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/word-spacing",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/word-spacing",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -22824,12 +23289,14 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("normal | <length>"),
-        relevance: 56,
+        relevance: 55,
         restrictions: &["length", "percentage"],
         values: &[Value {
             name: "normal",
             description: Some("No additional spacing is applied. Computes to zero."),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE6", "O3.5",
+            ]),
         }],
         at_rule: None,
     },
@@ -22843,7 +23310,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: None,
         syntax: Some("normal | break-word"),
-        relevance: 78,
+        relevance: 50,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -22871,7 +23338,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/writing-mode",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/writing-mode",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -22880,7 +23347,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("horizontal-tb | vertical-rl | vertical-lr | sideways-rl | sideways-lr"),
-        relevance: 51,
+        relevance: 53,
         restrictions: &["enum"],
         values: &[
             Value {
@@ -22888,7 +23355,7 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Top-to-bottom block flow direction. The writing mode is horizontal.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF43", "FFA43", "S9", "SM9", "C48", "CA48", "O35"]),
             },
             Value {
                 name: "sideways-lr",
@@ -22896,7 +23363,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Left-to-right block flow direction. The writing mode is vertical, while the typographic mode is horizontal.",
                 ),
                 browsers: Some(&[
-                    "E12", "FF41", "FFA41", "S10.1", "SM10.3", "C48", "CA48", "IE9", "O35",
+                    "E132", "FF43", "FFA43", "S18.4", "SM18.4", "C132", "CA132", "O117",
                 ]),
             },
             Value {
@@ -22905,7 +23372,7 @@ pub const PROPERTIES: &[Property] = &[
                     "Right-to-left block flow direction. The writing mode is vertical, while the typographic mode is horizontal.",
                 ),
                 browsers: Some(&[
-                    "E12", "FF41", "FFA41", "S10.1", "SM10.3", "C48", "CA48", "IE9", "O35",
+                    "E132", "FF43", "FFA43", "S18.4", "SM18.4", "C132", "CA132", "O117",
                 ]),
             },
             Value {
@@ -22913,14 +23380,14 @@ pub const PROPERTIES: &[Property] = &[
                 description: Some(
                     "Left-to-right block flow direction. The writing mode is vertical.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF43", "FFA43", "S9", "SM9", "C48", "CA48", "O35"]),
             },
             Value {
                 name: "vertical-rl",
                 description: Some(
                     "Right-to-left block flow direction. The writing mode is vertical.",
                 ),
-                browsers: None,
+                browsers: Some(&["E12", "FF43", "FFA43", "S9", "SM9", "C48", "CA48", "O35"]),
             },
         ],
         at_rule: None,
@@ -22933,7 +23400,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/z-index",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/z-index",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -22949,7 +23416,9 @@ pub const PROPERTIES: &[Property] = &[
             description: Some(
                 "The stack level of the generated box in the current stacking context is 0. The box does not establish a new stacking context unless it is the root element.",
             ),
-            browsers: None,
+            browsers: Some(&[
+                "E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O15",
+            ]),
         }],
         at_rule: None,
     },
@@ -22963,7 +23432,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/zoom",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/zoom",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -22972,7 +23441,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("normal | reset | <number [0,∞]> || <percentage [0,∞]>"),
-        relevance: 66,
+        relevance: 63,
         restrictions: &["enum", "integer", "number", "percentage"],
         values: &[Value {
             name: "normal",
@@ -23045,7 +23514,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["FF1", "FFA4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-moz-float-edge",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-moz-float-edge",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -23088,7 +23557,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["FF1", "FFA4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-moz-force-broken-image-icon",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-moz-force-broken-image-icon",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -23114,28 +23583,6 @@ pub const PROPERTIES: &[Property] = &[
         at_rule: None,
     },
     Property {
-        name: "-moz-image-region",
-        description: Some(
-            "For certain XUL elements and pseudo-elements that use an image from the list-style-image property, this property specifies a region of the image that is used in place of the whole image. This allows elements to use different pieces of the same image to improve performance.",
-        ),
-        browsers: None,
-        references: &[Reference {
-            name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-moz-image-region",
-        }],
-        baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
-            high_date: None,
-        }),
-        status: Some("nonstandard"),
-        syntax: Some("<shape> | auto"),
-        relevance: 0,
-        restrictions: &[],
-        values: &[],
-        at_rule: None,
-    },
-    Property {
         name: "-moz-orient",
         description: Some(
             "The -moz-orient CSS property specifies the orientation of the element to which it's applied.",
@@ -23143,7 +23590,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["FF6", "FFA6"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-moz-orient",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-moz-orient",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -23158,12 +23605,12 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "inline",
                 description: None,
-                browsers: None,
+                browsers: Some(&["FF40", "FFA40"]),
             },
             Value {
                 name: "block",
                 description: None,
-                browsers: None,
+                browsers: Some(&["FF40", "FFA40"]),
             },
             Value {
                 name: "horizontal",
@@ -23313,7 +23760,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: None,
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-moz-user-input",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-moz-user-input",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -23454,7 +23901,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "S5.1", "SM5", "C8", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-webkit-border-before",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-webkit-border-before",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -23568,7 +24015,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E18", "S3.1", "SM2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-webkit-mask-composite",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-webkit-mask-composite",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -23605,7 +24052,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E18", "FF49", "FFA49", "S3.1", "SM2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-webkit-mask-position-x",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-webkit-mask-position-x",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -23627,7 +24074,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E18", "FF49", "FFA49", "S3.1", "SM2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-webkit-mask-position-y",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-webkit-mask-position-y",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -23649,7 +24096,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-webkit-mask-repeat-x",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-webkit-mask-repeat-x",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -23692,7 +24139,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/-webkit-mask-repeat-y",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/-webkit-mask-repeat-y",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -23730,21 +24177,19 @@ pub const PROPERTIES: &[Property] = &[
     Property {
         name: "accent-color",
         description: Some("Sets the color of the elements accent"),
-        browsers: Some(&[
-            "E93", "FF92", "FFA92", "S15.4", "SM15.4", "C93", "CA93", "O79",
-        ]),
+        browsers: Some(&["E93", "FF92", "FFA92", "C93", "O79"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/accent-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/accent-color",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::High,
-            low_date: Some("2022-03-14"),
-            high_date: Some("2024-09-14"),
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
         }),
         status: None,
         syntax: Some("auto | <color>"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -23774,7 +24219,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/alignment-baseline",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/alignment-baseline",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -23791,42 +24236,42 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "baseline",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "alphabetic",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "ideographic",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "middle",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "central",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "mathematical",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "text-before-edge",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "text-after-edge",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "S5.1", "SM5", "C1", "CA18", "O15"]),
             },
         ],
         at_rule: None,
@@ -23836,17 +24281,19 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The anchor-name property declares that an element is an anchor element, and gives it a list of anchor names to be targeted by.",
         ),
-        browsers: Some(&["E125", "C125", "CA125", "O111"]),
+        browsers: Some(&[
+            "E125", "FF147", "FFA147", "S26", "SM26", "C125", "CA125", "O111",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/anchor-name",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/anchor-name",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2026-01-13"),
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("none | <dashed-ident>#"),
         relevance: 50,
         restrictions: &[],
@@ -23858,14 +24305,19 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "This property scopes the specified anchor names, and lookups for these anchor names, to this element’s subtree",
         ),
-        browsers: Some(&["E131", "C131", "CA131", "O116"]),
-        references: &[],
+        browsers: Some(&[
+            "E131", "FF147", "FFA147", "S26", "SM26", "C131", "CA131", "O116",
+        ]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/anchor-scope",
+        }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2026-01-13"),
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("none | all | <dashed-ident>#"),
         relevance: 50,
         restrictions: &[],
@@ -23882,12 +24334,12 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation-composition",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation-composition",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2023-07-04"),
-            high_date: None,
+            high_date: Some("2026-01-04"),
         }),
         status: None,
         syntax: Some("<single-animation-composition>#"),
@@ -23901,19 +24353,19 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The animation-range CSS shorthand property is used to set the start and end of an animation's attachment range along its timeline, i.e. where along the timeline an animation will start and end.",
         ),
-        browsers: Some(&["E115", "C115", "CA115", "O101"]),
+        browsers: Some(&["E115", "S26", "SM26", "C115", "CA115", "O101"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation-range",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation-range",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("[ <'animation-range-start'> <'animation-range-end'>? ]#"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -23923,17 +24375,17 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The animation-range-end CSS property is used to set the end of an animation's attachment range along its timeline, i.e. where along the timeline an animation will end.",
         ),
-        browsers: Some(&["E115", "C115", "CA115", "O101"]),
+        browsers: Some(&["E115", "S26", "SM26", "C115", "CA115", "O101"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation-range-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation-range-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some(
             "[ normal | <length-percentage> | <timeline-range-name> <length-percentage>? ]#",
         ),
@@ -23947,17 +24399,17 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The animation-range-start CSS property is used to set the start of an animation's attachment range along its timeline, i.e. where along the timeline an animation will start.",
         ),
-        browsers: Some(&["E115", "C115", "CA115", "O101"]),
+        browsers: Some(&["E115", "S26", "SM26", "C115", "CA115", "O101"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation-range-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation-range-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some(
             "[ normal | <length-percentage> | <timeline-range-name> <length-percentage>? ]#",
         ),
@@ -23971,18 +24423,35 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "Specifies the names of one or more @scroll-timeline at-rules to describe the element's scroll animations.",
         ),
-        browsers: Some(&["E115", "C115", "CA115", "O101"]),
+        browsers: Some(&["E115", "S26", "SM26", "C115", "CA115", "O101"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/animation-timeline",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/animation-timeline",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("<single-animation-timeline>#"),
+        relevance: 51,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "animation-trigger",
+        description: Some(""),
+        browsers: None,
+        references: &[],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("[ none | [ <dashed-ident> <animation-action>+ ]+ ]#"),
         relevance: 50,
         restrictions: &[],
         values: &[],
@@ -23998,7 +24467,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/appearance",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/appearance",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24006,7 +24475,7 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2024-09-14"),
         }),
         status: None,
-        syntax: Some("none | auto | textfield | menulist-button | <compat-auto>"),
+        syntax: Some("none | auto | <compat-auto> | <compat-special>"),
         relevance: 73,
         restrictions: &[],
         values: &[],
@@ -24020,7 +24489,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E88", "FF89", "FFA89", "S15", "SM15", "C88", "CA88", "O74"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/aspect-ratio",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/aspect-ratio",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24029,7 +24498,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("auto || <ratio>"),
-        relevance: 63,
+        relevance: 67,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -24044,7 +24513,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/backdrop-filter",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/backdrop-filter",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -24053,16 +24522,21 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | <filter-value-list>"),
-        relevance: 62,
+        relevance: 66,
         restrictions: &[],
         values: &[],
         at_rule: None,
     },
     Property {
         name: "baseline-shift",
-        description: Some(""),
+        description: Some(
+            "Allows repositioning of the dominant-baseline relative to the dominant-baseline of the parent text content element. The shifted object might be a sub- or superscript.",
+        ),
         browsers: Some(&["E79", "S4", "SM3.2", "C1", "CA18", "O15"]),
-        references: &[],
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/baseline-shift",
+        }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
@@ -24076,6 +24550,42 @@ pub const PROPERTIES: &[Property] = &[
         at_rule: None,
     },
     Property {
+        name: "baseline-source",
+        description: Some(""),
+        browsers: Some(&["E111", "FF115", "FFA115", "C111", "CA111", "O97"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/baseline-source",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("auto | first | last"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[
+            Value {
+                name: "auto",
+                description: None,
+                browsers: Some(&["E111", "FF115", "FFA115", "C111", "CA111", "O97"]),
+            },
+            Value {
+                name: "first",
+                description: None,
+                browsers: Some(&["E111", "FF115", "FFA115", "C111", "CA111", "O97"]),
+            },
+            Value {
+                name: "last",
+                description: None,
+                browsers: Some(&["E111", "FF115", "FFA115", "C111", "CA111", "O97"]),
+            },
+        ],
+        at_rule: None,
+    },
+    Property {
         name: "border-block",
         description: Some(
             "The border-block CSS property is a shorthand property for setting the individual logical block border property values in a single place in the style sheet.",
@@ -24085,7 +24595,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-block",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-block",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24109,7 +24619,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-block-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-block-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24133,7 +24643,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-block-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-block-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24157,7 +24667,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-block-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-block-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24179,7 +24689,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E89", "FF66", "FFA66", "S15", "SM15", "C89", "CA89", "O75"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-end-end-radius",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-end-end-radius",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24188,7 +24698,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'border-top-left-radius'>"),
-        relevance: 55,
+        relevance: 56,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -24201,7 +24711,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E89", "FF66", "FFA66", "S15", "SM15", "C89", "CA89", "O75"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-end-start-radius",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-end-start-radius",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24210,7 +24720,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'border-top-left-radius'>"),
-        relevance: 55,
+        relevance: 56,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -24225,7 +24735,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-inline",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-inline",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24249,7 +24759,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-inline-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-inline-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24273,7 +24783,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-inline-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-inline-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24297,7 +24807,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-inline-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-inline-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24319,7 +24829,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E89", "FF66", "FFA66", "S15", "SM15", "C89", "CA89", "O75"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-start-end-radius",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-start-end-radius",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24328,7 +24838,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'border-top-left-radius'>"),
-        relevance: 55,
+        relevance: 56,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -24341,7 +24851,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E89", "FF66", "FFA66", "S15", "SM15", "C89", "CA89", "O75"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/border-start-start-radius",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/border-start-start-radius",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24350,7 +24860,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'border-top-left-radius'>"),
-        relevance: 55,
+        relevance: 56,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -24363,7 +24873,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/box-align",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/box-align",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -24411,7 +24921,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/box-direction",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/box-direction",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -24449,7 +24959,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/box-flex",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/box-flex",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -24471,7 +24981,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/box-flex-group",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/box-flex-group",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -24493,7 +25003,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/box-lines",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/box-lines",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -24526,7 +25036,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/box-ordinal-group",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/box-ordinal-group",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -24548,7 +25058,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/box-orient",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/box-orient",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -24596,7 +25106,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/box-pack",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/box-pack",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -24638,18 +25148,56 @@ pub const PROPERTIES: &[Property] = &[
         references: &[],
         baseline: None,
         status: None,
-        syntax: Some("<'caret-color'> || <'caret-shape'>"),
+        syntax: Some("<'caret-color'> || <'caret-animation'> || <'caret-shape'>"),
         relevance: 50,
         restrictions: &[],
         values: &[],
         at_rule: None,
     },
     Property {
+        name: "caret-animation",
+        description: Some(""),
+        browsers: Some(&["E140", "C140", "CA140", "O124"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/caret-animation",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("auto | manual"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[
+            Value {
+                name: "auto",
+                description: None,
+                browsers: Some(&["E140", "C140", "CA140", "O124"]),
+            },
+            Value {
+                name: "manual",
+                description: None,
+                browsers: Some(&["E140", "C140", "CA140", "O124"]),
+            },
+        ],
+        at_rule: None,
+    },
+    Property {
         name: "caret-shape",
         description: Some("Specifies the desired shape of the text insertion caret."),
-        browsers: None,
-        references: &[],
-        baseline: None,
+        browsers: Some(&["E144", "C144", "CA144"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/caret-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
         status: None,
         syntax: Some("auto | bar | block | underscore"),
         relevance: 50,
@@ -24658,22 +25206,22 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E144", "C144", "CA144"]),
             },
             Value {
                 name: "bar",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E144", "C144", "CA144"]),
             },
             Value {
                 name: "block",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E144", "C144", "CA144"]),
             },
             Value {
                 name: "underscore",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E144", "C144", "CA144"]),
             },
         ],
         at_rule: None,
@@ -24686,7 +25234,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E81", "FF96", "FFA96", "S13", "SM13", "C81", "CA81", "O68"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/color-scheme",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/color-scheme",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24701,6 +25249,56 @@ pub const PROPERTIES: &[Property] = &[
         at_rule: None,
     },
     Property {
+        name: "column-height",
+        description: Some(""),
+        browsers: Some(&["E145", "C145", "CA145"]),
+        references: &[],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("auto | <length [0,∞]>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "column-wrap",
+        description: Some(""),
+        browsers: Some(&["E145", "C145", "CA145"]),
+        references: &[],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("auto | nowrap | wrap"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[
+            Value {
+                name: "auto",
+                description: None,
+                browsers: Some(&["E145", "C145", "CA145"]),
+            },
+            Value {
+                name: "nowrap",
+                description: None,
+                browsers: Some(&["E145", "C145", "CA145"]),
+            },
+            Value {
+                name: "wrap",
+                description: None,
+                browsers: Some(&["E145", "C145", "CA145"]),
+            },
+        ],
+        at_rule: None,
+    },
+    Property {
         name: "contain-intrinsic-block-size",
         description: Some(
             "Block size of an element when the element is subject to size containment.",
@@ -24710,7 +25308,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/contain-intrinsic-block-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/contain-intrinsic-block-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -24732,7 +25330,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/contain-intrinsic-height",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/contain-intrinsic-height",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -24756,7 +25354,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/contain-intrinsic-inline-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/contain-intrinsic-inline-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -24778,7 +25376,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/contain-intrinsic-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/contain-intrinsic-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -24787,7 +25385,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("[ auto? [ none | <length> ] ]{1,2}"),
-        relevance: 50,
+        relevance: 54,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -24800,7 +25398,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/contain-intrinsic-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/contain-intrinsic-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -24824,16 +25422,16 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/container",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/container",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2023-02-14"),
-            high_date: None,
+            high_date: Some("2025-08-14"),
         }),
         status: None,
         syntax: Some("<'container-name'> [ / <'container-type'> ]?"),
-        relevance: 53,
+        relevance: 54,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -24848,16 +25446,16 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/container-name",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/container-name",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2023-02-14"),
-            high_date: None,
+            high_date: Some("2025-08-14"),
         }),
         status: None,
         syntax: Some("none | <custom-ident>+"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -24872,16 +25470,16 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/container-type",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/container-type",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2023-02-14"),
-            high_date: None,
+            high_date: Some("2025-08-14"),
         }),
         status: None,
         syntax: Some("normal | [ [ size | inline-size ] || scroll-state ]"),
-        relevance: 52,
+        relevance: 56,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -24896,7 +25494,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/content-visibility",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/content-visibility",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -24905,25 +25503,371 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("visible | auto | hidden"),
-        relevance: 52,
+        relevance: 54,
         restrictions: &[],
         values: &[
             Value {
                 name: "visible",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E85", "FF125", "FFA125", "S18", "SM18", "C85", "CA85", "O71",
+                ]),
             },
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E85", "FF125", "FFA125", "S26", "SM26", "C85", "CA85", "O71",
+                ]),
             },
             Value {
                 name: "hidden",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E85", "FF125", "FFA125", "S18", "SM18", "C85", "CA85", "O71",
+                ]),
             },
         ],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-block-end-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-block-end-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>{1,2}"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-block-start-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-block-start-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>{1,2}"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-bottom-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-bottom-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>{1,2}"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-bottom-left-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-bottom-left-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-bottom-right-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-bottom-right-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-end-end-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-end-end-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-end-start-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-end-start-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-inline-end-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-inline-end-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>{1,2}"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-inline-start-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-inline-start-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>{1,2}"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-left-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-left-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>{1,2}"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-right-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-right-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>{1,2}"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>{1,4}"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-start-start-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-start-start-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-start-end-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-start-end-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-top-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-top-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>{1,2}"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-top-left-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-top-left-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "corner-top-right-shape",
+        description: Some(""),
+        browsers: Some(&["E139", "C139", "CA139", "O123"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/corner-top-right-shape",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<corner-shape-value>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
         at_rule: None,
     },
     Property {
@@ -24936,7 +25880,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/counter-set",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/counter-set",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -24958,7 +25902,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF69", "FFA79", "S9", "SM9", "C43", "CA43", "O30"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/cx",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/cx",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24967,7 +25911,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<length> | <percentage>"),
-        relevance: 51,
+        relevance: 52,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -24980,7 +25924,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF69", "FFA79", "S9", "SM9", "C43", "CA43", "O30"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/cy",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/cy",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -24989,7 +25933,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<length> | <percentage>"),
-        relevance: 51,
+        relevance: 52,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -25002,7 +25946,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF97", "FFA97", "C52", "CA52", "O39"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/d",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/d",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -25024,7 +25968,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/dominant-baseline",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/dominant-baseline",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -25041,7 +25985,7 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "text-bottom",
@@ -25051,32 +25995,32 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "alphabetic",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "ideographic",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "middle",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "central",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "mathematical",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "hanging",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF1", "FFA4", "S4", "SM3.2", "C1", "CA18", "O15"]),
             },
             Value {
                 name: "text-top",
@@ -25087,21 +26031,41 @@ pub const PROPERTIES: &[Property] = &[
         at_rule: None,
     },
     Property {
-        name: "field-sizing",
-        description: Some(
-            "The field-sizing CSS property enables you to control the sizing behavior of elements that are given a default preferred size, such as form control elements. This property enables you to override the default sizing behavior, allowing form controls to adjust in size to fit their contents.",
-        ),
-        browsers: Some(&["E123", "C123", "CA123", "O109"]),
+        name: "dynamic-range-limit",
+        description: Some(""),
+        browsers: Some(&["E136", "S26", "SM26", "C136", "CA136", "O121"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/field-sizing",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/dynamic-range-limit",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
+        syntax: Some("standard | no-limit | constrained | <dynamic-range-limit-mix()>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "field-sizing",
+        description: Some(
+            "The field-sizing CSS property enables you to control the sizing behavior of elements that are given a default preferred size, such as form control elements. This property enables you to override the default sizing behavior, allowing form controls to adjust in size to fit their contents.",
+        ),
+        browsers: Some(&["E123", "S26.2", "SM26.2", "C123", "CA123", "O109"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/field-sizing",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
         syntax: Some("content | fixed"),
         relevance: 50,
         restrictions: &[],
@@ -25109,12 +26073,12 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "content",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E123", "S26.2", "SM26.2", "C123", "CA123", "O109"]),
             },
             Value {
                 name: "fixed",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E123", "S26.2", "SM26.2", "C123", "CA123", "O109"]),
             },
         ],
         at_rule: None,
@@ -25129,7 +26093,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-optical-sizing",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-optical-sizing",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -25138,18 +26102,22 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("auto | none"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &[],
         values: &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E17", "FF62", "FFA62", "S13.1", "SM13.4", "C79", "CA79", "O66",
+                ]),
             },
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E17", "FF62", "FFA62", "S13.1", "SM13.4", "C79", "CA79", "O66",
+                ]),
             },
         ],
         at_rule: None,
@@ -25164,12 +26132,12 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-palette",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-palette",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2022-11-15"),
-            high_date: None,
+            high_date: Some("2025-05-15"),
         }),
         status: None,
         syntax: Some("normal | light | dark | <palette-identifier> | <palette-mix()>"),
@@ -25186,7 +26154,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-smooth",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-smooth",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -25208,7 +26176,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["FF118", "FFA118"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-synthesis-position",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-synthesis-position",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -25223,12 +26191,12 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&["FF118", "FFA118"]),
             },
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["FF118", "FFA118"]),
             },
         ],
         at_rule: None,
@@ -25243,12 +26211,12 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-synthesis-small-caps",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-synthesis-small-caps",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2023-03-27"),
-            high_date: None,
+            high_date: Some("2025-09-27"),
         }),
         status: None,
         syntax: Some("auto | none"),
@@ -25258,12 +26226,16 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E97", "FF111", "FFA111", "S16.4", "SM16.4", "C97", "CA97", "O83",
+                ]),
             },
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E97", "FF111", "FFA111", "S16.4", "SM16.4", "C97", "CA97", "O83",
+                ]),
             },
         ],
         at_rule: None,
@@ -25278,12 +26250,12 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-synthesis-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-synthesis-style",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2023-03-27"),
-            high_date: None,
+            high_date: Some("2025-09-27"),
         }),
         status: None,
         syntax: Some("auto | none"),
@@ -25293,12 +26265,16 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E97", "FF111", "FFA111", "S16.4", "SM16.4", "C97", "CA97", "O83",
+                ]),
             },
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E97", "FF111", "FFA111", "S16.4", "SM16.4", "C97", "CA97", "O83",
+                ]),
             },
         ],
         at_rule: None,
@@ -25313,12 +26289,12 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-synthesis-weight",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-synthesis-weight",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2023-03-27"),
-            high_date: None,
+            high_date: Some("2025-09-27"),
         }),
         status: None,
         syntax: Some("auto | none"),
@@ -25328,12 +26304,16 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E97", "FF111", "FFA111", "S16.4", "SM16.4", "C97", "CA97", "O83",
+                ]),
             },
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E97", "FF111", "FFA111", "S16.4", "SM16.4", "C97", "CA97", "O83",
+                ]),
             },
         ],
         at_rule: None,
@@ -25343,10 +26323,10 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The font-variant-emoji CSS property specifies the default presentation style for displaying emojis.",
         ),
-        browsers: Some(&["E131", "C131", "CA131", "O116"]),
+        browsers: Some(&["E131", "FF141", "FFA141", "C131", "CA131", "O116"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-variant-emoji",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-variant-emoji",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -25361,22 +26341,22 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "normal",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E131", "FF141", "FFA141", "C131", "CA131", "O116"]),
             },
             Value {
                 name: "text",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E131", "FF141", "FFA141", "C131", "CA131", "O116"]),
             },
             Value {
                 name: "emoji",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E131", "FF141", "FFA141", "C131", "CA131", "O116"]),
             },
             Value {
                 name: "unicode",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E131", "FF141", "FFA141", "C131", "CA131", "O116"]),
             },
         ],
         at_rule: None,
@@ -25389,7 +26369,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E17", "FF62", "FFA62", "S11", "SM11", "C62", "CA62", "O49"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/font-variation-settings",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/font-variation-settings",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -25398,10 +26378,29 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("normal | [ <string> <number> ]#"),
-        relevance: 57,
+        relevance: 59,
         restrictions: &[],
         values: &[],
         at_rule: Some("@font-face"),
+    },
+    Property {
+        name: "font-width",
+        description: Some(""),
+        browsers: Some(&["S18.4"]),
+        references: &[],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: Some("experimental"),
+        syntax: Some(
+            "normal | <percentage [0,∞]> | ultra-condensed | extra-condensed | condensed | semi-condensed | semi-expanded | expanded | extra-expanded | ultra-expanded",
+        ),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
     },
     Property {
         name: "forced-color-adjust",
@@ -25411,7 +26410,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF113", "FFA113", "C89", "CA89", "IE10", "O75"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/forced-color-adjust",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/forced-color-adjust",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -25426,17 +26425,17 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF113", "FFA113", "C89", "CA89", "O75"]),
             },
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF113", "FFA113", "C89", "CA89", "O75"]),
             },
             Value {
                 name: "preserve-parent-color",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E106", "C106", "CA106", "O92"]),
             },
         ],
         at_rule: None,
@@ -25451,7 +26450,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/gap",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/gap",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -25460,7 +26459,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'row-gap'> <'column-gap'>?"),
-        relevance: 76,
+        relevance: 80,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -25473,7 +26472,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: None,
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/hanging-punctuation",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/hanging-punctuation",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -25495,7 +26494,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/hyphenate-character",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/hyphenate-character",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -25517,7 +26516,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E109", "FF137", "FFA137", "C109", "CA109", "O95"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/hyphenate-limit-chars",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/hyphenate-limit-chars",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -25554,7 +26553,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E110", "C110", "CA110", "O96"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/initial-letter",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/initial-letter",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -25593,7 +26592,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/inset",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/inset",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -25602,7 +26601,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'top'>{1,4}"),
-        relevance: 64,
+        relevance: 69,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -25617,7 +26616,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/inset-block",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/inset-block",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -25626,7 +26625,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'top'>{1,2}"),
-        relevance: 53,
+        relevance: 54,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -25641,7 +26640,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/inset-block-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/inset-block-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -25665,55 +26664,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/inset-block-start",
-        }],
-        baseline: Some(Baseline {
-            status: BaselineStatus::High,
-            low_date: Some("2021-04-26"),
-            high_date: Some("2023-10-26"),
-        }),
-        status: None,
-        syntax: Some("<'top'>"),
-        relevance: 54,
-        restrictions: &[],
-        values: &[],
-        at_rule: None,
-    },
-    Property {
-        name: "inset-inline",
-        description: Some(
-            "The inset-inline CSS property defines the logical block start and end offsets of an element, which maps to physical offsets depending on the element's writing mode, directionality, and text orientation. It corresponds to the top and bottom, or right and left properties depending on the values defined for writing-mode, direction, and text-orientation.",
-        ),
-        browsers: Some(&[
-            "E87", "FF63", "FFA63", "S14.1", "SM14.5", "C87", "CA87", "O73",
-        ]),
-        references: &[Reference {
-            name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/inset-inline",
-        }],
-        baseline: Some(Baseline {
-            status: BaselineStatus::High,
-            low_date: Some("2021-04-26"),
-            high_date: Some("2023-10-26"),
-        }),
-        status: None,
-        syntax: Some("<'top'>{1,2}"),
-        relevance: 54,
-        restrictions: &[],
-        values: &[],
-        at_rule: None,
-    },
-    Property {
-        name: "inset-inline-end",
-        description: Some(
-            "The inset-inline-end CSS property defines the logical inline end inset of an element, which maps to a physical inset depending on the element's writing mode, directionality, and text orientation. It corresponds to the top, right, bottom, or left property depending on the values defined for writing-mode, direction, and text-orientation.",
-        ),
-        browsers: Some(&[
-            "E87", "FF63", "FFA63", "S14.1", "SM14.5", "C87", "CA87", "O73",
-        ]),
-        references: &[Reference {
-            name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/inset-inline-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/inset-block-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -25728,6 +26679,54 @@ pub const PROPERTIES: &[Property] = &[
         at_rule: None,
     },
     Property {
+        name: "inset-inline",
+        description: Some(
+            "The inset-inline CSS property defines the logical block start and end offsets of an element, which maps to physical offsets depending on the element's writing mode, directionality, and text orientation. It corresponds to the top and bottom, or right and left properties depending on the values defined for writing-mode, direction, and text-orientation.",
+        ),
+        browsers: Some(&[
+            "E87", "FF63", "FFA63", "S14.1", "SM14.5", "C87", "CA87", "O73",
+        ]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/inset-inline",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::High,
+            low_date: Some("2021-04-26"),
+            high_date: Some("2023-10-26"),
+        }),
+        status: None,
+        syntax: Some("<'top'>{1,2}"),
+        relevance: 55,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "inset-inline-end",
+        description: Some(
+            "The inset-inline-end CSS property defines the logical inline end inset of an element, which maps to a physical inset depending on the element's writing mode, directionality, and text orientation. It corresponds to the top, right, bottom, or left property depending on the values defined for writing-mode, direction, and text-orientation.",
+        ),
+        browsers: Some(&[
+            "E87", "FF63", "FFA63", "S14.1", "SM14.5", "C87", "CA87", "O73",
+        ]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/inset-inline-end",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::High,
+            low_date: Some("2021-04-26"),
+            high_date: Some("2023-10-26"),
+        }),
+        status: None,
+        syntax: Some("<'top'>"),
+        relevance: 57,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
         name: "inset-inline-start",
         description: Some(
             "The inset-inline-start CSS property defines the logical inline start inset of an element, which maps to a physical offset depending on the element's writing mode, directionality, and text orientation. It corresponds to the top, right, bottom, or left property depending on the values defined for writing-mode, direction, and text-orientation.",
@@ -25737,7 +26736,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/inset-inline-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/inset-inline-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -25746,7 +26745,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'top'>"),
-        relevance: 56,
+        relevance: 58,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -25759,7 +26758,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E129", "C129", "CA129", "O115"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/interpolate-size",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/interpolate-size",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -25768,20 +26767,111 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: Some("experimental"),
         syntax: Some("numeric-only | allow-keywords"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &[],
         values: &[
             Value {
                 name: "numeric-only",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E129", "C129", "CA129", "O115"]),
             },
             Value {
                 name: "allow-keywords",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E129", "C129", "CA129", "O115"]),
             },
         ],
+        at_rule: None,
+    },
+    Property {
+        name: "interactivity",
+        description: Some(""),
+        browsers: Some(&["E135", "C135", "CA135", "O120"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/interactivity",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("auto | inert"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[
+            Value {
+                name: "auto",
+                description: None,
+                browsers: Some(&["E135", "C135", "CA135", "O120"]),
+            },
+            Value {
+                name: "inert",
+                description: None,
+                browsers: Some(&["E135", "C135", "CA135", "O120"]),
+            },
+        ],
+        at_rule: None,
+    },
+    Property {
+        name: "interest-delay",
+        description: Some(""),
+        browsers: Some(&["E142", "C142", "CA142"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/interest-delay",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<'interest-delay-start'>{1,2}"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "interest-delay-end",
+        description: Some(""),
+        browsers: Some(&["E142", "C142", "CA142"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/interest-delay-end",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("normal | <time>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "interest-delay-start",
+        description: Some(""),
+        browsers: Some(&["E142", "C142", "CA142"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/interest-delay-start",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("normal | <time>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
         at_rule: None,
     },
     Property {
@@ -25806,10 +26896,10 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The line-clamp property allows limiting the contents of a block container to the specified number of lines; remaining content is fragmented away and neither rendered nor measured. Optionally, it also allows inserting content into the last line box to indicate the continuity of truncated/interrupted content.",
         ),
-        browsers: Some(&["S18.2", "SM18.2", "O15"]),
+        browsers: Some(&["O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/line-clamp",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/line-clamp",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -25828,16 +26918,9 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The line-height-step CSS property defines the step units for line box heights. When the step unit is positive, line box heights are rounded up to the closest multiple of the unit. Negative values are invalid.",
         ),
-        browsers: Some(&["O47"]),
-        references: &[Reference {
-            name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/line-height-step",
-        }],
-        baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
-            high_date: None,
-        }),
+        browsers: None,
+        references: &[],
+        baseline: None,
         status: Some("experimental"),
         syntax: Some("<length>"),
         relevance: 50,
@@ -25855,7 +26938,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/margin-block",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/margin-block",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -25864,7 +26947,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'margin-top'>{1,2}"),
-        relevance: 55,
+        relevance: 57,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -25879,7 +26962,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/margin-inline",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/margin-inline",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -25888,7 +26971,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'margin-top'>{1,2}"),
-        relevance: 56,
+        relevance: 58,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -25901,7 +26984,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["S16.4", "SM16.4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/margin-trim",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/margin-trim",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -25916,7 +26999,7 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["S16.4", "SM16.4"]),
             },
             Value {
                 name: "in-flow",
@@ -25941,7 +27024,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -25950,7 +27033,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<mask-layer>#"),
-        relevance: 58,
+        relevance: 60,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -25963,7 +27046,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["S17.2", "SM17.2", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-border",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-border",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -26013,7 +27096,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["S17.2", "SM17.2", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-border-outset",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-border-outset",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -26035,7 +27118,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["S17.2", "SM17.2", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-border-repeat",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-border-repeat",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -26057,7 +27140,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["S17.2", "SM17.2", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-border-slice",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-border-slice",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -26079,7 +27162,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["S17.2", "SM17.2", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-border-source",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-border-source",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -26101,7 +27184,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["S17.2", "SM17.2", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-border-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-border-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -26125,7 +27208,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-clip",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-clip",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -26149,7 +27232,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/mask-composite",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/mask-composite",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -26158,7 +27241,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<compositing-operator>#"),
-        relevance: 53,
+        relevance: 55,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -26186,7 +27269,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E109", "FF117", "FFA117", "C109", "CA109", "O95"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/math-depth",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/math-depth",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -26205,17 +27288,19 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "Used for positioning superscript during the layout of MathML scripted elements.",
         ),
-        browsers: Some(&["E109", "C109", "CA109", "O95"]),
+        browsers: Some(&[
+            "E109", "FF146", "FFA146", "S26.2", "SM26.2", "C109", "CA109", "O95",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/math-shift",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/math-shift",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-12-12"),
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("normal | compact"),
         relevance: 50,
         restrictions: &[],
@@ -26223,12 +27308,16 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "normal",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E109", "FF146", "FFA146", "S26.2", "SM26.2", "C109", "CA109", "O95",
+                ]),
             },
             Value {
                 name: "compact",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E109", "FF146", "FFA146", "S26.2", "SM26.2", "C109", "CA109", "O95",
+                ]),
             },
         ],
         at_rule: None,
@@ -26243,7 +27332,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/math-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/math-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -26258,12 +27347,16 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "normal",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E109", "FF117", "FFA117", "S14.1", "SM14.5", "C109", "CA109", "O95",
+                ]),
             },
             Value {
                 name: "compact",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E109", "FF117", "FFA117", "S14.1", "SM14.5", "C109", "CA109", "O95",
+                ]),
             },
         ],
         at_rule: None,
@@ -26283,9 +27376,14 @@ pub const PROPERTIES: &[Property] = &[
     },
     Property {
         name: "object-view-box",
-        description: Some(""),
+        description: Some(
+            "Defines a rectangle as a viewable area (viewbox) within a replaced element, enabling the content of the replaced element to be zoomed or panned.",
+        ),
         browsers: Some(&["E104", "C104", "CA104", "O90"]),
-        references: &[],
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/object-view-box",
+        }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
@@ -26306,7 +27404,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF72", "FFA79", "S16", "SM16", "C55", "CA55", "O42"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/offset",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/offset",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26332,7 +27430,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/offset-anchor",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/offset-anchor",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -26354,7 +27452,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF72", "FFA79", "S16", "SM16", "C55", "CA55", "O42"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/offset-distance",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/offset-distance",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26363,7 +27461,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<length-percentage>"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -26378,7 +27476,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/offset-path",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/offset-path",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26402,7 +27500,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/offset-position",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/offset-position",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -26424,7 +27522,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF72", "FFA79", "S16", "SM16", "C56", "CA56", "O43"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/offset-rotate",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/offset-rotate",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26446,7 +27544,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF66", "FFA66", "Spreview", "C56", "CA56", "O43"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overflow-anchor",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overflow-anchor",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -26455,18 +27553,18 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("auto | none"),
-        relevance: 53,
+        relevance: 54,
         restrictions: &[],
         values: &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF66", "FFA66", "C56", "CA56", "O43"]),
             },
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF66", "FFA66", "C56", "CA56", "O43"]),
             },
         ],
         at_rule: None,
@@ -26476,14 +27574,16 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The overflow-block CSS media feature can be used to test how the output device handles content that overflows the initial containing block along the block axis.",
         ),
-        browsers: Some(&["E135", "FF69", "FFA79", "C135", "CA135"]),
+        browsers: Some(&[
+            "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overflow-block",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overflow-block",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-09-15"),
             high_date: None,
         }),
         status: None,
@@ -26494,27 +27594,37 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "visible",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
+                ]),
             },
             Value {
                 name: "hidden",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
+                ]),
             },
             Value {
                 name: "clip",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E135", "FF81", "FFA81", "S26", "SM26", "C135", "CA135", "O120",
+                ]),
             },
             Value {
                 name: "scroll",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
+                ]),
             },
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
+                ]),
             },
         ],
         at_rule: None,
@@ -26553,7 +27663,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["O76"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overflow-clip-margin",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overflow-clip-margin",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -26572,14 +27682,16 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The overflow-inline CSS media feature can be used to test how the output device handles content that overflows the initial containing block along the inline axis.",
         ),
-        browsers: Some(&["E135", "FF69", "FFA79", "C135", "CA135"]),
+        browsers: Some(&[
+            "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overflow-inline",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overflow-inline",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-09-15"),
             high_date: None,
         }),
         status: None,
@@ -26590,27 +27702,37 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "visible",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
+                ]),
             },
             Value {
                 name: "hidden",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
+                ]),
             },
             Value {
                 name: "clip",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E135", "FF81", "FFA81", "S26", "SM26", "C135", "CA135", "O120",
+                ]),
             },
             Value {
                 name: "scroll",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
+                ]),
             },
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E135", "FF69", "FFA79", "S26", "SM26", "C135", "CA135", "O120",
+                ]),
             },
         ],
         at_rule: None,
@@ -26623,7 +27745,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E117", "C117", "CA117", "O103"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overlay",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overlay",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -26638,12 +27760,12 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E117", "C117", "CA117", "O103"]),
             },
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E117", "C117", "CA117", "O103"]),
             },
         ],
         at_rule: None,
@@ -26656,7 +27778,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E18", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overscroll-behavior",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overscroll-behavior",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26665,7 +27787,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("[ contain | none | auto ]{1,2}"),
-        relevance: 50,
+        relevance: 58,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -26678,7 +27800,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overscroll-behavior-block",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overscroll-behavior-block",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26687,23 +27809,23 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("contain | none | auto"),
-        relevance: 51,
+        relevance: 50,
         restrictions: &[],
         values: &[
             Value {
                 name: "contain",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
             },
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
             },
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
             },
         ],
         at_rule: None,
@@ -26716,7 +27838,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overscroll-behavior-inline",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overscroll-behavior-inline",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26725,23 +27847,23 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("contain | none | auto"),
-        relevance: 51,
+        relevance: 50,
         restrictions: &[],
         values: &[
             Value {
                 name: "contain",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
             },
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
             },
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF73", "FFA79", "S16", "SM16", "C77", "CA77", "O64"]),
             },
         ],
         at_rule: None,
@@ -26754,7 +27876,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E18", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overscroll-behavior-x",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overscroll-behavior-x",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26763,23 +27885,23 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("contain | none | auto"),
-        relevance: 50,
+        relevance: 54,
         restrictions: &[],
         values: &[
             Value {
                 name: "contain",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E18", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
             },
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
             },
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E18", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
             },
         ],
         at_rule: None,
@@ -26792,7 +27914,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E18", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/overscroll-behavior-y",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/overscroll-behavior-y",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26801,23 +27923,23 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("contain | none | auto"),
-        relevance: 50,
+        relevance: 55,
         restrictions: &[],
         values: &[
             Value {
                 name: "contain",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E18", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
             },
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
             },
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E18", "FF59", "FFA59", "S16", "SM16", "C63", "CA63", "O50"]),
             },
         ],
         at_rule: None,
@@ -26832,7 +27954,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/padding-block",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/padding-block",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26841,7 +27963,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'padding-top'>{1,2}"),
-        relevance: 57,
+        relevance: 59,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -26856,7 +27978,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/padding-inline",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/padding-inline",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26865,7 +27987,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'padding-top'>{1,2}"),
-        relevance: 58,
+        relevance: 61,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -26878,12 +28000,12 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E85", "FF110", "FFA110", "S1", "SM1", "C85", "CA85", "O71"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/page",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/page",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2023-02-14"),
-            high_date: None,
+            high_date: Some("2025-08-14"),
         }),
         status: None,
         syntax: Some("auto | <custom-ident>"),
@@ -26900,7 +28022,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF45", "FFA45", "S9", "SM9", "C59", "CA59", "O46"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/place-content",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/place-content",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26909,7 +28031,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'align-content'> <'justify-content'>?"),
-        relevance: 56,
+        relevance: 57,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -26922,7 +28044,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF45", "FFA45", "S11", "SM11", "C59", "CA59", "O46"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/place-items",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/place-items",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26931,7 +28053,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'align-items'> <'justify-items'>?"),
-        relevance: 56,
+        relevance: 58,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -26944,7 +28066,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF45", "FFA45", "S11", "SM11", "C59", "CA59", "O46"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/place-self",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/place-self",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -26963,18 +28085,20 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The position-anchor property defines the default anchor specifier for all anchor functions on the element, allowing multiple elements to use the same set of anchor functions (and position options lists!) while changing which anchor element each is referring to.",
         ),
-        browsers: Some(&["E125", "C125", "CA125", "O111"]),
+        browsers: Some(&[
+            "E125", "FF147", "FFA147", "S26", "SM26", "C125", "CA125", "O111",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/position-anchor",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/position-anchor",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2026-01-13"),
             high_date: None,
         }),
-        status: Some("experimental"),
-        syntax: Some("auto | <anchor-name>"),
+        status: None,
+        syntax: Some("auto | none | <anchor-name>"),
         relevance: 50,
         restrictions: &[],
         values: &[],
@@ -26985,17 +28109,19 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The position-area CSS property enables an anchor-positioned element to be positioned relative to the edges of its associated anchor element by placing the positioned element on one or more tiles of an implicit 3x3 grid, where the anchoring element is the center cell.",
         ),
-        browsers: Some(&["E129", "C129", "CA129", "O115"]),
+        browsers: Some(&[
+            "E129", "FF147", "FFA147", "S26", "SM26", "C129", "CA129", "O115",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/position-area",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/position-area",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2026-01-13"),
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("none | <position-area>"),
         relevance: 50,
         restrictions: &[],
@@ -27007,17 +28133,19 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "This shorthand sets both position-try-options and position-try-order. If <'position-try-order'> is omitted, it’s set to the property’s initial value.",
         ),
-        browsers: Some(&["E125", "C125", "CA125", "O111"]),
+        browsers: Some(&[
+            "E125", "FF147", "FFA147", "S26", "SM26", "C125", "CA125", "O111",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/position-try",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/position-try",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2026-01-13"),
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("<'position-try-order'>? <'position-try-fallbacks'>"),
         relevance: 50,
         restrictions: &[],
@@ -27029,17 +28157,19 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The position-try-fallbacks CSS property enables you to specify a list of one or more alternative position try fallback options for anchor-positioned elements to be placed relative to their associated anchor elements. When the element would otherwise overflow its inset-modified containing block, the browser will try placing the positioned element in these different fallback positions, in the order provided, until it finds a value that stops it from overflowing its container or the viewport.",
         ),
-        browsers: Some(&["E128", "C128", "CA128", "O114"]),
+        browsers: Some(&[
+            "E128", "FF147", "FFA147", "S26", "SM26", "C128", "CA128", "O114",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/position-try-fallbacks",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/position-try-fallbacks",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2026-01-13"),
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("none | [ [<dashed-ident> || <try-tactic>] | <'position-area'> ]#"),
         relevance: 50,
         restrictions: &[],
@@ -27051,17 +28181,17 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "This property specifies the order in which the position options list will be tried.",
         ),
-        browsers: Some(&["E125", "C125", "CA125", "O111"]),
+        browsers: Some(&["E125", "S26", "SM26", "C125", "CA125", "O111"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/position-try-order",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/position-try-order",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("normal | <try-size>"),
         relevance: 50,
         restrictions: &[],
@@ -27073,17 +28203,19 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "There are times when an element’s anchors are not appropriate for positioning the element with, and it would be better to simply not display the element at all. position-visibility provides several conditions where this could be the case.",
         ),
-        browsers: Some(&["E125", "C125", "CA125", "O111"]),
+        browsers: Some(&[
+            "E125", "FF147", "FFA147", "S26.2", "SM26.2", "C125", "CA125", "O111",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/position-visibility",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/position-visibility",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2026-01-13"),
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("always | [ anchors-valid || anchors-visible || no-overflow ]"),
         relevance: 50,
         restrictions: &[],
@@ -27095,30 +28227,36 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "Defines what optimization the user agent is allowed to do when adjusting the appearance for an output device.",
         ),
-        browsers: Some(&["FF97", "FFA97", "S15.4", "SM15.4", "O15"]),
+        browsers: Some(&[
+            "E136", "FF97", "FFA97", "S15.4", "SM15.4", "C136", "CA136", "O121",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/print-color-adjust",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/print-color-adjust",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-05-01"),
             high_date: None,
         }),
         status: None,
         syntax: Some("economy | exact"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &[],
         values: &[
             Value {
                 name: "economy",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E136", "FF97", "FFA97", "S6", "SM6", "C136", "CA136", "O121",
+                ]),
             },
             Value {
                 name: "exact",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E136", "FF97", "FFA97", "S6", "SM6", "C136", "CA136", "O121",
+                ]),
             },
         ],
         at_rule: None,
@@ -27131,7 +28269,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF69", "FFA79", "S9", "SM9", "C43", "CA43", "O30"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/r",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/r",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27146,6 +28284,84 @@ pub const PROPERTIES: &[Property] = &[
         at_rule: None,
     },
     Property {
+        name: "reading-flow",
+        description: Some(""),
+        browsers: Some(&["E137", "C137", "CA137", "O121"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/reading-flow",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some(
+            "normal | source-order | flex-visual | flex-flow | grid-rows | grid-columns | grid-order",
+        ),
+        relevance: 50,
+        restrictions: &[],
+        values: &[
+            Value {
+                name: "normal",
+                description: None,
+                browsers: Some(&["E137", "C137", "CA137", "O121"]),
+            },
+            Value {
+                name: "source-order",
+                description: None,
+                browsers: Some(&["E137", "C137", "CA137", "O121"]),
+            },
+            Value {
+                name: "flex-visual",
+                description: None,
+                browsers: Some(&["E137", "C137", "CA137", "O121"]),
+            },
+            Value {
+                name: "flex-flow",
+                description: None,
+                browsers: Some(&["E137", "C137", "CA137", "O121"]),
+            },
+            Value {
+                name: "grid-rows",
+                description: None,
+                browsers: Some(&["E137", "C137", "CA137", "O121"]),
+            },
+            Value {
+                name: "grid-columns",
+                description: None,
+                browsers: Some(&["E137", "C137", "CA137", "O121"]),
+            },
+            Value {
+                name: "grid-order",
+                description: None,
+                browsers: Some(&["E137", "C137", "CA137", "O121"]),
+            },
+        ],
+        at_rule: None,
+    },
+    Property {
+        name: "reading-order",
+        description: Some(""),
+        browsers: Some(&["E137", "C137", "CA137", "O121"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/reading-order",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<integer>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
         name: "rotate",
         description: Some(
             "The rotate CSS property allows you to specify rotation transforms individually and independently of the transform property. This maps better to typical user interface usage, and saves having to remember the exact order of transform functions to specify in the transform value.",
@@ -27155,7 +28371,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/rotate",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rotate",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27164,7 +28380,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | <angle> | [ x | y | z | <number>{3} ] && <angle>"),
-        relevance: 52,
+        relevance: 54,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -27177,7 +28393,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/row-gap",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/row-gap",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27186,7 +28402,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("normal | <length-percentage>"),
-        relevance: 61,
+        relevance: 63,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -27227,14 +28443,16 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The rx CSS property defines the x-axis, or horizontal, radius of an SVG ellipse and the horizontal curve of the corners of an SVG rect rectangle. If present, it overrides the shape's rx attribute.",
         ),
-        browsers: Some(&["E79", "FF69", "FFA79", "C43", "CA43", "O30"]),
+        browsers: Some(&[
+            "E79", "FF69", "FFA79", "S17.4", "SM17.4", "C43", "CA43", "O30",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/rx",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/rx",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2024-03-05"),
             high_date: None,
         }),
         status: None,
@@ -27249,14 +28467,16 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The ry CSS property defines the y-axis, or vertical, radius of an SVG ellipse and the vertical curve of the corners of an SVG rect rectangle. If present, it overrides the shape's ry attribute.",
         ),
-        browsers: Some(&["E79", "FF69", "FFA79", "C43", "CA43", "O30"]),
+        browsers: Some(&[
+            "E79", "FF69", "FFA79", "S17.4", "SM17.4", "C43", "CA43", "O30",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/ry",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/ry",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2024-03-05"),
             high_date: None,
         }),
         status: None,
@@ -27276,7 +28496,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scale",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scale",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27285,7 +28505,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | [ <number> | <percentage> ]{1,3}"),
-        relevance: 52,
+        relevance: 57,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -27308,12 +28528,12 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E133", "C133", "CA133", "O118"]),
             },
             Value {
                 name: "nearest",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E133", "C133", "CA133", "O118"]),
             },
         ],
         at_rule: None,
@@ -27328,7 +28548,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-margin",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-margin",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27337,7 +28557,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<length>{1,4}"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -27350,7 +28570,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF68", "FFA68", "S15", "SM15", "C69", "CA69", "O56"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-margin-block",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-margin-block",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27372,7 +28592,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF68", "FFA68", "S15", "SM15", "C69", "CA69", "O56"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-margin-block-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-margin-block-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27394,7 +28614,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF68", "FFA68", "S15", "SM15", "C69", "CA69", "O56"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-margin-block-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-margin-block-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27418,7 +28638,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-margin-bottom",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-margin-bottom",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27440,7 +28660,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF68", "FFA68", "S15", "SM15", "C69", "CA69", "O56"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-margin-inline",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-margin-inline",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27462,7 +28682,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF68", "FFA68", "S15", "SM15", "C69", "CA69", "O56"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-margin-inline-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-margin-inline-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27484,7 +28704,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF68", "FFA68", "S15", "SM15", "C69", "CA69", "O56"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-margin-inline-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-margin-inline-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27508,7 +28728,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-margin-left",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-margin-left",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27532,7 +28752,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-margin-right",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-margin-right",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27556,7 +28776,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-margin-top",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-margin-top",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27565,9 +28785,45 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<length>"),
-        relevance: 50,
+        relevance: 52,
         restrictions: &[],
         values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "scroll-marker-group",
+        description: Some(""),
+        browsers: Some(&["E135", "C135", "CA135", "O120"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-marker-group",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("none | before | after"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[
+            Value {
+                name: "none",
+                description: None,
+                browsers: Some(&["E135", "C135", "CA135", "O120"]),
+            },
+            Value {
+                name: "before",
+                description: None,
+                browsers: Some(&["E135", "C135", "CA135", "O120"]),
+            },
+            Value {
+                name: "after",
+                description: None,
+                browsers: Some(&["E135", "C135", "CA135", "O120"]),
+            },
+        ],
         at_rule: None,
     },
     Property {
@@ -27580,7 +28836,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-padding",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-padding",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27602,7 +28858,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF68", "FFA68", "S15", "SM15", "C69", "CA69", "O56"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-padding-block",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-padding-block",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27624,7 +28880,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF68", "FFA68", "S15", "SM15", "C69", "CA69", "O56"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-padding-block-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-padding-block-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27646,7 +28902,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF68", "FFA68", "S15", "SM15", "C69", "CA69", "O56"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-padding-block-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-padding-block-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27670,7 +28926,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-padding-bottom",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-padding-bottom",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27692,7 +28948,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF68", "FFA68", "S15", "SM15", "C69", "CA69", "O56"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-padding-inline",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-padding-inline",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27714,7 +28970,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF68", "FFA68", "S15", "SM15", "C69", "CA69", "O56"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-padding-inline-end",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-padding-inline-end",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27736,7 +28992,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF68", "FFA68", "S15", "SM15", "C69", "CA69", "O56"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-padding-inline-start",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-padding-inline-start",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27760,7 +29016,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-padding-left",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-padding-left",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27784,7 +29040,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-padding-right",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-padding-right",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27808,7 +29064,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-padding-top",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-padding-top",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27830,7 +29086,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF68", "FFA68", "S11", "SM11", "C69", "CA69", "O56"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-snap-align",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-snap-align",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27839,7 +29095,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("[ none | start | end | center ]{1,2}"),
-        relevance: 54,
+        relevance: 56,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -27854,7 +29110,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-snap-stop",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-snap-stop",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -27863,18 +29119,22 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("normal | always"),
-        relevance: 51,
+        relevance: 52,
         restrictions: &[],
         values: &[
             Value {
                 name: "normal",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF103", "FFA103", "S15", "SM15", "C75", "CA75", "O62",
+                ]),
             },
             Value {
                 name: "always",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF103", "FFA103", "S15", "SM15", "C75", "CA75", "O62",
+                ]),
             },
         ],
         at_rule: None,
@@ -27942,21 +29202,52 @@ pub const PROPERTIES: &[Property] = &[
         at_rule: None,
     },
     Property {
-        name: "scroll-timeline",
-        description: Some(
-            "Defines a name that can be used to identify the source element of a scroll timeline, along with the scrollbar axis that should provide the timeline.",
-        ),
-        browsers: Some(&["E115", "C115", "CA115", "O101"]),
+        name: "scroll-target-group",
+        description: Some(""),
+        browsers: Some(&["E140", "C140", "CA140", "O124"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-timeline",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-target-group",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
+        syntax: Some("none | auto"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[
+            Value {
+                name: "none",
+                description: None,
+                browsers: Some(&["E140", "C140", "CA140", "O124"]),
+            },
+            Value {
+                name: "auto",
+                description: None,
+                browsers: Some(&["E140", "C140", "CA140", "O124"]),
+            },
+        ],
+        at_rule: None,
+    },
+    Property {
+        name: "scroll-timeline",
+        description: Some(
+            "Defines a name that can be used to identify the source element of a scroll timeline, along with the scrollbar axis that should provide the timeline.",
+        ),
+        browsers: Some(&["E115", "S26", "SM26", "C115", "CA115", "O101"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-timeline",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
         syntax: Some("[ <'scroll-timeline-name'> <'scroll-timeline-axis'>? ]#"),
         relevance: 50,
         restrictions: &[],
@@ -27968,17 +29259,17 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "Specifies the scrollbar that will be used to provide the timeline for a scroll-timeline animation",
         ),
-        browsers: Some(&["E115", "C115", "CA115", "O101"]),
+        browsers: Some(&["E115", "S26", "SM26", "C115", "CA115", "O101"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-timeline-axis",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-timeline-axis",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("[ block | inline | x | y ]#"),
         relevance: 50,
         restrictions: &[],
@@ -27990,17 +29281,17 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "Defines a name that can be used to identify an element as the source of a scroll-timeline.",
         ),
-        browsers: Some(&["E115", "C115", "CA115", "O101"]),
+        browsers: Some(&["E115", "S26", "SM26", "C115", "CA115", "O101"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scroll-timeline-name",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scroll-timeline-name",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("[ none | <dashed-ident> ]#"),
         relevance: 50,
         restrictions: &[],
@@ -28012,19 +29303,21 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The scrollbar-color CSS property sets the color of the scrollbar track and thumb.",
         ),
-        browsers: Some(&["E121", "FF64", "FFA64", "C121", "CA121", "O107"]),
+        browsers: Some(&[
+            "E121", "FF64", "FFA64", "S26.2", "SM26.2", "C121", "CA121", "O107",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scrollbar-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scrollbar-color",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-12-12"),
             high_date: None,
         }),
         status: None,
         syntax: Some("auto | <color>{2}"),
-        relevance: 55,
+        relevance: 57,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -28039,7 +29332,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scrollbar-gutter",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scrollbar-gutter",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -28048,7 +29341,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("auto | stable && both-edges?"),
-        relevance: 52,
+        relevance: 56,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -28063,7 +29356,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/scrollbar-width",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/scrollbar-width",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -28072,23 +29365,29 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("auto | thin | none"),
-        relevance: 67,
+        relevance: 70,
         restrictions: &[],
         values: &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E121", "FF64", "FFA64", "S18.2", "SM18.2", "C121", "CA121", "O107",
+                ]),
             },
             Value {
                 name: "thin",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E121", "FF64", "FFA64", "S18.2", "SM18.2", "C121", "CA121", "O107",
+                ]),
             },
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E121", "FF64", "FFA64", "S18.2", "SM18.2", "C121", "CA121", "O107",
+                ]),
             },
         ],
         at_rule: None,
@@ -28101,7 +29400,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["S11.1", "SM11.3"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/speak-as",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/speak-as",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -28116,6 +29415,45 @@ pub const PROPERTIES: &[Property] = &[
         at_rule: Some("@counter-style"),
     },
     Property {
+        name: "stroke-color",
+        description: Some(""),
+        browsers: Some(&["S11.1", "SM11.3"]),
+        references: &[],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: Some("experimental"),
+        syntax: Some("<color>"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "text-autospace",
+        description: Some(""),
+        browsers: Some(&[
+            "E140", "FF145", "FFA145", "S18.4", "SM18.4", "C140", "CA140", "O124",
+        ]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-autospace",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Low,
+            low_date: Some("2025-11-11"),
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("normal | <autospace> | auto"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
         name: "text-box",
         description: Some(
             "The text-box CSS property is a shorthand that corresponds to the text-box-trim and text-box-edge properties, which together specify the amount of space to trim from the block-start edge and block-end edge of a text element's block container.",
@@ -28123,7 +29461,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E133", "S18.2", "SM18.2", "C133", "CA133", "O118"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-box",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-box",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -28145,7 +29483,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E133", "S18.2", "SM18.2", "C133", "CA133", "O118"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-box-edge",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-box-edge",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -28167,7 +29505,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E133", "S18.2", "SM18.2", "C133", "CA133", "O118"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-box-trim",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-box-trim",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -28182,22 +29520,22 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E133", "S18.2", "SM18.2", "C133", "CA133", "O118"]),
             },
             Value {
                 name: "trim-start",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E133", "S18.2", "SM18.2", "C133", "CA133", "O118"]),
             },
             Value {
                 name: "trim-end",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E133", "S18.2", "SM18.2", "C133", "CA133", "O118"]),
             },
             Value {
                 name: "trim-both",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E133", "S18.2", "SM18.2", "C133", "CA133", "O118"]),
             },
         ],
         at_rule: None,
@@ -28212,7 +29550,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-combine-upright",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-combine-upright",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -28227,6 +29565,26 @@ pub const PROPERTIES: &[Property] = &[
         at_rule: None,
     },
     Property {
+        name: "text-decoration-inset",
+        description: Some(""),
+        browsers: Some(&["FF146", "FFA146"]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-decoration-inset",
+        }],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<length>{1,2} | auto"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
         name: "text-decoration-skip",
         description: Some(
             "The text-decoration-skip CSS property specifies what parts of the element’s content any text decoration affecting the element must skip over. It controls all text decoration lines drawn by the element and also any text decoration lines drawn by its ancestors.",
@@ -28234,7 +29592,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["S12.1", "SM12.2", "O44"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-decoration-skip",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-decoration-skip",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -28260,7 +29618,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-decoration-skip-ink",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-decoration-skip-ink",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -28269,23 +29627,27 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("auto | all | none"),
-        relevance: 51,
+        relevance: 53,
         restrictions: &[],
         values: &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF70", "FFA79", "S15.4", "SM15.4", "C64", "CA64", "O51",
+                ]),
             },
             Value {
                 name: "all",
                 description: None,
-                browsers: None,
+                browsers: Some(&["FF75", "FFA79", "S15.4", "SM15.4"]),
             },
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E79", "FF70", "FFA79", "S15.4", "SM15.4", "C64", "CA64", "O51",
+                ]),
             },
         ],
         at_rule: None,
@@ -28300,7 +29662,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-decoration-thickness",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-decoration-thickness",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -28308,8 +29670,8 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2023-09-04"),
         }),
         status: None,
-        syntax: Some("auto | from-font | <length> | <percentage> "),
-        relevance: 53,
+        syntax: Some("auto | from-font | <length> | <percentage>"),
+        relevance: 56,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -28322,7 +29684,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E99", "FF46", "FFA46", "S7", "SM7", "C99", "CA99", "O85"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-emphasis",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-emphasis",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -28344,7 +29706,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E99", "FF46", "FFA46", "S7", "SM7", "C99", "CA99", "O85"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-emphasis-color",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-emphasis-color",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -28366,7 +29728,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E99", "FF46", "FFA46", "S7", "SM7", "C99", "CA99", "O85"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-emphasis-position",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-emphasis-position",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -28388,7 +29750,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E99", "FF46", "FFA46", "S7", "SM7", "C99", "CA99", "O85"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-emphasis-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-emphasis-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -28412,7 +29774,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "C54", "CA54", "O41"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-size-adjust",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-size-adjust",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -28421,7 +29783,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: Some("experimental"),
         syntax: Some("none | auto | <percentage>"),
-        relevance: 60,
+        relevance: 61,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -28434,7 +29796,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E123", "C123", "CA123", "O109"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-spacing-trim",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-spacing-trim",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -28449,22 +29811,22 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "space-all",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E123", "C123", "CA123", "O109"]),
             },
             Value {
                 name: "normal",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E123", "C123", "CA123", "O109"]),
             },
             Value {
                 name: "space-first",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E123", "C123", "CA123", "O109"]),
             },
             Value {
                 name: "trim-start",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E123", "C123", "CA123", "O109"]),
             },
         ],
         at_rule: None,
@@ -28479,7 +29841,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-underline-offset",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-underline-offset",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -28487,8 +29849,8 @@ pub const PROPERTIES: &[Property] = &[
             high_date: Some("2023-05-19"),
         }),
         status: None,
-        syntax: Some("auto | <length> | <percentage> "),
-        relevance: 53,
+        syntax: Some("auto | <length> | <percentage>"),
+        relevance: 58,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -28503,7 +29865,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-wrap",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-wrap",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -28512,7 +29874,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<'text-wrap-mode'> || <'text-wrap-style'>"),
-        relevance: 58,
+        relevance: 60,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -28527,7 +29889,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-wrap-mode",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-wrap-mode",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -28542,12 +29904,16 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "wrap",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E130", "FF124", "FFA124", "S17.4", "SM17.4", "C130", "CA130", "O115",
+                ]),
             },
             Value {
                 name: "nowrap",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E130", "FF124", "FFA124", "S17.4", "SM17.4", "C130", "CA130", "O115",
+                ]),
             },
         ],
         at_rule: None,
@@ -28562,7 +29928,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/text-wrap-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/text-wrap-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -28577,22 +29943,28 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "auto",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E130", "FF124", "FFA124", "S17.5", "SM17.5", "C130", "CA130", "O115",
+                ]),
             },
             Value {
                 name: "balance",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E130", "FF124", "FFA124", "S17.5", "SM17.5", "C130", "CA130", "O115",
+                ]),
             },
             Value {
                 name: "stable",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E130", "FF124", "FFA124", "S17.5", "SM17.5", "C130", "CA130", "O115",
+                ]),
             },
             Value {
                 name: "pretty",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E130", "S26", "SM26", "C130", "CA130", "O115"]),
             },
         ],
         at_rule: None,
@@ -28602,18 +29974,159 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The timeline-scope CSS property modifies the scope of a named animation timeline.",
         ),
-        browsers: Some(&["E116", "C116", "CA116", "O102"]),
+        browsers: Some(&["E116", "S26", "SM26", "C116", "CA116", "O102"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/timeline-scope",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/timeline-scope",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("none | <dashed-ident>#"),
+        relevance: 51,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "timeline-trigger",
+        description: Some(""),
+        browsers: None,
+        references: &[],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some(
+            "none | [ <'timeline-trigger-name'> <'timeline-trigger-source'> <'timeline-trigger-range'> [ '/' <'timeline-trigger-exit-range'> ]? ]#",
+        ),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "timeline-trigger-name",
+        description: Some(""),
+        browsers: None,
+        references: &[],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("none | <dashed-ident>#"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "timeline-trigger-exit-range",
+        description: Some(""),
+        browsers: None,
+        references: &[],
+        baseline: None,
+        status: None,
+        syntax: Some(
+            "[ <'timeline-trigger-exit-range-start'> <'timeline-trigger-exit-range-end'>? ]#",
+        ),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "timeline-trigger-exit-range-end",
+        description: Some(""),
+        browsers: None,
+        references: &[],
+        baseline: None,
+        status: None,
+        syntax: Some(
+            "[ auto | normal | <length-percentage> | <timeline-range-name> <length-percentage>? ]#",
+        ),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "timeline-trigger-exit-range-start",
+        description: Some(""),
+        browsers: None,
+        references: &[],
+        baseline: None,
+        status: None,
+        syntax: Some(
+            "[ auto | normal | <length-percentage> | <timeline-range-name> <length-percentage>? ]#",
+        ),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "timeline-trigger-range",
+        description: Some(""),
+        browsers: None,
+        references: &[],
+        baseline: None,
+        status: None,
+        syntax: Some("[ <'timeline-trigger-range-start'> <'timeline-trigger-range-end'>? ]#"),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "timeline-trigger-range-end",
+        description: Some(""),
+        browsers: None,
+        references: &[],
+        baseline: None,
+        status: None,
+        syntax: Some(
+            "[ normal | <length-percentage> | <timeline-range-name> <length-percentage>? ]#",
+        ),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "timeline-trigger-range-start",
+        description: Some(""),
+        browsers: None,
+        references: &[],
+        baseline: None,
+        status: None,
+        syntax: Some(
+            "[ normal | <length-percentage> | <timeline-range-name> <length-percentage>? ]#",
+        ),
+        relevance: 50,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "timeline-trigger-source",
+        description: Some(""),
+        browsers: None,
+        references: &[],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("<single-animation-timeline>#"),
         relevance: 50,
         restrictions: &[],
         values: &[],
@@ -28627,7 +30140,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF55", "FFA55", "S11", "SM11", "C64", "CA64", "O51"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/transform-box",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/transform-box",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -28642,27 +30155,33 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "content-box",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E118", "FF125", "FFA125", "S13.1", "SM13.4", "C118", "CA118", "O104",
+                ]),
             },
             Value {
                 name: "border-box",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E118", "FF55", "FFA55", "S11", "SM11", "C118", "CA118", "O104",
+                ]),
             },
             Value {
                 name: "fill-box",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF55", "FFA55", "S11", "SM11", "C64", "CA64", "O51"]),
             },
             Value {
                 name: "stroke-box",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E118", "FF125", "FFA125", "S13.1", "SM13.4", "C118", "CA118", "O104",
+                ]),
             },
             Value {
                 name: "view-box",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF55", "FFA55", "S11", "SM11", "C64", "CA64", "O51"]),
             },
         ],
         at_rule: None,
@@ -28677,7 +30196,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/transition-behavior",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/transition-behavior",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -28701,7 +30220,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/translate",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/translate",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -28710,7 +30229,24 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("none | <length-percentage> [ <length-percentage> <length>? ]?"),
-        relevance: 52,
+        relevance: 54,
+        restrictions: &[],
+        values: &[],
+        at_rule: None,
+    },
+    Property {
+        name: "trigger-scope",
+        description: Some(""),
+        browsers: None,
+        references: &[],
+        baseline: Some(Baseline {
+            status: BaselineStatus::Limited,
+            low_date: None,
+            high_date: None,
+        }),
+        status: None,
+        syntax: Some("none | all | <dashed-ident>#"),
+        relevance: 50,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -28723,7 +30259,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF15", "FFA15", "S5.1", "SM5", "C6", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/vector-effect",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/vector-effect",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -28740,12 +30276,12 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "none",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF15", "FFA15", "S5.1", "SM5", "C6", "CA18", "O15"]),
             },
             Value {
                 name: "non-scaling-stroke",
                 description: None,
-                browsers: None,
+                browsers: Some(&["E79", "FF15", "FFA15", "S5.1", "SM5", "C6", "CA18", "O15"]),
             },
             Value {
                 name: "non-scaling-size",
@@ -28770,21 +30306,21 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The view-timeline CSS shorthand property is used to define a named view progress timeline, which is progressed through based on the change in visibility of an element (known as the subject) inside a scrollable element (scroller). view-timeline is set on the subject.",
         ),
-        browsers: Some(&["E115", "C115", "CA115", "O101"]),
+        browsers: Some(&["E115", "S26", "SM26", "C115", "CA115", "O101"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/view-timeline",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-timeline",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some(
             "[ <'view-timeline-name'> [ <'view-timeline-axis'> || <'view-timeline-inset'> ]? ]#",
         ),
-        relevance: 50,
+        relevance: 51,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -28794,17 +30330,17 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The view-timeline-axis CSS property is used to specify the scrollbar direction that will be used to provide the timeline for a named view progress timeline animation, which is progressed through based on the change in visibility of an element (known as the subject) inside a scrollable element (scroller). view-timeline-axis is set on the subject. See CSS scroll-driven animations for more details.",
         ),
-        browsers: Some(&["E115", "C115", "CA115", "O101"]),
+        browsers: Some(&["E115", "S26", "SM26", "C115", "CA115", "O101"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/view-timeline-axis",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-timeline-axis",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("[ block | inline | x | y ]#"),
         relevance: 50,
         restrictions: &[],
@@ -28816,17 +30352,17 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The view-timeline-inset CSS property is used to specify one or two values representing an adjustment to the position of the scrollport (see Scroll container for more details) in which the subject element of a named view progress timeline animation is deemed to be visible. Put another way, this allows you to specify start and/or end inset (or outset) values that offset the position of the timeline.",
         ),
-        browsers: Some(&["E115", "C115", "CA115", "O101"]),
+        browsers: Some(&["E115", "S26", "SM26", "C115", "CA115", "O101"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/view-timeline-inset",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-timeline-inset",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("[ [ auto | <length-percentage> ]{1,2} ]#"),
         relevance: 50,
         restrictions: &[],
@@ -28838,17 +30374,17 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The view-timeline-name CSS property is used to define the name of a named view progress timeline, which is progressed through based on the change in visibility of an element (known as the subject) inside a scrollable element (scroller). view-timeline is set on the subject.",
         ),
-        browsers: Some(&["E115", "C115", "CA115", "O101"]),
+        browsers: Some(&["E115", "S26", "SM26", "C115", "CA115", "O101"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/view-timeline-name",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-timeline-name",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
             low_date: None,
             high_date: None,
         }),
-        status: Some("experimental"),
+        status: None,
         syntax: Some("[ none | <dashed-ident> ]#"),
         relevance: 50,
         restrictions: &[],
@@ -28857,12 +30393,19 @@ pub const PROPERTIES: &[Property] = &[
     },
     Property {
         name: "view-transition-class",
-        description: Some(""),
-        browsers: Some(&["E125", "S18.2", "SM18.2", "C125", "CA125", "O111"]),
-        references: &[],
+        description: Some(
+            "The view-transition-class CSS property provides the selected elements with an identifying class (a custom-ident), providing an additional method of styling the view transitions for those elements.",
+        ),
+        browsers: Some(&[
+            "E125", "FF144", "FFA144", "S18.2", "SM18.2", "C125", "CA125", "O111",
+        ]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-transition-class",
+        }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-10-14"),
             high_date: None,
         }),
         status: None,
@@ -28877,19 +30420,21 @@ pub const PROPERTIES: &[Property] = &[
         description: Some(
             "The view-transition-name CSS property provides the selected element with a distinct identifying name (a custom-ident) and causes it to participate in a separate view transition from the root view transition — or no view transition if the none value is specified.",
         ),
-        browsers: Some(&["E111", "S18", "SM18", "C111", "CA111", "O97"]),
+        browsers: Some(&[
+            "E111", "FF144", "FFA144", "S18", "SM18", "C111", "CA111", "O97",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/view-transition-name",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-transition-name",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-10-14"),
             high_date: None,
         }),
         status: None,
-        syntax: Some("none | <custom-ident>"),
-        relevance: 50,
+        syntax: Some("none | <custom-ident> | match-element"),
+        relevance: 56,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -28902,7 +30447,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/white-space",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/white-space",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -28928,7 +30473,7 @@ pub const PROPERTIES: &[Property] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/white-space-collapse",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/white-space-collapse",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -28943,27 +30488,35 @@ pub const PROPERTIES: &[Property] = &[
             Value {
                 name: "collapse",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E114", "FF124", "FFA124", "S17.4", "SM17.4", "C114", "CA114", "O100",
+                ]),
             },
             Value {
                 name: "preserve",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E114", "FF124", "FFA124", "S17.4", "SM17.4", "C114", "CA114", "O100",
+                ]),
             },
             Value {
                 name: "preserve-breaks",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E114", "FF124", "FFA124", "S17.4", "SM17.4", "C114", "CA114", "O100",
+                ]),
             },
             Value {
                 name: "preserve-spaces",
                 description: None,
-                browsers: None,
+                browsers: Some(&["FF124", "FFA124"]),
             },
             Value {
                 name: "break-spaces",
                 description: None,
-                browsers: None,
+                browsers: Some(&[
+                    "E114", "FF124", "FFA124", "S17.4", "SM17.4", "C114", "CA114", "O100",
+                ]),
             },
         ],
         at_rule: None,
@@ -28976,7 +30529,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF69", "FFA79", "S9", "SM9", "C42", "CA42", "O29"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/x",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/x",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -28985,7 +30538,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<length> | <percentage>"),
-        relevance: 51,
+        relevance: 50,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -28998,7 +30551,7 @@ pub const PROPERTIES: &[Property] = &[
         browsers: Some(&["E79", "FF69", "FFA79", "S9", "SM9", "C42", "CA42", "O29"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/y",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/y",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29007,7 +30560,7 @@ pub const PROPERTIES: &[Property] = &[
         }),
         status: None,
         syntax: Some("<length> | <percentage>"),
-        relevance: 51,
+        relevance: 50,
         restrictions: &[],
         values: &[],
         at_rule: None,
@@ -29020,7 +30573,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: None,
         syntax: Some("normal | <percentage>"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &[],
         values: &[],
         at_rule: Some("@font-face"),
@@ -29033,7 +30586,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: None,
         syntax: Some("normal | <percentage>"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &[],
         values: &[],
         at_rule: Some("@font-face"),
@@ -29048,7 +30601,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: None,
         syntax: Some("auto | block | swap | fallback | optional"),
-        relevance: 74,
+        relevance: 77,
         restrictions: &[],
         values: &[
             Value {
@@ -29087,7 +30640,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: None,
         syntax: Some("normal | <percentage>"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &[],
         values: &[],
         at_rule: Some("@font-face"),
@@ -29100,7 +30653,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: None,
         syntax: Some("<percentage>"),
-        relevance: 50,
+        relevance: 51,
         restrictions: &[],
         values: &[],
         at_rule: Some("@font-face"),
@@ -29174,10 +30727,26 @@ pub const PROPERTIES: &[Property] = &[
         references: &[],
         baseline: None,
         status: None,
-        syntax: Some("upright | rotate-left | rotate-right "),
+        syntax: Some("upright | rotate-left | rotate-right"),
         relevance: 50,
         restrictions: &[],
-        values: &[],
+        values: &[
+            Value {
+                name: "upright",
+                description: None,
+                browsers: None,
+            },
+            Value {
+                name: "rotate-left",
+                description: None,
+                browsers: None,
+            },
+            Value {
+                name: "rotate-right",
+                description: None,
+                browsers: None,
+            },
+        ],
         at_rule: Some("@page"),
     },
     Property {
@@ -29190,7 +30759,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: None,
         syntax: Some("true | false"),
-        relevance: 50,
+        relevance: 53,
         restrictions: &[],
         values: &[
             Value {
@@ -29216,7 +30785,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: None,
         syntax: Some("<declaration-value>?"),
-        relevance: 50,
+        relevance: 53,
         restrictions: &[],
         values: &[],
         at_rule: Some("@property"),
@@ -29231,7 +30800,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: None,
         syntax: Some("<string>"),
-        relevance: 51,
+        relevance: 53,
         restrictions: &[],
         values: &[],
         at_rule: Some("@property"),
@@ -29244,7 +30813,7 @@ pub const PROPERTIES: &[Property] = &[
         baseline: None,
         status: None,
         syntax: Some("auto | none"),
-        relevance: 50,
+        relevance: 55,
         restrictions: &[],
         values: &[
             Value {
@@ -29284,7 +30853,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@charset",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@charset",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29299,7 +30868,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         browsers: Some(&["E91", "FF33", "FFA33", "S17", "SM17", "C91", "CA91", "O77"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@counter-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@counter-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -29318,7 +30887,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@font-face",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@font-face",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29337,12 +30906,12 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@font-feature-values",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@font-feature-values",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2023-03-13"),
-            high_date: None,
+            high_date: Some("2025-09-13"),
         }),
         status: None,
     },
@@ -29354,7 +30923,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@import",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@import",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29371,7 +30940,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@keyframes",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@keyframes",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29390,7 +30959,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@layer",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@layer",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29407,7 +30976,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@media",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@media",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29448,7 +31017,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE9", "O8"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@namespace",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@namespace",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29481,7 +31050,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@page",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@page",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -29498,7 +31067,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@property",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@property",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -29515,7 +31084,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         browsers: Some(&["E12", "FF22", "FFA22", "S9", "SM9", "C28", "CA28", "O12.1"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@supports",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@supports",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29542,12 +31111,12 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@container",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@container",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2023-02-14"),
-            high_date: None,
+            high_date: Some("2025-08-14"),
         }),
         status: None,
     },
@@ -29559,7 +31128,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         browsers: None,
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@document",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@document",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -29578,12 +31147,12 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@font-palette-values",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@font-palette-values",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2022-11-15"),
-            high_date: None,
+            high_date: Some("2025-05-15"),
         }),
         status: None,
     },
@@ -29592,14 +31161,16 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         description: Some(
             "The @position-try CSS at-rule is used to define a custom position try fallback option, which can be used to define positioning and alignment for anchor-positioned elements. One or more sets of position try fallback options can be applied to the anchored element via the position-try-fallbacks property or position-try shorthand. When the positioned element is moved to a position where it starts to overflow its containing block or the viewport, the browser will select the first position try fallback option it finds that places the positioned element fully back on-screen.",
         ),
-        browsers: Some(&["E125", "C125", "CA125", "O111"]),
+        browsers: Some(&[
+            "E125", "FF147", "FFA147", "S26", "SM26", "C125", "CA125", "O111",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@position-try",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@position-try",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2026-01-13"),
             high_date: None,
         }),
         status: None,
@@ -29609,14 +31180,16 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         description: Some(
             "The @scope CSS at-rule enables you to select elements in specific DOM subtrees, targeting elements precisely without writing overly-specific selectors that are hard to override, and without coupling your selectors too tightly to the DOM structure.",
         ),
-        browsers: Some(&["E118", "S17.4", "SM17.4", "C118", "CA118", "O104"]),
+        browsers: Some(&[
+            "E118", "FF146", "FFA146", "S17.4", "SM17.4", "C118", "CA118", "O104",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@scope",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@scope",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-12-09"),
             high_date: None,
         }),
         status: None,
@@ -29631,7 +31204,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@starting-style",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@starting-style",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -29648,7 +31221,7 @@ pub const AT_DIRECTIVES: &[Entry] = &[
         browsers: Some(&["E126", "S18.2", "SM18.2", "C126", "CA126", "O112"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/@view-transition",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@view-transition",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -29668,7 +31241,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE4", "O5"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:active",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:active",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29685,7 +31258,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E79", "FF50", "FFA50", "S9", "SM9", "C65", "CA65", "O52"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:any-link",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:any-link",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29704,7 +31277,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:checked",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:checked",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29739,7 +31312,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E79", "FF4", "FFA4", "S5", "SM5", "C10", "CA18", "O10"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:default",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:default",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29758,7 +31331,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:disabled",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:disabled",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29785,7 +31358,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:empty",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:empty",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29804,7 +31377,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:enabled",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:enabled",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29833,12 +31406,12 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:first",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:first",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
+            status: BaselineStatus::High,
             low_date: Some("2023-08-01"),
-            high_date: None,
+            high_date: Some("2026-02-01"),
         }),
         status: None,
     },
@@ -29852,7 +31425,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:first-child",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:first-child",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29871,7 +31444,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:first-of-type",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:first-of-type",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29888,7 +31461,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE8", "O7"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:focus",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:focus",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29905,7 +31478,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:fullscreen",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:fullscreen",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -29922,7 +31495,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E79", "S7", "SM7", "C23", "CA25", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:future",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:future",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -29949,7 +31522,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E79", "FF63", "FFA63", "S10", "SM10", "C54", "CA54", "O41"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:host",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:host",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -29966,7 +31539,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E79", "C54", "CA54", "O41"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:host-context",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:host-context",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -29983,7 +31556,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S2", "SM1", "C1", "CA18", "IE4", "O4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:hover",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:hover",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30010,7 +31583,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:indeterminate",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:indeterminate",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30027,7 +31600,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E13", "FF29", "FFA16", "S5.1", "SM5", "C10", "CA18", "O11"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:in-range",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:in-range",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30046,7 +31619,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:invalid",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:invalid",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30063,7 +31636,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:lang",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:lang",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30082,7 +31655,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:last-child",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:last-child",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30101,7 +31674,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:last-of-type",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:last-of-type",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30118,7 +31691,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E12", "S5", "SM4.2", "C6", "CA18", "IE8", "O9.2"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:left",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:left",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -30135,7 +31708,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:link",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:link",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30180,7 +31753,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: None,
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:-moz-broken",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:-moz-broken",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -30202,10 +31775,10 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         description: Some(
             "Non-standard. Represents an element that is the first child node of some other element.",
         ),
-        browsers: Some(&["FF72", "FFA79"]),
+        browsers: Some(&["FF55", "FFA55"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:-moz-first-node",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:-moz-first-node",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -30239,10 +31812,10 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         description: Some(
             "Non-standard. Represents an element that is the last child node of some other element.",
         ),
-        browsers: Some(&["FF72", "FFA79"]),
+        browsers: Some(&["FF55", "FFA55"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:-moz-last-node",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:-moz-last-node",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -30269,7 +31842,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["FF1", "FFA4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:-moz-only-whitespace",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:-moz-only-whitespace",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -30296,7 +31869,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: None,
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:-moz-submit-invalid",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:-moz-submit-invalid",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -30351,7 +31924,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["FF4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:-moz-window-inactive",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:-moz-window-inactive",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -30418,7 +31991,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:not",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:not",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30437,7 +32010,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:nth-child",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:nth-child",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30456,7 +32029,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:nth-last-child",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:nth-last-child",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30475,7 +32048,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:nth-last-of-type",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:nth-last-of-type",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30494,7 +32067,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:nth-of-type",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:nth-of-type",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30513,7 +32086,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:only-child",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:only-child",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30532,7 +32105,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:only-of-type",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:only-of-type",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30551,7 +32124,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:optional",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:optional",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30568,7 +32141,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E13", "FF29", "FFA16", "S5.1", "SM5", "C10", "CA18", "O11"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:out-of-range",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:out-of-range",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30585,7 +32158,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E79", "S7", "SM7", "C23", "CA25", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:past",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:past",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -30602,7 +32175,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E13", "FF78", "FFA79", "S4", "SM3.2", "C1", "CA18", "O9"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:read-only",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:read-only",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30619,7 +32192,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E13", "FF78", "FFA79", "S4", "SM3.2", "C1", "CA18", "O9"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:read-write",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:read-write",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30638,7 +32211,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:required",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:required",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30655,7 +32228,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E12", "S5", "SM4.2", "C6", "CA18", "IE8", "O9.2"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:right",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:right",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -30674,7 +32247,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:root",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:root",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30691,7 +32264,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E79", "FF32", "FFA32", "S7", "SM7", "C27", "CA27", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:scope",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:scope",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30730,7 +32303,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:target",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:target",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30749,7 +32322,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:valid",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:valid",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30776,7 +32349,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:visited",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:visited",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30817,12 +32390,19 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
     },
     Entry {
         name: ":active-view-transition",
-        description: Some(""),
-        browsers: Some(&["E125", "S18", "SM18", "C125", "CA125", "O111"]),
-        references: &[],
+        description: Some(
+            "Matches the root element of a document when a view transition is in progress (active) and stops matching once the transition has completed.",
+        ),
+        browsers: Some(&[
+            "E125", "FF144", "FFA144", "S18", "SM18", "C125", "CA125", "O111",
+        ]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:active-view-transition",
+        }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-10-14"),
             high_date: None,
         }),
         status: None,
@@ -30830,11 +32410,16 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
     Entry {
         name: ":active-view-transition-type",
         description: Some(""),
-        browsers: Some(&["E125", "S18.2", "SM18.2", "C125", "CA125", "O111"]),
-        references: &[],
+        browsers: Some(&[
+            "E125", "FF147", "FFA147", "S18.2", "SM18.2", "C125", "CA125", "O111",
+        ]),
+        references: &[Reference {
+            name: "MDN Reference",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:active-view-transition-type",
+        }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2026-01-13"),
             high_date: None,
         }),
         status: None,
@@ -30844,16 +32429,14 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         description: Some(
             "The :autofill CSS pseudo-class matches when an input element has its value autofilled by the browser. The class stops matching if the user edits the field.",
         ),
-        browsers: Some(&[
-            "E110", "FF86", "FFA86", "S15", "SM15", "C110", "CA110", "O96",
-        ]),
+        browsers: Some(&["E110", "S15", "SM15", "C110", "CA110", "O96"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:autofill",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:autofill",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Low,
-            low_date: Some("2023-02-09"),
+            status: BaselineStatus::Limited,
+            low_date: None,
             high_date: None,
         }),
         status: None,
@@ -30876,7 +32459,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["S15.4", "SM15.4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:buffering",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:buffering",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -30903,7 +32486,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E79", "FF63", "FFA63", "S10", "SM10", "C54", "CA54", "O41"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:defined",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:defined",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30922,7 +32505,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:dir",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:dir",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -30941,7 +32524,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:focus-visible",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:focus-visible",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30960,7 +32543,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:focus-within",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:focus-within",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -30979,7 +32562,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:has",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:has",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -30993,10 +32576,10 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         description: Some(
             "The :has-slotted CSS pseudo-class matches when the content of a slot element is not empty or not using the default value (see Using templates and slots for more information).",
         ),
-        browsers: Some(&["E134", "FF136", "FFA136", "C134", "CA134"]),
+        browsers: Some(&["FF136", "FFA136"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:has-slotted",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:has-slotted",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31013,7 +32596,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E88", "FF78", "FFA79", "S14", "SM14", "C88", "CA88", "O74"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:is",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:is",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -31042,7 +32625,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:modal",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:modal",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -31059,7 +32642,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["S15.4", "SM15.4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:muted",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:muted",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31076,7 +32659,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E133", "FF136", "FFA136", "C133", "CA133", "O118"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:open",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:open",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31093,7 +32676,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["S15.4", "SM15.4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:paused",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:paused",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31110,7 +32693,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E110", "S13.1", "SM13.4", "C110", "CA110", "O96"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:picture-in-picture",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:picture-in-picture",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31129,7 +32712,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:placeholder-shown",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:placeholder-shown",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -31146,7 +32729,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["S15.4", "SM15.4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:playing",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:playing",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31165,7 +32748,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:popover-open",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:popover-open",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -31182,7 +32765,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["S15.4", "SM15.4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:seeking",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:seeking",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31199,7 +32782,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["S15.4", "SM15.4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:stalled",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:stalled",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31218,7 +32801,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:state",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:state",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -31232,10 +32815,10 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         description: Some(
             "The :target-current CSS pseudo-class selects the active scroll marker — the ::scroll-marker pseudo-element of a scroll-marker-group that is currently scrolled to. This selector can be used to style the active navigation position within a scroll marker group.",
         ),
-        browsers: Some(&["E135", "C135"]),
+        browsers: Some(&["E135", "C135", "CA135", "O120"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:target-current",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:target-current",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31264,7 +32847,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:user-invalid",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:user-invalid",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -31283,7 +32866,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:user-valid",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:user-valid",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -31300,7 +32883,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["S15.4", "SM15.4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:volume-locked",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:volume-locked",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31317,7 +32900,7 @@ pub const PSEUDO_CLASSES: &[Entry] = &[
         browsers: Some(&["E88", "FF78", "FFA79", "S14", "SM14", "C88", "CA88", "O74"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/:where",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/:where",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -31351,7 +32934,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::after",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::after",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -31370,7 +32953,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::backdrop",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::backdrop",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -31389,7 +32972,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::before",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::before",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -31414,7 +32997,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "FF55", "FFA55", "S7", "SM7", "C26", "CA26", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::cue",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::cue",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -31439,7 +33022,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE9", "O7"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::first-letter",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::first-letter",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -31456,7 +33039,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E12", "FF1", "FFA4", "S1", "SM1", "C1", "CA18", "IE9", "O7"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::first-line",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::first-line",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -31468,16 +33051,9 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
     Entry {
         name: "::-moz-focus-inner",
         description: None,
-        browsers: Some(&["FF72", "FFA79"]),
-        references: &[Reference {
-            name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-moz-focus-inner",
-        }],
-        baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
-            high_date: None,
-        }),
+        browsers: Some(&["FF4"]),
+        references: &[],
+        baseline: None,
         status: None,
     },
     Entry {
@@ -31493,10 +33069,10 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         description: Some(
             "Used to style the bullet of a list element. Similar to the standardized ::marker.",
         ),
-        browsers: Some(&["FF72", "FFA79"]),
+        browsers: Some(&["FF1", "FFA4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-moz-list-bullet",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-moz-list-bullet",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31510,10 +33086,10 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         description: Some(
             "Used to style the numbers of a list element. Similar to the standardized ::marker.",
         ),
-        browsers: Some(&["FF72", "FFA79"]),
+        browsers: Some(&["FF1", "FFA4"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-moz-list-number",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-moz-list-number",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31533,10 +33109,10 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
     Entry {
         name: "::-moz-progress-bar",
         description: Some("Represents the bar portion of a progress bar."),
-        browsers: Some(&["FF72", "FFA79"]),
+        browsers: Some(&["FF6", "FFA6"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-moz-progress-bar",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-moz-progress-bar",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31699,7 +33275,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E12", "FF62", "FFA62", "S1.1", "C1", "CA18", "IE9", "O9.5"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::selection",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::selection",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31730,7 +33306,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S5", "SM4.2", "C6", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-inner-spin-button",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-inner-spin-button",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31761,7 +33337,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S5.1", "SM5", "C12", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-meter-bar",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-meter-bar",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31776,7 +33352,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S5.1", "SM5", "C12", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-meter-even-less-good-value",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-meter-even-less-good-value",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31791,7 +33367,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S5.1", "SM5", "C12", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-meter-optimum-value",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-meter-optimum-value",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31806,7 +33382,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S5.1", "SM5", "C12", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-meter-suboptimum-value",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-meter-suboptimum-value",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31829,7 +33405,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S7", "SM7", "C25", "CA25", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-progress-bar",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-progress-bar",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31844,7 +33420,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S7", "SM7", "C23", "CA25", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-progress-inner-element",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-progress-inner-element",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31859,7 +33435,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S7", "SM7", "C25", "CA25", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-progress-value",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-progress-value",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31874,7 +33450,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S4", "SM3.2", "C2", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-scrollbar",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-scrollbar",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31889,7 +33465,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S4", "SM3", "C2", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-scrollbar",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-scrollbar",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31904,7 +33480,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S4", "C2", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-scrollbar",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-scrollbar",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31919,7 +33495,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S4", "C2", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-scrollbar",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-scrollbar",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31934,7 +33510,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S4", "C2", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-scrollbar",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-scrollbar",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31949,7 +33525,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S4", "C2", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-scrollbar",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-scrollbar",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31964,7 +33540,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S4", "C2", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-scrollbar",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-scrollbar",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -31979,7 +33555,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S3", "SM1", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-search-cancel-button",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-search-cancel-button",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32002,7 +33578,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "S3", "SM1", "C1", "CA18", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-search-results-button",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-search-results-button",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32022,10 +33598,10 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
     Entry {
         name: "::-webkit-slider-runnable-track",
         description: None,
-        browsers: Some(&["E83", "S18", "SM18", "C83", "CA83", "O69"]),
+        browsers: Some(&["E79", "S18", "SM18", "C26", "CA26", "O15"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-slider-runnable-track",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-slider-runnable-track",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32037,10 +33613,10 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
     Entry {
         name: "::-webkit-slider-thumb",
         description: None,
-        browsers: Some(&["E83", "S18", "SM18", "C83", "CA83", "O69"]),
+        browsers: Some(&["E79", "S18", "SM18", "C32", "CA32", "O19"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-webkit-slider-thumb",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-webkit-slider-thumb",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32113,7 +33689,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["FF22", "FFA22"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-moz-range-progress",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-moz-range-progress",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32130,7 +33706,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["FF21", "FFA21"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-moz-range-thumb",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-moz-range-thumb",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32147,7 +33723,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["FF21", "FFA21"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::-moz-range-track",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::-moz-range-track",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32171,10 +33747,10 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         description: Some(
             "The ::checkmark CSS pseudo-element targets the checkmark placed inside the currently-selected option element of a customizable select element. It can be used to provide a visual indication of which option is selected.",
         ),
-        browsers: Some(&["E134", "C134", "CA134"]),
+        browsers: Some(&["E133", "C133", "CA133", "O118"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::checkmark",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::checkmark",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32188,14 +33764,16 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         description: Some(
             "The ::details-content CSS pseudo-element represents the expandable/collapsible contents of a details element.",
         ),
-        browsers: Some(&["E131", "S18.4", "SM18.4", "C131", "CA131", "O116"]),
+        browsers: Some(&[
+            "E131", "FF143", "FFA143", "S18.4", "SM18.4", "C131", "CA131", "O116",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::details-content",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::details-content",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-09-16"),
             high_date: None,
         }),
         status: None,
@@ -32210,7 +33788,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::file-selector-button",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::file-selector-button",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -32227,7 +33805,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E121", "S17.4", "SM17.4", "C121", "CA121", "O107"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::grammar-error",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::grammar-error",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32241,18 +33819,10 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         description: Some(
             "The ::highlight() CSS pseudo-element applies styles to a custom highlight.",
         ),
-        browsers: Some(&[
-            "E105",
-            "FFpreview",
-            "S17.2",
-            "SM17.2",
-            "C105",
-            "CA105",
-            "O91",
-        ]),
+        browsers: Some(&["E105", "S17.2", "SM17.2", "C105", "CA105", "O91"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::highlight",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::highlight",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32269,7 +33839,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E86", "FF68", "FFA68", "C86", "CA86", "O72"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::marker",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::marker",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32288,7 +33858,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::part",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::part",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -32302,10 +33872,10 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         description: Some(
             "The ::picker-icon CSS pseudo-element targets the picker icon inside form controls that have an icon associated with them. In the case of a customizable select element, it selects the arrow icon shown on the <select> element that points down when it is closed.",
         ),
-        browsers: Some(&["E134", "C134", "CA134"]),
+        browsers: Some(&["E133", "C133", "CA133", "O118"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::picker-icon",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::picker-icon",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32316,11 +33886,13 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
     },
     Entry {
         name: "::picker",
-        description: Some(""),
-        browsers: Some(&["E134", "C134", "CA134"]),
+        description: Some(
+            "The ::picker() CSS pseudo-element targets the picker part of an element, for example the drop-down picker of a customizable select element.",
+        ),
+        browsers: Some(&["E135", "C135", "CA135", "O120"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::picker",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::picker",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32339,7 +33911,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::placeholder",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::placeholder",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -32353,10 +33925,10 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         description: Some(
             "The ::scroll-marker CSS pseudo-element can be generated inside any element and represents its scroll marker. All elements can have a ::scroll-marker pseudo-element, which is placed into the ::scroll-marker-group of the nearest scroll container ancestor. A scroll marker behaves like an anchor (a element) whose scroll target is the marker's originating element — and scrolls the scroll container to that element when activated.",
         ),
-        browsers: Some(&["E135", "C135"]),
+        browsers: Some(&["E135", "C135", "CA135", "O120"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::scroll-marker",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::scroll-marker",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32370,10 +33942,10 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         description: Some(
             "The ::scroll-marker-group CSS pseudo-element is generated inside a scroll container and contains any ::scroll-marker pseudo-elements generated on descendants of the scroll container.",
         ),
-        browsers: Some(&["E135", "C135"]),
+        browsers: Some(&["E135", "C135", "CA135", "O120"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::scroll-marker-group",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::scroll-marker-group",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32390,7 +33962,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E79", "FF63", "FFA63", "S10", "SM10", "C50", "CA50", "O37"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::slotted",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::slotted",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::High,
@@ -32407,7 +33979,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         browsers: Some(&["E121", "S17.4", "SM17.4", "C121", "CA121", "O107"]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::spelling-error",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::spelling-error",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Limited,
@@ -32426,7 +33998,7 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::target-text",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::target-text",
         }],
         baseline: Some(Baseline {
             status: BaselineStatus::Low,
@@ -32440,14 +34012,16 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         description: Some(
             "The ::view-transition CSS pseudo-element represents the root of the view transitions overlay, which contains all view transitions and sits over the top of all other page content.",
         ),
-        browsers: Some(&["E109", "S18", "SM18", "C109", "CA109", "O95"]),
+        browsers: Some(&[
+            "E109", "FF144", "FFA144", "S18", "SM18", "C109", "CA109", "O95",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::view-transition",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::view-transition",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-10-14"),
             high_date: None,
         }),
         status: None,
@@ -32457,14 +34031,16 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         description: Some(
             "The ::view-transition-group CSS pseudo-element represents a single view transition snapshot group.",
         ),
-        browsers: Some(&["E109", "S18", "SM18", "C109", "CA109", "O95"]),
+        browsers: Some(&[
+            "E109", "FF144", "FFA144", "S18", "SM18", "C109", "CA109", "O95",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::view-transition-group",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::view-transition-group",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-10-14"),
             high_date: None,
         }),
         status: None,
@@ -32474,14 +34050,16 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         description: Some(
             "The ::view-transition-image-pair CSS pseudo-element represents a container for a view transition's \"old\" and \"new\" view states — before and after the transition.",
         ),
-        browsers: Some(&["E109", "S18", "SM18", "C109", "CA109", "O95"]),
+        browsers: Some(&[
+            "E109", "FF144", "FFA144", "S18", "SM18", "C109", "CA109", "O95",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::view-transition-image-pair",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::view-transition-image-pair",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-10-14"),
             high_date: None,
         }),
         status: None,
@@ -32491,14 +34069,16 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         description: Some(
             "The ::view-transition-new CSS pseudo-element represents the \"new\" view state of a view transition — a snapshot live representation of the state after the transition.",
         ),
-        browsers: Some(&["E109", "S18", "SM18", "C109", "CA109", "O95"]),
+        browsers: Some(&[
+            "E109", "FF144", "FFA144", "S18", "SM18", "C109", "CA109", "O95",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::view-transition-new",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::view-transition-new",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-10-14"),
             high_date: None,
         }),
         status: None,
@@ -32508,14 +34088,16 @@ pub const PSEUDO_ELEMENTS: &[Entry] = &[
         description: Some(
             "The ::view-transition-old CSS pseudo-element represents the \"old\" view state of a view transition — a static snapshot of the old view, before the transition.",
         ),
-        browsers: Some(&["E109", "S18", "SM18", "C109", "CA109", "O95"]),
+        browsers: Some(&[
+            "E109", "FF144", "FFA144", "S18", "SM18", "C109", "CA109", "O95",
+        ]),
         references: &[Reference {
             name: "MDN Reference",
-            url: "https://developer.mozilla.org/docs/Web/CSS/::view-transition-old",
+            url: "https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::view-transition-old",
         }],
         baseline: Some(Baseline {
-            status: BaselineStatus::Limited,
-            low_date: None,
+            status: BaselineStatus::Low,
+            low_date: Some("2025-10-14"),
             high_date: None,
         }),
         status: None,
@@ -32642,6 +34224,7 @@ pub const CSS_WIDE_FUNCTIONS: &[(&str, &str)] = &[
         "calc()",
         "Evaluates an mathematical expression. The following operators can be used: + - * /.",
     ),
+    ("if()", "Evaluates a conditional expression."),
 ];
 
 pub const IMAGE_FUNCTIONS: &[(&str, &str)] = &[
