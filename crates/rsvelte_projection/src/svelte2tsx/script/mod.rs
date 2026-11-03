@@ -577,20 +577,9 @@ pub fn process_instance_script(
             // synthetic `$$ComponentProps` (built from the inline annotation) is.
             // Either way, NOTHING is hoisted unless the props interface itself is
             // hoistable — see `resolve_hoistable_type_decls`.
-            // Determine the effective type source: type-arg form takes priority over
-            // annotation form (mirrors upstream `typeArguments?.[0] || node.type`).
-            let effective_is_named_ref = if info.has_type_arg() && !info.has_type_annotation() {
-                info.type_arg_is_named_ref()
-            } else {
-                info.is_named_type_reference()
-            };
-            let effective_type_text: Option<&str> =
-                if info.has_type_arg() && !info.has_type_annotation() {
-                    info.type_arg_text.as_deref()
-                } else {
-                    info.type_text.as_deref()
-                };
-            let effective_has_type = info.has_type_annotation() || info.has_type_arg();
+            let effective_is_named_ref = info.is_named_type_reference();
+            let effective_type_text: Option<&str> = info.type_text.as_deref();
+            let effective_has_type = info.has_type_annotation();
 
             let props_named_ref: Option<String> = if effective_is_named_ref {
                 effective_type_text.map(|t| {

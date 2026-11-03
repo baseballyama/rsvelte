@@ -310,16 +310,6 @@ pub fn process_instance_script_tag(
                 str.move_range(s, e, sp);
             }
         }
-        // Move the inline type arg from `$props<{ ... }>()` to the hoist target.
-        // `\ntype $$ComponentProps = ` and `;` were already added via
-        // `prepend_right`/`append_left` in `apply_props_typedef`.
-        // Mirrors upstream's `moveHoistableInterfaces` for `$$ComponentProps`.
-        if let Some((s, e)) = exported_names.props_type_arg_hoist
-            && s < e
-            && (e as usize) <= source.len()
-        {
-            str.move_range(s, e, sp);
-        }
         // Move `$$Generic<X>`-referenced types. Mirrors the JS
         // reference's `nodesToMove` path (`moveNode`) — uses
         // `node.getStart()` (no leading trivia) and ends the chunk
