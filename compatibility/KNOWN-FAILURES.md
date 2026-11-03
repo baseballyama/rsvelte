@@ -905,7 +905,7 @@ Svelte structure, oxc for embedded JS, and PostCSS for embedded CSS) and require
 embedded CSS by default, so the ratchet intentionally includes CSS-engine parity
 as well as Svelte-structure parity. The ratchet may only shrink.
 
-**Current baseline: `fmt-known-failures.json`, 400 entries.** The 789-entry
+**Current baseline: `fmt-known-failures.json`, 392 entries.** The 789-entry
 split this paragraph used to give (22 pre-enrolment + 766 expanded population + 1
 pattern-corpus repro) no longer holds: 239 entries left the ratchet in the
 2026-09-01 re-baseline, and the CI report the baseline is derived from carries a
@@ -930,9 +930,9 @@ An id that carries two clusters' divergences at once is filed under its dominant
 one (see *Multiple clusters per id*), so the per-cluster counts below remain a
 partition of the ratchet rather than an over-count:
 
-Partition of `fmt-known-failures.json` by cluster: `186 + 152 + 13 + 35 + 12 + 1 + 1`
+Partition of `fmt-known-failures.json` by cluster: `180 + 150 + 13 + 35 + 12 + 1 + 1`
 
-**The partition is now the mechanical rule applied to all 400 entries**, where it
+**The partition is now the mechanical rule applied to all 392 entries**, where it
 used to be the hand-diagnosed Clusters 1-12 (23 entries) plus the mechanical
 Clusters 20-27 over the rest. The hand-diagnosed sections below are kept — their
 diagnoses did not stop being true — but their ids are now counted inside the
@@ -953,6 +953,20 @@ bump arm over the oracle's own 33,838-component population: 0 new failures, 2 re
 bump converged one of the three `css_native.rs` custom-property spellings — the oxc engine
 stopped padding the comma in `--arr: [1 , 2]`, so `oxfmt <file>.css` and `oxfmt(svelte: true)`
 now agree on `[1, 2]` and the assertion follows the engine there rather than diverging from it.
+
+**8 entries left when a `style:` directive's quoted text became a `fill`** — 5 from
+**20 — breaks-later** and 3 from **21 — breaks-earlier**, all 8 line-break-only by diff shape
+and all 8 `unattributed` (7 `ha-fusion/…`, `svelte-ux/…/Gooey/+page.svelte`).
+prettier-plugin-svelte's `isPreTagContent` names only `Attribute`, so a `StyleDirective`'s text
+goes through `fill(splitTextToDocs(node))` and its whitespace runs collapse, where rsvelte had
+kept them verbatim. Measured against the `origin/main` arm over the same 34,473 components: 12
+units move, 9 `MISMATCH -> match` (these 8 plus svelte.dev's `MobileMenu.svelte`, which `main`
+fails as a new entry since the svelte.dev bump) and 0 `match -> MISMATCH`; the other 3 movers still fail, and
+`ha-fusion/…/Sidebar/Sensor.svelte` moves from breaks-later to breaks-earlier, which the cluster
+line carries. The per-entry classification is a local re-derivation from the two output trees;
+over the 400 pre-change entries it gives `184 + 157 + 13 + 35 + 9 + 1 + 1` by cluster and
+`179 + 104 + 92 + 25` by diff shape, not the lines above, so only the deltas were applied here.
+Idempotency is unchanged against the same arm.
 
 **12 entries left in #4725** — all 12 from **20 — breaks-later** (10 whitespace-placement,
 2 line-break-only by diff shape; all 12 `unattributed`) — when the children port's gate stopped
@@ -1542,9 +1556,9 @@ buckets per entry from the doc would be transcription, not measurement.
 | 2 | the two engines disagree about whitespace around a selector token neither models — the column combinator and a `nth-child(… of <selector>)` clause: rsvelte's `oxc_formatter_css` prints the space, the oracle's PostCSS path closes it up; measured through the official compiler, `js.code` is byte-identical for the two spellings and `css.code` differs only in that whitespace | `crates/rsvelte_formatter/tests/css_native.rs` — `a_column_combinator_keeps_its_spaces`, `an_nth_child_of_clause_keeps_the_space_after_of` |
 | 1 | a hex escape ending a selector: rsvelte emits the escape's terminating space and the separator before `{` as two spaces where the oracle emits one — the same file's 18 other selectors, including every hex escape followed by more text, agree; measured through the official compiler, `js.code` is byte-identical for the two spellings and `css.code` differs only in that whitespace | `crates/rsvelte_formatter/tests/css_native.rs` — `a_hex_escape_ending_a_selector_keeps_its_own_separator` |
 | 1 | continuation indent of a comma-separated multi-value declaration: rsvelte's engine prints every continuation at one depth where the oracle's PostCSS path indents the ones following an interleaved comment one level deeper than the first; measured through the official compiler, `js.code` is byte-identical for the two spellings and `css.code` differs only in that whitespace | `crates/rsvelte_formatter/tests/css_native.rs` — `every_continuation_of_a_multi_value_declaration_sits_at_one_depth` |
-| 395 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
+| 387 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
 
-Partition of `fmt-known-failures.json` by mechanism: `1 + 2 + 1 + 1 + 395`
+Partition of `fmt-known-failures.json` by mechanism: `1 + 2 + 1 + 1 + 387`
 
 Attribution of `fmt-known-failures.json`:
 
@@ -1710,7 +1724,7 @@ this cell is not a hug disagreement: it is a layout pass 1.6 does not have, name
 after the open tag and borrowing the closing tag's `>` onto its own line. How many corpus
 entries carry that shape is **unmeasured**.
 
-**What this population is not.** `fmt-known-failures.json` holds 400 entries; the 72 carriers
+**What this population is not.** `fmt-known-failures.json` holds 392 entries; the 72 carriers
 here are the ones whose *first differing line* is a `>` boundary, so this is a sub-population
 chosen by a signature, not a cluster of the partition above. An entry is retired only when
 every one of its differing regions is repaired.
@@ -1749,7 +1763,7 @@ the four classes come out `27 / 122 / 244 / 127` under the order now printed, an
 ungated half rot separately — `known-failures-md-check` reads the partition line and reads no
 prose, so the line stayed right while the table drifted.
 
-Partition of `fmt-known-failures.json` by diff shape: `181 + 82 + 113 + 24`
+Partition of `fmt-known-failures.json` by diff shape: `181 + 82 + 105 + 24`
 
 **Three of every four entries agree on every token and differ only in layout** — every row above
 except the token one. The placement and line-break rows are separated on purpose: collapsing runs
