@@ -206,7 +206,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
         with:
-          ruby-version: '4.0.7'
+          ruby-version: '4.0.9'
 
       - name: Ruby smoke
         if: github.event_name != 'pull_request'
