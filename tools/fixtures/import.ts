@@ -16,7 +16,8 @@ import {
 	SOURCES_FILE,
 	rel,
 } from './paths.ts';
-import { writeIfChanged, stableStringify, pruneEmptyDirs } from './fsutil.ts';
+import { writeIfChanged, stableStringify, pruneEmptyDirs } from './files.ts';
+import { parseArgs } from 'node:util';
 
 const LICENSE_NAME = /^(licen[cs]e|copying)(\.(md|txt))?$/i;
 const ACCEPTED_NESTED: [RegExp, string][] = [
@@ -195,4 +196,23 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 		for (const o of orphans) console.log(`  ${o}`);
 	}
 	return { orphans };
+}
+
+/** `fixtures import --from <dir> [--source id,...] [--accept-commit]` */
+export async function main(args: string[]): Promise<void> {
+	const { values } = parseArgs({
+		args,
+		options: {
+			from: { type: 'string' },
+			source: { type: 'string' },
+			'accept-commit': { type: 'boolean', default: false },
+		},
+	});
+	if (!values.from) throw new Error('--from <dir holding the source checkouts> is required');
+	const { orphans } = runImport({
+		from: path.resolve(values.from),
+		only: values.source?.split(','),
+		acceptCommit: values['accept-commit'],
+	});
+	if (orphans.length) process.exitCode = 1;
 }

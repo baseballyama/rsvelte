@@ -1,4 +1,7 @@
-#!/usr/bin/env node
+// structure
+//
+// Checks every tracked file against its line limit in limits.json. The crate graph's rules are
+// crates.test.ts, which `mise run structure` runs first.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';

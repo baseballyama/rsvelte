@@ -48,7 +48,7 @@ test(
 			// The ratchet builds into <root>/target, so it runs from a copy to keep the real binaries.
 			const root = path.join(directory, 'root');
 			fs.mkdirSync(path.join(root, 'tools/performance'), { recursive: true });
-			for (const file of ['performance.ts', 'baseline.json'])
+			for (const file of ['performance.ts', 'ratchet.ts', 'baseline.json'])
 				fs.copyFileSync(path.join(source, file), path.join(root, 'tools/performance', file));
 			const ratchet = path.join(root, 'tools/performance/performance.ts');
 			const env = (role: string, documents: number) => ({
@@ -59,7 +59,7 @@ test(
 				FAKE_DOCUMENTS: String(documents),
 				CARGO_BUILD_JOBS: '1',
 			});
-			first = spawn(process.execPath, [ratchet], { cwd: root, env: env('first', 1111) });
+			first = spawn(process.execPath, [ratchet, 'ratchet'], { cwd: root, env: env('first', 1111) });
 			let firstOut = '';
 			first.stdout!.on('data', (chunk) => (firstOut += chunk));
 			let exited = false;
@@ -70,7 +70,7 @@ test(
 				}),
 			);
 			await waitFor(path.join(directory, 'wrote-first'), () => exited);
-			const second = spawnSync(process.execPath, [ratchet], {
+			const second = spawnSync(process.execPath, [ratchet, 'ratchet'], {
 				cwd: root,
 				env: env('second', 2222),
 				encoding: 'utf8',

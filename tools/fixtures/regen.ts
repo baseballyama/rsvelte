@@ -3,12 +3,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { TASKS, taskById } from './tasks/index.ts';
+import { TASKS, taskById } from './tasks.ts';
 import { allUnits, applies } from './manifest.ts';
 import { expectedFile, inputFile, unitDir, snapshotDir, ORACLES_FILE } from './paths.ts';
-import { writeIfChanged, stableStringify } from './fsutil.ts';
+import { writeIfChanged, stableStringify } from './files.ts';
 import { parseJs } from './canonical.ts';
 import type { Task, Unit } from './types.ts';
+import { parseArgs } from 'node:util';
 
 const require = createRequire(import.meta.url);
 const packageVersion = (name: string): string => require(`${name}/package.json`).version;
@@ -90,4 +91,17 @@ export async function regen({
 		for (const u of unparseable) console.log(`  ${u}`);
 	}
 	return { unparseable };
+}
+
+/** `fixtures regen [--task id,...] [--source id,...]` */
+export async function main(args: string[]): Promise<void> {
+	const { values } = parseArgs({
+		args,
+		options: { task: { type: 'string' }, source: { type: 'string' } },
+	});
+	const { unparseable } = await regen({
+		taskIds: values.task?.split(','),
+		sourceIds: values.source?.split(','),
+	});
+	if (unparseable.length) process.exitCode = 1;
 }

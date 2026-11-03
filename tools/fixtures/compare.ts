@@ -2,12 +2,13 @@
 // expected = snapshot + adjustments.
 import fs from 'node:fs';
 import path from 'node:path';
-import { taskById } from './tasks/index.ts';
+import { taskById } from './tasks.ts';
 import { allUnits, applies } from './manifest.ts';
 import { expectedFile, actualFile } from './paths.ts';
 import { parseJs, firstDiff, same } from './canonical.ts';
 import { expectedTree } from './adjust.ts';
 import type { Task, Unit } from './types.ts';
+import { parseArgs } from 'node:util';
 
 export type Verdict = 'match' | 'mismatch' | 'missing' | 'unexpected' | 'unparseable';
 export interface Row {
@@ -178,4 +179,37 @@ export async function compare({ taskId, variantId, sourceIds, families }: Compar
 	const counts: Partial<Record<Verdict, number>> = {};
 	for (const r of rows) counts[r.verdict] = (counts[r.verdict] ?? 0) + 1;
 	return { units: units.length, rows, counts };
+}
+
+/** `fixtures compare --task id --variant id [--source id,...] [--family name,...] [--report <file>]` */
+export async function main(args: string[]): Promise<void> {
+	const { values } = parseArgs({
+		args,
+		options: {
+			task: { type: 'string' },
+			variant: { type: 'string' },
+			source: { type: 'string' },
+			family: { type: 'string' },
+			report: { type: 'string' },
+		},
+	});
+	if (!values.task || !values.variant) throw new Error('--task and --variant are required');
+	const r = await compare({
+		taskId: values.task,
+		variantId: values.variant,
+		sourceIds: values.source?.split(','),
+		families: values.family?.split(','),
+	});
+	console.log(`units: ${r.units}  ${JSON.stringify(r.counts)}`);
+	const lines = r.rows
+		.filter((x) => x.verdict !== 'match')
+		.map((x) => `${x.verdict.padEnd(11)} ${x.key} [${x.ext}]${x.detail ? ` ${x.detail}` : ''}`);
+	if (values.report) fs.writeFileSync(values.report, lines.join('\n') + '\n');
+	const SHOW = 20;
+	for (const l of lines.slice(0, SHOW)) console.log(`  ${l}`);
+	if (lines.length > SHOW)
+		console.log(
+			`  … and ${lines.length - SHOW} more${values.report ? ` (all in ${values.report})` : ' (pass --report <file> for all)'}`,
+		);
+	if (lines.length) process.exitCode = 1;
 }

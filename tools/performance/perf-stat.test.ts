@@ -35,8 +35,10 @@ test(
 				}),
 			);
 			fs.writeFileSync(report, JSON.stringify({ status: 'complete', samples: [] }));
-			const runner = path.resolve(import.meta.dirname, 'linux-counters.ts');
-			const run = spawnSync(process.execPath, [runner, config, report], { encoding: 'utf8' });
+			const runner = path.resolve(import.meta.dirname, 'performance.ts');
+			const run = spawnSync(process.execPath, [runner, 'linux-counters', config, report], {
+				encoding: 'utf8',
+			});
 			const measured = JSON.parse(fs.readFileSync(report, 'utf8'));
 			assert.ok(measured.samples.length > 0);
 			if (run.status === 0) {

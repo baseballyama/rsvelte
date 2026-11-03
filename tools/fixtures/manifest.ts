@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parse as parseToml } from 'smol-toml';
 import { SOURCES_FILE, sourceDir, metaFile, fixtureFile, rel, decodePath } from './paths.ts';
-import { writeIfChanged, stableStringify } from './fsutil.ts';
+import { writeIfChanged, stableStringify } from './files.ts';
 import { languageById, FAMILIES } from './languages.ts';
 import type { FixtureToml, Source, Task, Unit, UnitKey, UnitMeta } from './types.ts';
 

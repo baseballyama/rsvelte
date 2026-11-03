@@ -3,8 +3,8 @@
 Run from the repository root:
 
 ```sh
-mise exec -- node tools/hashing/benchmark.ts tools/hashing/generated/native
-RUSTFLAGS='--cfg sha2_backend="soft"' mise exec -- node tools/hashing/benchmark.ts tools/hashing/generated/soft
+mise exec -- node tools/hashing/hashing.ts benchmark tools/hashing/generated/native
+RUSTFLAGS='--cfg sha2_backend="soft"' mise exec -- node tools/hashing/hashing.ts benchmark tools/hashing/generated/soft
 ```
 
 The driver builds a temporary release crate with thin LTO and one codegen unit.
@@ -30,7 +30,7 @@ To compare complete Vue compilation, first preserve release binaries before
 and after the change, then run:
 
 ```sh
-mise exec -- node tools/hashing/integration.ts <before binary> <after binary> tools/hashing/generated/integration
+mise exec -- node tools/hashing/hashing.ts integration <before binary> <after binary> tools/hashing/generated/integration
 ```
 
 The integration driver measures the crate's Vue fixture inputs in twelve ABBA

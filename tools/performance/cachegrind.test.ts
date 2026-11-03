@@ -72,13 +72,15 @@ test(
 				sources: [sourcePath],
 			};
 			fs.writeFileSync(config, JSON.stringify(settings));
-			const runner = path.resolve(import.meta.dirname, 'cache-profile.ts');
-			const accepted = spawnSync(process.execPath, [runner, config, baseline], {
+			const runner = path.resolve(import.meta.dirname, 'performance.ts');
+			const accepted = spawnSync(process.execPath, [runner, 'cache-profile', config, baseline], {
 				encoding: 'utf8',
 			});
 			assert.equal(accepted.status, 0, accepted.stderr);
 			fs.writeFileSync(config, JSON.stringify({ ...settings, baseline }));
-			const unchanged = spawnSync(process.execPath, [runner, config, report], { encoding: 'utf8' });
+			const unchanged = spawnSync(process.execPath, [runner, 'cache-profile', config, report], {
+				encoding: 'utf8',
+			});
 			assert.equal(unchanged.status, 0, unchanged.stderr);
 			fs.writeFileSync(
 				config,
@@ -88,14 +90,18 @@ test(
 					baseline,
 				}),
 			);
-			const rejected = spawnSync(process.execPath, [runner, config, report], { encoding: 'utf8' });
+			const rejected = spawnSync(process.execPath, [runner, 'cache-profile', config, report], {
+				encoding: 'utf8',
+			});
 			assert.equal(rejected.status, 1, rejected.stderr);
 			assert.equal(JSON.parse(fs.readFileSync(report, 'utf8')).gate.status, 'CHANGED');
 			fs.writeFileSync(
 				config,
 				JSON.stringify({ ...settings, expect_stdout: { documents: 1 }, minimum_output_bytes: 1 }),
 			);
-			const empty = spawnSync(process.execPath, [runner, config, report], { encoding: 'utf8' });
+			const empty = spawnSync(process.execPath, [runner, 'cache-profile', config, report], {
+				encoding: 'utf8',
+			});
 			assert.notEqual(empty.status, 0);
 			assert.equal(JSON.parse(fs.readFileSync(report, 'utf8')).status, 'running');
 			const raw = path.join(directory, 'failure.cg');

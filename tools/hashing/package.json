@@ -1,10 +1,11 @@
 {
 	"name": "@rsvelte-experimental/hashing",
 	"private": true,
-	"description": "SHA-256 benchmarks for the kernel's source hashing (TypeScript, run directly by Node 26)",
+	"description": "Benchmarks the kernel's SHA-256 source hashing",
 	"type": "module",
 	"scripts": {
-		"typecheck": "tsc -p ."
+		"hashing": "node hashing.ts",
+		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
 	},
 	"engines": {
 		"node": ">=26"

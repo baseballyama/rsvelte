@@ -1,13 +1,12 @@
 {
-	"name": "@rsvelte-experimental/fixtures-tools",
+	"name": "@rsvelte-experimental/fixtures",
 	"private": true,
-	"description": "Fixture import, oracle snapshot generation and expected-AST adjustment tooling (TypeScript, run directly by Node 26)",
+	"description": "The fixture corpus: imports sources, runs the oracles, compares rsvelte against them and copies cases into crates",
 	"type": "module",
 	"scripts": {
 		"fixtures": "node fixtures.ts",
-		"semantic": "node projection-semantics.ts",
-		"typecheck": "node node_modules/typescript-7/bin/tsc -p .",
-		"test": "node --test '**/*.test.ts'"
+		"test": "node --test '*.test.ts' '*/*.test.ts'",
+		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
 	},
 	"dependencies": {
 		"@jridgewell/trace-mapping": "0.3.31",

@@ -5,8 +5,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { allUnits, applies, loadSources } from './manifest.ts';
 import { encodePath, expectedFile, inputFile, licensesDir, ORACLES_FILE, ROOT } from './paths.ts';
-import { stableStringify } from './fsutil.ts';
-import { taskById } from './tasks/index.ts';
+import { stableStringify } from './files.ts';
+import { taskById } from './tasks.ts';
+import { parseArgs } from 'node:util';
 
 // Names next to the units in tests/fixtures/<source>/; the harness reads SOURCE_FILE to know that
 // expected/ holds the oracle's output.
@@ -114,4 +115,25 @@ export function exportToCrate({ family, taskIds, to, sourceIds }: CrateExportOpt
 		`${units.length} units from ${bySource.size} sources, ${files} files written to ${path.relative(ROOT, to)}`,
 	);
 	return { units: units.length, files };
+}
+
+/** `fixtures crate --family name --task id,... --to <crate>/tests/fixtures [--source id,...]` */
+export async function main(args: string[]): Promise<void> {
+	const { values } = parseArgs({
+		args,
+		options: {
+			family: { type: 'string' },
+			task: { type: 'string' },
+			to: { type: 'string' },
+			source: { type: 'string' },
+		},
+	});
+	if (!values.family || !values.task || !values.to)
+		throw new Error('--family, --task and --to are required');
+	exportToCrate({
+		family: values.family,
+		taskIds: values.task.split(','),
+		to: path.resolve(values.to),
+		sourceIds: values.source?.split(','),
+	});
 }

@@ -1,11 +1,12 @@
 {
 	"name": "@rsvelte-experimental/structure",
 	"private": true,
+	"description": "Checks the repository's layout: file sizes and the crate graph",
 	"type": "module",
 	"scripts": {
-		"check": "node structure.ts",
-		"test": "node --test '*.test.ts'",
-		"typecheck": "tsc -p ."
+		"structure": "node structure.ts",
+		"test": "node --test '*.test.ts' '*/*.test.ts'",
+		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
 	},
 	"engines": {
 		"node": ">=26"

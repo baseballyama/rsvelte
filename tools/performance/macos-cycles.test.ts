@@ -6,8 +6,8 @@ import path from 'node:path';
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { test } from 'node:test';
 
-const runner = path.resolve(import.meta.dirname, 'macos-cycles.ts');
-const counters = path.resolve(import.meta.dirname, 'macos-counters.c');
+const runner = path.resolve(import.meta.dirname, 'performance.ts');
+const counters = path.resolve(import.meta.dirname, 'macos-cycles.c');
 const darwin = { skip: process.platform !== 'darwin' };
 // `work N` loops N times; `fork N` runs the loop in a reaped child; `exec N` replaces itself with `work N`;
 // `forkexit N PIDS` leaves an unreaped child that never execs and outlives the parent;
@@ -50,7 +50,7 @@ function fixture(): {
 	const report = path.join(directory, 'report.json');
 	const measure = (body: object, ...flags: string[]) => {
 		fs.writeFileSync(config, JSON.stringify({ rounds: 1, repetitions: 1, ...body }));
-		return spawnSync(process.execPath, [runner, config, report, ...flags], {
+		return spawnSync(process.execPath, [runner, 'macos-cycles', config, report, ...flags], {
 			encoding: 'utf8',
 			env: { ...process.env, PATH: `${directory}${path.delimiter}${process.env.PATH}` },
 		});

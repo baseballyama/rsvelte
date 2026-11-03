@@ -1,11 +1,11 @@
 {
 	"name": "@rsvelte-experimental/buildtime",
 	"private": true,
-	"description": "Measures how long the Rust workspace takes to compile (TypeScript, run directly by Node 26; no dependencies)",
+	"description": "Measures how long the Rust workspace takes to compile",
 	"type": "module",
 	"scripts": {
 		"buildtime": "node buildtime.ts",
-		"typecheck": "tsc -p ."
+		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
 	},
 	"engines": {
 		"node": ">=26"

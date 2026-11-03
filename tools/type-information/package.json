@@ -1,10 +1,11 @@
 {
 	"name": "@rsvelte-experimental/type-information",
 	"private": true,
+	"description": "Type information from a native TypeScript 7 project, shared by type checking and typed lint",
 	"type": "module",
-	"exports": "./index.ts",
+	"exports": "./type-information.ts",
 	"scripts": {
-		"typecheck": "tsc -p ."
+		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
 	},
 	"dependencies": {
 		"typescript-7": "npm:typescript@7.1.0-dev.20261102.1"

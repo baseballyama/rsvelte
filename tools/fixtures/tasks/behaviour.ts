@@ -14,7 +14,7 @@ import {
 	type Trace,
 } from '../behaviour/runtime.ts';
 import { inputFile } from '../paths.ts';
-import { stableStringify } from '../fsutil.ts';
+import { stableStringify } from '../files.ts';
 import type { Task, Unit, Variant } from '../types.ts';
 
 const traceText = (t: Trace): string => stableStringify(t) + '\n';

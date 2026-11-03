@@ -205,7 +205,7 @@
 			<code>performance</code>: 64ビットの Arm プロセッサーを使う Ubuntu
 			上で命令数を測ります。計測には Valgrind を使います。 コマンド:<br />
 			<code
-				>node tools/performance/performance.ts --instructions --json performance-report.json</code
+				>node tools/performance/performance.ts ratchet --instructions --json performance-report.json</code
 			>。 レポートは成果物として保存します。
 		</li>
 	</ul>
@@ -214,7 +214,7 @@
 			>mise run performance:update</code
 		>
 		で更新します。命令数は64ビットの Arm プロセッサーを使う Linux 上で測ります。
-		<code>node tools/performance/linux.ts --update</code> は自動検査と同じ Docker 環境で計測します。その結果を基準値として書き戻します。
+		<code>node tools/performance/performance.ts linux --update</code> は自動検査と同じ Docker 環境で計測します。その結果を基準値として書き戻します。
 	</p>
 	<p>
 		<code>linux.ts</code>
@@ -462,8 +462,8 @@ mise run performance
 mise run performance:update
 
 # 命令数（CI と同じ arm64 Linux のコンテナで）
-node tools/performance/linux.ts
-node tools/performance/linux.ts --update
+node tools/performance/performance.ts linux
+node tools/performance/performance.ts linux --update
 
 # 壁時計のベンチマーク
 cargo build --release -p rsvelte_command_line --features metrics

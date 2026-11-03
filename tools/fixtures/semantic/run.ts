@@ -80,7 +80,7 @@ export async function comparePopulation(options: SemanticOptions) {
 			hash(fs.readFileSync(path.join(tools, 'semantic', name))),
 		]),
 	);
-	for (const name of ['index.ts', 'coordinates.ts'])
+	for (const name of ['type-information.ts', 'coordinates.ts'])
 		harnessHashes[`type-information/${name}`] = hash(
 			fs.readFileSync(path.resolve(tools, '../type-information', name)),
 		);

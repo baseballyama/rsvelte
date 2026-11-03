@@ -59,16 +59,8 @@ starts with `~`, it is stored with a `~` in front. Example: `foo/input.svelte` i
 
 ## Commands
 
-Node 26 runs the TypeScript directly (version pinned in `mise.toml`).
-
-```sh
-pnpm install                       # from the repository root
-F=tools/fixtures/fixtures.ts
-mise exec -- node $F compare --task svelte.compile --variant client   # actual/ vs expected/
-mise exec -- node $F adjust                                           # check [[adjust]] entries
-mise exec -- node $F upgrade      # after changing a tool version in tools/fixtures/package.json
-mise exec -- node $F import --from <dir with the source checkouts>
-```
+The commands that import, regenerate and compare the corpus are in
+[tools/fixtures](../tools/fixtures/README.md).
 
 ## Licenses
 

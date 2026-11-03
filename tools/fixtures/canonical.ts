@@ -6,10 +6,10 @@
 //     `regex`, bigint literals keep `bigint`, and their unserializable `value` becomes null,
 //   - comments removed, except `@__PURE__` / `#__PURE__` annotations, which change what a bundler
 //     may drop: a call or `new` immediately preceded by one carries `pure: true`,
-//   - keys sorted, `type` first (fsutil.sortKeys).
+//   - keys sorted, `type` first (files.sortKeys).
 // Any implementation (the Rust harness included) must produce the same tree for the same text.
 import * as acorn from 'acorn';
-import { sortKeys } from './fsutil.ts';
+import { sortKeys } from './files.ts';
 
 export type Node = { [key: string]: unknown };
 type Tree = unknown;

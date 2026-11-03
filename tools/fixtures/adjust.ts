@@ -23,9 +23,10 @@
 import fs from 'node:fs';
 import { expectedFile, fixtureFile } from './paths.ts';
 import { parseJs, parseSnippet, getAt, setAt, findAll, same, type Node } from './canonical.ts';
-import { taskById } from './tasks/index.ts';
+import { taskById } from './tasks.ts';
 import { allUnits } from './manifest.ts';
 import type { Adjustment, Task, Unit } from './types.ts';
+import { parseArgs } from 'node:util';
 
 type Loaded = Adjustment & { artifact: string; index: number };
 type Status = 'ok' | 'redundant' | 'rebased' | 'stale';
@@ -141,4 +142,21 @@ function rewriteAt(file: string, rebases: { index: number; at: string }[]): void
 		blocks[b] = blocks[b]!.replace(/^at\s*=\s*".*"$/m, `at = "${at}"`);
 	}
 	fs.writeFileSync(file, blocks.join(''));
+}
+
+/** Prints the adjustments' state and returns how many need attention. */
+export function reportAdjustments(write: boolean): number {
+	const r = verifyAdjustments({ write });
+	console.log(`adjustments: ${r.units} unit(s) ${JSON.stringify(r.counts)}`);
+	for (const p of r.problems) console.log(`  ${p}`);
+	return r.counts.stale + r.counts.redundant + (write ? 0 : r.counts.rebased);
+}
+
+/** `fixtures adjust [--write]` */
+export async function main(args: string[]): Promise<void> {
+	const { values } = parseArgs({
+		args,
+		options: { write: { type: 'boolean', default: false } },
+	});
+	if (reportAdjustments(values.write)) process.exitCode = 1;
 }

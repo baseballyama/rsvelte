@@ -49,7 +49,7 @@ jobs:
         with:
           node-version: 26.7.0
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/fixtures-tools...
+      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/fixtures...
       - run: cargo test --offline --workspace
       - run: cargo run --offline -p rsvelte_command_line --example repo_layout > type-layout.json
       - if: always()
@@ -70,14 +70,14 @@ jobs:
         with:
           node-version: 26.7.0
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/fixtures-tools...
+      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/fixtures...
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: node --test tools/structure/*.test.ts
       - run: node tools/structure/structure.ts
       # The semantic tests build other crates with --offline, so fetch the whole lockfile first.
       - run: cargo fetch
       - run: cargo build --release -p rsvelte_command_line
-      - run: node tools/fixtures/run-all.ts
+      - run: node tools/fixtures/fixtures.ts run-all
       - run: node fixtures.ts check
         working-directory: tools/fixtures
       - run: node fixtures.ts adjust
@@ -125,7 +125,7 @@ jobs:
       - run: pnpm run build
 
   performance:
-    # The instruction baseline is recorded on arm64 Linux (tools/performance/linux.ts runs the same
+    # The instruction baseline is recorded on arm64 Linux (`performance.ts linux` runs the same
     # environment locally); allocation counts are the same on every platform.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
@@ -140,7 +140,7 @@ jobs:
       - run: node --test tools/performance/*.test.ts
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo fetch
-      - run: node tools/performance/performance.ts --instructions --json performance-report.json
+      - run: node tools/performance/performance.ts ratchet --instructions --json performance-report.json
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

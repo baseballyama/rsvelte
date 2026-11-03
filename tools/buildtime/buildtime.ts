@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // buildtime [--rounds N] [--only name,...] [--json <file>] [--timings] [--allow-busy]
 //
 // Measures how long this workspace takes to compile, as a metric of its own. Every scenario runs in

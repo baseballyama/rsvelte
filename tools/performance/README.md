@@ -1,19 +1,22 @@
 # Performance measurements
 
-| Command                                                                                              | Measures                                                                   |
-| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `mise run performance`                                                                               | Allocation ratchet over the corpus                                         |
-| `node tools/performance/linux.ts`                                                                    | Allocation and instruction ratchets in Linux                               |
-| `mise run performance:cache <config.json> <report.json>`                                             | Cachegrind cache simulation and an optional baseline gate                  |
-| `mise run performance:hardware <config.json> <report.json>`                                          | Linux `perf` CPU and cache hardware events                                 |
-| `node tools/performance/macos-cycles.ts <config.json> <report.json> [--max-load <n>] [--allow-busy]` | macOS hardware CPU cycles and instructions, P-core share, peak footprint   |
-| `mise run performance:layout`                                                                        | Kernel, JS/TS, Svelte, Vue and CSS type sizes, alignment and field offsets |
-| `mise run performance:test`                                                                          | Measurement tests and defect controls                                      |
+Every command is `node tools/performance/performance.ts <command>`; the header of
+`performance.ts` lists them with their options.
+
+| Command                                                     | Measures                                                                   |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `mise run performance` (`ratchet`)                          | Allocation ratchet over the corpus                                         |
+| `performance.ts linux`                                      | Allocation and instruction ratchets in Linux (`linux.Dockerfile`)          |
+| `mise run performance:cache <config.json> <report.json>`    | Cachegrind cache simulation and an optional baseline gate                  |
+| `mise run performance:hardware <config.json> <report.json>` | Linux `perf` CPU and cache hardware events                                 |
+| `performance.ts macos-cycles <config.json> <report.json>`   | macOS hardware CPU cycles and instructions, P-core share, peak footprint   |
+| `mise run performance:layout`                               | Kernel, JS/TS, Svelte, Vue and CSS type sizes, alignment and field offsets |
+| `mise run performance:test`                                 | Measurement tests and defect controls                                      |
 
 ## Cache profiles
 
 Run in Linux with `valgrind`, `cg_annotate`, Node and a release binary with debug line
-tables. `tools/performance/Dockerfile` supplies these tools. Profile a frozen source tree;
+tables. `linux.Dockerfile` supplies these tools. Profile a frozen source tree;
 use separate Cargo target directories for different source trees.
 
 The config contains:
@@ -56,7 +59,7 @@ Use models with different capacities and line sizes, then check actual CPU cycle
 
 ## macOS counters
 
-`macos-cycles.ts` injects `macos-counters.c` and reads `proc_pid_rusage` for the process it
+`macos-cycles.ts` injects `macos-cycles.c` and reads `proc_pid_rusage` for the process it
 starts. Its limits:
 
 - Only that process is measured. A child that the arm waits for is rejected (`child_time_ns`

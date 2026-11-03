@@ -15,8 +15,6 @@ const config: KnipConfig = {
 		},
 		'tools/fixtures': {
 			entry: [
-				'svelte-entities.ts',
-				'import-svelte-lint.ts',
 				// Loaded by URL into a browser, a worker or a child process, not imported.
 				'behaviour/browser-runner.ts',
 				'behaviour/client.ts',
@@ -28,9 +26,8 @@ const config: KnipConfig = {
 			// Oracles run from their installed path or named in reports, not imported.
 			ignoreDependencies: ['svelte-check', 'svelte-eslint-parser', 'vue-tsc'],
 		},
-		'tools/hashing': { entry: ['benchmark.ts', 'integration.ts'] },
 		'tools/performance': {
-			entry: ['macos-cycles.ts', 'linux.ts', 'workloads/*/*.ts', '*.test.ts'],
+			entry: ['workloads/*/*.ts', '*.test.ts'],
 			// The svelte-lint workload's oracle requires the packages tools/fixtures installs.
 			ignoreDependencies: ['eslint', 'eslint-plugin-svelte', '@typescript-eslint/parser'],
 		},
