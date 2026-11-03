@@ -255,7 +255,7 @@ pub(super) fn collect_top_level_declared_names(body: &[oxc::Statement]) -> HashS
 /// For `{ a, b, c }` returns `["a", "b", "c"]`.
 /// For `[a, b, c]` returns `["a", "b", "c"]`.
 /// For simple identifiers, returns the single name.
-pub(super) fn extract_all_names_from_binding_pattern(pattern: &oxc::BindingPattern) -> Vec<String> {
+pub(crate) fn extract_all_names_from_binding_pattern(pattern: &oxc::BindingPattern) -> Vec<String> {
     let mut names = Vec::new();
     collect_binding_names(pattern, &mut names);
     names

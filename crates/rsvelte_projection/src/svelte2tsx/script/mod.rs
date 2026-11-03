@@ -6,7 +6,7 @@
 //!
 //! Script AST is parsed once with OXC and retained across every processing pass.
 
-mod ast_utils;
+pub(crate) mod ast_utils;
 mod component_events;
 mod export_decl;
 mod exported_names;
