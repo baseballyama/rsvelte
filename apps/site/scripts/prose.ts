@@ -124,7 +124,7 @@ export function extractProse(source: string, file: string): Chunk[] {
 				if (value && typeof value === 'object' && !Array.isArray(value) && value.expression) expression(value.expression);
 				if (Array.isArray(value)) {
 					add(value.map(n => n.type === 'Text' ? n.data : '`動的な値`').join(''), attribute.start);
-					for (const part of value) if (part.type === 'ExpressionTag') expression(part.expression);
+					for (const valuePart of value) if (valuePart.type === 'ExpressionTag') expression(valuePart.expression);
 				}
 			}
 			if ('fragment' in node && node.fragment) {

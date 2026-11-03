@@ -49,8 +49,8 @@ export class TypeComparison {
 			if (left.isUnionType() && right.isUnionType()) {
 				const a = this.members(left.getTypes()), b = this.members(right.getTypes());
 				if (a.size !== b.size) return false;
-				for (const [key, type] of a) {
-					const other = b.get(key);
+				for (const [memberKey, type] of a) {
+					const other = b.get(memberKey);
 					if (!other || !this.equal(type, other, depth + 1)) return false;
 				}
 				return true;

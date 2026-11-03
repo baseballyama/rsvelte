@@ -36,10 +36,10 @@ export async function chrome(binary: string, profile: string) {
 		child.once('close', () => resolve()),
 	);
 	let socket: WebSocket | undefined;
-	const signal = (signal: NodeJS.Signals) => {
+	const signal = (name: NodeJS.Signals) => {
 		if (child.pid === undefined) return;
 		try {
-			process.kill(-child.pid, signal);
+			process.kill(-child.pid, name);
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
 		}

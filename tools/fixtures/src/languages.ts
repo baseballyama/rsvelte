@@ -33,7 +33,7 @@ export const LANGUAGES: Language[] = [
 		id: 'svelte-module-js',
 		family: 'svelte',
 		ext: '.svelte.js',
-		matches: (p) => /\.svelte\.js$/.test(p),
+		matches: (p) => p.endsWith('.svelte.js'),
 		admit(src, filename) {
 			try {
 				compileModule(src, { filename, generate: false });
@@ -49,7 +49,7 @@ export const LANGUAGES: Language[] = [
 		id: 'svelte-module-ts',
 		family: 'svelte',
 		ext: '.svelte.ts',
-		matches: (p) => /\.svelte\.ts$/.test(p),
+		matches: (p) => p.endsWith('.svelte.ts'),
 		admit: () => ({ include: true, fields: { mode: 'runes' } })
 	},
 	{
@@ -107,7 +107,7 @@ export function languageOf(path: string, family?: string): Language | null {
 }
 
 export function languageById(id: string): Language {
-	const l = LANGUAGES.find((l) => l.id === id);
-	if (!l) throw new Error(`unknown language ${id}`);
-	return l;
+	const language = LANGUAGES.find((l) => l.id === id);
+	if (!language) throw new Error(`unknown language ${id}`);
+	return language;
 }

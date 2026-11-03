@@ -55,8 +55,8 @@ test('hardware counters detect added work and reject missing measurements', darw
 		const light = samples.filter(sample => sample.arm === 'light');
 		const heavy = samples.filter(sample => sample.arm === 'heavy');
 		assert.equal(samples.length, 4);
-		assert.ok(heavy.every(sample => sample.counters.instructions > Math.max(...light.map(sample => sample.counters.instructions)) + 1000000));
-		assert.ok(heavy.every(sample => sample.counters.cycles > Math.max(...light.map(sample => sample.counters.cycles))));
+		assert.ok(heavy.every(sample => sample.counters.instructions > Math.max(...light.map(lightSample => lightSample.counters.instructions)) + 1000000));
+		assert.ok(heavy.every(sample => sample.counters.cycles > Math.max(...light.map(lightSample => lightSample.counters.cycles))));
 		const empty = measure({ expect_stdout: { documents: 1 }, minimum_output_bytes: 16, arms: [{ name: 'empty-workload', command: [executable, '0', 'empty'] }] }, '--allow-busy');
 		assert.notEqual(empty.status, 0);
 		assert.match(empty.stderr, /workload documents/);

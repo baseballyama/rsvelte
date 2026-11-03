@@ -48,9 +48,13 @@ export function scan(source: string): Int32Array {
 			let level = 1;
 			let j = i + 2;
 			while (j < source.length && level > 0) {
-				if (source[j] === '/' && source[j + 1] === '*') (level++, (j += 2));
-				else if (source[j] === '*' && source[j + 1] === '/') (level--, (j += 2));
-				else j++;
+				if (source[j] === '/' && source[j + 1] === '*') {
+					level++;
+					j += 2;
+				} else if (source[j] === '*' && source[j + 1] === '/') {
+					level--;
+					j += 2;
+				} else j++;
 			}
 			opaque(i, j);
 			i = j;

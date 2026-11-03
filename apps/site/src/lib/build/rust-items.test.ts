@@ -48,11 +48,11 @@ describe('parseRustModule', () => {
 	});
 
 	it('parses every kernel module into items that cover each top-level fn', () => {
-		for (const f of readdirSync(kernel, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.rs'))) {
-			const source = readFileSync(path.join(kernel, f), 'utf8');
-			const m = parseRustModule(f, f, source);
+		for (const file of readdirSync(kernel, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.rs'))) {
+			const source = readFileSync(path.join(kernel, file), 'utf8');
+			const m = parseRustModule(file, file, source);
 			const topFns = [...source.matchAll(/^(?:pub )?fn (\w+)/gm)].map((x) => x[1]);
-			for (const name of topFns) expect(m.items.map((i) => i.name), `${f}: ${name}`).toContain(name);
+			for (const name of topFns) expect(m.items.map((i) => i.name), `${file}: ${name}`).toContain(name);
 		}
 	});
 });

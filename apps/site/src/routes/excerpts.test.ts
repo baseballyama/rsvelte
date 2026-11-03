@@ -15,7 +15,7 @@ function item(key: string): RustItem | undefined {
 		const mod = key.slice(0, key.lastIndexOf('/'));
 		const file = files.get(mod);
 		if (!file) return undefined;
-		for (const it of parseRustModule(mod, file, readFileSync(path.join(crates, file), 'utf8')).items) items.set(it.key, it);
+		for (const parsed of parseRustModule(mod, file, readFileSync(path.join(crates, file), 'utf8')).items) items.set(parsed.key, parsed);
 	}
 	return items.get(key);
 }

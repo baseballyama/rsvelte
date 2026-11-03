@@ -29,11 +29,11 @@ export function nameFindings(name: string): string[] {
 }
 
 // Only declarations are checked, so names that std or a dependency declares are never reported.
-export function sourceFindings(source: string, { traitParameterNamesEnforced = false, upstreamNames = new Set<string>() } = {}) {
+export function sourceFindings(source: string, { traitParameterNamesEnforced: enforceTraitParameterNames = false, upstreamNames: keptNames = new Set<string>() } = {}) {
 	const findings: (Finding & { qualified: string })[] = [];
-	for (const { name, line, owner } of rustDeclarations(source, { traitParameterNamesEnforced })) {
+	for (const { name, line, owner } of rustDeclarations(source, { traitParameterNamesEnforced: enforceTraitParameterNames })) {
 		const qualified = owner ? `${owner}::${name}` : name;
-		if (upstreamNames.has(qualified)) continue;
+		if (keptNames.has(qualified)) continue;
 		for (const abbreviation of nameFindings(name)) findings.push({ name, qualified, abbreviation, line });
 	}
 	return findings;

@@ -50,8 +50,8 @@ const lookup = (selector: string): HTMLElement | undefined => {
   const element = root.querySelector<HTMLElement>(selector);
   if (element) return element;
   for (const host of root.querySelectorAll('*')) {
-    const element = host.shadowRoot?.querySelector<HTMLElement>(selector);
-    if (element) return element;
+    const shadowed = host.shadowRoot?.querySelector<HTMLElement>(selector);
+    if (shadowed) return shadowed;
   }
 };
 const find = (selector: string): HTMLElement => {

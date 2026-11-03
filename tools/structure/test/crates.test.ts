@@ -95,11 +95,11 @@ const svelteLayers: Record<string, readonly string[]> = {
 
 function svelteDependencies(packages: Package[]): string[] {
 	return packages.flatMap(pkg => {
-		const allowed = svelteLayers[pkg.name];
-		if (!allowed) return [];
+		const allowedLayers = svelteLayers[pkg.name];
+		if (!allowedLayers) return [];
 		return pkg.dependencies.filter(dependency =>
 			(dependency.name === 'rsvelte_svelte' || dependency.name.startsWith('rsvelte_svelte_')) &&
-			!allowed.includes(dependency.name)
+			!allowedLayers.includes(dependency.name)
 		).map(dependency => `${pkg.name} depends on ${dependency.name}`);
 	});
 }
@@ -119,13 +119,13 @@ test('Svelte boundaries reject injected dependencies on parsing, normalization, 
 		['rsvelte_svelte_compiler_syntax_tree', 'rsvelte_svelte'],
 		['rsvelte_svelte_semantic', 'rsvelte_svelte_compile'],
 	] as const) {
-		const pkg = metadata.packages.find(pkg => pkg.name === name);
+		const pkg = metadata.packages.find(candidate => candidate.name === name);
 		assert.ok(pkg);
 		const injected = { ...pkg, dependencies: [...pkg.dependencies, { name: forbidden }] };
 		assert.deepEqual(svelteDependencies([injected]), [`${name} depends on ${forbidden}`]);
 	}
 	for (const name of Object.keys(svelteLayers)) {
-		const pkg = metadata.packages.find(pkg => pkg.name === name);
+		const pkg = metadata.packages.find(candidate => candidate.name === name);
 		assert.ok(pkg);
 		const injected = { ...pkg, dependencies: [...pkg.dependencies, { name: 'rsvelte_svelte_format' }] };
 		assert.deepEqual(toolDependencies([injected]), [`${name} depends on rsvelte_svelte_format`]);
@@ -139,7 +139,7 @@ test('the kernel rejects language data and shared task contracts', () => {
 		const injected: Package = { ...kernel, dependencies: [...kernel.dependencies, { name }] };
 		assert.deepEqual(toolDependencies([injected]), [`rsvelte_kernel depends on ${name}`]);
 	}
-	for (const pkg of metadata.packages.filter(pkg => pkg.manifest_path.includes('/core/'))) {
+	for (const pkg of metadata.packages.filter(candidate => candidate.manifest_path.includes('/core/'))) {
 		const injected = { ...pkg, dependencies: [...pkg.dependencies, { name: 'rsvelte_lint' }] };
 		assert.deepEqual(toolDependencies([injected]), [`${pkg.name} depends on rsvelte_lint`]);
 	}
@@ -180,7 +180,7 @@ test('support, plugin and host boundaries reject injected dependencies', () => {
 		['rsvelte_svue', 'rsvelte_kernel_browser'],
 		['rsvelte_command_line', 'rsvelte_kernel_browser'],
 	] as const) {
-		const pkg = metadata.packages.find(pkg => pkg.name === from);
+		const pkg = metadata.packages.find(candidate => candidate.name === from);
 		assert.ok(pkg, from);
 		assert.ok(roles.has(to), to);
 		const injected = { ...pkg, dependencies: [...pkg.dependencies, { name: to }] };

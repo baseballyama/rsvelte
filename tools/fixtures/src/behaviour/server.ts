@@ -39,8 +39,8 @@ async function render({
 	}
 	try {
 		if (runtime === 'svelte') {
-			const { render } = await import('svelte/server');
-			const output = render(component as never, { props } as never);
+			const { render: renderSvelte } = await import('svelte/server');
+			const output = renderSvelte(component as never, { props } as never);
 			const result = experimental_async ? await output : output;
 			return { html: result.body, ...(include_head && { head: result.head }) };
 		}

@@ -47,7 +47,7 @@
 
 	// The source as runs of characters that share a highlight, so each run is one element.
 	const runs = $derived.by(() => {
-		const tone = new Array<Tone>(d.source.length).fill('');
+		const tone = Array.from({ length: d.source.length }, (): Tone => '');
 		// Wider spans first, so a nested span (a reference inside a node) wins where they overlap.
 		for (const s of [...spans].sort((a, b) => b.span[1] - b.span[0] - (a.span[1] - a.span[0])))
 			for (let i = s.span[0]; i < s.span[1]; i++) tone[i] = s.tone;

@@ -1,0 +1,39 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["typescript", "unicorn", "oxc", "import", "node", "promise"],
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error",
+		"perf": "error"
+	},
+	"env": { "node": true, "browser": true, "es2026": true },
+	"rules": {
+		// Measurements and oracle runs are sequential on purpose.
+		"no-await-in-loop": "off",
+		// `$$props`-style names come from the Svelte and Vue runtimes.
+		"no-underscore-dangle": "off",
+		// Sorting a fresh array in place is as clear as toSorted().
+		"unicorn/no-array-sort": "off",
+		// The arrays are small; a spread keeps each update immutable and readable.
+		"oxc/no-map-spread": "off",
+		// A helper next to its only caller reads better than one hoisted away from it.
+		"unicorn/consistent-function-scoping": "off",
+		// Svelte effects use then() for its side effect only.
+		"promise/always-return": "off",
+		// Every postMessage here goes to a worker or a MessagePort, which take no origin.
+		"unicorn/require-post-message-target-origin": "off",
+		// `export {}` marks SvelteKit's app.d.ts as a module.
+		"unicorn/require-module-specifiers": "off",
+		// Stylesheets are imported for their side effect.
+		"import/no-unassigned-import": "off"
+	},
+	"ignorePatterns": [
+		"fixtures/**",
+		"crates/**/tests/**",
+		"tools/fixtures/test/behaviour/**",
+		"**/vendor/**",
+		"**/generated/**",
+		// Runtime text that the Vapor compiler copies into its output byte for byte.
+		"crates/languages/svelte/compile_vapor/src/compilation/**/*.js"
+	]
+}

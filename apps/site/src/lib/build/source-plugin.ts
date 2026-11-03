@@ -21,8 +21,8 @@ function readBaseline(file: string) {
 	};
 	const { allocs: allocations, ...fields } = record;
 	const phases = Object.fromEntries(Object.entries(record.phases).map(([name, phase]) => {
-		const { allocs: allocations, ...fields } = phase;
-		return [name, { ...fields, allocations }];
+		const { allocs: phaseAllocations, ...phaseFields } = phase;
+		return [name, { ...phaseFields, allocations: phaseAllocations }];
 	}));
 	return { ...fields, allocations, phases };
 }

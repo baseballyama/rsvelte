@@ -4,9 +4,9 @@
 	let { crates }: { crates: CrateSize[] } = $props();
 
 	const size = (name: string) => {
-		const c = crates.find((c) => c.name === name);
-		if (!c) throw new Error(`no crate ${name}`);
-		return c.lines.toLocaleString('en-US');
+		const crate = crates.find((c) => c.name === name);
+		if (!crate) throw new Error(`no crate ${name}`);
+		return crate.lines.toLocaleString('en-US');
 	};
 
 	interface Box {

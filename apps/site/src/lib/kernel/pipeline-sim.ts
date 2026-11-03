@@ -49,7 +49,7 @@ export function makeDocs(n: number, partShare: number, seed = 7): SimDoc[] {
 }
 
 export function simulate(docs: SimDoc[], workers: number, projectCost: number): SimResult {
-	const free = new Array(workers).fill(0);
+	const free = Array.from({ length: workers }, () => 0);
 	const blocks: Block[] = [];
 	for (const d of docs) {
 		const w = free.indexOf(Math.min(...free));

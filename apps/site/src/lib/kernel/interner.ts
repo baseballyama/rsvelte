@@ -89,7 +89,7 @@ export class Interner {
 
 	private grow() {
 		const cap = Math.max(this.table.length * 2, this.minCapacity);
-		this.table = new Array(cap).fill(0);
+		this.table = Array.from({ length: cap }, () => 0);
 		const mask = cap - 1;
 		for (let id = 0; id < this.ends.length; id++) {
 			let i = fnv1a(this.get(id)) & mask;

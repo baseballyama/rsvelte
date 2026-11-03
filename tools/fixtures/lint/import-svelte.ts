@@ -18,11 +18,11 @@ for (const [relative, expected] of Object.entries(manifest.files)) {
   const actual = crypto.createHash('sha256').update(fs.readFileSync(path.join(upstream, relative))).digest('hex');
   if (actual !== expected) throw new Error(`upstream file differs from ${revision}: ${relative}`);
 }
-const suite = (name: string) => {
+const newSuite = (name: string) => {
   const directory = path.join(root, 'crates/languages/svelte', name, 'tests/rules');
   return { directory, sourceRoot: path.join(directory, 'eslint-plugin-svelte'), cases: [] as string[], imported: {} as Record<string, string> };
 };
-const suites = [suite('lint'), suite('lint_typed')] as const;
+const suites = [newSuite('lint'), newSuite('lint_typed')] as const;
 const suiteFor = (rule: string) => suites[rule === 'svelte/@typescript-eslint/no-unnecessary-condition' ? 1 : 0];
 const project = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-lint-oracle-'));
 fs.symlinkSync(path.join(root, 'tools/fixtures/node_modules'), path.join(project, 'node_modules'), 'dir');
@@ -81,7 +81,7 @@ for (const name of ['button-has-type', 'valid-each-key', '@typescript-eslint/no-
   for (const input of walk(base).filter(file => file.endsWith('-input.svelte'))) {
     const relative = path.relative(base, input).replace('-input.svelte', '.svelte');
     const document = `${name}/${relative}`;
-    let options = {};
+    const options = {};
     let current = path.dirname(input);
     const configs: string[] = [];
     while (current.startsWith(base)) {
@@ -90,7 +90,7 @@ for (const name of ['button-has-type', 'valid-each-key', '@typescript-eslint/no-
       if (current === base) break;
       current = path.dirname(current);
     }
-    for (const config of configs) options = { ...options, ...JSON.parse(fs.readFileSync(config, 'utf8')).options?.[0] };
+    for (const config of configs) Object.assign(options, JSON.parse(fs.readFileSync(config, 'utf8')).options?.[0]);
     add(`eslint-plugin-svelte/${document}`, document, fs.readFileSync(input, 'utf8'), `svelte/${name}`, options, name !== '@typescript-eslint/no-unnecessary-condition');
     for (const config of configs) fs.copyFileSync(config, path.join(suiteFor(`svelte/${name}`).sourceRoot, document, '_config.json'));
     const errors = input.replace('-input.svelte', '-errors.yaml');

@@ -218,7 +218,7 @@ const VIRTUAL_DIAGNOSTIC_LOCATION = 18074;
 function diagnosticObservations(diagnostics: readonly Diagnostic[], observations: Observation[]): DiagnosticObservation[] {
 	const index = new ObservationIndex(observations);
 	return diagnostics.map((diagnostic) => {
-		const virtualLocation = diagnostic.messageChain?.some((message) => message.code === VIRTUAL_DIAGNOSTIC_LOCATION);
+		const virtualLocation = diagnostic.messageChain?.some((link) => link.code === VIRTUAL_DIAGNOSTIC_LOCATION);
 		const start = diagnostic.pos < 0 || virtualLocation ? undefined : diagnostic.pos;
 		const containing = start === undefined ? undefined : index.at(start);
 		return { key: containing?.key ?? (start === undefined ? null : `source:${start}`), code: diagnostic.code,
@@ -235,10 +235,10 @@ function compareContract(project: Project, leftFile: string, rightFile: string):
         const symbol = module && project.checker.getMemberInModuleExports(module, 'default');
         return symbol ? project.checker.getTypeOfSymbol(symbol) : undefined;
     };
-    const parts = (type: Type | undefined): { props: Type; exports: Type; bindings: Type; legacy: boolean } => {
-        if (!type?.isTypeReference()) throw new UnmeasuredType('unsupported component contract');
-        const name = type.getSymbol()?.name;
-        const args = project.checker.getTypeArguments(type);
+    const parts = (component: Type | undefined): { props: Type; exports: Type; bindings: Type; legacy: boolean } => {
+        if (!component?.isTypeReference()) throw new UnmeasuredType('unsupported component contract');
+        const name = component.getSymbol()?.name;
+        const args = project.checker.getTypeArguments(component);
         if (name === 'Component' && args.length === 3) return { props: args[0]!, exports: args[1]!, bindings: args[2]!, legacy: false };
         if (name === '__sveltets_2_IsomorphicComponent' && args.length === 5) return { props: args[0]!, exports: args[3]!, bindings: args[4]!, legacy: true };
         throw new UnmeasuredType(`unsupported component contract ${name}`);

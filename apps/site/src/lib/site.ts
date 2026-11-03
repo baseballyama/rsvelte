@@ -308,9 +308,9 @@ export function chapterByHref(pathname: string): Chapter | undefined {
 	return chapters.find((c) => c.href === p);
 }
 
-export function sectionTitle(chapter: Chapter, id: string): string {
-	const sec = chapter.sections.find((x) => x.id === id);
-	if (!sec) throw new Error(`chapter ${chapter.slug} has no section ${id}`);
+export function sectionTitle(page: Chapter, id: string): string {
+	const sec = page.sections.find((x) => x.id === id);
+	if (!sec) throw new Error(`chapter ${page.slug} has no section ${id}`);
 	return sec.title;
 }
 

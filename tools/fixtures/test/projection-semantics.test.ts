@@ -42,11 +42,11 @@ test('real Rust and svelte2tsx output expose matching template and callback type
 	assert.equal(result.publicContract, 'match', JSON.stringify(result));
 });
 
-function defect(before: string, after: string): Projection {
-	assert.ok(projection.code?.includes(before), 'the control must change the actual Rust output');
-	assert.equal(before.length, after.length, 'the control must preserve generated source positions');
-	const start = Buffer.byteLength(projection.code!.slice(0, projection.code!.indexOf(before)));
-	const end = start + Buffer.byteLength(before);
+function defect(original: string, replacement: string): Projection {
+	assert.ok(projection.code?.includes(original), 'the control must change the actual Rust output');
+	assert.equal(original.length, replacement.length, 'the control must preserve generated source positions');
+	const start = Buffer.byteLength(projection.code!.slice(0, projection.code!.indexOf(original)));
+	const end = start + Buffer.byteLength(original);
 	const mappings = projection.mappings!.flatMap(([lo, length, from, copied, kind]) => {
 		assert.equal(length, copied);
 		if (lo + length <= start || lo >= end) return [[lo, length, from, copied, kind] as const];
@@ -55,7 +55,7 @@ function defect(before: string, after: string): Projection {
 		if (lo + length > end) ranges.push([end, lo + length - end, from + end - lo, lo + length - end, kind] as const);
 		return ranges;
 	}).map((mapping) => [...mapping] as [number, number, number, number, number]);
-	return { ...projection, code: projection.code!.replace(before, after), mappings };
+	return { ...projection, code: projection.code!.replace(original, replacement), mappings };
 }
 
 test('removing a required property fails the semantic comparison', () => {

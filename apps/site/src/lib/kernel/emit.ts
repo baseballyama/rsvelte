@@ -121,7 +121,7 @@ export class Emitter {
 }
 
 function ascii(s: string): string {
-	if (!/^[\x00-\x7f]*$/.test(s)) throw new Error(`the emit port takes ASCII only: ${JSON.stringify(s)}`);
+	if (/[\u0080-\uffff]/.test(s)) throw new Error(`the emit port takes ASCII only: ${JSON.stringify(s)}`);
 	return s;
 }
 

@@ -88,7 +88,7 @@ const taskOf = (unit: Unit) =>
 test('Vapor rejects the five directive await forms rejected by Svelte', () => {
 	for (const directive of INVALID_AWAIT_DIRECTIVES) {
 		const name = `invalid-await-${directive}`;
-		const unit = units.find((unit) => unit.path === `${name}.svelte`)!;
+		const unit = units.find((candidate) => candidate.path === `${name}.svelte`)!;
 		const code =
 			directive === 'binding'
 				? 'bind_invalid_expression'
@@ -198,7 +198,7 @@ test('every Svelte to Vapor snapshot matches the official Svelte trace', async (
 });
 
 function vaporSource(name: string): [Unit, string] {
-	const unit = units.find((unit) => unit.path === `${name}.svelte`);
+	const unit = units.find((candidate) => candidate.path === `${name}.svelte`);
 	assert.ok(unit, `unknown Vapor case: ${name}`);
 	const file = path.join(ROOT, CASES[1]!.dir, name, 'expected/client.js');
 	return [unit, fs.readFileSync(file, 'utf8')];
@@ -324,7 +324,7 @@ test('the Vapor trace detects a missing component reference', async () => {
 });
 
 test('the Vapor trace detects lost async server context', async () => {
-	const unit = units.find((unit) => unit.path === 'async-context.svelte')!;
+	const unit = units.find((candidate) => candidate.path === 'async-context.svelte')!;
 	const file = path.join(
 		ROOT,
 		CASES[1]!.dir,
@@ -345,7 +345,7 @@ test('the Vapor trace detects lost async server context', async () => {
 });
 
 test('the Vapor trace detects stale async results', async () => {
-	const unit = units.find((unit) => unit.path === 'async-stale.svelte')!;
+	const unit = units.find((candidate) => candidate.path === 'async-stale.svelte')!;
 	const file = path.join(ROOT, CASES[1]!.dir, 'async-stale/expected/client.js');
 	const code = fs.readFileSync(file, 'utf8');
 	const guard = 'if (active && current === version) {';
@@ -360,7 +360,7 @@ test('the Vapor trace detects stale async results', async () => {
 });
 
 test('the Vapor trace detects missing boundary recovery', async () => {
-	const unit = units.find((unit) => unit.path === 'boundary.svelte')!;
+	const unit = units.find((candidate) => candidate.path === 'boundary.svelte')!;
 	const file = path.join(ROOT, CASES[1]!.dir, 'boundary/expected/client.js');
 	const code = fs.readFileSync(file, 'utf8');
 	assert.ok(
@@ -393,7 +393,7 @@ test('the Vapor trace detects a broken state update', async () => {
 });
 
 test('the Vapor trace detects missing server head content', async () => {
-	const unit = units.find((unit) => unit.path === 'head.svelte')!;
+	const unit = units.find((candidate) => candidate.path === 'head.svelte')!;
 	const file = path.join(ROOT, CASES[1]!.dir, 'head/expected/server.js');
 	const code = fs.readFileSync(file, 'utf8');
 	assert.ok(code.includes('$$render_head($$ssr_context,'));
@@ -413,7 +413,7 @@ test('the Vapor trace detects missing server head content', async () => {
 });
 
 test('the Vapor trace detects a wrong SVG namespace', async () => {
-	const unit = units.find((unit) => unit.path === 'namespaces.svelte')!;
+	const unit = units.find((candidate) => candidate.path === 'namespaces.svelte')!;
 	const file = path.join(ROOT, CASES[1]!.dir, 'namespaces/expected/client.js');
 	const code = fs.readFileSync(file, 'utf8');
 	const factory = `$$v_template('<circle cx="5" cy="5">', 0, 1)`;
@@ -450,7 +450,7 @@ test('the Vapor trace detects lowercased namespaced spread attributes', async ()
 });
 
 test('the Vapor trace detects attachment cleanup omissions', async () => {
-	const unit = units.find((unit) => unit.path === 'attachments-spread.svelte')!;
+	const unit = units.find((candidate) => candidate.path === 'attachments-spread.svelte')!;
 	const file = path.join(
 		ROOT,
 		CASES[1]!.dir,

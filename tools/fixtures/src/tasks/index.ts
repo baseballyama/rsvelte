@@ -16,7 +16,7 @@ import type { Task } from '../types.ts';
 export const TASKS: Task[] = [svelteCheck, svelteCompile, svelteCompileModule, svelteFormat, svelteLint, svueCompile, tsCheck, vueCheck, vueCompile, vueFormat, vueLint, vuelteCompile];
 
 export function taskById(id: string): Task {
-	const t = TASKS.find((t) => t.id === id);
-	if (!t) throw new Error(`unknown task ${id}; known: ${TASKS.map((t) => t.id).join(', ')}`);
-	return t;
+	const task = TASKS.find((t) => t.id === id);
+	if (!task) throw new Error(`unknown task ${id}; known: ${TASKS.map((t) => t.id).join(', ')}`);
+	return task;
 }

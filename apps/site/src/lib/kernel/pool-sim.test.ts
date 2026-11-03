@@ -5,8 +5,8 @@ describe('pool model', () => {
 	it('reuses capacity so steady-state documents of the same size allocate nothing', () => {
 		const steps = simulate([100, 100, 100], true);
 		const perDoc = [0, 1, 2].map((d) => {
-			const last = steps.filter((s) => s.doc === d).at(-1)!;
-			const prev = d === 0 ? 0 : steps.filter((s) => s.doc === d - 1).at(-1)!.allocations;
+			const last = steps.findLast((s) => s.doc === d)!;
+			const prev = d === 0 ? 0 : steps.findLast((s) => s.doc === d - 1)!.allocations;
 			return last.allocations - prev;
 		});
 		expect(perDoc[0]).toBeGreaterThan(0);

@@ -196,13 +196,13 @@ if (instr !== undefined) {
 if (values.update) {
 	const next: Baseline = {
 		...measured,
-		instructions: { ...(old?.instructions ?? {}), ...measured.instructions },
-		load_instructions: { ...(old?.load_instructions ?? {}), ...measured.load_instructions }
+		instructions: { ...old?.instructions, ...measured.instructions },
+		load_instructions: { ...old?.load_instructions, ...measured.load_instructions }
 	};
 	fs.writeFileSync(BASELINE, JSON.stringify(next, null, '\t') + '\n');
 	if (old) {
-		for (const r of compare(old, next).rows.filter((r) => r.verdict !== 'ok')) {
-			console.log(`  ${r.metric}: ${r.was === undefined ? '-' : fmt(r.was)} -> ${r.now === undefined ? '-' : fmt(r.now)}`);
+		for (const row of compare(old, next).rows.filter((r) => r.verdict !== 'ok')) {
+			console.log(`  ${row.metric}: ${row.was === undefined ? '-' : fmt(row.was)} -> ${row.now === undefined ? '-' : fmt(row.now)}`);
 		}
 	}
 	console.log(`wrote ${path.relative(ROOT, BASELINE)}`);
