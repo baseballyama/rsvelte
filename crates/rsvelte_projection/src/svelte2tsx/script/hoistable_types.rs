@@ -1234,33 +1234,51 @@ mod tests {
     }
 
     #[test]
-    fn props_type_arg_inline_synthesises_component_props_without_imports() {
-        // `$props<{ ... }>()` type-argument form, in a component with NO import
-        // statements (exercises the no-imports branch's duplicated
-        // `props_type_arg_hoist` move_range). The inline object type is moved
-        // out to `type $$ComponentProps = …` above `function $$render()` and the
-        // call is rewritten to `$props<… $$ComponentProps …>()`.
-        let source = "<script lang=\"ts\">\n\
-            let { x } = $props<{ x: number }>();\n\
-            </script>\n\
-            <p>{x}</p>";
-        let out = svelte2tsx(source, Svelte2TsxOptions::default())
-            .expect("svelte2tsx ok")
-            .code;
-        assert!(
-            out.contains("type $$ComponentProps = { x: number }"),
-            "synthesises the alias:\n{out}"
-        );
-        let type_pos = out.find("type $$ComponentProps").unwrap();
-        let render_pos = out.find("function $$render").unwrap();
-        assert!(
-            type_pos < render_pos,
-            "alias hoisted above $$render:\n{out}"
-        );
-        assert!(
-            out.contains("$props<") && out.contains("$$ComponentProps"),
-            "call rewritten to reference the alias:\n{out}"
-        );
+    fn props_type_argument_does_not_type_the_props() {
+        // Expected text is official svelte2tsx output (language-tools e7826d3,
+        // `{ isTsFile: true, mode: 'ts' }`), up to the component export, whose
+        // name derives from the filename option.
+        let options = || Svelte2TsxOptions {
+            is_ts_file: true,
+            ..Svelte2TsxOptions::default()
+        };
+        let cases = [
+            (
+                r#"<script lang="ts">
+let { x } = $props<{ x: number }>();
+</script>
+<p>{x}</p>"#,
+                r#"///<reference types="svelte" />
+;function $$render() {
+/*Ωignore_startΩ*/;type $$ComponentProps = { x: any };/*Ωignore_endΩ*/
+let { x }: $$ComponentProps = $props<{ x: number }>();
+;
+async () => {
+ { svelteHTML.createElement("p", {});x; }};
+return { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}"#,
+            ),
+            (
+                r#"<script lang="ts">
+interface P { x: number }
+let { x } = $props<P>();
+</script>
+<p>{x}</p>"#,
+                r#"///<reference types="svelte" />
+;function $$render() {
+
+interface P { x: number }/*Ωignore_startΩ*/;type $$ComponentProps = { x: any };/*Ωignore_endΩ*/
+let { x }: $$ComponentProps = $props<P>();
+;
+async () => {
+ { svelteHTML.createElement("p", {});x; }};
+return { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}"#,
+            ),
+        ];
+        for (source, expected) in cases {
+            let out = svelte2tsx(source, options()).expect("svelte2tsx ok").code;
+            let render = out.split("\nconst ").next().unwrap_or_default();
+            assert_eq!(render, expected, "{source}");
+        }
     }
 
     #[test]
