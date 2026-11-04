@@ -53,7 +53,7 @@ export function isSource(file: string): boolean {
 		/\.(rs|ts|tsx|mts|cts|js|jsx|mjs|cjs|svelte|vue|css|scss)$/.test(file) &&
 		!file.split('/').includes('vendor') &&
 		!file.startsWith('apps/site/generated/') &&
-		!/^crates\/.+\/tests\/fixtures\//.test(file) &&
+		!/^crates\/.+\/tests\/(fixtures|upstream)\//.test(file) &&
 		!file.startsWith('tools/fixtures/behaviour/tests/wrong/')
 	);
 }

@@ -72,6 +72,7 @@ test('only handwritten sources are measured and an empty population fails', () =
 		'tools/fixtures/behaviour/tests/wrong/input.svelte',
 		'crates/languages/svelte/compile/tests/fixtures/rsvelte/counter/input.svelte',
 		'crates/languages/svelte/compile/tests/fixtures/rsvelte/counter/expected/client.js',
+		'crates/languages/svelte/lint/tests/upstream/eslint-plugin-svelte/indent/invalid/input.svelte',
 	]) {
 		assert.equal(isSource(file), false);
 	}

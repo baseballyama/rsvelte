@@ -29,8 +29,7 @@ snapshots live here. Hand-written cases fail on differences. Copied corpus cases
 without a lint oracle remain UNMEASURED. Non-component inputs are not run.
 
 `tests/upstream.rs` runs eslint-plugin-svelte's own rule tests, copied unchanged to
-[`fixtures/upstream/eslint-plugin-svelte`](../../../../fixtures/upstream/eslint-plugin-svelte),
-and this crate's cases in `tests/cases`, which use the same layout:
+[`tests/upstream/eslint-plugin-svelte`](tests/upstream/eslint-plugin-svelte), and this crate's cases in `tests/cases`, which use the same layout:
 `<rule>/{valid,invalid}/<name>-input.svelte`, options in `<name>-config.json` or `_config.json`,
 the expected reports in `<name>-errors.yaml`. It reads them as upstream's runner does. Every case of
 an implemented rule must pass; the others are counted.

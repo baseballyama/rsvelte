@@ -1,4 +1,4 @@
-//! eslint-plugin-svelte's own rule tests, copied byte for byte to `fixtures/upstream/`, and this
+//! eslint-plugin-svelte's own rule tests, copied byte for byte to `tests/upstream`, and this
 //! crate's cases in the same layout (`tests/cases`, reports written by `fixtures lint-cases`), read
 //! the way upstream's runner (`tests/utils/utils.ts`, `loadTestCases`) reads them. Every case of a
 //! rule this crate implements must pass; the others are counted.
@@ -20,7 +20,7 @@ use serde_json::value::RawValue;
 
 const UPSTREAM: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../../../fixtures/upstream/eslint-plugin-svelte"
+    "/tests/upstream/eslint-plugin-svelte"
 );
 const OWN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/cases");
 

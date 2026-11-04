@@ -10,7 +10,6 @@ fixtures/
 │   ├── oracles.json          versions of the official tools that wrote expected/
 │   ├── import-report.json    files taken and skipped per source
 │   └── licenses/
-├── upstream/<project>/       a project's own test fixtures, unchanged (`fixtures upstream`)
 └── <family>/<source>/<path>/ one unit, e.g. svelte/bits-ui/src/lib/button.svelte/
     ├── input.*               the copied file
     ├── meta.json             language, hash, mode

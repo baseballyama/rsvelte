@@ -1,5 +1,5 @@
 // `fixtures upstream <name> <checkout>`: copy an upstream project's own test fixtures, byte for
-// byte, to fixtures/upstream/<name>/. The crates that port the project read them the way the
+// byte, into tests/upstream/ of the crate that ports it, which reads them the way the
 // project's test runner does. UPSTREAM.json records the commit, and the oracle versions that
 // the fixtures' requirements files are checked against.
 import { execFileSync } from 'node:child_process';
@@ -9,6 +9,8 @@ import path from 'node:path';
 
 interface Upstream {
 	repository: string;
+	/** Where the copy goes, from the repository root. */
+	target: string;
 	/** The fixture directory inside the checkout. */
 	fixtures: string;
 	/** The package whose version the checkout must have: the oracle's. */
@@ -21,6 +23,7 @@ interface Upstream {
 const UPSTREAMS: Record<string, Upstream> = {
 	'eslint-plugin-svelte': {
 		repository: 'https://github.com/sveltejs/eslint-plugin-svelte',
+		target: 'crates/languages/svelte/lint/tests/upstream/eslint-plugin-svelte',
 		fixtures: 'packages/eslint-plugin-svelte/tests/fixtures/rules',
 		package: {
 			name: 'eslint-plugin-svelte',
@@ -52,7 +55,7 @@ export async function main(args: string[]): Promise<void> {
 	if (git('status', '--porcelain', '--', upstream.fixtures) !== '')
 		throw new Error(`${upstream.fixtures} has local changes in the checkout`);
 
-	const target = path.join(root, 'fixtures/upstream', name);
+	const target = path.join(root, upstream.target);
 	fs.rmSync(target, { recursive: true, force: true });
 	fs.mkdirSync(target, { recursive: true });
 	// Only tracked files: a test run in the checkout may have left output next to them.
