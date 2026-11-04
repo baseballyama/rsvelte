@@ -939,12 +939,14 @@ pub fn materialize_overlay_with(
     // of file does the importing. `module_bridges` gets the same entry for
     // each rune module, whose `.d.svelte.ts` twin `rootDirs` alone cannot
     // reach through a non-relative specifier (#1942).
-    let mut alias_path_overrides = tsconfig_path
-        .map(|tsconfig| {
-            let alias_prefixes = resolve_paths_alias_prefixes(tsconfig);
-            compute_alias_path_overrides(&entries, &external, &module_bridges, &alias_prefixes)
-        })
+    // package.json `imports` patterns (`#lib/*`, SvelteKit 3's `$lib`) get the
+    // same entries: TypeScript tries `paths` before `imports`.
+    let mut alias_prefixes = tsconfig_path
+        .map(resolve_paths_alias_prefixes)
         .unwrap_or_default();
+    alias_prefixes.extend(resolve_package_imports_prefixes(workspace));
+    let mut alias_path_overrides =
+        compute_alias_path_overrides(&entries, &external, &module_bridges, &alias_prefixes);
     alias_path_overrides.extend(svelte_types_path_overrides(&global_types));
 
     let overlay_tsconfig = cache_dir.join("tsconfig.json");
@@ -2844,6 +2846,50 @@ fn resolve_paths_alias_prefixes(tsconfig_path: &Path) -> Vec<(String, PathBuf)> 
     out
 }
 
+/// The `"#<prefix>/*": "./<dir>/*"` entries of the package.json `imports` that
+/// govern `workspace` (the nearest package.json, as Node and TypeScript
+/// resolve a `#` specifier), as `(alias prefix, absolute target dir)` pairs in
+/// the shape [`resolve_paths_alias_prefixes`] returns. A conditional target is
+/// resolved with TypeScript's conditions, in declaration order; any other key
+/// or target shape is skipped.
+fn resolve_package_imports_prefixes(workspace: &Path) -> Vec<(String, PathBuf)> {
+    fn target(value: &serde_json::Value) -> Option<&str> {
+        match value {
+            serde_json::Value::String(s) => Some(s),
+            serde_json::Value::Array(items) => items.iter().find_map(target),
+            serde_json::Value::Object(conditions) => conditions
+                .iter()
+                .filter(|(c, _)| matches!(c.as_str(), "types" | "import" | "default"))
+                .find_map(|(_, v)| target(v)),
+            _ => None,
+        }
+    }
+    let workspace = absolutize(workspace);
+    let Some(manifest) = workspace
+        .ancestors()
+        .map(|dir| dir.join("package.json"))
+        .find(|p| p.is_file())
+    else {
+        return Vec::new();
+    };
+    let Some(imports) = fs::read_to_string(&manifest)
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .and_then(|parsed| parsed.get("imports")?.as_object().cloned())
+    else {
+        return Vec::new();
+    };
+    let package_dir = manifest.parent().unwrap_or(&workspace);
+    imports
+        .iter()
+        .filter_map(|(key, value)| {
+            let prefix = key.strip_suffix("/*").filter(|p| p.starts_with('#'))?;
+            let dir = target(value)?.strip_prefix("./")?.strip_suffix("/*")?;
+            Some((prefix.to_string(), package_dir.join(dir)))
+        })
+        .collect()
+}
+
 /// Resolve a tsconfig's `compilerOptions.paths` alias targets to absolute
 /// directories (see [`resolve_paths_chain`] for the `baseUrl`/`extends`
 /// rules). Each target glob has its trailing `/*` (or bare `*`) stripped; a
@@ -3780,7 +3826,9 @@ fn rewrite_aliased_svelte_imports(
         if spec.starts_with('.') {
             return None;
         }
-        let path_part = spec.split(['?', '#']).next().unwrap_or(spec);
+        // A leading `#` names a package.json `imports` entry, not a fragment.
+        let path = spec.strip_prefix('#').unwrap_or(spec);
+        let path_part = path.split(['?', '#']).next().unwrap_or(path);
         if !path_part.ends_with(".svelte") {
             return None;
         }
@@ -5583,6 +5631,108 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// SvelteKit 3's `#lib` lives in package.json `imports`, and its generated
+    /// tsconfig declares no `paths`.
+    fn package_imports_project(tag: &str) -> PathBuf {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_pkg_imports_{tag}_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib/components")).unwrap();
+        fs::create_dir_all(tmp.join("src/routes")).unwrap();
+        fs::create_dir_all(tmp.join("src/ui")).unwrap();
+        fs::write(
+            tmp.join("src/ui/Bar.svelte"),
+            "<script lang=\"ts\"></script>\n<b></b>\n",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("package.json"),
+            r##"{ "name": "app", "type": "module", "imports": { "#lib": "./src/lib/index.js", "#lib/*": "./src/lib/*", "#ui/*": { "types": "./src/ui/*", "default": "./dist/*" }, "#raw/*": "./src/lib/*.js" } }"##,
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            "{\"compilerOptions\":{\"paths\":{}}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/lib/components/Foo.svelte"),
+            "<script module lang=\"ts\">export const SIZE = 1;</script>\n<script lang=\"ts\">let { n }: { n: number } = $props();</script>\n<i>{n}</i>\n",
+        )
+        .unwrap();
+        fs::write(tmp.join("src/lib/util.ts"), "export const util = 1;\n").unwrap();
+        fs::write(
+            tmp.join("src/routes/+page.svelte"),
+            "<script lang=\"ts\">import Foo, { SIZE } from '#lib/components/Foo.svelte';\nimport { util } from '#lib/util.js';</script>\n<Foo n={SIZE + util} />\n",
+        )
+        .unwrap();
+        tmp
+    }
+
+    #[test]
+    fn package_imports_svelte_import_is_rewritten_to_its_shadow() {
+        let tmp = package_imports_project("rewrite");
+        let files = vec![
+            tmp.join("src/routes/+page.svelte"),
+            tmp.join("src/lib/components/Foo.svelte"),
+        ];
+        let tsconfig = tmp.join("tsconfig.json");
+        materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
+
+        let page_tsx =
+            fs::read_to_string(tmp.join(".svelte-check/svelte/src/routes/+page.svelte.tsx"))
+                .unwrap();
+        let _ = fs::remove_dir_all(&tmp);
+        assert!(
+            !page_tsx.contains("'#lib/components/Foo.svelte'"),
+            "`#lib` import was not rewritten:\n{page_tsx}"
+        );
+        assert!(
+            page_tsx.contains("'../lib/components/Foo.svelte.tsx'"),
+            "rewrite did not point at the shadow:\n{page_tsx}"
+        );
+        assert!(
+            page_tsx.contains("'#lib/util.js'"),
+            "a non-component `#lib` import must be left to TypeScript:\n{page_tsx}"
+        );
+    }
+
+    #[test]
+    fn overlay_tsconfig_adds_exact_paths_override_for_a_package_imports_component() {
+        // A plain `.ts` importer is never rewritten, so its `#lib/…svelte`
+        // specifier needs the same exact `paths` entry a tsconfig alias gets.
+        let tmp = package_imports_project("paths");
+        let files = vec![
+            tmp.join("src/lib/components/Foo.svelte"),
+            tmp.join("src/ui/Bar.svelte"),
+        ];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        let _ = fs::remove_dir_all(&tmp);
+        let paths = &cfg["compilerOptions"]["paths"];
+        for (spec, shadow) in [
+            ("#lib/components/Foo.svelte", "Foo.svelte.tsx"),
+            ("#ui/Bar.svelte", "Bar.svelte.tsx"),
+        ] {
+            let target = paths[spec][0]
+                .as_str()
+                .unwrap_or_else(|| panic!("no exact override for {spec}:\n{paths}"));
+            assert!(
+                target.ends_with(shadow),
+                "{spec} override does not point at the shadow: {target}"
+            );
+        }
+        let keys: Vec<&String> = paths.as_object().unwrap().keys().collect();
+        assert_eq!(
+            keys,
+            ["#lib/components/Foo.svelte", "#ui/Bar.svelte"],
+            "only `#…/*` → `./…/*` patterns can name a component"
+        );
     }
 
     #[test]
