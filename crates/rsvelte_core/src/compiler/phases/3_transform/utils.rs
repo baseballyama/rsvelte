@@ -931,16 +931,15 @@ fn trim_whitespace<'a>(
             }
 
             // Collapse leading whitespace unless previous node is an ExpressionTag
-            let data_owned;
-            let raw_owned;
-            if !prev_is_expression_tag {
+            let (data_owned, raw_owned) = if !prev_is_expression_tag {
                 let replacement = if prev_ends_with_whitespace { "" } else { " " };
-                data_owned = replace_leading_whitespace(data_str, replacement);
-                raw_owned = replace_leading_whitespace(raw_str, replacement);
+                (
+                    replace_leading_whitespace(data_str, replacement),
+                    replace_leading_whitespace(raw_str, replacement),
+                )
             } else {
-                data_owned = data_str.to_string();
-                raw_owned = raw_str.to_string();
-            }
+                (data_str.to_string(), raw_str.to_string())
+            };
 
             // Peek ahead to check if next node is an ExpressionTag
             let next_is_expression_tag = trimmed_slice
@@ -948,15 +947,14 @@ fn trim_whitespace<'a>(
                 .is_some_and(|c| matches!(c.as_ref(), TemplateNode::ExpressionTag(_)));
 
             // Collapse trailing whitespace unless next node is an ExpressionTag
-            let final_data;
-            let final_raw;
-            if !next_is_expression_tag {
-                final_data = replace_trailing_whitespace(&data_owned, " ");
-                final_raw = replace_trailing_whitespace(&raw_owned, " ");
+            let (final_data, final_raw) = if !next_is_expression_tag {
+                (
+                    replace_trailing_whitespace(&data_owned, " "),
+                    replace_trailing_whitespace(&raw_owned, " "),
+                )
             } else {
-                final_data = data_owned;
-                final_raw = raw_owned;
-            }
+                (data_owned, raw_owned)
+            };
 
             // Track state for next iteration
             prev_ends_with_whitespace = ends_with_whitespace(&final_data);
