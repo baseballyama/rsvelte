@@ -1033,6 +1033,9 @@ fn discover_external_svelte_packages(
             }
         }
     }
+    // `read_dir` order is the filesystem's, and it numbers the `ext/<n>` mirrors
+    // and orders their `rootDirs` pairs: sort so a run does not depend on the host.
+    candidates.sort();
     if let Some(tsconfig_path) = tsconfig_path {
         candidates.extend(resolve_paths_alias_dirs_abs(tsconfig_path));
     }
@@ -1391,6 +1394,12 @@ fn emit_external_shadows(
                 Some(&pkg.real_dir),
             );
         }
+        tsx_code = rewrite_relative_imports_to_real_sources(
+            &tsx_code,
+            abs_source,
+            &tsx_path,
+            &pkg.real_dir,
+        );
         fs::write(&tsx_path, &tsx_code)?;
         let dts_content = shadow_reexport(&tsx_path);
         // See the twin's comment in `materialize_overlay_with`: next to a
@@ -1404,6 +1413,95 @@ fn emit_external_shadows(
         write_esm_bridge(&tsx_path, &dts_content, false)?;
     }
     Ok(any_js_shadow)
+}
+
+/// Whether a relative import's target, as a path without its extension handled,
+/// is a plain source file or directory on disk (not a Svelte component or module,
+/// which the mirror carries a twin for).
+fn names_plain_source(target: &Path) -> bool {
+    const EXTENSIONS: [&str; 8] = ["ts", "tsx", "d.ts", "js", "jsx", "mts", "cts", "json"];
+    if target.is_file() {
+        return true;
+    }
+    let text = target.to_string_lossy();
+    // `./x.js` names `x.ts` in TypeScript's ESM convention.
+    let stem = ["js", "jsx", "mjs", "cjs"]
+        .iter()
+        .find_map(|e| text.strip_suffix(&format!(".{e}")))
+        .map(str::to_string);
+    for base in std::iter::once(text.to_string()).chain(stem) {
+        if EXTENSIONS
+            .iter()
+            .any(|e| Path::new(&format!("{base}.{e}")).is_file())
+        {
+            return true;
+        }
+    }
+    EXTENSIONS
+        .iter()
+        .any(|e| target.join(format!("index.{e}")).is_file())
+}
+
+/// Point an external package's relative imports of plain source at the real files.
+///
+/// A mirrored component shadow sits in `<cache>/ext/<n>/…` and holds only the
+/// package's Svelte files, so `./host` finds no sibling there and falls through
+/// the overlay's `rootDirs`, which pools every package's source dir and mirror
+/// into one virtual directory. The first pooled directory holding a `src/workspace/host.ts`
+/// wins, which is another package's when two share a relative path, and which of
+/// them is first followed the filesystem's directory order, so the same tree
+/// type-checked differently on two machines. A specifier that names a plain file
+/// of the package is rewritten to reach it directly; Svelte components and
+/// modules keep resolving through the mirror's twins.
+fn rewrite_relative_imports_to_real_sources(
+    text: &str,
+    source: &Path,
+    out_path: &Path,
+    real_dir: &Path,
+) -> String {
+    let (Some(source_dir), Some(out_dir)) = (source.parent(), out_path.parent()) else {
+        return text.to_string();
+    };
+    let source_dir = normalize_lexically(&absolutize(source_dir));
+    let out_dir = normalize_lexically(&absolutize(out_dir));
+    let real_dir = normalize_lexically(&absolutize(real_dir));
+    rewrite_module_specifiers(text, &|spec| {
+        if !spec.starts_with('.') || spec.ends_with(".svelte") {
+            return None;
+        }
+        let target = normalize_lexically(&source_dir.join(spec));
+        // Outside the package is `rewrite_external_imports`' business.
+        if !target.starts_with(&real_dir) {
+            return None;
+        }
+        let name = target.file_name()?.to_string_lossy();
+        if name.contains(".svelte.") || !names_plain_source(&target) {
+            return None;
+        }
+        let mut rewritten = lexical_relative_posix(&out_dir, &target);
+        if !rewritten.starts_with('.') {
+            rewritten = format!("./{rewritten}");
+        }
+        Some(rewritten)
+    })
+}
+
+/// Resolve `.` / `..` components without touching the filesystem.
+fn normalize_lexically(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::ParentDir => {
+                if !out.pop() {
+                    out.push("..");
+                }
+            }
+            Component::CurDir => {}
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
 }
 
 fn materialize_kit_files(
@@ -6361,5 +6459,57 @@ mod tests {
         let text = "{\n// \"paths\": { \"x\": [\"decoy\"] }\n\"compilerOptions\": {\n\t/* c */ \"strict\": true,\n\t\"paths\": { \"a\": [\"x\"], \"$lib/*\": [\"one\", \"two\"] }\n}\n}\n";
         let (start, end) = paths_value_offset(text, "$lib/*", 1).expect("located");
         assert_eq!(&text[start..end], "\"two\"");
+    }
+    #[test]
+    fn an_external_shadow_reaches_its_own_packages_plain_sources_directly() {
+        // Two packages that both hold `src/workspace/host.ts`: pooled through
+        // `rootDirs`, `./host` from a shadow of the second would reach the first.
+        let tmp = std::env::temp_dir().join(format!("svc_ext_real_src_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let real = tmp.join("pkgs/b");
+        fs::create_dir_all(real.join("src/workspace")).unwrap();
+        fs::write(real.join("src/workspace/host.ts"), "export const host = 1;").unwrap();
+        fs::write(real.join("src/workspace/util.js"), "export const util = 1;").unwrap();
+        fs::create_dir_all(real.join("src/workspace/deep")).unwrap();
+        fs::write(
+            real.join("src/workspace/deep/index.ts"),
+            "export const d = 1;",
+        )
+        .unwrap();
+        fs::write(real.join("src/workspace/Other.svelte"), "<p />").unwrap();
+        fs::write(
+            real.join("src/workspace/store.svelte.ts"),
+            "export const s = $state(1);",
+        )
+        .unwrap();
+        let source = real.join("src/workspace/Chart.svelte");
+        let out = tmp.join("cache/ext/9/src/workspace/Chart.svelte.shadow.ts");
+
+        let text = "import { host } from './host';\nimport { util } from './util.js';\nimport { d } from './deep';\nimport Other from './Other.svelte';\nimport { s } from './store.svelte.js';\nimport { missing } from './missing';\nimport v from 'pkg';\n";
+        let rewritten = rewrite_relative_imports_to_real_sources(text, &source, &out, &real);
+
+        let up = "../../../../../pkgs/b/src/workspace";
+        assert!(
+            rewritten.contains(&format!("from '{up}/host'")),
+            "{rewritten}"
+        );
+        assert!(
+            rewritten.contains(&format!("from '{up}/util.js'")),
+            "{rewritten}"
+        );
+        assert!(
+            rewritten.contains(&format!("from '{up}/deep'")),
+            "{rewritten}"
+        );
+        // Components, Svelte modules, unknown files and bare specifiers are untouched.
+        assert!(rewritten.contains("from './Other.svelte'"), "{rewritten}");
+        assert!(
+            rewritten.contains("from './store.svelte.js'"),
+            "{rewritten}"
+        );
+        assert!(rewritten.contains("from './missing'"), "{rewritten}");
+        assert!(rewritten.contains("from 'pkg'"), "{rewritten}");
+
+        let _ = fs::remove_dir_all(&tmp);
     }
 }
