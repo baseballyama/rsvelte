@@ -118,6 +118,16 @@ fn replace_field_ref_word_boundary(haystack: &str, needle: &str, replacement: &s
     out
 }
 
+/// Whether `haystack` starts with `needle` and that match is not just the
+/// beginning of a longer identifier (`++this.#history` vs `++this.#historyGeneration`).
+fn starts_with_word_boundary(haystack: &str, needle: &str) -> bool {
+    haystack.starts_with(needle)
+        && !haystack
+            .as_bytes()
+            .get(needle.len())
+            .is_some_and(|&b| b.is_ascii_alphanumeric() || b == b'_' || b == b'$')
+}
+
 /// Net change in bracket nesting (`()`, `[]`, `{}`) contributed by one source
 /// line, skipping brackets inside string / template literals and `//` / `/*`
 /// comments. Used to group physical lines into complete statements before the
@@ -2158,11 +2168,11 @@ pub(super) fn transform_class_methods(
                 let replacement = format!("$.update({})", qualified);
                 result = result.replacen(&post_inc, &replacement, 1);
             }
-            let pre_inc = format!("++{}", qualified);
-            while result.contains(&pre_inc) {
-                let replacement = format!("$.update_pre({})", qualified);
-                result = result.replacen(&pre_inc, &replacement, 1);
-            }
+            result = replace_field_ref_word_boundary(
+                &result,
+                &format!("++{}", qualified),
+                &format!("$.update_pre({})", qualified),
+            );
 
             // Handle decrement: prefix.#name-- or --prefix.#name
             let post_dec = format!("{}--", qualified);
@@ -2170,11 +2180,11 @@ pub(super) fn transform_class_methods(
                 let replacement = format!("$.update({}, -1)", qualified);
                 result = result.replacen(&post_dec, &replacement, 1);
             }
-            let pre_dec = format!("--{}", qualified);
-            while result.contains(&pre_dec) {
-                let replacement = format!("$.update_pre({}, -1)", qualified);
-                result = result.replacen(&pre_dec, &replacement, 1);
-            }
+            result = replace_field_ref_word_boundary(
+                &result,
+                &format!("--{}", qualified),
+                &format!("$.update_pre({}, -1)", qualified),
+            );
 
             // Now handle reads: property access, optional chaining, standalone reads
 
@@ -2396,18 +2406,20 @@ pub(super) fn transform_class_methods_non_this(
             while result.contains(&post_inc) {
                 result = result.replacen(&post_inc, &format!("$.update({})", qualified), 1);
             }
-            let pre_inc = format!("++{}", qualified);
-            while result.contains(&pre_inc) {
-                result = result.replacen(&pre_inc, &format!("$.update_pre({})", qualified), 1);
-            }
+            result = replace_field_ref_word_boundary(
+                &result,
+                &format!("++{}", qualified),
+                &format!("$.update_pre({})", qualified),
+            );
             let post_dec = format!("{}--", qualified);
             while result.contains(&post_dec) {
                 result = result.replacen(&post_dec, &format!("$.update({}, -1)", qualified), 1);
             }
-            let pre_dec = format!("--{}", qualified);
-            while result.contains(&pre_dec) {
-                result = result.replacen(&pre_dec, &format!("$.update_pre({}, -1)", qualified), 1);
-            }
+            result = replace_field_ref_word_boundary(
+                &result,
+                &format!("--{}", qualified),
+                &format!("$.update_pre({}, -1)", qualified),
+            );
 
             // This function only ever runs on a constructor body, where upstream
             // `MemberExpression.js` reads a `$state` / `$state.raw` field as `q.v`
@@ -2565,7 +2577,7 @@ pub(super) fn transform_constructor_assignment(
                                 if tv.contains(&tp) {
                                     let getter =
                                         format!("$.get(this.#{})", of.private_backing_name);
-                                    tv = tv.replace(&tp, &getter);
+                                    tv = replace_field_ref_word_boundary(&tv, &tp, &getter);
                                 }
                             }
                             if tv.trim_start().starts_with('{') {
@@ -2682,7 +2694,7 @@ pub(super) fn transform_constructor_assignment(
                     return format!("$.update(this.#{});", field.private_backing_name);
                 }
                 let pre_inc = format!("++this.#{}", field.name);
-                if result.starts_with(&pre_inc) {
+                if starts_with_word_boundary(&result, &pre_inc) {
                     return format!("$.update_pre(this.#{});", field.private_backing_name);
                 }
                 let post_dec = format!("this.#{}--", field.name);
@@ -2690,7 +2702,7 @@ pub(super) fn transform_constructor_assignment(
                     return format!("$.update(this.#{}, -1);", field.private_backing_name);
                 }
                 let pre_dec = format!("--this.#{}", field.name);
-                if result.starts_with(&pre_dec) {
+                if starts_with_word_boundary(&result, &pre_dec) {
                     return format!("$.update_pre(this.#{}, -1);", field.private_backing_name);
                 }
 
