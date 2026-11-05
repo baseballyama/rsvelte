@@ -217,7 +217,9 @@ fn no_unused_props_typed_oracle() {
             if KNOWN_DIVERGENT.contains(&key) {
                 known_seen.push(key.to_string());
                 if actual == expected {
-                    failures.push(format!("  {key} now passes; remove it from KNOWN_DIVERGENT"));
+                    failures.push(format!(
+                        "  {key} now passes; remove it from KNOWN_DIVERGENT"
+                    ));
                 }
             } else if actual != expected {
                 failures.push(format!(
