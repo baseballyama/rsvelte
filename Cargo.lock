@@ -1768,7 +1768,7 @@ dependencies = [
  "oxc_ecmascript",
  "oxc_index",
  "oxc_semantic",
- "oxc_sourcemap",
+ "oxc_sourcemap 8.1.0",
  "oxc_span",
  "oxc_str",
  "oxc_syntax",
@@ -2017,6 +2017,19 @@ name = "oxc_sourcemap"
 version = "8.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73326286c78270f92c55e1a643a64daa558fc8a8e06fa0ddbe32fabb3d8eea11"
+dependencies = [
+ "base64-simd",
+ "json-escape-simd",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "oxc_sourcemap"
+version = "9.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1133371a5fadc14b9f66a8fec14be3564a77647c7ab21b1ef0ec973bd82613ce"
 dependencies = [
  "base64-simd",
  "json-escape-simd",
@@ -3015,6 +3028,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "simd-utf16-len"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5bd2186ecc8a43c3e9d0114a554beeb5708cc3b7969a8a5866b0d3ec56e5347"
+
+[[package]]
 name = "simdutf8"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3123,16 +3142,17 @@ dependencies = [
 
 [[package]]
 name = "string_wizard"
-version = "1.2.11"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a812ef3cb1d43ee9fd23cc88c4b168b964cbfb6c94c8027da6ad4ba25da8fe7"
+checksum = "976ef6e05706363938c870c7c6194c4e5d662ce2617c3ca0e2be6649509fddb0"
 dependencies = [
  "memchr",
  "oxc_index",
- "oxc_sourcemap",
+ "oxc_sourcemap 9.0.0",
  "regex",
  "rustc-hash",
  "serde",
+ "simd-utf16-len",
 ]
 
 [[package]]
