@@ -55,6 +55,5 @@
 	"exit|prefer-destructured-store-props/15-legacy-rune-names.svelte|0->1|legacy_export_invalid",
 	"exit|shorthand-directive/09-non-binding-kinds.svelte|0->1|animation_invalid_placement",
 	"exit|shorthand-directive/opt-key-prefer-always-explicit.svelte|0->1|bind_invalid_value",
-	"exit|valid-prop-names-in-kit-pages/src/routes/05-module-decoy/+page.svelte|0->1|props_invalid_placement",
-	"oracle-crash|no-target-blank/02-rel-dynamic.svelte|svelte/no-navigation-without-resolve"
+	"exit|valid-prop-names-in-kit-pages/src/routes/05-module-decoy/+page.svelte|0->1|props_invalid_placement"
 ]

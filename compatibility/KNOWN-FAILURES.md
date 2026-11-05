@@ -5339,7 +5339,7 @@ preset leaves `off`. Gate 33 (`lint-preset.mjs`) pins the two presets, but it
 reads them through `--list-rules` and upstream's exported config object — the
 declared tables, never a run (gate-coverage blind spot 33b).
 
-`lint-severity-known-failures.json` holds 58 entries.
+`lint-severity-known-failures.json` holds 57 entries.
 
 Key classes:
 
@@ -5350,7 +5350,7 @@ Key classes:
 | `exit` | `exit\|<id>\|<oracle>-><rsvelte>\|<causes>` | the process exit codes differ |
 | `oracle-crash` | `oracle-crash\|<id>\|<rule>` | an upstream rule threw and took the file's whole report with it |
 
-Partition of `lint-severity-known-failures.json` by cause: `57 + 1`
+Partition of `lint-severity-known-failures.json` by cause: `57`
 
 Two of those addends are a `4` and they are unrelated: the standalone `4` is the
 `exit` 1→0 class below (a type-aware rule `lint-universe.mjs` excludes, which
@@ -5464,7 +5464,6 @@ Attribution of `lint-severity-known-failures.json`:
 | n | target | cluster |
 |---|---|---|
 | 57 | [`deliberate-divergences`](#deliberate-divergences) | `exit\|…\|0->1\|<code>` — `rsvelte-lint` exits 1 on a source the compiler rejects, ESLint exits 0 |
-| 1 | [`upstream_issues/eslint-plugin-svelte-no-navigation-without-resolve-empty-rel-crash.md`](../upstream_issues/eslint-plugin-svelte-no-navigation-without-resolve-empty-rel-crash.md) | `oracle-crash` — the rule throws on `<a href="…" rel>` |
 
 The 57 are one product decision, not 57: every one is a file the official compiler
 rejects, verified 57 of 57 by the pin the deliberate-divergences entry names, with
@@ -5472,29 +5471,17 @@ accepting controls. Splitting them per compiler code would multiply one decision
 its inputs — the rows here are causes, and the `code` histogram that belongs to this
 table is above, not in it.
 
-### `oracle-crash`, 1 entry — `no-target-blank/02-rel-dynamic.svelte`
+### `oracle-crash` — zero entries since eslint-plugin-svelte 3.24.0
 
-`svelte/no-navigation-without-resolve` **throws** (`Cannot read properties of
-undefined (reading 'type')`) on `<a href="…" rel>` and on `<a href="…" rel="">`
-— an `<a>` with a valued `href` and a `rel` that has no value. ESLint reports the
-throw as a fatal message, so the file yields no findings at all and the run exits
-1. Minimal repro, in a tree whose `package.json` declares `@sveltejs/kit` (the
-rule is SvelteKit-gated, so it does not run without it):
-
-```svelte
-<a href="/x" rel>y</a>
-```
-
-Reported upstream in
-[`upstream_issues/eslint-plugin-svelte-no-navigation-without-resolve-empty-rel-crash.md`](../upstream_issues/eslint-plugin-svelte-no-navigation-without-resolve-empty-rel-crash.md).
-
-The crash is only reachable because this gate runs upstream's **default preset**:
-every other lint gate enables an explicit rule universe that excludes this rule,
-so the rule never runs and never throws. A file whose report the oracle destroys
-has no findings and no meaningful exit code to compare, so the pattern is scored
-as this one key and skipped for the other three classes — never as a hard error,
-because the crash is a property of the oracle configuration the gate exists to
-exercise.
+`svelte/no-navigation-without-resolve` threw (`Cannot read properties of
+undefined (reading 'type')`) on `<a href="…" rel>` and `rel=""` through 3.23.0
+([`upstream_issues/eslint-plugin-svelte-no-navigation-without-resolve-empty-rel-crash.md`](../upstream_issues/eslint-plugin-svelte-no-navigation-without-resolve-empty-rel-crash.md)).
+3.24.0 rewrote the rel check (sveltejs/eslint-plugin-svelte#1380) and the
+oracle no longer throws on `no-target-blank/02-rel-dynamic.svelte`; the file
+is now compared on every class and agrees. The key class stays: a file whose
+report the oracle destroys has no findings and no meaningful exit code to
+compare, so it is scored as this one key and skipped for the other three
+classes.
 
 ### Inline configuration: measured equal, and guarded
 
