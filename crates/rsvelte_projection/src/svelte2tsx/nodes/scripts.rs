@@ -365,6 +365,39 @@ pub fn expr_contains_await_deep(expr: &oxc_ast::ast::Expression) -> bool {
         // Parenthesised expression: transparent wrapper.
         E::ParenthesizedExpression(p) => expr_contains_await_deep(&p.expression),
 
+        // TypeScript wrappers erase at emit but not in the AST, so
+        // `$derived((await f()) as T)` must still be seen.
+        E::TSAsExpression(w) => expr_contains_await_deep(&w.expression),
+        E::TSSatisfiesExpression(w) => expr_contains_await_deep(&w.expression),
+        E::TSNonNullExpression(w) => expr_contains_await_deep(&w.expression),
+        E::TSTypeAssertion(w) => expr_contains_await_deep(&w.expression),
+        E::TSInstantiationExpression(w) => expr_contains_await_deep(&w.expression),
+
+        // Optional chain: `(await f())?.x`, `f(await g())?.()`.
+        E::ChainExpression(chain) => match &chain.expression {
+            oxc_ast::ast::ChainElement::CallExpression(call) => {
+                expr_contains_await_deep(&call.callee)
+                    || call.arguments.iter().any(|arg| match arg {
+                        Argument::SpreadElement(sp) => expr_contains_await_deep(&sp.argument),
+                        _ => expr_contains_await_deep(arg.to_expression()),
+                    })
+            }
+            oxc_ast::ast::ChainElement::TSNonNullExpression(w) => {
+                expr_contains_await_deep(&w.expression)
+            }
+            other => other.as_member_expression().is_some_and(|m| match m {
+                oxc_ast::ast::MemberExpression::ComputedMemberExpression(c) => {
+                    expr_contains_await_deep(&c.object) || expr_contains_await_deep(&c.expression)
+                }
+                oxc_ast::ast::MemberExpression::StaticMemberExpression(st) => {
+                    expr_contains_await_deep(&st.object)
+                }
+                oxc_ast::ast::MemberExpression::PrivateFieldExpression(pf) => {
+                    expr_contains_await_deep(&pf.object)
+                }
+            }),
+        },
+
         // Assignment: `x = await y` or `x = f(await y)` — check the RHS.
         // (LHS is a pattern/identifier and cannot contain await directly.)
         E::AssignmentExpression(a) => expr_contains_await_deep(&a.right),
