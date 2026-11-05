@@ -784,6 +784,17 @@ pub fn apply_transforms_to_expression_with_shadowed(
     context: &ComponentContext,
     local_scope: &LocalScope,
 ) -> JsExpr {
+    // Recursion keyed on expression depth; debug frames here are tens of KB.
+    stacker::maybe_grow(256 * 1024, 4 * 1024 * 1024, || {
+        apply_transforms_to_expression_with_shadowed_inner(expr, context, local_scope)
+    })
+}
+
+fn apply_transforms_to_expression_with_shadowed_inner(
+    expr: &JsExpr,
+    context: &ComponentContext,
+    local_scope: &LocalScope,
+) -> JsExpr {
     // Helper macro for recursive calls with current local scope
     macro_rules! recurse {
         ($e:expr) => {

@@ -130,6 +130,11 @@ lazy_static = "1.5.0"
 indexmap = { version = "2.13.0", features = ["serde"] }
 oxc_ast_visit = "0.149"
 
+# On-demand stack segments for recursion keyed on AST depth: one debug frame of
+# the `JsNode::serialize` mega-match is ~84 KB, so even ~30 levels of operator
+# nesting exhaust the default 2 MB thread stack (rustc uses the same crate).
+stacker = "0.1"
+
 
 [dev-dependencies]
 # Testing
