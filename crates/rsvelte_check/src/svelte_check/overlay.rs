@@ -549,6 +549,18 @@ pub fn materialize_overlay_with(
     let cache_dir = workspace.join(".svelte-check");
     let emit_dir = cache_dir.join("svelte");
     reject_symlink_components(&cache_dir, &cache_dir)?;
+    // A cold run must not see the previous run's files: the shadow of a
+    // component or route deleted since is still on disk, the overlay's tsconfig
+    // includes it, and it fails the check for a file that no longer exists. Only
+    // `--incremental` keeps them, and it prunes the ones it no longer needs.
+    if !incremental {
+        for stale in [&emit_dir, &cache_dir.join("ext")] {
+            let is_symlink = fs::symlink_metadata(stale).is_ok_and(|m| m.file_type().is_symlink());
+            if !is_symlink {
+                let _ = fs::remove_dir_all(stale);
+            }
+        }
+    }
     fs::create_dir_all(&emit_dir)?;
     reject_symlink_components(&emit_dir, &cache_dir)?;
     // Mark the cache as ignored by git: it is generated in the user's
@@ -4214,9 +4226,21 @@ mod tests {
         fs::remove_file(tmp.join(".svelte-check")).unwrap();
         fs::create_dir_all(tmp.join(".svelte-check/svelte")).unwrap();
         symlink(&outside, tmp.join(".svelte-check/svelte/src")).unwrap();
-        let err = materialize_overlay(&tmp, &[tmp.join("src/App.svelte")], None).unwrap_err();
-        assert!(err.to_string().contains("contains a symlink"));
+        // A cold run clears the previous run's shadows first, removing the link
+        // itself and never what it points to, so the new shadows land inside the
+        // workspace.
+        materialize_overlay(&tmp, &[tmp.join("src/App.svelte")], None).unwrap();
         assert!(!outside.join("App.svelte.jsx").exists());
+        assert!(
+            tmp.join(".svelte-check/svelte/src/App.svelte.jsx")
+                .is_file()
+        );
+        assert!(
+            !fs::symlink_metadata(tmp.join(".svelte-check/svelte/src"))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
 
         let _ = fs::remove_dir_all(&tmp);
         let _ = fs::remove_dir_all(&outside);
@@ -6361,5 +6385,30 @@ mod tests {
         let text = "{\n// \"paths\": { \"x\": [\"decoy\"] }\n\"compilerOptions\": {\n\t/* c */ \"strict\": true,\n\t\"paths\": { \"a\": [\"x\"], \"$lib/*\": [\"one\", \"two\"] }\n}\n}\n";
         let (start, end) = paths_value_offset(text, "$lib/*", 1).expect("located");
         assert_eq!(&text[start..end], "\"two\"");
+    }
+    #[test]
+    fn a_cold_run_drops_the_shadows_of_files_deleted_since_the_last() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_stale_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        let kept = tmp.join("src/Kept.svelte");
+        let gone = tmp.join("src/Gone.svelte");
+        fs::write(&kept, "<script>let x = 0;</script>{x}").unwrap();
+        fs::write(&gone, "<script>let y = 0;</script>{y}").unwrap();
+
+        let first = materialize_overlay_with(&tmp, &[kept.clone(), gone.clone()], None, false, &[])
+            .unwrap();
+        let gone_shadow = first.entries[1].tsx_path.clone();
+        assert!(gone_shadow.exists());
+
+        fs::remove_file(&gone).unwrap();
+        let second = materialize_overlay_with(&tmp, &[kept.clone()], None, false, &[]).unwrap();
+        assert!(second.entries[0].tsx_path.exists());
+        assert!(
+            !gone_shadow.exists(),
+            "the shadow of a deleted component survived a cold run"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
     }
 }
