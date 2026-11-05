@@ -351,6 +351,12 @@ pub fn map_tsgo_diagnostics(
         let canon = absolute.canonicalize().unwrap_or_else(|_| absolute.clone());
         // Suppress imported-library-internal diagnostics (see `ext_root` above).
         if absolute.starts_with(&ext_root) || canon.starts_with(&ext_root_canon) {
+            // A syntax error is not a library internal: TypeScript drops every
+            // semantic diagnostic of the whole program once one exists, so
+            // dropping it here would turn the run into a clean-looking pass.
+            if is_syntactic_ts_code(&diag.code) {
+                out.push(passthrough(diag, &absolute, workspace));
+            }
             continue;
         }
         // Drop the raw (pre-injection) source route file's diagnostics; the
@@ -437,16 +443,18 @@ pub fn map_tsgo_diagnostics(
                 .entry(entry.tsx_path.clone())
                 .or_insert_with(|| std::fs::read_to_string(&entry.tsx_path).unwrap_or_default());
             let off = line_col_to_byte_offset(tsx_text, diag.line as usize, diag.column as usize);
-            if is_in_generated_code(tsx_text, off, off) {
-                continue;
-            }
             // A syntax error in this generated `.tsx` overlay taints the
             // whole program's semantic checking — record its `.svelte`
-            // source so the runner can surface it loudly.
+            // source so the runner can surface it loudly. This comes before
+            // the generated-code filter: a syntax error inside synthesised
+            // code taints the program just the same, and is our defect.
             if is_syntactic_ts_code(&diag.code)
                 && overlay_syntax_seen.insert(entry.source_path.clone())
             {
                 overlay_syntax_sources.push(entry.source_path.clone());
+            }
+            if is_in_generated_code(tsx_text, off, off) {
+                continue;
             }
             let entry_map = match maps.get(&entry.tsx_path) {
                 Some(em) => em,
@@ -951,6 +959,28 @@ mod tests {
             "consumer-file diagnostic must survive:\n{:#?}",
             mapped.diagnostics
         );
+    }
+
+    #[test]
+    fn surfaces_a_syntax_error_in_an_external_package_shadow() {
+        // TypeScript reports no semantic diagnostic for a program that has a
+        // syntax error, so dropping one in a dependency's shadow as a "library
+        // internal" would leave the run looking clean.
+        let workspace = Path::new("/tmp/ws_ext_syntax");
+        let overlay = empty_layout(workspace);
+        let diags = [raw(
+            ".svelte-check/ext/1/src/lib/Dropdown.svelte.tsx",
+            "TS1005",
+            "',' expected.",
+        )];
+        let mapped = map_tsgo_diagnostics(&diags, &overlay, workspace);
+        assert_eq!(
+            mapped.diagnostics.len(),
+            1,
+            "a syntax error in an ext/<n> shadow must not be dropped:\n{:#?}",
+            mapped.diagnostics
+        );
+        assert_eq!(mapped.diagnostics[0].code.as_deref(), Some("TS1005"));
     }
 
     #[test]
