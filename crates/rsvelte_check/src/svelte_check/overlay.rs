@@ -941,7 +941,8 @@ pub fn materialize_overlay_with(
     // reach through a non-relative specifier (#1942).
     let mut alias_path_overrides = tsconfig_path
         .map(|tsconfig| {
-            let alias_prefixes = resolve_paths_alias_prefixes(tsconfig);
+            let mut alias_prefixes = resolve_paths_alias_prefixes(tsconfig);
+            alias_prefixes.extend(package_imports_alias_prefixes(tsconfig));
             compute_alias_path_overrides(&entries, &external, &module_bridges, &alias_prefixes)
         })
         .unwrap_or_default();
@@ -2840,6 +2841,60 @@ fn resolve_paths_alias_prefixes(tsconfig_path: &Path) -> Vec<(String, PathBuf)> 
         {
             out.push((prefix.to_string(), base.join(target)));
         }
+    }
+    out
+}
+
+/// The wildcard subpath imports (`"#lib/*": "./src/lib/*"`) of the package.json
+/// nearest to `tsconfig_path`, as `(prefix, absolute target dir)` pairs in the
+/// shape [`resolve_paths_alias_prefixes`] returns for `paths`.
+///
+/// A plain `.ts` file importing `#lib/Foo.svelte` is no more rewritable than one
+/// using a `paths` alias, and TypeScript's own `imports` resolution lands on the
+/// `.svelte` source with no declaration beside it. The exact `paths` entry that
+/// [`compute_alias_path_overrides`] derives from these prefixes redirects the
+/// specifier to the component's shadow instead.
+fn package_imports_alias_prefixes(tsconfig_path: &Path) -> Vec<(String, PathBuf)> {
+    let start = absolutize(tsconfig_path);
+    let Some(manifest_path) = start
+        .parent()
+        .into_iter()
+        .flat_map(Path::ancestors)
+        .map(|dir| dir.join("package.json"))
+        .find(|candidate| candidate.is_file())
+    else {
+        return Vec::new();
+    };
+    let Some(base) = manifest_path.parent() else {
+        return Vec::new();
+    };
+    let Some(imports) = fs::read_to_string(&manifest_path)
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .and_then(|manifest| manifest.get("imports").cloned())
+        .and_then(|imports| imports.as_object().cloned())
+    else {
+        return Vec::new();
+    };
+    // A target is a string, or a conditions object whose values nest.
+    fn target_string(value: &serde_json::Value) -> Option<&str> {
+        match value {
+            serde_json::Value::String(s) => Some(s),
+            serde_json::Value::Object(map) => ["svelte", "import", "default", "types"]
+                .iter()
+                .find_map(|condition| map.get(*condition).and_then(target_string)),
+            _ => None,
+        }
+    }
+    let mut out = Vec::new();
+    for (key, value) in &imports {
+        let Some(prefix) = key.strip_suffix("/*").filter(|p| p.starts_with('#')) else {
+            continue;
+        };
+        let Some(target) = target_string(value).and_then(|t| t.strip_suffix("/*")) else {
+            continue;
+        };
+        out.push((prefix.to_string(), base.join(target)));
     }
     out
 }
@@ -5713,6 +5768,44 @@ mod tests {
         let target = paths["$lib/Button.svelte"][0]
             .as_str()
             .unwrap_or_else(|| panic!("no exact override for $lib/Button.svelte:\n{paths}"));
+        assert!(
+            target.ends_with("Button.svelte.tsx"),
+            "override does not point at the shadow: {target}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn overlay_tsconfig_adds_exact_paths_override_for_a_package_imports_subpath() {
+        // A plain `.ts` file importing a component through a package.json
+        // `imports` subpath (`#lib/Button.svelte`) is never rewritten, so the
+        // overlay tsconfig's `paths` has to redirect that specifier to the shadow.
+        let tmp = std::env::temp_dir().join(format!("svc_imports_paths_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib")).unwrap();
+        fs::write(tmp.join("tsconfig.json"), "{\"compilerOptions\":{}}").unwrap();
+        fs::write(
+            tmp.join("package.json"),
+            "{\"name\":\"app\",\"imports\":{\"#lib/*\":{\"default\":\"./src/lib/*\"},\"#lib\":\"./src/lib/index.js\"}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/lib/Button.svelte"),
+            "<script lang=\"ts\">let { n }: { n: number } = $props();</script>\n<button>{n}</button>\n",
+        )
+        .unwrap();
+
+        let files = vec![tmp.join("src/lib/Button.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        let paths = &cfg["compilerOptions"]["paths"];
+        let target = paths["#lib/Button.svelte"][0]
+            .as_str()
+            .unwrap_or_else(|| panic!("no exact override for #lib/Button.svelte:\n{paths}"));
         assert!(
             target.ends_with("Button.svelte.tsx"),
             "override does not point at the shadow: {target}"
