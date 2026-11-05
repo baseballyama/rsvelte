@@ -1406,6 +1406,61 @@ fn emit_external_shadows(
     Ok(any_js_shadow)
 }
 
+/// Resolve `.` / `..` components without touching the filesystem.
+fn normalize_lexically(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::ParentDir => {
+                if !out.pop() {
+                    out.push("..");
+                }
+            }
+            Component::CurDir => {}
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+/// Re-point the relative imports of a mirrored file that climb out of the
+/// workspace.
+///
+/// A mirrored copy sits deeper than its source (`.svelte-check/svelte/…`), and
+/// TypeScript's `rootDirs` only pairs the two directories for specifiers that stay
+/// inside them. `'../../../../fixtures/day.json'` from `src/routes/x/+page.server.ts`
+/// climbs out of the workspace, so from the copy it lands in the wrong place and
+/// reports TS2307. Rewrite such a specifier to a relative path from the copy to
+/// the real file. Specifiers that stay inside the workspace are left to `rootDirs`.
+fn rewrite_relative_imports_leaving_workspace(
+    text: &str,
+    source: &Path,
+    out_path: &Path,
+    workspace: &Path,
+) -> String {
+    let (Some(source_dir), Some(out_dir)) = (source.parent(), out_path.parent()) else {
+        return text.to_string();
+    };
+    let source_dir = normalize_lexically(&absolutize(source_dir));
+    let out_dir = normalize_lexically(&absolutize(out_dir));
+    let workspace = normalize_lexically(&absolutize(workspace));
+    rewrite_module_specifiers(text, &|spec| {
+        if !spec.starts_with('.') {
+            return None;
+        }
+        let target = normalize_lexically(&source_dir.join(spec));
+        if target.starts_with(&workspace) {
+            return None;
+        }
+        let mut rewritten = lexical_relative_posix(&out_dir, &target);
+        if !rewritten.starts_with('.') {
+            rewritten = format!("./{rewritten}");
+        }
+        Some(rewritten)
+    })
+}
+
 fn materialize_kit_files(
     workspace: &Path,
     emit_dir: &Path,
@@ -1428,7 +1483,10 @@ fn materialize_kit_files(
         let Some(adds) = kit_file::build_added_code(&abs, &raw, settings) else {
             // Not a kit file we recognise (or nothing to augment) —
             // drop a verbatim copy so module resolution still works.
-            fs::write(&out_path, &raw)?;
+            fs::write(
+                &out_path,
+                rewrite_relative_imports_leaving_workspace(&raw, &abs, &out_path, workspace),
+            )?;
             out.push(KitOverlayEntry {
                 source_path: abs,
                 out_path,
@@ -1437,7 +1495,10 @@ fn materialize_kit_files(
             continue;
         };
         let augmented = kit_file::apply_added_code(&raw, &adds);
-        fs::write(&out_path, &augmented)?;
+        fs::write(
+            &out_path,
+            rewrite_relative_imports_leaving_workspace(&augmented, &abs, &out_path, workspace),
+        )?;
         out.push(KitOverlayEntry {
             source_path: abs,
             out_path,
@@ -5221,6 +5282,45 @@ mod tests {
             component_bridge.is_file(),
             "a component's own bridge must survive the sweep"
         );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn kit_file_relative_import_outside_the_workspace_is_repointed() {
+        let tmp = std::env::temp_dir().join(format!("svc_kit_escape_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("app/src/routes/x")).unwrap();
+        fs::create_dir_all(tmp.join("shared")).unwrap();
+        fs::write(tmp.join("shared/data.json"), "{\"n\":1}").unwrap();
+        let kit_file = tmp.join("app/src/routes/x/+page.server.ts");
+        fs::write(
+            &kit_file,
+            "import data from '../../../../shared/data.json';\nimport local from './local';\nexport const load = () => data;\n",
+        )
+        .unwrap();
+        fs::write(tmp.join("app/src/routes/x/local.ts"), "export default 1;\n").unwrap();
+
+        let workspace = tmp.join("app");
+        let emit_dir = workspace.join(".svelte-check/svelte");
+        fs::create_dir_all(&emit_dir).unwrap();
+        let entries = materialize_kit_files(
+            &workspace,
+            &emit_dir,
+            std::slice::from_ref(&kit_file),
+            &KitFilesSettings::default(),
+        )
+        .unwrap();
+        let copy = fs::read_to_string(&entries[0].out_path).unwrap();
+
+        // The source climbs four levels (`routes/x` → `app`'s parent); the copy
+        // sits two directories deeper, so it must climb six to reach the same file.
+        assert!(
+            copy.contains("from '../../../../../../shared/data.json'"),
+            "the import that leaves the workspace was not re-pointed:\n{copy}"
+        );
+        // An import that stays inside the workspace is left for `rootDirs`.
+        assert!(copy.contains("from './local'"), "{copy}");
 
         let _ = fs::remove_dir_all(&tmp);
     }
