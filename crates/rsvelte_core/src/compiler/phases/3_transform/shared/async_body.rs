@@ -2225,6 +2225,12 @@ fn is_labeled_statement(s: &str) -> bool {
 /// statement. `++` and `--` end an operand and do not continue anything.
 /// A trailing comment hides the operator and keeps the old behaviour.
 fn ends_with_continuation_operator(stmt_so_far: &str) -> bool {
+    // A comment on the last line can end in an operator character
+    // (`// note:`), which says nothing about the code before it.
+    let last_line = stmt_so_far.rsplit('\n').next().unwrap_or(stmt_so_far);
+    if last_line.contains("//") || last_line.contains("/*") || last_line.contains("*/") {
+        return false;
+    }
     let t = stmt_so_far.trim_end();
     if t.ends_with("=>") {
         return true;
@@ -3716,6 +3722,21 @@ mod tests {
             assert_eq!(parts.len(), 2, "{script:?} split into {parts:?}");
             assert_eq!(parts[0], first, "{script:?}");
             assert_eq!(parts[1], "const g = 1;");
+        }
+    }
+
+    #[test]
+    fn split_ignores_an_operator_character_ending_a_comment() {
+        for script in [
+            "const a = 1 // note:\nconst b = 2",
+            "const a = 1 /* then, */\nconst b = 2",
+            "const a = 1 // because?\n$.effect(() => 1)",
+        ] {
+            assert_eq!(
+                split_top_level_statements(script).len(),
+                2,
+                "{script:?} must still split"
+            );
         }
     }
 
