@@ -2146,6 +2146,7 @@ fn split_top_level_statements(script: &str) -> Vec<String> {
             && brace_depth == 0
             && paren_depth == 0
             && bracket_depth == 0
+            && !ends_with_continuation_operator(&script[stmt_start..i])
             && is_stmt_boundary_after(script, i + 1)
         {
             let stmt = script[stmt_start..i].trim().to_string();
@@ -2215,6 +2216,25 @@ fn is_labeled_statement(s: &str) -> bool {
     }
     let rest = s[end..].trim_start();
     rest.starts_with(':') && !rest.starts_with("::")
+}
+
+/// True when the statement text so far ends in a token that cannot end a
+/// statement (`=>`, `=`, `&&`, `||`, `??`, `?`, `:`, `,`, an arithmetic or
+/// bitwise operator), so a following line that happens to start with a
+/// statement keyword or `$.` is the rest of the expression, not a new
+/// statement. `++` and `--` end an operand and do not continue anything.
+/// A trailing comment hides the operator and keeps the old behaviour.
+fn ends_with_continuation_operator(stmt_so_far: &str) -> bool {
+    let t = stmt_so_far.trim_end();
+    if t.ends_with("=>") {
+        return true;
+    }
+    match t.as_bytes().last() {
+        Some(b'=' | b',' | b'?' | b':' | b'*' | b'%' | b'|' | b'&' | b'^') => true,
+        Some(b'+') => !t.ends_with("++"),
+        Some(b'-') => !t.ends_with("--"),
+        _ => false,
+    }
 }
 
 /// Check if the text after position `pos` starts a new statement keyword.
@@ -3663,6 +3683,57 @@ mod tests {
             "Should split $.effect and let into separate statements. Output: {}",
             result.output
         );
+    }
+
+    #[test]
+    fn split_keeps_a_continued_expression_together() {
+        // A line ending in `=>` or a binary operator continues onto the next line,
+        // even when that line starts with `$.` or a statement keyword.
+        for (script, first) in [
+            (
+                "const f = (x) =>\n\t$.get(a) && x;\nconst g = 1;",
+                "const f = (x) =>\n\t$.get(a) && x;",
+            ),
+            (
+                "const f = (x) =>\n\tawait x;\nconst g = 1;",
+                "const f = (x) =>\n\tawait x;",
+            ),
+            (
+                "const a = b ||\n\t$.get(c);\nconst g = 1;",
+                "const a = b ||\n\t$.get(c);",
+            ),
+            (
+                "const a = b ?\n\t$.get(c) : d;\nconst g = 1;",
+                "const a = b ?\n\t$.get(c) : d;",
+            ),
+            (
+                "const a = b,\n\tc = $.get(d);\nconst g = 1;",
+                "const a = b,\n\tc = $.get(d);",
+            ),
+            ("a =\n\t$.get(c);\nconst g = 1;", "a =\n\t$.get(c);"),
+        ] {
+            let parts = split_top_level_statements(script);
+            assert_eq!(parts.len(), 2, "{script:?} split into {parts:?}");
+            assert_eq!(parts[0], first, "{script:?}");
+            assert_eq!(parts[1], "const g = 1;");
+        }
+    }
+
+    #[test]
+    fn split_still_breaks_after_a_complete_statement_without_semicolon() {
+        // `++`/`--` end an operand, so the next line is a new statement.
+        for script in [
+            "x++\n$.effect(() => 1)",
+            "x--\n$.effect(() => 1)",
+            "$.foo(a)\n$.bar(b)",
+            "const a = 1\nconst b = 2",
+        ] {
+            assert_eq!(
+                split_top_level_statements(script).len(),
+                2,
+                "{script:?} must still split"
+            );
+        }
     }
 
     #[test]
