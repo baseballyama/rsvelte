@@ -171,7 +171,7 @@ importers:
         version: 3.0.3
       acorn:
         specifier: ^8.16.0
-        version: 8.18.0
+        version: 8.19.0
       esbuild:
         specifier: ^0.28.0
         version: 0.28.2
@@ -396,7 +396,7 @@ importers:
         version: 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.57.3)(vite@8.3.6(@types/node@24.19.2)(esbuild@0.28.2)(less@4.9.1)(sass@1.107.1)(yaml@2.9.0)))(svelte@5.57.3)(vite@8.3.6(@types/node@24.19.2)(esbuild@0.28.2)(less@4.9.1)(sass@1.107.1)(yaml@2.9.0))
       acorn:
         specifier: ^8.16.0
-        version: 8.18.0
+        version: 8.19.0
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
@@ -1344,8 +1344,8 @@ packages:
   '@vitest/spy@5.0.5':
     resolution: {integrity: sha512-lwJRExuH417257Q5wv9QYugN9IMJkoxcrKrYxGPQkBzl7wlNpTUxD/5yNX4ESKVUIShKPgkGchYPFMWOOk0wzw==}
 
-  acorn@8.18.0:
-    resolution: {integrity: sha512-lGq+9yr1/GuAWaVYIHRjvvySG5/4VfKIvC8EWxStPdcDh/Ka7FG3twP6v4d5BkravUilhIAsG4Qj83t02LWUPQ==}
+  acorn@8.19.0:
+    resolution: {integrity: sha512-oJlA3XiRm7Cyk6qFD2Jn8ak9B7jSy0qy00ADO3+8dpT0LSjFihQYv4C02LFCSYJV3Q37xYwwRy5m+IpIiUzqWw==}
     engines: {node: '>=0.4.0'}
     hasBin: true
 
@@ -2482,9 +2482,9 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
-  '@sveltejs/acorn-typescript@1.0.13(acorn@8.18.0)':
+  '@sveltejs/acorn-typescript@1.0.13(acorn@8.19.0)':
     dependencies:
-      acorn: 8.18.0
+      acorn: 8.19.0
 
   '@sveltejs/vite-plugin-svelte-inspector@5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.57.3)(vite@8.3.6(@types/node@24.19.2)(esbuild@0.28.2)(less@4.9.1)(sass@1.107.1)(yaml@2.9.0)))(svelte@5.57.3)(vite@8.3.6(@types/node@24.19.2)(esbuild@0.28.2)(less@4.9.1)(sass@1.107.1)(yaml@2.9.0))':
     dependencies:
@@ -2601,7 +2601,7 @@ snapshots:
 
   '@vitest/spy@5.0.5': {}
 
-  acorn@8.18.0: {}
+  acorn@8.19.0: {}
 
   argparse@1.0.10:
     dependencies:
@@ -3054,9 +3054,9 @@ snapshots:
     dependencies:
       '@jridgewell/remapping': 2.3.5
       '@jridgewell/sourcemap-codec': 1.6.0
-      '@sveltejs/acorn-typescript': 1.0.13(acorn@8.18.0)
+      '@sveltejs/acorn-typescript': 1.0.13(acorn@8.19.0)
       '@types/estree': 1.0.9
-      acorn: 8.18.0
+      acorn: 8.19.0
       aria-query: 5.3.1
       axobject-query: 4.1.0
       clsx: 2.1.1
