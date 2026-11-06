@@ -2,7 +2,7 @@
 name = "rsvelte_fmt"
 version = "0.7.25"
 edition = "2024"
-rust-version = "1.95"
+rust-version = "1.97"
 description = "Fast Svelte + JS/TS/CSS formatter — dispatches .svelte to rsvelte_formatter and other files to oxfmt"
 license = "MIT"
 publish = false
@@ -27,15 +27,15 @@ path = "src/bin/fmt_benchmark_runner.rs"
 [dependencies]
 rsvelte_formatter = { path = "../rsvelte_formatter" }
 tailwind_class_order = { path = "../tailwind_class_order" }
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "60fa13878c3808413268c462ddadbceaf71c38bb" }
-oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "60fa13878c3808413268c462ddadbceaf71c38bb" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
+oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
 # Static evaluation of `oxfmt.config.ts` / `.mts` (see src/ts_config.rs) — no
 # embedded JS runtime here, so the config is parsed and interpreted directly
 # instead of `import()`-ed like oxfmt's own NAPI build does.
-oxc_allocator = { git = "https://github.com/oxc-project/oxc", rev = "60fa13878c3808413268c462ddadbceaf71c38bb" }
-oxc_ast = { git = "https://github.com/oxc-project/oxc", rev = "60fa13878c3808413268c462ddadbceaf71c38bb" }
-oxc_parser = { git = "https://github.com/oxc-project/oxc", rev = "60fa13878c3808413268c462ddadbceaf71c38bb" }
-oxc_span = { git = "https://github.com/oxc-project/oxc", rev = "60fa13878c3808413268c462ddadbceaf71c38bb" }
+oxc_allocator = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
+oxc_ast = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
+oxc_parser = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
+oxc_span = { git = "https://github.com/oxc-project/oxc", rev = "f799f174b5db10f1fa9e136594e53de82d4f4f83" }
 clap = { version = "4.5", features = ["derive"] }
 walkdir = "2.5"
 rayon = "1.10"

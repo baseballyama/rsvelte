@@ -350,7 +350,7 @@ fn property_key_name<'a>(key: &PropertyKey<'a>) -> Option<String> {
         PropertyKey::StaticIdentifier(id) => Some(id.name.to_string()),
         PropertyKey::PrivateIdentifier(id) => Some(format!("#{}", id.name)),
         PropertyKey::NumericLiteral(lit) => Some(lit.raw.as_ref()?.to_string()),
-        PropertyKey::StringLiteral(lit) => Some(lit.value.to_string()),
+        PropertyKey::StringLiteral(lit) => Some(lit.value.display().to_string()),
         _ => None,
     }
 }

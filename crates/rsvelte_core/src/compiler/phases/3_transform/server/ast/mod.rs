@@ -370,7 +370,7 @@ impl<'a> ServerTransformState<'a> {
                 comment.span.start >= statement_end && comment.span.end <= trailing_end
             })
             .map(|comment| {
-                let mut comment = *comment;
+                let mut comment = comment.clone();
                 comment.span.start -= statement_end;
                 comment.span.end -= statement_end;
                 comment
@@ -408,7 +408,7 @@ impl<'a> ServerTransformState<'a> {
             .comments
             .iter()
             .map(|comment| {
-                let mut comment = *comment;
+                let mut comment = comment.clone();
                 comment.span = Span::new(comment.span.start + start, comment.span.end + start);
                 comment.attached_to = comment.span.end;
                 comment

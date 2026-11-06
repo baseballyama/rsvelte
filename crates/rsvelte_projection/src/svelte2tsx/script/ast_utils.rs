@@ -145,7 +145,7 @@ pub(super) fn declarator_has_boolean_init(declarator: &oxc::VariableDeclarator) 
 pub(super) fn property_key_to_string(key: &oxc::PropertyKey) -> Option<String> {
     match key {
         oxc::PropertyKey::StaticIdentifier(id) => Some(id.name.to_string()),
-        oxc::PropertyKey::StringLiteral(lit) => Some(lit.value.to_string()),
+        oxc::PropertyKey::StringLiteral(lit) => Some(lit.value.display().to_string()),
         oxc::PropertyKey::NumericLiteral(lit) => Some(lit.value.to_string()),
         _ => None,
     }
@@ -156,7 +156,7 @@ pub(super) fn module_export_name_to_string(name: &oxc::ModuleExportName) -> Stri
     match name {
         oxc::ModuleExportName::IdentifierName(id) => id.name.to_string(),
         oxc::ModuleExportName::IdentifierReference(id) => id.name.to_string(),
-        oxc::ModuleExportName::StringLiteral(lit) => lit.value.to_string(),
+        oxc::ModuleExportName::StringLiteral(lit) => lit.value.display().to_string(),
     }
 }
 

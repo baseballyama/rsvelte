@@ -479,7 +479,7 @@ impl EventDispatcherCollector<'_, '_> {
         {
             self.events.string_vars.push(StringVar {
                 name: name.to_owned(),
-                value: literal.value.to_string(),
+                value: literal.value.display().to_string(),
                 pos: self.content_offset + declarator.span.start,
             });
         }

@@ -181,6 +181,20 @@ const TABLE: &[EarlyError] = &[
     },
 ];
 
+/// acorn's wording for a nested `import`/`export` declaration when the
+/// diagnostic comes from OXC's parser rather than `SemanticBuilder`.
+///
+/// OXC moved this check into the parser, so `find_early_error`'s semantic run
+/// never sees it and the parser's wording would leak through untranslated. The
+/// parser labels the `import`/`export` keyword, which is where acorn stops, so
+/// only the wording needs translating. The parser skips this check for
+/// TypeScript sources, matching acorn-typescript.
+pub fn parser_top_level_declaration_wording(message: &str) -> Option<&'static str> {
+    message
+        .contains("declaration can only be used at the top level of a module")
+        .then_some("'import' and 'export' may only appear at the top level")
+}
+
 /// The earliest early error in `program`, as `(offset, acorn's message)`.
 ///
 /// Runs ONCE per script. It must not be reached from the per-expression parse

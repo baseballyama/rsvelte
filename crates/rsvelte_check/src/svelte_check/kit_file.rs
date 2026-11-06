@@ -238,24 +238,24 @@ fn extract_kit_files_from_object(obj: &oxc::ObjectExpression, settings: &mut Kit
         return;
     };
     if let Some(oxc::Expression::StringLiteral(s)) = lookup_property(files_obj, "params") {
-        settings.params_path = s.value.to_string();
+        settings.params_path = s.value.display().to_string();
     }
     if let Some(hooks_value) = lookup_property(files_obj, "hooks") {
         if let oxc::Expression::ObjectExpression(hooks_obj) = hooks_value {
             if let Some(oxc::Expression::StringLiteral(s)) = lookup_property(hooks_obj, "server") {
-                settings.server_hooks_path = s.value.to_string();
+                settings.server_hooks_path = s.value.display().to_string();
             }
             if let Some(oxc::Expression::StringLiteral(s)) = lookup_property(hooks_obj, "client") {
-                settings.client_hooks_path = s.value.to_string();
+                settings.client_hooks_path = s.value.display().to_string();
             }
             if let Some(oxc::Expression::StringLiteral(s)) = lookup_property(hooks_obj, "universal")
             {
-                settings.universal_hooks_path = s.value.to_string();
+                settings.universal_hooks_path = s.value.display().to_string();
             }
         } else if let oxc::Expression::StringLiteral(s) = hooks_value {
             // SvelteKit also accepts `kit.files.hooks` as a single string;
             // it then applies to the universal hooks path.
-            settings.universal_hooks_path = s.value.to_string();
+            settings.universal_hooks_path = s.value.display().to_string();
         }
     }
 }
@@ -270,7 +270,10 @@ pub(crate) fn lookup_property<'a>(
         };
         let prop_name = match &p.key {
             oxc::PropertyKey::StaticIdentifier(id) => id.name.as_str(),
-            oxc::PropertyKey::StringLiteral(s) => s.value.as_str(),
+            oxc::PropertyKey::StringLiteral(s) => match s.value.as_str() {
+                Some(v) => v,
+                None => continue,
+            },
             _ => continue,
         };
         if prop_name == name {

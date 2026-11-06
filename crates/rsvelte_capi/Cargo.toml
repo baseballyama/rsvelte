@@ -2,7 +2,7 @@
 name = "rsvelte_capi"
 version = "0.2.0"
 edition = "2024"
-rust-version = "1.95"
+rust-version = "1.97"
 description = "C ABI bindings for the rsvelte Svelte 5 compiler — drive the compiler from C, Go, Python, Ruby, PHP, Zig, Java (JDK 22+ FFM), or any language with a C FFI"
 license = "MIT"
 repository = "https://github.com/baseballyama/rsvelte"

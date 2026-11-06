@@ -1324,7 +1324,7 @@ fn signature_names(signatures: &[TSSignature]) -> Option<Vec<String>> {
         };
         let name = match key {
             PropertyKey::StaticIdentifier(id) if !computed => id.name.to_string(),
-            PropertyKey::StringLiteral(s) => s.value.to_string(),
+            PropertyKey::StringLiteral(s) => s.value.display().to_string(),
             PropertyKey::NumericLiteral(n) => n.value.to_string(),
             _ => return None,
         };

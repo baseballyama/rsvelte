@@ -2123,7 +2123,7 @@ fn build_attr_class<'a>(
     let (value_arg, css_hash_arg) = match (css_hash, &expression) {
         (Some(hash), OxcExpression::StringLiteral(lit)) => {
             // Fold the hash into the literal; leave css_hash undefined.
-            let folded = format!("{} {hash}", lit.value.as_str()).trim().to_string();
+            let folded = format!("{} {hash}", lit.value.display()).trim().to_string();
             (state.b.string(&folded), None)
         }
         (Some(hash), _) => (expression, Some(state.b.string(hash))),

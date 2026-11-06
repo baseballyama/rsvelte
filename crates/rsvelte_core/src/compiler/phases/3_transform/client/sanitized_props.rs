@@ -118,14 +118,14 @@ impl<'a> Visit<'a> for Collector {
     }
 
     fn visit_object_property(&mut self, it: &ObjectProperty<'a>) {
-        if it.shorthand && it.key.static_name().as_deref() == Some(NEEDLE) {
+        if it.shorthand && it.key.static_name().as_ref().and_then(|n| n.as_str()) == Some(NEEDLE) {
             self.edits.push((it.key.span().start, true));
         }
         oxc_ast_visit::walk::walk_object_property(self, it);
     }
 
     fn visit_binding_property(&mut self, it: &BindingProperty<'a>) {
-        if it.shorthand && it.key.static_name().as_deref() == Some(NEEDLE) {
+        if it.shorthand && it.key.static_name().as_ref().and_then(|n| n.as_str()) == Some(NEEDLE) {
             self.edits.push((it.key.span().start, true));
         }
         oxc_ast_visit::walk::walk_binding_property(self, it);

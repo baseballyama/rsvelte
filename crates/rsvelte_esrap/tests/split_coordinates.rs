@@ -91,7 +91,7 @@ impl<'a> Assembler<'a> {
         );
         self.source.push_str(text);
         self.source.push('\n');
-        self.comments.extend(program.comments.iter().copied());
+        self.comments.extend(program.comments.iter().cloned());
         self.loc_map.push(LocMapEntry {
             start: base,
             end: base + source_offset(text.len()),
@@ -113,7 +113,7 @@ impl<'a> Assembler<'a> {
         let program = self.parse(owned);
         self.source.push_str(text);
         self.source.push('\n');
-        self.comments.extend(program.comments.iter().copied());
+        self.comments.extend(program.comments.iter().cloned());
         self.loc_map.push(LocMapEntry {
             start: base,
             end: base + source_offset(text.len()),

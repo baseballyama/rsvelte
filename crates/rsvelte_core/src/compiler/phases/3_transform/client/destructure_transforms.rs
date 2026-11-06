@@ -1578,7 +1578,7 @@ pub(super) fn literal_key_value(source: &str) -> Option<String> {
         return None;
     };
     match &stmt.expression {
-        Expression::StringLiteral(lit) => Some(lit.value.to_string()),
+        Expression::StringLiteral(lit) => Some(lit.value.display().to_string()),
         Expression::NumericLiteral(lit) => Some(js_number_to_string(lit.value)),
         Expression::BooleanLiteral(lit) => Some(lit.value.to_string()),
         Expression::NullLiteral(_) => Some("null".to_string()),

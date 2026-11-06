@@ -1598,14 +1598,16 @@ fn module_specifier_sites(path: &Path, source: &str) -> Vec<(u32, String)> {
     struct Sites(Vec<(u32, String)>);
     impl Sites {
         fn literal(&mut self, lit: &oxc::StringLiteral<'_>) {
-            self.0.push((lit.span.start + 1, lit.value.to_string()));
+            self.0
+                .push((lit.span.start + 1, lit.value.display().to_string()));
         }
         fn argument(&mut self, expr: &oxc::Expression<'_>) {
             match expr {
                 oxc::Expression::StringLiteral(lit) => self.literal(lit),
                 oxc::Expression::TemplateLiteral(tpl) if tpl.expressions.is_empty() => {
                     if let Some(cooked) = tpl.quasis.first().and_then(|q| q.value.cooked) {
-                        self.0.push((tpl.span.start + 1, cooked.to_string()));
+                        self.0
+                            .push((tpl.span.start + 1, cooked.display().to_string()));
                     }
                 }
                 _ => {}
@@ -4005,9 +4007,15 @@ fn hijacked_import_spans(
     };
     for stmt in &parsed.program.body {
         match stmt {
-            oxc::Statement::ImportDeclaration(decl) => take(&decl.source.value, decl.span),
-            oxc::Statement::ExportFromDeclaration(decl) => take(&decl.source.value, decl.span),
-            oxc::Statement::ExportAllDeclaration(decl) => take(&decl.source.value, decl.span),
+            oxc::Statement::ImportDeclaration(decl) => {
+                take(decl.source.value.as_str().unwrap_or_default(), decl.span)
+            }
+            oxc::Statement::ExportFromDeclaration(decl) => {
+                take(decl.source.value.as_str().unwrap_or_default(), decl.span)
+            }
+            oxc::Statement::ExportAllDeclaration(decl) => {
+                take(decl.source.value.as_str().unwrap_or_default(), decl.span)
+            }
             _ => {}
         }
     }

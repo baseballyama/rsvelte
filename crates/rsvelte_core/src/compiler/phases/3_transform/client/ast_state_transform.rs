@@ -1754,7 +1754,9 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             return format!("'{}'", escape_js_string(id.name.as_str()));
         }
         match &prop.key {
-            PropertyKey::StringLiteral(s) => format!("'{}'", escape_js_string(s.value.as_str())),
+            PropertyKey::StringLiteral(s) => {
+                format!("'{}'", escape_js_string(&s.value.display().to_string()))
+            }
             PropertyKey::NumericLiteral(n) => format!("'{}'", js_number_to_string(n.value)),
             key => {
                 let span = key.span();

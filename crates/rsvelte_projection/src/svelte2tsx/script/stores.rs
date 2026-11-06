@@ -1079,7 +1079,7 @@ fn collect_import_store_names(import: &oxc::ImportDeclaration, context: &mut Sto
     }
 
     // Check if this is an import from 'svelte/store'
-    let is_svelte_store_import = import.source.value.as_str() == "svelte/store";
+    let is_svelte_store_import = import.source.value.as_str() == Some("svelte/store");
 
     if let Some(ref specifiers) = import.specifiers {
         for spec in specifiers {

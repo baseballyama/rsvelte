@@ -481,7 +481,7 @@ fn read_object(obj: &oxc::ObjectExpression) -> ConfigObject {
         };
         let name = match &p.key {
             oxc::PropertyKey::StaticIdentifier(id) => id.name.to_string(),
-            oxc::PropertyKey::StringLiteral(s) => s.value.to_string(),
+            oxc::PropertyKey::StringLiteral(s) => s.value.display().to_string(),
             _ => {
                 complete = false;
                 continue;
@@ -500,7 +500,7 @@ fn read_value(expr: &oxc::Expression) -> ConfigValue {
     match expr {
         oxc::Expression::BooleanLiteral(b) => ConfigValue::Bool(b.value),
         oxc::Expression::NumericLiteral(n) => ConfigValue::Number(n.value),
-        oxc::Expression::StringLiteral(s) => ConfigValue::Str(s.value.to_string()),
+        oxc::Expression::StringLiteral(s) => ConfigValue::Str(s.value.display().to_string()),
         oxc::Expression::NullLiteral(_) => ConfigValue::Null,
         oxc::Expression::ObjectExpression(o) => ConfigValue::Object(read_object(o)),
         oxc::Expression::ArrayExpression(_) => ConfigValue::Array,

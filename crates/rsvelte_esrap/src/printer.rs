@@ -5793,7 +5793,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if let Some(raw) = &s.raw {
             return raw.as_str().into();
         }
-        quote(s.value.as_str())
+        match s.value.as_str() {
+            Some(value) => quote(value),
+            // A lone-surrogate `JSStr` only arises from a parsed literal, which
+            // always keeps `raw`; synthesized values come from Rust `&str`.
+            None => unreachable!("synthesized string literal has no raw and a non-UTF-8 value"),
+        }
     }
 }
 
@@ -5908,7 +5913,10 @@ fn module_export_name_str<'a>(name: &'a ModuleExportName) -> &'a str {
     match name {
         ModuleExportName::IdentifierName(n) => n.name.as_str(),
         ModuleExportName::IdentifierReference(n) => n.name.as_str(),
-        ModuleExportName::StringLiteral(s) => s.value.as_str(),
+        ModuleExportName::StringLiteral(s) => s
+            .value
+            .as_str()
+            .expect("the parser rejects lone-surrogate module export names"),
     }
 }
 

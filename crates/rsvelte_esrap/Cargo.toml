@@ -2,7 +2,7 @@
 name = "rsvelte_esrap"
 version = "0.10.45"
 edition = "2024"
-rust-version = "1.95"
+rust-version = "1.97"
 description = "A Rust port of esrap — prints an oxc AST to JavaScript with esrap's exact layout"
 license = "MIT"
 repository = "https://github.com/baseballyama/rsvelte"
@@ -22,14 +22,14 @@ crate-type = ["rlib"]
 [dependencies]
 compact_str = "0.10"
 memchr = "2.7"
-oxc_allocator = "0.149"
-oxc_ast = "0.149"
-oxc_span = "0.149"
-oxc_syntax = "0.149"
+oxc_allocator = "0.157"
+oxc_ast = "0.157"
+oxc_span = "0.157"
+oxc_syntax = "0.157"
 
 [dev-dependencies]
-oxc_parser = "0.149"
-oxc_ast_visit = "0.149"
+oxc_parser = "0.157"
+oxc_ast_visit = "0.157"
 
 [lints]
 workspace = true

@@ -233,7 +233,7 @@ impl<'a, 'src> Visit<'a> for TraceCollector<'src> {
         if !it.computed
             && let Some(name) = it.key.static_name()
         {
-            self.parent_label = Some(name.to_string());
+            self.parent_label = Some(name.display().to_string());
         }
         walk::walk_object_property(self, it);
         self.parent_label = None;

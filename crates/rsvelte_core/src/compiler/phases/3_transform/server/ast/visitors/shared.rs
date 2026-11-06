@@ -89,7 +89,7 @@ fn fold_marker_into_first_push<'a>(
     let raw = format!("{marker}{}", quasi.value.raw);
     quasi.value.raw = b.str(&raw).into();
     if let Some(cooked) = quasi.value.cooked {
-        let cooked = format!("{marker}{cooked}");
+        let cooked = format!("{marker}{}", cooked.display());
         quasi.value.cooked = Some(b.str(&cooked).into());
     }
 

@@ -231,7 +231,13 @@ fn exports_property_assignment<'s, 'a>(
             if is_bare_identifier(&member.object, "exports") =>
         {
             match &member.expression {
-                oxc::Expression::StringLiteral(s) => Some(Ok((s.value.as_str(), &assign.right))),
+                oxc::Expression::StringLiteral(s) => Some(match s.value.as_str() {
+                    Some(key) => Ok((key, &assign.right)),
+                    None => Err(
+                        "a lone-surrogate `exports[<expr>]` key is not statically resolvable"
+                            .to_string(),
+                    ),
+                }),
                 _ => Some(Err(
                     "a dynamic `exports[<expr>] = ...` key is not statically resolvable; use a \
                      string-literal key or a full `module.exports = {...}`"
@@ -278,7 +284,7 @@ fn eval_expr<'s, 'a>(
         E::BooleanLiteral(b) => Ok(serde_json::Value::Bool(b.value)),
         E::NullLiteral(_) => Ok(serde_json::Value::Null),
         E::NumericLiteral(n) => number_value(n.value),
-        E::StringLiteral(s) => Ok(serde_json::Value::String(s.value.as_str().to_string())),
+        E::StringLiteral(s) => Ok(serde_json::Value::String(s.value.display().to_string())),
         E::TemplateLiteral(t) => template_value(t),
         E::ArrayExpression(arr) => {
             let mut out = Vec::with_capacity(arr.elements.len());
@@ -299,7 +305,7 @@ fn eval_expr<'s, 'a>(
                 if p.computed {
                     return Err("a computed object key is not statically resolvable".to_string());
                 }
-                let Some(key) = p.key.static_name() else {
+                let Some(key) = p.key.static_name().and_then(|k| k.into_cow_str()) else {
                     return Err("an object key is not statically resolvable".to_string());
                 };
                 map.insert(key.into_owned(), eval_expr(&p.value, locals, depth)?);
@@ -417,7 +423,7 @@ fn template_value(t: &oxc::TemplateLiteral) -> Result<serde_json::Value, String>
         let Some(cooked) = &quasi.value.cooked else {
             return Err("template literal has an invalid escape sequence".to_string());
         };
-        s.push_str(cooked.as_str());
+        s.push_str(&cooked.display().to_string());
     }
     Ok(serde_json::Value::String(s))
 }
