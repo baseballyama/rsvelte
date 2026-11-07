@@ -124,3 +124,168 @@ fn state_field_updates_still_become_update_calls() {
         "updates of a real private `$state` field must still be rewritten:\n{out}"
     );
 }
+
+fn compile_component(src: &str) -> String {
+    rsvelte_core::compile(
+        &format!("<script>\n{src}</script>\n"),
+        rsvelte_core::CompileOptions {
+            filename: Some("Desk.svelte".to_string()),
+            generate: GenerateMode::Client,
+            ..Default::default()
+        },
+    )
+    .expect("compile should succeed")
+    .js
+    .code
+}
+
+/// Every line of `expected` (the official compiler's output for the same
+/// input) appears, trimmed, as a line of `out`.
+fn assert_lines(out: &str, expected: &[&str], ctx: &str) {
+    let lines: Vec<&str> = out.lines().map(str::trim).collect();
+    for want in expected {
+        assert!(lines.contains(want), "{ctx}: missing `{want}` in:\n{out}");
+    }
+}
+
+fn assert_lines_both_entries(src: &str, expected: &[&str]) {
+    assert_lines(&compile(src, false), expected, "compileModule");
+    assert_lines(
+        &compile_component(&src.replacen("export ", "", 1)),
+        expected,
+        "component <script>",
+    );
+}
+
+#[test]
+fn update_text_in_strings_comments_and_templates_is_left_alone() {
+    assert_lines_both_entries(
+        "export class C {
+	#count = $state(0);
+	m() {
+		const a = '++this.#count';
+		const b = \"--this.#count\";
+		const c = `++this.#count ${this.#count}`;
+		// ++this.#count in a comment
+		/* --this.#count */
+		const d = 'this.#count++ this.#count--';
+		++this.#count;
+		return [a, b, c, d];
+	}
+}
+",
+        &[
+            "const a = '++this.#count';",
+            "const b = \"--this.#count\";",
+            "const c = `++this.#count ${$.get(this.#count)}`;",
+            "// ++this.#count in a comment",
+            "/* --this.#count */",
+            "const d = 'this.#count++ this.#count--';",
+            "$.update_pre(this.#count);",
+        ],
+    );
+}
+
+#[test]
+fn constructor_update_text_in_strings_and_comments_is_left_alone() {
+    assert_lines_both_entries(
+        "export class C {
+	#count = $state(0);
+	constructor(other) {
+		const s = '++other.#count --other.#count';
+		// ++other.#count
+		++other.#count;
+	}
+}
+",
+        &[
+            "const s = '++other.#count --other.#count';",
+            "// ++other.#count",
+            "$.update_pre(other.#count);",
+        ],
+    );
+}
+
+#[test]
+fn non_ascii_and_dollar_continue_the_private_name() {
+    assert_lines_both_entries(
+        "export class C {
+	#count = $state(0);
+	#countÉ = 0;
+	#count$ = 0;
+	m() {
+		++this.#countÉ;
+		--this.#countÉ;
+		++this.#count$;
+		return this.#countÉ + this.#count$;
+	}
+}
+",
+        &[
+            "++this.#countÉ;",
+            "--this.#countÉ;",
+            "++this.#count$;",
+            "return this.#countÉ + this.#count$;",
+        ],
+    );
+}
+
+#[test]
+fn prefix_update_of_a_member_updates_the_member() {
+    assert_lines_both_entries(
+        "export class C {
+	#n = $state({ v: 1 });
+	m() {
+		++this.#n.v;
+		--this.#n[0];
+	}
+}
+",
+        &["++$.get(this.#n).v;", "--$.get(this.#n)[0];"],
+    );
+}
+
+#[test]
+fn an_odd_operator_run_is_a_postfix_update_of_the_left_operand() {
+    assert_lines_both_entries(
+        "export class C {
+	#count = $state(0);
+	m(a) {
+		const x = a+++this.#count;
+		const y = a---this.#count;
+		return x + y;
+	}
+}
+",
+        &[
+            "const x = a++ + $.get(this.#count);",
+            "const y = a-- - $.get(this.#count);",
+        ],
+    );
+}
+
+#[test]
+fn derived_reads_in_strings_are_left_alone() {
+    assert_lines_both_entries(
+        "export class C {
+	#count = $state(0);
+	#countÉ = 1;
+	d = $derived(`this.#count ${this.#count}` + this.#countÉ + 'this.#count');
+}
+",
+        &[
+            "#d = $.derived(() => `this.#count ${$.get(this.#count)}` + this.#countÉ + 'this.#count');",
+        ],
+    );
+    assert_lines_both_entries(
+        "export class C {
+	#count = $state(0);
+	#countX = 0;
+	constructor() {
+		this.d = $derived(this.#countX + this.#count + '-this.#count');
+	}
+}
+",
+        &["this.#d = $.derived(() => this.#countX + $.get(this.#count) + '-this.#count');"],
+    );
+}
