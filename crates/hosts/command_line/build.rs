@@ -20,7 +20,14 @@ fn main() {
         _ => "UNMEASURED".to_owned(),
     };
     println!("cargo:rustc-env=RSV_BUILD_REV={rev}");
-    println!("cargo:rerun-if-changed=../../../crates");
+    // The tracked files, as `-dirty` sees them: watching the directory would make cargo scan every
+    // fixture's ignored output on each build.
+    if let Some(files) = git(&["ls-files", "--full-name", "../../../crates"]) {
+        let root = git(&["rev-parse", "--show-toplevel"]).unwrap_or_default();
+        for f in files.lines() {
+            println!("cargo:rerun-if-changed={root}/{f}");
+        }
+    }
     if let Some(head) = git(&["rev-parse", "--git-path", "HEAD"]) {
         println!("cargo:rerun-if-changed={head}");
     }
