@@ -49,10 +49,22 @@ enum Method {
 /// Returns transport errors, invalid requests, or transform failures.
 pub fn serve(
     diagnostic_source: &str,
+    transform: impl FnMut(&str, &str, &mut StructuredDataWriter) -> Result<(), String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    serve_on(
+        std::io::stdin().lock(),
+        std::io::stdout().lock(),
+        diagnostic_source,
+        transform,
+    )
+}
+
+fn serve_on(
+    mut input: impl BufRead,
+    mut output: impl Write,
+    diagnostic_source: &str,
     mut transform: impl FnMut(&str, &str, &mut StructuredDataWriter) -> Result<(), String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut input = std::io::stdin().lock();
-    let mut output = std::io::stdout().lock();
     let mut projects = HashSet::new();
     let mut initialized = false;
     while let Some(message) = read_message(&mut input)? {
@@ -60,20 +72,31 @@ pub fn serve(
         if request.jsonrpc != "2.0" {
             return Err("expected JSON-RPC 2.0".into());
         }
-        let mut response = StructuredDataWriter::new(false);
-        response
-            .begin_object()
-            .key("jsonrpc")
-            .write_string("2.0")
-            .key("id");
-        match request.id {
-            RequestId::Number(id) => {
-                response.write_number(id);
+        // A file that cannot be transformed fails alone; the session goes on for the others.
+        if let Method::Transform {
+            file_name,
+            content,
+            project_handle,
+        } = &request.method
+            && projects.contains(project_handle)
+        {
+            let mut response = response_to(&request.id);
+            response.key("result");
+            if let Err(message) = transform(file_name, content, &mut response) {
+                response = response_to(&request.id);
+                response
+                    .key("error")
+                    .begin_object()
+                    .key("code")
+                    .write_number(TRANSFORM_FAILED)
+                    .key("message")
+                    .write_string(&format!("{file_name}: {message}"))
+                    .end_object();
             }
-            RequestId::String(id) => {
-                response.write_string(&id);
-            }
+            send(&mut output, response)?;
+            continue;
         }
+        let mut response = response_to(&request.id);
         response.key("result");
         match request.method {
             Method::Initialize { position_encodings } => {
@@ -104,21 +127,35 @@ pub fn serve(
                 projects.remove(&project_handle);
                 response.null();
             }
-            Method::Transform {
-                file_name,
-                content,
-                project_handle,
-            } if projects.contains(&project_handle) => {
-                transform(&file_name, &content, &mut response)?;
-            }
             _ => return Err("invalid content mapper lifecycle".into()),
         }
-        response.end_object();
-        let body = response.finish();
-        write!(output, "Content-Length: {}\r\n\r\n{}", body.len(), body)?;
-        output.flush()?;
+        send(&mut output, response)?;
     }
     Ok(())
+}
+
+fn response_to(id: &RequestId) -> StructuredDataWriter {
+    let mut response = StructuredDataWriter::new(false);
+    response
+        .begin_object()
+        .key("jsonrpc")
+        .write_string("2.0")
+        .key("id");
+    match id {
+        RequestId::Number(id) => response.write_number(*id),
+        RequestId::String(id) => response.write_string(id),
+    };
+    response
+}
+
+/// JSON-RPC's code for an error inside the server.
+const TRANSFORM_FAILED: i32 = -32603;
+
+fn send(output: &mut impl Write, mut response: StructuredDataWriter) -> std::io::Result<()> {
+    response.end_object();
+    let body = response.finish();
+    write!(output, "Content-Length: {}\r\n\r\n{}", body.len(), body)?;
+    output.flush()
 }
 
 fn read_message(input: &mut impl BufRead) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
@@ -161,3 +198,6 @@ pub use mappings::write_mappings;
 
 mod precomputed;
 pub use precomputed::serve_precomputed;
+
+#[cfg(test)]
+mod tests;

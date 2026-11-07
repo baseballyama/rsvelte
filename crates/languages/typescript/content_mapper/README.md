@@ -5,7 +5,7 @@ It has no language parser and no type checker.
 
 | API                                   | Use                                                                        |
 | ------------------------------------- | -------------------------------------------------------------------------- |
-| `serve(diagnostic_source, transform)` | Serve JSON-RPC over stdin/stdout; the callback writes one transform result |
+| `serve(diagnostic_source, transform)` | Serve JSON-RPC over stdin/stdout; the callback writes one transform result, and its error answers only that request |
 | `write_mappings(mappings, output)`    | Write copied byte ranges as native verbatim span tuples                    |
 | `serve_precomputed()`                 | Serve saved projections without parsing their original inputs again        |
 
