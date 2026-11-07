@@ -1,16 +1,46 @@
-/// `f` over each item on every core, in the items' order.
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+/// `f` over each item on every core, in the items' order. Each thread takes the next item when it
+/// is free, so a few large items do not leave the other threads idle.
 pub(crate) fn map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> {
-    let threads = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
-    let f = &f;
+    let threads = std::thread::available_parallelism()
+        .map_or(1, std::num::NonZero::get)
+        .min(items.len());
+    let next = AtomicUsize::new(0);
+    let done = Mutex::new(Vec::with_capacity(items.len()));
     std::thread::scope(|scope| {
-        // Spawn every worker before joining any, or they run one after another.
-        let workers: Vec<_> = items
-            .chunks(items.len().div_ceil(threads).max(1))
-            .map(|chunk| scope.spawn(move || chunk.iter().map(f).collect::<Vec<_>>()))
-            .collect();
-        workers
-            .into_iter()
-            .flat_map(|w| w.join().unwrap_or_else(|p| std::panic::resume_unwind(p)))
-            .collect()
-    })
+        for _ in 0..threads {
+            scope.spawn(|| {
+                let mut mine = Vec::new();
+                loop {
+                    let i = next.fetch_add(1, Ordering::Relaxed);
+                    let Some(item) = items.get(i) else { break };
+                    mine.push((i, f(item)));
+                }
+                done.lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .extend(mine);
+            });
+        }
+    });
+    let mut done = done
+        .into_inner()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    done.sort_unstable_by_key(|(i, _)| *i);
+    done.into_iter().map(|(_, r)| r).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn keeps_the_order() {
+        let items: Vec<usize> = (0..1000).collect();
+        assert_eq!(
+            super::map(&items, |i| i * 2),
+            (0..1000).map(|i| i * 2).collect::<Vec<_>>()
+        );
+        let none: &[usize] = &[];
+        assert_eq!(super::map(none, |i| *i), Vec::<usize>::new());
+    }
 }

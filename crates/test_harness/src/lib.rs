@@ -346,10 +346,16 @@ impl Fixtures {
             threads: None,
         };
         let outcomes = Mutex::new(Vec::with_capacity(cases.len()));
+        let mut projects = Vec::new();
         let mut offset = 0;
         for project in cases
             .chunk_by(|a, b| !self.per_project || (a.kind == b.kind && a.project() == b.project()))
         {
+            projects.push((offset, project));
+            offset += project.len();
+        }
+        // Projects are independent; one at a time would leave cores idle while a small one runs.
+        let ran = parallel::map(&projects, |&(offset, project)| {
             let project_documents = &documents[offset..offset + project.len()];
             run_each(&self.registry, project_documents, &options, &|i, result| {
                 let outcome = snapshots::check(
@@ -365,9 +371,9 @@ impl Fixtures {
                     .expect("no check panics while holding the lock")
                     .push((offset + i, outcome));
             })
-            .map_err(|e| e.to_string())?;
-            offset += project.len();
-        }
+            .map_err(|e| e.to_string())
+        });
+        ran.into_iter().collect::<Result<(), String>>()?;
         let mut outcomes = outcomes.into_inner().map_err(|e| e.to_string())?;
         outcomes.sort_unstable_by_key(|(i, _)| *i);
         let mut total = Outcome::default();
