@@ -73,7 +73,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
 
       - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           key: glibc-floor
           save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -145,7 +145,7 @@ jobs:
       # Read-only reuse of the type-aware-lint workspace cache for ~/.cargo/git
       # (the oxc patch source); a miss only costs a fetch.
       - name: Restore cargo registry + git cache
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: crates/rsvelte_lint_types
           save-if: 'false'
@@ -170,7 +170,7 @@ jobs:
           components: clippy
 
       - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -319,7 +319,7 @@ jobs:
         timeout-minutes: 15
 
       - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -457,7 +457,7 @@ jobs:
         timeout-minutes: 15
 
       - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           # Share the `test` job's dependency cache (same lockfile, same default
           # features) so the oxc graph is restored, not rebuilt. Read-only: this
@@ -501,7 +501,7 @@ jobs:
           nextest: 'true'
 
       - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           # Share (read-only) the `test` job's warm dependency cache.
           shared-key: test
@@ -543,7 +543,7 @@ jobs:
           nextest: 'true'
 
       - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           # Share (read-only) the `test` job's warm dependency cache.
           shared-key: test
@@ -584,7 +584,7 @@ jobs:
           nextest: 'true'
 
       - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: oxc-formatter-probe
           save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -680,7 +680,7 @@ jobs:
           OXFMT_BIN: ${{ runner.temp }}/fmt-oracle/node_modules/.bin/oxfmt
 
       - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           # Share (read-only) the `test` job's warm dependency cache.
           shared-key: test
@@ -741,7 +741,7 @@ jobs:
           cache: 'true'
 
       - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: language-server
           save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -951,7 +951,7 @@ jobs:
         timeout-minutes: 15
 
       - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -1069,7 +1069,7 @@ jobs:
       - uses: ./.github/actions/setup-rust
 
       - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -1104,7 +1104,7 @@ jobs:
           cache-dependency-path: submodules/svelte/pnpm-lock.yaml
 
       - name: Cache cargo registry + target
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: vps-shim
           save-if: ${{ github.ref == 'refs/heads/main' }}

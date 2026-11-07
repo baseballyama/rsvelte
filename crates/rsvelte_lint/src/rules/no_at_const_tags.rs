@@ -71,7 +71,11 @@ impl Rule for NoAtConstTags {
             return;
         }
         // Upstream declares no `runes` condition and gates in `create()`.
-        if !crate::runes_mode::component_runes_mode(root, ctx.source()) {
+        if !crate::runes_mode::component_runes_mode(
+            ctx.config().svelte_features_runes(),
+            root,
+            ctx.source(),
+        ) {
             return;
         }
         tags.sort_unstable();

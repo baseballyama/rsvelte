@@ -242,7 +242,11 @@ impl Rule for PreferDerivedOverDerivedBy {
         let source = ctx.source();
         // The template pass is not runes-gated by the engine, and upstream's
         // `runes: [true, 'undetermined']` condition must still hold here.
-        if !crate::runes_mode::component_runes_mode(root, source) {
+        if !crate::runes_mode::component_runes_mode(
+            ctx.config().svelte_features_runes(),
+            root,
+            source,
+        ) {
             return;
         }
         let fragment = ctx.template_fragment_json();
