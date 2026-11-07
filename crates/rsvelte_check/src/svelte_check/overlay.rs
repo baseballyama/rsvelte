@@ -1424,6 +1424,139 @@ fn emit_external_shadows(
     Ok(any_js_shadow)
 }
 
+/// Port of svelte2tsx's `getExternalImportRewrite`: the prefix that makes a
+/// `../` specifier escaping `workspace` resolve from `generated_dir` to the
+/// file it names from `source_dir`. Inside the workspace `rootDirs` already
+/// pairs the copy with its source.
+fn external_import_prefix(
+    specifier: &str,
+    source_dir: &Path,
+    generated_dir: &Path,
+    workspace: &Path,
+) -> Option<String> {
+    let path_part = &specifier[..specifier.find(['?', '#']).unwrap_or(specifier.len())];
+    if !path_part.starts_with("../") {
+        return None;
+    }
+    let target = normalize_abs(&source_dir.join(path_part));
+    if target.starts_with(workspace) {
+        return None;
+    }
+    let rewritten = lexical_relative_posix(generated_dir, &target);
+    if rewritten == path_part {
+        return None;
+    }
+    // Upstream slices the rewrite to `path_part`'s length, which is garbage for
+    // a non-normalised specifier (`../a/../../x`); climbing back to the source
+    // directory first resolves to the same file and stays a pure insertion.
+    let prefix = match rewritten.strip_suffix(path_part) {
+        Some(prefix) => prefix.to_string(),
+        None => format!("{}/", lexical_relative_posix(generated_dir, source_dir)),
+    };
+    (!prefix.is_empty()).then_some(prefix)
+}
+
+/// Offset just inside the opening quote of every module specifier upstream's
+/// `rewriteExternalImportsInNode` visits, with the specifier's text: import /
+/// export declarations, `import()`, `require()` and `import('…')` types.
+fn module_specifier_sites(path: &Path, source: &str) -> Vec<(u32, String)> {
+    use oxc_ast_visit::{Visit, walk};
+
+    struct Sites(Vec<(u32, String)>);
+    impl Sites {
+        fn literal(&mut self, lit: &oxc::StringLiteral<'_>) {
+            self.0.push((lit.span.start + 1, lit.value.to_string()));
+        }
+        fn argument(&mut self, expr: &oxc::Expression<'_>) {
+            match expr {
+                oxc::Expression::StringLiteral(lit) => self.literal(lit),
+                oxc::Expression::TemplateLiteral(tpl) if tpl.expressions.is_empty() => {
+                    if let Some(cooked) = tpl.quasis.first().and_then(|q| q.value.cooked) {
+                        self.0.push((tpl.span.start + 1, cooked.to_string()));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    impl<'a> Visit<'a> for Sites {
+        fn visit_import_declaration(&mut self, it: &oxc::ImportDeclaration<'a>) {
+            self.literal(&it.source);
+            walk::walk_import_declaration(self, it);
+        }
+        fn visit_export_from_declaration(&mut self, it: &oxc::ExportFromDeclaration<'a>) {
+            self.literal(&it.source);
+            walk::walk_export_from_declaration(self, it);
+        }
+        fn visit_export_all_declaration(&mut self, it: &oxc::ExportAllDeclaration<'a>) {
+            self.literal(&it.source);
+            walk::walk_export_all_declaration(self, it);
+        }
+        fn visit_import_expression(&mut self, it: &oxc::ImportExpression<'a>) {
+            self.argument(&it.source);
+            walk::walk_import_expression(self, it);
+        }
+        fn visit_call_expression(&mut self, it: &oxc::CallExpression<'a>) {
+            if let oxc::Expression::Identifier(callee) = &it.callee
+                && callee.name == "require"
+                && let Some(first) = it.arguments.first().and_then(|a| a.as_expression())
+            {
+                self.argument(first);
+            }
+            walk::walk_call_expression(self, it);
+        }
+        fn visit_ts_import_type(&mut self, it: &oxc::TSImportType<'a>) {
+            self.literal(&it.source);
+            walk::walk_ts_import_type(self, it);
+        }
+    }
+
+    let source_type = if path.extension().is_some_and(|e| e == "ts") {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    };
+    let allocator = Allocator::default();
+    let parsed = OxcParser::new(&allocator, source, source_type).parse();
+    let mut sites = Sites(Vec::new());
+    sites.visit_program(&parsed.program);
+    sites.0
+}
+
+/// Port of svelte2tsx's `applyExternalImportRewritesToAddedCode`: a kit file's
+/// mirror copy sits deeper than its source, so a relative specifier that
+/// leaves the workspace gets a prefix inserted as one more `AddedCode`, which
+/// keeps the mapper's position remapping exact on the rest of the line.
+fn add_external_import_rewrites(
+    adds: &mut Vec<AddedCode>,
+    raw: &str,
+    source: &Path,
+    out_path: &Path,
+    workspace: &Path,
+) {
+    let (Some(source_dir), Some(out_dir)) = (source.parent(), out_path.parent()) else {
+        return;
+    };
+    let source_dir = absolutize(source_dir);
+    let out_dir = absolutize(out_dir);
+    let workspace = absolutize(workspace);
+    for (pos, specifier) in module_specifier_sites(source, raw) {
+        let Some(prefix) = external_import_prefix(&specifier, &source_dir, &out_dir, &workspace)
+        else {
+            continue;
+        };
+        // Upstream's `insertCode`: after every insertion at or before `pos`.
+        let at = adds.partition_point(|a| a.original_pos <= pos);
+        adds.insert(
+            at,
+            AddedCode {
+                original_pos: pos,
+                inserted: prefix,
+            },
+        );
+    }
+}
+
 fn materialize_kit_files(
     workspace: &Path,
     emit_dir: &Path,
@@ -1443,19 +1576,11 @@ fn materialize_kit_files(
             fs::create_dir_all(parent)?;
         }
         let raw = fs::read_to_string(&abs)?;
-        let Some(adds) = kit_file::build_added_code(&abs, &raw, settings) else {
-            // Not a kit file we recognise (or nothing to augment) —
-            // drop a verbatim copy so module resolution still works.
-            fs::write(&out_path, &raw)?;
-            out.push(KitOverlayEntry {
-                source_path: abs,
-                out_path,
-                added_code: Vec::new(),
-            });
-            continue;
-        };
-        let augmented = kit_file::apply_added_code(&raw, &adds);
-        fs::write(&out_path, &augmented)?;
+        // `None`: not a kit file we recognise (or nothing to augment) — still
+        // mirrored so module resolution works from the copy.
+        let mut adds = kit_file::build_added_code(&abs, &raw, settings).unwrap_or_default();
+        add_external_import_rewrites(&mut adds, &raw, &abs, &out_path, workspace);
+        fs::write(&out_path, kit_file::apply_added_code(&raw, &adds))?;
         out.push(KitOverlayEntry {
             source_path: abs,
             out_path,
@@ -5531,6 +5656,171 @@ mod tests {
             "a component's own bridge must survive the sweep"
         );
 
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn kit_file_relative_import_outside_the_workspace_is_repointed() {
+        let tmp = std::env::temp_dir().join(format!("svc_kit_escape_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("app/src/routes/x")).unwrap();
+        fs::create_dir_all(tmp.join("shared")).unwrap();
+        fs::write(tmp.join("shared/data.json"), "{\"n\":1}").unwrap();
+        let kit_file = tmp.join("app/src/routes/x/+page.server.ts");
+        fs::write(
+            &kit_file,
+            "import data from '../../../../shared/data.json';\nimport local from './local';\nexport const load = () => data;\n",
+        )
+        .unwrap();
+        fs::write(tmp.join("app/src/routes/x/local.ts"), "export default 1;\n").unwrap();
+
+        let workspace = tmp.join("app");
+        let emit_dir = workspace.join(".svelte-check/svelte");
+        fs::create_dir_all(&emit_dir).unwrap();
+        let entries = materialize_kit_files(
+            &workspace,
+            &emit_dir,
+            std::slice::from_ref(&kit_file),
+            &KitFilesSettings::default(),
+        )
+        .unwrap();
+        let copy = fs::read_to_string(&entries[0].out_path).unwrap();
+
+        // The source climbs four levels (`routes/x` → `app`'s parent); the copy
+        // sits two directories deeper, so it must climb six to reach the same file.
+        assert!(
+            copy.contains("from '../../../../../../shared/data.json'"),
+            "the import that leaves the workspace was not re-pointed:\n{copy}"
+        );
+        // An import that stays inside the workspace is left for `rootDirs`.
+        assert!(copy.contains("from './local'"), "{copy}");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    fn materialize_one_kit_file(tag: &str, name: &str, source: &str) -> (PathBuf, KitOverlayEntry) {
+        let tmp = std::env::temp_dir().join(format!("svc_kit_{tag}_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("app/src/routes/x")).unwrap();
+        let kit_file = tmp.join("app/src/routes/x").join(name);
+        fs::write(&kit_file, source).unwrap();
+        let workspace = tmp.join("app");
+        let emit_dir = workspace.join(".svelte-check/svelte");
+        fs::create_dir_all(&emit_dir).unwrap();
+        let mut entries = materialize_kit_files(
+            &workspace,
+            &emit_dir,
+            std::slice::from_ref(&kit_file),
+            &KitFilesSettings::default(),
+        )
+        .unwrap();
+        (tmp, entries.remove(0))
+    }
+
+    #[test]
+    fn kit_file_external_import_rewrite_visits_only_module_specifiers() {
+        let source = "import type { T } from '../../../../shared/t';\n\
+                      import '../../../../shared/side.css';\n\
+                      export * from '../../../../shared/all';\n\
+                      export { x } from '../../../../shared/named';\n\
+                      import raw from '../../../../shared/a.txt?raw';\n\
+                      type U = typeof import('../../../../shared/u');\n\
+                      const lazy = () => import('../../../../shared/lazy');\n\
+                      const tpl = () => import(`../../../../shared/tpl`);\n\
+                      // import x from '../../../../shared/line-comment';\n\
+                      /* import y from '../../../../shared/block-comment'; */\n\
+                      const s = \"from '../../../../shared/string'\";\n\
+                      const t = `import('../../../../shared/template')`;\n\
+                      declare module '../../../../shared/augment' { }\n\
+                      import inside from '../../lib/inside';\n\
+                      import dot from './../../../../shared/dot';\n";
+        let (tmp, entry) = materialize_one_kit_file("sites", "+page.ts", source);
+        let copy = fs::read_to_string(&entry.out_path).unwrap();
+        for rewritten in [
+            "from '../../../../../../shared/t'",
+            "import '../../../../../../shared/side.css'",
+            "export * from '../../../../../../shared/all'",
+            "from '../../../../../../shared/named'",
+            "from '../../../../../../shared/a.txt?raw'",
+            "import('../../../../../../shared/u')",
+            "import('../../../../../../shared/lazy')",
+            "import(`../../../../../../shared/tpl`)",
+        ] {
+            assert!(copy.contains(rewritten), "missing {rewritten}:\n{copy}");
+        }
+        // Comments, strings, template literals and module augmentations are not
+        // specifiers; `./`-led and in-workspace ones are upstream's `null`.
+        for kept in [
+            "// import x from '../../../../shared/line-comment';",
+            "/* import y from '../../../../shared/block-comment'; */",
+            "\"from '../../../../shared/string'\"",
+            "`import('../../../../shared/template')`",
+            "declare module '../../../../shared/augment'",
+            "from '../../lib/inside'",
+            "from './../../../../shared/dot'",
+        ] {
+            assert!(copy.contains(kept), "rewrote {kept}:\n{copy}");
+        }
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn kit_file_require_outside_the_workspace_is_repointed() {
+        let source = "const d = require('../../../../shared/d.cjs');\n";
+        let (tmp, entry) = materialize_one_kit_file("require", "+page.js", source);
+        let copy = fs::read_to_string(&entry.out_path).unwrap();
+        assert!(
+            copy.contains("require('../../../../../../shared/d.cjs')"),
+            "{copy}"
+        );
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn kit_file_diagnostic_after_a_repointed_import_keeps_its_column() {
+        use super::super::mapper::map_tsgo_diagnostics;
+        use super::super::tsgo::RawTsDiagnostic;
+
+        let source = "import d from '../../../../shared/d.json'; const n: number = 'x';\n\
+                      export const load = () => ({ n, d });\n";
+        let (tmp, entry) = materialize_one_kit_file("diagpos", "+page.ts", source);
+        let generated = fs::read_to_string(&entry.out_path).unwrap();
+        assert_ne!(
+            generated.lines().next(),
+            source.lines().next(),
+            "{generated}"
+        );
+
+        let gen_at = generated.find("'x'").unwrap();
+        let gen_line_start = generated[..gen_at].rfind('\n').map_or(0, |i| i + 1);
+        let workspace = tmp.join("app");
+        let overlay = OverlayLayout {
+            workspace: workspace.clone(),
+            cache_dir: workspace.join(".svelte-check"),
+            emit_dir: workspace.join(".svelte-check/svelte"),
+            overlay_tsconfig: workspace.join(".svelte-check/tsconfig.json"),
+            entries: Vec::new(),
+            kit_entries: vec![entry.clone()],
+            import_probes: Vec::new(),
+            withheld_js_modules: Vec::new(),
+            no_implicit_any: false,
+        };
+        let raw = [RawTsDiagnostic {
+            file: entry.out_path.clone(),
+            line: u32::try_from(generated[..gen_at].matches('\n').count()).unwrap() + 1,
+            column: u32::try_from(gen_at - gen_line_start).unwrap() + 1,
+            severity: "error".into(),
+            code: "TS2322".into(),
+            message: "Type 'string' is not assignable to type 'number'.".into(),
+        }];
+        let mapped = map_tsgo_diagnostics(&raw, &overlay, &workspace);
+        let range = mapped.diagnostics[0].range.as_ref().unwrap();
+        assert_eq!(
+            (range.start.line, range.start.column),
+            (1, u32::try_from(source.find("'x'").unwrap()).unwrap()),
+            "{:#?}",
+            mapped.diagnostics
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
