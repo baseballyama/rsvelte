@@ -985,6 +985,9 @@ pub fn materialize_overlay_with(
 /// `import { x } from '@scope/pkg/…'` resolves to the component's real module
 /// (its `<script module>` named exports + default) instead of the ambient
 /// `*.svelte` wildcard (default-only) — the #782 false "has no exported member".
+/// Records which package's real dir an `ext/<n>` mirror was emitted for.
+const EXT_MIRROR_OWNER_FILE: &str = ".package-dir";
+
 struct ExternalPackage {
     /// Canonical (symlink-resolved) source dir of the package.
     real_dir: PathBuf,
@@ -1327,6 +1330,7 @@ fn emit_external_shadows(
     // its `paths` describe a different project.
     let pkg_resolver =
         find_nearest_tsconfig(&pkg.real_dir).and_then(|c| build_svelte_import_resolver(Some(&c)));
+    claim_ext_mirror(&pkg.mirror_dir, &pkg.real_dir)?;
     let real_nm = pkg.real_dir.join("node_modules");
     let mirror_nm = pkg.mirror_dir.join("node_modules");
     if real_nm.is_dir() && !mirror_nm.exists() {
@@ -1415,9 +1419,28 @@ fn emit_external_shadows(
     Ok(any_js_shadow)
 }
 
+/// Empty `mirror_dir` unless it was last emitted for `real_dir`.
+///
+/// `ext/<n>` is numbered by discovery order, so a cached mirror can belong to
+/// another package once the set of packages changes. Its shadows would then sit
+/// ahead of the right ones in `rootDirs`, and its `node_modules` link would
+/// point at the other package's dependencies.
+fn claim_ext_mirror(mirror_dir: &Path, real_dir: &Path) -> std::io::Result<()> {
+    let owner_path = mirror_dir.join(EXT_MIRROR_OWNER_FILE);
+    let owner = real_dir.to_string_lossy();
+    if fs::read_to_string(&owner_path).ok().as_deref() == Some(owner.as_ref()) {
+        return Ok(());
+    }
+    // `remove_dir_all` removes a symlink itself rather than what it points at.
+    if fs::symlink_metadata(mirror_dir).is_ok() {
+        fs::remove_dir_all(mirror_dir)?;
+    }
+    fs::create_dir_all(mirror_dir)?;
+    fs::write(owner_path, owner.as_bytes())
+}
+
 /// Whether a relative import's target, as a path without its extension handled,
-/// is a plain source file or directory on disk (not a Svelte component or module,
-/// which the mirror carries a twin for).
+/// is a script file or directory on disk.
 fn names_plain_source(target: &Path) -> bool {
     const EXTENSIONS: [&str; 8] = ["ts", "tsx", "d.ts", "js", "jsx", "mts", "cts", "json"];
     if target.is_file() {
@@ -1450,9 +1473,10 @@ fn names_plain_source(target: &Path) -> bool {
 /// into one virtual directory. The first pooled directory holding a `src/workspace/host.ts`
 /// wins, which is another package's when two share a relative path, and which of
 /// them is first followed the filesystem's directory order, so the same tree
-/// type-checked differently on two machines. A specifier that names a plain file
-/// of the package is rewritten to reach it directly; Svelte components and
-/// modules keep resolving through the mirror's twins.
+/// type-checked differently on two machines. A specifier that names a script
+/// file of the package, `.svelte.ts` modules included (`./x.svelte.js` does not
+/// reach the mirror's `x.d.svelte.ts` bridge), is rewritten to reach it
+/// directly; `.svelte` components keep resolving through the mirror's shadows.
 fn rewrite_relative_imports_to_real_sources(
     text: &str,
     source: &Path,
@@ -1462,20 +1486,16 @@ fn rewrite_relative_imports_to_real_sources(
     let (Some(source_dir), Some(out_dir)) = (source.parent(), out_path.parent()) else {
         return text.to_string();
     };
-    let source_dir = normalize_lexically(&absolutize(source_dir));
-    let out_dir = normalize_lexically(&absolutize(out_dir));
-    let real_dir = normalize_lexically(&absolutize(real_dir));
+    let source_dir = absolutize(source_dir);
+    let out_dir = absolutize(out_dir);
+    let real_dir = absolutize(real_dir);
     rewrite_module_specifiers(text, &|spec| {
         if !spec.starts_with('.') || spec.ends_with(".svelte") {
             return None;
         }
-        let target = normalize_lexically(&source_dir.join(spec));
+        let target = normalize_abs(&source_dir.join(spec));
         // Outside the package is `rewrite_external_imports`' business.
-        if !target.starts_with(&real_dir) {
-            return None;
-        }
-        let name = target.file_name()?.to_string_lossy();
-        if name.contains(".svelte.") || !names_plain_source(&target) {
+        if !target.starts_with(&real_dir) || !names_plain_source(&target) {
             return None;
         }
         let mut rewritten = lexical_relative_posix(&out_dir, &target);
@@ -1484,24 +1504,6 @@ fn rewrite_relative_imports_to_real_sources(
         }
         Some(rewritten)
     })
-}
-
-/// Resolve `.` / `..` components without touching the filesystem.
-fn normalize_lexically(path: &Path) -> PathBuf {
-    use std::path::Component;
-    let mut out = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::ParentDir => {
-                if !out.pop() {
-                    out.push("..");
-                }
-            }
-            Component::CurDir => {}
-            other => out.push(other.as_os_str()),
-        }
-    }
-    out
 }
 
 fn materialize_kit_files(
@@ -3928,8 +3930,8 @@ fn rewrite_aliased_svelte_imports(
 }
 
 /// Scan `text` for `from "<spec>"` / `import("<spec>")` module specifiers and
-/// replace each one for which `decide` returns `Some(replacement)`. String
-/// literals and line comments are skipped so only real specifiers are touched.
+/// replace each one for which `decide` returns `Some(replacement)`. String and
+/// template literals and comments are skipped so only real specifiers are touched.
 /// (Same scanner shape as svelte2tsx's `rewrite_external_specifiers_in_text`.)
 fn rewrite_module_specifiers(text: &str, decide: &dyn Fn(&str) -> Option<String>) -> String {
     let bytes = text.as_bytes();
@@ -3965,6 +3967,17 @@ fn rewrite_module_specifiers(text: &str, decide: &dyn Fn(&str) -> Option<String>
             while i < len && bytes[i] != b'\n' {
                 i += 1;
             }
+            continue;
+        }
+        // An apostrophe in a block comment (`/** The chart's … */`) or a
+        // template literal would otherwise open a string that swallows the
+        // specifiers after it.
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            i = text[i + 2..].find("*/").map_or(len, |end| i + 2 + end + 2);
+            continue;
+        }
+        if b == b'`' {
+            i = skip_template_literal(bytes, i);
             continue;
         }
         if b == b'f' && i + 4 <= len && &bytes[i..i + 4] == b"from" {
@@ -4019,6 +4032,43 @@ fn rewrite_module_specifiers(text: &str, decide: &dyn Fn(&str) -> Option<String>
         out.push_str(&text[copied..]);
     }
     out
+}
+
+/// Index just past the template literal opening at `start`, nested `${…}`
+/// substitutions (and the strings and templates inside them) included.
+fn skip_template_literal(bytes: &[u8], start: usize) -> usize {
+    let len = bytes.len();
+    let mut i = start + 1;
+    while i < len {
+        match bytes[i] {
+            b'\\' => i += 2,
+            b'`' => return i + 1,
+            b'$' if bytes.get(i + 1) == Some(&b'{') => {
+                i += 2;
+                let mut depth = 1usize;
+                while i < len && depth > 0 {
+                    match bytes[i] {
+                        b'{' => depth += 1,
+                        b'}' => depth -= 1,
+                        b'`' => {
+                            i = skip_template_literal(bytes, i);
+                            continue;
+                        }
+                        q @ (b'\'' | b'"') => {
+                            i += 1;
+                            while i < len && bytes[i] != q {
+                                i += if bytes[i] == b'\\' { 2 } else { 1 };
+                            }
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+            }
+            _ => i += 1,
+        }
+    }
+    len
 }
 
 /// Lexical POSIX relative path from `from_dir` to `to_path` — no filesystem
@@ -6501,14 +6551,83 @@ mod tests {
             rewritten.contains(&format!("from '{up}/deep'")),
             "{rewritten}"
         );
-        // Components, Svelte modules, unknown files and bare specifiers are untouched.
-        assert!(rewritten.contains("from './Other.svelte'"), "{rewritten}");
+        // `./x.svelte.js` does not reach the mirror's `x.d.svelte.ts` bridge.
         assert!(
-            rewritten.contains("from './store.svelte.js'"),
+            rewritten.contains(&format!("from '{up}/store.svelte.js'")),
             "{rewritten}"
         );
+        // Components, unknown files and bare specifiers are untouched.
+        assert!(rewritten.contains("from './Other.svelte'"), "{rewritten}");
         assert!(rewritten.contains("from './missing'"), "{rewritten}");
         assert!(rewritten.contains("from 'pkg'"), "{rewritten}");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn rewrite_module_specifiers_reads_past_comments_and_templates() {
+        // One apostrophe in a block comment or a template literal used to open
+        // a string that ran over the specifier after it.
+        let src = "/** The chart's host. */\nimport { a } from './a';\nconst t = `it's ${`x`} '`;\nimport { b } from './b';\nconst c = /* from './no' */ 1;\nconst d = `from './no'`;\n";
+        let out = rewrite_module_specifiers(src, &|spec| {
+            spec.strip_prefix("./").map(|rest| format!("./real/{rest}"))
+        });
+        assert!(out.contains("from './real/a'"), "{out}");
+        assert!(out.contains("from './real/b'"), "{out}");
+        assert!(out.contains("/* from './no' */"), "{out}");
+        assert!(out.contains("`from './no'`"), "{out}");
+    }
+
+    #[test]
+    fn an_ext_mirror_left_by_another_package_is_cleared() {
+        let tmp = std::env::temp_dir().join(format!("svc_ext_owner_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let mirror = tmp.join("cache/ext/0");
+        let (a, b) = (tmp.join("pkgs/a"), tmp.join("pkgs/b"));
+        claim_ext_mirror(&mirror, &a).unwrap();
+        fs::write(mirror.join("Only.svelte.tsx"), "").unwrap();
+        // Re-claiming for the same package keeps what it emitted.
+        claim_ext_mirror(&mirror, &a).unwrap();
+        assert!(mirror.join("Only.svelte.tsx").is_file());
+        // A different package gets an empty mirror.
+        claim_ext_mirror(&mirror, &b).unwrap();
+        assert!(!mirror.join("Only.svelte.tsx").exists());
+        assert!(mirror.is_dir());
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn external_packages_are_numbered_in_path_order() {
+        let tmp = std::env::temp_dir().join(format!("svc_ext_order_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let ws = tmp.join("ws");
+        fs::create_dir_all(ws.join("node_modules/@s")).unwrap();
+        let names = ["zeta", "alpha", "@s/mid", "beta"];
+        for name in names {
+            let real = tmp.join("pkgs").join(name.replace('/', "_"));
+            fs::create_dir_all(&real).unwrap();
+            fs::write(real.join("C.svelte"), "<p />").unwrap();
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(&real, ws.join("node_modules").join(name)).unwrap();
+            #[cfg(windows)]
+            std::os::windows::fs::symlink_dir(&real, ws.join("node_modules").join(name)).unwrap();
+        }
+        let found = discover_external_svelte_packages(&ws, &ws.join(".svelte-check"), None);
+        let order: Vec<String> = found
+            .iter()
+            .map(|p| {
+                p.real_dir
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        assert_eq!(order, ["@s_mid", "alpha", "beta", "zeta"]);
+        for (n, pkg) in found.iter().enumerate() {
+            assert!(pkg.mirror_dir.ends_with(format!("ext/{n}")));
+        }
 
         let _ = fs::remove_dir_all(&tmp);
     }
