@@ -230,7 +230,7 @@ jobs:
           pnpm --filter svelte2tsx build
 
       - name: Cache cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           # The release NAPI build compiles oxc from a git rev — ~15 min cold.
           # rust-cache skips saving on a failed job by default, so a single
@@ -400,7 +400,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Cache cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -479,7 +479,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Cache cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -512,7 +512,7 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
 
       - name: Cache cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -634,7 +634,7 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
 
       - name: Cache cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: check-parity
           save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -689,7 +689,7 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
 
       - name: Cache cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -787,7 +787,7 @@ jobs:
           pnpm install --frozen-lockfile
 
       - name: Cache cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -875,7 +875,7 @@ jobs:
           node scripts/compat-lsp/pin-official-svelte.mjs
 
       - name: Cache cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: lsp-corpus
           cache-on-failure: true
@@ -955,7 +955,7 @@ jobs:
           node scripts/compat-lsp/pin-official-svelte.mjs
 
       - name: Cache cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: lsp-corpus
           cache-on-failure: true
