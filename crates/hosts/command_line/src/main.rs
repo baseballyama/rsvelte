@@ -135,6 +135,8 @@ fn main() -> ExitCode {
             "--svelte" => Some(&mut svelte),
             "--vue" => Some(&mut vue),
             "--tsconfig" => Some(&mut tsconfig),
+            // Taken as a directory, a mistyped option would only find no units.
+            _ if a.starts_with("--") => return usage(&format!("unknown option {a}")),
             _ => {
                 positional.push(a.as_str());
                 continue;

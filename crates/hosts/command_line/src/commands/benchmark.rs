@@ -161,7 +161,10 @@ pub(crate) fn benchmark(
     tasks: &[&str],
     options: &Options,
 ) -> ExitCode {
-    let (docs, _, skipped) = crate::load(reg, &[root]);
+    let (docs, _, skipped) = match crate::load(reg, &[root]) {
+        Ok(loaded) => loaded,
+        Err(error) => return crate::usage(&error),
+    };
     if docs.is_empty() {
         eprintln!("rsvelte benchmark: no units below {}", root.display());
         return ExitCode::FAILURE;

@@ -10,13 +10,17 @@ use crate::usage;
 pub(crate) fn corpus(reg: &Registry, roots: &[&Path], tasks: &[&str]) -> ExitCode {
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering::Relaxed;
-    let (docs, dirs, skipped) = load(reg, roots);
+    let (docs, dirs, skipped) = match load(reg, roots) {
+        Ok(loaded) => loaded,
+        Err(error) => return usage(&error),
+    };
     let options = RunOptions {
         tasks,
         sharing: Sharing::Shared,
         threads: None,
     };
-    let (panics, files, failed) = (
+    let (panics, files, failed, unwritten) = (
+        AtomicUsize::new(0),
         AtomicUsize::new(0),
         AtomicUsize::new(0),
         AtomicUsize::new(0),
@@ -35,24 +39,33 @@ pub(crate) fn corpus(reg: &Registry, roots: &[&Path], tasks: &[&str]) -> ExitCod
                 return;
             }
             let mut f = 0;
-            files.fetch_add(write_outputs(&docs[i], &actual, &result, &mut f), Relaxed);
+            match write_outputs(&docs[i], &actual, &result, &mut f) {
+                Ok(written) => {
+                    files.fetch_add(written, Relaxed);
+                }
+                Err(error) => {
+                    unwritten.fetch_add(1, Relaxed);
+                    eprintln!("cannot write: {error}");
+                }
+            }
             failed.fetch_add(f, Relaxed);
         });
     if let Err(e) = ran {
         return usage(&e.to_string());
     }
     let elapsed = started.elapsed();
-    let panics = panics.into_inner();
+    let (panics, unwritten) = (panics.into_inner(), unwritten.into_inner());
     eprintln!(
         "{} units ({skipped} unreadable or too large), {} files written, {} task(s) with \
-         diagnostics, {panics} panic(s), {:.1} ms including writing",
+         diagnostics, {panics} panic(s), {unwritten} unit(s) not written, {:.1} ms including \
+         writing",
         docs.len(),
         files.into_inner(),
         failed.into_inner(),
         elapsed.as_secs_f64() * 1e3
     );
     report_metrics();
-    if panics > 0 {
+    if panics > 0 || unwritten > 0 {
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS

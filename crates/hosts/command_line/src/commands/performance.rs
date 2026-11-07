@@ -56,7 +56,10 @@ pub(crate) fn performance(
     options: &Options,
 ) -> ExitCode {
     let roots: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
-    let (docs, _, skipped) = crate::load(reg, &roots);
+    let (docs, _, skipped) = match crate::load(reg, &roots) {
+        Ok(loaded) => loaded,
+        Err(error) => return crate::usage(&error),
+    };
     if docs.is_empty() {
         eprintln!("rsvelte performance: no units below the given directories");
         return ExitCode::FAILURE;

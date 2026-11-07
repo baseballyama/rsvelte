@@ -120,8 +120,17 @@ pub(crate) fn depth_in_corpus(dir: &Path) -> Option<usize> {
 
 /// Every readable, size-checked unit below `roots`, with its unit directory and the number
 /// of units that could not be loaded.
-#[must_use]
-pub(crate) fn load(reg: &Registry, roots: &[&Path]) -> (Vec<Document>, Vec<PathBuf>, usize) {
+///
+/// # Errors
+///
+/// A root that is not a directory: its walk would find no units and look like an empty corpus.
+pub(crate) fn load(
+    reg: &Registry,
+    roots: &[&Path],
+) -> Result<(Vec<Document>, Vec<PathBuf>, usize), String> {
+    if let Some(root) = roots.iter().find(|root| !root.is_dir()) {
+        return Err(format!("{}: not a directory", root.display()));
+    }
     let mut docs = Vec::new();
     let mut dirs = Vec::new();
     let mut skipped = 0usize;
@@ -138,5 +147,5 @@ pub(crate) fn load(reg: &Registry, roots: &[&Path]) -> (Vec<Document>, Vec<PathB
             Err(_) => skipped += 1,
         }
     }
-    (docs, dirs, skipped)
+    Ok((docs, dirs, skipped))
 }
