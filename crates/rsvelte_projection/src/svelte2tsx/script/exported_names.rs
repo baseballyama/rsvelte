@@ -115,13 +115,6 @@ pub struct ExportedNames {
     /// force-inside-render, because the hoisted declaration is still in scope
     /// when the synthesised type is read.
     pub hoistable_instance_type_names: HashSet<String>,
-    /// Absolute source range of the inline type argument in `$props<{ ... }>()`.
-    /// When set, the type arg is moved to `scriptStart` (like other hoistable types)
-    /// with `\ntype $$ComponentProps = ` prepended and `;` appended.
-    /// The original position gets `/*Ωignore_startΩ*/ $$ComponentProps /*Ωignore_endΩ*/`
-    /// inserted via `append_right`.
-    /// Mirrors upstream's `analyze$propsRune` → `moveHoistableInterfaces` for `$$ComponentProps`.
-    pub props_type_arg_hoist: Option<(u32, u32)>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -135,7 +128,6 @@ impl ExportedNamesFlags {
     const HAS_SLOTS_TYPE: u16 = 1 << 4;
     const HAS_EVENTS_TYPE: u16 = 1 << 5;
     const TYPE_ALREADY_INSERTED: u16 = 1 << 6;
-    const PROPS_TYPE_ARG_HOIST_TS: u16 = 1 << 7;
     const TEMPLATE_RUNES: u16 = 1 << 8;
 
     const fn contains(self, flag: u16) -> bool {
@@ -354,7 +346,6 @@ impl ExportedNames {
             module_import_names: HashSet::new(),
             module_type_names: HashSet::new(),
             hoistable_instance_type_names: HashSet::new(),
-            props_type_arg_hoist: None,
             instance_script_loose_dollar_names: HashSet::new(),
         }
     }
@@ -483,15 +474,6 @@ impl ExportedNames {
     pub const fn set_type_already_inserted(&mut self, value: bool) {
         self.flags
             .set(ExportedNamesFlags::TYPE_ALREADY_INSERTED, value);
-    }
-    #[must_use]
-    pub const fn props_type_arg_hoist_ts(&self) -> bool {
-        self.flags
-            .contains(ExportedNamesFlags::PROPS_TYPE_ARG_HOIST_TS)
-    }
-    pub const fn set_props_type_arg_hoist_ts(&mut self, value: bool) {
-        self.flags
-            .set(ExportedNamesFlags::PROPS_TYPE_ARG_HOIST_TS, value);
     }
     #[must_use]
     pub const fn is_runes_mode(&self) -> bool {
@@ -692,9 +674,7 @@ impl ExportedNames {
     }
 
     fn create_runes_props_str(&self, is_ts: bool) -> String {
-        if self.props_type_arg_hoist_ts()
-            || (self.has_component_props_typedef() && self.props_type_text.is_some())
-        {
+        if self.has_component_props_typedef() && self.props_type_text.is_some() {
             return "{} as any as $$ComponentProps".to_string();
         }
         if self.has_component_props_typedef() {

@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-09-06T17:50:07.374488+00:00",
-  "commit_sha": "7bc0a70fe64d",
+  "generated_at": "2026-11-03T06:12:34.114352+00:00",
+  "commit_sha": "23bb146306ff",
   "summary": {
-    "total": 3711,
-    "passed": 3631,
+    "total": 3779,
+    "passed": 3697,
     "failed": 0,
-    "skipped": 80,
+    "skipped": 82,
     "percentage": 100
   },
   "categories": [
@@ -619,8 +619,8 @@
     {
       "id": "css",
       "name": "CSS",
-      "total": 183,
-      "passed": 183,
+      "total": 184,
+      "passed": 184,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -807,6 +807,10 @@
         },
         {
           "name": "siblings-combinator-nested-slots-flattened",
+          "status": "pass"
+        },
+        {
+          "name": "global-head-only",
           "status": "pass"
         },
         {
@@ -1362,8 +1366,8 @@
     {
       "id": "validator",
       "name": "Validator",
-      "total": 335,
-      "passed": 334,
+      "total": 337,
+      "passed": 336,
       "failed": 0,
       "skipped": 1,
       "percentage": 100,
@@ -1750,6 +1754,10 @@
           "status": "pass"
         },
         {
+          "name": "a11y-fallback-roles",
+          "status": "pass"
+        },
+        {
           "name": "dollar-global-in-script",
           "status": "pass"
         },
@@ -1899,6 +1907,10 @@
         },
         {
           "name": "a11y-media-has-caption",
+          "status": "pass"
+        },
+        {
+          "name": "declaration-tag-snippet-parameter",
           "status": "pass"
         },
         {
@@ -2714,8 +2726,8 @@
     {
       "id": "compiler-errors",
       "name": "Compiler Errors",
-      "total": 146,
-      "passed": 146,
+      "total": 150,
+      "passed": 150,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -2797,7 +2809,15 @@
           "status": "pass"
         },
         {
+          "name": "if-block-else-before-else-if",
+          "status": "pass"
+        },
+        {
           "name": "export-default-state-indirect",
+          "status": "pass"
+        },
+        {
+          "name": "each-block-duplicate-else",
           "status": "pass"
         },
         {
@@ -2970,6 +2990,10 @@
         },
         {
           "name": "component-slot-nested-error-3",
+          "status": "pass"
+        },
+        {
+          "name": "let-directive-children-snippet-expression",
           "status": "pass"
         },
         {
@@ -3217,6 +3241,10 @@
           "status": "pass"
         },
         {
+          "name": "let-directive-children-snippet",
+          "status": "pass"
+        },
+        {
           "name": "effect-active-rune",
           "status": "pass"
         },
@@ -3309,12 +3337,16 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 1046,
-      "passed": 1046,
+      "total": 1096,
+      "passed": 1096,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
       "tests": [
+        {
+          "name": "async-source-only-overlap",
+          "status": "pass"
+        },
         {
           "name": "directives",
           "status": "pass"
@@ -3337,6 +3369,10 @@
         },
         {
           "name": "snippet-prop-explicit",
+          "status": "pass"
+        },
+        {
+          "name": "async-derived-log-outside-reactivity-2",
           "status": "pass"
         },
         {
@@ -3456,6 +3492,10 @@
           "status": "pass"
         },
         {
+          "name": "async-write-equals-visible-value",
+          "status": "pass"
+        },
+        {
           "name": "store-assignments",
           "status": "pass"
         },
@@ -3548,6 +3588,10 @@
           "status": "pass"
         },
         {
+          "name": "async-derived-equal-real-value-hidden",
+          "status": "pass"
+        },
+        {
           "name": "effect-order-7",
           "status": "pass"
         },
@@ -3561,6 +3605,10 @@
         },
         {
           "name": "transition-evaluation",
+          "status": "pass"
+        },
+        {
+          "name": "async-template-expression-entangle",
           "status": "pass"
         },
         {
@@ -3620,6 +3668,10 @@
           "status": "pass"
         },
         {
+          "name": "async-hydration-attribute-unchanged",
+          "status": "pass"
+        },
+        {
           "name": "store-directive",
           "status": "pass"
         },
@@ -3661,6 +3713,10 @@
         },
         {
           "name": "event-attribute-delegation-3",
+          "status": "pass"
+        },
+        {
+          "name": "async-fork-commit-superseded-effect",
           "status": "pass"
         },
         {
@@ -3852,6 +3908,10 @@
           "status": "pass"
         },
         {
+          "name": "async-fork-discard-revalidation",
+          "status": "pass"
+        },
+        {
           "name": "async-store-sub-blocker",
           "status": "pass"
         },
@@ -3877,6 +3937,10 @@
         },
         {
           "name": "runes-in-module-context",
+          "status": "pass"
+        },
+        {
+          "name": "async-commit-stale-reader-dropped-dep",
           "status": "pass"
         },
         {
@@ -3913,6 +3977,10 @@
         },
         {
           "name": "async-state-new-branch-1",
+          "status": "pass"
+        },
+        {
+          "name": "async-fork-discard-after-in-check",
           "status": "pass"
         },
         {
@@ -3984,6 +4052,10 @@
           "status": "pass"
         },
         {
+          "name": "async-eager-effect-loop",
+          "status": "pass"
+        },
+        {
           "name": "derived-unowned-5",
           "status": "pass"
         },
@@ -4049,6 +4121,10 @@
         },
         {
           "name": "form-default-checked-radio-spread",
+          "status": "pass"
+        },
+        {
+          "name": "async-merge-blocking-pending",
           "status": "pass"
         },
         {
@@ -4272,6 +4348,10 @@
           "status": "pass"
         },
         {
+          "name": "async-write-equals-real-value",
+          "status": "pass"
+        },
+        {
           "name": "binding-property-non-reactive-ignored",
           "status": "pass"
         },
@@ -4488,6 +4568,14 @@
           "status": "pass"
         },
         {
+          "name": "async-commit-stale-reader-unchanged",
+          "status": "pass"
+        },
+        {
+          "name": "async-state-read-new-dependency",
+          "status": "pass"
+        },
+        {
           "name": "mutation-local",
           "status": "pass"
         },
@@ -4628,6 +4716,10 @@
           "status": "pass"
         },
         {
+          "name": "each-fallback-outer-scope",
+          "status": "pass"
+        },
+        {
           "name": "derived-dep-set-while-rendering",
           "status": "pass"
         },
@@ -4701,6 +4793,10 @@
         },
         {
           "name": "untrack-own-deriveds",
+          "status": "pass"
+        },
+        {
+          "name": "state-eager-declaration",
           "status": "pass"
         },
         {
@@ -4852,6 +4948,10 @@
           "status": "pass"
         },
         {
+          "name": "hydration-custom-element-error-boundary",
+          "status": "pass"
+        },
+        {
           "name": "snippet-optional-arguments-defaults",
           "status": "pass"
         },
@@ -4889,6 +4989,10 @@
         },
         {
           "name": "class-state-init-eager-3",
+          "status": "pass"
+        },
+        {
+          "name": "async-fork-no-rerun",
           "status": "pass"
         },
         {
@@ -5092,6 +5196,10 @@
           "status": "pass"
         },
         {
+          "name": "error-boundary-29",
+          "status": "pass"
+        },
+        {
           "name": "async-each-await-stale-rows",
           "status": "pass"
         },
@@ -5109,6 +5217,10 @@
         },
         {
           "name": "invalid-html-ssr-ancestor",
+          "status": "pass"
+        },
+        {
+          "name": "async-destroyed-before-blockers-settle",
           "status": "pass"
         },
         {
@@ -5176,6 +5288,10 @@
           "status": "pass"
         },
         {
+          "name": "deferred-outro-restored",
+          "status": "pass"
+        },
+        {
           "name": "snippets-as-slots",
           "status": "pass"
         },
@@ -5229,6 +5345,10 @@
         },
         {
           "name": "derived-in-expression",
+          "status": "pass"
+        },
+        {
+          "name": "async-derived-deferred-clean",
           "status": "pass"
         },
         {
@@ -5308,7 +5428,15 @@
           "status": "pass"
         },
         {
+          "name": "async-event-handler-blockers",
+          "status": "pass"
+        },
+        {
           "name": "error-recovery",
+          "status": "pass"
+        },
+        {
+          "name": "async-fork-nested-branch-static",
           "status": "pass"
         },
         {
@@ -5449,6 +5577,10 @@
         },
         {
           "name": "before-update-in-legacy-child",
+          "status": "pass"
+        },
+        {
+          "name": "async-template-expression-equality-cut",
           "status": "pass"
         },
         {
@@ -5772,6 +5904,10 @@
           "status": "pass"
         },
         {
+          "name": "async-stale-read-many-sources",
+          "status": "pass"
+        },
+        {
           "name": "class-state-constructor-subclass",
           "status": "pass"
         },
@@ -5888,11 +6024,19 @@
           "status": "pass"
         },
         {
+          "name": "async-commit-effect-overlap",
+          "status": "pass"
+        },
+        {
           "name": "async-derived-reverse-order",
           "status": "pass"
         },
         {
           "name": "async-stale-derived-8",
+          "status": "pass"
+        },
+        {
+          "name": "async-state-eager-not-connected",
           "status": "pass"
         },
         {
@@ -6204,11 +6348,19 @@
           "status": "pass"
         },
         {
+          "name": "async-state-new-branch-5",
+          "status": "pass"
+        },
+        {
           "name": "attribute-spread-casing",
           "status": "pass"
         },
         {
           "name": "async-overlap-multiple-5",
+          "status": "pass"
+        },
+        {
+          "name": "async-fork-await-block-static",
           "status": "pass"
         },
         {
@@ -6237,6 +6389,10 @@
         },
         {
           "name": "hydratable-unused-keys",
+          "status": "pass"
+        },
+        {
+          "name": "effect-loop-teardown-value",
           "status": "pass"
         },
         {
@@ -6280,6 +6436,10 @@
           "status": "pass"
         },
         {
+          "name": "event-cleanup-before-attachment",
+          "status": "pass"
+        },
+        {
           "name": "onmount-prop-access",
           "status": "pass"
         },
@@ -6317,6 +6477,10 @@
         },
         {
           "name": "class-state-conflicting-get-name",
+          "status": "pass"
+        },
+        {
+          "name": "async-fork-commit-effect-write",
           "status": "pass"
         },
         {
@@ -6396,11 +6560,19 @@
           "status": "pass"
         },
         {
+          "name": "async-merge-pending-boundary-effects",
+          "status": "pass"
+        },
+        {
           "name": "transition-derived-uninitialized",
           "status": "pass"
         },
         {
           "name": "rest-props-excludes-properties",
+          "status": "pass"
+        },
+        {
+          "name": "object-has-own-reactive",
           "status": "pass"
         },
         {
@@ -6528,6 +6700,10 @@
           "status": "pass"
         },
         {
+          "name": "async-commit-stale-reader-derived-equality",
+          "status": "pass"
+        },
+        {
           "name": "state-snapshot-uncloneable-ignored",
           "status": "pass"
         },
@@ -6589,6 +6765,10 @@
         },
         {
           "name": "invalid-html-ssr",
+          "status": "pass"
+        },
+        {
+          "name": "async-fork-commit-derived-new-reader",
           "status": "pass"
         },
         {
@@ -6672,6 +6852,10 @@
           "status": "pass"
         },
         {
+          "name": "async-overlapping-batches-stale-derived",
+          "status": "pass"
+        },
+        {
           "name": "dynamic-component-css-props",
           "status": "pass"
         },
@@ -6717,6 +6901,10 @@
         },
         {
           "name": "transition-delayed",
+          "status": "pass"
+        },
+        {
+          "name": "async-fork-branch-update",
           "status": "pass"
         },
         {
@@ -6780,6 +6968,10 @@
           "status": "pass"
         },
         {
+          "name": "async-fork-revalidation-no-refetch",
+          "status": "pass"
+        },
+        {
           "name": "inspect-trace-reassignment",
           "status": "pass"
         },
@@ -6801,6 +6993,10 @@
         },
         {
           "name": "async-effect-mount-timing",
+          "status": "pass"
+        },
+        {
+          "name": "async-effect-write-keeps-batch-derived",
           "status": "pass"
         },
         {
@@ -6980,6 +7176,14 @@
           "status": "pass"
         },
         {
+          "name": "async-fork-equal-result-dropped",
+          "status": "pass"
+        },
+        {
+          "name": "async-eager-reestablish-no-refetch",
+          "status": "pass"
+        },
+        {
           "name": "state-snapshot-svelte-date",
           "status": "pass"
         },
@@ -7100,6 +7304,10 @@
           "status": "pass"
         },
         {
+          "name": "async-eager-new-in-earlier-batch",
+          "status": "pass"
+        },
+        {
           "name": "legacy-runes-ambiguous-export-const",
           "status": "pass"
         },
@@ -7141,6 +7349,10 @@
         },
         {
           "name": "async-each-item-duplication",
+          "status": "pass"
+        },
+        {
+          "name": "async-fork-branch-async-adopted",
           "status": "pass"
         },
         {
@@ -7224,6 +7436,10 @@
           "status": "pass"
         },
         {
+          "name": "async-reordered-deps-not-new-reader",
+          "status": "pass"
+        },
+        {
           "name": "async-declaration-tag",
           "status": "pass"
         },
@@ -7253,6 +7469,10 @@
         },
         {
           "name": "non-local-mutation-with-binding-4",
+          "status": "pass"
+        },
+        {
+          "name": "async-derived-not-overfiring-2",
           "status": "pass"
         },
         {
@@ -7344,11 +7564,19 @@
           "status": "pass"
         },
         {
+          "name": "async-fork-commit-new-reader",
+          "status": "pass"
+        },
+        {
           "name": "async-reactivity-loss",
           "status": "pass"
         },
         {
           "name": "props-array-each",
+          "status": "pass"
+        },
+        {
+          "name": "error-boundary-reset-destroyed",
           "status": "pass"
         },
         {
@@ -12343,8 +12571,8 @@
     {
       "id": "runtime-browser",
       "name": "Runtime Browser",
-      "total": 35,
-      "passed": 35,
+      "total": 39,
+      "passed": 39,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -12359,6 +12587,10 @@
         },
         {
           "name": "head-scripts",
+          "status": "pass"
+        },
+        {
+          "name": "dynamic-element-hydration-preserves-connection",
           "status": "pass"
         },
         {
@@ -12387,6 +12619,10 @@
         },
         {
           "name": "inline-style-directive-important",
+          "status": "pass"
+        },
+        {
+          "name": "spread-input-number-incomplete-value",
           "status": "pass"
         },
         {
@@ -12462,6 +12698,10 @@
           "status": "pass"
         },
         {
+          "name": "bind-active-element-remove-focused",
+          "status": "pass"
+        },
+        {
           "name": "head-script",
           "status": "pass"
         },
@@ -12486,6 +12726,10 @@
           "status": "pass"
         },
         {
+          "name": "hydration-attribute-custom-elements",
+          "status": "pass"
+        },
+        {
           "name": "dynamic-element-custom-element",
           "status": "pass"
         }
@@ -12494,8 +12738,8 @@
     {
       "id": "hydration",
       "name": "Hydration",
-      "total": 81,
-      "passed": 81,
+      "total": 85,
+      "passed": 85,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -12665,6 +12909,10 @@
           "status": "pass"
         },
         {
+          "name": "element-attribute-primitives",
+          "status": "pass"
+        },
+        {
           "name": "pre-first-node-newline",
           "status": "pass"
         },
@@ -12690,6 +12938,10 @@
         },
         {
           "name": "element-ref",
+          "status": "pass"
+        },
+        {
+          "name": "boundary-nested-extra-node",
           "status": "pass"
         },
         {
@@ -12793,6 +13045,10 @@
           "status": "pass"
         },
         {
+          "name": "dynamic-element-child-mismatch",
+          "status": "pass"
+        },
+        {
           "name": "claim-text",
           "status": "pass"
         },
@@ -12813,6 +13069,10 @@
           "status": "pass"
         },
         {
+          "name": "boundary-mismatch-recovery",
+          "status": "pass"
+        },
+        {
           "name": "rich-select",
           "status": "pass"
         },
@@ -12829,8 +13089,8 @@
     {
       "id": "server-side-rendering",
       "name": "SSR",
-      "total": 104,
-      "passed": 104,
+      "total": 105,
+      "passed": 105,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -13121,6 +13381,10 @@
         },
         {
           "name": "boundary-error-failed-prop",
+          "status": "pass"
+        },
+        {
+          "name": "input-default-value",
           "status": "pass"
         },
         {
@@ -13686,10 +13950,10 @@
     {
       "id": "migrate",
       "name": "Migrate",
-      "total": 76,
+      "total": 78,
       "passed": 0,
       "failed": 0,
-      "skipped": 76,
+      "skipped": 78,
       "percentage": 0,
       "tests": [
         {
@@ -13709,6 +13973,11 @@
         },
         {
           "name": "props-and-labeled",
+          "status": "skip",
+          "skip_reason": "Migrate (Svelte 4 → 5 migrator) is out of scope for rsvelte"
+        },
+        {
+          "name": "props-on-script-tag-line",
           "status": "skip",
           "skip_reason": "Migrate (Svelte 4 → 5 migrator) is out of scope for rsvelte"
         },
@@ -13969,6 +14238,11 @@
         },
         {
           "name": "reactive-statements-inner-block",
+          "status": "skip",
+          "skip_reason": "Migrate (Svelte 4 → 5 migrator) is out of scope for rsvelte"
+        },
+        {
+          "name": "labeled-assignment-without-dependencies",
           "status": "skip",
           "skip_reason": "Migrate (Svelte 4 → 5 migrator) is out of scope for rsvelte"
         },

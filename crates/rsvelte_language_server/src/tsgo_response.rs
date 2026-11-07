@@ -614,7 +614,7 @@ impl<'a> TsgoResponseMapper<'a> {
         let mut line = 0u32;
         let mut character = 0u32;
         let mut tokens = Vec::with_capacity(input.len() / 5);
-        for encoded in input.chunks_exact(5) {
+        for encoded in input.as_chunks::<5>().0 {
             let Some(delta_line) = json_u32(&encoded[0]) else {
                 return false;
             };

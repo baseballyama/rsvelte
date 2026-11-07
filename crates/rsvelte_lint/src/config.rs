@@ -122,6 +122,9 @@ pub struct LintConfig {
     /// this yet; retaining it is the contract needed before `no-undef` can be
     /// made correct across the CLI, language server, wasm and NAPI bindings.
     globals: GlobalConfig,
+    /// svelte-eslint-parser's `parserOptions.svelteFeatures.runes`, which
+    /// overrides every other source of a component's runes mode.
+    svelte_features_runes: Option<bool>,
 }
 
 impl LintConfig {
@@ -170,6 +173,19 @@ impl LintConfig {
     /// Globals/environment settings preserved for semantic rules.
     pub fn globals(&self) -> &GlobalConfig {
         &self.globals
+    }
+
+    /// Set `parserOptions.svelteFeatures.runes`. Chainable.
+    #[must_use]
+    pub const fn with_svelte_features_runes(mut self, runes: Option<bool>) -> Self {
+        self.svelte_features_runes = runes;
+        self
+    }
+
+    /// `parserOptions.svelteFeatures.runes`, when configured.
+    #[must_use]
+    pub const fn svelte_features_runes(&self) -> Option<bool> {
+        self.svelte_features_runes
     }
 
     /// Resolve the effective severity for a native rule (default comes from its

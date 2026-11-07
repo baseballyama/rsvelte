@@ -21,6 +21,7 @@ pub(super) fn render_attribute(
     attr_depth: usize,
     narrow_value: bool,
     regular_element: bool,
+    pre_content: bool,
 ) -> Result<String, FormatError> {
     let tw = tab_width(options);
     match attr {
@@ -205,6 +206,7 @@ pub(super) fn render_attribute(
                 attr_depth,
                 narrow_value,
                 prefix,
+                pre_content,
             )?;
             // Shorthand: `style:color={color}` → `style:color` when the
             // expression is a simple identifier matching the directive name,

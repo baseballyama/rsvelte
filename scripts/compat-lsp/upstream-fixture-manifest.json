@@ -29,19 +29,19 @@
       "request": "textDocument/inlayHint",
       "input": "input.svelte",
       "expected_priority": ["expectedv2.json"],
-      "fixture_count": 18
+      "fixture_count": 20
     }
   ],
   "testfiles": {
     "root": "typescript/testfiles",
-    "file_count": 176,
-    "svelte_count": 145,
+    "file_count": 177,
+    "svelte_count": 146,
     "extensions": {
       "js": 1,
       "json": 7,
       "map": 1,
       "prettierrc": 1,
-      "svelte": 145,
+      "svelte": 146,
       "ts": 21
     }
   },

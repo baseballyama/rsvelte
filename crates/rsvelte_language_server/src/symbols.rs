@@ -233,7 +233,7 @@ fn header_name(text: &str, (start, end): Span) -> String {
 
 fn tag_name_span(start: u32, tag: &str) -> Span {
     let name_start = start.saturating_add(1);
-    let name_length = u32::try_from(tag.len()).map_or(u32::MAX, |length| length);
+    let name_length = u32::try_from(tag.len()).unwrap_or(u32::MAX);
     (name_start, name_start.saturating_add(name_length))
 }
 
