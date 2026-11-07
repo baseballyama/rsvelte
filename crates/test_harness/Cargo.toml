@@ -1,6 +1,6 @@
 [package]
-name = "rsvelte_fixture_test"
-description = "Snapshot tests over a crate's tests/fixtures directory"
+name = "rsvelte_test_harness"
+description = "The test harness for each crate's tests/fixtures directory"
 edition.workspace = true
 version.workspace = true
 license.workspace = true

@@ -26,7 +26,7 @@ Svelte 4 → 5 migration, text-level svelte2tsx compatibility, many general JS l
   BSD-3-Clause, Unlicense). Expected output comes from the official tools; never edit it by
   hand. When our output means the same thing, add an `[[adjust]]` entry to `fixture.toml`.
   See [fixtures/README.md](fixtures/README.md) and
-  [crates/fixture_test/README.md](crates/fixture_test/README.md).
+  [crates/test_harness/README.md](crates/test_harness/README.md).
 - Speed: compare the official tools, `main`, and this rewrite. See
   [tools/performance/README.md](tools/performance/README.md).
 

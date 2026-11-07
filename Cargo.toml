@@ -2,7 +2,7 @@
 resolver = "3"
 members = [
   "crates/kernel",
-  "crates/fixture_test",
+  "crates/test_harness",
   "crates/hosts/*",
   "crates/tooling/*",
   "crates/languages/*/*",
@@ -22,7 +22,7 @@ serde-saphyr = "2.1.0"
 libloading = "0.9.0"
 rsvelte_lint = { path = "crates/tooling/lint" }
 rsvelte_kernel = { path = "crates/kernel" }
-rsvelte_fixture_test = { path = "crates/fixture_test" }
+rsvelte_test_harness = { path = "crates/test_harness" }
 rsvelte_typescript = { path = "crates/languages/typescript/core" }
 rsvelte_stylesheet = { path = "crates/languages/css/core" }
 rsvelte_svelte = { path = "crates/languages/svelte/core" }

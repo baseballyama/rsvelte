@@ -25,7 +25,7 @@ function role(manifestPath: string): Role | undefined {
 	if (path === undefined) return undefined;
 	if (path === 'kernel') return 'kernel';
 	if (
-		path === 'fixture_test' ||
+		path === 'test_harness' ||
 		path === 'hosts/config' ||
 		path.startsWith('tooling/') ||
 		path === 'languages/typescript/content_mapper'
@@ -93,8 +93,8 @@ test('every workspace crate has a role from its path', () => {
 	]);
 	assert.deepEqual(named('support'), [
 		'rsvelte_config',
-		'rsvelte_fixture_test',
 		'rsvelte_lint',
+		'rsvelte_test_harness',
 		'rsvelte_typescript_content_mapper',
 	]);
 	assert.deepEqual(named('host'), ['rsvelte_command_line', 'rsvelte_kernel_browser']);

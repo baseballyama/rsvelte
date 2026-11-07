@@ -51,7 +51,7 @@ rayon.workspace = true
 libc.workspace = true
 
 [dev-dependencies]
-rsvelte_fixture_test.workspace = true
+rsvelte_test_harness.workspace = true
 rsvelte_stylesheet.workspace = true
 
 [[test]]

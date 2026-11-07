@@ -1,5 +1,5 @@
-// Copies the units of one family into a crate's tests/fixtures/, as cases of rsvelte_fixture_test
-// (crates/fixture_test/README.md): tests/fixtures/<source>/<path>/{input.*, expected/<variant>.*}.
+// Copies the units of one family into a crate's tests/fixtures/, as cases of rsvelte_test_harness
+// (crates/test_harness/README.md): tests/fixtures/<source>/<path>/{input.*, expected/<variant>.*}.
 // The corpus stays the source of truth; run this again after `regen` or `import`.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -30,7 +30,7 @@ interface Diagnostic {
 
 const at = (p: Position) => `${p.line}:${p.column + 1}`;
 
-/** The harness's diagnostics format (crates/fixture_test/src/snapshots.rs): 1-based lines and columns. */
+/** The harness's diagnostics format (crates/test_harness/src/snapshots.rs): 1-based lines and columns. */
 function diagnosticsText(severity: string, diagnostics: Diagnostic[]): string {
 	return diagnostics
 		.map((d) => {

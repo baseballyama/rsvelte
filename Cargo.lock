@@ -715,7 +715,6 @@ dependencies = [
  "libc",
  "rayon",
  "rsvelte_config",
- "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_markup",
  "rsvelte_stylesheet",
@@ -728,6 +727,7 @@ dependencies = [
  "rsvelte_svelte_typecheck",
  "rsvelte_svelte_typescript_projection",
  "rsvelte_svue",
+ "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_check",
  "rsvelte_typescript_compile",
@@ -750,20 +750,6 @@ dependencies = [
  "rsvelte_kernel",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "rsvelte_fixture_test"
-version = "0.0.0"
-dependencies = [
- "oxc_allocator",
- "oxc_ast",
- "oxc_ast_visit",
- "oxc_parser",
- "oxc_span",
- "oxc_syntax",
- "rsvelte_kernel",
- "rustc-hash",
 ]
 
 [[package]]
@@ -840,11 +826,11 @@ dependencies = [
 name = "rsvelte_svelte_compile"
 version = "0.0.0"
 dependencies = [
- "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_markup",
  "rsvelte_stylesheet",
  "rsvelte_svelte",
+ "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_compile",
  "rustc-hash",
@@ -854,10 +840,10 @@ dependencies = [
 name = "rsvelte_svelte_compile_vapor"
 version = "0.0.0"
 dependencies = [
- "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_svelte",
  "rsvelte_svelte_compile",
+ "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_compile",
  "rsvelte_vue",
@@ -878,10 +864,10 @@ dependencies = [
 name = "rsvelte_svelte_format"
 version = "0.0.0"
 dependencies = [
- "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_stylesheet_format",
  "rsvelte_svelte",
+ "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_format",
 ]
@@ -890,11 +876,11 @@ dependencies = [
 name = "rsvelte_svelte_lint"
 version = "0.0.0"
 dependencies = [
- "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_lint",
  "rsvelte_markup",
  "rsvelte_svelte",
+ "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_lint",
  "semver",
@@ -907,12 +893,12 @@ dependencies = [
 name = "rsvelte_svelte_lint_typed"
 version = "0.0.0"
 dependencies = [
- "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_lint",
  "rsvelte_markup",
  "rsvelte_svelte",
  "rsvelte_svelte_lint",
+ "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_check",
 ]
@@ -957,10 +943,10 @@ dependencies = [
 name = "rsvelte_svelte_typecheck"
 version = "0.0.0"
 dependencies = [
- "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_svelte_parser",
  "rsvelte_svelte_typescript_projection",
+ "rsvelte_test_harness",
  "rsvelte_typescript_check",
  "rsvelte_typescript_content_mapper",
 ]
@@ -972,10 +958,10 @@ dependencies = [
  "oxc_allocator",
  "oxc_parser",
  "oxc_span",
- "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_svelte_parser",
  "rsvelte_svelte_syntax",
+ "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_content_mapper",
 ]
@@ -984,12 +970,26 @@ dependencies = [
 name = "rsvelte_svue"
 version = "0.0.0"
 dependencies = [
- "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_svelte",
  "rsvelte_svelte_compile",
+ "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_vue",
+ "rustc-hash",
+]
+
+[[package]]
+name = "rsvelte_test_harness"
+version = "0.0.0"
+dependencies = [
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_visit",
+ "oxc_parser",
+ "oxc_span",
+ "oxc_syntax",
+ "rsvelte_kernel",
  "rustc-hash",
 ]
 
@@ -1059,8 +1059,8 @@ dependencies = [
 name = "rsvelte_vue_check"
 version = "0.0.0"
 dependencies = [
- "rsvelte_fixture_test",
  "rsvelte_kernel",
+ "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_check",
  "rsvelte_vue",
@@ -1071,9 +1071,9 @@ dependencies = [
 name = "rsvelte_vue_compile"
 version = "0.0.0"
 dependencies = [
- "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_stylesheet",
+ "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_compile",
  "rsvelte_vue",
@@ -1084,9 +1084,9 @@ dependencies = [
 name = "rsvelte_vue_format"
 version = "0.0.0"
 dependencies = [
- "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_stylesheet_format",
+ "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_format",
  "rsvelte_vue",
@@ -1096,10 +1096,10 @@ dependencies = [
 name = "rsvelte_vue_lint"
 version = "0.0.0"
 dependencies = [
- "rsvelte_fixture_test",
  "rsvelte_kernel",
  "rsvelte_lint",
  "rsvelte_markup",
+ "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_lint",
  "rsvelte_vue",

@@ -14,7 +14,7 @@ rsvelte_typescript_format.workspace = true
 rsvelte_typescript.workspace = true
 
 [dev-dependencies]
-rsvelte_fixture_test.workspace = true
+rsvelte_test_harness.workspace = true
 
 [[test]]
 name = "fixtures"

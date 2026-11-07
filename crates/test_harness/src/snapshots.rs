@@ -413,7 +413,7 @@ mod tests {
 
     fn scratch(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
-            "rsvelte-fixture-test-{}-{name}",
+            "rsvelte-test-harness-{}-{name}",
             std::process::id()
         ));
         drop(std::fs::remove_dir_all(&dir));

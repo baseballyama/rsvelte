@@ -4,11 +4,11 @@ use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use rsvelte_fixture_test::NodePackages;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
 use rsvelte_svelte_parser::Parsed;
 use rsvelte_svelte_typecheck::{Configuration, TypeCheckConfiguration};
+use rsvelte_test_harness::NodePackages;
 use rsvelte_typescript_check::{TypeScriptDocument, TypeScriptView};
 
 #[derive(Debug, Default)]
@@ -64,7 +64,7 @@ fn main() -> ExitCode {
     let mut registry = Registry::new();
     rsvelte_svelte_typecheck::register(&mut registry, &configuration);
     registry.task(CountCoverage(Arc::clone(&coverage)));
-    let result = rsvelte_fixture_test::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
+    let result = rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
         .inputs_from(concat!(env!("CARGO_MANIFEST_DIR"), "/../compile"))
         .snapshot("svelte.check/default", "findings")
         .snapshot("test.svelte.typecheck.coverage", "coverage")

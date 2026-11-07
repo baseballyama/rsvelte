@@ -1,6 +1,6 @@
 # Crate fixture tests
 
-Each crate keeps cases for its own tasks in `tests/fixtures/`. `rsvelte_fixture_test` runs them with
+Each crate keeps cases for its own tasks in `tests/fixtures/`. `rsvelte_test_harness` runs them with
 `cargo test`, writes rsvelte's output to each case's `actual/` (not in git), and compares it with
 `expected/`. Compare the two directories to see a difference (`diff -ru <case>/expected <case>/actual`).
 
@@ -87,7 +87,7 @@ how many have JavaScript that does not parse, and how many no task ran on (for e
 ```toml
 # Cargo.toml
 [dev-dependencies]
-rsvelte_fixture_test.workspace = true
+rsvelte_test_harness.workspace = true
 
 [[test]]
 name = "fixtures"
@@ -103,7 +103,7 @@ use rsvelte_kernel::computation::pipeline::Registry;
 fn main() -> ExitCode {
     let mut registry = Registry::new();
     rsvelte_svelte_compile::register(&mut registry);
-    rsvelte_fixture_test::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
+    rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
         .javascript_snapshot("svelte.compile/client", "client")
         .javascript_snapshot("svelte.compile/server", "server")
         .run()

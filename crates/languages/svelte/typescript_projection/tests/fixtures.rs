@@ -57,7 +57,7 @@ fn main() -> ExitCode {
     let mut registry = Registry::new();
     rsvelte_svelte_typescript_projection::register(&mut registry);
     registry.task(SyntaxCheck(Arc::clone(&coverage)));
-    let result = rsvelte_fixture_test::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
+    let result = rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
         .inputs_from(concat!(env!("CARGO_MANIFEST_DIR"), "/../compile"))
         .snapshot("svelte.typescript_projection/default", "projection")
         .snapshot("test.typescript_projection.syntax", "syntax")

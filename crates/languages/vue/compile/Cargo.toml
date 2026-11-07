@@ -15,7 +15,7 @@ rsvelte_vue.workspace = true
 rsvelte_kernel.workspace = true
 
 [dev-dependencies]
-rsvelte_fixture_test.workspace = true
+rsvelte_test_harness.workspace = true
 
 [[test]]
 name = "fixtures"

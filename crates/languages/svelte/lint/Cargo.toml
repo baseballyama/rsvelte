@@ -15,7 +15,7 @@ rsvelte_kernel.workspace = true
 rsvelte_typescript_lint.workspace = true
 
 [dev-dependencies]
-rsvelte_fixture_test.workspace = true
+rsvelte_test_harness.workspace = true
 semver.workspace = true
 serde.workspace = true
 serde_json.workspace = true

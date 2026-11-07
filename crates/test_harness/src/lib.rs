@@ -4,7 +4,7 @@
 //! `actual/<name>.<ext>`, and its diagnostics to `actual/<name>.diagnostics.txt`. A hand-written
 //! case fails when `actual/` differs from `expected/`; `UPDATE_EXPECT=1` copies the new output
 //! there instead. A case copied from the corpus has the official output in `expected/`, and its
-//! differences are counted, not failed. See `crates/fixture_test/README.md`.
+//! differences are counted, not failed. See `crates/test_harness/README.md`.
 
 #![expect(
     clippy::print_stdout,
