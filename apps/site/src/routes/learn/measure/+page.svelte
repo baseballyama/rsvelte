@@ -238,7 +238,7 @@
 
 	<H2 id="parity" />
 	<p>
-		性能だけでなく、出力の一致も検査します。<code>oracle check</code>
+		性能だけでなく、出力の一致も検査します。<code>cargo test</code>
 		は、タスク・出力の種類・検証例ごとに判定を出します。 複数の成果物がある場合は、最も悪い判定を採用します。
 		判定を
 		<code>corpus/_registry/parity.json</code>

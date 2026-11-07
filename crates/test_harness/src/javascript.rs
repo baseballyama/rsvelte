@@ -9,11 +9,18 @@ use oxc_parser::{ParseOptions, Parser};
 use oxc_span::{ContentEq, SourceType};
 use oxc_syntax::scope::ScopeFlags;
 
-/// Whether the two texts parse to the same tree. `Err` names the side that does not parse.
-pub(crate) fn same_tree(expected: &str, actual: &str) -> Result<bool, String> {
+/// The side that does not parse, with the parser's message.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Unparsed {
+    Expected(String),
+    Actual(String),
+}
+
+/// Whether the two texts parse to the same tree.
+pub(crate) fn same_tree(expected: &str, actual: &str) -> Result<bool, Unparsed> {
     let allocator = Allocator::default();
-    let mut expected = parse(&allocator, expected).map_err(|e| format!("expected: {e}"))?;
-    let mut actual = parse(&allocator, actual).map_err(|e| format!("actual: {e}"))?;
+    let mut expected = parse(&allocator, expected).map_err(Unparsed::Expected)?;
+    let mut actual = parse(&allocator, actual).map_err(Unparsed::Actual)?;
     Canonical.visit_program(&mut expected);
     Canonical.visit_program(&mut actual);
     Ok(expected.content_eq(&actual))
@@ -54,7 +61,7 @@ fn parse<'a>(allocator: &'a Allocator, text: &'a str) -> Result<Program<'a>, Str
 
 #[cfg(test)]
 mod tests {
-    use super::same_tree;
+    use super::{Unparsed, same_tree};
 
     #[test]
     fn layout_comments_and_literal_spelling_are_ignored() {
@@ -101,7 +108,10 @@ mod tests {
 
     #[test]
     fn a_side_that_does_not_parse_is_named() {
-        assert!(same_tree("f(", "f();").is_err_and(|e| e.starts_with("expected:")));
-        assert!(same_tree("f();", "f(").is_err_and(|e| e.starts_with("actual:")));
+        assert!(matches!(
+            same_tree("f(", "f();"),
+            Err(Unparsed::Expected(_))
+        ));
+        assert!(matches!(same_tree("f();", "f("), Err(Unparsed::Actual(_))));
     }
 }

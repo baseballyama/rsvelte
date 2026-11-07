@@ -53,35 +53,7 @@ function canonicalize(node: Tree, pureStarts: Set<number>): Tree {
 	return sortKeys(out);
 }
 
-export const same = (a: Tree, b: Tree): boolean => JSON.stringify(a) === JSON.stringify(b);
-
-const step = (cur: Tree, seg: string): Tree =>
-	cur == null
-		? undefined
-		: (cur as Record<string | number, unknown>)[/^\d+$/.test(seg) ? Number(seg) : seg];
-
-/** Path syntax: dot-separated keys and array indices from the Program, e.g. `body.3.declarations.0.init`. */
-export function getAt(tree: Tree, at: string): Tree {
-	return (at === '' ? [] : at.split('.')).reduce(step, tree);
-}
-
-export function setAt(tree: Tree, at: string, value: Tree): void {
-	const segs = at.split('.');
-	const parent = getAt(tree, segs.slice(0, -1).join('.')) as Record<string | number, unknown>;
-	const last = segs.at(-1)!;
-	parent[/^\d+$/.test(last) ? Number(last) : last] = value;
-}
-
-/** Every path whose subtree equals `target`. */
-export function findAll(tree: Tree, target: Tree, at = '', out: string[] = []): string[] {
-	if (same(tree, target)) out.push(at);
-	if (tree && typeof tree === 'object') {
-		for (const [k, v] of Object.entries(tree)) {
-			if (v && typeof v === 'object') findAll(v, target, at === '' ? k : `${at}.${k}`, out);
-		}
-	}
-	return out;
-}
+const same = (a: Tree, b: Tree): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 /** First path at which two trees differ, or null. */
 export function firstDiff(a: Tree, b: Tree, at = ''): string | null {
@@ -102,21 +74,4 @@ export function firstDiff(a: Tree, b: Tree, at = ''): string | null {
 		if (d !== null) return d;
 	}
 	return at;
-}
-
-/**
- * A snippet written in an adjustment (`void 0`, `x = 1;`) as a canonical node. Parsed as a program;
- * a lone expression statement yields its expression unless the target is itself a statement.
- */
-export function parseSnippet(snippet: string, targetType: unknown): Node {
-	const body = parseJs(snippet).body as Node[];
-	if (body.length !== 1) throw new Error(`snippet must be one statement or expression: ${snippet}`);
-	const stmt = body[0]!;
-	if (
-		stmt.type === 'ExpressionStatement' &&
-		targetType !== 'ExpressionStatement' &&
-		!stmt.directive
-	)
-		return stmt.expression as Node;
-	return stmt;
 }

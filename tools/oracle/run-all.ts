@@ -1,5 +1,5 @@
 // Runs every rsvelte task over every fixture unit, the check tasks with the oracle's own TypeScript 7
-// and packages, so `oracle check` compares a complete run. `--binary` defaults to the release build.
+// and packages, for inspecting every task's output at once. `--binary` defaults to the release build.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import module from 'node:module';

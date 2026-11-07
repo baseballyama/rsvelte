@@ -14,7 +14,7 @@ Show the result of each phase. Fix only what the user approves. `--quick` skips 
 1. **WHY.** Read the PR, issues and commits. Does it solve the problem in the simplest way, and
    is it not a non-goal in AGENTS.md?
 2. **Design.** Check P1–P7, non-goals, evidence (every number has a command that makes it),
-   fixtures (expected files only from `regen`, each `[[adjust]]` has a reason, permissive
+   corpus (expected files only from `regen`, parity.json changes explained, permissive
    license), and no abstraction for needs that do not exist yet.
 3. **Code.** For each chunk, run one read-only reviewer subagent (`general-purpose`, foreground)
    with the prompt below. With `--codex`, also run

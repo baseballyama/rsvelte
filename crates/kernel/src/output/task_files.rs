@@ -1,6 +1,6 @@
 //! The files one task leaves for one document.
 //!
-//! `rsvelte corpus` and the test harness write them, and `oracle check` reads them:
+//! `rsvelte corpus` and the test harness write them to a corpus unit's `actual/`:
 //! `<task>/<variant>.<file>`, and `<task>/<variant>.diagnostics.json` when the task reported
 //! diagnostics.
 

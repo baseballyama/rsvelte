@@ -24,20 +24,9 @@ export interface UnitKey {
 	path: string;
 }
 
-export interface Adjustment {
-	task: string;
-	variant?: string;
-	artifact?: string;
-	at: string;
-	expect: string;
-	replace: string;
-	reason?: string;
-}
-
 /** The hand-written part of a unit, stored in its fixture.toml. */
 export interface FixtureToml {
 	skip?: Record<string, string>;
-	adjust?: Adjustment[];
 	/** Root props and user steps for the behaviour tasks (behaviour/runtime.ts). */
 	behaviour?: Behaviour;
 }

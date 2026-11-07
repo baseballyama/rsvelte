@@ -4,17 +4,24 @@
 rsvelte's output to each case's `actual/` (not in git), and compares it with `expected/`
 (`diff -ru <case>/expected <case>/actual` shows a difference).
 
-| Kind         | Where                                                                 | `expected/` holds                                     | A difference           |
-| ------------ | --------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------- |
-| hand-written | the crate's `tests/fixtures/` (`rsvelte/` and others in `compile`)    | rsvelte's own output, accepted with `UPDATE_EXPECT=1` | fails the test         |
-| corpus unit  | [`corpus/<family>/`](../../corpus/README.md), with `Fixtures::corpus` | the official tool's output                            | is counted, not failed |
-| copied       | a directory of `tests/fixtures/` with `source.json` (`lint_typed`)    | the official tool's output                            | is counted, not failed |
+| Kind         | Where                                                                 | `expected/` holds                                     | A difference                 |
+| ------------ | --------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------- |
+| hand-written | the crate's `tests/fixtures/` (`rsvelte/` and others in `compile`)    | rsvelte's own output, accepted with `UPDATE_EXPECT=1` | fails the test               |
+| corpus unit  | [`corpus/<family>/`](../../corpus/README.md), with `Fixtures::corpus` | the official tool's output                            | fails when its verdict moved |
+| copied       | a directory of `tests/fixtures/` with `source.json` (`lint_typed`)    | the official tool's output                            | is counted, not failed       |
 
-Snapshots show what changed. Only corpus units show what is correct. A snapshot registered with
-`javascript_snapshot` compares its `.js` file with the official one as a syntax tree, with the
-meaning of `tools/oracle/canonical.ts` (layout, comments and literal spelling are ignored;
-`@__PURE__` on calls is not). Other files are compared as bytes. `[[adjust]]` entries apply only to
-`oracle check`.
+Snapshots show what changed. Only the official output shows what is correct. Against it, each
+task and variant of a unit gets one verdict, its worst file: `match`, `unexpected` (only rsvelte
+wrote the file), `missing` (only the official tool did), `mismatch`, or `unparseable` (rsvelte's
+JavaScript does not parse). JavaScript is compared as a syntax tree, with the meaning of
+`tools/oracle/canonical.ts` (layout, comments and literal spelling are ignored; `@__PURE__` on
+calls is not), `lint.json` by the rules rsvelte ran, other JSON as values, and the rest as bytes.
+A unit where the official tool reported an error is compared only on its `error.json`. A unit
+where rsvelte wrote only diagnostics and the official tool wrote output is refused.
+
+Every corpus verdict except a refusal is recorded in `corpus/_registry/parity.json`. The ratchet
+is two-sided: a verdict that moved fails, an improvement included, until `UPDATE_EXPECT=1` records
+it. A run limited to some cases compares and records only theirs.
 
 ## A case
 
@@ -42,7 +49,8 @@ corpus/svelte/bits-ui/src/lib/button.svelte/   a corpus unit; the directory is t
   `severity code line:column-line:column message`, with lines and columns counted from 1 and
   columns in UTF-16 code units.
 - A corpus unit's files are `<task>/<variant>.<file>`. The harness changes only the files of its
-  own tasks in `actual/`. A task with no official output for the unit is not measured on it.
+  own tasks in `actual/`. A task with no official output for the unit, or one its `fixture.toml`
+  skips, is not measured on it.
 - Other files in the case are not read by the harness (for example `behaviour.toml`, read by the
   behaviour oracle's tests in `tools/oracle`).
 
@@ -61,14 +69,13 @@ git diff -- crates/languages/svelte/compile/tests/fixtures   # read every snapsh
 cargo test -p rsvelte_svelte_compile --test fixtures                 # every case
 cargo test -p rsvelte_svelte_compile --test fixtures -- svelte/bits-ui # cases whose name contains it
 cargo test -p rsvelte_svelte_compile --test fixtures -- --exact rsvelte/each-keyed
-UPDATE_EXPECT=1 cargo test -p rsvelte_svelte_compile --test fixtures  # write changed snapshots, remove stale ones
+UPDATE_EXPECT=1 cargo test -p rsvelte_svelte_compile --test fixtures  # write changed snapshots, remove stale ones, record moved verdicts
 ```
 
 The test fails when a hand-written snapshot differs, is missing, or is no longer produced, when a
-task panics on any case, and when no case exists. For corpus units it prints how many match the
-official output byte for byte, how many match it only as JavaScript syntax trees, how many differ,
-how many have JavaScript that does not parse, and how many no task ran on (for example
-`.svelte.ts` modules, which rsvelte does not compile yet).
+corpus verdict moved, when a task panics on any case, and when no case exists. It prints each
+task's verdicts and refusals. `FIXTURE_VERDICTS=<file>` writes every file's verdict there, one
+`verdict case file` line each.
 
 ## Add fixture tests to a crate
 
@@ -93,8 +100,10 @@ fn main() -> ExitCode {
     rsvelte_svelte_compile::register(&mut registry);
     rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
         .corpus("svelte")
-        .javascript_snapshot("svelte.compile/client", "client")
-        .javascript_snapshot("svelte.compile/server", "server")
+        .snapshot("svelte.compile/client", "client")
+        .snapshot("svelte.compile/server", "server")
+        .not_implemented("svelte.compileModule/client") // its units stay in the ratchet as missing
+        .not_implemented("svelte.compileModule/server")
         .run()
 }
 ```

@@ -13,25 +13,19 @@ corpus/
 └── <family>/<source>/<path>/ one unit, e.g. svelte/bits-ui/src/lib/button.svelte/
     ├── input.*               the copied file
     ├── meta.json             language, hash, mode
-    ├── fixture.toml          [skip], [[adjust]], [behaviour] (cross units); written by hand
+    ├── fixture.toml          [skip], [behaviour] (cross units); written by hand
     ├── expected/<task>/<variant>.*   the official tool's output
     ├── actual/               rsvelte's output (ignored by git)
     └── cache/                expected output too large to commit (ignored by git)
 ```
 
-Never edit `expected/`. When rsvelte's output means the same thing, add an adjustment:
+Never edit `expected/`. `cargo test` compares rsvelte with it and records each unit's verdict in
+`_registry/parity.json` ([crates/test_harness](../crates/test_harness/README.md)). A task that does
+not apply to a unit is skipped:
 
 ```toml
 [skip]
 "svelte.compile/client" = "why this task does not apply"
-
-[[adjust]]
-task = "svelte.compile"
-variant = "client"
-at = "body.5.declaration.body.body.0.declarations.0.init.arguments.0" # printed by `compare`
-expect = "void 0"     # the official output
-replace = "undefined" # what we accept
-reason = "same value"
 ```
 
 A path segment named like a unit file (`expected`, `input.svelte`, …) or starting with `~` is

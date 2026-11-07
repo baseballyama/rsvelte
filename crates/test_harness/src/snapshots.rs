@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
@@ -8,7 +9,7 @@ use rsvelte_kernel::source::positions::LineIndex;
 use rustc_hash::FxHashSet;
 
 use crate::cases::{Case, Kind};
-use crate::javascript;
+use crate::oracle::{self, Verdict};
 
 const EXPECTED_DIR: &str = "expected";
 const ACTUAL_DIR: &str = "actual";
@@ -19,8 +20,9 @@ const CONTEXT_LINES: usize = 3;
 pub(crate) struct Snapshot {
     pub(crate) task: &'static str,
     pub(crate) name: &'static str,
-    /// Whether the `.js` file of a corpus case may match the official one as a syntax tree.
-    pub(crate) javascript_tree: bool,
+    /// Whether rsvelte implements the task. One it does not stays in the ratchet: its units are
+    /// `missing`.
+    pub(crate) implemented: bool,
 }
 
 impl Snapshot {
@@ -36,14 +38,12 @@ impl Snapshot {
     }
 }
 
-/// How a corpus case compares with the official output. A case takes the worst verdict of its
-/// files.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum Verdict {
-    Bytes,
-    Tree,
-    Differs,
-    Unparseable,
+/// How the units of one task and variant compare with the official output.
+#[derive(Default, Clone)]
+pub(crate) struct Tally {
+    /// Per [`Verdict::ALL`].
+    pub(crate) verdicts: [usize; Verdict::ALL.len()],
+    pub(crate) refused: usize,
 }
 
 #[derive(Default)]
@@ -52,18 +52,13 @@ pub(crate) struct Outcome {
     pub(crate) written: usize,
     pub(crate) removed: usize,
     pub(crate) problems: usize,
-    /// Oracle cases whose output is the official output byte for byte.
-    pub(crate) matching: usize,
-    /// Oracle cases that match only when JavaScript is compared as a syntax tree.
-    pub(crate) equivalent: usize,
-    pub(crate) differing: usize,
-    /// Oracle cases with a JavaScript file, official or ours, that does not parse.
-    pub(crate) unparseable: usize,
-    /// Oracle cases where none of the tasks applies, such as a module rsvelte does not compile.
-    pub(crate) not_run: usize,
+    /// Official-output cases with no official file for any of the tasks.
     pub(crate) unmeasured: usize,
+    pub(crate) tallies: BTreeMap<&'static str, Tally>,
+    /// `<task>/<variant> <case>` and its verdict, `None` when refused, for the ratchet.
+    pub(crate) parity: Vec<(String, Option<Verdict>)>,
     pub(crate) messages: Vec<String>,
-    /// `verdict case file` per file of an oracle case, for [`crate::VERDICTS_VARIABLE`].
+    /// `verdict case file` per file of an official-output case, for [`crate::VERDICTS_VARIABLE`].
     pub(crate) verdicts: Vec<String>,
 }
 
@@ -73,12 +68,15 @@ impl Outcome {
         self.written += other.written;
         self.removed += other.removed;
         self.problems += other.problems;
-        self.matching += other.matching;
-        self.equivalent += other.equivalent;
-        self.differing += other.differing;
-        self.unparseable += other.unparseable;
-        self.not_run += other.not_run;
         self.unmeasured += other.unmeasured;
+        for (task, tally) in other.tallies {
+            let total = self.tallies.entry(task).or_default();
+            for (t, o) in total.verdicts.iter_mut().zip(tally.verdicts) {
+                *t += o;
+            }
+            total.refused += tally.refused;
+        }
+        self.parity.extend(other.parity);
         self.messages.extend(other.messages);
         self.verdicts.extend(other.verdicts);
     }
@@ -107,16 +105,12 @@ pub(crate) fn check(
     for s in snapshots {
         match result.outputs.iter().find(|(task, _)| *task == s.task) {
             Some((_, out)) => produce(s, case.kind, document, out, &mut produced),
-            None if case.kind == Kind::HandWritten => {
+            None if case.kind == Kind::HandWritten && s.implemented => {
                 outcome.problem(case, &format!("{} did not run on this input", s.task));
             }
             None => {}
         }
     }
-    let ran = result
-        .outputs
-        .iter()
-        .any(|(task, _)| snapshots.iter().any(|s| s.task == *task));
     let mut names = FxHashSet::default();
     for (name, _) in &produced {
         if !names.insert(name.as_str()) {
@@ -153,99 +147,64 @@ pub(crate) fn check(
                 &mut outcome,
             );
         }
-        Kind::Copied | Kind::Corpus if !ran => outcome.not_run += 1,
-        Kind::Copied | Kind::Corpus if existing.is_empty() => {
-            outcome.unmeasured += 1;
-            outcome
-                .verdicts
-                .push(format!("unmeasured {} oracle", case.name));
-        }
-        Kind::Copied | Kind::Corpus => {
-            // A snapshot the official tool has no output for is not measured on this unit.
-            let measured: Vec<String> = snapshots
-                .iter()
-                .map(|s| s.prefix(case.kind))
-                .filter(|p| existing.iter().any(|e| e.starts_with(p.as_str())))
-                .collect();
-            produced.retain(|(name, _)| measured.iter().any(|p| name.starts_with(p.as_str())));
-            let (verdict, files) =
-                compare_with_oracle(&expected_dir, case.kind, &existing, &produced, snapshots);
-            outcome.verdicts.extend(
-                files
-                    .into_iter()
-                    .map(|(file, verdict)| format!("{verdict} {} {file}", case.name)),
-            );
-            match verdict {
-                Verdict::Bytes => outcome.matching += 1,
-                Verdict::Tree => outcome.equivalent += 1,
-                Verdict::Differs => outcome.differing += 1,
-                Verdict::Unparseable => outcome.unparseable += 1,
-            }
-        }
+        Kind::Copied | Kind::Corpus => compare_with_official(
+            case,
+            &expected_dir,
+            &existing,
+            &produced,
+            snapshots,
+            &mut outcome,
+        ),
     }
     outcome
 }
 
-/// The case's worst verdict, and each file's: `missing` and `unexpected` for a file only one side
-/// has.
-fn compare_with_oracle<'a>(
+/// Each task the official tool has output for on this case, unless the case skips it.
+fn compare_with_official(
+    case: &Case,
     expected_dir: &Path,
-    kind: Kind,
-    existing: &'a [String],
-    produced: &'a [(String, String)],
+    existing: &[String],
+    produced: &[(String, String)],
     snapshots: &[Snapshot],
-) -> (Verdict, Vec<(&'a str, &'static str)>) {
-    let mut files = Vec::with_capacity(existing.len().max(produced.len()));
-    let mut worst = Verdict::Bytes;
-    for name in existing {
-        if !produced.iter().any(|(n, _)| n == name) {
-            files.push((name.as_str(), "missing"));
+    outcome: &mut Outcome,
+) {
+    let mut measured = false;
+    for s in snapshots {
+        let prefix = s.prefix(case.kind);
+        if case.skips(s.task) || !existing.iter().any(|e| e.starts_with(prefix.as_str())) {
+            continue;
         }
-    }
-    for (name, text) in produced {
-        let verdict = match existing
-            .contains(name)
-            .then(|| std::fs::read_to_string(expected_dir.join(name)))
-        {
-            Some(Ok(e)) if e == *text => Verdict::Bytes,
-            Some(Ok(e)) if is_javascript_tree(name, kind, snapshots) => {
-                match javascript::same_tree(&e, text) {
-                    Ok(true) => Verdict::Tree,
-                    Ok(false) => Verdict::Differs,
-                    Err(_) => Verdict::Unparseable,
-                }
-            }
-            Some(_) => Verdict::Differs,
-            None => {
-                files.push((name.as_str(), "unexpected"));
-                worst = Verdict::Differs.max(worst);
+        measured = true;
+        let rows = match oracle::rows(expected_dir, &prefix, existing, produced) {
+            Ok(r) => r,
+            Err(e) => {
+                outcome.problem(case, &e);
                 continue;
             }
         };
-        files.push((name.as_str(), verdict.label()));
-        worst = worst.max(verdict);
-    }
-    if existing.len() != produced.len() {
-        worst = Verdict::Differs;
-    }
-    (worst, files)
-}
-
-impl Verdict {
-    const fn label(self) -> &'static str {
-        match self {
-            Self::Bytes => "bytes",
-            Self::Tree => "tree",
-            Self::Differs => "differs",
-            Self::Unparseable => "unparseable",
+        outcome.verdicts.extend(
+            rows.iter()
+                .map(|(extension, v)| format!("{} {} {prefix}{extension}", v.label(), case.name)),
+        );
+        let verdict = oracle::verdict(&rows);
+        let tally = outcome.tallies.entry(s.task).or_default();
+        match verdict {
+            Some(v) => tally.verdicts[v as usize] += 1,
+            None => tally.refused += 1,
+        }
+        if case.kind == Kind::Corpus {
+            let (task, variant) = task_files::location(s.task);
+            outcome
+                .parity
+                .push((format!("{task}/{variant} {}", case.name), verdict));
         }
     }
-}
-
-fn is_javascript_tree(file: &str, kind: Kind, snapshots: &[Snapshot]) -> bool {
-    snapshots
-        .iter()
-        .any(|s| s.javascript_tree && file == format!("{}js", s.prefix(kind)))
+    if !measured {
+        outcome.unmeasured += 1;
+        outcome
+            .verdicts
+            .push(format!("unmeasured {} oracle", case.name));
+    }
 }
 
 /// Makes `dir` hold exactly `produced`. Most runs change few files, and creating and removing

@@ -52,7 +52,6 @@ export function writeMeta(unit: StoredUnit): boolean {
 /**
  * fixture.toml: the hand-written part of a unit, never touched by the importer.
  *   [skip]            "<task>" or "<task>/<variant>" = "reason"
- *   [[adjust]]        see adjust.ts
  */
 function readFixture(unit: UnitKey): FixtureToml {
 	const file = fixtureFile(unit);

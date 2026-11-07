@@ -24,7 +24,8 @@ Svelte 4 → 5 migration, text-level svelte2tsx compatibility, many general JS l
 
 - `corpus/` holds real Svelte 5 files from permissive licenses only (MIT, Apache-2.0, ISC,
   BSD-3-Clause, Unlicense). Expected output comes from the official tools; never edit it by
-  hand. When our output means the same thing, add an `[[adjust]]` entry to `fixture.toml`.
+  hand. `cargo test` compares every unit with it and records each verdict in the parity ratchet
+  (`corpus/_registry/parity.json`); an intended change is recorded with `UPDATE_EXPECT=1`.
   See [corpus/README.md](corpus/README.md) and
   [crates/test_harness/README.md](crates/test_harness/README.md).
 - Speed: compare the official tools, `main`, and this rewrite. See
@@ -32,8 +33,9 @@ Svelte 4 → 5 migration, text-level svelte2tsx compatibility, many general JS l
 
 ```sh
 F=tools/oracle/oracle.ts   # zsh: keep only the path in the variable
-mise exec -- node $F compare --task svelte.compile --variant client --report <file>
+mise exec -- node $F regen --task svelte.compile                # the official output
 cargo test -p rsvelte_svelte_compile --test fixtures            # UPDATE_EXPECT=1 to accept
+FIXTURE_VERDICTS=<file> cargo test -p rsvelte_svelte_compile --test fixtures   # every file's verdict
 cargo fmt && cargo clippy --all-targets -- -D warnings && cargo test
 mise run structure
 pnpm install && pnpm run check    # the site and tools/: oxfmt, oxlint, knip, tsc

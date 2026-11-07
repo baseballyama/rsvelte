@@ -21,14 +21,17 @@
 mod cases;
 mod javascript;
 mod node;
+mod oracle;
 mod snapshots;
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Mutex;
 
 use cases::Case;
 pub use node::NodePackages;
+use oracle::Verdict;
 use rsvelte_kernel::computation::pipeline::{Document, Registry, RunOptions, Sharing, run_each};
 use snapshots::{Outcome, Snapshot};
 
@@ -96,28 +99,30 @@ impl Fixtures {
         self
     }
 
-    /// Runs `task` on every case and keeps its output as `<name>.*` in `actual/` and `expected/`.
+    /// Runs `task` on every case and keeps its output as `<name>.*` in `actual/` and `expected/`
+    /// of a hand-written case, and as `<task>/<variant>.*` in a corpus unit.
     ///
     /// # Panics
     ///
     /// If the task or the name is already used, or the name is not a plain file stem.
     #[must_use]
     pub fn snapshot(self, task: &'static str, name: &'static str) -> Self {
-        self.add(task, name, false)
+        self.add(task, name, true)
     }
 
-    /// Like [`Fixtures::snapshot`], but in a case copied from the corpus, the `<name>.js` file
-    /// also matches the official one when both parse to the same syntax tree.
+    /// A task of the official tool that rsvelte does not implement yet: its corpus units stay in
+    /// the parity ratchet, as `missing`.
     ///
     /// # Panics
     ///
     /// As [`Fixtures::snapshot`].
     #[must_use]
-    pub fn javascript_snapshot(self, task: &'static str, name: &'static str) -> Self {
-        self.add(task, name, true)
+    pub fn not_implemented(self, task: &'static str) -> Self {
+        let (_, variant) = rsvelte_kernel::output::task_files::location(task);
+        self.add(task, variant, false)
     }
 
-    fn add(mut self, task: &'static str, name: &'static str, javascript_tree: bool) -> Self {
+    fn add(mut self, task: &'static str, name: &'static str, implemented: bool) -> Self {
         assert!(
             !name.is_empty()
                 && name != "input"
@@ -129,13 +134,13 @@ impl Fixtures {
         assert!(
             self.snapshots
                 .iter()
-                .all(|s| s.task != task && s.name != name),
+                .all(|s| s.task != task && (s.name != name || !implemented || !s.implemented)),
             "{task} as {name:?}: each task and each name is used once"
         );
         self.snapshots.push(Snapshot {
             task,
             name,
-            javascript_tree,
+            implemented,
         });
         self
     }
@@ -208,34 +213,12 @@ impl Fixtures {
                 return fail(&format!("{}: {e}", Path::new(&path).display()));
             }
         }
-        eprintln!(
-            "fixtures {}: {} of {total} cases, {} snapshots same, {} written, {} removed, \
-             {problems} problems",
-            self.root.display(),
-            runnable.len(),
-            outcome.same,
-            outcome.written,
-            outcome.removed,
-        );
-        let oracle_cases = outcome.matching
-            + outcome.equivalent
-            + outcome.differing
-            + outcome.unparseable
-            + outcome.not_run
-            + outcome.unmeasured;
-        if oracle_cases > 0 {
-            eprintln!(
-                "official output, {oracle_cases} cases: {} match it byte for byte, {} match it as \
-                 JavaScript syntax trees, {} differ (compare their `expected/` and `actual/`), {} \
-                 have JavaScript that does not parse, {} not run, \
-                 {} UNMEASURED (no oracle snapshot)",
-                outcome.matching,
-                outcome.equivalent,
-                outcome.differing,
-                outcome.unparseable,
-                outcome.not_run,
-                outcome.unmeasured,
-            );
+        self.summarize(&outcome, runnable.len(), total, problems);
+        if let Some((corpus, _)) = &self.corpus {
+            match self.ratchet(corpus, &outcome, &arguments) {
+                Ok(moved) => problems += moved,
+                Err(e) => return fail(&e),
+            }
         }
         if problems > 0 {
             eprintln!(
@@ -245,6 +228,82 @@ impl Fixtures {
             return ExitCode::FAILURE;
         }
         ExitCode::SUCCESS
+    }
+
+    fn summarize(&self, outcome: &Outcome, ran: usize, total: usize, problems: usize) {
+        eprintln!(
+            "fixtures {}: {} of {total} cases, {} snapshots same, {} written, {} removed, \
+             {problems} problems",
+            self.root.display(),
+            ran,
+            outcome.same,
+            outcome.written,
+            outcome.removed,
+        );
+        for (task, tally) in &outcome.tallies {
+            let counts: Vec<String> = Verdict::ALL
+                .iter()
+                .zip(tally.verdicts)
+                .filter(|(_, n)| *n > 0)
+                .map(|(v, n)| format!("{n} {}", v.label()))
+                .collect();
+            eprintln!(
+                "official output, {task}: {}, {} refused",
+                counts.join(", "),
+                tally.refused
+            );
+        }
+        if outcome.unmeasured > 0 {
+            eprintln!(
+                "official output: {} cases UNMEASURED (no official file for these tasks)",
+                outcome.unmeasured
+            );
+        }
+    }
+
+    /// Compares the corpus verdicts with the parity ratchet, or records them with `update`, and
+    /// returns how many moved without being recorded. Only the entries of this harness's tasks,
+    /// and of the cases the command line selects, are compared.
+    fn ratchet(
+        &self,
+        corpus: &Path,
+        outcome: &Outcome,
+        arguments: &Arguments,
+    ) -> Result<usize, String> {
+        let tasks: Vec<String> = self
+            .snapshots
+            .iter()
+            .map(|s| {
+                let (task, variant) = rsvelte_kernel::output::task_files::location(s.task);
+                format!("{task}/{variant}")
+            })
+            .collect();
+        let owned = |key: &str| {
+            key.split_once(' ').is_some_and(|(task, case)| {
+                tasks.iter().any(|t| t == task) && arguments.selects(case)
+            })
+        };
+        let now: BTreeMap<String, Verdict> = outcome
+            .parity
+            .iter()
+            .filter_map(|(key, verdict)| verdict.map(|v| (key.clone(), v)))
+            .collect();
+        let mut ratchet = oracle::Ratchet::load(corpus)?;
+        let moved = ratchet.check(&now, owned, arguments.update)?;
+        for (key, recorded, verdict) in &moved {
+            eprintln!("MOVED {recorded:>11} -> {verdict:<11} {key}");
+        }
+        eprintln!(
+            "parity: {} units compared (refused ones not listed), {} moved{}",
+            now.len(),
+            moved.len(),
+            if arguments.update && !moved.is_empty() {
+                ", recorded"
+            } else {
+                ""
+            },
+        );
+        Ok(if arguments.update { 0 } else { moved.len() })
     }
 
     fn cases(&self) -> Result<Vec<Case>, String> {
@@ -266,7 +325,12 @@ impl Fixtures {
         documents: &[Document],
         update: bool,
     ) -> Result<Outcome, String> {
-        let tasks: Vec<&str> = self.snapshots.iter().map(|s| s.task).collect();
+        let tasks: Vec<&str> = self
+            .snapshots
+            .iter()
+            .filter(|s| s.implemented)
+            .map(|s| s.task)
+            .collect();
         let options = RunOptions {
             tasks: &tasks,
             sharing: Sharing::Shared,
@@ -445,10 +509,10 @@ mod tests {
         let documents = [cases[0].document().unwrap()];
         let outcome = fixtures.check(&cases, &documents, true).unwrap();
         assert_eq!(outcome.unmeasured, 1, "no official output is not a match");
+        assert!(outcome.tallies.is_empty() && outcome.parity.is_empty());
         assert_eq!(
-            (outcome.matching, outcome.written),
-            (0, 0),
-            "update never writes the oracle"
+            outcome.written, 0,
+            "update never writes the official output"
         );
         assert_eq!(
             std::fs::read_to_string(unit.join("actual/test.findings/default.json")).unwrap(),
@@ -458,11 +522,25 @@ mod tests {
         let expected = unit.join("expected/test.findings");
         std::fs::create_dir_all(&expected).unwrap();
         std::fs::write(expected.join("default.json"), "[]\n").unwrap();
+        let key = "test.findings/default svelte/source/src/input.svelte".to_owned();
         let control = fixtures.check(&cases, &documents, false).unwrap();
-        assert_eq!((control.matching, control.unmeasured), (1, 0));
+        assert_eq!(control.unmeasured, 0);
+        assert_eq!(control.parity, [(key.clone(), Some(Verdict::Match))]);
         std::fs::write(expected.join("default.json"), "[1]\n").unwrap();
         let differs = fixtures.check(&cases, &documents, false).unwrap();
-        assert_eq!((differs.matching, differs.differing), (0, 1));
+        assert_eq!(differs.parity, [(key, Some(Verdict::Mismatch))]);
+        std::fs::write(
+            unit.join("fixture.toml"),
+            "[skip]\n\"test.findings\" = \"a reason\"\n",
+        )
+        .unwrap();
+        let cases = fixtures.cases().unwrap();
+        let skipped = fixtures.check(&cases, &documents, false).unwrap();
+        assert_eq!(
+            (skipped.unmeasured, skipped.parity.len()),
+            (1, 0),
+            "a skipped task is not compared"
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
 }

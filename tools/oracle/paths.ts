@@ -4,7 +4,7 @@ import type { Task, UnitKey } from './types.ts';
 export const ROOT = path.resolve(import.meta.dirname, '../..');
 export const CORPUS = path.join(ROOT, 'corpus');
 // Units live under corpus/<family>/ (svelte, vue, html, …); everything shared lives in _registry/.
-export const REGISTRY = path.join(CORPUS, '_registry');
+const REGISTRY = path.join(CORPUS, '_registry');
 export const SOURCES_FILE = path.join(REGISTRY, 'sources.json');
 export const ORACLES_FILE = path.join(REGISTRY, 'oracles.json');
 export const IMPORT_REPORT_FILE = path.join(REGISTRY, 'import-report.json');
@@ -39,8 +39,6 @@ export const snapshotDir = (task: Task): string =>
 	task.storage === 'cached' ? 'cache' : 'expected';
 export const expectedFile = (task: Task, variant: string, unit: UnitKey, ext: string): string =>
 	path.join(unitDir(unit), snapshotDir(task), task.id, `${variant}.${ext}`);
-export const actualFile = (task: Task, variant: string, unit: UnitKey, ext: string): string =>
-	path.join(unitDir(unit), 'actual', task.id, `${variant}.${ext}`);
 
 /** Forward-slash path of `p` relative to `base`, the form every key uses. */
 export const rel = (base: string, p: string): string =>

@@ -2,11 +2,7 @@
 //
 //   import --from <dir> [--source id,...] [--accept-commit]   copy the registered sources into corpus/
 //   regen [--task id,...] [--source id,...]                   write each oracle's output to expected/
-//   upgrade                                                   regen every task, then check the adjustments
-//   adjust [--write]                                          check the [[adjust]] entries
-//   compare --task id --variant id [--source id,...] [--family name,...] [--report <file>]
-//                                                             compare each unit's actual/ with expected/
-//   check [--update]                                          every task over every unit, against parity.json
+//   upgrade                                                   regen every task after an oracle bump
 //   run-all [--binary <binary>]                               write rsvelte's output to every unit's actual/
 //   stats                                                     count the units
 //   upstream <name> <checkout>                                copy an upstream project's test fixtures into its crate's tests
@@ -19,9 +15,6 @@ const commands: Record<string, () => Promise<{ main(args: string[]): Promise<voi
 	import: () => import('./import.ts'),
 	regen: () => import('./regen.ts'),
 	upgrade: () => import('./upgrade.ts'),
-	adjust: () => import('./adjust.ts'),
-	compare: () => import('./compare.ts'),
-	check: () => import('./check.ts'),
 	'run-all': () => import('./run-all.ts'),
 	stats: () => import('./stats.ts'),
 	upstream: () => import('./upstream.ts'),

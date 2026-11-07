@@ -7,7 +7,9 @@ fn main() -> ExitCode {
     rsvelte_svelte_compile::register(&mut registry);
     rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
         .corpus("svelte")
-        .javascript_snapshot("svelte.compile/client", "client")
-        .javascript_snapshot("svelte.compile/server", "server")
+        .snapshot("svelte.compile/client", "client")
+        .snapshot("svelte.compile/server", "server")
+        .not_implemented("svelte.compileModule/client")
+        .not_implemented("svelte.compileModule/server")
         .run()
 }

@@ -1,6 +1,9 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::computation::pipeline::Document;
+use rsvelte_kernel::output::task_files;
+use serde::Deserialize;
 
 const INPUT_STEM: &str = "input.";
 /// The corpus stores a path segment that collides with a reserved name with this prefix.
@@ -10,6 +13,8 @@ const REGISTRY: &str = "_registry";
 /// Marks a directory of `tests/fixtures/` as a copy of a project's own files and their official
 /// output.
 const SOURCE_FILE: &str = "source.json";
+/// A corpus unit's hand-written part.
+const FIXTURE_FILE: &str = "fixture.toml";
 
 /// Where a case lives, which decides the names of its files and where `expected/` comes from.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -27,13 +32,26 @@ pub(crate) enum Kind {
 
 pub(crate) struct Case {
     /// Hand-written: the directory relative to `tests/fixtures`. Corpus:
-    /// `<family>/<source>/<path>`, the key `oracle check` uses. `/` separators.
+    /// `<family>/<source>/<path>`, the key of the parity ratchet. `/` separators.
     pub(crate) name: String,
     pub(crate) dir: PathBuf,
     pub(crate) kind: Kind,
     input: PathBuf,
     /// The document's path, which outputs such as component names and style hashes depend on.
     path: String,
+    /// Tasks (`<task>`) and variants (`<task>/<variant>`) the unit is not compared on.
+    skip: Vec<String>,
+}
+
+/// `fixture.toml`: `[skip]` maps a task or `<task>/<variant>` to the reason. `behaviour` is read by
+/// the behaviour oracle's tests.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Fixture {
+    #[serde(default)]
+    skip: BTreeMap<String, String>,
+    #[serde(default, rename = "behaviour")]
+    _behaviour: Option<serde::de::IgnoredAny>,
 }
 
 impl Case {
@@ -42,6 +60,12 @@ impl Case {
             .map_err(|e| format!("{}: {e}", self.input.display()))?;
         Document::new(self.path.clone(), text)
             .map_err(|e| format!("{}: {e:?}", self.input.display()))
+    }
+
+    /// Whether the unit is not compared on `task` (`<task>/<variant>`, or a task without one).
+    pub(crate) fn skips(&self, task: &str) -> bool {
+        let (directory, _) = task_files::location(task);
+        self.skip.iter().any(|s| s == task || s == directory)
     }
 
     /// The cases that are type checked together: one corpus source, or all hand-written cases with
@@ -61,7 +85,7 @@ impl Case {
 /// above it holds `source.json`.
 pub(crate) fn in_crate(root: &Path) -> Result<Vec<Case>, String> {
     let mut cases = Vec::new();
-    walk(root, &mut |dir, input, extension| {
+    walk(root, &mut |dir, input, extension, _| {
         let name = relative_name(root, dir)?;
         let source = dir
             .ancestors()
@@ -78,6 +102,7 @@ pub(crate) fn in_crate(root: &Path) -> Result<Vec<Case>, String> {
             dir: dir.to_path_buf(),
             kind,
             input,
+            skip: Vec::new(),
         });
         Ok(())
     })?;
@@ -96,14 +121,20 @@ pub(crate) fn corpus(corpus: &Path, family: &str) -> Result<Vec<Case>, String> {
     let mut cases = Vec::new();
     for source in children(&root)? {
         let source_name = relative_name(&root, &source)?;
-        walk(&source, &mut |dir, input, _| {
+        walk(&source, &mut |dir, input, _, fixture| {
             let path = original_path(&relative_name(&source, dir)?);
+            let skip = if fixture {
+                skipped(&dir.join(FIXTURE_FILE))?
+            } else {
+                Vec::new()
+            };
             cases.push(Case {
                 name: format!("{family}/{source_name}/{path}"),
                 dir: dir.to_path_buf(),
                 kind: Kind::Corpus,
                 input,
                 path,
+                skip,
             });
             Ok(())
         })?;
@@ -112,17 +143,26 @@ pub(crate) fn corpus(corpus: &Path, family: &str) -> Result<Vec<Case>, String> {
     Ok(cases)
 }
 
-/// Calls `found(dir, input, extension)` for each case below `root`: a directory that holds one
-/// `input.<ext>`. A case directory is not searched for more cases.
-fn walk(
-    root: &Path,
-    found: &mut dyn FnMut(&Path, PathBuf, &str) -> Result<(), String>,
-) -> Result<(), String> {
+fn skipped(file: &Path) -> Result<Vec<String>, String> {
+    let at = |e: &dyn std::fmt::Display| format!("{}: {e}", file.display());
+    let text = std::fs::read_to_string(file).map_err(|e| at(&e))?;
+    let fixture: Fixture = toml::from_str(&text).map_err(|e| at(&e))?;
+    Ok(fixture.skip.into_keys().collect())
+}
+
+/// Called with a case's directory, its input, the input's extension, and whether the directory
+/// holds `fixture.toml`.
+type Found<'a> = dyn FnMut(&Path, PathBuf, &str, bool) -> Result<(), String> + 'a;
+
+/// Calls `found` for each case below `root`: a directory that holds one `input.<ext>`. A case
+/// directory is not searched for more cases.
+fn walk(root: &Path, found: &mut Found<'_>) -> Result<(), String> {
     let mut stack = vec![root.to_path_buf()];
     while let Some(dir) = stack.pop() {
         let read = std::fs::read_dir(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
         let mut inputs = Vec::new();
         let mut directories = Vec::new();
+        let mut fixture = false;
         for entry in read {
             let entry = entry.map_err(|e| format!("{}: {e}", dir.display()))?;
             let path = entry.path();
@@ -132,17 +172,17 @@ fn walk(
                 .is_dir()
             {
                 directories.push(path);
-            } else if let Some(extension) = entry
-                .file_name()
-                .to_str()
-                .and_then(|n| n.strip_prefix(INPUT_STEM))
-            {
-                inputs.push((path, extension.to_owned()));
+            } else if let Some(name) = entry.file_name().to_str() {
+                if let Some(extension) = name.strip_prefix(INPUT_STEM) {
+                    inputs.push((path, extension.to_owned()));
+                } else {
+                    fixture |= name == FIXTURE_FILE;
+                }
             }
         }
         match inputs.as_slice() {
             [] => stack.extend(directories),
-            [(input, extension)] => found(&dir, input.clone(), extension)?,
+            [(input, extension)] => found(&dir, input.clone(), extension, fixture)?,
             _ => return Err(format!("{}: more than one `input.*`", dir.display())),
         }
     }

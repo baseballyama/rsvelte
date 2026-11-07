@@ -1,8 +1,8 @@
 # Every gate the repository has, on every push and pull request:
 # - rust: formatting, the lint gate (both feature sets, rustdoc), the test suites (each crate's
-#   fixture snapshots included; the type-check ones run tsc from tools/oracle/node_modules);
-# - corpus: every task over every corpus unit, against the oracle snapshots (the parity ratchet,
-#   corpus/_registry/parity.json), the adjustments' validity and the behaviour oracle's own tests;
+#   fixture snapshots, and every corpus unit against the official output with the parity ratchet,
+#   corpus/_registry/parity.json; the type-check ones run tsc from tools/oracle/node_modules);
+# - oracle: the structure check and the oracle tools' own tests (the behaviour oracle among them);
 # - performance: the deterministic performance ratchet (tools/performance/baseline.json): allocations exactly,
 #   and cachegrind's instruction counts (a warm round, and loading) on the platform the baseline
 #   records (arm64 Linux);
@@ -61,7 +61,7 @@ jobs:
           path: type-layout.json
           if-no-files-found: ignore
 
-  corpus:
+  oracle:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -79,12 +79,6 @@ jobs:
       - run: node tools/structure/structure.ts
       # The semantic tests build other crates with --offline, so fetch the whole lockfile first.
       - run: cargo fetch
-      - run: cargo build --release -p rsvelte_command_line
-      - run: node tools/oracle/oracle.ts run-all
-      - run: node oracle.ts check
-        working-directory: tools/oracle
-      - run: node oracle.ts adjust
-        working-directory: tools/oracle
       # The behaviour oracle against hand-written twins and deliberately wrong translations.
       - run: pnpm test
         working-directory: tools/oracle
