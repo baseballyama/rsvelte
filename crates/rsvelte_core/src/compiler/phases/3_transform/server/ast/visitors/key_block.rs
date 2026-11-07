@@ -16,19 +16,29 @@
 //! ```
 //!
 //! KeyBlock just re-renders its body verbatim, wrapped in two `<!---->` anchor
-//! comments. The async path (`is_async` → extra `<!--[-->` / `<!--]-->`
-//! wrappers) is KNOWN GAP: it needs the `PromiseOptimiser` / blocker plumbing,
-//! which is not ported in the AST pipeline yet.
+//! comments, plus `<!--[-->` / `<!--]-->` when its expression is async.
 
 use crate::ast::template::KeyBlock;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 
-use super::shared::{EMPTY_COMMENT, TemplateEntry, build_fragment_block};
+use super::shared::{
+    BLOCK_CLOSE, BLOCK_OPEN, EMPTY_COMMENT, TemplateEntry, build_fragment_block,
+    expr_local_const_blockers, expr_text_blockers, text_has_await,
+};
 
-/// Visit a `{#key expr}...{/key}` block (sync path only).
+/// Visit a `{#key expr}...{/key}` block.
 pub fn visit_key_block<'a>(node: &KeyBlock<'a>, state: &mut ServerTransformState<'a>) {
-    // KNOWN GAP: async key blocks (`node.metadata.expression.is_async()`) need
-    // the `block_open` / `block_close` wrappers + blocker plumbing.
+    // `node.metadata.expression.is_async()` = `has_await || has_blockers()`.
+    let is_async = state.expr_source(&node.expression).is_some_and(|text| {
+        text_has_await(text)
+            || !expr_text_blockers(state, text).is_empty()
+            || !expr_local_const_blockers(state, text).is_empty()
+    });
+    if is_async {
+        state
+            .template
+            .push(TemplateEntry::Literal(BLOCK_OPEN.to_string()));
+    }
 
     // `<!---->` anchor before the body.
     state
@@ -47,4 +57,10 @@ pub fn visit_key_block<'a>(node: &KeyBlock<'a>, state: &mut ServerTransformState
     state
         .template
         .push(TemplateEntry::Literal(EMPTY_COMMENT.to_string()));
+
+    if is_async {
+        state
+            .template
+            .push(TemplateEntry::Literal(BLOCK_CLOSE.to_string()));
+    }
 }

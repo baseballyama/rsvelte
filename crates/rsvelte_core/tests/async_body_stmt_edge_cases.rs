@@ -67,7 +67,7 @@ fn function_initializer_comment_stays_in_sync_prelude() {
     );
     assert!(!out.contains("COMPILE_ERROR"), "{out}");
     assert!(
-        out.contains("const callback = (value) => value;"),
+        out.contains("const callback = /* = */ (value) => value;"),
         "function initializer was moved into an async thunk:\n{out}"
     );
     assert!(

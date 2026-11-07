@@ -25,6 +25,7 @@ import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
 import { LspProcess } from "./lsp-client.mjs";
+import { resolveTsgo } from "../compat-lsp/tsgo.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -147,7 +148,12 @@ function discoverTsgo(explicit, allowMissing) {
       }
     }
   }
-  if (allowMissing) return null;
+  // language-tools now pins `@typescript/native` (typescript@7), which ships no `tsgo` bin.
+  try {
+    return resolveTsgo(repoRoot);
+  } catch {
+    if (allowMissing) return null;
+  }
   throw new Error(
     "pinned tsgo not found; install submodules/language-tools, set TSGO_BIN, or pass --tsgo-bin",
   );

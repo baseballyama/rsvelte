@@ -21,6 +21,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::async_body::blocker_identity_count;
 use crate::compiler::phases::phase3_transform::utils::ParentRef;
 use crate::compiler::phases::phase3_transform::utils::{clean_nodes, infer_namespace};
 use rustc_hash::FxHashMap;
@@ -633,20 +634,21 @@ pub fn fragment(
                     }
                 }
                 let mut indices: Vec<usize> = Vec::new();
+                let scope_root = state.scope_root;
+                let is_function = |name: &str| {
+                    scope_root
+                        .get_binding(name, scope_root.instance_scope_index)
+                        .is_some_and(|i| scope_root.bindings[i].initial_is_function)
+                };
                 for idx in &idx_first_seen {
-                    let names_at_idx = per_idx_names.get(idx).unwrap();
-                    let primary_at_idx = primary_names.get(idx);
-                    let primary_count = match primary_at_idx {
-                        Some(set) => names_at_idx.iter().filter(|n| set.contains(*n)).count(),
-                        None => names_at_idx.len(),
-                    };
-                    // Fall back to "at least one" so that an index reached
-                    // purely via the broad-reference logic in
-                    // `compute_blocker_map` (no primary name at that slot in
-                    // `compute_blocker_primary_names`) still contributes one
-                    // entry. This preserves the historical dedup-by-index
-                    // behavior for cases without explicit primary tracking.
-                    let count = primary_count.max(1);
+                    let names_at_idx: Vec<&str> = per_idx_names
+                        .get(idx)
+                        .unwrap()
+                        .iter()
+                        .map(String::as_str)
+                        .collect();
+                    let count =
+                        blocker_identity_count(&names_at_idx, primary_names.get(idx), is_function);
                     for _ in 0..count {
                         indices.push(*idx);
                     }

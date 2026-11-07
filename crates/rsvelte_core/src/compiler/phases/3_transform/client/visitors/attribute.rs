@@ -366,6 +366,8 @@ pub fn build_event_handler(
             && binding
                 .as_ref()
                 .is_none_or(|b| b.declaration_kind != DeclarationKind::Import)
+            && !binding
+                .is_some_and(|b| super::shared::events::binding_has_blocker(b, name, context))
         {
             return js_expr;
         }

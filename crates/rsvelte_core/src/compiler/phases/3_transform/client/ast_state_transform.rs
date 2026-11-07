@@ -40,7 +40,7 @@ use super::{DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER, VAR_ST
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::types::ScriptProjection;
 use crate::compiler::phases::phase3_transform::js_ast::to_oxc::SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER;
-use crate::compiler::phases::phase3_transform::shared::js_scan::find_code_from;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code_from, skip_opaque};
 use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
@@ -1347,11 +1347,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg_text = if let Some(arg) = call.arguments.first() {
             self.visit_argument(arg);
             let arg_span = arg.span();
-            let (pre, post) = self.rune_call_comment_slots(call, arg_span, init_span);
-            pre_comments = self.flush_trivia_comments(&pre, arg_span.start, true);
+            let (mut pre, post) = self.rune_call_comment_slots(call, arg_span, init_span);
             post_comments = post;
             arg_end = arg_span.end;
-            let transformed = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
+            let (transformed, drained_from) =
+                self.apply_and_drain_inner_replacements_from(arg_span.start, arg_span.end);
+            pre.retain(|&(start, _)| start < drained_from);
+            pre_comments = self.flush_trivia_comments(&pre, arg_span.start, true);
             if transformed.trim().is_empty() {
                 "void 0".to_string()
             } else {
@@ -1448,11 +1450,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg_text = if let Some(arg) = call.arguments.first() {
             self.visit_argument(arg);
             let arg_span = arg.span();
-            let (pre, post) = self.rune_call_comment_slots(call, arg_span, init_span);
-            pre_comments = self.flush_trivia_comments(&pre, arg_span.start, true);
+            let (mut pre, post) = self.rune_call_comment_slots(call, arg_span, init_span);
             post_comments = post;
             arg_end = arg_span.end;
-            let transformed = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
+            let (transformed, drained_from) =
+                self.apply_and_drain_inner_replacements_from(arg_span.start, arg_span.end);
+            pre.retain(|&(start, _)| start < drained_from);
+            pre_comments = self.flush_trivia_comments(&pre, arg_span.start, true);
             if transformed.trim().is_empty() {
                 "void 0".to_string()
             } else {
@@ -2468,15 +2472,17 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             .first()
             .map_or(call.span.start, |&(first, _)| first);
         pre_spans.splice(0..0, lead_spans);
-        let param_comments = self.flush_trivia_comments(&pre_spans, arg_span.start, false);
-        let lead_comments = self.flush_trivia_comments(&pre_spans, arg_span.start, true);
 
         // Walk the argument once so inner state-var refs get `$.get(...)`,
         // then drain those inner replacements into a transformed string we
         // can feed to the text helpers (mirroring `wrap_state_vars_in_expr`
         // in the old path).
         self.visit_argument(arg);
-        let walked_arg = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
+        let (walked_arg, drained_from) =
+            self.apply_and_drain_inner_replacements_from(arg_span.start, arg_span.end);
+        pre_spans.retain(|&(span_start, _)| span_start < drained_from);
+        let param_comments = self.flush_trivia_comments(&pre_spans, arg_span.start, false);
+        let lead_comments = self.flush_trivia_comments(&pre_spans, arg_span.start, true);
         let walked_trimmed = walked_arg.trim();
         let walked_for_emit = walked_trimmed
             .strip_suffix(',')
@@ -2818,7 +2824,9 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg_start = expr.span.start + "await".len() as u32;
         let arg_text = self.apply_and_drain_inner_replacements(arg_start, expr.span.end);
 
-        let wrap = |argument: &str| format!("(await $.track_reactivity_loss({argument}))()");
+        let wrap = |argument: &str| {
+            super::await_reactivity_loss_ast::track_reactivity_loss_wrap("", argument)
+        };
         // The `;` rides inside this replacement rather than being appended to
         // the statement before it, which may have no replacement of its own.
         let (start, replacement) = match self.await_separators.get(&expr.span.start) {
@@ -2840,7 +2848,10 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                     run_start,
                     format!(
                         "{parens}{}",
-                        wrap(&format!("{comments}{}", arg_text.trim()))
+                        super::await_reactivity_loss_ast::track_reactivity_loss_wrap(
+                            &comments,
+                            arg_text.trim()
+                        )
                     ),
                 ),
                 None => (expr.span.start, wrap(arg_text.trim())),
@@ -2869,13 +2880,12 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         self.visit_expression(&stmt.right);
         let right_span = stmt.right.span();
         let right_text = self.apply_and_drain_inner_replacements(right_span.start, right_span.end);
-        self.add_replacement(
-            right_span.start,
-            right_span.end,
-            super::await_reactivity_loss_ast::for_await_track_reactivity_loss_wrap(
-                right_text.trim(),
-            ),
-        );
+        for (start, end, replacement) in
+            self.await_comment_runs
+                .for_await_wrap_edits(self.source, stmt, right_text.trim(), true)
+        {
+            self.add_replacement(start, end, replacement);
+        }
         self.visit_statement(&stmt.body);
         true
     }
@@ -2954,24 +2964,58 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// This is used when an outer replacement (e.g., assignment) needs the
     /// already-transformed text of an inner region (e.g., the RHS expression).
     fn apply_and_drain_inner_replacements(&mut self, range_start: u32, range_end: u32) -> String {
+        self.apply_and_drain_inner_replacements_from(range_start, range_end)
+            .0
+    }
+
+    /// `apply_and_drain_inner_replacements`, also returning where the drained
+    /// text starts in the source: before `range_start` when a replacement
+    /// reaching back over the trivia ahead of the range (a dev `await` wrapper
+    /// carrying its leading comments) was drained with it.
+    fn apply_and_drain_inner_replacements_from(
+        &mut self,
+        range_start: u32,
+        range_end: u32,
+    ) -> (String, u32) {
         let inner = self.take_inner_replacements(range_start, range_end);
 
         if inner.is_empty() {
-            return self.source[range_start as usize..range_end as usize].to_string();
+            return (
+                self.source[range_start as usize..range_end as usize].to_string(),
+                range_start,
+            );
         }
+
+        let base = inner
+            .iter()
+            .map(|r| r.start)
+            .min()
+            .map_or(range_start, |start| start.min(range_start));
 
         // Sort inner replacements right-to-left and apply to the substring
         let mut sorted_inner = inner;
         sorted_inner.sort_by_key(|r| std::cmp::Reverse(r.start));
 
-        let mut result = self.source[range_start as usize..range_end as usize].to_string();
+        let mut result = self.source[base as usize..range_end as usize].to_string();
         for rep in &sorted_inner {
-            let local_start = (rep.start - range_start) as usize;
-            let local_end = (rep.end - range_start) as usize;
+            let local_start = (rep.start - base) as usize;
+            let local_end = (rep.end - base) as usize;
             result.replace_range(local_start..local_end, &rep.text);
         }
 
-        result
+        (result, base)
+    }
+
+    /// A replacement that starts in the trivia just before `range_start` and
+    /// ends inside the range. Left pending, it would overlap whichever outer
+    /// replacement consumes the range and both would be spliced.
+    fn reaches_back_into(&self, r: &Replacement, range_start: u32, range_end: u32) -> bool {
+        r.start < range_start
+            && r.end > range_start
+            && r.end <= range_end
+            && is_trivia_or_open_parens(
+                &self.source.as_bytes()[r.start as usize..range_start as usize],
+            )
     }
 
     /// Remove every pending replacement contained in `[range_start, range_end]`
@@ -2983,23 +3027,31 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// without touching the entries before it. Rescanning the whole list on
     /// every call is quadratic in a component's rune declaration count.
     fn take_inner_replacements(&mut self, range_start: u32, range_end: u32) -> Vec<Replacement> {
-        let contained = |r: &Replacement| r.start >= range_start && r.end <= range_end;
+        let contained = |this: &Self, r: &Replacement| {
+            (r.start >= range_start && r.end <= range_end)
+                || this.reaches_back_into(r, range_start, range_end)
+        };
 
         if !self.replacements_sorted {
+            let all = std::mem::take(&mut self.replacements);
             let (inner, outer): (Vec<Replacement>, Vec<Replacement>) =
-                self.replacements.drain(..).partition(contained);
+                all.into_iter().partition(|r| contained(self, r));
             self.replacements = outer;
             self.replacements_sorted = self.replacements.is_sorted_by_key(|r| r.start);
             return inner;
         }
 
-        let lo = self.replacements.partition_point(|r| r.start < range_start);
+        let mut lo = self.replacements.partition_point(|r| r.start < range_start);
+        while lo > 0 && self.reaches_back_into(&self.replacements[lo - 1], range_start, range_end) {
+            lo -= 1;
+        }
         let hi = lo + self.replacements[lo..].partition_point(|r| r.start <= range_end);
         if lo == hi {
             return Vec::new();
         }
+        let window: Vec<Replacement> = self.replacements.drain(lo..hi).collect();
         let (inner, kept): (Vec<Replacement>, Vec<Replacement>) =
-            self.replacements.drain(lo..hi).partition(contained);
+            window.into_iter().partition(|r| contained(self, r));
         if !kept.is_empty() {
             self.replacements.splice(lo..lo, kept);
         }
@@ -5678,6 +5730,24 @@ fn transform_state_vars_ast_from_program_unchecked(
     }
 
     Some(result)
+}
+
+/// Only whitespace, comments and `(` — the bytes a relocated `await` wrapper may
+/// reach back over.
+fn is_trivia_or_open_parens(bytes: &[u8]) -> bool {
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'(' => i += 1,
+            b if b.is_ascii_whitespace() => i += 1,
+            b'/' => match skip_opaque(bytes, i, Some(b'(')) {
+                Some((next, true)) => i = next,
+                _ => return false,
+            },
+            _ => return false,
+        }
+    }
+    true
 }
 
 fn collect_state_var_replacements(

@@ -21,9 +21,10 @@ pub(super) fn source_has_await(source: &str) -> bool {
     memchr::memmem::find(source.as_bytes(), b"await").is_some()
 }
 
-/// The dev wrapper upstream builds in `visitors/AwaitExpression.js`.
-fn track_reactivity_loss_wrap(argument_text: &str) -> String {
-    format!("(await $.track_reactivity_loss({argument_text}))()")
+/// The dev wrapper upstream builds in `visitors/AwaitExpression.js`, with the
+/// comment run esrap flushes at the `await` (see [`AwaitCommentRuns`]).
+pub(super) fn track_reactivity_loss_wrap(leading_comments: &str, argument_text: &str) -> String {
+    format!("({leading_comments}await $.track_reactivity_loss({argument_text}))()")
 }
 
 /// The dev wrapper upstream builds in `visitors/ForOfStatement.js`.
@@ -53,12 +54,14 @@ fn awaits_over_the_whole_span(expr: &Expression<'_>, ignore: &AwaitIgnoreRanges)
         && !ignore.contains(expr.span.start)
 }
 
-fn for_await_edit(
+fn for_await_edits(
     stmt: &ForOfStatement<'_>,
     source: &str,
     experimental_async: bool,
     ignore: &AwaitIgnoreRanges,
-) -> Option<Edit> {
+    runs: &AwaitCommentRuns,
+    may_delete: bool,
+) -> Option<Vec<Edit>> {
     if !is_for_await_instrumentable(stmt, experimental_async, ignore.contains(stmt.span.start)) {
         return None;
     }
@@ -70,11 +73,20 @@ fn for_await_edit(
     }
     let span = stmt.right.span();
     let text = source[span.start as usize..span.end as usize].trim();
-    Some((
-        span.start,
-        span.end,
-        for_await_track_reactivity_loss_wrap(text),
-    ))
+    Some(runs.for_await_wrap_edits(source, stmt, text, may_delete))
+}
+
+fn contains_for_await(stmt: &Statement<'_>) -> bool {
+    struct Find(bool);
+    impl<'a> Visit<'a> for Find {
+        fn visit_for_of_statement(&mut self, stmt: &ForOfStatement<'a>) {
+            self.0 |= stmt.r#await;
+            walk::walk_for_of_statement(self, stmt);
+        }
+    }
+    let mut find = Find(false);
+    find.visit_statement(stmt);
+    find.0
 }
 
 /// Whether `stmt`'s last token is an expression, so that a following line
@@ -274,12 +286,13 @@ pub(super) fn collect_await_reactivity_loss_edits(
 /// Where the comments in front of an `await` keyword end up once the wrapper
 /// replaces it.
 ///
-/// Upstream rebuilds the expression from position-less nodes and keeps only the
-/// argument's original span, so esrap — which flushes a pending comment at the
-/// first *located* node it reaches that starts after it — cannot flush the run
-/// before the wrapper and defers it to the argument. Two of esrap's other flush
-/// points still catch a run first: an enclosing node that starts on the `await`
-/// keyword itself, and the same-line trailing flush after a list element.
+/// Upstream builds the outer call position-less but keeps the `await` node's own
+/// span (`{ ...node, argument }`), so esrap — which flushes a pending comment at
+/// the first *located* node it reaches that starts after it — cannot flush the
+/// run before the call and prints it inside the callee's parentheses, ahead of
+/// the `await`. Two of esrap's other flush points still catch a run first: an
+/// enclosing node that starts on the `await` keyword itself, and the same-line
+/// trailing flush after a list element.
 #[derive(Default)]
 pub(super) struct AwaitCommentRuns {
     /// `(start, end, is_line)` per comment, in source order.
@@ -310,8 +323,8 @@ impl AwaitCommentRuns {
     }
 
     /// The run to move, as `(start of the run, the `(` run to re-emit ahead of
-    /// the wrapper, text to re-emit before the argument)`, or `None` when it
-    /// belongs outside the wrapper.
+    /// the wrapper, text to re-emit before the wrapper's `await`)`, or `None`
+    /// when it belongs outside the wrapper.
     pub(super) fn relocatable_run(
         &self,
         source: &str,
@@ -375,6 +388,103 @@ impl AwaitCommentRuns {
     }
 }
 
+impl AwaitCommentRuns {
+    /// The `(start, end, replacement)` edit wrapping `stmt`'s iterable in
+    /// `$.for_await_track_reactivity_loss(…)`, with the comments esrap prints
+    /// inside the call.
+    ///
+    /// Upstream rebuilds the loop and the call position-less, so the iterable is
+    /// the call's only located piece: every comment pending after `left` is
+    /// flushed ahead of it, and `flush_trailing_comments` then runs with no
+    /// `next` bound and takes every comment starting on the iterable's last
+    /// line, past the header's `)` and into the body. A block body's
+    /// `reset_comment_index` rewinds to the ones at or after its start, so those
+    /// print twice; any other taken comment is consumed. Only a consumed comment
+    /// past a statement body's end is deleted, and only under `may_delete`:
+    /// inside the body an inner `await` or loop may own it, and a nested loop
+    /// ending on the same byte would delete it twice.
+    pub(super) fn for_await_wrap_edits(
+        &self,
+        source: &str,
+        stmt: &ForOfStatement<'_>,
+        iterable_text: &str,
+        may_delete: bool,
+    ) -> Vec<Edit> {
+        let right = stmt.right.span();
+        let body_start = stmt.body.span().start;
+        let of_keyword = self.code_offset_after(source, stmt.left.span().end);
+
+        let mut start = right.start;
+        let mut text = String::new();
+        let first = self
+            .comments
+            .partition_point(|&(c_start, ..)| c_start < stmt.left.span().end);
+        for &(c_start, c_end, _) in &self.comments[first..] {
+            if c_end > right.start {
+                break;
+            }
+            start = start.min(c_start);
+            text.push_str(&source[c_start as usize..c_end as usize]);
+            let breaks = source[c_end as usize..right.start as usize].contains('\n');
+            text.push(if breaks { '\n' } else { ' ' });
+        }
+        text.push_str(iterable_text);
+
+        let mut end = right.end;
+        let mut deletions = Vec::new();
+        let deletes_past_body = may_delete
+            && !matches!(stmt.body, Statement::BlockStatement(_))
+            && !contains_for_await(&stmt.body);
+        let body_end = stmt.body.span().end;
+        let close_paren = self.code_offset_after(source, right.end);
+        let first = self
+            .comments
+            .partition_point(|&(c_start, ..)| c_start < right.end);
+        for &(c_start, c_end, is_line) in &self.comments[first..] {
+            if source[right.end as usize..c_start as usize].contains('\n') {
+                break;
+            }
+            text.push(' ');
+            text.push_str(&source[c_start as usize..c_end as usize]);
+            if c_start < body_start {
+                end = c_end;
+            } else if deletes_past_body && c_start >= body_end {
+                deletions.push((c_start, c_end, String::new()));
+            }
+            if is_line {
+                text.push('\n');
+                break;
+            }
+        }
+
+        let mut replacement = String::new();
+        if of_keyword >= start && of_keyword < right.start {
+            replacement.push_str("of ");
+        }
+        replacement.push_str(&for_await_track_reactivity_loss_wrap(&text));
+        if end > close_paren {
+            replacement.push(')');
+        }
+        let mut edits = vec![(start, end, replacement)];
+        edits.extend(deletions);
+        edits
+    }
+
+    /// The first offset at or after `from` that is neither whitespace nor
+    /// inside a comment.
+    fn code_offset_after(&self, source: &str, from: u32) -> u32 {
+        let mut at = from;
+        loop {
+            let rest = &source[at as usize..];
+            at += (rest.len() - rest.trim_start().len()) as u32;
+            match self.comments.iter().find(|&&(c_start, ..)| c_start == at) {
+                Some(&(_, c_end, _)) => at = c_end,
+                None => return at,
+            }
+        }
+    }
+}
+
 /// Whether the run at `run_start` sits on the same line as the end of the list
 /// element it follows, separated from it only by that list's `,` — the shape
 /// esrap prints as a trailing comment of the element instead.
@@ -428,12 +538,25 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
     }
 
     fn visit_for_of_statement(&mut self, stmt: &ForOfStatement<'a>) {
+        let before = self.edits.len();
         walk::walk_for_of_statement(self, stmt);
 
-        if let Some(edit) =
-            for_await_edit(stmt, self.source, self.experimental_async, &self.ignored)
-        {
-            self.edits.push(edit);
+        // An edit inside the iterable defers the wrap to a later round, which
+        // re-collects it; a deletion landing now would leave that round
+        // without the comment to copy.
+        let right = stmt.right.span();
+        let may_delete = !self.edits[before..]
+            .iter()
+            .any(|&(start, end, _)| start < right.end && end > right.start);
+        if let Some(edits) = for_await_edits(
+            stmt,
+            self.source,
+            self.experimental_async,
+            &self.ignored,
+            &self.runs,
+            may_delete,
+        ) {
+            self.edits.extend(edits);
         }
     }
 
@@ -465,7 +588,7 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
                 format!(
                     ";{}{}",
                     &self.source[prev_end as usize..expr.span.start as usize],
-                    track_reactivity_loss_wrap(arg_text)
+                    track_reactivity_loss_wrap("", arg_text)
                 ),
             ),
             // A statement whose own start is the `await` is exactly the shape
@@ -475,10 +598,10 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
                     run_start,
                     format!(
                         "{parens}{}",
-                        track_reactivity_loss_wrap(&format!("{comments}{arg_text}"))
+                        track_reactivity_loss_wrap(&comments, arg_text)
                     ),
                 ),
-                None => (expr.span.start, track_reactivity_loss_wrap(arg_text)),
+                None => (expr.span.start, track_reactivity_loss_wrap("", arg_text)),
             },
         };
         self.edits.push((start, expr.span.end, replacement));

@@ -105,15 +105,32 @@ fn uses_indented_syntax_for_lang_sass() {
 }
 
 #[test]
-fn accepts_common_indentation_in_svelte_sass_blocks() {
-    let processed = preprocess_sass(
+fn rejects_base_indentation_like_dart_sass() {
+    let error = preprocess_sass(
         &SassOptions::default(),
         &FilterOptions::default(),
         Some("Component.svelte"),
         "\n\t.card\n\t\tdisplay: block\n",
         &attrs(&[("lang", "sass")]),
     )
-    .expect("common Svelte indentation should compile")
+    .expect_err("dart-sass 1.107 rejects an indented first content line");
+
+    assert_eq!(
+        error,
+        "Indenting at the beginning of the document is illegal."
+    );
+}
+
+#[test]
+fn accepts_whitespace_only_leading_lines_in_sass_blocks() {
+    let processed = preprocess_sass(
+        &SassOptions::default(),
+        &FilterOptions::default(),
+        Some("Component.svelte"),
+        "  \n.card\n\tdisplay: block\n",
+        &attrs(&[("lang", "sass")]),
+    )
+    .expect("dart-sass accepts whitespace-only leading lines")
     .expect("sass filter should select the style");
 
     assert_eq!(processed.code, ".card {\n  display: block;\n}");

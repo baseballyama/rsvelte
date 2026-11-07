@@ -588,7 +588,7 @@ code exploration, or anything likely to consume meaningful context.
 
 ## Test Status
 
-<!-- svelte-target-version -->Source: `pnpm run compatibility-report` (Svelte **v5.57.1**).<!-- /svelte-target-version --> Re-run `pnpm run test-and-update`
+<!-- svelte-target-version -->Source: `pnpm run compatibility-report` (Svelte **v5.57.3**).<!-- /svelte-target-version --> Re-run `pnpm run test-and-update`
 to refresh. Runtime skip lists and fixture compile options are shared constants in
 `crates/rsvelte_core/tests/common/mod.rs`; `tests/audit_skipped.rs` re-checks every skipped
 fixture after a Svelte bump.
@@ -597,22 +597,22 @@ fixture after a Svelte bump.
 |-------|------------|
 | Parser Modern | 28/28 |
 | Parser Legacy | 83/83 |
-| Compiler Errors | 146/146 |
+| Compiler Errors | 150/150 |
 | Compiler Snapshot | 30/30 |
-| CSS | 183/183 |
-| Validator | 334/334 (full `(code, message, start, end)` shape) |
-| SSR | 104/104 |
-| Hydration | 81/81 |
+| CSS | 184/184 |
+| Validator | 336/336 (full `(code, message, start, end)` shape) |
+| SSR | 105/105 |
+| Hydration | 85/85 |
 | Runtime Legacy | 1207/1207 |
-| Runtime Runes | 1046/1046 |
-| Runtime Browser | 35/35 |
+| Runtime Runes | 1096/1096 |
+| Runtime Browser | 39/39 |
 | Print | 50/50 |
 | Preprocess | 19/19 |
 | Sourcemaps | 29/29 (output equality; map correctness is `sourcemaps_gate.rs`) |
 | svelte2tsx | 256/256 |
-| Migrate | 0/76 (out of scope) |
+| Migrate | 0/78 (out of scope) |
 
-All in-scope fixtures pass. The 76 `migrate` fixtures (Svelte 4 → 5 migrator) are
+All in-scope fixtures pass. The 78 `migrate` fixtures (Svelte 4 → 5 migrator) are
 intentionally out of scope; do not start migrate work without an explicit scope change.
 
 - **Source-map gate**: `crates/rsvelte_core/tests/sourcemaps_gate.rs` ports the upstream

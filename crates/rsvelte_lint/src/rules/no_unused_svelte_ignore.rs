@@ -89,6 +89,32 @@ struct CodedItem {
     /// matching warning must fall inside for the ignore to count as used. `None`
     /// when the comment leads no element/block/statement (so it can never match).
     scope: Option<(u32, u32)>,
+    /// Ranges of the JS nodes nested inside a top-level statement that this
+    /// comment leads; Svelte 5 honours an ignore on any of them.
+    nested_scopes: Vec<(u32, u32)>,
+    /// Whether Svelte 5 reads this code in runes mode, where codes must be
+    /// comma-separated and everything after is prose.
+    read_in_runes_mode: bool,
+}
+
+/// Runtime warnings Svelte 5 lets `svelte-ignore` silence. The compiler never
+/// reports them, so whether the comment is used cannot be told.
+const RUNTIME_WARNING_CODES: [&str; 8] = [
+    "await_reactivity_loss",
+    "await_waterfall",
+    "binding_property_non_reactive",
+    "hydration_attribute_changed",
+    "hydration_html_changed",
+    "ownership_invalid_binding",
+    "ownership_invalid_mutation",
+    "state_snapshot_uncloneable",
+];
+
+fn is_runtime_warning_ignore(item: &CodedItem, runes: bool) -> bool {
+    if runes {
+        return item.read_in_runes_mode && RUNTIME_WARNING_CODES.contains(&item.code.as_str());
+    }
+    RUNTIME_WARNING_CODES.contains(&item.code_for_v5.as_str())
 }
 
 /// Compile-and-match entry point, wired into [`crate::runner::lint_source`].
@@ -155,7 +181,7 @@ pub fn no_unused_svelte_ignore_diagnostics(
         &mut coded,
         &mut strip_ranges,
     );
-    collect_script_items(&root, &mut missing, &mut coded, &mut strip_ranges);
+    collect_script_items(&root, source, &mut missing, &mut coded, &mut strip_ranges);
 
     // Blank the non-CSS style content so the compile can't choke on non-CSS syntax
     // (`stripStyleTokens` in upstream `buildStrippedText`).
@@ -240,9 +266,23 @@ pub fn no_unused_svelte_ignore_diagnostics(
         })
         .collect();
 
-    let scopes: Vec<Option<((u32, u32), (u32, u32))>> = coded
+    let byte_scopes: Vec<Vec<(u32, u32)>> = coded
         .iter()
-        .map(|item| item.scope.map(|(s, e)| (li.position(s), li.position(e))))
+        .map(|item| {
+            item.scope
+                .into_iter()
+                .chain(item.nested_scopes.iter().copied())
+                .collect()
+        })
+        .collect();
+    let scopes: Vec<Vec<((u32, u32), (u32, u32))>> = byte_scopes
+        .iter()
+        .map(|item_scopes| {
+            item_scopes
+                .iter()
+                .map(|&(s, e)| (li.position(s), li.position(e)))
+                .collect()
+        })
         .collect();
 
     // Upstream drives the match from the WARNING, and at each node level it
@@ -250,29 +290,35 @@ pub fn no_unused_svelte_ignore_diagnostics(
     // identical ignore on the same node is left unused.
     for &(code, pos) in &warnings {
         for (i, item) in coded.iter().enumerate() {
-            let Some((scope_start, scope_end)) = scopes[i] else {
-                continue;
-            };
-            if !(scope_start <= pos && pos < scope_end) {
-                continue;
-            }
             if code != item.code && code != item.code_for_v5 {
                 continue;
             }
-            let shadowed = coded.iter().enumerate().any(|(j, other)| {
-                j != i
-                    && other.scope == item.scope
-                    && other.code_start > item.code_start
-                    && (code == other.code || code == other.code_for_v5)
-            });
-            if !shadowed {
-                used[i] = true;
+            for (k, &(scope_start, scope_end)) in scopes[i].iter().enumerate() {
+                if !(scope_start <= pos && pos < scope_end) {
+                    continue;
+                }
+                let scope = byte_scopes[i][k];
+                let shadowed = coded.iter().enumerate().any(|(j, other)| {
+                    j != i
+                        && byte_scopes[j].contains(&scope)
+                        && other.code_start > item.code_start
+                        && (code == other.code || code == other.code_for_v5)
+                });
+                if !shadowed {
+                    used[i] = true;
+                }
             }
         }
     }
 
+    // `<svelte:options runes>` wins over `compilerOptions.runes`, as in Svelte.
+    let runes = root
+        .options
+        .as_ref()
+        .and_then(|options| options.runes)
+        .unwrap_or(result.metadata.runes);
     for (item, used) in coded.iter().zip(used) {
-        if !used {
+        if !used && !is_runtime_warning_ignore(item, runes) {
             out.push(mk(item.code_start, item.code_end, UNUSED_MSG));
         }
     }
@@ -316,6 +362,7 @@ fn collect_template_items(
                 4, // `<!--`
                 c.end,
                 scope,
+                &[],
                 missing,
                 coded,
                 strip_ranges,
@@ -334,6 +381,7 @@ fn collect_template_items(
 /// resolve a script warning to).
 fn collect_script_items(
     root: &Root,
+    source: &str,
     missing: &mut Vec<(u32, u32)>,
     coded: &mut Vec<CodedItem>,
     strip_ranges: &mut Vec<(u32, u32)>,
@@ -352,6 +400,7 @@ fn collect_script_items(
     // Top-level statement spans per script, tagged with that script's bounds so a
     // comment only ever scopes to a statement in its *own* `<script>`.
     let mut stmts: Vec<(u32, u32)> = Vec::new();
+    let mut inner_nodes: Vec<(u32, u32)> = Vec::new();
     let mut script_bounds: Vec<(u32, u32)> = Vec::new();
     with_serialize_arena(&root.arena, || {
         for script in [root.instance.as_ref(), root.module.as_ref()]
@@ -366,6 +415,7 @@ fn collect_script_items(
                 .and_then(Value::as_array)
             {
                 for st in body {
+                    collect_inner_nodes(st, &mut inner_nodes);
                     if let (Some(s), Some(e)) = (
                         st.get("start").and_then(Value::as_u64),
                         st.get("end").and_then(Value::as_u64),
@@ -389,12 +439,24 @@ fn collect_script_items(
         else {
             continue;
         };
+        // A comment trailing the previous node (`a, // c`) leads nothing.
+        let trailing = is_trailing_comment(source, c.start, &stmts, &inner_nodes);
         // The next top-level statement in this script (`getWarningNode` resolves a
         // script warning to its top-level statement).
         let scope = stmts
             .iter()
             .find(|&&(s, _)| s >= c.end && s < script_end)
-            .copied();
+            .copied()
+            .filter(|_| !trailing);
+        let nested: Vec<(u32, u32)> = if trailing {
+            Vec::new()
+        } else {
+            inner_nodes
+                .iter()
+                .filter(|&&(s, _)| s >= c.end && s < script_end && leads(source, c.end, s))
+                .copied()
+                .collect()
+        };
         // `c.value` is the comment text without the `//` / `/* */` delimiters; the
         // delimiter is 2 chars wide for both line and block comments.
         parse_ignore_comment(
@@ -403,6 +465,7 @@ fn collect_script_items(
             2,
             c.end,
             scope,
+            &nested,
             missing,
             coded,
             strip_ranges,
@@ -422,6 +485,7 @@ fn parse_ignore_comment(
     prefix_len: u32,
     comment_end: u32,
     scope: Option<(u32, u32)>,
+    nested_scopes: &[(u32, u32)],
     missing: &mut Vec<(u32, u32)>,
     coded: &mut Vec<CodedItem>,
     strip_ranges: &mut Vec<(u32, u32)>,
@@ -446,6 +510,7 @@ fn parse_ignore_comment(
     // Absolute byte offset of `code_list`'s first char in the source.
     let base = comment_start + prefix_len + source_offset(code_list_start);
 
+    let runes_mode_starts = runes_mode_code_starts(code_list);
     // Replace parenthetical notes with equal-length spaces to preserve offsets.
     let processed = blank_parentheticals(code_list);
     let bytes = processed.as_bytes();
@@ -464,6 +529,8 @@ fn parse_ignore_comment(
                 base,
                 source_offset(last_end),
                 scope,
+                nested_scopes,
+                runes_mode_starts.contains(&last_end),
                 coded,
             );
             last_end = j;
@@ -474,7 +541,15 @@ fn parse_ignore_comment(
     // Faithful to upstream: a trailing code after the last separator is only
     // emitted when it is the *sole* token (no separator matched at all).
     if coded.len() == before {
-        push_code(&processed, base, 0, scope, coded);
+        push_code(
+            &processed,
+            base,
+            0,
+            scope,
+            nested_scopes,
+            runes_mode_starts.contains(&0),
+            coded,
+        );
     }
 }
 
@@ -484,6 +559,8 @@ fn push_code(
     base: u32,
     offset: u32,
     scope: Option<(u32, u32)>,
+    nested_scopes: &[(u32, u32)],
+    read_in_runes_mode: bool,
     coded: &mut Vec<CodedItem>,
 ) {
     if code.is_empty() {
@@ -495,7 +572,106 @@ fn push_code(
         code_start: base + offset,
         code_end: base + offset + source_offset(code.len()),
         scope,
+        nested_scopes: nested_scopes.to_vec(),
+        read_in_runes_mode,
     });
+}
+
+/// `getRunesModeCodeStarts`: the offsets of the codes Svelte 5 reads in runes
+/// mode — each `[\w$-]+` run up to and including the first one not followed by
+/// a comma.
+fn runes_mode_code_starts(code_list: &str) -> Vec<usize> {
+    let bytes = code_list.as_bytes();
+    let is_code = |b: u8| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'$' | b'-');
+    let mut starts = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        if !is_code(bytes[i]) {
+            i += 1;
+            continue;
+        }
+        starts.push(i);
+        while i < bytes.len() && is_code(bytes[i]) {
+            i += 1;
+        }
+        if bytes.get(i) != Some(&b',') {
+            break;
+        }
+        i += 1;
+    }
+    starts
+}
+
+/// Every JS node strictly inside a top-level statement.
+fn collect_inner_nodes(stmt: &Value, out: &mut Vec<(u32, u32)>) {
+    fn walk(value: &Value, out: &mut Vec<(u32, u32)>, is_root: bool) {
+        match value {
+            Value::Object(map) => {
+                if !is_root
+                    && map.contains_key("type")
+                    && let (Some(s), Some(e)) = (
+                        map.get("start").and_then(Value::as_u64),
+                        map.get("end").and_then(Value::as_u64),
+                    )
+                {
+                    out.push((
+                        u32::try_from(s).expect("source offsets are represented as u32"),
+                        u32::try_from(e).expect("source offsets are represented as u32"),
+                    ));
+                }
+                for (key, child) in map {
+                    if key != "loc" && key != "leadingComments" && key != "trailingComments" {
+                        walk(child, out, false);
+                    }
+                }
+            }
+            Value::Array(items) => items.iter().for_each(|item| walk(item, out, false)),
+            _ => {}
+        }
+    }
+    walk(stmt, out, true);
+}
+
+/// Whether only whitespace, comments and `(` separate `from` and `to` — the
+/// comments `extractLeadingComments` attributes to the node at `to`.
+fn leads(source: &str, from: u32, to: u32) -> bool {
+    let bytes = source.as_bytes();
+    let (mut i, to) = (from as usize, to as usize);
+    while i < to {
+        match bytes[i] {
+            b if b.is_ascii_whitespace() || b == b'(' => i += 1,
+            b'/' if bytes.get(i + 1) == Some(&b'*') => match source[i + 2..to].find("*/") {
+                Some(p) => i += 2 + p + 2,
+                None => return false,
+            },
+            b'/' if bytes.get(i + 1) == Some(&b'/') => match source[i..to].find('\n') {
+                Some(p) => i += p + 1,
+                None => return false,
+            },
+            _ => return false,
+        }
+    }
+    true
+}
+
+/// `isTrailingComment`: whether a JS node ends right before the comment, with
+/// only tabs, spaces, `)` and `,` between.
+fn is_trailing_comment(
+    source: &str,
+    comment_start: u32,
+    stmts: &[(u32, u32)],
+    inner_nodes: &[(u32, u32)],
+) -> bool {
+    let bytes = source.as_bytes();
+    let mut index = comment_start as usize;
+    while index > 0 && matches!(bytes[index - 1], b'\t' | b' ' | b')' | b',') {
+        index -= 1;
+    }
+    let lo = u32::try_from(index.max(1)).expect("source offsets are represented as u32");
+    stmts
+        .iter()
+        .chain(inner_nodes)
+        .any(|&(start, end)| start < end && lo <= end && end <= comment_start)
 }
 
 /// Map a legacy (Svelte-4) warning code to its Svelte-5 spelling, mirroring
