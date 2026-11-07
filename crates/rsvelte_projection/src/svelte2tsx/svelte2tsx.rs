@@ -9,6 +9,7 @@ use sourcemap::SourceMapBuilder;
 use super::add_component_export::{ComponentExportParams, add_component_export};
 use super::create_render_function::{build_dollar_declarations, create_render_function};
 use super::helpers::rewrite_external_imports::{TextEdit, rewrite_external_specifiers_in_text};
+use super::helpers::tsx_angle_brackets::{MovedType, disambiguate_for_tsx};
 use super::magic_string::{GenerateMapOptions, MagicString};
 use super::nodes::component_name::derive_component_name;
 use super::nodes::generics::{extract_generics_from_script_tag, split_generic_param_names};
@@ -247,6 +248,80 @@ fn remap_source_map(source_map: &str, code: &str, edits: &[TextEdit]) -> Result<
         );
     }
 
+    let mut encoded = Vec::new();
+    builder
+        .into_sourcemap()
+        .to_writer(&mut encoded)
+        .map_err(|error| format!("failed to encode rewritten source map: {error}"))?;
+    String::from_utf8(encoded)
+        .map_err(|error| format!("rewritten source map was not UTF-8: {error}"))
+}
+
+fn generated_line_col(text: &str, offset: u32) -> (u32, u32) {
+    let (mut line, mut column) = (0, 0);
+    advance_generated_location(&text[..offset as usize], &mut line, &mut column);
+    (line, column)
+}
+
+/// An assertion rewrite moves its type behind the expression as inserted
+/// text, which `remap_source_map` anchors to the insertion point. Map each
+/// moved type back to the source its old position mapped to instead.
+fn anchor_moved_types(
+    rewritten_map: &str,
+    old_map: &str,
+    old_code: &str,
+    new_code: &str,
+    moved: &[MovedType],
+) -> Result<String, String> {
+    if moved.is_empty() {
+        return Ok(rewritten_map.to_string());
+    }
+    let old = sourcemap::SourceMap::from_slice(old_map.as_bytes())
+        .map_err(|error| format!("failed to decode generated source map: {error}"))?;
+    let rewritten = sourcemap::SourceMap::from_slice(rewritten_map.as_bytes())
+        .map_err(|error| format!("failed to decode rewritten source map: {error}"))?;
+    let mut builder = SourceMapBuilder::new(rewritten.get_file());
+    let ignored_sources: Vec<u32> = rewritten.ignore_list().copied().collect();
+    for source_id in 0..rewritten.get_source_count() {
+        let Some(source) = rewritten.get_source(source_id) else {
+            continue;
+        };
+        let id = builder.add_source(source);
+        builder.set_source_contents(id, rewritten.get_source_contents(source_id));
+        if ignored_sources.contains(&source_id) {
+            builder.add_to_ignore_list(id);
+        }
+    }
+    for token in rewritten.tokens() {
+        builder.add(
+            token.get_dst_line(),
+            token.get_dst_col(),
+            token.get_src_line(),
+            token.get_src_col(),
+            token.get_source(),
+            token.get_name(),
+            token.is_range(),
+        );
+    }
+    for moved_type in moved {
+        let (old_line, old_col) = generated_line_col(old_code, moved_type.old_offset);
+        let Some(token) = old.lookup_token(old_line, old_col) else {
+            continue;
+        };
+        if token.get_source().is_none() || token.get_dst_line() != old_line {
+            continue;
+        }
+        let (new_line, new_col) = generated_line_col(new_code, moved_type.new_offset);
+        builder.add(
+            new_line,
+            new_col,
+            token.get_src_line(),
+            token.get_src_col() + (old_col - token.get_dst_col()),
+            token.get_source(),
+            None,
+            false,
+        );
+    }
     let mut encoded = Vec::new();
     builder
         .into_sourcemap()
@@ -541,7 +616,6 @@ pub fn svelte2tsx(
             &mut store_scan,
             &mut str,
             &mut exported_names,
-            options.tsx_generic_arrow_commas,
         )?;
     }
 
@@ -593,7 +667,6 @@ pub fn svelte2tsx(
             matches!(options.mode, Svelte2TsxMode::Dts),
             &script_generic_names,
             has_generics_attr,
-            options.tsx_generic_arrow_commas,
         );
         if let Some(message) = exported_names.dollar_generic_error.take() {
             return Err(super::utils::error::Svelte2TsxError::Script(message));
@@ -916,6 +989,27 @@ pub fn svelte2tsx(
         } else {
             (code, source_map, forward_map)
         };
+
+    let (code, source_map, forward_map) = if options.disambiguate_for_tsx
+        && options.is_ts_file
+        && let Some(rewrite) = disambiguate_for_tsx(&code)
+    {
+        let remapped = remap_source_map(&source_map, &code, &rewrite.edits)
+            .and_then(|map| {
+                anchor_moved_types(
+                    &map,
+                    &source_map,
+                    &code,
+                    &rewrite.code,
+                    &rewrite.moved_types,
+                )
+            })
+            .map_err(Svelte2TsxError::Other)?;
+        let forward_map = remap_forward_segments(forward_map, &rewrite.edits);
+        (rewrite.code, remapped, forward_map)
+    } else {
+        (code, source_map, forward_map)
+    };
 
     Ok(Svelte2TsxResult {
         code,

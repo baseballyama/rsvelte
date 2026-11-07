@@ -770,7 +770,7 @@ pub fn materialize_overlay_with(
                         workspace_path: workspace.display().to_string(),
                     }),
                     // The shadow is a `.tsx` where upstream's is a `.ts`.
-                    tsx_generic_arrow_commas: true,
+                    disambiguate_for_tsx: true,
                     ..Svelte2TsxOptions::default()
                 };
                 let result = svelte2tsx(&source, opts).map_err(|e| OverlayError::Svelte2Tsx {
@@ -1362,7 +1362,7 @@ fn emit_external_shadows(
                 generated_path: tsx_path.display().to_string(),
                 workspace_path: pkg.real_dir.display().to_string(),
             }),
-            tsx_generic_arrow_commas: true,
+            disambiguate_for_tsx: true,
             ..Svelte2TsxOptions::default()
         };
         // A component the user never asked about must not be able to fail the

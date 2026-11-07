@@ -14,7 +14,7 @@ pub(super) fn run_svelte2tsx_for_tsx(source: &str) -> Svelte2TsxResult {
         Svelte2TsxOptions {
             filename: "Component.svelte".to_string(),
             is_ts_file: true,
-            tsx_generic_arrow_commas: true,
+            disambiguate_for_tsx: true,
             ..Default::default()
         },
     )
