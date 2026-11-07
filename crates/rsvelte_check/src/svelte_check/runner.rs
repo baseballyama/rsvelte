@@ -511,7 +511,7 @@ fn run_type_check_phase(
 ///
 /// TypeScript/tsgo suppress every SEMANTIC diagnostic (`TS2xxx`+)
 /// program-wide the moment the program contains ANY syntactic error
-/// (`TS1xxx`). So if one generated `.tsx` overlay fails to parse, tsgo
+/// (see `mapper::PARSER_TS_CODES`). So if one generated `.tsx` overlay fails to parse, tsgo
 /// prints only syntax errors and silently drops every real type error in
 /// the whole project — a silent false negative, the worst failure mode for
 /// a type-checker.
@@ -523,11 +523,11 @@ fn run_type_check_phase(
 ///     our bug; emit an `internal error … please report this` per file.
 ///   * **user's own syntax error** — the `.svelte`/`.ts` source is itself
 ///     malformed. That's already reported (on the Svelte side for
-///     `.svelte`, or as a passthrough `TS1xxx` for plain `.ts`), so we don't
+///     `.svelte`, or as a passthrough parser diagnostic for plain `.ts`), so we don't
 ///     blame rsvelte — but semantics are STILL suppressed program-wide, so
 ///     we attach one note so the hidden type errors aren't a surprise.
 ///
-/// Returns an empty vec for clean programs (no `TS1xxx` anywhere), so the
+/// Returns an empty vec for clean programs (no parser diagnostic anywhere), so the
 /// common all-overlays-valid path is untouched and never gains a false
 /// positive.
 fn overlay_syntax_loud_diagnostics(
@@ -537,11 +537,14 @@ fn overlay_syntax_loud_diagnostics(
     workspace: &Path,
 ) -> Vec<Diagnostic> {
     // Any syntactic diagnostic anywhere in the overlay program — including
-    // passthrough TS1xxx on plain user `.ts`/`.js` files that never went
+    // passthrough parser diagnostics on plain user `.ts`/`.js` files that never went
     // through svelte2tsx — means semantics were suppressed program-wide.
-    let any_syntactic = mapped_ts
-        .iter()
-        .any(|d| d.source == "ts" && d.code.as_deref().is_some_and(is_syntactic_ts_code));
+    // An overlay's syntax error can also sit where the mapper drops it (an
+    // `Ωignore` region, inserted text), and it gates semantics just the same.
+    let any_syntactic = !overlay_syntax_sources.is_empty()
+        || mapped_ts
+            .iter()
+            .any(|d| d.source == "ts" && d.code.as_deref().is_some_and(is_syntactic_ts_code));
     if !any_syntactic {
         return Vec::new();
     }
@@ -885,12 +888,11 @@ mod tests {
         // `overlay-invalid-tsx` internal error nor a `tsgo-semantics-suppressed`
         // note — otherwise every consumer of such a component drowns in a
         // spurious "rsvelte produced invalid TSX" banner.
-        let sources = vec![PathBuf::from("/ws/Foo.svelte")];
         let mapped = vec![
             ts_diag("/ws/Foo.svelte", "TS1192", DiagnosticSeverity::Error),
             ts_diag("/ws/Bar.svelte", "TS7006", DiagnosticSeverity::Error),
         ];
-        let loud = overlay_syntax_loud_diagnostics(&sources, &mapped, &[], Path::new("/ws"));
+        let loud = overlay_syntax_loud_diagnostics(&[], &mapped, &[], Path::new("/ws"));
         assert!(
             loud.is_empty(),
             "TS1192 is semantic and must not trip the loud syntax-taint path: {loud:?}"
@@ -934,6 +936,20 @@ mod tests {
             ..RunResult::default()
         };
         assert_eq!(result.exit_code(false), 1);
+    }
+
+    #[test]
+    fn loud_syntax_error_the_mapper_dropped_still_taints() {
+        // A syntax error inside an `Ωignore` region is recorded but not
+        // reported, and it suppresses semantics just the same.
+        let sources = vec![PathBuf::from("/ws/Foo.svelte")];
+        let loud = overlay_syntax_loud_diagnostics(&sources, &[], &[], Path::new("/ws"));
+        let codes: Vec<_> = loud.iter().filter_map(|d| d.code.as_deref()).collect();
+        assert_eq!(
+            codes,
+            ["overlay-invalid-tsx", "tsgo-semantics-suppressed"],
+            "{loud:?}"
+        );
     }
 
     #[test]
