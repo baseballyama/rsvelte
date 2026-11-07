@@ -1027,6 +1027,9 @@ fn materialize_overlay_for(
 /// `import { x } from '@scope/pkg/…'` resolves to the component's real module
 /// (its `<script module>` named exports + default) instead of the ambient
 /// `*.svelte` wildcard (default-only) — the #782 false "has no exported member".
+/// Records which package's real dir an `ext/<n>` mirror was emitted for.
+const EXT_MIRROR_OWNER_FILE: &str = ".package-dir";
+
 struct ExternalPackage {
     /// Canonical (symlink-resolved) source dir of the package.
     real_dir: PathBuf,
@@ -1075,6 +1078,9 @@ fn discover_external_svelte_packages(
             }
         }
     }
+    // `read_dir` order is the filesystem's, and it numbers the `ext/<n>` mirrors
+    // and orders their `rootDirs` pairs: sort so a run does not depend on the host.
+    candidates.sort();
     if let Some(tsconfig_path) = tsconfig_path {
         candidates.extend(resolve_paths_alias_dirs_abs(tsconfig_path));
     }
@@ -1366,6 +1372,7 @@ fn emit_external_shadows(
     // its `paths` describe a different project.
     let pkg_resolver =
         find_nearest_tsconfig(&pkg.real_dir).and_then(|c| build_svelte_import_resolver(Some(&c)));
+    claim_ext_mirror(&pkg.mirror_dir, &pkg.real_dir)?;
     let real_nm = pkg.real_dir.join("node_modules");
     let mirror_nm = pkg.mirror_dir.join("node_modules");
     if real_nm.is_dir() && !mirror_nm.exists() {
@@ -1436,6 +1443,12 @@ fn emit_external_shadows(
                     Some(&pkg.real_dir),
                 );
             }
+            tsx_code = rewrite_relative_imports_to_real_sources(
+                &tsx_code,
+                abs_source,
+                &tsx_path,
+                &pkg.real_dir,
+            );
             fs::write(&tsx_path, &tsx_code)?;
             let dts_content = shadow_reexport(&tsx_path);
             // See the twin's comment in `materialize_overlay_with`: next to a
@@ -1455,6 +1468,93 @@ fn emit_external_shadows(
         any_js_shadow |= shadow?;
     }
     Ok(any_js_shadow)
+}
+
+/// Empty `mirror_dir` unless it was last emitted for `real_dir`.
+///
+/// `ext/<n>` is numbered by discovery order, so a cached mirror can belong to
+/// another package once the set of packages changes. Its shadows would then sit
+/// ahead of the right ones in `rootDirs`, and its `node_modules` link would
+/// point at the other package's dependencies.
+fn claim_ext_mirror(mirror_dir: &Path, real_dir: &Path) -> std::io::Result<()> {
+    let owner_path = mirror_dir.join(EXT_MIRROR_OWNER_FILE);
+    let owner = real_dir.to_string_lossy();
+    if fs::read_to_string(&owner_path).ok().as_deref() == Some(owner.as_ref()) {
+        return Ok(());
+    }
+    // `remove_dir_all` removes a symlink itself rather than what it points at.
+    if fs::symlink_metadata(mirror_dir).is_ok() {
+        fs::remove_dir_all(mirror_dir)?;
+    }
+    fs::create_dir_all(mirror_dir)?;
+    fs::write(owner_path, owner.as_bytes())
+}
+
+/// Whether a relative import's target, as a path without its extension handled,
+/// is a script file or directory on disk.
+fn names_plain_source(target: &Path) -> bool {
+    const EXTENSIONS: [&str; 8] = ["ts", "tsx", "d.ts", "js", "jsx", "mts", "cts", "json"];
+    if target.is_file() {
+        return true;
+    }
+    let text = target.to_string_lossy();
+    // `./x.js` names `x.ts` in TypeScript's ESM convention.
+    let stem = ["js", "jsx", "mjs", "cjs"]
+        .iter()
+        .find_map(|e| text.strip_suffix(&format!(".{e}")))
+        .map(str::to_string);
+    for base in std::iter::once(text.to_string()).chain(stem) {
+        if EXTENSIONS
+            .iter()
+            .any(|e| Path::new(&format!("{base}.{e}")).is_file())
+        {
+            return true;
+        }
+    }
+    EXTENSIONS
+        .iter()
+        .any(|e| target.join(format!("index.{e}")).is_file())
+}
+
+/// Point an external package's relative imports of plain source at the real files.
+///
+/// A mirrored component shadow sits in `<cache>/ext/<n>/…` and holds only the
+/// package's Svelte files, so `./host` finds no sibling there and falls through
+/// the overlay's `rootDirs`, which pools every package's source dir and mirror
+/// into one virtual directory. The first pooled directory holding a `src/workspace/host.ts`
+/// wins, which is another package's when two share a relative path, and which of
+/// them is first followed the filesystem's directory order, so the same tree
+/// type-checked differently on two machines. A specifier that names a script
+/// file of the package, `.svelte.ts` modules included (`./x.svelte.js` does not
+/// reach the mirror's `x.d.svelte.ts` bridge), is rewritten to reach it
+/// directly; `.svelte` components keep resolving through the mirror's shadows.
+fn rewrite_relative_imports_to_real_sources(
+    text: &str,
+    source: &Path,
+    out_path: &Path,
+    real_dir: &Path,
+) -> String {
+    let (Some(source_dir), Some(out_dir)) = (source.parent(), out_path.parent()) else {
+        return text.to_string();
+    };
+    let source_dir = absolutize(source_dir);
+    let out_dir = absolutize(out_dir);
+    let real_dir = absolutize(real_dir);
+    rewrite_module_specifiers(text, &|spec| {
+        if !spec.starts_with('.') || spec.ends_with(".svelte") {
+            return None;
+        }
+        let target = normalize_abs(&source_dir.join(spec));
+        // Outside the package is `rewrite_external_imports`' business.
+        if !target.starts_with(&real_dir) || !names_plain_source(&target) {
+            return None;
+        }
+        let mut rewritten = lexical_relative_posix(&out_dir, &target);
+        if !rewritten.starts_with('.') {
+            rewritten = format!("./{rewritten}");
+        }
+        Some(rewritten)
+    })
 }
 
 /// Port of svelte2tsx's `getExternalImportRewrite`: the prefix that makes a
@@ -4453,8 +4553,8 @@ fn rewrite_aliased_svelte_imports(
 }
 
 /// Scan `text` for `from "<spec>"` / `import("<spec>")` module specifiers and
-/// replace each one for which `decide` returns `Some(replacement)`. String
-/// literals and line comments are skipped so only real specifiers are touched.
+/// replace each one for which `decide` returns `Some(replacement)`. String and
+/// template literals and comments are skipped so only real specifiers are touched.
 /// (Same scanner shape as svelte2tsx's `rewrite_external_specifiers_in_text`.)
 fn rewrite_module_specifiers(text: &str, decide: &dyn Fn(&str) -> Option<String>) -> String {
     let bytes = text.as_bytes();
@@ -4490,6 +4590,17 @@ fn rewrite_module_specifiers(text: &str, decide: &dyn Fn(&str) -> Option<String>
             while i < len && bytes[i] != b'\n' {
                 i += 1;
             }
+            continue;
+        }
+        // An apostrophe in a block comment (`/** The chart's … */`) or a
+        // template literal would otherwise open a string that swallows the
+        // specifiers after it.
+        if b == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            i = text[i + 2..].find("*/").map_or(len, |end| i + 2 + end + 2);
+            continue;
+        }
+        if b == b'`' {
+            i = skip_template_literal(bytes, i);
             continue;
         }
         if b == b'f' && i + 4 <= len && &bytes[i..i + 4] == b"from" {
@@ -4544,6 +4655,43 @@ fn rewrite_module_specifiers(text: &str, decide: &dyn Fn(&str) -> Option<String>
         out.push_str(&text[copied..]);
     }
     out
+}
+
+/// Index just past the template literal opening at `start`, nested `${…}`
+/// substitutions (and the strings and templates inside them) included.
+fn skip_template_literal(bytes: &[u8], start: usize) -> usize {
+    let len = bytes.len();
+    let mut i = start + 1;
+    while i < len {
+        match bytes[i] {
+            b'\\' => i += 2,
+            b'`' => return i + 1,
+            b'$' if bytes.get(i + 1) == Some(&b'{') => {
+                i += 2;
+                let mut depth = 1usize;
+                while i < len && depth > 0 {
+                    match bytes[i] {
+                        b'{' => depth += 1,
+                        b'}' => depth -= 1,
+                        b'`' => {
+                            i = skip_template_literal(bytes, i);
+                            continue;
+                        }
+                        q @ (b'\'' | b'"') => {
+                            i += 1;
+                            while i < len && bytes[i] != q {
+                                i += if bytes[i] == b'\\' { 2 } else { 1 };
+                            }
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+            }
+            _ => i += 1,
+        }
+    }
+    len
 }
 
 /// Lexical POSIX relative path from `from_dir` to `to_path` — no filesystem
@@ -7661,6 +7809,60 @@ mod tests {
         assert_eq!(&text[start..end], "\"two\"");
     }
     #[test]
+    fn an_external_shadow_reaches_its_own_packages_plain_sources_directly() {
+        // Two packages that both hold `src/workspace/host.ts`: pooled through
+        // `rootDirs`, `./host` from a shadow of the second would reach the first.
+        let tmp = std::env::temp_dir().join(format!("svc_ext_real_src_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let real = tmp.join("pkgs/b");
+        fs::create_dir_all(real.join("src/workspace")).unwrap();
+        fs::write(real.join("src/workspace/host.ts"), "export const host = 1;").unwrap();
+        fs::write(real.join("src/workspace/util.js"), "export const util = 1;").unwrap();
+        fs::create_dir_all(real.join("src/workspace/deep")).unwrap();
+        fs::write(
+            real.join("src/workspace/deep/index.ts"),
+            "export const d = 1;",
+        )
+        .unwrap();
+        fs::write(real.join("src/workspace/Other.svelte"), "<p />").unwrap();
+        fs::write(
+            real.join("src/workspace/store.svelte.ts"),
+            "export const s = $state(1);",
+        )
+        .unwrap();
+        let source = real.join("src/workspace/Chart.svelte");
+        let out = tmp.join("cache/ext/9/src/workspace/Chart.svelte.shadow.ts");
+
+        let text = "import { host } from './host';\nimport { util } from './util.js';\nimport { d } from './deep';\nimport Other from './Other.svelte';\nimport { s } from './store.svelte.js';\nimport { missing } from './missing';\nimport v from 'pkg';\n";
+        let rewritten = rewrite_relative_imports_to_real_sources(text, &source, &out, &real);
+
+        let up = "../../../../../pkgs/b/src/workspace";
+        assert!(
+            rewritten.contains(&format!("from '{up}/host'")),
+            "{rewritten}"
+        );
+        assert!(
+            rewritten.contains(&format!("from '{up}/util.js'")),
+            "{rewritten}"
+        );
+        assert!(
+            rewritten.contains(&format!("from '{up}/deep'")),
+            "{rewritten}"
+        );
+        // `./x.svelte.js` does not reach the mirror's `x.d.svelte.ts` bridge.
+        assert!(
+            rewritten.contains(&format!("from '{up}/store.svelte.js'")),
+            "{rewritten}"
+        );
+        // Components, unknown files and bare specifiers are untouched.
+        assert!(rewritten.contains("from './Other.svelte'"), "{rewritten}");
+        assert!(rewritten.contains("from './missing'"), "{rewritten}");
+        assert!(rewritten.contains("from 'pkg'"), "{rewritten}");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
     fn a_cold_run_drops_the_shadows_of_files_deleted_since_the_last() {
         let tmp = std::env::temp_dir().join(format!("svc_overlay_stale_{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
@@ -7690,6 +7892,39 @@ mod tests {
     }
 
     #[test]
+    fn rewrite_module_specifiers_reads_past_comments_and_templates() {
+        // One apostrophe in a block comment or a template literal used to open
+        // a string that ran over the specifier after it.
+        let src = "/** The chart's host. */\nimport { a } from './a';\nconst t = `it's ${`x`} '`;\nimport { b } from './b';\nconst c = /* from './no' */ 1;\nconst d = `from './no'`;\n";
+        let out = rewrite_module_specifiers(src, &|spec| {
+            spec.strip_prefix("./").map(|rest| format!("./real/{rest}"))
+        });
+        assert!(out.contains("from './real/a'"), "{out}");
+        assert!(out.contains("from './real/b'"), "{out}");
+        assert!(out.contains("/* from './no' */"), "{out}");
+        assert!(out.contains("`from './no'`"), "{out}");
+    }
+
+    #[test]
+    fn an_ext_mirror_left_by_another_package_is_cleared() {
+        let tmp = std::env::temp_dir().join(format!("svc_ext_owner_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let mirror = tmp.join("cache/ext/0");
+        let (a, b) = (tmp.join("pkgs/a"), tmp.join("pkgs/b"));
+        claim_ext_mirror(&mirror, &a).unwrap();
+        fs::write(mirror.join("Only.svelte.tsx"), "").unwrap();
+        // Re-claiming for the same package keeps what it emitted.
+        claim_ext_mirror(&mirror, &a).unwrap();
+        assert!(mirror.join("Only.svelte.tsx").is_file());
+        // A different package gets an empty mirror.
+        claim_ext_mirror(&mirror, &b).unwrap();
+        assert!(!mirror.join("Only.svelte.tsx").exists());
+        assert!(mirror.is_dir());
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
     fn a_cold_run_drops_the_kit_mirror_of_a_route_deleted_since_the_last() {
         let tmp =
             std::env::temp_dir().join(format!("svc_overlay_stale_kit_{}", std::process::id()));
@@ -7708,6 +7943,7 @@ mod tests {
                 &settings,
                 &[],
                 &CompilerOptionsSettings::default(),
+                RootDirDefault::ConfigDir,
             )
             .unwrap()
         };
@@ -7724,6 +7960,41 @@ mod tests {
             !mirror.exists(),
             "the mirror of a deleted route survived a cold run"
         );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn external_packages_are_numbered_in_path_order() {
+        let tmp = std::env::temp_dir().join(format!("svc_ext_order_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let ws = tmp.join("ws");
+        fs::create_dir_all(ws.join("node_modules/@s")).unwrap();
+        let names = ["zeta", "alpha", "@s/mid", "beta"];
+        for name in names {
+            let real = tmp.join("pkgs").join(name.replace('/', "_"));
+            fs::create_dir_all(&real).unwrap();
+            fs::write(real.join("C.svelte"), "<p />").unwrap();
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(&real, ws.join("node_modules").join(name)).unwrap();
+            #[cfg(windows)]
+            std::os::windows::fs::symlink_dir(&real, ws.join("node_modules").join(name)).unwrap();
+        }
+        let found = discover_external_svelte_packages(&ws, &ws.join(".svelte-check"), None);
+        let order: Vec<String> = found
+            .iter()
+            .map(|p| {
+                p.real_dir
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        assert_eq!(order, ["@s_mid", "alpha", "beta", "zeta"]);
+        for (n, pkg) in found.iter().enumerate() {
+            assert!(pkg.mirror_dir.ends_with(format!("ext/{n}")));
+        }
 
         let _ = fs::remove_dir_all(&tmp);
     }
