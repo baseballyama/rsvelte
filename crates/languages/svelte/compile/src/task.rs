@@ -62,41 +62,70 @@ impl Task for Compile {
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        if let Err(e) = context.get::<Parsed>() {
-            out.diagnostics.push(e.clone());
-            return;
-        }
-        let input = crate::CompileInput::from(
-            rsvelte_svelte::component_input(context).expect("a parsed component is lowered to HIR"),
-        );
-        let res = context
-            .get::<Resolved>()
-            .as_ref()
-            .expect("a parsed component is resolved");
-        let an = context
-            .get::<Analyzed>()
-            .as_ref()
-            .expect("a parsed component is analysed");
-        let plan = context
-            .get::<Planned>()
-            .as_ref()
-            .expect("a parsed component has a render plan");
-        let identity = match context.get::<Identified>() {
-            Ok(identity) => identity,
-            Err(error) => {
-                out.diagnostics.push(error.clone());
-                return;
-            }
-        };
-        let validated = match context.get::<Validated>() {
-            Ok(validated) => validated,
+        let module = match lower_document(context, self.target) {
+            Ok(module) => module,
             Err(diagnostic) => {
-                out.diagnostics.push(diagnostic.clone());
+                out.diagnostics.push(diagnostic);
                 return;
             }
         };
-        let stylesheet = context.get::<ScopedStylesheet>();
-        let facts = lower::Lowering {
+        let javascript = {
+            let _p = measurement::phase("js.print");
+            module.emit().out
+        };
+        out.file("js", javascript);
+        let validated = context
+            .get::<Validated>()
+            .as_ref()
+            .expect("lowering succeeded, so the options are valid");
+        if !validated.is_custom_element()
+            && let Some(stylesheet) = context.get::<ScopedStylesheet>()
+        {
+            out.file("css", stylesheet.clone());
+        }
+    }
+}
+
+/// One target's module, lowered from the document's artifacts exactly as the compile task lowers
+/// it, so a caller that needs more than the printed text (such as its mappings) sees the same
+/// module.
+///
+/// # Errors
+///
+/// The first [`Diagnostic`]: the parse error, the CSS hash function's failure, a rejected option,
+/// or what the port does not handle yet.
+///
+/// # Panics
+///
+/// If a parsed component lacks its compiler tree, resolution, analysis or render plan, which every
+/// registered Svelte document has.
+pub fn lower_document<'a>(
+    context: &'a DocumentContext<'_>,
+    target: Target,
+) -> Result<crate::LoweredModule<'a>, Diagnostic> {
+    if let Err(e) = context.get::<Parsed>() {
+        return Err(e.clone());
+    }
+    let input = crate::CompileInput::from(
+        rsvelte_svelte::component_input(context).expect("a parsed component is lowered to HIR"),
+    );
+    let res = context
+        .get::<Resolved>()
+        .as_ref()
+        .expect("a parsed component is resolved");
+    let an = context
+        .get::<Analyzed>()
+        .as_ref()
+        .expect("a parsed component is analysed");
+    let plan = context
+        .get::<Planned>()
+        .as_ref()
+        .expect("a parsed component has a render plan");
+    let identity = context.get::<Identified>().as_ref().map_err(Clone::clone)?;
+    let validated = context.get::<Validated>().as_ref().map_err(Clone::clone)?;
+    let stylesheet = context.get::<ScopedStylesheet>();
+    lower_measured(
+        lower::Lowering {
             input: &input,
             res,
             an,
@@ -104,20 +133,9 @@ impl Task for Compile {
             identity,
             validated,
             stylesheet: stylesheet.as_deref(),
-        };
-        match compile_with_facts(facts, self.target) {
-            Ok(javascript) => out.file("js", javascript),
-            Err(d) => {
-                out.diagnostics.push(d);
-                return;
-            }
-        }
-        if !validated.is_custom_element()
-            && let Some(stylesheet) = stylesheet
-        {
-            out.file("css", stylesheet.clone());
-        }
-    }
+        },
+        target,
+    )
 }
 
 /// The JavaScript module of one target, from any frontend's [`lower::CompileInput`].
@@ -181,13 +199,18 @@ fn compile_with_facts(
     facts: lower::Lowering<'_, '_>,
     target: Target,
 ) -> Result<String, Diagnostic> {
-    let module = {
-        let _p = measurement::phase(match target {
-            Target::Client => "svelte.lower.client",
-            Target::Server => "svelte.lower.server",
-        });
-        lower::lower_with_facts(facts, target)?
-    };
+    let module = lower_measured(facts, target)?;
     let _p = measurement::phase("js.print");
     Ok(module.emit().out)
+}
+
+fn lower_measured<'a>(
+    facts: lower::Lowering<'_, 'a>,
+    target: Target,
+) -> Result<crate::LoweredModule<'a>, Diagnostic> {
+    let _p = measurement::phase(match target {
+        Target::Client => "svelte.lower.client",
+        Target::Server => "svelte.lower.server",
+    });
+    lower::lower_with_facts(facts, target)
 }

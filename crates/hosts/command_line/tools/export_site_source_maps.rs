@@ -1,6 +1,7 @@
-//! Compiles one component and prints the generated JavaScript with the emitter's raw mappings,
-//! which the compile task does not write out. The site's source-map figures are generated from
-//! this, so they show what the pipeline produced rather than a hand-made example.
+//! Compiles one component as the compile task does ([`lower_document`]) and prints the generated
+//! JavaScript with the emitter's raw mappings, which the task does not write out. The site's
+//! source-map figures are generated from this, so they show what the pipeline produced rather than
+//! a hand-made example. Offsets are UTF-8 bytes, as the figure explains them.
 //!
 //! `cargo run -p rsvelte_command_line --example export_site_source_maps -- <file> <target>`, where
 //! `<target>` is `client` or `server`.
@@ -11,20 +12,27 @@
     reason = "an example that prints its output"
 )]
 
+use std::path::Path;
 use std::process::ExitCode;
 
+use rsvelte_kernel::computation::database::DocumentContext;
+use rsvelte_kernel::computation::pipeline::{Document, Registry};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
-use rsvelte_svelte::compilation::compiler_syntax_tree;
-use rsvelte_svelte::semantic::{analyze, resolve};
-use rsvelte_svelte::svelte_input;
-use rsvelte_svelte::syntax::parse;
-use rsvelte_svelte_compile::lower;
+use rsvelte_svelte_compile::{Target, lower_document};
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let [path, target] = arguments.as_slice() else {
         eprintln!("usage: export_site_source_maps <file.svelte> <client|server>");
         return ExitCode::FAILURE;
+    };
+    let target = match target.as_str() {
+        "client" => Target::Client,
+        "server" => Target::Server,
+        t => {
+            eprintln!("unknown target {t}");
+            return ExitCode::FAILURE;
+        }
     };
     let source_text = match std::fs::read_to_string(path) {
         Ok(s) => s,
@@ -33,28 +41,23 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let c = match parse::parse(&source_text) {
-        Ok(c) => c,
-        Err(d) => {
-            eprintln!("{path}: {}", d.message);
+    // The file name alone, so output that depends on the filename does not depend on the directory.
+    let Some(name) = Path::new(path).file_name().and_then(|n| n.to_str()) else {
+        eprintln!("{path}: expected a UTF-8 file name");
+        return ExitCode::FAILURE;
+    };
+    let document = match Document::new(name.to_owned(), source_text) {
+        Ok(document) => document,
+        Err(error) => {
+            eprintln!("{path}: {error:?}");
             return ExitCode::FAILURE;
         }
     };
-    let compiler_syntax_tree = compiler_syntax_tree::lower(&c, &source_text);
-    let res = resolve::resolve(&c.javascript, c.program, &compiler_syntax_tree);
-    let input = svelte_input(&c, &compiler_syntax_tree, &source_text, path);
-    let an = analyze::analyze(&input, &res);
-    let input = rsvelte_svelte_compile::CompileInput::from(input);
-    let lowered = match target.as_str() {
-        "client" => lower::lower(&input, &res, &an, rsvelte_svelte_compile::Target::Client),
-        "server" => lower::lower(&input, &res, &an, rsvelte_svelte_compile::Target::Server),
-        t => {
-            eprintln!("unknown target {t}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let module = match lowered {
-        Ok(x) => x,
+    let mut registry = Registry::new();
+    rsvelte_svelte_compile::register(&mut registry);
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let module = match lower_document(&context, target) {
+        Ok(module) => module,
         Err(d) => {
             eprintln!("{path}: {}", d.message);
             return ExitCode::FAILURE;
@@ -64,7 +67,7 @@ fn main() -> ExitCode {
     let mut w = StructuredDataWriter::new(true);
     w.begin_object()
         .key("source")
-        .write_string(&source_text)
+        .write_string(&document.text)
         .key("out")
         .write_string(&e.out)
         .key("mappings")
@@ -78,7 +81,7 @@ fn main() -> ExitCode {
     }
     w.end_array()
         .key("source_map")
-        .write_string(&e.source_map(&source_text, "App.svelte"))
+        .write_string(&e.source_map(&document.text, name))
         .end_object();
     print!("{}", w.finish());
     ExitCode::SUCCESS

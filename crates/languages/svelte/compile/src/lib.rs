@@ -19,5 +19,6 @@ pub use identity::OutputIdentity;
 pub use input::{CompileInput, Target};
 pub use render_plan::RenderPlan;
 pub use task::{
-    Compile, PLUGIN, compile, compile_with_configuration, register, register_with_configuration,
+    Compile, PLUGIN, compile, compile_with_configuration, lower_document, register,
+    register_with_configuration,
 };
