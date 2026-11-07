@@ -104,6 +104,10 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: '構造化データの書き出し',
 		summary: '文字列・数値・配列・オブジェクトを、直接テキスト形式に書き出します。',
 	},
+	'kernel/output/task_files': {
+		title: 'タスクの出力ファイル',
+		summary: 'タスクが文書ごとに残すファイルの名前と中身を決め、診断を構造化データで書き出します。',
+	},
 	'kernel/performance/measurement': {
 		title: '処理時間とメモリの計測',
 		summary: '処理ごとの時間と、メモリ割り当ての回数・大きさを測ります。',

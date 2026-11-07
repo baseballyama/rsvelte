@@ -193,7 +193,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel#life',
 		source: {
 			path: 'crates/hosts/browser/src/computation/playground.rs',
-			line: 242,
+			line: 237,
 			text: 'pipeline::run(&reg',
 		},
 		box: { x: 790, y: 162, w: 176, h: height },
@@ -257,6 +257,12 @@ export const sharedParts: SharedPart[] = [
 		href: '/learn/kernel/structured-data',
 	},
 	{
+		id: 'task_files',
+		label: 'タスクの出力ファイル',
+		module: 'kernel/output/task_files',
+		href: '/learn/kernel#modules',
+	},
+	{
 		id: 'width',
 		label: '文字の表示幅',
 		module: 'kernel/output/width',
@@ -301,7 +307,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [560, 0],
 		source: {
 			path: 'crates/hosts/browser/src/computation/playground.rs',
-			line: 122,
+			line: 117,
 			text: 'rsvelte_svelte_compile::register(&mut reg);',
 		},
 	},
