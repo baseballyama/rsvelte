@@ -12,7 +12,7 @@ use crate::compiler::phases::phase3_transform::shared::class_body::{
     skip_ws_and_comments, split_class_members_onto_lines,
 };
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    line_starts_outside_opaque, skip_opaque,
+    line_starts_outside_opaque, opaque_runs, skip_opaque,
 };
 use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 
@@ -83,39 +83,101 @@ fn find_matching_bracket_angle(s: &str) -> Option<usize> {
     None
 }
 
-/// Replace every occurrence of `needle` in `haystack` with `replacement`, but
-/// only when `needle` is not immediately followed by a JS identifier character.
-///
-/// The class transforms wrap private-field reads by string-replacing
-/// `this.#name` with `$.get(this.#name)`. A bare `str::replace` matches a
-/// field name that is a *prefix* of a longer sibling — e.g. wrapping `#fps`
-/// corrupts `this.#fpsLimitOption` into `$.get(this.#fps)LimitOption` (issue
-/// #907). Anchoring on a trailing word boundary fixes that; `this.` already
-/// anchors the left edge, so only the right edge needs checking.
-fn replace_field_ref_word_boundary(haystack: &str, needle: &str, replacement: &str) -> String {
+/// ECMA-262 `IdentifierPartChar`, approximated by Unicode alphanumerics.
+pub(super) fn is_ident_continue(c: char) -> bool {
+    c.is_alphanumeric() || matches!(c, '_' | '$' | '\u{200c}' | '\u{200d}')
+}
+
+fn continues_identifier(s: &str, at: usize) -> bool {
+    s[at..].chars().next().is_some_and(is_ident_continue)
+}
+
+/// Whether the byte at `at` lies in one of `runs` (sorted, disjoint, half-open).
+fn in_runs(runs: &[(usize, usize)], at: usize) -> bool {
+    let i = runs.partition_point(|&(start, _)| start <= at);
+    i > 0 && at < runs[i - 1].1
+}
+
+/// Replace each code occurrence of `needle` that is a whole token run: not
+/// inside a string, comment, regex or template text, not the head of a longer
+/// identifier (`this.#fps` in `this.#fpsLimit`, #907), and, when `needle`
+/// opens with an identifier, not the tail of one or a property name
+/// (`s.#n` in `this.#n`). `accept` adds a caller-specific guard.
+fn replace_code_refs(
+    haystack: &str,
+    needle: &str,
+    replacement: &str,
+    accept: impl Fn(&str, usize) -> bool,
+) -> String {
     if needle.is_empty() || !haystack.contains(needle) {
         return haystack.to_string();
     }
-    let bytes = haystack.as_bytes();
+    let opaque = opaque_runs(haystack.as_bytes());
+    let opens_ident = needle.chars().next().is_some_and(is_ident_continue);
     let mut out = String::with_capacity(haystack.len());
-    let mut i = 0;
-    while i < haystack.len() {
-        if haystack[i..].starts_with(needle) {
-            let after = i + needle.len();
-            let next_is_ident = bytes
-                .get(after)
-                .is_some_and(|&b| b.is_ascii_alphanumeric() || b == b'_' || b == b'$');
-            if !next_is_ident {
-                out.push_str(replacement);
-                i = after;
-                continue;
+    let mut copied = 0;
+    let mut from = 0;
+    while let Some(rel) = haystack[from..].find(needle) {
+        let at = from + rel;
+        let after = at + needle.len();
+        let left_ok = !opens_ident || {
+            let before = &haystack[..at];
+            match before.chars().next_back() {
+                Some('.') => before.ends_with("..."),
+                Some(c) => !is_ident_continue(c),
+                None => true,
             }
+        };
+        if left_ok
+            && !in_runs(&opaque, at)
+            && !continues_identifier(haystack, after)
+            && accept(haystack, at)
+        {
+            out.push_str(&haystack[copied..at]);
+            out.push_str(replacement);
+            copied = after;
+            from = after;
+        } else {
+            from = at + haystack[at..].chars().next().map_or(1, char::len_utf8);
         }
-        let ch_len = haystack[i..].chars().next().unwrap().len_utf8();
-        out.push_str(&haystack[i..i + ch_len]);
-        i += ch_len;
     }
+    out.push_str(&haystack[copied..]);
     out
+}
+
+/// Replace every code reference to the private field `needle` (`this.#name`)
+/// with `replacement`; see [`replace_code_refs`].
+fn replace_field_ref_word_boundary(haystack: &str, needle: &str, replacement: &str) -> String {
+    replace_code_refs(haystack, needle, replacement, |_, _| true)
+}
+
+/// Rewrite the prefix update `{op}{qualified}` (`op` is `++` or `--`) where
+/// `qualified` is the whole operand.
+fn replace_prefix_update(haystack: &str, qualified: &str, op: &str, replacement: &str) -> String {
+    let needle = format!("{op}{qualified}");
+    let op_byte = op.as_bytes()[0];
+    replace_code_refs(haystack, &needle, replacement, |s, at| {
+        // `a+++q` lexes as `a++ + q`: the operator is ours only after an even run.
+        let run = s.as_bytes()[..at]
+            .iter()
+            .rev()
+            .take_while(|&&b| b == op_byte)
+            .count();
+        // `++q.v` / `++q[i]` update a member of the field's value.
+        let rest = &s[at + needle.len()..];
+        let next = rest.as_bytes().get(skip_ws_and_comments(rest, 0));
+        run % 2 == 0 && !matches!(next, Some(b'.' | b'['))
+    })
+}
+
+/// Rewrite the postfix update `{qualified}{op}`.
+fn replace_postfix_update(haystack: &str, qualified: &str, op: &str, replacement: &str) -> String {
+    replace_code_refs(
+        haystack,
+        &format!("{qualified}{op}"),
+        replacement,
+        |_, _| true,
+    )
 }
 
 /// Net change in bracket nesting (`()`, `[]`, `{}`) contributed by one source
@@ -820,10 +882,15 @@ pub(super) fn transform_constructor_private_reads(
             let mut search_from = 0;
             let mut new_result = String::new();
             let mut last_end = 0;
+            let opaque = opaque_runs(result.as_bytes());
 
             while let Some(pos) = result[search_from..].find(&private_ref) {
                 let abs_pos = search_from + pos;
                 let after_pos = abs_pos + private_ref.len();
+                if in_runs(&opaque, abs_pos) {
+                    search_from = after_pos;
+                    continue;
+                }
 
                 let before = &result[..abs_pos];
                 if before.ends_with("$.set(")
@@ -864,7 +931,7 @@ pub(super) fn transform_constructor_private_reads(
                         search_from = after_pos;
                         continue;
                     }
-                    Some(c) if c.is_alphanumeric() || c == '_' => {
+                    Some(c) if is_ident_continue(c) => {
                         search_from = after_pos;
                         continue;
                     }
@@ -885,10 +952,15 @@ pub(super) fn transform_constructor_private_reads(
             let mut search_from = 0;
             let mut new_result = String::new();
             let mut last_end = 0;
+            let opaque = opaque_runs(result.as_bytes());
 
             while let Some(pos) = result[search_from..].find(&private_ref) {
                 let abs_pos = search_from + pos;
                 let after_pos = abs_pos + private_ref.len();
+                if in_runs(&opaque, abs_pos) {
+                    search_from = after_pos;
+                    continue;
+                }
 
                 let before = &result[..abs_pos];
                 if before.ends_with("$.set(")
@@ -926,7 +998,7 @@ pub(super) fn transform_constructor_private_reads(
                             continue;
                         }
                     }
-                    Some(c) if c.is_alphanumeric() || c == '_' => {
+                    Some(c) if is_ident_continue(c) => {
                         search_from = after_pos;
                         continue;
                     }
@@ -1995,9 +2067,7 @@ pub(super) fn find_private_field_prefixes(content: &str, field_name: &str) -> Ve
         let abs_pos = search_from + pos;
         // Check the character after the field name to ensure it's a word boundary
         let after_pos = abs_pos + hash_pattern.len();
-        if crate::compiler::utils::char_at(content, after_pos)
-            .is_some_and(|next_char| next_char.is_alphanumeric() || next_char == '_')
-        {
+        if crate::compiler::utils::char_at(content, after_pos).is_some_and(is_ident_continue) {
             search_from = crate::compiler::utils::next_char_boundary(content, abs_pos);
             continue;
         }
@@ -2153,28 +2223,30 @@ pub(super) fn transform_class_methods(
             // Deliberate divergence: upstream leaves a constructor-root update
             // through a non-`this` receiver as `inst.#n.v++`, which writes the
             // source without notifying (`compatibility/GATES.md#deliberate-divergences`).
-            let post_inc = format!("{}++", qualified);
-            while result.contains(&post_inc) {
-                let replacement = format!("$.update({})", qualified);
-                result = result.replacen(&post_inc, &replacement, 1);
-            }
-            let pre_inc = format!("++{}", qualified);
-            while result.contains(&pre_inc) {
-                let replacement = format!("$.update_pre({})", qualified);
-                result = result.replacen(&pre_inc, &replacement, 1);
-            }
-
-            // Handle decrement: prefix.#name-- or --prefix.#name
-            let post_dec = format!("{}--", qualified);
-            while result.contains(&post_dec) {
-                let replacement = format!("$.update({}, -1)", qualified);
-                result = result.replacen(&post_dec, &replacement, 1);
-            }
-            let pre_dec = format!("--{}", qualified);
-            while result.contains(&pre_dec) {
-                let replacement = format!("$.update_pre({}, -1)", qualified);
-                result = result.replacen(&pre_dec, &replacement, 1);
-            }
+            result = replace_postfix_update(
+                &result,
+                &qualified,
+                "++",
+                &format!("$.update({qualified})"),
+            );
+            result = replace_prefix_update(
+                &result,
+                &qualified,
+                "++",
+                &format!("$.update_pre({qualified})"),
+            );
+            result = replace_postfix_update(
+                &result,
+                &qualified,
+                "--",
+                &format!("$.update({qualified}, -1)"),
+            );
+            result = replace_prefix_update(
+                &result,
+                &qualified,
+                "--",
+                &format!("$.update_pre({qualified}, -1)"),
+            );
 
             // Now handle reads: property access, optional chaining, standalone reads
 
@@ -2277,7 +2349,7 @@ pub(super) fn wrap_standalone_private_reads(content: &str, qualified: &str) -> S
                     continue;
                 }
             }
-            Some(c) if c.is_alphanumeric() || c == '_' => {
+            Some(c) if is_ident_continue(c) => {
                 search_from = after_pos;
                 continue;
             }
@@ -2392,22 +2464,30 @@ pub(super) fn transform_class_methods_non_this(
             }
 
             // Handle increment/decrement
-            let post_inc = format!("{}++", qualified);
-            while result.contains(&post_inc) {
-                result = result.replacen(&post_inc, &format!("$.update({})", qualified), 1);
-            }
-            let pre_inc = format!("++{}", qualified);
-            while result.contains(&pre_inc) {
-                result = result.replacen(&pre_inc, &format!("$.update_pre({})", qualified), 1);
-            }
-            let post_dec = format!("{}--", qualified);
-            while result.contains(&post_dec) {
-                result = result.replacen(&post_dec, &format!("$.update({}, -1)", qualified), 1);
-            }
-            let pre_dec = format!("--{}", qualified);
-            while result.contains(&pre_dec) {
-                result = result.replacen(&pre_dec, &format!("$.update_pre({}, -1)", qualified), 1);
-            }
+            result = replace_postfix_update(
+                &result,
+                &qualified,
+                "++",
+                &format!("$.update({qualified})"),
+            );
+            result = replace_prefix_update(
+                &result,
+                &qualified,
+                "++",
+                &format!("$.update_pre({qualified})"),
+            );
+            result = replace_postfix_update(
+                &result,
+                &qualified,
+                "--",
+                &format!("$.update({qualified}, -1)"),
+            );
+            result = replace_prefix_update(
+                &result,
+                &qualified,
+                "--",
+                &format!("$.update_pre({qualified}, -1)"),
+            );
 
             // This function only ever runs on a constructor body, where upstream
             // `MemberExpression.js` reads a `$state` / `$state.raw` field as `q.v`
@@ -2565,7 +2645,7 @@ pub(super) fn transform_constructor_assignment(
                                 if tv.contains(&tp) {
                                     let getter =
                                         format!("$.get(this.#{})", of.private_backing_name);
-                                    tv = tv.replace(&tp, &getter);
+                                    tv = replace_field_ref_word_boundary(&tv, &tp, &getter);
                                 }
                             }
                             if tv.trim_start().starts_with('{') {
@@ -2681,17 +2761,9 @@ pub(super) fn transform_constructor_assignment(
                 if result.starts_with(&post_inc) {
                     return format!("$.update(this.#{});", field.private_backing_name);
                 }
-                let pre_inc = format!("++this.#{}", field.name);
-                if result.starts_with(&pre_inc) {
-                    return format!("$.update_pre(this.#{});", field.private_backing_name);
-                }
                 let post_dec = format!("this.#{}--", field.name);
                 if result.starts_with(&post_dec) {
                     return format!("$.update(this.#{}, -1);", field.private_backing_name);
-                }
-                let pre_dec = format!("--this.#{}", field.name);
-                if result.starts_with(&pre_dec) {
-                    return format!("$.update_pre(this.#{}, -1);", field.private_backing_name);
                 }
 
                 // Handle regular assignment: this.#name = value
