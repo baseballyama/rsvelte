@@ -5380,6 +5380,14 @@ mod tests {
                     "missing {name}{suffix}"
                 );
             }
+            let own = format!(
+                "./{}.svelte.tsx",
+                Path::new(name).file_name().unwrap().to_str().unwrap()
+            );
+            for suffix in [".svelte.d.ts", ".d.svelte.ts"] {
+                let text = fs::read_to_string(mirror.join(format!("{name}{suffix}"))).unwrap();
+                assert!(text.contains(&own), "{name}{suffix} re-exports {text:?}");
+            }
         }
         assert!(mirror.join("plain.svelte.jsx").is_file());
         assert!(!mirror.join("broken.svelte.tsx").exists());
