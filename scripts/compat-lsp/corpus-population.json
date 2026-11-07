@@ -1,8 +1,8 @@
 {
   "bits-ui": {
-    "files": 620,
-    "identifiers": 136367,
-    "requests": 409101
+    "files": 660,
+    "identifiers": 140131,
+    "requests": 420393
   },
   "flowbite-svelte": {
     "files": 1296,
@@ -15,8 +15,8 @@
     "requests": 36129
   },
   "shadcn-svelte": {
-    "files": 1753,
-    "identifiers": 287007,
-    "requests": 861021
+    "files": 2145,
+    "identifiers": 368532,
+    "requests": 1105596
   }
 }

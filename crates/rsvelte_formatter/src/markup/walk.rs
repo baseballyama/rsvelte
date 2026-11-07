@@ -13,18 +13,33 @@ fn collect_if_open_tag_edits(
     source: &str,
     block: &IfBlock,
     depth: usize,
+    in_pre: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
     let mut current = block;
     loop {
-        collect_open_tag_edits(source, &current.consequent, depth + 1, options, edits)?;
+        collect_fragment_open_tag_edits(
+            source,
+            &current.consequent,
+            depth + 1,
+            in_pre,
+            options,
+            edits,
+        )?;
         match &current.alternate {
             Some(alternate) => {
                 if let Some(chained) = else_if_branch(alternate) {
                     current = chained;
                 } else {
-                    collect_open_tag_edits(source, alternate, depth + 1, options, edits)?;
+                    collect_fragment_open_tag_edits(
+                        source,
+                        alternate,
+                        depth + 1,
+                        in_pre,
+                        options,
+                        edits,
+                    )?;
                     return Ok(());
                 }
             }
@@ -37,11 +52,12 @@ fn collect_optional_fragments<'a>(
     source: &str,
     fragments: impl IntoIterator<Item = Option<&'a Fragment<'a>>>,
     depth: usize,
+    in_pre: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
     for fragment in fragments.into_iter().flatten() {
-        collect_open_tag_edits(source, fragment, depth + 1, options, edits)?;
+        collect_fragment_open_tag_edits(source, fragment, depth + 1, in_pre, options, edits)?;
     }
     Ok(())
 }
@@ -50,27 +66,37 @@ fn collect_each_open_tag_edits(
     source: &str,
     block: &rsvelte_core::ast::template::EachBlock,
     depth: usize,
+    in_pre: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
-    collect_open_tag_edits(source, &block.body, depth + 1, options, edits)?;
-    collect_optional_fragments(source, [block.fallback.as_ref()], depth, options, edits)
+    collect_fragment_open_tag_edits(source, &block.body, depth + 1, in_pre, options, edits)?;
+    collect_optional_fragments(
+        source,
+        [block.fallback.as_ref()],
+        depth,
+        in_pre,
+        options,
+        edits,
+    )
 }
 
 fn collect_single_fragment_open_tag_edits(
     source: &str,
     fragment: &Fragment,
     depth: usize,
+    in_pre: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
-    collect_open_tag_edits(source, fragment, depth + 1, options, edits)
+    collect_fragment_open_tag_edits(source, fragment, depth + 1, in_pre, options, edits)
 }
 
 fn collect_svelte_window_open_tag_edits(
     source: &str,
     window: &rsvelte_core::ast::template::SvelteElement,
     depth: usize,
+    in_pre: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
@@ -86,6 +112,7 @@ fn collect_svelte_window_open_tag_edits(
             &window.fragment,
             depth,
             false,
+            in_pre,
             options,
             edits,
         );
@@ -100,6 +127,7 @@ fn collect_svelte_window_open_tag_edits(
         true,
         false,
         false,
+        false,
         0,
         options,
         edits,
@@ -109,7 +137,7 @@ fn collect_svelte_window_open_tag_edits(
     {
         edits.push((close_start, close_end, String::new()));
     }
-    collect_open_tag_edits(source, &window.fragment, depth + 1, options, edits)
+    collect_fragment_open_tag_edits(source, &window.fragment, depth + 1, in_pre, options, edits)
 }
 
 fn collect_element_open_tag_edits(
@@ -122,6 +150,7 @@ fn collect_element_open_tag_edits(
     fragment: &Fragment,
     depth: usize,
     regular_element: bool,
+    in_pre: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
@@ -135,6 +164,7 @@ fn collect_element_open_tag_edits(
         fragment,
         depth,
         regular_element,
+        in_pre,
         options,
         edits,
     )
@@ -144,6 +174,7 @@ fn collect_plain_element_open_tag_edits(
     source: &str,
     node: &TemplateNode,
     depth: usize,
+    in_pre: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<bool, FormatError> {
@@ -159,6 +190,7 @@ fn collect_plain_element_open_tag_edits(
                 &element.fragment,
                 depth,
                 true,
+                in_pre,
                 options,
                 edits,
             )?;
@@ -175,6 +207,7 @@ fn collect_plain_element_open_tag_edits(
                 &element.fragment,
                 depth,
                 false,
+                in_pre,
                 options,
                 edits,
             )?;
@@ -191,6 +224,7 @@ fn collect_plain_element_open_tag_edits(
                 &element.fragment,
                 depth,
                 false,
+                in_pre,
                 options,
                 edits,
             )?;
@@ -207,6 +241,7 @@ fn collect_plain_element_open_tag_edits(
                 &element.fragment,
                 depth,
                 false,
+                in_pre,
                 options,
                 edits,
             )?;
@@ -229,6 +264,7 @@ fn collect_plain_element_open_tag_edits(
                 &element.fragment,
                 depth,
                 false,
+                in_pre,
                 options,
                 edits,
             )?;
@@ -249,11 +285,22 @@ pub fn collect_open_tag_edits(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
+    collect_fragment_open_tag_edits(source, fragment, depth, false, options, edits)
+}
+
+fn collect_fragment_open_tag_edits(
+    source: &str,
+    fragment: &Fragment,
+    depth: usize,
+    in_pre: bool,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
     for (i, node) in fragment.nodes.iter().enumerate() {
         if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, i) {
             continue;
         }
-        collect_node_open_tag_edits(source, node, depth, options, edits)?;
+        collect_node_open_tag_edits(source, node, depth, in_pre, options, edits)?;
     }
     Ok(())
 }
@@ -284,6 +331,7 @@ pub fn collect_options_open_tag_edit(
         &attrs,
         None,
         0,
+        false,
         false,
         false,
         false,
@@ -381,6 +429,7 @@ fn handle_element(
     fragment: &Fragment,
     depth: usize,
     regular_element: bool,
+    in_pre: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
@@ -394,6 +443,11 @@ fn handle_element(
         .is_some_and(|n| {
             !matches!(n, TemplateNode::Text(_)) && crate::collapse::template_node_span(n).1 == end
         });
+    // prettier-plugin-svelte's `isPreTagContent` walks the whole path stack, so
+    // the element's own `<pre>` / `<textarea>` counts as well as an ancestor.
+    let in_pre = in_pre
+        || (regular_element
+            && (name.eq_ignore_ascii_case("pre") || name.eq_ignore_ascii_case("textarea")));
     let wrapped = push_open_tag(
         source,
         start,
@@ -404,6 +458,7 @@ fn handle_element(
         is_empty,
         empty_nonhug,
         regular_element,
+        in_pre,
         trailing_tag_width(source, start, end),
         options,
         edits,
@@ -411,7 +466,7 @@ fn handle_element(
     // Children first: an element and its last descendant can both close
     // implicitly at the same offset (`<tr><td>a<td>b</tr>`), and coincident
     // inserts emit in push order, so the inner close tag has to be pushed first.
-    collect_open_tag_edits(source, fragment, depth + 1, options, edits)?;
+    collect_fragment_open_tag_edits(source, fragment, depth + 1, in_pre, options, edits)?;
     push_close_tag(
         source,
         end,
@@ -431,15 +486,16 @@ fn collect_node_open_tag_edits(
     source: &str,
     node: &TemplateNode,
     depth: usize,
+    in_pre: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
-    if collect_plain_element_open_tag_edits(source, node, depth, options, edits)? {
+    if collect_plain_element_open_tag_edits(source, node, depth, in_pre, options, edits)? {
         return Ok(());
     }
     match node {
         TemplateNode::SvelteWindow(window) => {
-            collect_svelte_window_open_tag_edits(source, window, depth, options, edits)?;
+            collect_svelte_window_open_tag_edits(source, window, depth, in_pre, options, edits)?;
         }
         TemplateNode::SvelteComponent(c) => handle_element(
             source,
@@ -451,6 +507,7 @@ fn collect_node_open_tag_edits(
             &c.fragment,
             depth,
             false,
+            in_pre,
             options,
             edits,
         )?,
@@ -464,16 +521,17 @@ fn collect_node_open_tag_edits(
             &e.fragment,
             depth,
             false,
+            in_pre,
             options,
             edits,
         )?,
         // Blocks have child fragments but no attributes themselves.
         // Their bodies are conceptually one level deeper than the block.
         TemplateNode::IfBlock(block) => {
-            collect_if_open_tag_edits(source, block, depth, options, edits)?;
+            collect_if_open_tag_edits(source, block, depth, in_pre, options, edits)?;
         }
         TemplateNode::EachBlock(block) => {
-            collect_each_open_tag_edits(source, block, depth, options, edits)?;
+            collect_each_open_tag_edits(source, block, depth, in_pre, options, edits)?;
         }
         TemplateNode::AwaitBlock(block) => collect_optional_fragments(
             source,
@@ -481,14 +539,29 @@ fn collect_node_open_tag_edits(
                 .into_iter()
                 .map(Option::as_ref),
             depth,
+            in_pre,
             options,
             edits,
         )?,
         TemplateNode::KeyBlock(block) => {
-            collect_single_fragment_open_tag_edits(source, &block.fragment, depth, options, edits)?;
+            collect_single_fragment_open_tag_edits(
+                source,
+                &block.fragment,
+                depth,
+                in_pre,
+                options,
+                edits,
+            )?;
         }
         TemplateNode::SnippetBlock(block) => {
-            collect_single_fragment_open_tag_edits(source, &block.body, depth, options, edits)?;
+            collect_single_fragment_open_tag_edits(
+                source,
+                &block.body,
+                depth,
+                in_pre,
+                options,
+                edits,
+            )?;
         }
         _ => {}
     }

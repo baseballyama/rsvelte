@@ -1,0 +1,6 @@
+---
+"@rsvelte/compiler": patch
+"@rsvelte/vite-plugin-svelte-native": patch
+---
+
+fix(compiler): follow Svelte 5.57.3. A second `{:else}` in an `{#if}` or `{#each}` block, and an `{:else if}` after an `{:else}`, is now the `block_duplicate_clause` error (sveltejs/svelte#18900); a `let:` directive on a component that also has a `children` snippet is the new `let_directive_snippet_conflict` error (sveltejs/svelte#18873); a `role` attribute's tokens are matched ASCII case-insensitively and split on ASCII whitespace only, the element's effective role for the interaction checks is the first known non-abstract fallback role (sveltejs/svelte#19045), and `<area role="link">` without `href` is no longer a redundant role (sveltejs/svelte#18872); an event handler bound to a variable that is assigned after a top-level `await` is wrapped like an imported one so it is read when the event fires (sveltejs/svelte#18933). On the server, an expression tag that both awaits and reads a top-level-`await` binding is emitted as an `async` push with its `await` `$.save`-wrapped instead of an `await` inside a synchronous arrow, and an async `{#key}` block gets its `<!--[-->` / `<!--]-->` markers; a function declaration reached from a later `await` statement now inherits that statement's blocker.

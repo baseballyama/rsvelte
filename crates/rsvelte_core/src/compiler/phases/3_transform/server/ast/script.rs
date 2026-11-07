@@ -5294,7 +5294,9 @@ pub fn transform_instance<'a>(
     if state.eval_inputs.use_async && !body.is_empty() {
         use crate::compiler::phases::phase3_transform::profile;
         let _t = profile::timer_start();
-        let body_text = state.b.program(body_clone(state, &body)).pipe_print();
+        let mut fragment = state.b.program(body_clone(state, &body));
+        let body_text =
+            comments::print_fragment_with_comments(&mut fragment, &state.comments, state.allocator);
         let print_elapsed = profile::timer_elapsed(_t);
         if let Some(result) =
             crate::compiler::phases::phase3_transform::shared::async_body::transform_async_body_dev(
@@ -5371,19 +5373,6 @@ fn is_async_hole_stmt(stmt: &Statement) -> bool {
         expr = &p.expression;
     }
     matches!(expr, Expression::Identifier(id) if id.name == "$$async_hole")
-}
-
-/// Print a slice of oxc statements to JS source text via the esrap printer
-/// (used to round-trip the lowered instance body through the text-based
-/// `transform_async_body`). Consumes a freshly-cloned copy so the original
-/// statements stay usable.
-trait PipePrint {
-    fn pipe_print(self) -> String;
-}
-impl<'a> PipePrint for oxc_ast::ast::Program<'a> {
-    fn pipe_print(self) -> String {
-        rsvelte_esrap::print(&self, "")
-    }
 }
 
 /// Deep-clone a slice of statements into the state allocator. `transform_async_body`

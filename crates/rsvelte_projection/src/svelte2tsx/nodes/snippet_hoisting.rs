@@ -7,6 +7,7 @@ use crate::ast::template::{Fragment, Root, TemplateNode};
 use rustc_hash::FxHashMap;
 
 use super::super::script::ExportedNames;
+use super::super::script::ast_utils::extract_all_names_from_binding_pattern;
 use super::super::svelte2tsx::slice_src;
 use super::super::utils::lexical::{lexical_identifiers, lexical_identifiers_in_expressions};
 
@@ -237,6 +238,39 @@ fn collect_snippet_component_names(fragment: &Fragment, source: &str, names: &mu
     }
 }
 
+/// The binding names a snippet's parameter list declares, read off the TS AST of
+/// the parameter source. `None` when the list does not parse as parameters.
+fn snippet_param_bindings(
+    snippet: &crate::ast::template::SnippetBlock,
+    source: &str,
+) -> Option<std::collections::HashSet<String>> {
+    let (first, last) = (snippet.parameters.first()?, snippet.parameters.last()?);
+    let (start, end) = (first.start()? as usize, last.end()? as usize);
+    let text = source.get(start..end)?;
+    let probe = format!("function __snippet({text}) {{}}");
+    let allocator = oxc_allocator::Allocator::default();
+    let parsed = oxc_parser::Parser::new(&allocator, &probe, oxc_span::SourceType::ts()).parse();
+    if parsed.fatal_error || parsed.diagnostics.has_errors() {
+        return None;
+    }
+    let Some(oxc_ast::ast::Statement::FunctionDeclaration(function)) = parsed.program.body.first()
+    else {
+        return None;
+    };
+    let params = &function.params;
+    if params.items.len() + usize::from(params.rest.is_some()) != snippet.parameters.len() {
+        return None;
+    }
+    let mut names = std::collections::HashSet::new();
+    for item in &params.items {
+        names.extend(extract_all_names_from_binding_pattern(&item.pattern));
+    }
+    if let Some(rest) = &params.rest {
+        names.extend(extract_all_names_from_binding_pattern(&rest.rest.argument));
+    }
+    Some(names)
+}
+
 /// Decide whether a top-level `{#snippet}` block is module-hoistable.
 ///
 /// A snippet is module-hoistable when its body's free variables resolve only
@@ -250,19 +284,19 @@ fn is_snippet_module_hoistable(
     source: &str,
     exported_names: &ExportedNames,
 ) -> bool {
-    // Param names shadow outer references inside the body.
-    let mut params_set: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for p in &snippet.parameters {
-        if let (Some(s), Some(e)) = (p.start(), p.end()) {
-            let s = s as usize;
-            let e = e as usize;
-            if s < e && e <= source.len() {
-                for tok in lexical_identifiers(&source[s..e]) {
-                    params_set.insert(tok);
-                }
-            }
-        }
-    }
+    // Param names shadow outer references inside the body; identifiers in a
+    // param's type annotation or default value stay references, as periscopic
+    // only declares the pattern's bindings.
+    let mut params_set: std::collections::HashSet<String> = snippet_param_bindings(snippet, source)
+        .unwrap_or_else(|| {
+            snippet
+                .parameters
+                .iter()
+                .filter_map(|p| Some((p.start()? as usize, p.end()? as usize)))
+                .filter(|&(s, e)| s < e && e <= source.len())
+                .flat_map(|(s, e)| lexical_identifiers(&source[s..e]))
+                .collect()
+        });
 
     // Also exclude the snippet's own name from references (its declaration
     // shouldn't be considered a free var of itself).
@@ -409,6 +443,83 @@ mod tests {
                 propagate_blocked_dependencies(&dependents, &mut actual);
                 assert_eq!(actual, expected);
             }
+        }
+    }
+
+    #[test]
+    fn param_annotation_and_default_identifiers_are_references() {
+        // Expected text is official svelte2tsx output (language-tools e7826d3,
+        // `{ isTsFile: true, mode: 'ts' }`), up to the component export.
+        let cases = [
+            (
+                r#"<script lang="ts" module>
+export const m = 1;
+</script>
+<script lang="ts">
+const c = { raise: () => 1 };
+</script>
+{#snippet s(r: ReturnType<typeof c.raise>)}{r}{/snippet}"#,
+                r#"///<reference types="svelte" />
+;
+export const m = 1;
+;;function $$render() {
+ const s/*Ωignore_positionΩ*/ = (r: ReturnType<typeof c.raise>)/*Ωignore_startΩ*/: ReturnType<import('svelte').Snippet>/*Ωignore_endΩ*/ => { async ()/*Ωignore_positionΩ*/ => {r;};return __sveltets_2_any(0)};
+const c = { raise: () => 1 };
+;
+async () => {
+
+};
+return { props: {} as Record<string, never>, exports: {}, bindings: "", slots: {}, events: {} }}"#,
+            ),
+            (
+                r#"<script lang="ts" module>
+export const m = 1;
+</script>
+<script lang="ts">
+const x = 1;
+</script>
+{#snippet s(x: number)}{x}{/snippet}"#,
+                r#"///<reference types="svelte" />
+;
+export const m = 1;
+;; const s/*Ωignore_positionΩ*/ = (x: number)/*Ωignore_startΩ*/: ReturnType<import('svelte').Snippet>/*Ωignore_endΩ*/ => { async ()/*Ωignore_positionΩ*/ => {x;};return __sveltets_2_any(0)};function $$render() {
+
+const x = 1;
+;
+async () => {
+
+};
+return { props: {} as Record<string, never>, exports: {}, bindings: "", slots: {}, events: {} }}"#,
+            ),
+            (
+                r#"<script lang="ts" module>
+export const m = 1;
+</script>
+<script lang="ts">
+const c = 1;
+</script>
+{#snippet s(r = c)}{r}{/snippet}"#,
+                r#"///<reference types="svelte" />
+;
+export const m = 1;
+;;function $$render() {
+ const s/*Ωignore_positionΩ*/ = (r = c)/*Ωignore_startΩ*/: ReturnType<import('svelte').Snippet>/*Ωignore_endΩ*/ => { async ()/*Ωignore_positionΩ*/ => {r;};return __sveltets_2_any(0)};
+const c = 1;
+;
+async () => {
+
+};
+return { props: {} as Record<string, never>, exports: {}, bindings: "", slots: {}, events: {} }}"#,
+            ),
+        ];
+        for (source, expected) in cases {
+            let options = Svelte2TsxOptions {
+                is_ts_file: true,
+                ..Svelte2TsxOptions::default()
+            };
+            let out = svelte2tsx(source, options).expect("svelte2tsx").code;
+            let render = &out[..out.rfind("\nconst ").expect("component export")];
+            assert_eq!(render, expected, "{source}");
         }
     }
 

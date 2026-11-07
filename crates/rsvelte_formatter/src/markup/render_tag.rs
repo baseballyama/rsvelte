@@ -115,14 +115,14 @@ fn is_string_value_attr(a: &str) -> bool {
 /// Where a rendered attribute's newlines sit relative to `{…}` brace depth.
 /// Inside braces a newline is a wrapped continuation of formatted JS; at depth 0
 /// it is literal HTML text between interpolations.
-struct ValueNewlines {
+pub(super) struct ValueNewlines {
     /// Byte offsets (within the scanned value) of every depth-0 newline — the
     /// boundaries at which [`reindent_attr_with_raw_text`] splits.
-    at_depth0: Vec<usize>,
+    pub(super) at_depth0: Vec<usize>,
     any_inside_braces: bool,
 }
 
-fn scan_value_newlines(value: &str) -> ValueNewlines {
+pub(super) fn scan_value_newlines(value: &str) -> ValueNewlines {
     let mut depth: i32 = 0;
     let mut quote: Option<u8> = None;
     let mut escaped = false;

@@ -1,12 +1,13 @@
 //! A comment run in front of an `await` keyword travels *into* the dev-mode
 //! `(await $.track_reactivity_loss(X))()` wrap, landing just before the wrapped
-//! argument — and the shapes that keep it outside keep it outside.
+//! `await` — and the shapes that keep it outside keep it outside.
 //!
-//! Upstream rebuilds the expression from position-less builder nodes and keeps
-//! only the argument's original span, so esrap has nothing located to flush the
-//! run against until it reaches the argument. Two of its other flush points win
-//! first: an enclosing node that begins on the `await` keyword itself, and the
-//! same-line trailing flush after a preceding list element.
+//! Upstream builds the outer call position-less but keeps the `await` node's
+//! own span (`{ ...node, argument }`, Svelte 5.57.3), so the first located node
+//! esrap can flush the run against is the `await` inside the callee's parens.
+//! Two of its other flush points win first: an enclosing node that begins on the
+//! `await` keyword itself, and the same-line trailing flush after a preceding
+//! list element.
 //!
 //! Every expectation below is the official compiler's bytes.
 
@@ -52,7 +53,7 @@ fn assert_contains(out: &str, expected: &str) {
 fn a_comment_before_a_parenthesized_await_moves_inside_the_wrap() {
     assert_contains(
         &module("\treturn (/* c */ await load())();\n"),
-        "return (await $.track_reactivity_loss(/* c */ load()))()();",
+        "return (/* c */ await $.track_reactivity_loss(load()))()();",
     );
 }
 
@@ -107,7 +108,7 @@ fn a_comment_trailing_the_previous_list_element_stays_outside_the_wrap() {
 fn a_comma_separated_run_on_its_own_line_moves_inside_the_wrap() {
     assert_contains(
         &module("\tg(\n\t\t1,\n\t\t/* c */ await load()\n\t);\n"),
-        "g(1, (await $.track_reactivity_loss(/* c */ load()))());",
+        "g(1, (/* c */ await $.track_reactivity_loss(load()))());",
     );
 }
 
@@ -115,7 +116,7 @@ fn a_comma_separated_run_on_its_own_line_moves_inside_the_wrap() {
 fn every_comment_in_the_run_moves_together() {
     assert_contains(
         &module("\treturn (/* a */ /* b */ await load())();\n"),
-        "return (await $.track_reactivity_loss(/* a */ /* b */ load()))()();",
+        "return (/* a */ /* b */ await $.track_reactivity_loss(load()))()();",
     );
 }
 
@@ -125,7 +126,7 @@ fn every_comment_in_the_run_moves_together() {
 fn a_run_broken_by_a_paren_moves_only_its_adjacent_half() {
     assert_contains(
         &module("\treturn /* a */ (/* b */ await load())();\n"),
-        "return (/* a */ (await $.track_reactivity_loss(/* b */ load()))()());",
+        "return (/* a */ (/* b */ await $.track_reactivity_loss(load()))()());",
     );
 }
 
@@ -137,19 +138,40 @@ fn a_run_broken_by_a_paren_moves_only_its_adjacent_half() {
 fn a_paren_that_opens_no_node_does_not_break_the_run() {
     assert_contains(
         &module("\treturn f/* a */(await load());\n"),
-        "return f((await $.track_reactivity_loss(/* a */ load()))());",
+        "return f((/* a */ await $.track_reactivity_loss(load()))());",
     );
 }
 
 /// The JSDoc cast that motivated it: `/** @type {T} */ (` wraps the operand in
 /// parens that belong to nothing else, and the run has to cross them. The pair
-/// in the expectation is esrap 2.3.x's own, re-added around the cast operand
-/// after the run has already moved.
+/// in the expectation is esrap 2.3.x's own, re-added around the `await` the
+/// cast now leads after the run has moved.
 #[test]
 fn a_cast_comment_crosses_the_cast_parens() {
     assert_contains(
         &module("\tconst r = /** @type {R} */ (await load());\n\treturn r;\n"),
-        "const r = (await $.track_reactivity_loss(/** @type {R} */ (load())))();",
+        "const r = (/** @type {R} */ (await $.track_reactivity_loss(load())))();",
+    );
+}
+
+/// The cast nested inside another cast's operand: each run lands on its own
+/// `await`, the inner one inside the outer wrap's argument.
+#[test]
+fn nested_cast_awaits_each_keep_their_run() {
+    assert_contains(
+        &module(
+            "\tconst d = /** @type {R} */ (await /** @type {X} */ (await h()));\n\treturn d;\n",
+        ),
+        "const d = (/** @type {R} */ (await $.track_reactivity_loss((/** @type {X} */ (await $.track_reactivity_loss(h())))())))();",
+    );
+}
+
+#[test]
+fn a_runes_instance_script_moves_a_cast_to_the_wrapped_await() {
+    let src = "<script>\n\tlet x = $state(1);\n\tasync function f() {\n\t\treturn /** @type {T} */ (await g());\n\t}\n</script>\n<p>{x}{f}</p>";
+    assert_contains(
+        &component(src),
+        "return (/** @type {T} */ (await $.track_reactivity_loss(g())))();",
     );
 }
 
@@ -164,16 +186,16 @@ fn a_comment_before_an_enclosing_calls_paren_stays_outside() {
 }
 
 /// A comment that stood on a line of its own keeps that break, which is also
-/// what stops a line comment from swallowing the wrapper's own `))()`.
+/// what stops a line comment from swallowing the wrapper's `await`.
 #[test]
 fn a_comment_on_its_own_line_keeps_the_break() {
     assert_contains(
         &module("\treturn (\n\t\t/* c */\n\t\tawait load())();\n"),
-        "return (await $.track_reactivity_loss(\n\t\t/* c */\n\t\tload()\n\t))()();",
+        "return (/* c */\n\tawait $.track_reactivity_loss(load()))()();",
     );
     assert_contains(
         &module("\treturn (\n\t\t// c\n\t\tawait load())();\n"),
-        "return (await $.track_reactivity_loss(\n\t\t// c\n\t\tload()\n\t))()();",
+        "return (// c\n\tawait $.track_reactivity_loss(load()))()();",
     );
 }
 
@@ -183,7 +205,7 @@ fn a_comment_on_its_own_line_keeps_the_break() {
 fn a_later_comment_does_not_break_the_moved_run() {
     assert_contains(
         &module("\treturn (/* c */ await load())();\n\t// tail\n"),
-        "return (await $.track_reactivity_loss(/* c */ load()))()();",
+        "return (/* c */ await $.track_reactivity_loss(load()))()();",
     );
 }
 
@@ -195,7 +217,7 @@ const RUNES: &str = "<script>\n\tlet x = $state(1);\n\tasync function f() {\n\t\
 fn a_runes_instance_script_relocates_the_run_too() {
     assert_contains(
         &component(RUNES),
-        "return (await $.track_reactivity_loss(/* c */ load()))()();",
+        "return (/* c */ await $.track_reactivity_loss(load()))()();",
     );
 }
 
@@ -213,7 +235,7 @@ fn a_legacy_instance_script_relocates_the_run_too() {
     let src = "<script>\n\texport let x = 1;\n\tasync function f() {\n\t\treturn (/* c */ await load())();\n\t}\n</script>\n<p>{x}{f}</p>";
     assert_contains(
         &component(src),
-        "return (await $.track_reactivity_loss(/* c */ load()))()();",
+        "return (/* c */ await $.track_reactivity_loss(load()))()();",
     );
 }
 

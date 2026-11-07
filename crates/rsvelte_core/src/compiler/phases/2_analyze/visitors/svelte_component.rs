@@ -46,8 +46,27 @@ pub fn visit<'a, 'b: 'a>(
     );
     super::shared::attribute::record_component_assign_exempt(context, &component.attributes, false);
 
+    // Computed up front because the loop below borrows the attributes mutably.
+    let mut let_conflict = component
+        .attributes
+        .iter()
+        .enumerate()
+        .find_map(|(i, attr)| {
+            let Attribute::LetDirective(let_dir) = attr else {
+                return None;
+            };
+            super::shared::component::check_let_directive_snippet_conflict(
+                let_dir,
+                &component.attributes,
+                &component.fragment,
+                &context.analysis.source,
+            )
+            .err()
+            .map(|error| (i, error))
+        });
+
     // Analyze attributes (mirrors visit_component logic from shared/component.rs)
-    for attr in &mut component.attributes {
+    for (i, attr) in component.attributes.iter_mut().enumerate() {
         match attr {
             Attribute::BindDirective(bind) => {
                 // Track component bindings (skip bind:this)
@@ -109,7 +128,9 @@ pub fn visit<'a, 'b: 'a>(
                 super::attach_tag::visit(attach, context)?;
             }
             Attribute::LetDirective(_) => {
-                // Allowed on components (matches the shared component validator)
+                if let Some((_, error)) = let_conflict.take_if(|(at, _)| *at == i) {
+                    return Err(error);
+                }
             }
             _ => {
                 // `transition:` / `animate:` / `use:` / `class:` / `style:` are

@@ -122,7 +122,7 @@
 	{
 		"id": "pattern/issues/acorn-unchecked-ts-grammar-rule-in-a-template.svelte",
 		"class": "invalid-input",
-		"reason": "`<string>() => a` names a type parameter `string`, which is illegal TypeScript (TS2368: type parameter name cannot be 'string'); oxc rejects it, so rsvelte-fmt returns a script parse error and leaves the file unformatted. The Svelte compiler accepts it only because acorn-typescript does not implement the rule \u2014 which is exactly what this repro pins \u2014 and the formatter's oxc boundary is not that compiler. Same shape as `snippet-typescript` (TS1015), one rule over."
+		"reason": "`<string>() => a` names a type parameter `string`, which is illegal TypeScript (TS2368: type parameter name cannot be 'string'); oxc rejects it, so rsvelte-fmt returns a script parse error and leaves the file unformatted. The Svelte compiler accepts it only because acorn-typescript does not implement the rule — which is exactly what this repro pins — and the formatter's oxc boundary is not that compiler. Same shape as `snippet-typescript` (TS1015), one rule over."
 	},
 	{
 		"id": "svelte/packages/svelte/tests/migrate/samples/svelte-element/input.svelte",
@@ -133,5 +133,15 @@
 		"id": "svelte/packages/svelte/tests/migrate/samples/svelte-element/output.svelte",
 		"class": "oracle-bug",
 		"reason": "oxfmt/prettier-plugin-svelte rebuilds <svelte:element this=\"h{n}\"> from the parsed first chunk and deletes {n}; rsvelte-fmt leaves the opener as written"
+	},
+	{
+		"id": "svelte/packages/svelte/tests/compiler-errors/samples/each-block-duplicate-else/main.svelte",
+		"class": "invalid-input",
+		"reason": "compiler-errors fixture: a second `{:else}` in one `{#each}` is `block_duplicate_clause` since Svelte 5.57.3, so rsvelte-fmt's parser (the compiler's) rejects it and leaves the file verbatim. The oracle formats it and silently deletes the first `{:else}` branch (`A`), keeping only `B`."
+	},
+	{
+		"id": "svelte/packages/svelte/tests/compiler-errors/samples/if-block-else-before-else-if/main.svelte",
+		"class": "invalid-input",
+		"reason": "compiler-errors fixture: `{:else}` before `{:else if}` is `block_duplicate_clause` since Svelte 5.57.3, so rsvelte-fmt's parser (the compiler's) rejects it and leaves the file verbatim. The oracle formats it and silently deletes the `{:else}` branch (`B`), keeping `{:else if b}`."
 	}
 ]

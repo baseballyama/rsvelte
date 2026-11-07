@@ -3168,6 +3168,60 @@ pub(crate) fn async_thunk_text(body: &str, server: bool) -> String {
     format!("async () => {{ try {{ return {body}; }} finally {{ $.unsave(); }} }}")
 }
 
+/// Truncate `out` before its last `(` when only whitespace and comments
+/// follow it, so a comment the tracking wrapper carried goes with it.
+fn truncate_before_open_paren(out: &mut String) {
+    let is_trivia = |tail: &str| {
+        let chars: Vec<char> = tail.chars().collect();
+        let mut i = 0;
+        while i < chars.len() {
+            if chars[i].is_whitespace() {
+                i += 1;
+            } else if let Some(next) = skip_char_comment(&chars, i) {
+                i = next;
+            } else {
+                return false;
+            }
+        }
+        true
+    };
+    let open = out
+        .rmatch_indices('(')
+        .map(|(at, _)| at)
+        .find(|&at| is_trivia(&out[at + 1..]));
+    match open {
+        Some(at) => out.truncate(at),
+        None => {
+            out.pop();
+        }
+    }
+}
+
+/// The index just past a `/* */` or `//` comment starting at `i`, so its `/`
+/// is not read as a division ending the `await` argument.
+fn skip_char_comment(chars: &[char], i: usize) -> Option<usize> {
+    if chars.get(i) != Some(&'/') {
+        return None;
+    }
+    match chars.get(i + 1) {
+        Some('*') => {
+            let mut j = i + 2;
+            while j + 1 < chars.len() && !(chars[j] == '*' && chars[j + 1] == '/') {
+                j += 1;
+            }
+            Some((j + 2).min(chars.len()))
+        }
+        Some('/') => {
+            let mut j = i + 2;
+            while j < chars.len() && chars[j] != '\n' {
+                j += 1;
+            }
+            Some(j)
+        }
+        _ => None,
+    }
+}
+
 /// Wrap non-final `await expr` in async derived expressions with `$.save()`.
 ///
 /// In the official Svelte compiler, `await` expressions that precede other reactive
@@ -3264,9 +3318,15 @@ pub(crate) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
                 // We need to find the end of the await argument to check if there's more.
                 let after_await = i + 5;
                 let mut arg_start = after_await;
-                // Skip whitespace after 'await'
-                while arg_start < len && chars[arg_start].is_whitespace() {
-                    arg_start += 1;
+                // Skip whitespace and comments after 'await'
+                loop {
+                    while arg_start < len && chars[arg_start].is_whitespace() {
+                        arg_start += 1;
+                    }
+                    match skip_char_comment(&chars, arg_start) {
+                        Some(next) => arg_start = next,
+                        None => break,
+                    }
                 }
 
                 // Find the extent of the await argument
@@ -3278,6 +3338,10 @@ pub(crate) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
                 let mut brace_depth = 0;
 
                 while j < len {
+                    if let Some(next) = skip_char_comment(&chars, j) {
+                        j = next;
+                        continue;
+                    }
                     match chars[j] {
                         '\'' | '"' | '`' => {
                             let quote = chars[j];
@@ -3353,7 +3417,9 @@ pub(crate) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
                     pickled = true;
                     // Wrap with $.save: `await expr` -> `(await $.save(expr))()`
                     if tracked_argument.is_some() && remaining_trimmed.starts_with(")()") {
-                        result.pop();
+                        // Drop the tracking wrapper's `(` together with the
+                        // comments the wrapper carried after it.
+                        truncate_before_open_paren(&mut result);
                     }
                     let _ = write!(
                         result,

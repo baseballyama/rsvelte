@@ -324,18 +324,6 @@
 		"verdict": "css-mismatch"
 	},
 	{
-		"id": "submodules/date-picker-svelte/src/lib/DateInput.svelte#style0",
-		"verdict": "css-mismatch"
-	},
-	{
-		"id": "submodules/date-picker-svelte/src/routes/+layout.svelte#style0",
-		"verdict": "css-mismatch"
-	},
-	{
-		"id": "submodules/date-picker-svelte/src/routes/split.svelte#style0",
-		"verdict": "css-mismatch"
-	},
-	{
 		"id": "submodules/huly/packages/theme/styles/_colors.scss",
 		"verdict": "css-mismatch"
 	},

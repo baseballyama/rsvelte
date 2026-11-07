@@ -663,7 +663,7 @@ mod tests {
         );
         assert!(
             documented
-                .contains("[MDN Reference](https://developer.mozilla.org/docs/Web/CSS/color)"),
+                .contains("[MDN Reference](https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/color)"),
             "completion documentation carries the MDN link, got: {documented}"
         );
 
@@ -721,7 +721,7 @@ mod tests {
             "{value}"
         );
         assert!(
-            value.contains("[MDN Reference](https://developer.mozilla.org/docs/Web/CSS/color)"),
+            value.contains("[MDN Reference](https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/color)"),
             "{value}"
         );
         assert_eq!(&source[span], "color: red");
