@@ -570,9 +570,16 @@ fn materialize_overlay_for(
 ) -> Result<OverlayLayout, OverlayError> {
     let cache_dir = workspace.join(".svelte-check");
     let emit_dir = cache_dir.join("svelte");
+    let ext_dir = cache_dir.join("ext");
     reject_symlink_components(&cache_dir, &cache_dir)?;
+    // Unlike upstream's overlay, ours includes `./svelte/**/*`, so a shadow or
+    // kit mirror whose source was deleted since the last run is type-checked.
+    if !incremental {
+        retire_overlay_trees(&cache_dir, &[&emit_dir, &ext_dir])?;
+    }
     fs::create_dir_all(&emit_dir)?;
     reject_symlink_components(&emit_dir, &cache_dir)?;
+    reject_symlink_components(&ext_dir, &cache_dir)?;
     // Mark the cache as ignored by git: it is generated in the user's
     // workspace root on every run, and nothing else adds an ignore entry for
     // it. Best-effort — a `.gitignore` we could not write does not affect a
@@ -1882,6 +1889,73 @@ fn append_extension(rel: &Path, extra: &str) -> PathBuf {
 
 /// Refuse an overlay path once an existing component redirects filesystem
 /// operations through a symlink. The cache must never write outside itself.
+static PENDING_CLEANUP: std::sync::Mutex<Vec<std::thread::JoinHandle<()>>> =
+    std::sync::Mutex::new(Vec::new());
+
+/// Move each tree out of the overlay with one rename and delete it on a
+/// background thread: unlinking a large shadow tree takes as long as emitting
+/// it, and nothing reads the old tree once it is out of `svelte/` and `ext/`.
+fn retire_overlay_trees(cache_dir: &Path, trees: &[&Path]) -> io::Result<()> {
+    if !cache_dir.is_dir() {
+        return Ok(());
+    }
+    let graveyard = cache_dir.join(".stale");
+    if fs::symlink_metadata(&graveyard).is_ok_and(|m| !m.is_dir()) {
+        clear_overlay_tree(&graveyard)?;
+    }
+    match fs::create_dir(&graveyard) {
+        Err(error) if error.kind() != io::ErrorKind::AlreadyExists => return Err(error),
+        _ => {}
+    }
+    reject_symlink_components(&graveyard, cache_dir)?;
+    static BURIED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    for tree in trees {
+        let is_real_dir = fs::symlink_metadata(tree).is_ok_and(|m| m.is_dir());
+        let index = BURIED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let buried = graveyard.join(format!("{}-{index}", std::process::id()));
+        if !is_real_dir || fs::rename(tree, &buried).is_err() {
+            clear_overlay_tree(tree)?;
+        }
+    }
+    // Also takes whatever an interrupted run left behind.
+    let handle = std::thread::spawn(move || {
+        let _ = clear_overlay_tree(&graveyard);
+    });
+    PENDING_CLEANUP
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .push(handle);
+    Ok(())
+}
+
+/// Wait for the trees a cold run retired to be deleted, so a process does not
+/// exit with a half-deleted `.svelte-check/.stale` left behind.
+pub fn wait_for_overlay_cleanup() {
+    let pending = std::mem::take(
+        &mut *PENDING_CLEANUP
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
+    );
+    for handle in pending {
+        let _ = handle.join();
+    }
+}
+
+/// Remove a generated tree without following any symlink in it — a planted
+/// link, the tree's own path included, loses the link and never its target.
+/// `remove_dir_all` unlinks a symlink rather than descending into it.
+fn clear_overlay_tree(path: &Path) -> io::Result<()> {
+    let result = match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_file() => fs::remove_file(path),
+        Ok(_) => fs::remove_dir_all(path),
+        Err(error) => Err(error),
+    };
+    match result {
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+        other => other,
+    }
+}
+
 fn reject_symlink_components(path: &Path, cache_dir: &Path) -> io::Result<()> {
     let relative = path.strip_prefix(cache_dir).unwrap_or_else(|_| {
         debug_assert!(false, "overlay path must be inside its cache directory");
@@ -4911,9 +4985,21 @@ mod tests {
         fs::remove_file(tmp.join(".svelte-check")).unwrap();
         fs::create_dir_all(tmp.join(".svelte-check/svelte")).unwrap();
         symlink(&outside, tmp.join(".svelte-check/svelte/src")).unwrap();
-        let err = materialize_overlay(&tmp, &[tmp.join("src/App.svelte")], None).unwrap_err();
-        assert!(err.to_string().contains("contains a symlink"));
+        // A cold run clears the previous run's shadows first, removing the link
+        // itself and never what it points to, so the new shadows land inside the
+        // workspace.
+        materialize_overlay(&tmp, &[tmp.join("src/App.svelte")], None).unwrap();
         assert!(!outside.join("App.svelte.jsx").exists());
+        assert!(
+            tmp.join(".svelte-check/svelte/src/App.svelte.jsx")
+                .is_file()
+        );
+        assert!(
+            !fs::symlink_metadata(tmp.join(".svelte-check/svelte/src"))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
 
         let _ = fs::remove_dir_all(&tmp);
         let _ = fs::remove_dir_all(&outside);
@@ -7777,6 +7863,35 @@ mod tests {
     }
 
     #[test]
+    fn a_cold_run_drops_the_shadows_of_files_deleted_since_the_last() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_stale_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        let kept = tmp.join("src/Kept.svelte");
+        let gone = tmp.join("src/Gone.svelte");
+        fs::write(&kept, "<script>let x = 0;</script>{x}").unwrap();
+        fs::write(&gone, "<script>let y = 0;</script>{y}").unwrap();
+
+        let first = materialize_overlay_with(&tmp, &[kept.clone(), gone.clone()], None, false, &[])
+            .unwrap();
+        let gone_shadow = first.entries[1].tsx_path.clone();
+        assert!(gone_shadow.exists());
+
+        fs::remove_file(&gone).unwrap();
+        let second =
+            materialize_overlay_with(&tmp, std::slice::from_ref(&kept), None, false, &[]).unwrap();
+        assert!(second.entries[0].tsx_path.exists());
+        assert!(
+            !gone_shadow.exists(),
+            "the shadow of a deleted component survived a cold run"
+        );
+        wait_for_overlay_cleanup();
+        assert!(!tmp.join(".svelte-check/.stale").exists());
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
     fn rewrite_module_specifiers_reads_past_comments_and_templates() {
         // One apostrophe in a block comment or a template literal used to open
         // a string that ran over the specifier after it.
@@ -7805,6 +7920,46 @@ mod tests {
         claim_ext_mirror(&mirror, &b).unwrap();
         assert!(!mirror.join("Only.svelte.tsx").exists());
         assert!(mirror.is_dir());
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn a_cold_run_drops_the_kit_mirror_of_a_route_deleted_since_the_last() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_overlay_stale_kit_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/routes/gone")).unwrap();
+        let page = tmp.join("src/routes/gone/+page.ts");
+        fs::write(&page, "export { load } from './missing';\n").unwrap();
+        let settings = KitFilesSettings::default();
+        let run = |kit: &[PathBuf], incremental: bool| {
+            materialize_overlay_with_kit(
+                &tmp,
+                &[],
+                kit,
+                None,
+                incremental,
+                &settings,
+                &[],
+                &CompilerOptionsSettings::default(),
+                RootDirDefault::ConfigDir,
+            )
+            .unwrap()
+        };
+
+        let first = run(std::slice::from_ref(&page), false);
+        let mirror = first.kit_entries[0].out_path.clone();
+        assert!(mirror.is_file());
+
+        fs::remove_file(&page).unwrap();
+        run(&[], true);
+        assert!(mirror.is_file(), "an incremental run keeps the cache");
+        run(&[], false);
+        assert!(
+            !mirror.exists(),
+            "the mirror of a deleted route survived a cold run"
+        );
 
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -7842,5 +7997,93 @@ mod tests {
         }
 
         let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_cold_run_unlinks_planted_symlinks_and_never_their_targets() {
+        use std::os::unix::fs::symlink;
+
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_clear_ws_{}", std::process::id()));
+        let outside =
+            std::env::temp_dir().join(format!("svc_overlay_clear_out_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let _ = fs::remove_dir_all(&outside);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div />").unwrap();
+        let precious = [
+            "svelte/keep.txt",
+            "ext/0/keep.txt",
+            "inner/keep.txt",
+            "keep.txt",
+        ];
+        for rel in precious {
+            let path = outside.join(rel);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, "user data").unwrap();
+        }
+        let files = [tmp.join("src/App.svelte")];
+        let cache = tmp.join(".svelte-check");
+        let assert_outside_intact = || {
+            for rel in precious {
+                assert_eq!(fs::read_to_string(outside.join(rel)).unwrap(), "user data");
+            }
+        };
+        let is_link =
+            |path: &Path| fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink());
+
+        // The cache directory itself: refused before anything is removed.
+        symlink(&outside, &cache).unwrap();
+        for incremental in [false, true] {
+            let err = materialize_overlay_with(&tmp, &files, None, incremental, &[]).unwrap_err();
+            assert!(err.to_string().contains("contains a symlink"), "{err}");
+            assert_outside_intact();
+        }
+        fs::remove_file(&cache).unwrap();
+
+        // The cleared trees themselves, and links (to a directory and to a
+        // file) inside them, including a mirror's `node_modules` link.
+        fs::create_dir_all(cache.join("svelte/src")).unwrap();
+        fs::create_dir_all(cache.join("ext/0")).unwrap();
+        symlink(outside.join("inner"), cache.join("svelte/src/linked")).unwrap();
+        symlink(
+            outside.join("keep.txt"),
+            cache.join("svelte/src/App.svelte.tsx"),
+        )
+        .unwrap();
+        symlink(&outside, cache.join("ext/0/node_modules")).unwrap();
+        materialize_overlay_with(&tmp, &files, None, false, &[]).unwrap();
+        assert_outside_intact();
+        assert!(!cache.join("svelte/src/linked").exists());
+        assert!(!cache.join("ext").exists());
+        assert!(!is_link(&cache.join("svelte/src/App.svelte.tsx")));
+
+        fs::remove_dir_all(cache.join("svelte")).unwrap();
+        symlink(outside.join("svelte"), cache.join("svelte")).unwrap();
+        symlink(outside.join("ext"), cache.join("ext")).unwrap();
+        // `--incremental` keeps the cache, so it refuses the links instead.
+        let err = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap_err();
+        assert!(err.to_string().contains("contains a symlink"), "{err}");
+        fs::remove_file(cache.join("svelte")).unwrap();
+        fs::create_dir_all(cache.join("svelte")).unwrap();
+        let err = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap_err();
+        assert!(err.to_string().contains("contains a symlink"), "{err}");
+        assert_outside_intact();
+        fs::remove_dir_all(cache.join("svelte")).unwrap();
+        symlink(outside.join("svelte"), cache.join("svelte")).unwrap();
+
+        let layout = materialize_overlay_with(&tmp, &files, None, false, &[]).unwrap();
+        assert_outside_intact();
+        assert!(!is_link(&cache.join("svelte")) && !cache.join("ext").exists());
+        assert!(layout.entries[0].tsx_path.starts_with(cache.join("svelte")));
+        assert!(layout.entries[0].tsx_path.is_file());
+        assert_eq!(
+            fs::read_dir(&outside).unwrap().count(),
+            4,
+            "nothing was written outside the workspace"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+        let _ = fs::remove_dir_all(&outside);
     }
 }
