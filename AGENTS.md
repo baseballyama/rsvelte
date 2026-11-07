@@ -36,6 +36,7 @@ F=tools/oracle/oracle.ts   # zsh: keep only the path in the variable
 mise exec -- node $F regen --task svelte.compile                # the official output
 cargo test -p rsvelte_svelte_compile --test fixtures            # UPDATE_EXPECT=1 to accept
 FIXTURE_VERDICTS=<file> cargo test -p rsvelte_svelte_compile --test fixtures   # every file's verdict
+FIXTURE_ACTUAL=1 cargo test -p rsvelte_svelte_compile --test fixtures          # write corpus actual/
 cargo fmt && cargo clippy --all-targets -- -D warnings && cargo test
 mise run structure
 pnpm install && pnpm run check    # the site and tools/: oxfmt, oxlint, knip, tsc

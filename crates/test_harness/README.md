@@ -1,8 +1,9 @@
 # Crate fixture tests
 
-`rsvelte_test_harness` runs a crate's tasks with `cargo test` over two kinds of case, writes
-rsvelte's output to each case's `actual/` (not in git), and compares it with `expected/`
-(`diff -ru <case>/expected <case>/actual` shows a difference).
+`rsvelte_test_harness` runs a crate's tasks with `cargo test` over two kinds of case, and
+compares rsvelte's output with `expected/`. It writes the output to a case's `actual/` (not in
+git), so `diff -ru <case>/expected <case>/actual` shows a difference: on every run for a
+hand-written case, and only with `FIXTURE_ACTUAL=1` for a corpus unit.
 
 | Kind         | Where                                                                 | `expected/` holds                                     | A difference                 |
 | ------------ | --------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------- |
@@ -70,6 +71,7 @@ cargo test -p rsvelte_svelte_compile --test fixtures                 # every cas
 cargo test -p rsvelte_svelte_compile --test fixtures -- svelte/bits-ui # cases whose name contains it
 cargo test -p rsvelte_svelte_compile --test fixtures -- --exact rsvelte/each-keyed
 UPDATE_EXPECT=1 cargo test -p rsvelte_svelte_compile --test fixtures  # write changed snapshots, remove stale ones, record moved verdicts
+FIXTURE_ACTUAL=1 cargo test -p rsvelte_svelte_compile --test fixtures -- svelte/bits-ui  # also write the units' actual/
 ```
 
 The test fails when a hand-written snapshot differs, is missing, or is no longer produced, when a

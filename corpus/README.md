@@ -15,7 +15,7 @@ corpus/
     ├── meta.json             language, hash, mode
     ├── fixture.toml          [skip], [behaviour] (cross units); written by hand
     ├── expected/<task>/<variant>.*   the official tool's output
-    ├── actual/               rsvelte's output (ignored by git)
+    ├── actual/               rsvelte's output, on request (ignored by git)
     └── cache/                expected output too large to commit (ignored by git)
 ```
 

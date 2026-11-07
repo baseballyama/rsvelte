@@ -39,6 +39,8 @@ use snapshots::{Outcome, Snapshot};
 const FIXTURES_DIR: &str = "tests/fixtures";
 const CORPUS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../corpus");
 const UPDATE_VARIABLE: &str = "UPDATE_EXPECT";
+/// Set to 1, a corpus unit's `actual/` is written; the comparison does not need it.
+const ACTUAL_VARIABLE: &str = "FIXTURE_ACTUAL";
 /// A path: each file of each corpus case is written there as one `verdict case file` line.
 pub(crate) const VERDICTS_VARIABLE: &str = "FIXTURE_VERDICTS";
 
@@ -198,7 +200,11 @@ impl Fixtures {
                 }
             }
         }
-        let outcome = match self.check(&runnable, &documents, arguments.update) {
+        let corpus_actual = match flag(ACTUAL_VARIABLE) {
+            Ok(a) => a,
+            Err(e) => return fail(&e),
+        };
+        let outcome = match self.check(&runnable, &documents, arguments.update, corpus_actual) {
             Ok(o) => o,
             Err(e) => return fail(&e),
         };
@@ -326,6 +332,7 @@ impl Fixtures {
         cases: &[Case],
         documents: &[Document],
         update: bool,
+        corpus_actual: bool,
     ) -> Result<Outcome, String> {
         let tasks: Vec<&str> = self
             .snapshots
@@ -351,6 +358,7 @@ impl Fixtures {
                     &result,
                     &self.snapshots,
                     update,
+                    corpus_actual,
                 );
                 outcomes
                     .lock()
@@ -383,19 +391,23 @@ struct Arguments {
     update: bool,
 }
 
+/// Whether the variable is set to 1; unset is false, and any other value an error.
+fn flag(name: &str) -> Result<bool, String> {
+    match std::env::var(name) {
+        Err(std::env::VarError::NotPresent) => Ok(false),
+        Ok(v) if v == "1" => Ok(true),
+        Ok(v) => Err(format!("{name}={v}: use 1 or leave it unset")),
+        Err(e) => Err(format!("{name}: {e}")),
+    }
+}
+
 impl Arguments {
     fn parse(arguments: impl Iterator<Item = String>) -> Result<Self, String> {
-        let update = match std::env::var(UPDATE_VARIABLE) {
-            Err(std::env::VarError::NotPresent) => false,
-            Ok(v) if v == "1" => true,
-            Ok(v) => return Err(format!("{UPDATE_VARIABLE}={v}: use 1 or leave it unset")),
-            Err(e) => return Err(format!("{UPDATE_VARIABLE}: {e}")),
-        };
         let mut parsed = Self {
             filters: Vec::new(),
             exact: false,
             list: false,
-            update,
+            update: flag(UPDATE_VARIABLE)?,
         };
         for a in arguments {
             match a.as_str() {
@@ -470,7 +482,7 @@ mod tests {
         assert_eq!(cases[0].name, "rsvelte/case");
         assert_eq!(cases[0].dir, own.join("tests/fixtures/rsvelte/case"));
         let documents = [cases[0].document().unwrap()];
-        let outcome = fixtures.check(&cases, &documents, true).unwrap();
+        let outcome = fixtures.check(&cases, &documents, true, true).unwrap();
         assert_eq!(outcome.written, 1);
         assert!(
             own.join("tests/fixtures/rsvelte/case/expected/findings.json")
@@ -509,7 +521,12 @@ mod tests {
             "the document is named by its path in the repository"
         );
         let documents = [cases[0].document().unwrap()];
-        let outcome = fixtures.check(&cases, &documents, true).unwrap();
+        fixtures.check(&cases, &documents, false, false).unwrap();
+        assert!(
+            !unit.join("actual/test.findings").exists(),
+            "a corpus unit's actual/ is written only when asked"
+        );
+        let outcome = fixtures.check(&cases, &documents, true, true).unwrap();
         assert_eq!(outcome.unmeasured, 1, "no official output is not a match");
         assert!(outcome.tallies.is_empty() && outcome.parity.is_empty());
         assert_eq!(
@@ -525,11 +542,11 @@ mod tests {
         std::fs::create_dir_all(&expected).unwrap();
         std::fs::write(expected.join("default.json"), "[]\n").unwrap();
         let key = "test.findings/default svelte/source/src/input.svelte".to_owned();
-        let control = fixtures.check(&cases, &documents, false).unwrap();
+        let control = fixtures.check(&cases, &documents, false, true).unwrap();
         assert_eq!(control.unmeasured, 0);
         assert_eq!(control.parity, [(key.clone(), Some(Verdict::Match))]);
         std::fs::write(expected.join("default.json"), "[1]\n").unwrap();
-        let differs = fixtures.check(&cases, &documents, false).unwrap();
+        let differs = fixtures.check(&cases, &documents, false, true).unwrap();
         assert_eq!(differs.parity, [(key, Some(Verdict::Mismatch))]);
         std::fs::write(
             unit.join("fixture.toml"),
@@ -537,7 +554,7 @@ mod tests {
         )
         .unwrap();
         let cases = fixtures.cases().unwrap();
-        let skipped = fixtures.check(&cases, &documents, false).unwrap();
+        let skipped = fixtures.check(&cases, &documents, false, true).unwrap();
         assert_eq!(
             (skipped.unmeasured, skipped.parity.len()),
             (1, 0),

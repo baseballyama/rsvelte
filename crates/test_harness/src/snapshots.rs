@@ -95,6 +95,7 @@ pub(crate) fn check(
     result: &DocumentResult,
     snapshots: &[Snapshot],
     update: bool,
+    corpus_actual: bool,
 ) -> Outcome {
     let mut outcome = Outcome::default();
     if let Some(p) = &result.panic {
@@ -121,6 +122,7 @@ pub(crate) fn check(
     let written = match case.kind {
         Kind::HandWritten | Kind::Copied => write_actual(&actual_dir, &produced),
         // Other tasks' files in the unit's `actual/` are not this harness's to remove.
+        Kind::Corpus if !corpus_actual => Ok(()),
         Kind::Corpus => snapshots
             .iter()
             .try_for_each(|s| write_owned(&actual_dir, &s.prefix(Kind::Corpus), &produced)),
