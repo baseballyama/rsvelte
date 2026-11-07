@@ -141,82 +141,539 @@ fn collect_imports(json: &Value) -> Imports {
     im
 }
 
-/// Top-level `NAME = init` declarators (name → init node), for value resolution.
-fn collect_var_inits(json: &Value) -> HashMap<String, Value> {
-    let mut out = HashMap::new();
-    walk_js(json, |node, _| {
-        if node_type(node) != Some("VariableDeclarator") {
-            return;
+/// Script-level `NAME = init` declarators (name → init node), for value
+/// resolution, plus the names `getStaticValue` treats as constant (`const`, or
+/// never written after the initializer).
+struct VarInits<'a> {
+    inits: HashMap<String, &'a Value>,
+    consts: HashSet<String>,
+}
+
+fn collect_var_inits(json: &Value) -> VarInits<'_> {
+    let mut inits = HashMap::new();
+    let mut decls: HashMap<String, (usize, bool)> = HashMap::new();
+    let mut written: HashSet<String> = HashSet::new();
+    walk_js(json, |node, _| match node_type(node) {
+        Some("VariableDeclaration") => {
+            let is_const = node.get("kind").and_then(Value::as_str) == Some("const");
+            for declarator in node
+                .get("declarations")
+                .and_then(Value::as_array)
+                .map_or(&[] as &[Value], Vec::as_slice)
+            {
+                let name = declarator
+                    .get("id")
+                    .filter(|i| node_type(i) == Some("Identifier"))
+                    .and_then(|i| i.get("name"))
+                    .and_then(Value::as_str);
+                let Some(name) = name else { continue };
+                let entry = decls.entry(name.to_string()).or_insert((0, is_const));
+                entry.0 += 1;
+                if let Some(init) = declarator.get("init").filter(|i| !i.is_null()) {
+                    inits.entry(name.to_string()).or_insert(init);
+                }
+            }
         }
-        let name = node
-            .get("id")
-            .filter(|i| node_type(i) == Some("Identifier"))
-            .and_then(|i| i.get("name"))
-            .and_then(Value::as_str);
-        let Some(name) = name else { return };
-        if let Some(init) = node.get("init").filter(|i| !i.is_null()) {
-            out.entry(name.to_string()).or_insert_with(|| init.clone());
+        Some("AssignmentExpression") => {
+            if let Some(name) = node
+                .get("left")
+                .filter(|l| node_type(l) == Some("Identifier"))
+                .and_then(|l| l.get("name"))
+                .and_then(Value::as_str)
+            {
+                written.insert(name.to_string());
+            }
         }
+        Some("UpdateExpression") => {
+            if let Some(name) = node
+                .get("argument")
+                .filter(|l| node_type(l) == Some("Identifier"))
+                .and_then(|l| l.get("name"))
+                .and_then(Value::as_str)
+            {
+                written.insert(name.to_string());
+            }
+        }
+        _ => {}
     });
-    out
+    let consts = decls
+        .into_iter()
+        .filter(|(name, (count, is_const))| {
+            *count == 1 && inits.contains_key(name) && (*is_const || !written.contains(name))
+        })
+        .map(|(name, _)| name)
+        .collect();
+    VarInits { inits, consts }
 }
 
-/// Config controlling what URLs are allowed beyond the resolve/asset check.
-#[derive(Clone, Copy, Default)]
-struct AllowConfig {
-    urls: AllowedUrls,
-    allow_nullish: bool,
+/// Everything the value checks read besides the node itself.
+struct Cx<'a, 'f> {
+    im: &'f Imports,
+    vars: &'f VarInits<'a>,
+    allowed_type: &'f AllowedTypeFn<'f>,
 }
 
-#[derive(Clone, Copy, Default)]
-struct AllowedUrls {
-    absolute: bool,
-    empty: bool,
-    fragment: bool,
+/// A value `getStaticValue` can compute.
+enum StaticValue {
+    Str(String),
+    Num(f64),
+    Bool(bool),
+    Null,
+    Undefined,
 }
 
-#[derive(Clone, Copy, Default)]
-struct NavigationIgnores(u8);
-
-impl NavigationIgnores {
-    const GOTO: u8 = 1;
-    const LINKS: u8 = 1 << 1;
-    const PUSH_STATE: u8 = 1 << 2;
-    const REPLACE_STATE: u8 = 1 << 3;
-
-    const fn contains(self, flag: u8) -> bool {
-        self.0 & flag != 0
+/// `String(value)` for a JS number.
+fn js_number_string(n: f64) -> String {
+    if n.is_finite() && n.fract() == 0.0 && n.abs() < 1e21 {
+        #[allow(clippy::cast_possible_truncation)]
+        let int = n as i64;
+        return int.to_string();
     }
-
-    fn from_option(read_option: impl Fn(&str) -> bool) -> Self {
-        let mut flags = 0;
-        if read_option("ignoreGoto") {
-            flags |= Self::GOTO;
-        }
-        if read_option("ignoreLinks") {
-            flags |= Self::LINKS;
-        }
-        if read_option("ignorePushState") {
-            flags |= Self::PUSH_STATE;
-        }
-        if read_option("ignoreReplaceState") {
-            flags |= Self::REPLACE_STATE;
-        }
-        Self(flags)
+    if n.is_nan() {
+        return "NaN".to_string();
     }
+    if n.is_infinite() {
+        return if n > 0.0 { "Infinity" } else { "-Infinity" }.to_string();
+    }
+    n.to_string()
+}
+
+impl StaticValue {
+    fn to_js_string(&self) -> String {
+        match self {
+            Self::Str(s) => s.clone(),
+            Self::Num(n) => js_number_string(*n),
+            Self::Bool(b) => b.to_string(),
+            Self::Null => "null".to_string(),
+            Self::Undefined => "undefined".to_string(),
+        }
+    }
+}
+
+fn template_quasi_cooked(quasi: &Value) -> Option<&str> {
+    let value = quasi.get("value")?;
+    value
+        .get("cooked")
+        .and_then(Value::as_str)
+        .or_else(|| value.get("raw").and_then(Value::as_str))
+}
+
+/// The subset of `getStaticValue` the navigation checks reach.
+fn static_value(cx: &Cx<'_, '_>, expr: &Value, depth: u32) -> Option<StaticValue> {
+    if depth > 64 {
+        return None;
+    }
+    match node_type(expr)? {
+        "Literal" => {
+            if expr.get("regex").is_some() || expr.get("bigint").is_some() {
+                return None;
+            }
+            match expr.get("value")? {
+                Value::String(s) => Some(StaticValue::Str(s.clone())),
+                Value::Number(n) => n.as_f64().map(StaticValue::Num),
+                Value::Bool(b) => Some(StaticValue::Bool(*b)),
+                Value::Null => Some(StaticValue::Null),
+                _ => None,
+            }
+        }
+        "TemplateLiteral" => {
+            let quasis = expr.get("quasis").and_then(Value::as_array)?;
+            let expressions = expr
+                .get("expressions")
+                .and_then(Value::as_array)
+                .map_or(&[] as &[Value], Vec::as_slice);
+            let mut out = String::new();
+            for (i, quasi) in quasis.iter().enumerate() {
+                out.push_str(template_quasi_cooked(quasi)?);
+                if let Some(embedded) = expressions.get(i) {
+                    out.push_str(&static_value(cx, embedded, depth + 1)?.to_js_string());
+                }
+            }
+            Some(StaticValue::Str(out))
+        }
+        "BinaryExpression" if expr.get("operator").and_then(Value::as_str) == Some("+") => {
+            let left = static_value(cx, expr.get("left")?, depth + 1)?;
+            let right = static_value(cx, expr.get("right")?, depth + 1)?;
+            match (&left, &right) {
+                (StaticValue::Num(a), StaticValue::Num(b)) => Some(StaticValue::Num(a + b)),
+                (StaticValue::Str(_), _) | (_, StaticValue::Str(_)) => Some(StaticValue::Str(
+                    left.to_js_string() + &right.to_js_string(),
+                )),
+                _ => None,
+            }
+        }
+        "Identifier" => {
+            let name = expr.get("name").and_then(Value::as_str)?;
+            if cx.vars.consts.contains(name) {
+                return static_value(cx, cx.vars.inits.get(name)?, depth + 1);
+            }
+            (name == "undefined" && !cx.vars.inits.contains_key(name))
+                .then_some(StaticValue::Undefined)
+        }
+        _ => None,
+    }
+}
+
+/// `getStringIfConstant`.
+fn string_if_constant(cx: &Cx<'_, '_>, node: &Value) -> Option<String> {
+    static_value(cx, node, 0).map(|v| v.to_js_string())
+}
+
+/// `getPropertyName` for a `MemberExpression`.
+fn member_property_name(cx: &Cx<'_, '_>, member: &Value) -> Option<String> {
+    let property = member.get("property")?;
+    if member.get("computed").and_then(Value::as_bool) == Some(true) {
+        return string_if_constant(cx, property);
+    }
+    if node_type(property) != Some("Identifier") {
+        return None;
+    }
+    property
+        .get("name")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+}
+
+/// `getPropertyName` for a `Property`.
+fn property_key_name(cx: &Cx<'_, '_>, property: &Value) -> Option<String> {
+    let key = property.get("key")?;
+    if property.get("computed").and_then(Value::as_bool) == Some(true) {
+        return string_if_constant(cx, key);
+    }
+    match node_type(key)? {
+        "Literal" => match key.get("value")? {
+            Value::String(s) => Some(s.clone()),
+            Value::Number(n) => n.as_f64().map(js_number_string),
+            Value::Bool(b) => Some(b.to_string()),
+            Value::Null => Some("null".to_string()),
+            _ => None,
+        },
+        "Identifier" => key.get("name").and_then(Value::as_str).map(str::to_string),
+        _ => None,
+    }
+}
+
+/// The array index a property name refers to, if it is a canonical
+/// non-negative integer.
+fn array_index(key: &str) -> Option<usize> {
+    let index: usize = key.parse().ok()?;
+    (index.to_string() == key).then_some(index)
+}
+
+fn resolve_variable_init<'a>(cx: &Cx<'a, '_>, ident: &Value) -> Option<&'a Value> {
+    let name = ident.get("name").and_then(Value::as_str)?;
+    cx.vars.inits.get(name).copied()
+}
+
+fn resolve_to_literal_source<'a>(
+    cx: &Cx<'a, '_>,
+    node: &'a Value,
+    depth: u32,
+) -> Option<&'a Value> {
+    match node_type(node)? {
+        "Identifier" => resolve_variable_init(cx, node),
+        "MemberExpression" => {
+            let key = member_property_name(cx, node)?;
+            access_key(cx, node.get("object")?, &key, depth + 1)
+        }
+        _ => None,
+    }
+}
+
+fn resolve_to_array<'a>(cx: &Cx<'a, '_>, node: &'a Value, depth: u32) -> Option<&'a Value> {
+    if depth > 64 {
+        return None;
+    }
+    if node_type(node) == Some("ArrayExpression") {
+        return Some(node);
+    }
+    resolve_to_array(cx, resolve_to_literal_source(cx, node, depth)?, depth + 1)
+}
+
+fn resolve_to_object<'a>(cx: &Cx<'a, '_>, node: &'a Value, depth: u32) -> Option<&'a Value> {
+    if depth > 64 {
+        return None;
+    }
+    if node_type(node) == Some("ObjectExpression") {
+        return Some(node);
+    }
+    resolve_to_object(cx, resolve_to_literal_source(cx, node, depth)?, depth + 1)
+}
+
+fn access_key<'a>(cx: &Cx<'a, '_>, expr: &'a Value, key: &str, depth: u32) -> Option<&'a Value> {
+    match array_index(key) {
+        Some(index) => resolve_element(cx, expr, index, depth),
+        None => resolve_property(cx, expr, key, depth),
+    }
+}
+
+fn resolve_element<'a>(
+    cx: &Cx<'a, '_>,
+    array_expr: &'a Value,
+    index: usize,
+    depth: u32,
+) -> Option<&'a Value> {
+    let array = resolve_to_array(cx, array_expr, depth + 1)?;
+    flatten_elements(cx, array, index, depth + 1)?
+        .get(index)
+        .copied()
+        .flatten()
+}
+
+/// Flatten an array literal's elements, expanding statically resolvable
+/// spreads, until `index + 1` entries are known.
+fn flatten_elements<'a>(
+    cx: &Cx<'a, '_>,
+    array: &'a Value,
+    index: usize,
+    depth: u32,
+) -> Option<Vec<Option<&'a Value>>> {
+    if depth > 64 {
+        return None;
+    }
+    let mut flattened: Vec<Option<&'a Value>> = Vec::new();
+    for element in array
+        .get("elements")
+        .and_then(Value::as_array)
+        .map_or(&[] as &[Value], Vec::as_slice)
+    {
+        if flattened.len() > index {
+            break;
+        }
+        if element.is_null() {
+            flattened.push(None);
+        } else if node_type(element) == Some("SpreadElement") {
+            let spread = resolve_to_array(cx, element.get("argument")?, depth + 1)?;
+            let nested = flatten_elements(cx, spread, index - flattened.len(), depth + 1)?;
+            flattened.extend(nested);
+        } else {
+            flattened.push(Some(element));
+        }
+    }
+    Some(flattened)
+}
+
+enum PropertyLookup<'a> {
+    Found(&'a Value),
+    Absent,
+    Unknown,
+}
+
+fn resolve_property<'a>(
+    cx: &Cx<'a, '_>,
+    object_expr: &'a Value,
+    key: &str,
+    depth: u32,
+) -> Option<&'a Value> {
+    match lookup_property(cx, object_expr, key, depth + 1) {
+        PropertyLookup::Found(value) => Some(value),
+        _ => None,
+    }
+}
+
+/// Last-write-wins property lookup; an unresolvable spread or computed key
+/// discards an earlier match, an absent one keeps it.
+fn lookup_property<'a>(
+    cx: &Cx<'a, '_>,
+    object_expr: &'a Value,
+    key: &str,
+    depth: u32,
+) -> PropertyLookup<'a> {
+    if depth > 64 {
+        return PropertyLookup::Unknown;
+    }
+    let Some(object) = resolve_to_object(cx, object_expr, depth + 1) else {
+        return PropertyLookup::Unknown;
+    };
+    let mut result = PropertyLookup::Absent;
+    for property in object
+        .get("properties")
+        .and_then(Value::as_array)
+        .map_or(&[] as &[Value], Vec::as_slice)
+    {
+        if node_type(property) == Some("SpreadElement") {
+            let spread = match property.get("argument") {
+                Some(argument) => lookup_property(cx, argument, key, depth + 1),
+                None => PropertyLookup::Unknown,
+            };
+            if !matches!(spread, PropertyLookup::Absent) {
+                result = spread;
+            }
+        } else {
+            match property_key_name(cx, property) {
+                None => result = PropertyLookup::Unknown,
+                Some(name) if name == key => {
+                    if let Some(value) = property.get("value") {
+                        result = PropertyLookup::Found(value);
+                    }
+                }
+                Some(_) => {}
+            }
+        }
+    }
+    result
+}
+
+/// How an `{#each}` block binds `name`: through its `as` pattern along
+/// properties / array elements only (`Some(true)`), some other way such as a
+/// default, rest or the index (`Some(false)`), or not at all (`None`).
+fn each_binds(each: &Value, name: &str) -> Option<bool> {
+    fn pattern_binds(pattern: &Value, name: &str) -> Option<bool> {
+        match node_type(pattern)? {
+            "Identifier" => {
+                (pattern.get("name").and_then(Value::as_str) == Some(name)).then_some(true)
+            }
+            "ObjectPattern" => pattern
+                .get("properties")
+                .and_then(Value::as_array)?
+                .iter()
+                .find_map(|property| match node_type(property) {
+                    Some("Property") => pattern_binds(property.get("value")?, name),
+                    _ => pattern_binds(property.get("argument")?, name).map(|_| false),
+                }),
+            "ArrayPattern" => pattern
+                .get("elements")
+                .and_then(Value::as_array)?
+                .iter()
+                .filter(|element| !element.is_null())
+                .find_map(|element| match node_type(element) {
+                    Some("RestElement") => {
+                        pattern_binds(element.get("argument")?, name).map(|_| false)
+                    }
+                    _ => pattern_binds(element, name),
+                }),
+            "AssignmentPattern" => pattern_binds(pattern.get("left")?, name).map(|_| false),
+            "RestElement" => pattern_binds(pattern.get("argument")?, name).map(|_| false),
+            _ => None,
+        }
+    }
+    if let Some(found) = each.get("context").and_then(|c| pattern_binds(c, name)) {
+        return Some(found);
+    }
+    (each.get("index").and_then(Value::as_str) == Some(name)).then_some(false)
+}
+
+/// The innermost enclosing `{#each}` (index into `eaches`) binding `name`.
+fn each_binding(eaches: &[&Value], name: &str) -> Option<(usize, bool)> {
+    eaches
+        .iter()
+        .enumerate()
+        .rev()
+        .find_map(|(i, each)| each_binds(each, name).map(|eligible| (i, eligible)))
+}
+
+/// The value `name` receives when the `pattern` destructures `element`.
+fn destructured_value<'a>(
+    cx: &Cx<'a, '_>,
+    pattern: &'a Value,
+    element: &'a Value,
+    name: &str,
+    depth: u32,
+) -> Option<&'a Value> {
+    if depth > 64 {
+        return None;
+    }
+    match node_type(pattern)? {
+        "Identifier" => {
+            (pattern.get("name").and_then(Value::as_str) == Some(name)).then_some(element)
+        }
+        "ObjectPattern" => pattern
+            .get("properties")
+            .and_then(Value::as_array)?
+            .iter()
+            .filter(|property| node_type(property) == Some("Property"))
+            .find_map(|property| {
+                let key = property_key_name(cx, property)?;
+                let value = resolve_property(cx, element, &key, depth + 1)?;
+                destructured_value(cx, property.get("value")?, value, name, depth + 1)
+            }),
+        "ArrayPattern" => pattern
+            .get("elements")
+            .and_then(Value::as_array)?
+            .iter()
+            .enumerate()
+            .find_map(|(index, sub)| {
+                if sub.is_null() {
+                    return None;
+                }
+                let value = resolve_element(cx, element, index, depth + 1)?;
+                destructured_value(cx, sub, value, name, depth + 1)
+            }),
+        _ => None,
+    }
+}
+
+fn each_item_value_allowed<'a>(
+    cx: &Cx<'a, '_>,
+    eaches: &[&'a Value],
+    each_index: usize,
+    name: &str,
+    key: Option<&str>,
+    config: AllowConfig,
+    depth: u32,
+) -> bool {
+    let each = eaches[each_index];
+    let outer = &eaches[..each_index];
+    let (Some(context), Some(expression)) = (each.get("context"), each.get("expression")) else {
+        return false;
+    };
+    let Some(array) = resolve_to_array(cx, expression, depth + 1) else {
+        return false;
+    };
+    for element in array
+        .get("elements")
+        .and_then(Value::as_array)
+        .map_or(&[] as &[Value], Vec::as_slice)
+    {
+        if element.is_null() || node_type(element) == Some("SpreadElement") {
+            return false;
+        }
+        let mut bound = destructured_value(cx, context, element, name, depth + 1);
+        if let (Some(value), Some(key)) = (bound, key) {
+            bound = access_key(cx, value, key, depth + 1);
+        }
+        match bound {
+            Some(value) if is_value_allowed(cx, value, config, outer, depth + 1) => {}
+            _ => return false,
+        }
+    }
+    true
+}
+
+fn member_value_allowed<'a>(
+    cx: &Cx<'a, '_>,
+    member: &'a Value,
+    config: AllowConfig,
+    eaches: &[&'a Value],
+    depth: u32,
+) -> bool {
+    let Some(key) = member_property_name(cx, member) else {
+        return false;
+    };
+    let Some(object) = member.get("object") else {
+        return false;
+    };
+    if node_type(object) != Some("Identifier") {
+        return access_key(cx, object, &key, depth + 1)
+            .is_some_and(|target| is_value_allowed(cx, target, config, eaches, depth + 1));
+    }
+    let name = object.get("name").and_then(Value::as_str).unwrap_or("");
+    if let Some((each_index, eligible)) = each_binding(eaches, name) {
+        return eligible
+            && each_item_value_allowed(cx, eaches, each_index, name, Some(&key), config, depth);
+    }
+    resolve_variable_init(cx, object)
+        .and_then(|init| access_key(cx, init, &key, depth + 1))
+        .is_some_and(|target| is_value_allowed(cx, target, config, &[], depth + 1))
 }
 
 /// Whether a call expression node (JSON) is a `resolve()` or `asset()` call
 /// from `$app/paths` (named or namespace import).
-fn expression_is_resolve_call(
-    expr: &Value,
-    im: &Imports,
-    var_inits: &HashMap<String, Value>,
-    depth: u32,
-) -> bool {
+fn expression_is_resolve_call(cx: &Cx<'_, '_>, expr: &Value, depth: u32) -> bool {
     if depth > 64 {
         return false;
     }
+    let im = cx.im;
     match node_type(expr) {
         Some("CallExpression") => {
             let Some(callee) = expr.get("callee") else {
@@ -247,13 +704,64 @@ fn expression_is_resolve_call(
                 _ => false,
             }
         }
-        Some("Identifier") => {
-            let name = expr.get("name").and_then(Value::as_str).unwrap_or("");
-            var_inits
-                .get(name)
-                .is_some_and(|init| expression_is_resolve_call(init, im, var_inits, depth + 1))
-        }
+        Some("Identifier") => resolve_variable_init(cx, expr)
+            .is_some_and(|init| expression_is_resolve_call(cx, init, depth + 1)),
         _ => false,
+    }
+}
+
+/// Config controlling what URLs are allowed beyond the resolve/asset check.
+#[derive(Clone, Copy, Default)]
+struct AllowConfig {
+    urls: AllowedUrls,
+    allow_nullish: bool,
+}
+
+#[derive(Clone, Copy, Default)]
+struct AllowedUrls {
+    absolute: bool,
+    empty: bool,
+    fragment: bool,
+}
+
+/// `pushState` / `replaceState` also accept an empty URL.
+const SHALLOW_CONFIG: AllowConfig = AllowConfig {
+    urls: AllowedUrls {
+        absolute: false,
+        empty: true,
+        fragment: false,
+    },
+    allow_nullish: false,
+};
+
+#[derive(Clone, Copy, Default)]
+struct NavigationIgnores(u8);
+
+impl NavigationIgnores {
+    const GOTO: u8 = 1;
+    const LINKS: u8 = 1 << 1;
+    const PUSH_STATE: u8 = 1 << 2;
+    const REPLACE_STATE: u8 = 1 << 3;
+
+    const fn contains(self, flag: u8) -> bool {
+        self.0 & flag != 0
+    }
+
+    fn from_option(read_option: impl Fn(&str) -> bool) -> Self {
+        let mut flags = 0;
+        if read_option("ignoreGoto") {
+            flags |= Self::GOTO;
+        }
+        if read_option("ignoreLinks") {
+            flags |= Self::LINKS;
+        }
+        if read_option("ignorePushState") {
+            flags |= Self::PUSH_STATE;
+        }
+        if read_option("ignoreReplaceState") {
+            flags |= Self::REPLACE_STATE;
+        }
+        Self(flags)
     }
 }
 
@@ -373,12 +881,11 @@ fn expression_starts_with_fragment(expr: &Value) -> bool {
 /// `expressionIsAllowedType`.
 type AllowedTypeFn<'a> = dyn Fn(&Value, AllowConfig) -> bool + 'a;
 
-fn is_value_allowed(
-    expr: &Value,
+fn is_value_allowed<'a>(
+    cx: &Cx<'a, '_>,
+    expr: &'a Value,
     config: AllowConfig,
-    im: &Imports,
-    var_inits: &HashMap<String, Value>,
-    allowed_type: &AllowedTypeFn,
+    eaches: &[&'a Value],
     depth: u32,
 ) -> bool {
     if depth > 64 {
@@ -388,52 +895,43 @@ fn is_value_allowed(
     // The expression's own resolved TYPE (checker-backed; stubbed in the native
     // path) is checked first, so an identifier/member typed as `ResolvedPathname`
     // (or nullish) is recognized before any syntactic var-init resolution
-    // rewrites it to its initializer. Mirrors upstream calling
-    // `expressionIsAllowedType` on the original node.
-    if allowed_type(expr, config) {
+    // rewrites it to its initializer.
+    if (cx.allowed_type)(expr, config) {
         return true;
     }
 
-    // Identifier: try resolving variable init, then fall through to other checks.
     if node_type(expr) == Some("Identifier") {
         let name = expr.get("name").and_then(Value::as_str).unwrap_or("");
-        // `undefined` is handled below via expressionIsNullish, but resolve it
-        // here via var_inits first if there's a shadowing declaration.
-        if let Some(init) = var_inits.get(name) {
-            return is_value_allowed(init, config, im, var_inits, allowed_type, depth + 1);
+        if let Some((each_index, eligible)) = each_binding(eaches, name) {
+            if eligible
+                && each_item_value_allowed(cx, eaches, each_index, name, None, config, depth)
+            {
+                return true;
+            }
+        } else if let Some(init) = cx.vars.inits.get(name) {
+            return is_value_allowed(cx, init, config, &[], depth + 1);
         }
-        // No known init — fall through to the nullish / resolve / type checks.
+    }
+
+    if node_type(expr) == Some("MemberExpression")
+        && member_value_allowed(cx, expr, config, eaches, depth)
+    {
+        return true;
     }
 
     // ConditionalExpression: BOTH branches must be allowed.
     if node_type(expr) == Some("ConditionalExpression") {
         let cons = expr.get("consequent");
         let alt = expr.get("alternate");
-        return cons
-            .is_some_and(|c| is_value_allowed(c, config, im, var_inits, allowed_type, depth + 1))
-            && alt.is_some_and(|a| {
-                is_value_allowed(a, config, im, var_inits, allowed_type, depth + 1)
-            });
+        return cons.is_some_and(|c| is_value_allowed(cx, c, config, eaches, depth + 1))
+            && alt.is_some_and(|a| is_value_allowed(cx, a, config, eaches, depth + 1));
     }
 
-    // Remaining checks (mirrors the big `if` in upstream):
-    if config.urls.absolute && expression_is_absolute(expr) {
-        return true;
-    }
-    if config.urls.empty && expression_is_empty(expr) {
-        return true;
-    }
-    if config.urls.fragment && expression_starts_with_fragment(expr) {
-        return true;
-    }
-    if config.allow_nullish && expression_is_nullish(expr) {
-        return true;
-    }
-    if expression_is_resolve_call(expr, im, var_inits, 0) {
-        return true;
-    }
-
-    false
+    (config.urls.absolute && expression_is_absolute(expr))
+        || (config.urls.empty && expression_is_empty(expr))
+        || (config.urls.fragment && expression_starts_with_fragment(expr))
+        || (config.allow_nullish && expression_is_nullish(expr))
+        || expression_is_resolve_call(cx, expr, 0)
 }
 
 fn span(node: &Value) -> Option<(u32, u32)> {
@@ -443,67 +941,70 @@ fn span(node: &Value) -> Option<(u32, u32)> {
     ))
 }
 
-/// Check whether an `<a>` start-tag (attributes array) has `rel="external"`.
-/// Matches upstream `hasRelExternal`: looks for an `Attribute` named `rel`
-/// whose value contains "external" (space-split), or a shorthand `{rel}`
-/// where the variable's init is the literal string "external".
-fn has_rel_external(attrs: &[Value], var_inits: &HashMap<String, Value>) -> bool {
-    for attr in attrs {
-        if node_type(attr) != Some("Attribute") {
-            continue;
-        }
-        let attr_name = attr.get("name").and_then(Value::as_str);
-        if attr_name != Some("rel") {
-            continue;
-        }
-        let value = attr.get("value");
-        // Shorthand `{rel}` → value is ExpressionTag with Identifier.
-        if let Some(val) = value
-            && node_type(val) == Some("ExpressionTag")
-        {
-            let expr = val.get("expression");
-            if let Some(e) = expr {
-                if node_type(e) == Some("Identifier") {
-                    let name = e.get("name").and_then(Value::as_str).unwrap_or("");
-                    // Check via var_inits: `const external = 'external'` or shorthand
-                    // `{rel}` where `const rel = 'external'`.
-                    if let Some(init) = var_inits.get(name)
-                        && node_type(init) == Some("Literal")
-                        && init.get("value").and_then(Value::as_str) == Some("external")
-                    {
-                        return true;
-                    }
-                }
-                // `rel={'external'}` or `rel={"noopener external noreferrer"}` as a Literal
-                if node_type(e) == Some("Literal") {
-                    let s = e.get("value").and_then(Value::as_str).unwrap_or("");
-                    if s.split_ascii_whitespace().any(|t| t == "external") {
-                        return true;
-                    }
-                }
-            }
-        }
-        // Static `rel="external"` → value is an array with a Text node.
-        if let Some(arr) = value.and_then(Value::as_array)
-            && let Some(first) = arr.first()
-            && node_type(first) == Some("Text")
-        {
-            let s = first.get("data").and_then(Value::as_str).unwrap_or("");
-            if s.split_ascii_whitespace().any(|t| t == "external") {
-                return true;
-            }
-        }
+/// `expressionValue` in upstream `hasRelExternal`: a static string, a template
+/// literal assembled from its parts, or a NUL that cannot be a token boundary.
+fn rel_expression_value(cx: &Cx<'_, '_>, expr: &Value) -> String {
+    if let Some(StaticValue::Str(s)) = static_value(cx, expr, 0) {
+        return s;
     }
-    false
+    if node_type(expr) == Some("TemplateLiteral") {
+        let expressions = expr
+            .get("expressions")
+            .and_then(Value::as_array)
+            .map_or(&[] as &[Value], Vec::as_slice);
+        return expr
+            .get("quasis")
+            .and_then(Value::as_array)
+            .map_or(&[] as &[Value], Vec::as_slice)
+            .iter()
+            .enumerate()
+            .map(|(i, quasi)| {
+                let mut part = template_quasi_cooked(quasi).unwrap_or("").to_string();
+                if let Some(embedded) = expressions.get(i) {
+                    part.push_str(&rel_expression_value(cx, embedded));
+                }
+                part
+            })
+            .collect();
+    }
+    "\0".to_string()
+}
+
+/// Whether the first `rel` attribute's assembled value has an `external` token.
+fn has_rel_external(attrs: &[Value], cx: &Cx<'_, '_>) -> bool {
+    let Some(rel) = attrs.iter().find(|attr| {
+        node_type(attr) == Some("Attribute")
+            && attr.get("name").and_then(Value::as_str) == Some("rel")
+    }) else {
+        return false;
+    };
+    let part_value = |part: &Value| -> String {
+        match node_type(part) {
+            Some("Text") => part
+                .get("data")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string(),
+            Some("ExpressionTag") => part
+                .get("expression")
+                .map_or_else(|| "\0".to_string(), |e| rel_expression_value(cx, e)),
+            _ => "\0".to_string(),
+        }
+    };
+    let value = match rel.get("value") {
+        Some(Value::Array(parts)) => parts.iter().map(part_value).collect(),
+        Some(part @ Value::Object(_)) => part_value(part),
+        _ => String::new(),
+    };
+    value.split_whitespace().any(|token| token == "external")
 }
 
 /// Check an href attribute node. Returns true if the URL is not allowed.
-fn check_href(
-    attr: &Value,
+fn check_href<'a>(
+    attr: &'a Value,
     config: AllowConfig,
-    im: &Imports,
-    var_inits: &HashMap<String, Value>,
-    allowed_type: &AllowedTypeFn,
+    cx: &Cx<'a, '_>,
+    eaches: &[&'a Value],
 ) -> bool {
     let value = attr.get("value");
     let Some(value) = value else { return false };
@@ -525,30 +1026,45 @@ fn check_href(
             return !text_allowed;
         }
         if node_type(first) == Some("ExpressionTag") {
-            return check_href_expr_tag(first, config, im, var_inits, allowed_type);
+            return check_href_expr_tag(first, config, cx, eaches);
         }
         return false;
     }
 
     // Value is a single ExpressionTag → `href={...}`.
     if node_type(value) == Some("ExpressionTag") {
-        return check_href_expr_tag(value, config, im, var_inits, allowed_type);
+        return check_href_expr_tag(value, config, cx, eaches);
     }
 
     false
 }
 
-fn check_href_expr_tag(
-    expr_tag: &Value,
+fn check_href_expr_tag<'a>(
+    expr_tag: &'a Value,
     config: AllowConfig,
-    im: &Imports,
-    var_inits: &HashMap<String, Value>,
-    allowed_type: &AllowedTypeFn,
+    cx: &Cx<'a, '_>,
+    eaches: &[&'a Value],
 ) -> bool {
     let Some(expr) = expr_tag.get("expression") else {
         return false;
     };
-    !is_value_allowed(expr, config, im, var_inits, allowed_type, 0)
+    !is_value_allowed(cx, expr, config, eaches, 0)
+}
+
+/// The `{#each}` blocks whose body encloses `node`, outermost first.
+fn enclosing_eaches<'a>(node: &Value, ancestors: &[&'a Value]) -> Vec<&'a Value> {
+    let start = span(node).map_or(0, |(s, _)| s);
+    ancestors
+        .iter()
+        .copied()
+        .filter(|ancestor| {
+            node_type(ancestor) == Some("EachBlock")
+                && ancestor
+                    .get("expression")
+                    .and_then(span)
+                    .is_some_and(|(_, expression_end)| start >= expression_end)
+        })
+        .collect()
 }
 
 /// Collect navigation findings from the serialized component JSON. Shared by the
@@ -561,13 +1077,18 @@ fn collect_nav_reports(
     allowed_type: &AllowedTypeFn,
 ) -> Vec<(u32, u32, &'static str)> {
     let im = collect_imports(json);
-    let var_inits = collect_var_inits(json);
+    let vars = collect_var_inits(json);
+    let cx = Cx {
+        im: &im,
+        vars: &vars,
+        allowed_type,
+    };
     // Upstream reaches the callee through `ReferenceTracker`, which follows a
     // binding copied out of the import; the name-keyed `im` sets cannot.
     let idx = ScopeIndex::build(json);
     let mut reports: Vec<(u32, u32, &'static str)> = Vec::new();
 
-    walk_js(json, |node, _| match node_type(node) {
+    walk_js(json, |node, ancestors| match node_type(node) {
         Some("CallExpression") => {
             let kind = nav_call_kind(&idx, node);
             let Some(kind) = kind else { return };
@@ -575,48 +1096,20 @@ fn collect_nav_reports(
             let Some(first_argument) = arguments.and_then(|arguments| arguments.first()) else {
                 return;
             };
-            let is_spread = node_type(first_argument) == Some("SpreadElement");
-            // goto: no allowEmpty; pushState/replaceState: allowEmpty.
-            let (not_allowed_goto, not_allowed_shallow) = if is_spread {
-                (true, true)
-            } else {
-                let basic = !is_value_allowed(
-                    first_argument,
-                    AllowConfig::default(),
-                    &im,
-                    &var_inits,
-                    allowed_type,
-                    0,
-                );
-                let shallow = !is_value_allowed(
-                    first_argument,
-                    AllowConfig {
-                        urls: AllowedUrls {
-                            empty: true,
-                            ..AllowedUrls::default()
-                        },
-                        ..AllowConfig::default()
-                    },
-                    &im,
-                    &var_inits,
-                    allowed_type,
-                    0,
-                );
-                (basic, shallow)
-            };
-            let hit = match kind {
+            let eaches = enclosing_eaches(node, ancestors);
+            let (msg, config) = match kind {
                 NavKind::Goto if !ignores.contains(NavigationIgnores::GOTO) => {
-                    not_allowed_goto.then_some(GOTO_MSG)
+                    (GOTO_MSG, AllowConfig::default())
                 }
                 NavKind::Push if !ignores.contains(NavigationIgnores::PUSH_STATE) => {
-                    not_allowed_shallow.then_some(PUSH_MSG)
+                    (PUSH_MSG, SHALLOW_CONFIG)
                 }
                 NavKind::Replace if !ignores.contains(NavigationIgnores::REPLACE_STATE) => {
-                    not_allowed_shallow.then_some(REPLACE_MSG)
+                    (REPLACE_MSG, SHALLOW_CONFIG)
                 }
-                _ => None,
+                _ => return,
             };
-            if let Some(msg) = hit
+            if !is_value_allowed(&cx, first_argument, config, &eaches, 0)
                 && let Some((s, e)) = span(first_argument)
             {
                 reports.push((s, e, msg));
@@ -630,7 +1123,7 @@ fn collect_nav_reports(
                 .get("attributes")
                 .and_then(Value::as_array)
                 .map_or(&[] as &[Value], std::vec::Vec::as_slice);
-            if has_rel_external(attrs, &var_inits) {
+            if has_rel_external(attrs, &cx) {
                 return;
             }
             let link_config = AllowConfig {
@@ -641,10 +1134,11 @@ fn collect_nav_reports(
                 },
                 allow_nullish: true,
             };
+            let eaches = enclosing_eaches(node, ancestors);
             for attr in attrs {
                 if node_type(attr) == Some("Attribute")
                     && attr.get("name").and_then(Value::as_str) == Some("href")
-                    && check_href(attr, link_config, &im, &var_inits, allowed_type)
+                    && check_href(attr, link_config, &cx, &eaches)
                     && let Some((s, e)) = span(attr)
                 {
                     reports.push((s, e, LINK_MSG));

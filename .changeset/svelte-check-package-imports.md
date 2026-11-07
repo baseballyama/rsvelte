@@ -1,0 +1,5 @@
+---
+"@rsvelte/svelte-check": patch
+---
+
+fix(svelte-check): a `.svelte` component imported through package.json `imports` (SvelteKit 3's `#lib/*`, which replaces the `$lib` tsconfig alias and leaves the generated `paths` empty) now resolves to its shadow instead of reporting `TS2307: Cannot find module '#lib/components/Foo.svelte'`. The alias rewrite for `.svelte` importers read the leading `#` as a URL fragment and so never looked at the specifier, and the exact `paths` entries that let plain `.ts` importers reach a component came from tsconfig `paths` only. Both now follow TypeScript's resolution of `imports`: the package.json nearest each checked component, exact keys before patterns and the longest pattern first (including `*` in the middle of a key), `null` exclusions, and TypeScript's conditions in declaration order (`types`, `import`, `node` under `node16`/`nodenext`, `customConditions`, `default`). The `.svelte`-importer rewrite no longer matches a `svelte` condition, which TypeScript never does.

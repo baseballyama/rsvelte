@@ -252,7 +252,7 @@ fn statement_declares_name_node(
     let walk = |id: crate::ast::arena::JsNodeId| {
         statement_declares_name_node(arena.get_js_node(id), name, arena)
     };
-    let walk_opt = |id: &Option<crate::ast::arena::JsNodeId>| id.is_some_and(&walk);
+    let walk_opt = |id: &Option<crate::ast::arena::JsNodeId>| id.is_some_and(walk);
 
     match stmt {
         // Only `let` / `var` shadow; `const` does not.
