@@ -20,10 +20,44 @@ use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 
+/// What a type checker must accept: rsvelte runs it in a directory with a generated
+/// `tsconfig.json` (with `contentMappers`) and reads the report it prints.
+pub const CONTRACT: &str = "a type checker with the command line of TypeScript 7.1 or later: \
+     `-p <dir> --pretty true --runExternalCode`, `contentMappers` in tsconfig.json, and its report";
+
+/// A type checker: `tsc` of TypeScript 7.1, or any product with the same command line
+/// ([`CONTRACT`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TypeChecker {
+    /// An absolute path, or a name looked up in `PATH`.
+    pub program: PathBuf,
+    /// Passed before the arguments rsvelte adds, such as `--fast`.
+    pub arguments: Vec<String>,
+}
+
+impl TypeChecker {
+    #[must_use]
+    pub fn new(program: impl Into<PathBuf>) -> Self {
+        Self {
+            program: program.into(),
+            arguments: Vec::new(),
+        }
+    }
+}
+
+impl std::fmt::Display for TypeChecker {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.program.display())?;
+        for a in &self.arguments {
+            write!(f, " {a}")?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 pub struct Tsc {
-    /// The native `tsc` executable.
-    pub binary: PathBuf,
+    pub checker: TypeChecker,
     /// The project's tsconfig.json; the check extends it.
     pub tsconfig: Option<PathBuf>,
 }
@@ -375,16 +409,18 @@ impl Tsc {
         write("tsconfig.json", &self.tsconfig_json(req))?;
         let output = {
             let _p = measurement::phase("ts.tsc");
-            Command::new(&self.binary)
+            Command::new(&self.checker.program)
+                .args(&self.checker.arguments)
                 .args(["-p", ".", "--pretty", "true", "--runExternalCode"])
                 .current_dir(dir)
                 .output()
-                .map_err(|e| format!("{}: {e}", self.binary.display()))?
+                .map_err(|e| format!("{}: {e}", self.checker))?
         };
         let stdout = String::from_utf8(output.stdout).map_err(|e| e.to_string())?;
         if !matches!(output.status.code(), Some(0..=2)) || !output.stderr.is_empty() {
             return Err(format!(
-                "tsc exited with {}: {}{stdout}",
+                "{} exited with {}: {}{stdout}",
+                self.checker,
                 output.status,
                 String::from_utf8_lossy(&output.stderr)
             ));
@@ -406,6 +442,7 @@ impl Tsc {
         parse_report(&strip_ansi(&stdout), |file, line, column| {
             lines.get(file).and_then(|l| l.offset(line, column))
         })
+        .map_err(|e| format!("{}: {e}; rsvelte needs {CONTRACT}", self.checker))
     }
 
     fn tsconfig_json(&self, req: &CheckRequest) -> String {

@@ -40,7 +40,8 @@ impl Options {
         }
     }
 
-    pub(crate) fn apply(&self, registry: &mut Registry) -> Result<(), CallError> {
+    /// The configuration file and what it evaluates to, or `None` when there is none.
+    pub(crate) fn load(&self) -> Result<Option<(PathBuf, LoadedConfiguration)>, CallError> {
         let path = match &self.path {
             Some(path) => Some(path.clone()),
             None => {
@@ -57,7 +58,7 @@ impl Options {
                     "configuration loader options require a configuration file".into(),
                 ));
             }
-            return Ok(());
+            return Ok(None);
         };
         let automatic = if path
             .extension()
@@ -102,8 +103,34 @@ impl Options {
                 ))
             }
         };
-        apply(registry, &loader.load(&path)?)
+        let evaluated = loader.load(&path)?;
+        Ok(Some((path, evaluated)))
     }
+}
+
+/// The configuration file's `typeChecker`, with a relative program resolved against the file.
+pub(crate) fn type_checker(
+    path: &Path,
+    loaded: &LoadedConfiguration,
+) -> Result<Option<rsvelte_typescript_check::TypeChecker>, CallError> {
+    let Some(options) = &loaded.configuration.type_checker else {
+        return Ok(None);
+    };
+    let Some((program, arguments)) = options.command.split_first() else {
+        return Err(CallError("typeChecker.command needs a program".into()));
+    };
+    let program = Path::new(program);
+    // The type checker runs in a temporary directory, so a path must be absolute.
+    let program = if program.components().count() > 1 {
+        std::path::absolute(path.with_file_name(program))
+            .map_err(|e| CallError(format!("typeChecker.command {}: {e}", program.display())))?
+    } else {
+        program.to_owned()
+    };
+    Ok(Some(rsvelte_typescript_check::TypeChecker {
+        program,
+        arguments: arguments.to_vec(),
+    }))
 }
 
 fn discover(directory: &Path) -> Result<Option<PathBuf>, CallError> {

@@ -34,13 +34,17 @@ diagnostics to standard output, with task labels. It does not edit the input fil
 | `benchmark <dir> --task <identifier>`      | Measure pipeline time                                           |
 | `performance <dir>... --task <identifier>` | Measure performance counters                                    |
 
-Svelte type checking needs native TypeScript 7.1 and the precomputed content mapper executable.
-The CLI finds the mapper on `PATH`; `RSVELTE_TYPESCRIPT_CONTENT_MAPPER` can set its path.
+Svelte type checking needs a type checker and the precomputed content mapper executable. The type
+checker is TypeScript 7.1's `tsc` or any product with its command line, such as `tsrs`: rsvelte
+adds `-p <dir> --pretty true --runExternalCode` and reads its report. Name it with
+`--type-checker <program>` (or `--tsc`) and a repeatable `--type-checker-arg <argument>`, or with
+`typeChecker.command` in [the configuration file](config/README.md); the command line wins. The
+CLI finds the mapper on `PATH`; `RSVELTE_TYPESCRIPT_CONTENT_MAPPER` can set its path.
 
 ```sh
 cargo install --path crates/languages/typescript/content_mapper
 cargo run -p rsvelte_command_line -- run App.svelte \
-  --task svelte.check/default --tsc /path/to/tsc \
+  --task svelte.check/default --type-checker tsrs --type-checker-arg --fast \
   --svelte /path/to/node_modules/svelte --tsconfig /path/to/tsconfig.json
 ```
 

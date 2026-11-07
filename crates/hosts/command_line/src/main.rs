@@ -6,10 +6,12 @@
 //! `rsvelte performance <dir>... [--task <identifier>]... [rounds=N] [json=<file>]` prints the
 //! deterministic counters CI ratchets (see `commands/performance.rs`).
 //!
-//! `svelte.check` also needs `--tsc <native tsc>` and `--svelte <svelte package dir>`, `vue.check`
-//! `--tsc` and `--vue <vue package dir>`; `ts.check` checks components and standalone
-//! TypeScript files with one `tsc`. The project configuration is `--tsconfig <file>`, by default
-//! the first directory's `tsconfig.json`.
+//! `svelte.check` also needs a type checker and `--svelte <svelte package dir>`, `vue.check` a type
+//! checker and `--vue <vue package dir>`; `ts.check` checks components and standalone TypeScript
+//! files with one type checker run. The type checker is `--type-checker <program>` (or `--tsc`),
+//! with `--type-checker-arg <argument>` for each of its own arguments, or else the configuration
+//! file's `typeChecker.command`: TypeScript 7.1's `tsc`, or a product with its command line. The
+//! project configuration is `--tsconfig <file>`, by default the first directory's `tsconfig.json`.
 
 #![expect(
     clippy::print_stdout,
@@ -66,7 +68,8 @@ fn main() -> ExitCode {
     let mut tasks = Vec::new();
     let mut config = configuration::Options::default();
     let mut positional = Vec::new();
-    let (mut tsc, mut svelte, mut vue, mut tsconfig) = (None, None, None, None);
+    let (mut svelte, mut vue, mut tsconfig) = (None, None, None);
+    let (mut program, mut checker_arguments) = (None, Vec::new());
     let mut it = arguments.iter();
     while let Some(a) = it.next() {
         if configuration::Options::accepts(a) {
@@ -76,9 +79,25 @@ fn main() -> ExitCode {
             config.argument(a, value);
             continue;
         }
+        if matches!(
+            a.as_str(),
+            "--tsc" | "--type-checker" | "--type-checker-arg"
+        ) {
+            let Some(value) = it.next() else {
+                return usage(&format!("{a} needs a value"));
+            };
+            if a == "--type-checker-arg" {
+                checker_arguments.push(value.clone());
+            } else {
+                match program_path(value) {
+                    Ok(p) => program = Some(p),
+                    Err(e) => return usage(&format!("{a} {value}: {e}")),
+                }
+            }
+            continue;
+        }
         let slot = match a.as_str() {
             "--task" => None,
-            "--tsc" => Some(&mut tsc),
             "--svelte" => Some(&mut svelte),
             "--vue" => Some(&mut vue),
             "--tsconfig" => Some(&mut tsconfig),
@@ -104,32 +123,19 @@ fn main() -> ExitCode {
             .is_file()
             .then(|| std::path::absolute(&default).expect("a non-empty path"));
     }
+    let loaded = match config.load() {
+        Ok(loaded) => loaded,
+        Err(error) => return usage(&error.to_string()),
+    };
+    let tsc = match type_checker(program, checker_arguments, loaded.as_ref()) {
+        Ok(checker) => checker,
+        Err(error) => return usage(&error),
+    };
     if tsc.is_none() && (svelte.is_some() || vue.is_some()) {
-        return usage("--svelte and --vue need --tsc");
+        return usage("--svelte and --vue need a type checker (--type-checker or typeChecker)");
     }
-    let svelte = rsvelte_svelte_typecheck::Configuration {
-        check: tsc.clone().zip(svelte).map(|(tsc, svelte)| {
-            rsvelte_svelte_typecheck::TypeCheckConfiguration {
-                tsc,
-                content_mapper: std::env::var_os("RSVELTE_TYPESCRIPT_CONTENT_MAPPER").map_or_else(
-                    || "rsvelte-typescript-content-mapper".into(),
-                    std::path::PathBuf::from,
-                ),
-                tsconfig: tsconfig.clone(),
-                svelte,
-            }
-        }),
-    };
-    let polyglot = tsc.clone().map(|binary| rsvelte_typescript_check::Tsc {
-        binary,
-        tsconfig: tsconfig.clone(),
-    });
-    let vue = rsvelte_vue_check::Configuration {
-        check: tsc
-            .zip(vue)
-            .map(|(tsc, vue)| rsvelte_vue_check::TypeCheckConfiguration { tsc, tsconfig, vue }),
-    };
-    let reg = match configured_registry(&svelte, &vue, polyglot, &config) {
+    let (svelte, vue, polyglot) = check_configurations(tsc, svelte, vue, tsconfig);
+    let reg = match configured_registry(&svelte, &vue, polyglot, loaded.as_ref().map(|(_, l)| l)) {
         Ok(registry) => registry,
         Err(error) => return usage(&error),
     };
@@ -157,6 +163,78 @@ fn main() -> ExitCode {
     }
 }
 
+/// The check tasks' configurations: Svelte's, Vue's and `ts.check`'s, which share one type checker.
+fn check_configurations(
+    tsc: Option<rsvelte_typescript_check::TypeChecker>,
+    svelte: Option<std::path::PathBuf>,
+    vue: Option<std::path::PathBuf>,
+    tsconfig: Option<std::path::PathBuf>,
+) -> (
+    rsvelte_svelte_typecheck::Configuration,
+    rsvelte_vue_check::Configuration,
+    Option<rsvelte_typescript_check::Tsc>,
+) {
+    let svelte = rsvelte_svelte_typecheck::Configuration {
+        check: tsc.clone().zip(svelte).map(|(tsc, svelte)| {
+            rsvelte_svelte_typecheck::TypeCheckConfiguration {
+                checker: tsc,
+                content_mapper: std::env::var_os("RSVELTE_TYPESCRIPT_CONTENT_MAPPER").map_or_else(
+                    || "rsvelte-typescript-content-mapper".into(),
+                    std::path::PathBuf::from,
+                ),
+                tsconfig: tsconfig.clone(),
+                svelte,
+            }
+        }),
+    };
+    let polyglot = tsc.clone().map(|checker| rsvelte_typescript_check::Tsc {
+        checker,
+        tsconfig: tsconfig.clone(),
+    });
+    let vue = rsvelte_vue_check::Configuration {
+        check: tsc
+            .zip(vue)
+            .map(|(checker, vue)| rsvelte_vue_check::TypeCheckConfiguration {
+                checker,
+                tsconfig,
+                vue,
+            }),
+    };
+    (svelte, vue, polyglot)
+}
+
+/// The command line's type checker, or else the configuration file's.
+fn type_checker(
+    program: Option<std::path::PathBuf>,
+    arguments: Vec<String>,
+    loaded: Option<&(std::path::PathBuf, rsvelte_config::LoadedConfiguration)>,
+) -> Result<Option<rsvelte_typescript_check::TypeChecker>, String> {
+    match (program, loaded) {
+        (Some(program), _) => Ok(Some(rsvelte_typescript_check::TypeChecker {
+            program,
+            arguments,
+        })),
+        (None, _) if !arguments.is_empty() => {
+            Err("--type-checker-arg needs --type-checker".to_owned())
+        }
+        (None, Some((path, loaded))) => {
+            configuration::type_checker(path, loaded).map_err(|error| error.to_string())
+        }
+        (None, None) => Ok(None),
+    }
+}
+
+/// A name without a separator is looked up in `PATH`; a path is made absolute, since the type
+/// checker runs in a temporary directory.
+fn program_path(value: &str) -> std::io::Result<std::path::PathBuf> {
+    let path = Path::new(value);
+    if path.components().count() > 1 {
+        std::path::absolute(path)
+    } else {
+        Ok(path.to_owned())
+    }
+}
+
 fn usage(msg: &str) -> ExitCode {
     eprintln!("rsvelte: {msg}");
     ExitCode::from(2)
@@ -166,15 +244,15 @@ fn configured_registry(
     svelte: &rsvelte_svelte_typecheck::Configuration,
     vue: &rsvelte_vue_check::Configuration,
     polyglot: Option<rsvelte_typescript_check::Tsc>,
-    config: &configuration::Options,
+    loaded: Option<&rsvelte_config::LoadedConfiguration>,
 ) -> Result<Registry, String> {
     let mut registry = registry(svelte, vue);
     registry
         .validate_plugins()
         .map_err(|error| error.to_string())?;
-    config
-        .apply(&mut registry)
-        .map_err(|error| error.to_string())?;
+    if let Some(loaded) = loaded {
+        configuration::apply(&mut registry, loaded).map_err(|error| error.to_string())?;
+    }
     registry.finish_task(rsvelte_typescript_check::Check {
         identifier: "ts.check/default",
         matches: |document| {
@@ -192,6 +270,67 @@ mod tests {
     use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing};
 
     use super::*;
+
+    fn configuration(
+        directory: &str,
+        text: &str,
+    ) -> (std::path::PathBuf, rsvelte_config::LoadedConfiguration) {
+        let dir =
+            std::env::temp_dir().join(format!("rsvelte-cli-{directory}-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("rsvelte.config.json");
+        std::fs::write(&path, text).unwrap();
+        let loaded = rsvelte_config::Loader::load(&rsvelte_config::JsonLoader, &path).unwrap();
+        (path, loaded)
+    }
+
+    #[test]
+    fn the_command_line_type_checker_wins_over_the_configuration_file() {
+        let file = configuration(
+            "type-checker",
+            r#"{ "typeChecker": { "command": ["node_modules/.bin/tsrs", "--fast"] } }"#,
+        );
+        let from_file = type_checker(None, Vec::new(), Some(&file))
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            from_file.program,
+            file.0.with_file_name("node_modules/.bin/tsrs"),
+            "a relative program is relative to the configuration file"
+        );
+        assert_eq!(from_file.arguments, ["--fast"]);
+        let given = type_checker(
+            Some("tsc".into()),
+            vec!["--singleThreaded".into()],
+            Some(&file),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            given,
+            rsvelte_typescript_check::TypeChecker {
+                program: "tsc".into(),
+                arguments: vec!["--singleThreaded".into()],
+            }
+        );
+        type_checker(None, vec!["--fast".into()], Some(&file)).unwrap_err();
+        assert_eq!(type_checker(None, Vec::new(), None), Ok(None));
+        std::fs::remove_dir_all(file.0.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn a_type_checker_command_needs_a_program_and_a_bare_name_is_looked_up() {
+        let bare = configuration("bare", r#"{ "typeChecker": { "command": ["tsrs"] } }"#);
+        let checker = type_checker(None, Vec::new(), Some(&bare))
+            .unwrap()
+            .unwrap();
+        assert_eq!(checker.program, Path::new("tsrs"));
+        let empty = configuration("empty", r#"{ "typeChecker": { "command": [] } }"#);
+        type_checker(None, Vec::new(), Some(&empty)).unwrap_err();
+        for f in [bare, empty] {
+            std::fs::remove_dir_all(f.0.parent().unwrap()).unwrap();
+        }
+    }
 
     #[test]
     fn plugin_declarations_cover_the_registered_languages_and_tasks() {

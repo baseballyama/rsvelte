@@ -31,6 +31,16 @@ Built-in Node type stripping supports erasable TypeScript syntax. Full TypeScrip
 features need a runtime loader such as `tsx`; rsvelte does not install it.
 See [Node's TypeScript documentation](https://nodejs.org/api/typescript.html).
 
+## Type checker
+
+```json
+{ "typeChecker": { "command": ["node_modules/.bin/tsrs", "--fast"] } }
+```
+
+`command` is the program and its own arguments. A program with a `/` is relative to the
+configuration file; a bare name is looked up in `PATH`. `--type-checker` on the command line
+replaces it.
+
 ## Settings and functions
 
 ```js

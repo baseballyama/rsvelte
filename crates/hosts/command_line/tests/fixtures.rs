@@ -7,12 +7,12 @@ use rsvelte_test_harness::NodePackages;
 
 fn main() -> ExitCode {
     let packages = NodePackages::locate();
-    let tsc = packages.tsc();
+    let tsc = rsvelte_typescript_check::TypeChecker::new(packages.tsc());
     let tsconfig: std::path::PathBuf =
         concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into();
     let svelte = rsvelte_svelte_typecheck::Configuration {
         check: Some(rsvelte_svelte_typecheck::TypeCheckConfiguration {
-            tsc: tsc.clone(),
+            checker: tsc.clone(),
             content_mapper: std::env::current_exe()
                 .expect("fixture executable")
                 .parent()
@@ -26,7 +26,7 @@ fn main() -> ExitCode {
     };
     let vue = rsvelte_vue_check::Configuration {
         check: Some(rsvelte_vue_check::TypeCheckConfiguration {
-            tsc: tsc.clone(),
+            checker: tsc.clone(),
             tsconfig: Some(tsconfig.clone()),
             vue: packages.package("vue"),
         }),
@@ -42,7 +42,7 @@ fn main() -> ExitCode {
                 || rsvelte_vue::matches(document)
         },
         tsc: Some(rsvelte_typescript_check::Tsc {
-            binary: tsc,
+            checker: tsc,
             tsconfig: Some(tsconfig),
         }),
     });

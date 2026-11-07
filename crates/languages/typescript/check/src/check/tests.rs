@@ -75,3 +75,42 @@ fn an_unknown_line_is_an_error() {
     let got = parse_report("error TS5083: Cannot read file 'x'.\n", |_, _, _| Some(0));
     got.unwrap_err();
 }
+
+/// `sh` stands in for a type checker: `$@` holds what rsvelte passed after the user's arguments.
+#[cfg(unix)]
+fn shell(script: &str, own: &[&str]) -> Tsc {
+    let mut arguments = vec!["-c".to_owned(), script.to_owned(), "sh".to_owned()];
+    arguments.extend(own.iter().map(|a| (*a).to_owned()));
+    Tsc {
+        checker: TypeChecker {
+            program: "/bin/sh".into(),
+            arguments,
+        },
+        tsconfig: None,
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn the_type_checker_gets_its_own_arguments_before_the_contract() {
+    let tsc = shell(r#"printf '%s|' "$@" >&2; exit 1"#, &["--fast"]);
+    let error = tsc.check(&CheckRequest::default()).unwrap_err();
+    assert!(
+        error.contains("--fast|-p|.|--pretty|true|--runExternalCode|"),
+        "{error}"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_type_checker_without_the_command_line_names_the_contract() {
+    let tsc = shell(
+        "echo \"error TS5023: Unknown compiler option '--runExternalCode'.\"; exit 1",
+        &[],
+    );
+    let error = tsc.check(&CheckRequest::default()).unwrap_err();
+    assert!(
+        error.contains(CONTRACT) && error.contains("TS5023"),
+        "{error}"
+    );
+}

@@ -35,7 +35,7 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
         identifier: "svelte.check/default",
         matches: rsvelte_svelte_parser::matches,
         tsc: config.check.as_ref().map(|c| Tsc {
-            binary: c.tsc.clone(),
+            checker: c.checker.clone(),
             tsconfig: c.tsconfig.clone(),
         }),
     });

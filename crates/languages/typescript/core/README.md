@@ -7,18 +7,18 @@ crates register tools separately; see [crate layout](../../../README.md).
 The tools select `.ts`, `.mts`, `.cts`, `.js`, `.mjs`, and `.cjs` documents. They also accept
 declaration files. The extension selects JavaScript or TypeScript syntax in the same parser.
 
-| Task                 | Output                   | Current scope                                                                            |
-| -------------------- | ------------------------ | ---------------------------------------------------------------------------------------- |
-| `ts.compile/default` | JavaScript               | Erases types in the parser's supported subset; refuses enums and namespaces with values  |
-| `ts.format/default`  | JavaScript or TypeScript | The shared formatter's supported subset; refuses unsupported types and layouts           |
-| `ts.lint/default`    | JSON                     | The shared unused-variable rule on supported syntax                                      |
-| `ts.check/default`   | JSON                     | The CLI's shared TypeScript checker, configured with `--tsc` and optionally `--tsconfig` |
+| Task                 | Output                   | Current scope                                                                           |
+| -------------------- | ------------------------ | --------------------------------------------------------------------------------------- |
+| `ts.compile/default` | JavaScript               | Erases types in the parser's supported subset; refuses enums and namespaces with values |
+| `ts.format/default`  | JavaScript or TypeScript | The shared formatter's supported subset; refuses unsupported types and layouts          |
+| `ts.lint/default`    | JSON                     | The shared unused-variable rule on supported syntax                                     |
+| `ts.check/default`   | JSON                     | The CLI's shared type checker, set with `--type-checker` and optionally `--tsconfig`    |
 
 ```sh
 cargo run -p rsvelte_command_line -- run input.ts --task ts.compile/default
 cargo run -p rsvelte_command_line -- run input.ts --task ts.format/default
 cargo run -p rsvelte_command_line -- run input.ts --task ts.lint/default
-cargo run -p rsvelte_command_line -- run input.ts --task ts.check/default --tsc /path/to/tsgo
+cargo run -p rsvelte_command_line -- run input.ts --task ts.check/default --type-checker /path/to/tsc
 ```
 
 This is partial TypeScript support. The parser does not yet support full JavaScript

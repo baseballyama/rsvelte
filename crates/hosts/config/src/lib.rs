@@ -19,6 +19,17 @@ pub use text::{TextContract, TextFunction};
 pub struct Configuration {
     #[serde(default)]
     pub plugins: BTreeMap<String, Box<RawValue>>,
+    #[serde(default, rename = "typeChecker")]
+    pub type_checker: Option<TypeCheckerOptions>,
+}
+
+/// `typeChecker`: the type checker the check tasks run.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TypeCheckerOptions {
+    /// The program, then its own arguments, such as `["tsrs", "--fast"]`. A relative program path
+    /// is relative to the configuration file.
+    pub command: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

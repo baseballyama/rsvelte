@@ -8,7 +8,7 @@ fn main() -> ExitCode {
     let packages = NodePackages::locate();
     let configuration = Configuration {
         check: Some(TypeCheckConfiguration {
-            tsc: packages.tsc(),
+            checker: rsvelte_typescript_check::TypeChecker::new(packages.tsc()),
             tsconfig: Some(
                 concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
             ),
