@@ -1975,12 +1975,21 @@ fn split_top_level_statements(script: &str) -> Vec<String> {
     let mut paren_depth: i32 = 0;
     let mut bracket_depth: i32 = 0;
 
+    // The last code byte seen: comments do not move it, and a string, template
+    // or regex literal clears it (a literal ends an operand).
+    let mut last_code: Option<usize> = None;
+    // Whether the open top-level `(` is an `if`/`for`/`while`/`with` header,
+    // and where the last such header closed: its body is still to come.
+    let mut paren_is_header = false;
+    let mut header_close: Option<usize> = None;
+
     while i < len {
         let ch = bytes[i];
 
         // Skip string literals
         if ch == b'\'' || ch == b'"' || ch == b'`' {
             i = skip_string(bytes, i);
+            last_code = None;
             continue;
         }
 
@@ -2008,19 +2017,34 @@ fn split_top_level_statements(script: &str) -> Vec<String> {
             let next = skip_regex(bytes, i);
             if next > i + 1 {
                 i = next;
+                last_code = None;
                 continue;
             }
         }
 
+        if !ch.is_ascii_whitespace() {
+            last_code = Some(i);
+        }
+
         // Track nesting
         match ch {
-            b'(' => paren_depth += 1,
+            b'(' => {
+                if brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 {
+                    paren_is_header = opens_control_header(script, stmt_start, i);
+                }
+                paren_depth += 1;
+            }
             b')' => {
                 paren_depth -= 1;
+                if brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 && paren_is_header {
+                    paren_is_header = false;
+                    header_close = Some(i);
+                }
                 // After closing paren at top level, check if next line starts a new statement
                 if brace_depth == 0
                     && paren_depth == 0
                     && bracket_depth == 0
+                    && header_close != Some(i)
                     && is_stmt_boundary_after(script, i + 1)
                 {
                     let stmt = script[stmt_start..=i].trim().to_string();
@@ -2146,6 +2170,8 @@ fn split_top_level_statements(script: &str) -> Vec<String> {
             && brace_depth == 0
             && paren_depth == 0
             && bracket_depth == 0
+            && !last_code
+                .is_some_and(|at| header_close == Some(at) || continues_onto_next_line(script, at))
             && is_stmt_boundary_after(script, i + 1)
         {
             let stmt = script[stmt_start..i].trim().to_string();
@@ -2215,6 +2241,71 @@ fn is_labeled_statement(s: &str) -> bool {
     }
     let rest = s[end..].trim_start();
     rest.starts_with(':') && !rest.starts_with("::")
+}
+
+/// Whether the code byte at `at`, the last one before a top-level newline,
+/// leaves the statement unfinished, so the next line continues it even when
+/// that line starts with `$.` or a statement keyword.
+///
+/// A bare `>` and a postfix `!` are excluded: the splitter also reads raw
+/// TypeScript (`Array<number>`, `value!`), where both can end a statement.
+fn continues_onto_next_line(script: &str, at: usize) -> bool {
+    let bytes = script.as_bytes();
+    let prev = at.checked_sub(1).map(|p| bytes[p]);
+    match bytes[at] {
+        b'=' | b',' | b'?' | b':' | b'*' | b'%' | b'|' | b'&' | b'^' | b'<' | b'/' | b'~' => true,
+        b'>' => prev == Some(b'='),
+        b'+' => prev != Some(b'+'),
+        b'-' => prev != Some(b'-'),
+        b'!' => !script[..at]
+            .trim_end()
+            .ends_with(|c: char| is_js_ident_continue(c) || matches!(c, ')' | ']')),
+        b'.' => {
+            let before = &script[..at];
+            let word = &before[before.trim_end_matches(is_js_ident_continue).len()..];
+            // `1.` is a number literal; `a.` and `a?.` continue a member access.
+            !word.starts_with(|c: char| c.is_ascii_digit())
+        }
+        _ => {
+            let before = &script[..=at];
+            let word_start = before.trim_end_matches(is_js_ident_continue).len();
+            let prefix = before[..word_start].trim_end();
+            // `o.delete` / `this.#in` are property names, not operators.
+            !prefix.ends_with(['.', '#'])
+                && matches!(
+                    &before[word_start..],
+                    "typeof"
+                        | "instanceof"
+                        | "in"
+                        | "new"
+                        | "void"
+                        | "delete"
+                        | "await"
+                        | "else"
+                        | "do"
+                )
+        }
+    }
+}
+
+/// Whether the top-level `(` at `open` begins the header of an `if`, `for`,
+/// `for await`, `while` or `with` statement, whose body follows the `)`.
+fn opens_control_header(script: &str, stmt_start: usize, open: usize) -> bool {
+    let before = script[..open].trim_end();
+    let word_start = before.trim_end_matches(is_js_ident_continue).len();
+    let prefix = before[..word_start].trim_end();
+    if prefix.ends_with(['.', '#']) {
+        return false;
+    }
+    match &before[word_start..] {
+        "if" | "for" | "with" => true,
+        // The `while` that closes a `do … while (…)` ends the statement.
+        "while" => !starts_with_keyword(&script[stmt_start..open], "do"),
+        "await" => prefix
+            .strip_suffix("for")
+            .is_some_and(|p| !p.ends_with(is_js_ident_continue)),
+        _ => false,
+    }
 }
 
 /// Check if the text after position `pos` starts a new statement keyword.
@@ -2341,6 +2432,13 @@ fn is_function_var_declaration(s: &str) -> bool {
     // Look for = followed by function or arrow
     if let Some(eq_pos) = find_assignment_in_decl(s) {
         let after_eq = split_leading_comments(&s[eq_pos + 1..]).1.trim();
+        // Upstream hoists every `ArrowFunctionExpression` init, `async` ones included.
+        // No line break may separate `async` from an arrow's parameters.
+        let after_eq = after_eq
+            .strip_prefix("async")
+            .map(|rest| rest.trim_start_matches([' ', '\t']))
+            .filter(|rest| rest.starts_with('(') || rest.starts_with(is_js_ident_start))
+            .unwrap_or(after_eq);
         after_eq.starts_with("function ")
             || after_eq.starts_with("function(")
             || after_eq.starts_with("async function")
@@ -3663,6 +3761,161 @@ mod tests {
             "Should split $.effect and let into separate statements. Output: {}",
             result.output
         );
+    }
+
+    #[test]
+    fn split_keeps_a_continued_expression_together() {
+        // A line ending in `=>` or a binary operator continues onto the next line,
+        // even when that line starts with `$.` or a statement keyword.
+        for (script, first) in [
+            (
+                "const f = (x) =>\n\t$.get(a) && x;\nconst g = 1;",
+                "const f = (x) =>\n\t$.get(a) && x;",
+            ),
+            (
+                "const f = async (x) =>\n\tawait x;\nconst g = 1;",
+                "const f = async (x) =>\n\tawait x;",
+            ),
+            (
+                "const a = b ||\n\t$.get(c);\nconst g = 1;",
+                "const a = b ||\n\t$.get(c);",
+            ),
+            (
+                "const a = b ?\n\t$.get(c) : d;\nconst g = 1;",
+                "const a = b ?\n\t$.get(c) : d;",
+            ),
+            (
+                "const a = b,\n\tc = $.get(d);\nconst g = 1;",
+                "const a = b,\n\tc = $.get(d);",
+            ),
+            ("a =\n\t$.get(c);\nconst g = 1;", "a =\n\t$.get(c);"),
+        ] {
+            let parts = split_top_level_statements(script);
+            assert_eq!(parts.len(), 2, "{script:?} split into {parts:?}");
+            assert_eq!(parts[0], first, "{script:?}");
+            assert_eq!(parts[1], "const g = 1;");
+        }
+    }
+
+    #[test]
+    fn split_ignores_an_operator_character_ending_a_comment() {
+        for script in [
+            "const a = 1 // note:\nconst b = 2",
+            "const a = 1 /* then, */\nconst b = 2",
+            "const a = 1 // because?\n$.effect(() => 1)",
+        ] {
+            assert_eq!(
+                split_top_level_statements(script).len(),
+                2,
+                "{script:?} must still split"
+            );
+        }
+    }
+
+    #[test]
+    fn split_still_breaks_after_a_complete_statement_without_semicolon() {
+        // `++`/`--` end an operand, so the next line is a new statement.
+        for script in [
+            "x++\n$.effect(() => 1)",
+            "x--\n$.effect(() => 1)",
+            "$.foo(a)\n$.bar(b)",
+            "const a = 1\nconst b = 2",
+            // A literal ends an operand whatever its last character is.
+            "const a = 'x +'\nconst b = 2",
+            "const a = /a+/\nconst b = 2",
+            "const a = `a ${b} +`\nconst b = 2",
+            // `1.` is a number, `o.delete` a property, `x!` a TS non-null assertion
+            // and `Array<number>` a TS type argument list.
+            "const a = 1.\nconst b = 2",
+            "const a = o.delete\nconst b = 2",
+            "const a = x!\nconst b = 2",
+            "let a: Array<number>\nconst b = 2",
+            // The `while` of a `do … while` closes the statement.
+            "do x++; while (y)\n$.effect(() => 1)",
+        ] {
+            assert_eq!(
+                split_top_level_statements(script).len(),
+                2,
+                "{script:?} must still split: {:?}",
+                split_top_level_statements(script)
+            );
+        }
+    }
+
+    #[test]
+    fn split_reads_the_last_code_token_past_comments_and_literals() {
+        // The operator is the last code token even when a comment, or a string
+        // holding `//`, follows it on the line.
+        for script in [
+            "const a = b || // note\n\t$.get(c);\nconst g = 1;",
+            "const a = b || /* note */\n\t$.get(c);\nconst g = 1;",
+            "const a = b ||\n\t// note\n\t$.get(c);\nconst g = 1;",
+            "const a = 'http://x' +\n\t$.get(c);\nconst g = 1;",
+            "const f = (x = 'http://x') =>\n\t$.get(c) && x;\nconst g = 1;",
+            "const f = (x = '=>') =>\n\t$.get(c) && x;\nconst g = 1;",
+            "const a = 4 /\n\t$.get(c);\nconst g = 1;",
+            "const a = 1 <\n\t$.get(c);\nconst g = 1;",
+            "const a = !\n\t$.get(c);\nconst g = 1;",
+            "const a = b.\n\t$.c;\nconst g = 1;",
+            "const a = b instanceof\n\t$.C;\nconst g = 1;",
+            "const a = typeof\n\t$.get(c);\nconst g = 1;",
+            "const a = 'x' in\n\t$.get(c);\nconst g = 1;",
+            "const a = await\n\t$.get(c);\nconst g = 1;",
+            "const a = new\n\t$.C();\nconst g = 1;",
+        ] {
+            let parts = split_top_level_statements(script);
+            assert_eq!(parts.len(), 2, "{script:?} split into {parts:?}");
+            assert_eq!(parts[1], "const g = 1;", "{script:?}");
+        }
+    }
+
+    #[test]
+    fn split_keeps_a_braceless_control_body_with_its_header() {
+        for (script, first) in [
+            ("if (a) $.set(s, 1);\nconst g = 1;", "if (a) $.set(s, 1);"),
+            (
+                "if (a)\n\t$.set(s, 1);\nconst g = 1;",
+                "if (a)\n\t$.set(s, 1);",
+            ),
+            (
+                "if (a)\n\tawait $.get(b);\nconst g = 1;",
+                "if (a)\n\tawait $.get(b);",
+            ),
+            (
+                "for (const x of y) $.set(s, x);\nconst g = 1;",
+                "for (const x of y) $.set(s, x);",
+            ),
+            (
+                "for await (const x of y)\n\t$.set(s, x);\nconst g = 1;",
+                "for await (const x of y)\n\t$.set(s, x);",
+            ),
+            (
+                "while (a)\n\t$.set(s, 1);\nconst g = 1;",
+                "while (a)\n\t$.set(s, 1);",
+            ),
+            (
+                "if (a) s = 1;\nelse\n\t$.set(s, 2);\nconst g = 1;",
+                "if (a) s = 1;\nelse\n\t$.set(s, 2);",
+            ),
+        ] {
+            let parts = split_top_level_statements(script);
+            assert_eq!(parts.len(), 2, "{script:?} split into {parts:?}");
+            assert_eq!(parts[0], first, "{script:?}");
+        }
+    }
+
+    #[test]
+    fn an_async_arrow_initializer_is_a_function_declaration() {
+        for s in [
+            "const f = async (x) => await x;",
+            "const f = async(x) =>\n\tawait x;",
+            "const f = async x => await x;",
+        ] {
+            assert!(is_function_var_declaration(s), "{s:?}");
+        }
+        for s in ["const f = async(x);", "const f = asyncLoad(x);"] {
+            assert!(!is_function_var_declaration(s), "{s:?}");
+        }
     }
 
     #[test]
