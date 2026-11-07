@@ -208,7 +208,7 @@ pub fn add_component_export(
         "$$render()"
     };
     let await_declaration: &str = if has_top_level_await {
-        "/*\u{03A9}ignore_start\u{03A9}*/ const $$$render = await $$render(); /*\u{03A9}ignore_end\u{03A9}*/\n"
+        "/*\u{03A9}ignore_start\u{03A9}*/const $$$render = await $$render();/*\u{03A9}ignore_end\u{03A9}*/\n"
     } else {
         ""
     };
