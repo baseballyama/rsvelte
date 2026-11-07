@@ -1,5 +1,8 @@
 # `svelte/no-navigation-without-resolve` throws on `<a href="…" rel>` and `rel=""`
 
+**Fixed in eslint-plugin-svelte 3.24.0** (sveltejs/eslint-plugin-svelte#1380): the oracle no longer throws on
+`compatibility/lint-adversarial/no-target-blank/02-rel-dynamic.svelte`.
+
 `hasRelExternal` reads the first node of a `rel` attribute's value list without
 checking that there is one. `svelte-eslint-parser` gives an attribute written as
 `rel` or `rel=""` an **empty** `value` array, so `attr.value[0]` is `undefined`
