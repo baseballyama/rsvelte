@@ -38,6 +38,26 @@ use oracle::Verdict;
 use rsvelte_kernel::computation::pipeline::{Document, Registry, RunOptions, Sharing, run_each};
 use snapshots::{Outcome, Snapshot};
 
+/// `rsvelte-typescript-content-mapper`, which cargo builds in the target directory of the test
+/// that calls this; a test cannot name another package's executable with `CARGO_BIN_EXE_`.
+///
+/// # Panics
+///
+/// If it is not built.
+#[must_use]
+pub fn content_mapper() -> PathBuf {
+    let name = "rsvelte-typescript-content-mapper";
+    std::env::current_exe()
+        .ok()
+        .and_then(|test| Some(test.parent()?.parent()?.join(name)))
+        .filter(|mapper| mapper.is_file())
+        .unwrap_or_else(|| {
+            panic!(
+                "{name} is not built: run `cargo build -p rsvelte_typescript_content_mapper --bins`"
+            )
+        })
+}
+
 const FIXTURES_DIR: &str = "tests/fixtures";
 const CORPUS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../corpus");
 pub(crate) const UPDATE_VARIABLE: &str = "UPDATE_EXPECT";

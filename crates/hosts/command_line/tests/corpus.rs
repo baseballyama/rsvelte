@@ -3,7 +3,6 @@
 
 #![expect(clippy::print_stderr, reason = "reports coverage")]
 
-use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -77,25 +76,13 @@ impl Task for CountCoverage {
     }
 }
 
-/// The type check's content mapper, which cargo builds next to this test for the workspace.
-fn content_mapper() -> PathBuf {
-    let name = "rsvelte-svelte-typecheck-content-mapper";
-    let mapper = std::env::current_exe()
-        .ok()
-        .and_then(|exe| Some(exe.parent()?.parent()?.join(name)))
-        .filter(|m| m.is_file());
-    mapper.unwrap_or_else(|| {
-        panic!("{name} is not built: run `cargo build -p rsvelte_svelte_typecheck --bins`")
-    })
-}
-
 fn main() -> ExitCode {
     let packages = NodePackages::locate();
     let (program, arguments) = packages.type_checker();
     let typecheck = rsvelte_svelte_typecheck::Configuration {
         check: Some(rsvelte_svelte_typecheck::TypeCheckConfiguration {
             checker: TypeChecker { program, arguments },
-            content_mapper: content_mapper(),
+            content_mapper: rsvelte_test_harness::content_mapper(),
             tsconfig: Some(
                 concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
             ),

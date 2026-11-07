@@ -12,7 +12,7 @@ fn main() -> ExitCode {
     let configuration = Configuration {
         check: Some(TypeCheckConfiguration {
             checker: checker(&packages),
-            content_mapper: env!("CARGO_BIN_EXE_rsvelte-svelte-typecheck-content-mapper").into(),
+            content_mapper: rsvelte_test_harness::content_mapper(),
             tsconfig: Some(
                 concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
             ),

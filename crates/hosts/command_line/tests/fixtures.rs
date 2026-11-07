@@ -14,13 +14,7 @@ fn main() -> ExitCode {
     let svelte = rsvelte_svelte_typecheck::Configuration {
         check: Some(rsvelte_svelte_typecheck::TypeCheckConfiguration {
             checker: tsc.clone(),
-            content_mapper: std::env::current_exe()
-                .expect("fixture executable")
-                .parent()
-                .expect("deps directory")
-                .parent()
-                .expect("target directory")
-                .join("rsvelte-svelte-typecheck-content-mapper"),
+            content_mapper: rsvelte_test_harness::content_mapper(),
             tsconfig: Some(tsconfig.clone()),
             svelte: packages.package("svelte"),
         }),
