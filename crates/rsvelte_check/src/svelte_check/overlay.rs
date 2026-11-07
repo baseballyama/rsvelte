@@ -502,14 +502,16 @@ pub fn materialize_overlay_with_kit(
     settings: &KitFilesSettings,
     ignore: &[String],
     compiler_opts: &CompilerOptionsSettings,
+    root_dir_default: RootDirDefault,
 ) -> Result<OverlayLayout, OverlayError> {
-    let mut layout = materialize_overlay_with(
+    let mut layout = materialize_overlay_for(
         workspace,
         svelte_files,
         tsconfig_path,
         incremental,
         ignore,
         compiler_opts,
+        root_dir_default,
     )?;
     layout.kit_entries = materialize_kit_files(workspace, &layout.emit_dir, kit_files, settings)?;
     materialize_kit_types(workspace, &layout.emit_dir, kit_files)?;
@@ -534,10 +536,6 @@ pub fn materialize_overlay_with_kit(
 /// # Errors
 ///
 /// Returns an error while reading sources, updating the manifest, or writing artifacts.
-#[allow(
-    clippy::too_many_lines,
-    reason = "overlay lifecycle stays in one transaction to preserve cleanup and manifest ordering"
-)]
 pub fn materialize_overlay_with(
     workspace: &Path,
     files: &[PathBuf],
@@ -545,6 +543,30 @@ pub fn materialize_overlay_with(
     incremental: bool,
     ignore: &[String],
     compiler_opts: &CompilerOptionsSettings,
+) -> Result<OverlayLayout, OverlayError> {
+    materialize_overlay_for(
+        workspace,
+        files,
+        tsconfig_path,
+        incremental,
+        ignore,
+        compiler_opts,
+        RootDirDefault::ConfigDir,
+    )
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "overlay lifecycle stays in one transaction to preserve cleanup and manifest ordering"
+)]
+fn materialize_overlay_for(
+    workspace: &Path,
+    files: &[PathBuf],
+    tsconfig_path: Option<&Path>,
+    incremental: bool,
+    ignore: &[String],
+    compiler_opts: &CompilerOptionsSettings,
+    root_dir_default: RootDirDefault,
 ) -> Result<OverlayLayout, OverlayError> {
     let cache_dir = workspace.join(".svelte-check");
     let emit_dir = cache_dir.join("svelte");
@@ -968,6 +990,7 @@ pub fn materialize_overlay_with(
         &alias_path_overrides,
         &global_types,
         any_js_shadow,
+        root_dir_default,
     );
     fs::write(&overlay_tsconfig, tsconfig_json)?;
 
@@ -1865,6 +1888,7 @@ fn build_overlay_tsconfig(
     alias_path_overrides: &[(String, PathBuf)],
     global_types: &GlobalTypes,
     any_js_shadow: bool,
+    root_dir_default: RootDirDefault,
 ) -> String {
     let mut obj: BTreeMap<&str, serde_json::Value> = BTreeMap::new();
     if let Some(orig) = original {
@@ -1873,6 +1897,13 @@ fn build_overlay_tsconfig(
     }
     let mut compiler_opts = serde_json::Map::new();
     compiler_opts.insert("noEmit".into(), true.into());
+    // TypeScript 6+ defaults `rootDir` to this overlay's directory, so an inherited `outDir`
+    // would place every project source outside it.
+    if let Some(root_dir) =
+        original.and_then(|original| overlay_root_dir(original, workspace, root_dir_default))
+    {
+        compiler_opts.insert("rootDir".into(), path_relative(cache_dir, &root_dir).into());
+    }
     compiler_opts.insert("allowArbitraryExtensions".into(), true.into());
     // A `.jsx` shadow (see `shadow_extension`) is only admitted to the program
     // when JS files are. `allowJs` defaults to OFF, so without this every
@@ -2120,6 +2151,87 @@ struct InheritedSpecs {
     /// trigger TS6054 since the overlay's `allowArbitraryExtensions`
     /// only applies to module resolution, not to the `files` array).
     files: Vec<String>,
+}
+
+/// Where the TypeScript that reads the overlay puts an unset `rootDir`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum RootDirDefault {
+    /// TypeScript 6 and later: the directory of the config it was given.
+    #[default]
+    ConfigDir,
+    /// TypeScript 5: the common directory of the input files, unless
+    /// `composite` is set, which still defaults to the config's directory.
+    CommonSourceDir,
+}
+
+impl RootDirDefault {
+    /// The default of a compiler whose `typescript` major version is `major`;
+    /// an unknown version is taken as current, where the overlay's own
+    /// directory would otherwise exclude every project source.
+    #[must_use]
+    pub fn for_typescript_major(major: Option<u32>) -> Self {
+        match major {
+            Some(major) if major < 6 => Self::CommonSourceDir,
+            _ => Self::ConfigDir,
+        }
+    }
+}
+
+/// The `rootDir` an overlay config extending `tsconfig` has to state so that
+/// TypeScript checks the project's sources against the directory it would use
+/// when given `tsconfig` itself. `enclosing` is the directory the overlay's
+/// generated files live under; the result widens to it when the project sits
+/// below it.
+///
+/// `None` when the overlay changes nothing by inheriting: the chain declares
+/// `rootDir`, the compiler does not default it to the config's directory, or no
+/// option makes TypeScript compare sources against it (an explicit `rootDir`
+/// would itself switch that comparison on and report every source outside the
+/// project, e.g. a `paths` target in a sibling package).
+#[must_use]
+pub fn overlay_root_dir(
+    tsconfig: &Path,
+    enclosing: &Path,
+    default: RootDirDefault,
+) -> Option<PathBuf> {
+    let chain = extends_chain(tsconfig);
+    // The nearest config naming the key decides, and an explicit `null` there
+    // resets an inherited value.
+    let option = |key: &str| {
+        chain
+            .iter()
+            .find_map(|(_, config)| config.get("compilerOptions")?.get(key))
+            .filter(|value| !value.is_null())
+    };
+    let is_set = |key: &str| option(key).is_some_and(|value| value.as_str() != Some(""));
+    let is_on = |key: &str| option(key).and_then(serde_json::Value::as_bool) == Some(true);
+
+    if is_set("rootDir") {
+        return None;
+    }
+    let composite = is_on("composite");
+    if default == RootDirDefault::CommonSourceDir && !composite {
+        return None;
+    }
+    // `Program::verifyCompilerOptions` compares sources against the common
+    // source directory only under these options.
+    let compared = is_set("outDir")
+        || is_set("sourceRoot")
+        || is_set("mapRoot")
+        || ((is_on("declaration") || composite) && is_set("declarationDir"));
+    if !compared {
+        return None;
+    }
+    let project = absolutize(tsconfig).parent()?.to_path_buf();
+    let enclosing = absolutize(enclosing);
+    Some(
+        project
+            .components()
+            .zip(enclosing.components())
+            .take_while(|(left, right)| left == right)
+            .map(|(component, _)| component.as_os_str())
+            .collect(),
+    )
 }
 
 /// Resolve the user's effective `include` / `exclude` / `files` and
@@ -4889,6 +5001,152 @@ mod tests {
             "stale ESM bridge should have been pruned"
         );
 
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn overlay_tsconfig_keeps_the_project_root_dir_default() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_root_dir_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let root_dir = |config: &str| {
+            fs::write(&tsconfig, config).unwrap();
+            let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+            let cfg: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap())
+                    .unwrap();
+            cfg["compilerOptions"].get("rootDir").cloned()
+        };
+
+        assert_eq!(
+            root_dir(r#"{ "compilerOptions": { "outDir": "./dist" } }"#),
+            Some(serde_json::json!(".."))
+        );
+        fs::write(
+            tmp.join("base.json"),
+            r#"{ "compilerOptions": { "rootDir": "./src" } }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            root_dir(r#"{ "extends": "./base.json", "compilerOptions": { "outDir": "./dist" } }"#),
+            None,
+            "a declared rootDir is inherited unchanged"
+        );
+        assert_eq!(
+            root_dir(r#"{ "compilerOptions": { "strict": true } }"#),
+            None,
+            "without outDir an explicit rootDir would report sources outside the project"
+        );
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// Expected values come from `tsgo` 7.0.0-dev.20260707.2 and `tsc` 5.9.3 run on
+    /// `<project>/.cache/tsconfig.json` extending the project config: `Some` exactly
+    /// where that overlay reports TS6059 for a source inside the project.
+    #[test]
+    fn overlay_root_dir_follows_where_typescript_compares_sources() {
+        use RootDirDefault::{CommonSourceDir, ConfigDir};
+        let tmp = std::env::temp_dir().join(format!("svc_root_dir_table_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let project = tmp.join("app");
+        fs::create_dir_all(project.join("node_modules/@acme/tsconfig")).unwrap();
+        fs::write(
+            project.join("node_modules/@acme/tsconfig/tsconfig.json"),
+            r#"{ "compilerOptions": { "outDir": "./dist" } }"#,
+        )
+        .unwrap();
+        fs::write(
+            project.join("base.json"),
+            r#"{ "compilerOptions": { "outDir": "./dist", "rootDir": "./src" } }"#,
+        )
+        .unwrap();
+        let tsconfig = project.join("tsconfig.json");
+        let cases: &[(&str, RootDirDefault, bool)] = &[
+            (r#"{}"#, ConfigDir, false),
+            (
+                r#"{ "compilerOptions": { "outDir": "./dist" } }"#,
+                ConfigDir,
+                true,
+            ),
+            (
+                r#"{ "compilerOptions": { "outDir": "./dist" } }"#,
+                CommonSourceDir,
+                false,
+            ),
+            (
+                r#"{ "compilerOptions": { "outDir": "./dist", "composite": true } }"#,
+                CommonSourceDir,
+                true,
+            ),
+            (
+                r#"{ "compilerOptions": { "composite": true } }"#,
+                ConfigDir,
+                false,
+            ),
+            (
+                r#"{ "compilerOptions": { "declaration": true } }"#,
+                ConfigDir,
+                false,
+            ),
+            (
+                r#"{ "compilerOptions": { "declaration": true, "declarationDir": "./t" } }"#,
+                ConfigDir,
+                true,
+            ),
+            (
+                r#"{ "compilerOptions": { "declaration": true, "declarationDir": "./t" } }"#,
+                CommonSourceDir,
+                false,
+            ),
+            (
+                r#"{ "compilerOptions": { "sourceMap": true, "sourceRoot": "/x" } }"#,
+                ConfigDir,
+                true,
+            ),
+            (
+                r#"{ "compilerOptions": { "sourceMap": true, "mapRoot": "/x" } }"#,
+                ConfigDir,
+                true,
+            ),
+            (r#"{ "extends": "./base.json" }"#, ConfigDir, false),
+            (
+                r#"{ "extends": "./base.json", "compilerOptions": { "outDir": null } }"#,
+                ConfigDir,
+                false,
+            ),
+            (
+                r#"{ "extends": "./base.json", "compilerOptions": { "rootDir": null } }"#,
+                ConfigDir,
+                true,
+            ),
+            (r#"{ "extends": "@acme/tsconfig" }"#, ConfigDir, true),
+            (
+                r#"{ "extends": ["@acme/tsconfig", "./base.json"] }"#,
+                ConfigDir,
+                false,
+            ),
+        ];
+        for (config, default, expected) in cases {
+            fs::write(&tsconfig, config).unwrap();
+            assert_eq!(
+                overlay_root_dir(&tsconfig, &project, *default),
+                expected.then(|| absolutize(&project)),
+                "{config} under {default:?}"
+            );
+        }
+        fs::write(
+            &tsconfig,
+            r#"{ "compilerOptions": { "outDir": "./dist" } }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            overlay_root_dir(&tsconfig, &tmp, ConfigDir),
+            Some(absolutize(&tmp)),
+            "generated files under an enclosing workspace widen the root"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 

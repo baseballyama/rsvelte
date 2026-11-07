@@ -14,8 +14,8 @@ use std::str::FromStr;
 
 use lsp_types::{Position, Range, Uri};
 use rsvelte_check::overlay::{
-    CACHE_GITIGNORE, FallbackSvelteTypes, SHIM_FILES, SHIM_JSX_V4_NAME, fallback_svelte_types,
-    global_type_files,
+    CACHE_GITIGNORE, FallbackSvelteTypes, RootDirDefault, SHIM_FILES, SHIM_JSX_V4_NAME,
+    fallback_svelte_types, global_type_files, overlay_root_dir,
 };
 use rsvelte_projection::{
     ProjectionEngine, ProjectionMap, RewriteExternalImportsOptions, Svelte2TsxMode,
@@ -1292,6 +1292,13 @@ impl TsgoOverlay {
         }
         if let Some(source) = &self.source_tsconfig {
             config["extends"] = json!(path_for_tsconfig(source));
+            // The server always runs TypeScript 7, which defaults `rootDir` to this overlay's
+            // directory; the shadows live under `mirror_root`.
+            if let Some(root_dir) =
+                overlay_root_dir(source, &self.mirror_root, RootDirDefault::ConfigDir)
+            {
+                config["compilerOptions"]["rootDir"] = json!(path_for_tsconfig(&root_dir));
+            }
         }
         if let Some(exclude) = specs.exclude {
             config["exclude"] = json!(exclude);
@@ -2711,6 +2718,68 @@ mod tests {
         assert!(overlay.cache_dir().join(SHIM_SHIMS_V4_NAME).is_file());
         assert!(overlay.cache_dir().join(SHIM_JSX_V4_NAME).is_file());
         assert!(overlay.unresolved_shadow_routes().is_empty());
+    }
+
+    #[test]
+    fn overlay_config_keeps_the_project_root_dir_default() {
+        let workspace = TestWorkspace::new("root-dir-default");
+        let root = fs::canonicalize(&workspace.0).unwrap();
+        write(
+            &root.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "outDir": "./dist" } }"#,
+        );
+        write(&root.join("src/main.ts"), "export const main = 1;");
+        let root_dir = |overlay: &TsgoOverlay| {
+            let config: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap())
+                    .unwrap();
+            config["compilerOptions"].get("rootDir").cloned()
+        };
+
+        let overlay = build_overlay(&root).unwrap();
+        assert_eq!(root_dir(&overlay), Some(json!(path_for_tsconfig(&root))));
+
+        write(
+            &root.join("nested/tsconfig.json"),
+            r#"{ "extends": "../tsconfig.json" }"#,
+        );
+        let nested = TsgoOverlay::build_nested(
+            &root.join("nested"),
+            &root.join("nested/tsconfig.json"),
+            &root,
+        )
+        .unwrap();
+        assert_eq!(
+            root_dir(&nested),
+            Some(json!(path_for_tsconfig(&root))),
+            "a nested project's shadows live under the enclosing workspace"
+        );
+
+        write(
+            &root.join("configs/base.json"),
+            r#"{ "compilerOptions": { "rootDir": "../src" } }"#,
+        );
+        write(
+            &root.join("tsconfig.json"),
+            r#"{ "extends": "./configs/base.json", "compilerOptions": { "outDir": "./dist" } }"#,
+        );
+        let overlay = build_overlay(&root).unwrap();
+        assert_eq!(
+            root_dir(&overlay),
+            None,
+            "a declared rootDir is inherited unchanged"
+        );
+
+        write(
+            &root.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "strict": true } }"#,
+        );
+        let overlay = build_overlay(&root).unwrap();
+        assert_eq!(
+            root_dir(&overlay),
+            None,
+            "without outDir an explicit rootDir would report sources outside the project"
+        );
     }
 
     #[test]
