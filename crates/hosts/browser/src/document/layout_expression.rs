@@ -4,30 +4,35 @@ use rsvelte_kernel::output::document::{
     GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions,
 };
 
+/// Values nested deeper than this are refused; the parser recurses once per level.
+const MAX_DEPTH: usize = 256;
+
 #[derive(Debug)]
 pub(crate) struct Parsed {
     pub docs: LayoutInstructions,
     pub root: LayoutInstructionIdentifier,
+    /// (layout instruction, UTF-16 offset of the source that built it).
     pub origins: Vec<(u32, usize)>,
 }
 
 #[derive(Debug)]
 pub(crate) struct LayoutExpressionError {
     pub message: String,
+    /// UTF-16 offset, as JavaScript strings count.
     pub at: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 enum TokenKind {
     String(String),
     Identifier(String),
     Punct(char),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 struct Token {
     kind: TokenKind,
-    at_utf16: usize,
+    at: usize,
 }
 
 #[derive(Debug)]
@@ -44,10 +49,11 @@ struct Arg {
 }
 
 pub(crate) fn parse(source: &str) -> Result<Parsed, LayoutExpressionError> {
+    let (tokens, end) = lex(source)?;
     Parser {
-        source,
-        tokens: lex(source)?,
-        cursor: 0,
+        tokens: tokens.into_iter().peekable(),
+        end,
+        depth: 0,
         docs: LayoutInstructions::new(),
         groups: HashMap::new(),
         origins: Vec::new(),
@@ -55,66 +61,56 @@ pub(crate) fn parse(source: &str) -> Result<Parsed, LayoutExpressionError> {
     .parse()
 }
 
-struct Parser<'a> {
-    source: &'a str,
-    tokens: Vec<Token>,
-    cursor: usize,
+struct Parser {
+    tokens: std::iter::Peekable<std::vec::IntoIter<Token>>,
+    /// UTF-16 length of the source, where "ended too early" errors point.
+    end: usize,
+    depth: usize,
     docs: LayoutInstructions,
     groups: HashMap<String, GroupIdentifier>,
-    origins: Vec<Option<usize>>,
+    origins: Vec<(u32, usize)>,
 }
 
-impl Parser<'_> {
+impl Parser {
     fn parse(mut self) -> Result<Parsed, LayoutExpressionError> {
-        let at = self.peek().map_or(0, |token| token.at_utf16);
+        let at = self.tokens.peek().map_or(0, |token| token.at);
         let value = self.value()?;
         let root = self.as_doc(value, at);
-        if let Some(token) = self.peek() {
-            return Err(Self::error(
-                "式のあとに余分なものがあります",
-                token.at_utf16,
-            ));
+        if let Some(token) = self.tokens.peek() {
+            return Err(error("式のあとに余分なものがあります", token.at));
         }
-        let origins = self
-            .origins
-            .into_iter()
-            .enumerate()
-            .filter_map(|(document, at)| at.map(|at| (document as u32, at)))
-            .collect();
         Ok(Parsed {
             docs: self.docs,
             root,
-            origins,
+            origins: self.origins,
         })
     }
 
     fn value(&mut self) -> Result<Value, LayoutExpressionError> {
-        let Some(token) = self.next() else {
-            return Err(Self::error(
-                "式が途中で終わっています",
-                self.source.encode_utf16().count(),
-            ));
+        let Some(token) = self.tokens.next() else {
+            return Err(error("式が途中で終わっています", self.end));
         };
-        match token.kind {
+        if self.depth == MAX_DEPTH {
+            return Err(error(
+                &format!("入れ子が深すぎます（{MAX_DEPTH} 段まで）"),
+                token.at,
+            ));
+        }
+        self.depth += 1;
+        let value = match token.kind {
             TokenKind::String(value) => Ok(Value::String(value)),
             TokenKind::Punct('[') => self.list(),
-            TokenKind::Punct(other) => {
-                Err(Self::error(&format!("予期しない {other}"), token.at_utf16))
-            }
-            TokenKind::Identifier(name) => self.call_or_atom(&name, token.at_utf16),
-        }
+            TokenKind::Punct(other) => Err(error(&format!("予期しない {other}"), token.at)),
+            TokenKind::Identifier(name) => self.call_or_atom(&name, token.at),
+        };
+        self.depth -= 1;
+        value
     }
 
     fn list(&mut self) -> Result<Value, LayoutExpressionError> {
         let mut items = Vec::new();
         while !self.next_is_punct(']') {
-            let Some(token) = self.peek() else {
-                return Err(Self::error(
-                    "] が必要です",
-                    self.source.encode_utf16().count(),
-                ));
-            };
-            let at = token.at_utf16;
+            let at = self.tokens.peek().map_or(self.end, |token| token.at);
             match self.value()? {
                 Value::List(nested) => items.extend(nested),
                 value => {
@@ -122,9 +118,7 @@ impl Parser<'_> {
                     items.push(document);
                 }
             }
-            if self.next_is_punct(',') {
-                self.cursor += 1;
-            } else {
+            if !self.skip_punct(',') {
                 break;
             }
         }
@@ -158,20 +152,12 @@ impl Parser<'_> {
         self.expect_punct('(')?;
         let mut arguments = Vec::new();
         while !self.next_is_punct(')') {
-            let Some(token) = self.peek() else {
-                return Err(Self::error(
-                    ") が必要です",
-                    self.source.encode_utf16().count(),
-                ));
-            };
-            let at = token.at_utf16;
+            let at = self.tokens.peek().map_or(self.end, |token| token.at);
             arguments.push(Arg {
                 value: self.value()?,
                 at,
             });
-            if self.next_is_punct(',') {
-                self.cursor += 1;
-            } else {
+            if !self.skip_punct(',') {
                 break;
             }
         }
@@ -198,10 +184,10 @@ impl Parser<'_> {
             }
             "groupId" => {
                 if arguments.is_empty() {
-                    return Err(Self::error("groupId の引数が足りません", at));
+                    return Err(error("groupId の引数が足りません", at));
                 }
                 let first = arguments.remove(0);
-                let name = Self::as_string(first.value, first.at)?;
+                let name = as_string(first.value, first.at)?;
                 let docs = self.all_docs(arguments);
                 let group = self.group_identifier(name);
                 Ok(Value::LayoutInstruction(
@@ -209,8 +195,7 @@ impl Parser<'_> {
                 ))
             }
             "indent" | "dedent" | "flatOnly" => {
-                Self::need(name, &arguments, 1, at)?;
-                let arg = arguments.remove(0);
+                let [arg] = take(name, arguments, at)?;
                 let document = self.as_doc(arg.value, arg.at);
                 Ok(Value::LayoutInstruction(match name {
                     "indent" => self.docs.indent(document),
@@ -220,19 +205,14 @@ impl Parser<'_> {
                 }))
             }
             "ifBreak" => {
-                Self::need(name, &arguments, 2, at)?;
-                let flat = arguments.pop().expect("two arguments were checked");
-                let broken = arguments.pop().expect("two arguments were checked");
+                let [broken, flat] = take(name, arguments, at)?;
                 let broken = self.as_doc(broken.value, broken.at);
                 let flat = self.as_doc(flat.value, flat.at);
                 Ok(Value::LayoutInstruction(self.docs.if_break(broken, flat)))
             }
             "ifBreakOf" => {
-                Self::need(name, &arguments, 3, at)?;
-                let flat = arguments.pop().expect("three arguments were checked");
-                let broken = arguments.pop().expect("three arguments were checked");
-                let group = arguments.pop().expect("three arguments were checked");
-                let name = Self::as_string(group.value, group.at)?;
+                let [group, broken, flat] = take(name, arguments, at)?;
+                let name = as_string(group.value, group.at)?;
                 let broken = self.as_doc(broken.value, broken.at);
                 let flat = self.as_doc(flat.value, flat.at);
                 let group = self.group_identifier(name);
@@ -241,10 +221,8 @@ impl Parser<'_> {
                 ))
             }
             "indentIfBreak" => {
-                Self::need(name, &arguments, 2, at)?;
-                let document = arguments.pop().expect("two arguments were checked");
-                let group = arguments.pop().expect("two arguments were checked");
-                let name = Self::as_string(group.value, group.at)?;
+                let [group, document] = take(name, arguments, at)?;
+                let name = as_string(group.value, group.at)?;
                 let document = self.as_doc(document.value, document.at);
                 let group = self.group_identifier(name);
                 Ok(Value::LayoutInstruction(
@@ -252,9 +230,7 @@ impl Parser<'_> {
                 ))
             }
             "join" => {
-                Self::need(name, &arguments, 2, at)?;
-                let items = arguments.pop().expect("two arguments were checked");
-                let separator = arguments.pop().expect("two arguments were checked");
+                let [separator, items] = take(name, arguments, at)?;
                 let separator = self.as_doc(separator.value, separator.at);
                 let items = match items.value {
                     Value::List(items) => items,
@@ -262,7 +238,7 @@ impl Parser<'_> {
                 };
                 Ok(Value::List(self.docs.join(separator, &items)))
             }
-            _ => Err(Self::error(&format!("知らない関数 {name}"), at)),
+            _ => Err(error(&format!("知らない関数 {name}"), at)),
         }
     }
 
@@ -292,130 +268,110 @@ impl Parser<'_> {
         }
     }
 
-    fn as_string(value: Value, at: usize) -> Result<String, LayoutExpressionError> {
-        if let Value::String(text) = value {
-            Ok(text)
-        } else {
-            Err(Self::error("ここには文字列（グループ名）が必要です", at))
-        }
-    }
-
     fn group_identifier(&mut self, name: String) -> GroupIdentifier {
-        if let Some(&group) = self.groups.get(&name) {
-            group
-        } else {
-            let group = self.docs.new_group_identifier();
-            self.groups.insert(name, group);
-            group
-        }
+        *self
+            .groups
+            .entry(name)
+            .or_insert_with(|| self.docs.new_group_identifier())
     }
 
     fn set_origin(&mut self, document: LayoutInstructionIdentifier, at: usize) {
-        let index = document.index() as usize;
-        if self.origins.len() <= index {
-            self.origins.resize(index + 1, None);
-        }
-        self.origins[index] = Some(at);
-    }
-
-    fn need(
-        name: &str,
-        arguments: &[Arg],
-        count: usize,
-        at: usize,
-    ) -> Result<(), LayoutExpressionError> {
-        if arguments.len() == count {
-            Ok(())
-        } else {
-            Err(Self::error(
-                &format!("{name} は引数を {count} 個とります"),
-                at,
-            ))
-        }
+        self.origins.push((document.index(), at));
     }
 
     fn expect_punct(&mut self, punct: char) -> Result<(), LayoutExpressionError> {
-        let Some(token) = self.peek() else {
-            return Err(Self::error(
-                &format!("{punct} が必要です"),
-                self.source.encode_utf16().count(),
-            ));
-        };
-        if matches!(token.kind, TokenKind::Punct(value) if value == punct) {
-            self.cursor += 1;
+        if self.skip_punct(punct) {
             Ok(())
         } else {
-            Err(Self::error(&format!("{punct} が必要です"), token.at_utf16))
+            let at = self.tokens.peek().map_or(self.end, |token| token.at);
+            Err(error(&format!("{punct} が必要です"), at))
         }
     }
 
-    fn next_is_punct(&self, punct: char) -> bool {
-        self.peek()
+    fn skip_punct(&mut self, punct: char) -> bool {
+        let found = self.next_is_punct(punct);
+        if found {
+            self.tokens.next();
+        }
+        found
+    }
+
+    fn next_is_punct(&mut self, punct: char) -> bool {
+        self.tokens
+            .peek()
             .is_some_and(|token| matches!(token.kind, TokenKind::Punct(value) if value == punct))
-    }
-
-    fn peek(&self) -> Option<&Token> {
-        self.tokens.get(self.cursor)
-    }
-
-    fn next(&mut self) -> Option<Token> {
-        let token = self.tokens.get(self.cursor).cloned();
-        self.cursor += usize::from(token.is_some());
-        token
-    }
-
-    fn error(message: &str, at: usize) -> LayoutExpressionError {
-        LayoutExpressionError {
-            message: message.to_owned(),
-            at,
-        }
     }
 }
 
-fn lex(source: &str) -> Result<Vec<Token>, LayoutExpressionError> {
+/// The arguments of a call that takes exactly `N` of them.
+fn take<const N: usize>(
+    name: &str,
+    arguments: Vec<Arg>,
+    at: usize,
+) -> Result<[Arg; N], LayoutExpressionError> {
+    arguments
+        .try_into()
+        .map_err(|_arguments| error(&format!("{name} は引数を {N} 個とります"), at))
+}
+
+fn as_string(value: Value, at: usize) -> Result<String, LayoutExpressionError> {
+    if let Value::String(text) = value {
+        Ok(text)
+    } else {
+        Err(error("ここには文字列（グループ名）が必要です", at))
+    }
+}
+
+fn error(message: &str, at: usize) -> LayoutExpressionError {
+    LayoutExpressionError {
+        message: message.to_owned(),
+        at,
+    }
+}
+
+/// The tokens and the UTF-16 length of `source`.
+fn lex(source: &str) -> Result<(Vec<Token>, usize), LayoutExpressionError> {
     let mut tokens = Vec::new();
     let mut byte = 0;
+    // Counted as the cursor moves, so each byte is converted to UTF-16 once.
+    let mut utf16 = 0;
     while let Some(ch) = char_at(source, byte) {
+        let start = byte;
         if ch.is_whitespace() {
             byte += ch.len_utf8();
-            continue;
-        }
-        if source[byte..].starts_with("//") {
+        } else if source[byte..].starts_with("//") {
             byte = source[byte..]
                 .find('\n')
                 .map_or(source.len(), |end| byte + end);
-            continue;
-        }
-        let at_byte = byte;
-        let at_utf16 = source[..byte].encode_utf16().count();
-        let kind = if ch == '"' {
-            let (value, end) = string_token(source, byte, at_utf16)?;
-            byte = end;
-            TokenKind::String(value)
-        } else if ch.is_ascii_alphabetic() || ch == '_' {
-            byte += 1;
-            while source
-                .as_bytes()
-                .get(byte)
-                .is_some_and(|next| next.is_ascii_alphanumeric() || *next == b'_')
-            {
-                byte += 1;
-            }
-            TokenKind::Identifier(source[at_byte..byte].to_owned())
-        } else if matches!(ch, '(' | ')' | '[' | ']' | ',') {
-            byte += 1;
-            TokenKind::Punct(ch)
         } else {
-            return Err(LayoutExpressionError {
-                message: format!("使えない文字 {ch:?}"),
-                at: at_utf16,
-            });
-        };
-        tokens.push(Token { kind, at_utf16 });
+            let kind = if ch == '"' {
+                let (value, end) = string_token(source, byte, utf16)?;
+                byte = end;
+                TokenKind::String(value)
+            } else if ch.is_ascii_alphabetic() || ch == '_' {
+                byte += 1;
+                while source
+                    .as_bytes()
+                    .get(byte)
+                    .is_some_and(|next| next.is_ascii_alphanumeric() || *next == b'_')
+                {
+                    byte += 1;
+                }
+                TokenKind::Identifier(source[start..byte].to_owned())
+            } else if matches!(ch, '(' | ')' | '[' | ']' | ',') {
+                byte += 1;
+                TokenKind::Punct(ch)
+            } else {
+                return Err(error(&format!("使えない文字 {ch:?}"), utf16));
+            };
+            tokens.push(Token { kind, at: utf16 });
+        }
+        utf16 += source[start..byte].encode_utf16().count();
     }
-    Ok(tokens)
+    Ok((tokens, utf16))
 }
 
+/// The value of the string starting at byte `start` (UTF-16 offset `at`) and the byte after it.
 fn string_token(
     source: &str,
     start: usize,
@@ -428,25 +384,25 @@ fn string_token(
             return Ok((value, byte + 1));
         }
         if ch == '\\' {
-            byte += 1;
-            let Some(escaped) = char_at(source, byte) else {
+            let Some(escaped) = char_at(source, byte + 1) else {
                 break;
             };
             value.push(match escaped {
                 'n' => '\n',
                 't' => '\t',
-                other => other,
+                '"' | '\\' => escaped,
+                _ => {
+                    let at = at + source[start..byte].encode_utf16().count();
+                    return Err(error(&format!("知らないエスケープ \\{escaped}"), at));
+                }
             });
-            byte += escaped.len_utf8();
+            byte += 1 + escaped.len_utf8();
         } else {
             value.push(ch);
             byte += ch.len_utf8();
         }
     }
-    Err(LayoutExpressionError {
-        message: "文字列が閉じていません".to_owned(),
-        at,
-    })
+    Err(error("文字列が閉じていません", at))
 }
 
 fn char_at(source: &str, byte: usize) -> Option<char> {
@@ -499,5 +455,56 @@ mod tests {
     fn reports_utf16_offsets() {
         let error = parse("[\"日\", @]").expect_err("invalid character");
         assert_eq!(error.at, 6);
+        let error = parse("// 😀\n[\"x\" \"y\"]").expect_err("missing comma");
+        assert_eq!(error.at, 11);
+        let error = parse("[\"😀\\q\"]").expect_err("unknown escape");
+        assert_eq!(error.at, 4);
+        let error = parse("[\"日\"").expect_err("unclosed list");
+        assert_eq!(error.at, 4);
+    }
+
+    #[test]
+    fn origins_point_at_the_source_of_each_instruction() {
+        let source = "indent([\"a\", line])";
+        let parsed = parse(source).expect("valid DSL");
+        let mut origins = parsed.origins;
+        origins.sort_unstable();
+        // line, the list's concatenation, then the indentation.
+        assert_eq!(
+            origins
+                .iter()
+                .map(|&(_, at)| &source[at..])
+                .collect::<Vec<_>>(),
+            ["line])", "[\"a\", line])", "indent([\"a\", line])"]
+        );
+    }
+
+    #[test]
+    fn checks_argument_counts_and_escapes() {
+        assert_eq!(
+            parse("indent()").expect_err("no argument").message,
+            "indent は引数を 1 個とります"
+        );
+        assert_eq!(
+            parse("ifBreak(\"a\", \"b\", \"c\")")
+                .expect_err("three arguments")
+                .message,
+            "ifBreak は引数を 2 個とります"
+        );
+        assert_eq!(
+            print(r#""a\"b\\c\td""#, 80).expect("valid escapes"),
+            "a\"b\\c\td"
+        );
+    }
+
+    #[test]
+    fn refuses_deep_nesting_instead_of_overflowing_the_stack() {
+        let deep = |n: usize| format!("{}\"x\"{}", "[".repeat(n), "]".repeat(n));
+        assert_eq!(
+            print(&deep(MAX_DEPTH - 1), 80).expect("within the limit"),
+            "x"
+        );
+        let error = parse(&deep(100_000)).expect_err("too deep");
+        assert_eq!(error.at, MAX_DEPTH);
     }
 }
