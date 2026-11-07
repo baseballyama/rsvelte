@@ -5,17 +5,67 @@ use std::path::{Path, PathBuf};
 
 use rsvelte_svelte::syntax::syntax_tree::TokenType;
 
+/// A corpus unit is a directory with one `input.*`; its `expected/` and `actual/` are not searched.
 fn inputs(dir: &Path, out: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
+    let mut directories = Vec::new();
     for e in entries.flatten() {
-        let p = e.path();
-        if p.is_dir() {
-            inputs(&p, out);
-        } else if p.file_name().is_some_and(|n| n == "input.svelte") {
-            out.push(p);
+        let name = e.file_name();
+        if e.file_type().is_ok_and(|t| t.is_dir()) {
+            directories.push(e.path());
+        } else if name == "input.svelte" {
+            out.push(e.path());
+            return;
+        } else if name.to_str().is_some_and(|n| n.starts_with("input.")) {
+            return;
         }
+    }
+    for d in directories {
+        inputs(&d, out);
+    }
+}
+
+enum Verdict {
+    Unreadable,
+    Rejected,
+    Parsed {
+        bytes: usize,
+        tokens: usize,
+        wrong: Option<String>,
+    },
+}
+
+fn check(f: &Path) -> Verdict {
+    // Some corpus files are not UTF-8; the pipeline reports them as unreadable too.
+    let Ok(source_text) = std::fs::read_to_string(f) else {
+        return Verdict::Unreadable;
+    };
+    let Ok(c) = rsvelte_svelte::syntax::parse::parse(&source_text) else {
+        return Verdict::Rejected;
+    };
+    let wrong = match c.tokens.check_lossless(&source_text) {
+        Err(gap) => Some(format!(
+            "{}: untokenized {gap:?} {:?}",
+            f.display(),
+            gap.text(&source_text)
+        )),
+        Ok(()) => c.tokens.iter().find_map(|t| {
+            let text = t.span.text(&source_text);
+            let ok = match t.kind {
+                TokenType::Whitespace => text.bytes().all(|b| b.is_ascii_whitespace()),
+                TokenType::JavaScriptComment => text.starts_with("//") || text.starts_with("/*"),
+                TokenType::MarkupComment => text.starts_with("<!--") && text.ends_with("-->"),
+                _ => true,
+            };
+            (!ok).then(|| format!("{}: {:?} at {:?} is {text:?}", f.display(), t.kind, t.span))
+        }),
+    };
+    Verdict::Parsed {
+        bytes: source_text.len(),
+        tokens: c.tokens.len(),
+        wrong,
     }
 }
 
@@ -24,46 +74,38 @@ fn every_parsed_component_is_its_tokens() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../corpus/svelte");
     let mut files = Vec::new();
     inputs(&root, &mut files);
+    files.sort_unstable();
+    let threads = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
+    let verdicts: Vec<Verdict> = std::thread::scope(|scope| {
+        #[expect(
+            clippy::needless_collect,
+            reason = "spawn every worker before joining any, or they run one after another"
+        )]
+        let workers: Vec<_> = files
+            .chunks(files.len().div_ceil(threads).max(1))
+            .map(|chunk| scope.spawn(move || chunk.iter().map(|f| check(f)).collect::<Vec<_>>()))
+            .collect();
+        workers
+            .into_iter()
+            .flat_map(|w| w.join().expect("a worker panicked"))
+            .collect()
+    });
     let (mut parsed, mut rejected, mut unreadable) = (0, 0, 0);
     let (mut bytes, mut tokens) = (0usize, 0usize);
     let mut wrong = Vec::new();
-    for f in &files {
-        // Some corpus files are not UTF-8; the pipeline reports them as unreadable too.
-        let Ok(source_text) = std::fs::read_to_string(f) else {
-            unreadable += 1;
-            continue;
-        };
-        let Ok(c) = rsvelte_svelte::syntax::parse::parse(&source_text) else {
-            rejected += 1;
-            continue;
-        };
-        parsed += 1;
-        bytes += source_text.len();
-        tokens += c.tokens.len();
-        if let Err(gap) = c.tokens.check_lossless(&source_text) {
-            wrong.push(format!(
-                "{}: untokenized {gap:?} {:?}",
-                f.display(),
-                gap.text(&source_text)
-            ));
-            continue;
-        }
-        for t in c.tokens.iter() {
-            let text = t.span.text(&source_text);
-            let ok = match t.kind {
-                TokenType::Whitespace => text.bytes().all(|b| b.is_ascii_whitespace()),
-                TokenType::JavaScriptComment => text.starts_with("//") || text.starts_with("/*"),
-                TokenType::MarkupComment => text.starts_with("<!--") && text.ends_with("-->"),
-                _ => true,
-            };
-            if !ok {
-                wrong.push(format!(
-                    "{}: {:?} at {:?} is {text:?}",
-                    f.display(),
-                    t.kind,
-                    t.span
-                ));
-                break;
+    for v in verdicts {
+        match v {
+            Verdict::Unreadable => unreadable += 1,
+            Verdict::Rejected => rejected += 1,
+            Verdict::Parsed {
+                bytes: b,
+                tokens: t,
+                wrong: w,
+            } => {
+                parsed += 1;
+                bytes += b;
+                tokens += t;
+                wrong.extend(w);
             }
         }
     }
