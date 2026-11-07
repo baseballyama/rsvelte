@@ -1141,6 +1141,8 @@ impl TsgoOverlay {
                 generated_path: shadow_path.display().to_string(),
                 workspace_path: self.workspace.display().to_string(),
             }),
+            // The shadow is a `.svelte.tsx` where upstream's snapshot is a `.ts`.
+            disambiguate_for_tsx: true,
             ..Svelte2TsxOptions::default()
         }
     }
@@ -3129,6 +3131,37 @@ mod tests {
             Some(shadow.shadow_uri)
         );
         assert!(overlay.shadow_for_source(&source).is_none());
+    }
+
+    /// The shadow is a `.svelte.tsx`, so `.ts`-only angle-bracket forms must
+    /// not reach it verbatim, and a position after one on the same line must
+    /// still map both ways.
+    #[test]
+    fn tsx_shadow_disambiguates_angle_brackets_and_keeps_later_columns_mapped() {
+        let workspace = TestWorkspace::new("tsx-angle-brackets");
+        let app = workspace.0.join("src/App.svelte");
+        let source = "<script lang=\"ts\">\n  const raw: unknown = 1; const id = <T>(x: T) => x; const n = <number>raw; const after = id(n);\n</script>\n<p>{(<U>(u: U) => u)(after)}</p>\n";
+        write(&app, source);
+        let mut overlay = build_overlay(&workspace.0).unwrap();
+        let shadow = overlay.open_or_update(&app, source, 1).unwrap();
+        assert!(shadow.text.contains("<T,>(x: T)"), "{}", shadow.text);
+        assert!(shadow.text.contains("<U,>(u: U)"), "{}", shadow.text);
+        assert!(shadow.text.contains("(raw as number)"), "{}", shadow.text);
+
+        let source_position =
+            LineIndex::new(source).position(source, source.find("after = id").unwrap());
+        let generated = overlay.map_source_position(&app, source_position).unwrap();
+        let generated_offset = LineIndex::new(&shadow.text).offset(&shadow.text, generated);
+        assert!(
+            shadow.text[generated_offset..].starts_with("after = id"),
+            "{generated:?} in {}",
+            shadow.text
+        );
+        let shadow_path = overlay.shadow_dir.join("src/App.svelte.tsx");
+        assert_eq!(
+            overlay.map_generated_position(&shadow_path, generated),
+            Some(source_position)
+        );
     }
 
     #[test]

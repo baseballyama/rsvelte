@@ -791,6 +791,8 @@ fn materialize_overlay_for(
                         generated_path: tsx_path.display().to_string(),
                         workspace_path: workspace.display().to_string(),
                     }),
+                    // The shadow is a `.tsx` where upstream's is a `.ts`.
+                    disambiguate_for_tsx: true,
                     ..Svelte2TsxOptions::default()
                 };
                 let result = svelte2tsx(&source, opts).map_err(|e| OverlayError::Svelte2Tsx {
@@ -1394,6 +1396,7 @@ fn emit_external_shadows(
                     generated_path: tsx_path.display().to_string(),
                     workspace_path: pkg.real_dir.display().to_string(),
                 }),
+                disambiguate_for_tsx: true,
                 ..Svelte2TsxOptions::default()
             };
             // A component the user never asked about must not be able to fail the
@@ -6173,6 +6176,27 @@ mod tests {
             consumer_tsx.contains("survey-options.svelte.tsx"),
             "rewrite did not point at the external mirror's shadow:\n{consumer_tsx}"
         );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// The shadow is a `.tsx`, so a bare generic arrow must not reach it as
+    /// `<T>(…)`, which TypeScript would lex as a JSX element there.
+    #[test]
+    fn generic_arrow_in_a_ts_component_is_disambiguated_in_its_tsx_shadow() {
+        let tmp = std::env::temp_dir().join(format!("svc_generic_arrow_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(
+            tmp.join("src/G.svelte"),
+            "<script lang=\"ts\">\n  const totalsBy = <K>(pick: (n: number) => K) => pick(1);\n</script>\n<p>{totalsBy(String)}</p>\n",
+        )
+        .unwrap();
+        let files = vec![tmp.join("src/G.svelte")];
+        materialize_overlay_with(&tmp, &files, None, false, &[]).unwrap();
+
+        let tsx = fs::read_to_string(tmp.join(".svelte-check/svelte/src/G.svelte.tsx")).unwrap();
+        assert!(tsx.contains("<K,>(pick"), "{tsx}");
 
         let _ = fs::remove_dir_all(&tmp);
     }
