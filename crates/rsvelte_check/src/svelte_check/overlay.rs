@@ -939,14 +939,22 @@ pub fn materialize_overlay_with(
     // of file does the importing. `module_bridges` gets the same entry for
     // each rune module, whose `.d.svelte.ts` twin `rootDirs` alone cannot
     // reach through a non-relative specifier (#1942).
-    // package.json `imports` patterns (`#lib/*`, SvelteKit 3's `$lib`) get the
-    // same entries: TypeScript tries `paths` before `imports`.
-    let mut alias_prefixes = tsconfig_path
+    // Components reached through package.json `imports` (`#lib/*`, SvelteKit
+    // 3's `$lib`) get the same entries.
+    let alias_prefixes = tsconfig_path
         .map(resolve_paths_alias_prefixes)
         .unwrap_or_default();
-    alias_prefixes.extend(resolve_package_imports_prefixes(workspace));
     let mut alias_path_overrides =
         compute_alias_path_overrides(&entries, &external, &module_bridges, &alias_prefixes);
+    let user_paths = tsconfig_path
+        .map(resolve_paths_object_abs)
+        .unwrap_or_default();
+    alias_path_overrides.extend(package_imports_path_overrides(
+        &entries,
+        &alias_override_candidates(&entries, &external, &module_bridges),
+        &package_json_conditions(tsconfig_path),
+        &user_paths,
+    ));
     alias_path_overrides.extend(svelte_types_path_overrides(&global_types));
 
     let overlay_tsconfig = cache_dir.join("tsconfig.json");
@@ -2846,48 +2854,271 @@ fn resolve_paths_alias_prefixes(tsconfig_path: &Path) -> Vec<(String, PathBuf)> 
     out
 }
 
-/// The `"#<prefix>/*": "./<dir>/*"` entries of the package.json `imports` that
-/// govern `workspace` (the nearest package.json, as Node and TypeScript
-/// resolve a `#` specifier), as `(alias prefix, absolute target dir)` pairs in
-/// the shape [`resolve_paths_alias_prefixes`] returns. A conditional target is
-/// resolved with TypeScript's conditions, in declaration order; any other key
-/// or target shape is skipped.
-fn resolve_package_imports_prefixes(workspace: &Path) -> Vec<(String, PathBuf)> {
-    fn target(value: &serde_json::Value) -> Option<&str> {
-        match value {
-            serde_json::Value::String(s) => Some(s),
-            serde_json::Value::Array(items) => items.iter().find_map(target),
-            serde_json::Value::Object(conditions) => conditions
-                .iter()
-                .filter(|(c, _)| matches!(c.as_str(), "types" | "import" | "default"))
-                .find_map(|(_, v)| target(v)),
-            _ => None,
+/// The conditions TypeScript matches in a package.json `imports` / `exports`
+/// conditions object: `types`, `import` (always under `bundler`, and for the
+/// ESM files `node16` / `nodenext` check), `node` under `node16` / `nodenext`,
+/// and the config's `customConditions`. `default` always matches.
+fn package_json_conditions(tsconfig_path: Option<&Path>) -> Vec<String> {
+    let mut conditions = vec!["types".to_string(), "import".to_string()];
+    let Some(tsconfig_path) = tsconfig_path else {
+        return conditions;
+    };
+    let chain = extends_chain(tsconfig_path);
+    let option = |name: &str| {
+        chain
+            .iter()
+            .find_map(|(_, parsed)| parsed.get("compilerOptions")?.get(name).cloned())
+    };
+    if option("moduleResolution")
+        .and_then(|v| v.as_str().map(str::to_ascii_lowercase))
+        .is_some_and(|m| m == "node16" || m == "nodenext")
+    {
+        conditions.push("node".to_string());
+    }
+    if let Some(serde_json::Value::Array(custom)) = option("customConditions") {
+        conditions.extend(custom.iter().filter_map(|c| c.as_str().map(str::to_string)));
+    }
+    conditions
+}
+
+enum PackageTarget {
+    Path(String),
+    /// `null`: the subpath is deliberately not resolvable.
+    Excluded,
+    /// No condition matched; an enclosing conditions object tries its next entry.
+    Unmatched,
+}
+
+/// Node's `PACKAGE_TARGET_RESOLVE` for one package.json `imports` / `exports`
+/// value, with `*` replaced by `star`. Conditions are tried in declaration
+/// order; only a package-relative `./` target is a path (a bare-package
+/// `imports` target is left to TypeScript).
+fn package_json_target(
+    value: &serde_json::Value,
+    star: &str,
+    conditions: &[String],
+) -> PackageTarget {
+    match value {
+        serde_json::Value::String(target) if target.starts_with("./") => {
+            PackageTarget::Path(target.replace('*', star))
+        }
+        serde_json::Value::Array(targets) => targets
+            .iter()
+            .map(|target| package_json_target(target, star, conditions))
+            .find(|target| matches!(target, PackageTarget::Path(_)))
+            .unwrap_or(PackageTarget::Excluded),
+        serde_json::Value::Object(map) => {
+            for (condition, target) in map {
+                if condition == "default" || conditions.iter().any(|c| c == condition) {
+                    match package_json_target(target, star, conditions) {
+                        PackageTarget::Unmatched => {}
+                        resolved => return resolved,
+                    }
+                }
+            }
+            PackageTarget::Unmatched
+        }
+        _ => PackageTarget::Excluded,
+    }
+}
+
+/// Node's `PACKAGE_IMPORTS_EXPORTS_RESOLVE`: the package-relative target
+/// `subpath` (`#lib/Foo.svelte`, `./ui/Card.svelte`) resolves to through
+/// `map`. An exact key wins; otherwise the single-`*` key with the longest
+/// prefix, then the longest key.
+fn package_json_resolve(
+    map: &serde_json::Map<String, serde_json::Value>,
+    subpath: &str,
+    conditions: &[String],
+) -> Option<String> {
+    let (value, star) = match map.get(subpath).filter(|_| !subpath.contains('*')) {
+        Some(value) => (value, ""),
+        None => map
+            .iter()
+            .filter_map(|(key, value)| {
+                let (prefix, suffix) = key.split_once('*')?;
+                if suffix.contains('*')
+                    || subpath == prefix
+                    || subpath.len() < key.len()
+                    || !subpath.starts_with(prefix)
+                    || !subpath.ends_with(suffix)
+                {
+                    return None;
+                }
+                let star = &subpath[prefix.len()..subpath.len() - suffix.len()];
+                Some((prefix.len(), key.len(), value, star))
+            })
+            .max_by_key(|&(prefix_len, key_len, _, _)| (prefix_len, key_len))
+            .map(|(_, _, value, star)| (value, star))?,
+    };
+    match package_json_target(value, star, conditions) {
+        PackageTarget::Path(target) => Some(target),
+        PackageTarget::Excluded | PackageTarget::Unmatched => None,
+    }
+}
+
+/// Every string target a package.json `imports` / `exports` value can produce,
+/// whatever the conditions.
+fn package_json_target_templates(value: &serde_json::Value) -> Vec<&str> {
+    match value {
+        serde_json::Value::String(target) => vec![target.as_str()],
+        serde_json::Value::Array(items) => items
+            .iter()
+            .flat_map(package_json_target_templates)
+            .collect(),
+        serde_json::Value::Object(map) => map
+            .values()
+            .flat_map(package_json_target_templates)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Exact `paths` entries for every candidate (see [`alias_override_candidates`])
+/// one of `map`'s keys reaches. Each key's targets are reversed to the subpath
+/// that would name a candidate, and the subpath is kept only when resolving it
+/// forward through the whole map (key precedence, conditions, `null`
+/// exclusions) lands on that same candidate. `public` turns a subpath into the
+/// specifier an importer writes, or drops it.
+fn package_json_path_overrides(
+    map: &serde_json::Map<String, serde_json::Value>,
+    package_dir: &Path,
+    conditions: &[String],
+    candidates: &[(PathBuf, PathBuf)],
+    public: &dyn Fn(&str) -> Option<String>,
+) -> Vec<(String, PathBuf)> {
+    let package_dir = canonicalized(&absolutize(package_dir));
+    let lands_on = |subpath: &str| -> Option<&PathBuf> {
+        let target = package_json_resolve(map, subpath, conditions)?;
+        let target = normalize_abs(&package_dir.join(target));
+        candidates
+            .iter()
+            .find(|(real, _)| *real == target)
+            .map(|(_, tsx)| tsx)
+    };
+    let mut out: Vec<(String, PathBuf)> = Vec::new();
+    for (key, value) in map {
+        let mut subpaths = Vec::new();
+        match key.split_once('*') {
+            None => subpaths.push(key.clone()),
+            Some((key_prefix, key_suffix)) => {
+                for template in package_json_target_templates(value) {
+                    let Some((prefix, suffix)) = template.split_once('*') else {
+                        continue;
+                    };
+                    for (real, _) in candidates {
+                        let Ok(rel) = real.strip_prefix(&package_dir) else {
+                            continue;
+                        };
+                        let rel = format!(
+                            "./{}",
+                            rel.components()
+                                .filter_map(|c| c.as_os_str().to_str())
+                                .collect::<Vec<_>>()
+                                .join("/")
+                        );
+                        if rel.len() < prefix.len() + suffix.len() {
+                            continue;
+                        }
+                        if let Some(star) = rel
+                            .strip_prefix(prefix)
+                            .and_then(|rest| rest.strip_suffix(suffix))
+                        {
+                            subpaths.push(format!("{key_prefix}{star}{key_suffix}"));
+                        }
+                    }
+                }
+            }
+        }
+        for subpath in subpaths {
+            if let (Some(tsx), Some(spec)) = (lands_on(&subpath), public(&subpath))
+                && !out.iter().any(|(s, _)| *s == spec)
+            {
+                out.push((spec, tsx.clone()));
+            }
         }
     }
-    let workspace = absolutize(workspace);
-    let Some(manifest) = workspace
-        .ancestors()
-        .map(|dir| dir.join("package.json"))
-        .find(|p| p.is_file())
-    else {
-        return Vec::new();
-    };
-    let Some(imports) = fs::read_to_string(&manifest)
-        .ok()
-        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
-        .and_then(|parsed| parsed.get("imports")?.as_object().cloned())
-    else {
-        return Vec::new();
-    };
-    let package_dir = manifest.parent().unwrap_or(&workspace);
-    imports
+    out
+}
+
+/// Exact `paths` entries for the components reached through package.json
+/// `imports` (`#lib/Foo.svelte`, SvelteKit 3's replacement for `$lib`). A `#`
+/// specifier resolves against the package.json nearest the IMPORTING file,
+/// while a `paths` entry applies to every importer, so a specifier that
+/// another scope holding a checked component sends to a different existing
+/// file is left to TypeScript. A specifier the user's own `paths` matches is
+/// left alone as well: TypeScript tries `paths` before `imports`.
+fn package_imports_path_overrides(
+    entries: &[OverlayEntry],
+    candidates: &[(PathBuf, PathBuf)],
+    conditions: &[String],
+    user_paths: &serde_json::Map<String, serde_json::Value>,
+) -> Vec<(String, PathBuf)> {
+    let mut manifests: Vec<PathBuf> = Vec::new();
+    for entry in entries {
+        let source = absolutize(&entry.source_path);
+        if let Some(manifest) = source
+            .ancestors()
+            .skip(1)
+            .map(|dir| dir.join("package.json"))
+            .find(|p| p.is_file())
+            && !manifests.contains(&manifest)
+        {
+            manifests.push(manifest);
+        }
+    }
+    // (canonical package dir, its `imports`), `None` for a scope without any.
+    let scopes: Vec<(PathBuf, Option<serde_json::Map<String, serde_json::Value>>)> = manifests
         .iter()
-        .filter_map(|(key, value)| {
-            let prefix = key.strip_suffix("/*").filter(|p| p.starts_with('#'))?;
-            let dir = target(value)?.strip_prefix("./")?.strip_suffix("/*")?;
-            Some((prefix.to_string(), package_dir.join(dir)))
+        .filter_map(|manifest| {
+            let imports = fs::read_to_string(manifest)
+                .ok()
+                .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+                .and_then(|parsed| parsed.get("imports")?.as_object().cloned());
+            Some((canonicalized(manifest.parent()?), imports))
         })
-        .collect()
+        .collect();
+    let resolve_in =
+        |(dir, imports): &(PathBuf, Option<serde_json::Map<String, serde_json::Value>>),
+         spec: &str| {
+            let target = package_json_resolve(imports.as_ref()?, spec, conditions)?;
+            Some(normalize_abs(&dir.join(target)))
+        };
+    let matches_user_paths = |spec: &str| {
+        user_paths.keys().any(|key| match key.split_once('*') {
+            None => key == spec,
+            Some((prefix, suffix)) => {
+                spec.len() >= prefix.len() + suffix.len()
+                    && spec.starts_with(prefix)
+                    && spec.ends_with(suffix)
+            }
+        })
+    };
+    let public = |subpath: &str| -> Option<String> {
+        (subpath.starts_with('#') && !matches_user_paths(subpath)).then(|| subpath.to_string())
+    };
+    let mut out: Vec<(String, PathBuf)> = Vec::new();
+    for scope in &scopes {
+        let (dir, Some(imports)) = scope else {
+            continue;
+        };
+        for (spec, tsx) in
+            package_json_path_overrides(imports, dir, conditions, candidates, &public)
+        {
+            let target = resolve_in(scope, &spec);
+            let elsewhere_is_another_file = |other| match resolve_in(other, &spec) {
+                Some(path) if Some(&path) != target.as_ref() => {
+                    path.exists() || candidates.iter().any(|(real, _)| *real == path)
+                }
+                _ => false,
+            };
+            if !out.iter().any(|(s, _)| *s == spec) && !scopes.iter().any(elsewhere_is_another_file)
+            {
+                out.push((spec, tsx));
+            }
+        }
+    }
+    out
 }
 
 /// Resolve a tsconfig's `compilerOptions.paths` alias targets to absolute
@@ -2935,6 +3166,39 @@ fn resolve_paths_alias_dirs_abs(tsconfig_path: &Path) -> Vec<PathBuf> {
     out
 }
 
+/// Every file an exact `paths` entry can point a specifier at, as (the
+/// canonical path the specifier names, the overlay file it must resolve to):
+/// each component's shadow, and each rune module's bridge under its
+/// `<base>.svelte` specifier path.
+fn alias_override_candidates(
+    entries: &[OverlayEntry],
+    external: &[ExternalPackage],
+    module_bridges: &[(PathBuf, PathBuf)],
+) -> Vec<(PathBuf, PathBuf)> {
+    // (path the specifier names, overlay file it must resolve to), the former
+    // pre-canonicalized to compare against a canonicalized alias target dir.
+    let mut candidates: Vec<(PathBuf, PathBuf)> = entries
+        .iter()
+        .map(|e| (canonicalized(&e.source_path), e.tsx_path.clone()))
+        .collect();
+    for pkg in external {
+        for abs_source in &pkg.svelte_files {
+            let rel = safe_relative(abs_source, &pkg.real_dir);
+            let tsx_path = pkg
+                .mirror_dir
+                .join(append_extension(&rel, shadow_extension(abs_source)));
+            candidates.push((canonicalized(abs_source), tsx_path));
+        }
+    }
+    // A rune module's specifier is its path minus the `.ts`/`.js`. Emission
+    // already dropped every module a sibling `.svelte` component shadows, so
+    // these can never outrank a component entry above.
+    for (module, bridge) in module_bridges {
+        candidates.push((canonicalized(module).with_extension(""), bridge.clone()));
+    }
+    candidates
+}
+
 /// For every discovered `.svelte` file (in-workspace or external) that lies
 /// under one of `alias_prefixes`' target dirs, compute its exact alias
 /// specifier (`$lib/Foo.svelte`) paired with its shadow `.tsx`'s absolute
@@ -2964,27 +3228,7 @@ fn compute_alias_path_overrides(
     if alias_prefixes.is_empty() {
         return Vec::new();
     }
-    // (path the specifier names, overlay file it must resolve to), the former
-    // pre-canonicalized to compare against a canonicalized alias target dir.
-    let mut candidates: Vec<(PathBuf, PathBuf)> = entries
-        .iter()
-        .map(|e| (canonicalized(&e.source_path), e.tsx_path.clone()))
-        .collect();
-    for pkg in external {
-        for abs_source in &pkg.svelte_files {
-            let rel = safe_relative(abs_source, &pkg.real_dir);
-            let tsx_path = pkg
-                .mirror_dir
-                .join(append_extension(&rel, shadow_extension(abs_source)));
-            candidates.push((canonicalized(abs_source), tsx_path));
-        }
-    }
-    // A rune module's specifier is its path minus the `.ts`/`.js`. Emission
-    // already dropped every module a sibling `.svelte` component shadows, so
-    // these can never outrank a component entry above.
-    for (module, bridge) in module_bridges {
-        candidates.push((canonicalized(module).with_extension(""), bridge.clone()));
-    }
+    let candidates = alias_override_candidates(entries, external, module_bridges);
 
     let mut out = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -3760,7 +4004,12 @@ fn build_svelte_import_resolver(tsconfig: Option<&Path>) -> Option<oxc_resolver:
             config_file: tsconfig.to_path_buf(),
             references: TsconfigReferences::Auto,
         })),
-        condition_names: vec!["svelte".into(), "import".into(), "default".into()],
+        // TypeScript's own conditions: a `svelte` condition, which TypeScript
+        // never matches, would send `imports` / `exports` to a different file.
+        condition_names: package_json_conditions(Some(tsconfig))
+            .into_iter()
+            .chain(["default".to_string()])
+            .collect(),
         ..ResolveOptions::default()
     }))
 }
@@ -5732,6 +5981,172 @@ mod tests {
             keys,
             ["#lib/components/Foo.svelte", "#ui/Bar.svelte"],
             "only `#…/*` → `./…/*` patterns can name a component"
+        );
+    }
+
+    #[test]
+    fn package_json_resolve_follows_node_key_precedence_and_typescript_conditions() {
+        // Each expectation is what official svelte-check (TypeScript's
+        // resolver) picks for the same map under `moduleResolution: bundler`.
+        let map: serde_json::Value = serde_json::from_str(
+            r##"{
+                "#t/*": { "types": "./t/*", "default": "./x/*" },
+                "#d/*": { "default": "./t/*", "types": "./x/*" },
+                "#s/*": { "svelte": "./x/*", "default": "./t/*" },
+                "#n/*": { "node": { "import": "./x/*" }, "default": "./t/*" },
+                "#r/*": { "require": "./x/*", "import": "./t/*" },
+                "#c/*": { "dev": "./t/*", "default": "./x/*" },
+                "#lib/*": "./lib/*",
+                "#lib/private/*": null,
+                "#lib/ui/*": "./ui/*",
+                "#cmp/*.svelte": "./cmp/*.svelte",
+                "#exact": "./cmp/Exact.svelte",
+                "#arr/*": [null, "./arr/*"],
+                "#bare/*": "pkg/*"
+            }"##,
+        )
+        .unwrap();
+        let map = map.as_object().unwrap();
+        let bundler = vec!["types".to_string(), "import".to_string()];
+        let resolve = |spec: &str| package_json_resolve(map, spec, &bundler);
+        assert_eq!(resolve("#t/A.svelte").as_deref(), Some("./t/A.svelte"));
+        assert_eq!(resolve("#d/A.svelte").as_deref(), Some("./t/A.svelte"));
+        assert_eq!(resolve("#s/A.svelte").as_deref(), Some("./t/A.svelte"));
+        assert_eq!(resolve("#n/A.svelte").as_deref(), Some("./t/A.svelte"));
+        assert_eq!(resolve("#r/A.svelte").as_deref(), Some("./t/A.svelte"));
+        assert_eq!(resolve("#c/A.svelte").as_deref(), Some("./x/A.svelte"));
+        assert_eq!(resolve("#lib/A.svelte").as_deref(), Some("./lib/A.svelte"));
+        assert_eq!(resolve("#lib/private/A.svelte"), None);
+        assert_eq!(
+            resolve("#lib/ui/A.svelte").as_deref(),
+            Some("./ui/A.svelte")
+        );
+        assert_eq!(resolve("#cmp/A.svelte").as_deref(), Some("./cmp/A.svelte"));
+        assert_eq!(resolve("#cmp/A.js"), None);
+        assert_eq!(resolve("#exact").as_deref(), Some("./cmp/Exact.svelte"));
+        assert_eq!(resolve("#arr/A.svelte").as_deref(), Some("./arr/A.svelte"));
+        assert_eq!(resolve("#bare/A.svelte"), None);
+        let custom = vec!["types".to_string(), "import".to_string(), "dev".to_string()];
+        assert_eq!(
+            package_json_resolve(map, "#c/A.svelte", &custom).as_deref(),
+            Some("./t/A.svelte")
+        );
+        let node16 = vec![
+            "types".to_string(),
+            "import".to_string(),
+            "node".to_string(),
+        ];
+        assert_eq!(
+            package_json_resolve(map, "#n/A.svelte", &node16).as_deref(),
+            Some("./x/A.svelte")
+        );
+    }
+
+    #[test]
+    fn package_imports_overrides_follow_null_exclusions_precedence_and_nested_scopes() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_pkg_imports_scopes_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        for dir in [
+            "src/lib/private",
+            "src/lib/ui",
+            "src/ui",
+            "src/cmp",
+            "apps/web/lib",
+        ] {
+            fs::create_dir_all(tmp.join(dir)).unwrap();
+        }
+        fs::write(
+            tmp.join("package.json"),
+            r##"{ "name": "root", "imports": { "#lib/*": "./src/lib/*", "#lib/private/*": null, "#lib/ui/*": "./src/ui/*", "#cmp/*.svelte": "./src/cmp/*.svelte", "#exact": "./src/cmp/Exact.svelte", "#same/*": "./src/cmp/*" } }"##,
+        )
+        .unwrap();
+        // A nested package scope: its `#web/*` exists only there, and its
+        // `#same/*` sends the same specifier somewhere else than the root's.
+        fs::write(
+            tmp.join("apps/web/package.json"),
+            r##"{ "name": "web", "imports": { "#web/*": "./lib/*", "#same/*": "./lib/*" } }"##,
+        )
+        .unwrap();
+        fs::write(tmp.join("tsconfig.json"), "{\"compilerOptions\":{}}").unwrap();
+        let component = "<script lang=\"ts\"></script>\n<i></i>\n";
+        let files: Vec<PathBuf> = [
+            "src/lib/A.svelte",
+            "src/lib/private/P.svelte",
+            "src/lib/ui/Shadowed.svelte",
+            "src/ui/U.svelte",
+            "src/cmp/Exact.svelte",
+            "apps/web/lib/W.svelte",
+            "apps/web/lib/Exact.svelte",
+        ]
+        .iter()
+        .map(|rel| {
+            fs::write(tmp.join(rel), component).unwrap();
+            tmp.join(rel)
+        })
+        .collect();
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        let _ = fs::remove_dir_all(&tmp);
+        let mut keys: Vec<&str> = cfg["compilerOptions"]["paths"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
+        // Not `#lib/private/P.svelte` (null), not `#lib/ui/Shadowed.svelte`
+        // (`#lib/ui/*` wins and names `src/ui`), not `#same/Exact.svelte` (the
+        // two scopes send it to two existing files).
+        assert_eq!(
+            keys,
+            [
+                "#cmp/Exact.svelte",
+                "#exact",
+                "#lib/A.svelte",
+                "#lib/ui/U.svelte",
+                "#same/W.svelte",
+                "#web/Exact.svelte",
+                "#web/W.svelte",
+            ],
+        );
+    }
+
+    #[test]
+    fn package_imports_override_yields_to_a_user_paths_entry() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_pkg_imports_user_paths_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib")).unwrap();
+        fs::create_dir_all(tmp.join("src/other")).unwrap();
+        fs::write(
+            tmp.join("package.json"),
+            r##"{ "name": "app", "imports": { "#lib/*": "./src/lib/*" } }"##,
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r##"{"compilerOptions":{"paths":{"#lib/*":["./src/other/*"]}}}"##,
+        )
+        .unwrap();
+        let component = "<script lang=\"ts\"></script>\n<i></i>\n";
+        fs::write(tmp.join("src/lib/A.svelte"), component).unwrap();
+        fs::write(tmp.join("src/other/B.svelte"), component).unwrap();
+        let files = vec![tmp.join("src/lib/A.svelte"), tmp.join("src/other/B.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        let _ = fs::remove_dir_all(&tmp);
+        let paths = &cfg["compilerOptions"]["paths"];
+        assert!(paths["#lib/A.svelte"].is_null(), "{paths}");
+        assert!(
+            paths["#lib/B.svelte"][0]
+                .as_str()
+                .is_some_and(|t| t.ends_with("B.svelte.tsx")),
+            "{paths}"
         );
     }
 
