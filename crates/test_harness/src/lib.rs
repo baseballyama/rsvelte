@@ -18,6 +18,7 @@
     reason = "oxc's own proc macros need both syn 2 and syn 3; only tests depend on this crate"
 )]
 
+mod arguments;
 mod cases;
 mod javascript;
 mod node;
@@ -30,6 +31,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Mutex;
 
+use arguments::{Arguments, flag};
 use cases::Case;
 pub use node::NodePackages;
 use oracle::Verdict;
@@ -38,7 +40,7 @@ use snapshots::{Outcome, Snapshot};
 
 const FIXTURES_DIR: &str = "tests/fixtures";
 const CORPUS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../corpus");
-const UPDATE_VARIABLE: &str = "UPDATE_EXPECT";
+pub(crate) const UPDATE_VARIABLE: &str = "UPDATE_EXPECT";
 /// Set to 1, a corpus unit's `actual/` is written; the comparison does not need it.
 const ACTUAL_VARIABLE: &str = "FIXTURE_ACTUAL";
 /// A path: each file of each corpus case is written there as one `verdict case file` line.
@@ -53,6 +55,8 @@ pub struct Fixtures {
     corpus: Option<(PathBuf, &'static str)>,
     /// Whether each project is run on its own (see [`Fixtures::per_project`]).
     per_project: bool,
+    /// Whether the crate's hand-written cases run; not for [`Fixtures::corpus_only`].
+    hand_written: bool,
     registry: Registry,
     snapshots: Vec<Snapshot>,
 }
@@ -66,16 +70,26 @@ impl Fixtures {
             input_root: Path::new(manifest_dir).join(FIXTURES_DIR),
             corpus: None,
             per_project: false,
+            hand_written: true,
             registry,
             snapshots: Vec::new(),
         }
     }
 
-    /// Also runs every unit of `corpus/<family>/`, against the official output.
+    /// Only the units of `corpus/<family>/`, against the official output: one test runs every
+    /// task on them, so each unit is found, read and parsed once.
     #[must_use]
-    pub fn corpus(mut self, family: &'static str) -> Self {
-        self.corpus = Some((PathBuf::from(CORPUS), family));
-        self
+    pub fn corpus_only(family: &'static str, registry: Registry) -> Self {
+        let corpus = PathBuf::from(CORPUS);
+        Self {
+            root: corpus.join(family),
+            input_root: corpus.join(family),
+            corpus: Some((corpus, family)),
+            per_project: false,
+            hand_written: false,
+            registry,
+            snapshots: Vec::new(),
+        }
     }
 
     /// Runs each project (a corpus source, or the hand-written cases with the same first
@@ -230,8 +244,9 @@ impl Fixtures {
         }
         if problems > 0 {
             eprintln!(
-                "to accept the new output: {UPDATE_VARIABLE}=1 cargo test -p {} --test fixtures",
-                std::env::var("CARGO_PKG_NAME").unwrap_or_else(|_| "<crate>".to_owned())
+                "to accept the new output: {UPDATE_VARIABLE}=1 cargo test -p {} --test {}",
+                std::env::var("CARGO_PKG_NAME").unwrap_or_else(|_| "<crate>".to_owned()),
+                test_name()
             );
             return ExitCode::FAILURE;
         }
@@ -315,8 +330,12 @@ impl Fixtures {
     }
 
     fn cases(&self) -> Result<Vec<Case>, String> {
-        let mut cases = cases::in_crate(&self.input_root)?;
-        if self.input_root != self.root {
+        let mut cases = if self.hand_written {
+            cases::in_crate(&self.input_root)?
+        } else {
+            Vec::new()
+        };
+        if self.hand_written && self.input_root != self.root {
             for case in &mut cases {
                 case.dir = self.root.join(&case.name);
             }
@@ -384,60 +403,22 @@ impl Fixtures {
     }
 }
 
+/// The running test target's name: its executable is `<name>-<hash>`.
+fn test_name() -> String {
+    let exe = std::env::current_exe().ok();
+    let stem = exe
+        .as_deref()
+        .and_then(Path::file_stem)
+        .and_then(std::ffi::OsStr::to_str)
+        .unwrap_or("<test>");
+    stem.rsplit_once('-')
+        .map_or(stem, |(name, _)| name)
+        .to_owned()
+}
+
 fn fail(message: &str) -> ExitCode {
     eprintln!("fixtures: {message}");
     ExitCode::FAILURE
-}
-
-/// The part of libtest's command line that applies to cases.
-struct Arguments {
-    filters: Vec<String>,
-    exact: bool,
-    list: bool,
-    update: bool,
-}
-
-/// Whether the variable is set to 1; unset is false, and any other value an error.
-fn flag(name: &str) -> Result<bool, String> {
-    match std::env::var(name) {
-        Err(std::env::VarError::NotPresent) => Ok(false),
-        Ok(v) if v == "1" => Ok(true),
-        Ok(v) => Err(format!("{name}={v}: use 1 or leave it unset")),
-        Err(e) => Err(format!("{name}: {e}")),
-    }
-}
-
-impl Arguments {
-    fn parse(arguments: impl Iterator<Item = String>) -> Result<Self, String> {
-        let mut parsed = Self {
-            filters: Vec::new(),
-            exact: false,
-            list: false,
-            update: flag(UPDATE_VARIABLE)?,
-        };
-        for a in arguments {
-            match a.as_str() {
-                "--exact" => parsed.exact = true,
-                "--list" => parsed.list = true,
-                // Other libtest flags (`--nocapture`, `--test-threads`, ...) do not change which
-                // cases run.
-                _ if a.starts_with('-') => {}
-                _ => parsed.filters.push(a),
-            }
-        }
-        Ok(parsed)
-    }
-
-    fn selects(&self, name: &str) -> bool {
-        self.filters.is_empty()
-            || self.filters.iter().any(|f| {
-                if self.exact {
-                    name == f
-                } else {
-                    name.contains(f.as_str())
-                }
-            })
-    }
 }
 
 #[cfg(test)]

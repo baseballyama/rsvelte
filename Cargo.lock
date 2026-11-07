@@ -729,6 +729,9 @@ name = "rsvelte_command_line"
 version = "0.0.0"
 dependencies = [
  "libc",
+ "oxc_allocator",
+ "oxc_parser",
+ "oxc_span",
  "rayon",
  "rsvelte_config",
  "rsvelte_kernel",
@@ -740,6 +743,7 @@ dependencies = [
  "rsvelte_svelte_format",
  "rsvelte_svelte_lint",
  "rsvelte_svelte_lint_typed",
+ "rsvelte_svelte_parser",
  "rsvelte_svelte_typecheck",
  "rsvelte_svelte_typescript_projection",
  "rsvelte_svue",

@@ -5,11 +5,11 @@ compares rsvelte's output with `expected/`. It writes the output to a case's `ac
 git), so `diff -ru <case>/expected <case>/actual` shows a difference: on every run for a
 hand-written case, and only with `FIXTURE_ACTUAL=1` for a corpus unit.
 
-| Kind         | Where                                                                 | `expected/` holds                                     | A difference                 |
-| ------------ | --------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------- |
-| hand-written | the crate's `tests/fixtures/` (`rsvelte/` and others in `compile`)    | rsvelte's own output, accepted with `UPDATE_EXPECT=1` | fails the test               |
-| corpus unit  | [`corpus/<family>/`](../../corpus/README.md), with `Fixtures::corpus` | the official tool's output                            | fails when its verdict moved |
-| copied       | a directory of `tests/fixtures/` with `source.json` (`lint_typed`)    | the official tool's output                            | is counted, not failed       |
+| Kind         | Where                                                                      | `expected/` holds                                     | A difference                 |
+| ------------ | -------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------- |
+| hand-written | the crate's `tests/fixtures/` (`rsvelte/` and others in `compile`)         | rsvelte's own output, accepted with `UPDATE_EXPECT=1` | fails the test               |
+| corpus unit  | [`corpus/<family>/`](../../corpus/README.md), with `Fixtures::corpus_only` | the official tool's output                            | fails when its verdict moved |
+| copied       | a directory of `tests/fixtures/` with `source.json` (`lint_typed`)         | the official tool's output                            | is counted, not failed       |
 
 Snapshots show what changed. Only the official output shows what is correct. Against it, each
 task and variant of a unit gets one verdict, its worst file: `match`, `unexpected` (only rsvelte
@@ -66,12 +66,18 @@ git diff -- crates/languages/svelte/compile/tests/fixtures   # read every snapsh
 
 ## Run
 
+The Svelte corpus runs in one test, `rsvelte_command_line`'s `corpus`: compile, lint, projection
+and type check together, so each unit is found, read and parsed once. Each crate's `fixtures` test
+runs its hand-written cases.
+
 ```sh
-cargo test -p rsvelte_svelte_compile --test fixtures                 # every case
-cargo test -p rsvelte_svelte_compile --test fixtures -- svelte/bits-ui # cases whose name contains it
+cargo test -p rsvelte_svelte_compile --test fixtures                 # the hand-written cases
 cargo test -p rsvelte_svelte_compile --test fixtures -- --exact rsvelte/each-keyed
-UPDATE_EXPECT=1 cargo test -p rsvelte_svelte_compile --test fixtures  # write changed snapshots, remove stale ones, record moved verdicts
-FIXTURE_ACTUAL=1 cargo test -p rsvelte_svelte_compile --test fixtures -- svelte/bits-ui  # also write the units' actual/
+UPDATE_EXPECT=1 cargo test -p rsvelte_svelte_compile --test fixtures  # write changed snapshots, remove stale ones
+cargo test -p rsvelte_command_line --test corpus                     # every corpus unit
+cargo test -p rsvelte_command_line --test corpus -- svelte/bits-ui    # units whose name contains it
+UPDATE_EXPECT=1 cargo test -p rsvelte_command_line --test corpus     # record moved verdicts
+FIXTURE_ACTUAL=1 cargo test -p rsvelte_command_line --test corpus -- svelte/bits-ui  # also write the units' actual/
 ```
 
 The test fails when a hand-written snapshot differs, is missing, or is no longer produced, when a
@@ -101,14 +107,16 @@ fn main() -> ExitCode {
     let mut registry = Registry::new();
     rsvelte_svelte_compile::register(&mut registry);
     rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
-        .corpus("svelte")
         .snapshot("svelte.compile/client", "client")
         .snapshot("svelte.compile/server", "server")
-        .not_implemented("svelte.compileModule/client") // its units stay in the ratchet as missing
-        .not_implemented("svelte.compileModule/server")
         .run()
 }
 ```
+
+A new task for Svelte files joins the corpus by a `snapshot` in
+[`command_line/tests/corpus.rs`](../hosts/command_line/tests/corpus.rs); a task of the official tool
+that rsvelte does not implement yet is a `not_implemented`, so its units stay in the ratchet as
+`missing`.
 
 Type-check tasks need native TypeScript 7.1 and the framework packages.
 `NodePackages::locate()` finds them in `tools/oracle/node_modules`; install them with
