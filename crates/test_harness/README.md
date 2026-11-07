@@ -112,7 +112,12 @@ fn main() -> ExitCode {
 
 Type-check tasks need native TypeScript 7.1 and the framework packages.
 `NodePackages::locate()` finds them in `tools/oracle/node_modules`; install them with
-`pnpm install --frozen-lockfile` at the repository root.
+`pnpm install --frozen-lockfile` at the repository root. `NodePackages::type_checker()` returns
+that `tsc`, or the command in `FIXTURE_TYPE_CHECKER`, and prints the checker and its version:
+
+```sh
+FIXTURE_TYPE_CHECKER="tsrs --fast" cargo test -p rsvelte_svelte_typecheck --test fixtures
+```
 
 ## Where the cases are
 

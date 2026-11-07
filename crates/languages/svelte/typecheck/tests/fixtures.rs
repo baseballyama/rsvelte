@@ -52,7 +52,7 @@ fn main() -> ExitCode {
     let packages = NodePackages::locate();
     let configuration = Configuration {
         check: Some(TypeCheckConfiguration {
-            checker: rsvelte_typescript_check::TypeChecker::new(packages.tsc()),
+            checker: checker(&packages),
             content_mapper: env!("CARGO_BIN_EXE_rsvelte-svelte-typecheck-content-mapper").into(),
             tsconfig: Some(
                 concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
@@ -81,4 +81,9 @@ fn main() -> ExitCode {
         coverage.parse_errors.load(Ordering::Relaxed),
     );
     result
+}
+
+fn checker(packages: &NodePackages) -> rsvelte_typescript_check::TypeChecker {
+    let (program, arguments) = packages.type_checker();
+    rsvelte_typescript_check::TypeChecker { program, arguments }
 }

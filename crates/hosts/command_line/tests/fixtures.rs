@@ -7,7 +7,8 @@ use rsvelte_test_harness::NodePackages;
 
 fn main() -> ExitCode {
     let packages = NodePackages::locate();
-    let tsc = rsvelte_typescript_check::TypeChecker::new(packages.tsc());
+    let (program, arguments) = packages.type_checker();
+    let tsc = rsvelte_typescript_check::TypeChecker { program, arguments };
     let tsconfig: std::path::PathBuf =
         concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into();
     let svelte = rsvelte_svelte_typecheck::Configuration {

@@ -8,7 +8,7 @@ fn main() -> ExitCode {
     let packages = NodePackages::locate();
     let configuration = Configuration {
         check: Some(TypeCheckConfiguration {
-            checker: rsvelte_typescript_check::TypeChecker::new(packages.tsc()),
+            checker: checker(&packages),
             tsconfig: Some(
                 concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
             ),
@@ -20,4 +20,9 @@ fn main() -> ExitCode {
     rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
         .snapshot("vue.check/default", "findings")
         .run()
+}
+
+fn checker(packages: &NodePackages) -> rsvelte_typescript_check::TypeChecker {
+    let (program, arguments) = packages.type_checker();
+    rsvelte_typescript_check::TypeChecker { program, arguments }
 }
