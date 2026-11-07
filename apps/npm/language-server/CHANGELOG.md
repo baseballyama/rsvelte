@@ -1,5 +1,17 @@
 # @rsvelte/language-server
 
+## 0.7.14
+
+### Patch Changes
+
+- c42185c: fix(language-server): follow vscode-css-languageservice 6.3.10. CSS property values now show their Baseline availability in completion documentation, and MDN reference links use the new `/docs/Web/CSS/Reference/...` URLs.
+- bbc612e: feat(lint): track eslint-plugin-svelte 3.24.0. `svelte/prefer-svelte-reactivity` no longer reports in non-runes components; `svelte/sort-attributes` no longer reports or moves shorthand attributes and directives across a spread attribute; `svelte/require-each-key` ends its report at the opening tag's closing brace; `svelte/no-top-level-browser-globals` accepts the `$app/env` alias of `$app/environment`; `svelte/no-unused-svelte-ignore` skips ignores for runtime-only warnings, honours an ignore on a nested script node and no longer attributes a trailing comment to the next node; `svelte/require-store-reactive-access` checks `??=` / `||=` / `&&=` and only offers the `$` fix where Svelte accepts `$store`; `svelte/no-navigation-without-resolve` follows array / object literal elements (including spreads and `{#each}` destructuring) and only treats a complete `external` token in `rel` as external.
+- 07c064c: fix(fmt): an overflowing array / object attribute value (`items={[{ … }]}`) now lays its elements out at the full width once it breaks, as prettier-plugin-svelte does, instead of also breaking elements that fit; and prose beside a `{@render …}` tag now wraps like other text, letting a line overflow by its last word where prettier does.
+- 0371b04: fix(preprocess): an indented-syntax (`lang="sass"`) style block whose first non-blank line is indented is now rejected with `Indenting at the beginning of the document is illegal.`, as dart-sass 1.107 does, instead of having its shared indentation removed. Whitespace-only leading lines are still accepted.
+- 72a8f07: fix(fmt): a quoted `style:` directive value now prints its text the way prettier-plugin-svelte does, as a `fill` of its words: whitespace runs (including a line break inside the text) collapse to one space that breaks at the print width, and a line break at the edge of a text chunk becomes a line break at the attribute indent. Regular attributes and `style:` directives inside `<pre>` / `<textarea>` keep their text verbatim.
+- dc3009c: fix(svelte2tsx): follow svelte2tsx 0.7.62 (sveltejs/language-tools#3126) — a `$props<T>()` type argument no longer types the props. Only the declarator annotation (`let { … }: T = $props()`) does; the type argument stays in place so TypeScript reports it, and the props fall back to the inferred `$$ComponentProps`, as upstream now does.
+- dc3009c: fix(svelte2tsx): a top-level snippet whose parameter type annotation or default value references an instance-script value (`{#snippet s(r: ReturnType<typeof c.raise>)}`) now stays inside `$$render` as upstream does. Only the names a parameter binds shadow outer references; identifiers in its annotation or default were wrongly treated as parameters too, so the snippet was hoisted to module scope where `c` is not in scope.
+
 ## 0.7.13
 
 ### Patch Changes
