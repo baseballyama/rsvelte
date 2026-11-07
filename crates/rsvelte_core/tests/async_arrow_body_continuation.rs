@@ -82,3 +82,78 @@ fn logical_operator_continuation_on_the_next_line_stays_one_statement() {
         "the operand after `||` was split off:\n{out}"
     );
 }
+
+fn collapse_ws(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// An instance-script tail after a top-level `await`, and the statement Svelte
+/// 5.57.3 prints for it on the client and on the server (whitespace collapsed).
+const CELLS: &[(&str, &str, &str, &str)] = &[
+    (
+        "line comment after the operator",
+        "\tconst both = a || // note\n\t\td;",
+        "both = $$props.a || $.get(d);",
+        "both = a || d();",
+    ),
+    (
+        "block comment after the operator",
+        "\tconst both = a || /* note */\n\t\td;",
+        "both = $$props.a || $.get(d);",
+        "both = a || d();",
+    ),
+    (
+        "string holding `//` before the operator",
+        "\tconst u = 'http://x' +\n\t\td;",
+        "u = 'http://x' + $.get(d);",
+        "u = 'http://x' + d();",
+    ),
+    (
+        "keyword operator at the end of the line",
+        "\tconst p = typeof\n\t\td;",
+        "p = typeof $.get(d);",
+        "p = typeof d();",
+    ),
+    (
+        "brace-less `if` body on the next line",
+        "\tif (a)\n\t\tawait Promise.resolve(d);",
+        "async () => { if ($$props.a) await Promise.resolve($.get(d)); }",
+        "async () => { if (a) await Promise.resolve(d()); }",
+    ),
+    (
+        "brace-less `else` body on the next line",
+        "\tif (a) s = 1;\n\telse\n\t\ts = d;",
+        "if ($$props.a) $.set(s, 1); else $.set(s, $.get(d), true);",
+        "if (a) s = 1; else s = d();",
+    ),
+    (
+        "async arrow after the first await",
+        "\tconst f = async (x) =>\n\t\tawait x;",
+        "const f = async (x) => await x; var first, d, s;",
+        "const f = async (x) => await x; var first, d, s;",
+    ),
+];
+
+#[test]
+fn a_statement_continued_on_the_next_line_matches_upstream() {
+    let mut failures = Vec::new();
+    for &(label, tail, client, server) in CELLS {
+        let src = format!(
+            "<script>\n\tlet {{ a }} = $props();\n\tconst first = await Promise.resolve(1);\n\tlet d = $derived(a);\n\tlet s = $state(0);\n{tail}\n</script>\n<p>{{first}}{{d}}{{s}}</p>\n"
+        );
+        for (ssr, expected) in [(false, client), (true, server)] {
+            // Upstream drops these comments on the client; where a comment lands is
+            // not what this test covers, so it is removed before comparing.
+            let out = compile_async(&src, ssr)
+                .replace("// note", "")
+                .replace("/* note */", "");
+            let out = collapse_ws(&out);
+            if !out.contains(expected) {
+                failures.push(format!(
+                    "{label} (ssr={ssr}): expected `{expected}` in\n{out}"
+                ));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
