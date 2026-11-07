@@ -385,6 +385,27 @@ pub fn print_with_comments<'a>(
     registry: &ChunkRegistry,
     allocator: &'a Allocator,
 ) -> String {
+    print_inner(program, registry, allocator, false)
+}
+
+/// Print a fragment of the component body (the instance statements handed to
+/// the text-based async split) with the comments of the regions it reaches.
+/// Regions the fragment does not reach and the component-tail replay belong to
+/// the final print, not to this one.
+pub fn print_fragment_with_comments<'a>(
+    program: &mut Program<'a>,
+    registry: &ChunkRegistry,
+    allocator: &'a Allocator,
+) -> String {
+    print_inner(program, registry, allocator, true)
+}
+
+fn print_inner<'a>(
+    program: &mut Program<'a>,
+    registry: &ChunkRegistry,
+    allocator: &'a Allocator,
+    fragment: bool,
+) -> String {
     if registry.is_empty() {
         return rsvelte_esrap::print(program, "");
     }
@@ -402,7 +423,7 @@ pub fn print_with_comments<'a>(
     };
     encounter.visit_program(program);
 
-    if super::comment_stats::enabled() {
+    if !fragment && super::comment_stats::enabled() {
         for i in 0..bases.len() {
             let n = registry.chunks[i].comments.len() as u64;
             match (encounter.seen[i], encounter.via_stmt[i]) {
@@ -420,6 +441,7 @@ pub fn print_with_comments<'a>(
         (0..registry.chunks.len())
             .filter(|&i| {
                 !registry.chunks[i].component_tail
+                    && (!fragment || encounter.seen[i])
                     && (encounter.via_stmt[i] || registry.chunks[i].expression_anchor)
             })
             .collect()
@@ -468,12 +490,19 @@ pub fn print_with_comments<'a>(
         })
         .collect();
     ResolveComponentBody { regions: &regions }.visit_program(program);
+    if fragment {
+        // The fragment's statements sit directly in the program, whose body
+        // discards every pending comment unless its own span is located.
+        program.span = Span::new(PAD.len() as u32, buf.len() as u32);
+    }
 
     let mut code = if comments.is_empty() {
         rsvelte_esrap::print(program, "")
     } else {
         comments.sort_by_key(|c| c.span.start);
-        super::comment_stats::bump::EMITTED_COMMENTS(comments.len() as u64);
+        if !fragment {
+            super::comment_stats::bump::EMITTED_COMMENTS(comments.len() as u64);
+        }
         program.comments = ArenaVec::from_iter_in(comments, &allocator);
         rsvelte_esrap::print_split(
             program,
@@ -486,7 +515,11 @@ pub fn print_with_comments<'a>(
         )
         .code
     };
-    for chunk in registry.chunks.iter().filter(|chunk| chunk.component_tail) {
+    for chunk in registry
+        .chunks
+        .iter()
+        .filter(|chunk| !fragment && chunk.component_tail)
+    {
         // The last line closing the component body. Production keeps the
         // nested callback's `});` at one indent, while dev prints a multiline
         // call whose callback close owns two indents.

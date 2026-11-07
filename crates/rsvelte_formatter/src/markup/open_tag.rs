@@ -126,6 +126,7 @@ struct OpenTagRenderer<'a> {
     comments: Vec<OpenTagComment>,
     order: Vec<(u32, OpenTagItem)>,
     regular_element: bool,
+    pre_content: bool,
 }
 
 impl<'a> OpenTagRenderer<'a> {
@@ -138,6 +139,7 @@ impl<'a> OpenTagRenderer<'a> {
         options: &'a FormatOptions,
         attr_depth: usize,
         regular_element: bool,
+        pre_content: bool,
     ) -> Self {
         let comments = collect_open_tag_comments(source, element_start, open_tag_end, attributes);
         let mut order = Vec::with_capacity(attributes.len() + comments.len() + 1);
@@ -160,6 +162,7 @@ impl<'a> OpenTagRenderer<'a> {
             comments,
             order,
             regular_element,
+            pre_content,
         }
     }
 
@@ -179,6 +182,7 @@ impl<'a> OpenTagRenderer<'a> {
                     self.attr_depth,
                     wrapped,
                     self.regular_element,
+                    self.pre_content,
                 ),
                 OpenTagItem::Comment(index) => Ok(self.comments[*index].text.clone()),
             })
@@ -320,6 +324,7 @@ fn open_tag_renderer<'a>(
     options: &'a FormatOptions,
     attr_depth: usize,
     regular_element: bool,
+    pre_content: bool,
 ) -> OpenTagRenderer<'a> {
     OpenTagRenderer::new(
         source,
@@ -330,6 +335,7 @@ fn open_tag_renderer<'a>(
         options,
         attr_depth,
         regular_element,
+        pre_content,
     )
 }
 
@@ -342,6 +348,7 @@ fn initial_open_tag_render<'a>(
     options: &'a FormatOptions,
     attr_depth: usize,
     regular_element: bool,
+    pre_content: bool,
 ) -> Result<(OpenTagRenderer<'a>, bool, Vec<String>), FormatError> {
     let renderer = open_tag_renderer(
         source,
@@ -352,6 +359,7 @@ fn initial_open_tag_render<'a>(
         options,
         attr_depth,
         regular_element,
+        pre_content,
     );
     let has_line_comment = renderer.has_line_comment();
     let rendered_attrs = renderer.render_items(false)?;
@@ -387,6 +395,9 @@ pub(super) fn push_open_tag(
     // parent being a `RegularElement`, which the tag name alone cannot decide
     // (`title` / `slot` are their own node types).
     regular_element: bool,
+    // The element is, or sits inside, a `<pre>` / `<textarea>`
+    // (prettier-plugin-svelte's `isPreTagContent`).
+    pre_content: bool,
     // Columns the enclosing block's trailing tags consume after this element on
     // the same flat line. An element's own close tag is inside its span and is
     // already measured; a block's `{/if}` or `{:else}` is not, so without this
@@ -427,6 +438,7 @@ pub(super) fn push_open_tag(
         options,
         attr_depth,
         regular_element,
+        pre_content,
     )?;
 
     let leading_indent_width = open_tag_leading_indent(source, element_start, depth, options);

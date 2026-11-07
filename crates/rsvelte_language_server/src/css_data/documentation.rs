@@ -66,7 +66,7 @@ impl<'a> From<&'a Value> for Described<'a> {
         Self {
             description: value.description,
             status: None,
-            baseline: None,
+            baseline: value.baseline.as_ref(),
             browsers: value.browsers,
             references: &[],
             syntax: None,

@@ -36,25 +36,11 @@ fn leftover_token_offset(content: &str, ts: bool) -> Option<usize> {
     })
 }
 
-/// A `{:…}` continuation clause.
-///
-/// Whether a *second* one is legal is decided per block type, and the two
-/// directions are easy to drift apart: upstream's `next()`
-/// (`1-parse/state/tag.js:527-635`) re-creates `block.alternate` for `{#if}` and
-/// `block.fallback` for `{#each}` unconditionally — a repeat is **accepted** and
-/// replaces the earlier branch — while `{#await}` guards both of its clauses
-/// with `block_duplicate_clause` and **rejects** it. Two issues found the two
-/// directions separately (#3284 accepted-but-rejected, #3349
-/// rejected-but-accepted), so the decision lives here rather than at each site.
-///
-/// The `match` is the invariant: a new clause cannot be added without answering
-/// the question for it.
+/// A `{:…}` continuation clause. Upstream's `next()` rejects a second one of
+/// any kind in the same block with `block_duplicate_clause`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Clause {
     Else,
-    // `expect` rather than `allow`: the `{#await}` clause loop reads these arms
-    // as soon as its duplicate check lands, and an unfulfilled `expect` is a
-    // compile error — so the placeholder cannot outlive its reason.
     Then,
     Catch,
 }
@@ -66,14 +52,6 @@ impl Clause {
             Self::Else => "{:else}",
             Self::Then => "{:then}",
             Self::Catch => "{:catch}",
-        }
-    }
-
-    /// Whether a second occurrence of this clause in one block is an error.
-    const fn duplicate_is_error(self) -> bool {
-        match self {
-            Self::Else => false,
-            Self::Then | Self::Catch => true,
         }
     }
 
@@ -939,12 +917,17 @@ impl<'a> Parser<'a> {
             // after `{:else` (e.g. `{:else +++if cond}`) is an
             // `expected_token` error, in loose mode too.
             self.eat("}", true, true)?;
-            let mut alt_fragment = self.parse_fragment()?;
+            let alt_fragment = self.parse_fragment()?;
 
-            while !Clause::Else.duplicate_is_error()
-                && let Some(replacement) = self.parse_if_alternate()?
-            {
-                alt_fragment = replacement;
+            if let Some(colon_pos) = self.match_block_continuation_marker() {
+                let checkpoint = self.index;
+                self.index = colon_pos + 1;
+                self.skip_whitespace();
+                let repeated = self.match_str("else");
+                self.index = checkpoint;
+                if repeated {
+                    return Err(Clause::Else.duplicate_error(colon_pos));
+                }
             }
 
             // Don't consume {/if} here - let parse_if_block handle it
@@ -1289,13 +1272,14 @@ impl<'a> Parser<'a> {
             // Parse body fragment
             let body = self.parse_fragment()?;
 
-            // Check for {:else}. Upstream replaces the fallback when another
-            // {:else} follows it, so keep consuming continuation clauses.
             let mut fallback = None;
             while let Some(colon_pos) = self.match_block_continuation_marker() {
                 self.index = colon_pos + 1;
                 self.skip_whitespace();
                 if self.eat_optional("else") {
+                    if fallback.is_some() {
+                        return Err(Clause::Else.duplicate_error(colon_pos));
+                    }
                     self.skip_whitespace();
                     self.eat_optional("}");
                     fallback = Some(self.parse_fragment()?);
@@ -1530,12 +1514,14 @@ impl<'a> Parser<'a> {
         // Parse body
         let body = self.parse_fragment()?;
 
-        // Like `{#if}`, a repeated `{:else}` replaces the earlier fallback.
         let mut fallback = None;
         while let Some(colon_pos) = self.match_block_continuation_marker() {
             self.index = colon_pos + 1;
             self.skip_whitespace();
             if self.eat_optional("else") {
+                if fallback.is_some() {
+                    return Err(Clause::Else.duplicate_error(colon_pos));
+                }
                 self.skip_whitespace();
                 self.eat_optional("}");
                 fallback = Some(self.parse_fragment()?);
@@ -1917,10 +1903,7 @@ impl<'a> Parser<'a> {
             self.skip_whitespace();
 
             if self.eat_optional("then") {
-                if !self.options.loose
-                    && Clause::Then.duplicate_is_error()
-                    && then_fragment.is_some()
-                {
+                if !self.options.loose && then_fragment.is_some() {
                     return Err(Clause::Then.duplicate_error(colon_pos));
                 }
                 // Upstream eats `}` before requiring the separator, so `{:then}`
@@ -1934,10 +1917,7 @@ impl<'a> Parser<'a> {
 
                 then_fragment = Some(self.parse_fragment()?);
             } else if self.eat_optional("catch") {
-                if !self.options.loose
-                    && Clause::Catch.duplicate_is_error()
-                    && catch_fragment.is_some()
-                {
+                if !self.options.loose && catch_fragment.is_some() {
                     return Err(Clause::Catch.duplicate_error(colon_pos));
                 }
                 if !self.match_str("}") {
@@ -3401,16 +3381,6 @@ fn expression_into_node(expr: Expression<'_>) -> JsNode {
 #[cfg(test)]
 mod duplicate_clause_table {
     use super::Clause;
-
-    /// Pins the table against upstream's `next()`. `{#if}` / `{#each}` re-create
-    /// their fragment on every `{:else}`; `{#await}` guards `block.then` and
-    /// `block.catch`. The `{#await}` call sites read these arms.
-    #[test]
-    fn matches_upstream() {
-        assert!(!Clause::Else.duplicate_is_error());
-        assert!(Clause::Then.duplicate_is_error());
-        assert!(Clause::Catch.duplicate_is_error());
-    }
 
     #[test]
     fn tags_are_the_spellings_upstream_reports() {

@@ -6,7 +6,7 @@ use crate::error::FormatError;
 use crate::expression::format_attribute_value_expression;
 use crate::options::FormatOptions;
 
-use super::value_sequence::render_attribute_value_sequence;
+use super::value_sequence::{render_attribute_value_sequence, render_directive_value_sequence_doc};
 use crate::width::{VisualWidth, tab_width};
 
 /// Return the source text of an `ExpressionTag`'s inner expression, without
@@ -103,11 +103,19 @@ fn format_overflowing_block(
     source: &str,
     options: &FormatOptions,
     attr_depth: usize,
+    prefix: usize,
     indent_cols: usize,
     formatted: &str,
     tab_width: usize,
 ) -> Result<String, FormatError> {
     let base_width = (options.js.line_width.value() as usize).saturating_sub(indent_cols);
+    // prettier charges `name={` and the closing `}` to the first and last lines
+    // only, so once the outer bracket breaks its elements get the full width.
+    let in_place =
+        crate::expression::reformat_content_layout(source, options, base_width, 0, prefix, 1)?;
+    if in_place.contains('\n') {
+        return Ok(in_place);
+    }
     let extra_lead = base_width.saturating_sub(formatted.visual_width(tab_width).saturating_sub(1));
     format_attribute_value_expression(source, options, attr_depth, extra_lead)
 }
@@ -364,6 +372,7 @@ fn render_single_expression_value(
                         &inner_src,
                         options,
                         attr_depth,
+                        prefix,
                         indent_cols,
                         &formatted,
                         tw,
@@ -485,6 +494,7 @@ pub(super) fn render_attribute_value_for_directive(
     attr_depth: usize,
     narrow_value: bool,
     prefix: usize,
+    pre_content: bool,
 ) -> Result<String, FormatError> {
     let tw = tab_width(options);
     match value {
@@ -546,8 +556,18 @@ pub(super) fn render_attribute_value_for_directive(
                 }
             }
             // Directive value body starts after `style:name="`: prefix + the `"`.
-            // `regular_attr = false`: directive text prints as a `fill`, so it
-            // stays on the legacy path (not the whole-value Doc model).
+            if !pre_content
+                && let Some(body) = render_directive_value_sequence_doc(
+                    parts,
+                    source,
+                    options,
+                    attr_depth,
+                    prefix + 1,
+                    narrow_value,
+                )?
+            {
+                return Ok(format!("\"{body}\""));
+            }
             let body = render_attribute_value_sequence(
                 parts,
                 source,

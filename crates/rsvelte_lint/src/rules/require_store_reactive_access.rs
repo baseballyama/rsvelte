@@ -108,6 +108,8 @@ struct Checker<'a, 't> {
     stores: &'a HashMap<Var, bool>,
     tracker: &'a RefTracker<'t>,
     source: &'a [u8],
+    /// The `<script module>` element's range; `$store` is not allowed there.
+    module_script: Option<(u32, u32)>,
     reports: Vec<Report>,
 }
 
@@ -115,22 +117,31 @@ impl Checker<'_, '_> {
     /// `true` if `node` is a store identifier usable in this position, resolved
     /// as a reference starting at `start`.
     fn is_store_at(&self, node: &Value, consistent: bool, start: u32) -> bool {
+        self.store_var_at(node, consistent, start).is_some()
+    }
+
+    fn store_var_at(&self, node: &Value, consistent: bool, start: u32) -> Option<Var> {
         if !is_ident(node) {
-            return false;
+            return None;
         }
-        let Some(name) = node.get("name").and_then(Value::as_str) else {
-            return false;
-        };
+        let name = node.get("name").and_then(Value::as_str)?;
         if name.starts_with('$') {
-            return false;
+            return None;
         }
-        let Some(var) = self.tracker.find_variable_at(node, start) else {
-            return false;
-        };
+        let var = self.tracker.find_variable_at(node, start)?;
         match self.stores.get(&var) {
-            None => false,
-            Some(&is_const) => !consistent || is_const,
+            Some(&is_const) if !consistent || is_const => Some(var),
+            _ => None,
         }
+    }
+
+    /// `canUseStorePrefix`: Svelte allows `$store` only for a store declared at
+    /// the component's top level, and not inside the module script.
+    fn can_use_store_prefix(&self, var: Var, start: u32) -> bool {
+        self.tracker.is_root(var)
+            && !self
+                .module_script
+                .is_some_and(|(s, e)| s <= start && start < e)
     }
 
     fn verify(&mut self, node: Option<&Value>, consistent: bool, fixable: bool) {
@@ -155,10 +166,11 @@ impl Checker<'_, '_> {
             return;
         };
         let s = self.identifier_start(raw_start + start_offset);
-        if !self.is_store_at(node, consistent, s) {
+        let Some(var) = self.store_var_at(node, consistent, s) else {
             return;
-        }
+        };
         if let Some(e) = nend(node) {
+            let fixable = fixable && self.can_use_store_prefix(var, s);
             self.reports.push(Report {
                 start: s,
                 end: e,
@@ -264,6 +276,7 @@ impl Rule for RequireStoreReactiveAccess {
             stores: &stores,
             tracker: &tracker,
             source,
+            module_script: root.module.as_ref().map(|m| (m.start, m.end)),
             reports: Vec::new(),
         };
 
@@ -321,6 +334,23 @@ fn walk_dispatch(root: &Value, checker: &mut Checker<'_, '_>) {
                 let op = node.get("operator").and_then(Value::as_str);
                 let consistent = op == Some("!") || op == Some("typeof");
                 checker.verify(node.get("argument"), consistent, true);
+            }
+            Some("AssignmentExpression")
+                if matches!(
+                    node.get("operator").and_then(Value::as_str),
+                    Some("??=" | "||=" | "&&=")
+                ) =>
+            {
+                // `$store ||= foo` would set the store's value, so no fix.
+                // Without type information `consistent` means "declared with
+                // `const`", which an assignment target never is.
+                checker.verify(node.get("left"), false, false);
+                let left_is_store = node.get("left").is_some_and(|left| {
+                    nstart(left).is_some_and(|s| checker.is_store_at(left, false, s))
+                });
+                if !left_is_store {
+                    checker.verify(node.get("right"), false, true);
+                }
             }
             Some("AssignmentExpression")
                 if node.get("operator").and_then(Value::as_str) != Some("=") =>

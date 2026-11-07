@@ -382,25 +382,29 @@ fn process_children_scoped<'a, N: AsRef<TemplateNode<'a>>>(
                 // wins.
                 let const_blockers = expression_tag_const_blockers(&tag.expression, state);
                 let blockers = expression_tag_blockers(&tag.expression, state);
-                let inline_await = blockers.is_none()
-                    && const_blockers.is_empty()
-                    && state
-                        .expr_source(&tag.expression)
-                        .is_some_and(text_has_await);
+                let has_await = state
+                    .expr_source(&tag.expression)
+                    .is_some_and(text_has_await);
                 if !const_blockers.is_empty() {
                     flush_sequence(&sequence, state);
                     sequence.clear();
-                    let visited = state.visit_expr(&tag.expression);
-                    let stmt =
-                        build_async_expression_push_exprs(state, visited, &const_blockers, false);
+                    let visited =
+                        visit_expression_tag_for_push(state, &tag.expression, parent, has_await);
+                    let stmt = build_async_expression_push_exprs(
+                        state,
+                        visited,
+                        &const_blockers,
+                        has_await,
+                    );
                     state.template.push(TemplateEntry::Stmt(stmt));
                 } else if let Some(blockers) = blockers {
                     flush_sequence(&sequence, state);
                     sequence.clear();
-                    let visited = state.visit_expr(&tag.expression);
-                    let stmt = build_async_expression_push(state, visited, &blockers, false);
+                    let visited =
+                        visit_expression_tag_for_push(state, &tag.expression, parent, has_await);
+                    let stmt = build_async_expression_push(state, visited, &blockers, has_await);
                     state.template.push(TemplateEntry::Stmt(stmt));
-                } else if inline_await {
+                } else if has_await {
                     flush_sequence(&sequence, state);
                     sequence.clear();
                     // 写经 upstream server `AwaitExpression.js` parent-walk
@@ -417,22 +421,8 @@ fn process_children_scoped<'a, N: AsRef<TemplateNode<'a>>>(
                     // NOTE: `is_block_parent` is the `is_text_first` ANCHOR flag,
                     // which is a DIFFERENT axis (an `{#if}` body is a block parent
                     // but NOT text-first), so the save decision keys off `parent`.
-                    let visited = if parent.is_some() {
-                        let src = state
-                            .expr_source(&tag.expression)
-                            .map(|s| s.to_string())
-                            .unwrap_or_default();
-                        // `save_wrap_expr_text` only rewrites the inline `await` into
-                        // the `(await $.save(<arg>))()` shape; upstream's
-                        // `context.visit(node.expression, state)` ALSO read-wraps the
-                        // derived / store reads inside `<arg>` (`d` → `d()`), so apply
-                        // the read-wrap pass to the save-wrapped result.
-                        let mut wrapped = save_wrap_expr_text(state, &src);
-                        state.wrap_reads_in_place(&mut wrapped);
-                        wrapped
-                    } else {
-                        state.visit_expr(&tag.expression)
-                    };
+                    let visited =
+                        visit_expression_tag_for_push(state, &tag.expression, parent, true);
                     let stmt = build_async_expression_push(state, visited, &[], true);
                     state.template.push(TemplateEntry::Stmt(stmt));
                 } else {
@@ -659,28 +649,41 @@ fn expression_tag_blockers(expr: &Expression, state: &ServerTransformState) -> O
     // The read-wrap pass already honours `shadowed_names`; mirror it here by
     // dropping shadowed names from the blocker map before the scan.
     let shadowed = state.collect_shadowed();
-    let blockers = if shadowed.is_empty() {
-        crate::compiler::phases::phase3_transform::server::helpers::find_expression_blockers(
+    let names: Vec<(&str, usize)> =
+        crate::compiler::phases::phase3_transform::server::helpers::find_expression_blocker_names(
             expr_text,
             &state.eval_inputs.top_level_blocker_map,
         )
-    } else {
-        let filtered: rustc_hash::FxHashMap<String, usize> = state
-            .eval_inputs
-            .top_level_blocker_map
-            .iter()
-            .filter(|(k, _)| !shadowed.contains(k.as_str()))
-            .map(|(k, v)| (k.clone(), *v))
-            .collect();
-        crate::compiler::phases::phase3_transform::server::helpers::find_expression_blockers(
-            expr_text, &filtered,
-        )
-    };
-    if blockers.is_empty() {
-        None
-    } else {
-        Some(blockers)
+        .into_iter()
+        .filter(|(name, _)| !shadowed.contains(*name))
+        .collect();
+    if names.is_empty() {
+        return None;
     }
+    // Upstream's `blockers()` is a `Set` of `binding.blocker` Expressions, so
+    // two bindings whose blockers print alike can still be two entries.
+    let root = &state.analysis.root;
+    let is_function = |name: &str| {
+        root.get_binding(name, root.instance_scope_index)
+            .is_some_and(|i| root.bindings[i].initial_is_function)
+    };
+    let indices: std::collections::BTreeSet<usize> = names.iter().map(|(_, idx)| *idx).collect();
+    let mut blockers = Vec::new();
+    for idx in indices {
+        let at_idx: Vec<&str> = names
+            .iter()
+            .filter(|(_, i)| *i == idx)
+            .map(|(name, _)| *name)
+            .collect();
+        let count =
+            crate::compiler::phases::phase3_transform::shared::async_body::blocker_identity_count(
+                &at_idx,
+                state.eval_inputs.top_level_blocker_primary_names.get(&idx),
+                is_function,
+            );
+        blockers.extend(std::iter::repeat_n(idx, count));
+    }
+    Some(blockers)
 }
 
 /// Find the per-fragment const-tag blocker EXPRESSIONS (`promises[N]` source
@@ -1622,6 +1625,33 @@ pub fn build_async_expression_push<'a>(
         call = b.call("$$renderer.async", vec![blockers, arrow]);
     }
     b.stmt(call)
+}
+
+/// Visit an async expression tag's expression for its `$$renderer.push`.
+///
+/// Upstream server `AwaitExpression.js` `$.save`-wraps an `await` whose
+/// template parent is an element (`has_save = !in_block_body`) whether or not
+/// the tag also has blockers; a block body leaves it bare because the enclosing
+/// `child_block(async …)` already awaits it.
+fn visit_expression_tag_for_push<'a>(
+    state: &ServerTransformState<'a>,
+    expression: &Expression,
+    parent: Option<&RegularElement<'_>>,
+    has_await: bool,
+) -> OxcExpression<'a> {
+    if !(has_await && parent.is_some()) {
+        return state.visit_expr(expression);
+    }
+    let src = state
+        .expr_source(expression)
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+    // `save_wrap_expr_text` only rewrites the `await`; the operand still needs
+    // the read-wrap and rune lowering `visit_expr` applies.
+    let mut wrapped = save_wrap_expr_text(state, &src);
+    state.wrap_reads_in_place(&mut wrapped);
+    state.lower_runes_in_place(&mut wrapped);
+    wrapped
 }
 
 /// Like [`build_async_expression_push`], but the blockers are arbitrary

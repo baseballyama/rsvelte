@@ -20,6 +20,7 @@ use std::fmt::Write as _;
 pub(crate) struct EvalInputsRaw {
     pub(crate) constant_vars: FxHashMap<String, EvalValue>,
     pub(crate) top_level_blocker_map: FxHashMap<String, usize>,
+    pub(crate) top_level_blocker_primary_names: FxHashMap<usize, FxHashSet<String>>,
 }
 
 fn top_level_binding_names(
@@ -217,6 +218,7 @@ pub(crate) fn compute_eval_inputs(
     // in $$promises thunks and should NOT be constant-folded, because they need to
     // be rendered via $$renderer.async() wrappers.
     let mut top_level_blocker_map: FxHashMap<String, usize> = FxHashMap::default();
+    let mut top_level_blocker_primary_names = FxHashMap::default();
     if use_async && let Some(script) = instance_script {
         let start = script.content.start().unwrap_or(0) as usize;
         let end = script.content.end().unwrap_or(0) as usize;
@@ -229,6 +231,12 @@ pub(crate) fn compute_eval_inputs(
             for name in blocker_map.keys() {
                 constant_vars.remove(name);
             }
+            if !blocker_map.is_empty() {
+                top_level_blocker_primary_names =
+                    crate::compiler::phases::phase3_transform::shared::async_body::compute_blocker_primary_names(
+                        raw_script,
+                    );
+            }
             top_level_blocker_map = blocker_map;
         }
     }
@@ -236,6 +244,7 @@ pub(crate) fn compute_eval_inputs(
     EvalInputsRaw {
         constant_vars,
         top_level_blocker_map,
+        top_level_blocker_primary_names,
     }
 }
 
@@ -1538,11 +1547,36 @@ pub(crate) fn find_expression_blockers(
     expr: &str,
     blocker_map: &rustc_hash::FxHashMap<String, usize>,
 ) -> Vec<usize> {
+    let mut blockers = std::collections::BTreeSet::new();
+    scan_blocked_identifiers(expr, blocker_map, |_, idx| {
+        blockers.insert(idx);
+    });
+    blockers.into_iter().collect()
+}
+
+/// The blocked identifiers `expr` references, each once, in source order.
+pub(crate) fn find_expression_blocker_names<'e>(
+    expr: &'e str,
+    blocker_map: &rustc_hash::FxHashMap<String, usize>,
+) -> Vec<(&'e str, usize)> {
+    let mut names: Vec<(&'e str, usize)> = Vec::new();
+    scan_blocked_identifiers(expr, blocker_map, |name, idx| {
+        if !names.iter().any(|(seen, _)| *seen == name) {
+            names.push((name, idx));
+        }
+    });
+    names
+}
+
+fn scan_blocked_identifiers<'e>(
+    expr: &'e str,
+    blocker_map: &rustc_hash::FxHashMap<String, usize>,
+    mut on_blocked: impl FnMut(&'e str, usize),
+) {
     if blocker_map.is_empty() {
-        return Vec::new();
+        return;
     }
 
-    let mut blockers = std::collections::BTreeSet::new();
     let bytes = expr.as_bytes();
     let len = bytes.len();
     let mut i = 0;
@@ -1590,15 +1624,13 @@ pub(crate) fn find_expression_blockers(
             }
 
             if let Some(&blocker_idx) = blocker_map.get(ident) {
-                blockers.insert(blocker_idx);
+                on_blocked(ident, blocker_idx);
             }
             continue;
         }
 
         i += 1;
     }
-
-    blockers.into_iter().collect()
 }
 
 /// Find const-tag-level blocker expressions for identifiers referenced in a JS expression string.

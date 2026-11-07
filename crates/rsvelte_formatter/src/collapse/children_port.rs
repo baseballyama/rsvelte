@@ -60,14 +60,7 @@ fn child_profile(fragment: &Fragment) -> (bool, bool, bool, bool) {
 
 fn supports_children_port(fragment: &Fragment) -> bool {
     let (has_prose_word, has_non_text, has_any_text, block_run) = child_profile(fragment);
-    if !has_non_text || (!has_prose_word && ((has_any_text && !block_run) || in_pre_content())) {
-        return false;
-    }
-    !has_prose_word
-        || !fragment
-            .nodes
-            .iter()
-            .any(|node| matches!(node, TemplateNode::RenderTag(_)))
+    has_non_text && (has_prose_word || !((has_any_text && !block_run) || in_pre_content()))
 }
 
 /// Recurse the tree running ONLY `try_children_port` on each `RegularElement`.
