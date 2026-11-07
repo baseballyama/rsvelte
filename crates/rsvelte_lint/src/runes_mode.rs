@@ -1,8 +1,10 @@
 //! Whether a `.svelte` component is in runes mode.
 //!
 //! Port of `svelte-eslint-parser`'s `svelteParseContext.runes`
-//! (`lib/parser/svelte-parse-context.js`): an explicit `<svelte:options runes>`
-//! wins in both directions, otherwise `hasRunesSymbol` — any `Identifier` named
+//! (`lib/parser/svelte-parse-context.js`): `parserOptions.svelteFeatures.runes`
+//! wins, then an explicit `<svelte:options runes>` in both directions
+//! (`svelte.config.*` `compilerOptions.runes` is not read), otherwise
+//! `hasRunesSymbol` — any `Identifier` named
 //! after a rune, in any position, anywhere in the merged component AST
 //! (`lib/parser/index.js:116`).
 //!
@@ -25,8 +27,12 @@ const RUNE_SYMBOLS: [&str; 7] = [
     "$host",
 ];
 
-/// Runes mode for a parsed component.
-pub(crate) fn component_runes_mode(root: &Root, source: &str) -> bool {
+/// Runes mode for a parsed component. `parser_option` is
+/// `parserOptions.svelteFeatures.runes`, which wins over `<svelte:options>`.
+pub(crate) fn component_runes_mode(parser_option: Option<bool>, root: &Root, source: &str) -> bool {
+    if let Some(runes) = parser_option {
+        return runes;
+    }
     if let Some(runes) = root.options.as_ref().and_then(|options| options.runes) {
         return runes;
     }
@@ -89,7 +95,7 @@ mod tests {
         let alloc = rsvelte_core::Allocator::default();
         let root = rsvelte_core::parse(source, &alloc, crate::engine::lint_parse_options())
             .expect("parse");
-        component_runes_mode(&root, source)
+        component_runes_mode(None, &root, source)
     }
 
     #[test]

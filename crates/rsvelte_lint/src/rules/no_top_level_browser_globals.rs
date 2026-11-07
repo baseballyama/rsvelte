@@ -500,7 +500,11 @@ fn collect_browser_checker_imports(
             .get("source")
             .and_then(|s| s.get("value"))
             .and_then(Value::as_str);
-        let is_env_module = matches!(source_val, Some("$app/environment" | "esm-env"));
+        // `$app/env` is an alias of `$app/environment`.
+        let is_env_module = matches!(
+            source_val,
+            Some("$app/environment" | "$app/env" | "esm-env")
+        );
         if !is_env_module {
             return;
         }

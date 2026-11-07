@@ -678,7 +678,11 @@ impl Rule for PreferDestructuredStoreProps {
             .unwrap_or_default();
 
         // Walk the fragment and collect reports.
-        let runes = crate::runes_mode::component_runes_mode(root, ctx.source());
+        let runes = crate::runes_mode::component_runes_mode(
+            ctx.config().svelte_features_runes(),
+            root,
+            ctx.source(),
+        );
         let mut reports: Vec<PendingReport> = Vec::new();
         collect_member_reports(ctx, frag, runes, &mut reports);
 
