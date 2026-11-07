@@ -6,6 +6,9 @@ version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[lib]
+doctest = false
+
 [dependencies]
 rsvelte_svelte_parser.workspace = true
 rsvelte_svelte_syntax.workspace = true

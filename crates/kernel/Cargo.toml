@@ -6,6 +6,9 @@ version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[lib]
+doctest = false
+
 [features]
 # Phase timing and allocation attribution. Off: every probe compiles to nothing.
 metrics = []
