@@ -694,10 +694,11 @@ mod tests {
     #[test]
     fn prefer_svelte_reactivity_cross_script_set_mutation() {
         // `new Set()` declared in the module script, mutated in the instance
-        // script — only visible when both scripts are analysed together.
+        // script — only visible when both scripts are analysed together. The
+        // rule only runs in runes mode.
         let cfg = LintConfig::recommended()
             .with_override("svelte/prefer-svelte-reactivity", Severity::Error);
-        let src = "<script context=\"module\">\n  const elements = new Set();\n</script>\n<script>\n  elements.add(1);\n</script>";
+        let src = "<svelte:options runes />\n<script context=\"module\">\n  const elements = new Set();\n</script>\n<script>\n  elements.add(1);\n</script>";
         let hits = lint(src, &cfg)
             .iter()
             .filter(|d| d.code.as_deref() == Some("svelte/prefer-svelte-reactivity"))
