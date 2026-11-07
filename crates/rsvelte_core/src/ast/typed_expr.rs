@@ -1150,11 +1150,7 @@ fn opaque_ts_with_comments(value: &Value) -> Value {
 // starts at capacity 0 and rehashes its way up.
 impl Serialize for JsNode {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        // Recursion keyed on AST depth; one debug frame of the mega-match in
-        // `serialize_inner` is ~84 KB, so the red zone must clear one level.
-        stacker::maybe_grow(256 * 1024, 4 * 1024 * 1024, || {
-            self.serialize_inner(serializer)
-        })
+        crate::stack::ensure_sufficient_stack(|| self.serialize_inner(serializer))
     }
 }
 

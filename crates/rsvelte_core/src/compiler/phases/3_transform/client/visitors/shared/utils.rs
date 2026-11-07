@@ -784,8 +784,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
     context: &ComponentContext,
     local_scope: &LocalScope,
 ) -> JsExpr {
-    // Recursion keyed on expression depth; debug frames here are tens of KB.
-    stacker::maybe_grow(256 * 1024, 4 * 1024 * 1024, || {
+    crate::stack::ensure_sufficient_stack(|| {
         apply_transforms_to_expression_with_shadowed_inner(expr, context, local_scope)
     })
 }

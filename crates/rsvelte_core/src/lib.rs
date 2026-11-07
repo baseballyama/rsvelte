@@ -42,6 +42,7 @@ pub mod measure_prop_reads;
 pub mod measure_slot_key;
 #[cfg(feature = "measure-stmt-chain")]
 pub mod measure_stmt_chain;
+pub(crate) mod stack;
 pub mod toolchain;
 
 pub use compiler::legacy::convert_to_legacy;
