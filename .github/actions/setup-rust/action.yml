@@ -4,7 +4,7 @@ description: Install the pinned Rust toolchain and optional CI tooling
 inputs:
   toolchain:
     description: Rust toolchain version
-    default: '1.98.1'
+    default: '1.99.1'
   components:
     description: Comma-separated rustup components
     default: ''
