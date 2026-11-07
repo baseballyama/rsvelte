@@ -12,6 +12,8 @@
 //! with `--type-checker-arg <argument>` for each of its own arguments, or else the configuration
 //! file's `typeChecker.command`: TypeScript 7.1's `tsc`, or a product with its command line. The
 //! project configuration is `--tsconfig <file>`, by default the first directory's `tsconfig.json`.
+//! Without `--task`, `corpus` and `run` run every task, the checks included, so they then need all
+//! of these; `benchmark` and `performance` run the document tasks.
 
 #![expect(
     clippy::print_stdout,
@@ -167,7 +169,15 @@ fn main() -> ExitCode {
         Ok(checker) => checker,
         Err(error) => return usage(&error),
     };
-    let identity = match identify(&tasks, tsc.as_ref(), svelte.is_some(), vue.is_some()) {
+    // With no `--task`, these run every task, check tasks included; the others run document tasks.
+    let every_task = tasks.is_empty() && matches!(positional.first(), Some(&("corpus" | "run")));
+    let identity = match identify(
+        &tasks,
+        every_task,
+        tsc.as_ref(),
+        svelte.is_some(),
+        vue.is_some(),
+    ) {
         Ok(identity) => identity,
         Err(error) => return usage(&error),
     };
@@ -232,10 +242,13 @@ const CHECKS: [(&str, Option<&str>); 3] = [
     ("ts.check/default", None),
 ];
 
-/// Refuses a check task that is asked for but cannot run, and returns the type checker's command
-/// and version when a task will run it. Every mistake is reported here, once, not on each file.
+/// Refuses a check task that will run but cannot check, and returns the type checker's command and
+/// version when a task will run it. Every mistake is reported here, once, not on each file.
+/// `every_task`: no `--task` was given and the subcommand then runs every task, so every check task
+/// runs too.
 fn identify(
     tasks: &[&str],
+    every_task: bool,
     checker: Option<&rsvelte_typescript_check::TypeChecker>,
     svelte: bool,
     vue: bool,
@@ -247,14 +260,22 @@ fn identify(
                 .to_owned(),
         );
     }
+    // Without `--task` the user did not ask for the check; say how to leave it out.
+    let unless = if every_task {
+        "; or choose the tasks to run with --task"
+    } else {
+        ""
+    };
+    let mut runs = false;
     for (task, package) in CHECKS {
-        if !tasks.contains(&task) {
+        if !every_task && !tasks.contains(&task) {
             continue;
         }
+        runs = true;
         if checker.is_none() {
             return Err(format!(
                 "{task} needs a type checker: --type-checker <program> or typeChecker.command in \
-                 rsvelte.config.json"
+                 rsvelte.config.json{unless}"
             ));
         }
         let given = match task {
@@ -263,10 +284,9 @@ fn identify(
             _ => true,
         };
         if let (false, Some(package)) = (given, package) {
-            return Err(format!("{task} needs {package}"));
+            return Err(format!("{task} needs {package}{unless}"));
         }
     }
-    let runs = tasks.is_empty() || CHECKS.iter().any(|(t, _)| tasks.contains(t));
     match checker {
         Some(checker) if runs => Ok(Some(Identity {
             command: checker.to_string(),

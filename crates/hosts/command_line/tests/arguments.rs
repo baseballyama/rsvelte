@@ -42,7 +42,7 @@ fn a_directory_that_does_not_exist_is_not_an_empty_corpus() {
     let missing = scratch.0.join("missing");
     let missing = missing.to_str().expect("UTF-8");
     for arguments in [
-        &["corpus", missing][..],
+        &["corpus", missing, "--task", "svelte.compile/client"][..],
         &["benchmark", missing],
         &["performance", missing],
     ] {
@@ -93,4 +93,75 @@ fn outputs_that_cannot_be_written_fail_the_run() {
     let stderr = stderr(&output);
     assert!(stderr.contains("cannot write: "), "{stderr}");
     assert!(stderr.contains("1 unit(s) not written"), "{stderr}");
+}
+
+/// `rsvelte <arguments>` in `directory`, which holds `App.svelte/input.svelte`.
+fn rsvelte_in(directory: &Scratch, arguments: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+        .current_dir(&directory.0)
+        .args(arguments)
+        .output()
+        .expect("run CLI")
+}
+
+fn component(name: &str) -> Scratch {
+    let scratch = Scratch::new(name);
+    let unit = scratch.0.join("App.svelte");
+    std::fs::create_dir_all(&unit).expect("unit directory");
+    std::fs::write(unit.join("input.svelte"), "<p>Hello</p>").expect("input");
+    scratch
+}
+
+#[test]
+fn every_task_includes_the_checks_so_they_must_be_configured() {
+    let scratch = component("every-task");
+    let refused = [
+        (
+            &["run", "App.svelte/input.svelte"][..],
+            "svelte.check/default needs a type checker",
+        ),
+        (
+            &["corpus", "."],
+            "svelte.check/default needs a type checker",
+        ),
+        (
+            &["corpus", ".", "--type-checker", "tsc"],
+            "svelte.check/default needs --svelte <svelte package dir>",
+        ),
+    ];
+    for (arguments, message) in refused {
+        let output = rsvelte_in(&scratch, arguments);
+        assert_eq!(output.status.code(), Some(2), "{arguments:?}");
+        let stderr = stderr(&output);
+        assert!(stderr.contains(message), "{arguments:?}: {stderr}");
+        assert!(stderr.contains("--task"), "{arguments:?}: {stderr}");
+    }
+    assert!(
+        !scratch.0.join("App.svelte/actual").exists(),
+        "a refused run writes nothing"
+    );
+}
+
+#[test]
+fn named_tasks_and_document_task_commands_need_no_type_checker() {
+    let scratch = component("named-tasks");
+    for arguments in [
+        &[
+            "run",
+            "App.svelte/input.svelte",
+            "--task",
+            "svelte.compile/client",
+        ][..],
+        &["corpus", ".", "--task", "svelte.compile/client"],
+        // These run the document tasks when none is named.
+        &["performance", ".", "json=/dev/null"],
+        &["benchmark", ".", "rounds=1", "json=/dev/null"],
+    ] {
+        let output = rsvelte_in(&scratch, arguments);
+        assert!(
+            output.status.success(),
+            "{arguments:?}: {}",
+            stderr(&output)
+        );
+    }
 }
