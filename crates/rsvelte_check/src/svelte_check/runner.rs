@@ -24,8 +24,8 @@ use super::manifest::{
     current_content_digest, current_stats,
 };
 use super::mapper::{is_syntactic_ts_code, map_tsgo_diagnostics};
-use super::overlay::{self, OverlayLayout, materialize_overlay_with_kit};
-use super::tsgo::{TsgoError, find_compiler, run_tsgo};
+use super::overlay::{self, OverlayLayout, RootDirDefault, materialize_overlay_with_kit};
+use super::tsgo::{TsgoError, find_compiler, run_tsgo, typescript_major};
 use super::walker::find_relevant_files;
 
 /// Per-warning override: promote to error or drop entirely. Mirrors
@@ -271,6 +271,16 @@ pub fn run(options: &RunOptions) -> RunResult {
 
     let need_overlay = options.emit_overlay || options.type_check;
     if need_overlay {
+        let root_dir_default = if options.type_check {
+            RootDirDefault::for_typescript_major(
+                find_compiler(&options.workspace, options.prefer_tsgo)
+                    .ok()
+                    .as_ref()
+                    .and_then(typescript_major),
+            )
+        } else {
+            RootDirDefault::default()
+        };
         match materialize_overlay_with_kit(
             &options.workspace,
             &files,
@@ -280,6 +290,7 @@ pub fn run(options: &RunOptions) -> RunResult {
             &kit_settings,
             &options.ignore,
             &compiler_opts,
+            root_dir_default,
         ) {
             Ok(layout) => {
                 phases.mark("overlay");

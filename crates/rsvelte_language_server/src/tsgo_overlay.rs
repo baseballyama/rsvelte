@@ -14,8 +14,8 @@ use std::str::FromStr;
 
 use lsp_types::{Position, Range, Uri};
 use rsvelte_check::overlay::{
-    CACHE_GITIGNORE, FallbackSvelteTypes, SHIM_FILES, SHIM_JSX_V4_NAME, fallback_svelte_types,
-    global_type_files,
+    CACHE_GITIGNORE, FallbackSvelteTypes, RootDirDefault, SHIM_FILES, SHIM_JSX_V4_NAME,
+    fallback_svelte_types, global_type_files, overlay_root_dir,
 };
 use rsvelte_projection::{
     ProjectionEngine, ProjectionMap, RewriteExternalImportsOptions, Svelte2TsxMode,
@@ -1292,7 +1292,11 @@ impl TsgoOverlay {
         }
         if let Some(source) = &self.source_tsconfig {
             config["extends"] = json!(path_for_tsconfig(source));
-            if let Some(root_dir) = self.default_root_dir(source) {
+            // The server always runs TypeScript 7, which defaults `rootDir` to this overlay's
+            // directory; the shadows live under `mirror_root`.
+            if let Some(root_dir) =
+                overlay_root_dir(source, &self.mirror_root, RootDirDefault::ConfigDir)
+            {
                 config["compilerOptions"]["rootDir"] = json!(path_for_tsconfig(&root_dir));
             }
         }
@@ -1303,16 +1307,6 @@ impl TsgoOverlay {
         text.push('\n');
         reject_symlink_components(&self.tsconfig_path, &self.cache_dir)?;
         write_if_changed(&self.tsconfig_path, &text)
-    }
-
-    /// TypeScript defaults `rootDir` to the directory of the config it reads, which is the
-    /// overlay's here, so an inherited `outDir` would place every project source outside it.
-    fn default_root_dir(&self, source: &Path) -> Option<PathBuf> {
-        if resolve_config_value(source, "rootDir").is_some() {
-            return None;
-        }
-        let project = absolute_normalized(source.parent()?);
-        Some(common_ancestor(&project, &self.mirror_root))
     }
 
     fn shadow_path_for(&self, source_path: &Path) -> Result<PathBuf, TsgoOverlayError> {
@@ -2356,14 +2350,6 @@ fn absolute_normalized(path: &Path) -> PathBuf {
     normalized
 }
 
-fn common_ancestor(left: &Path, right: &Path) -> PathBuf {
-    left.components()
-        .zip(right.components())
-        .take_while(|(left, right)| left == right)
-        .map(|(component, _)| component.as_os_str())
-        .collect()
-}
-
 fn path_for_tsconfig(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
@@ -2782,6 +2768,17 @@ mod tests {
             root_dir(&overlay),
             None,
             "a declared rootDir is inherited unchanged"
+        );
+
+        write(
+            &root.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "strict": true } }"#,
+        );
+        let overlay = build_overlay(&root).unwrap();
+        assert_eq!(
+            root_dir(&overlay),
+            None,
+            "without outDir an explicit rootDir would report sources outside the project"
         );
     }
 
