@@ -1,5 +1,0 @@
-<svg>
-	<rect/>
-
-	<rect/>
-</svg>

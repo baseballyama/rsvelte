@@ -1,1 +1,0 @@
-<span title='{"\"foo\""}'>foo</span>

@@ -1,5 +1,0 @@
-import * as $ from 'svelte/internal/server';
-
-export default function Input($$renderer) {
-	$$renderer.push(`<span>${$.escape(name)}</span> <span>${$.escape(count + 1)}</span>`);
-}

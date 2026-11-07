@@ -66,6 +66,8 @@ fn main() -> ExitCode {
     registry.task(CountCoverage(Arc::clone(&coverage)));
     let result = rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
         .inputs_from(concat!(env!("CARGO_MANIFEST_DIR"), "/../compile"))
+        .corpus("svelte")
+        .per_project()
         .snapshot("svelte.check/default", "findings")
         .snapshot("test.svelte.typecheck.coverage", "coverage")
         .run();

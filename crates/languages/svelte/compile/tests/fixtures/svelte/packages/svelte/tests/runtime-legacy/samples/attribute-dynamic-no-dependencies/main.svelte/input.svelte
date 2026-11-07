@@ -1,1 +1,0 @@
-<div><div title={'foo'}>bar</div></div>

@@ -12,7 +12,7 @@ export const IMPORT_REPORT_FILE = path.join(REGISTRY, 'import-report.json');
 // A path segment that collides with a reserved name gets a `~` prefix; so does one already starting
 // with `~`, which keeps the mapping reversible. Only reserved children then match `actual/` etc.
 const RESERVED = /^(expected|actual|cache|meta\.json|fixture\.toml|input\..*|~.*)$/;
-export const encodePath = (p: string): string =>
+const encodePath = (p: string): string =>
 	p
 		.split('/')
 		.map((seg) => (RESERVED.test(seg) ? `~${seg}` : seg))

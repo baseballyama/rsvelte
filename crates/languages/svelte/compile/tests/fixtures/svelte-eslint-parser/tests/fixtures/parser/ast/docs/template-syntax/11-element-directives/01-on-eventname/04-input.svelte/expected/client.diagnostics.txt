@@ -1,2 +1,0 @@
-warning event_directive_deprecated 1:7-1:46 Using `on:submit` to listen to the submit event is deprecated. Use the event attribute `onsubmit` instead
-    https://svelte.dev/e/event_directive_deprecated

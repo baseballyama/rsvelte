@@ -1,7 +1,0 @@
-
-	button.svelte-qkn3x4 {
-		&:disabled {
-			/* allow clicking even if already copied */
-			cursor: pointer;
-		}
-	}

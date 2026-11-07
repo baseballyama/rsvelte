@@ -20,7 +20,8 @@ cargo install --path crates/languages/typescript/content_mapper
 
 Crate fixture tests build their own thin mapper executable, which uses the same implementation.
 
-`tests/fixtures.rs` reads the exact input population from `../compile/tests/fixtures`.
+`tests/fixtures.rs` runs the corpus and the compiler's hand-written inputs
+(`../compile/tests/fixtures`).
 Only checker expectations and actual outputs live here. External cases without a checker
 oracle snapshot report `UNMEASURED`; they cannot count as oracle matches.
 The coverage line reports prepared TS inputs, unchecked inputs, unsupported projections,

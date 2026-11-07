@@ -1,7 +1,7 @@
 # oracle
 
 Runs the oracles over the corpus in [`corpus/`](../../corpus/README.md), compares rsvelte's
-output with theirs, and copies cases into the crates' `tests/fixtures/`. The header of
+output with theirs, and writes the expected output of the crates' upstream cases. The header of
 `oracle.ts` lists every command with its options.
 
 ```sh

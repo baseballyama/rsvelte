@@ -1,3 +1,0 @@
-<style>
-    .container {}
-</style>

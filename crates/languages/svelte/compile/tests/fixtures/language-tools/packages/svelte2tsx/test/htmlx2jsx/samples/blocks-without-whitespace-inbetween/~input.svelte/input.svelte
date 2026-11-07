@@ -1,1 +1,0 @@
-{#if name == "world"}!{/if}{#each x as y}!{/each}{#await x then y}!{/await}{#if bla}*{/if}

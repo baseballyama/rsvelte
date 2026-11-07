@@ -1,9 +1,11 @@
-//! Snapshot tests over a crate's `tests/fixtures/` directory.
+//! The fixture test of a crate: its hand-written cases in `tests/fixtures/`, and the units of the
+//! shared corpus.
 //!
-//! A case is a directory that holds one `input.<ext>`. Each registered task writes its files to
-//! `actual/<name>.<ext>`, and its diagnostics to `actual/<name>.diagnostics.txt`. A hand-written
-//! case fails when `actual/` differs from `expected/`; `UPDATE_EXPECT=1` copies the new output
-//! there instead. A case copied from the corpus has the official output in `expected/`, and its
+//! A case is a directory that holds one `input.<ext>`. In a hand-written case each registered task
+//! writes its files to `actual/<name>.<ext>`, and its diagnostics to
+//! `actual/<name>.diagnostics.txt`; the case fails when `actual/` differs from `expected/`, and
+//! `UPDATE_EXPECT=1` copies the new output there instead. A corpus unit has the official output in
+//! `expected/<task>/<variant>.<ext>`; rsvelte's goes to `actual/` in the same layout, and the
 //! differences are counted, not failed. See `crates/test_harness/README.md`.
 
 #![expect(
@@ -31,6 +33,7 @@ use rsvelte_kernel::computation::pipeline::{Document, Registry, RunOptions, Shar
 use snapshots::{Outcome, Snapshot};
 
 const FIXTURES_DIR: &str = "tests/fixtures";
+const CORPUS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../corpus");
 const UPDATE_VARIABLE: &str = "UPDATE_EXPECT";
 /// A path: each file of each corpus case is written there as one `verdict case file` line.
 pub(crate) const VERDICTS_VARIABLE: &str = "FIXTURE_VERDICTS";
@@ -40,6 +43,10 @@ pub(crate) const VERDICTS_VARIABLE: &str = "FIXTURE_VERDICTS";
 pub struct Fixtures {
     root: PathBuf,
     input_root: PathBuf,
+    /// The corpus directory and the family whose units also run.
+    corpus: Option<(PathBuf, &'static str)>,
+    /// Whether each project is run on its own (see [`Fixtures::per_project`]).
+    per_project: bool,
     registry: Registry,
     snapshots: Vec<Snapshot>,
 }
@@ -51,12 +58,30 @@ impl Fixtures {
         Self {
             root: Path::new(manifest_dir).join(FIXTURES_DIR),
             input_root: Path::new(manifest_dir).join(FIXTURES_DIR),
+            corpus: None,
+            per_project: false,
             registry,
             snapshots: Vec::new(),
         }
     }
 
-    /// Reads another crate's exact input population; keeps this crate's snapshots and actuals.
+    /// Also runs every unit of `corpus/<family>/`, against the official output.
+    #[must_use]
+    pub fn corpus(mut self, family: &'static str) -> Self {
+        self.corpus = Some((PathBuf::from(CORPUS), family));
+        self
+    }
+
+    /// Runs each project (a corpus source, or the hand-written cases with the same first
+    /// directory) on its own: unrelated repositories can declare conflicting global TypeScript
+    /// types.
+    #[must_use]
+    pub const fn per_project(mut self) -> Self {
+        self.per_project = true;
+        self
+    }
+
+    /// Reads another crate's hand-written inputs; keeps this crate's snapshots and actuals.
     #[must_use]
     pub fn inputs_from(mut self, manifest_dir: &str) -> Self {
         self.input_root = Path::new(manifest_dir).join(FIXTURES_DIR);
@@ -223,11 +248,14 @@ impl Fixtures {
     }
 
     fn cases(&self) -> Result<Vec<Case>, String> {
-        let mut cases = cases::discover(&self.input_root)?;
+        let mut cases = cases::in_crate(&self.input_root)?;
         if self.input_root != self.root {
             for case in &mut cases {
                 case.dir = self.root.join(&case.name);
             }
+        }
+        if let Some((corpus, family)) = &self.corpus {
+            cases.extend(cases::corpus(corpus, family)?);
         }
         Ok(cases)
     }
@@ -246,11 +274,10 @@ impl Fixtures {
         };
         let outcomes = Mutex::new(Vec::with_capacity(cases.len()));
         let mut offset = 0;
-        for project in cases.chunk_by(|a, b| {
-            self.input_root == self.root || a.name.split('/').next() == b.name.split('/').next()
-        }) {
+        for project in cases
+            .chunk_by(|a, b| !self.per_project || (a.kind == b.kind && a.project() == b.project()))
+        {
             let project_documents = &documents[offset..offset + project.len()];
-            // Unrelated repositories can declare conflicting global TypeScript types.
             run_each(&self.registry, project_documents, &options, &|i, result| {
                 let outcome = snapshots::check(
                     &project[i],
@@ -353,55 +380,89 @@ mod tests {
         }
     }
 
+    fn scratch(name: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!("rsvelte-{name}-{}", std::process::id()));
+        drop(std::fs::remove_dir_all(&root));
+        root
+    }
+
     #[test]
-    fn shared_inputs_keep_the_population_and_do_not_claim_missing_oracles_match() {
-        let root =
-            std::env::temp_dir().join(format!("rsvelte-shared-inputs-{}", std::process::id()));
+    fn shared_inputs_keep_this_crates_snapshots() {
+        let root = scratch("shared-inputs");
         let shared = root.join("compile");
         let own = root.join("typecheck");
-        let case = shared.join("tests/fixtures/source/file.svelte");
+        let case = shared.join("tests/fixtures/rsvelte/case");
         std::fs::create_dir_all(&case).unwrap();
         std::fs::write(case.join("input.svelte"), "<p />").unwrap();
-        std::fs::write(case.parent().unwrap().join("source.json"), "{}").unwrap();
-        let extra = own.join("tests/fixtures/extra");
-        std::fs::create_dir_all(&extra).unwrap();
-        std::fs::write(extra.join("input.svelte"), "<div />").unwrap();
         let mut registry = Registry::new();
         registry.task(Findings);
         let fixtures = Fixtures::new(own.to_str().unwrap(), registry)
             .inputs_from(shared.to_str().unwrap())
             .snapshot("test.findings", "findings");
         let cases = fixtures.cases().unwrap();
-        assert_eq!(
-            cases.len(),
-            1,
-            "local copies must not change the shared input population"
-        );
-        assert_eq!(cases[0].name, "source/file.svelte");
-        assert_eq!(cases[0].dir, own.join("tests/fixtures/source/file.svelte"));
+        assert_eq!(cases.len(), 1);
+        assert_eq!(cases[0].name, "rsvelte/case");
+        assert_eq!(cases[0].dir, own.join("tests/fixtures/rsvelte/case"));
         let documents = [cases[0].document().unwrap()];
-        let outcome = fixtures.check(&cases, &documents, false).unwrap();
-        assert_eq!(
-            outcome.unmeasured, 1,
-            "a missing oracle must remain unmeasured"
+        let outcome = fixtures.check(&cases, &documents, true).unwrap();
+        assert_eq!(outcome.written, 1);
+        assert!(
+            own.join("tests/fixtures/rsvelte/case/expected/findings.json")
+                .is_file()
         );
-        assert_eq!(
-            outcome.matching, 0,
-            "a missing oracle must not count as a match"
-        );
-        let expected = cases[0].dir.join("expected");
-        std::fs::create_dir_all(&expected).unwrap();
-        std::fs::write(expected.join("findings.json"), "[]\n").unwrap();
-        let control = fixtures.check(&cases, &documents, false).unwrap();
-        assert_eq!(
-            control.matching, 1,
-            "the same output must match a real oracle snapshot"
-        );
-        assert_eq!(control.unmeasured, 0);
         assert!(
             !case.join("actual").exists(),
-            "shared compiler snapshots must be untouched"
+            "the other crate's case is untouched"
         );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn corpus_units_are_measured_only_against_an_official_output() {
+        let root = scratch("corpus");
+        let own = root.join("crate");
+        std::fs::create_dir_all(own.join("tests/fixtures")).unwrap();
+        let unit = root.join("corpus/svelte/source/src/~input.svelte");
+        std::fs::create_dir_all(&unit).unwrap();
+        std::fs::write(unit.join("input.svelte"), "<p />").unwrap();
+        // Another task's output, written by `rsvelte corpus`.
+        let other = unit.join("actual/svelte.compile/client.js");
+        std::fs::create_dir_all(other.parent().unwrap()).unwrap();
+        std::fs::write(&other, "x").unwrap();
+        let mut registry = Registry::new();
+        registry.task(Findings);
+        let mut fixtures =
+            Fixtures::new(own.to_str().unwrap(), registry).snapshot("test.findings", "findings");
+        fixtures.corpus = Some((root.join("corpus"), "svelte"));
+        let cases = fixtures.cases().unwrap();
+        assert_eq!(cases.len(), 1);
+        assert_eq!(cases[0].name, "svelte/source/src/input.svelte");
+        assert_eq!(
+            cases[0].document().unwrap().path,
+            "src/input.svelte",
+            "the document is named by its path in the repository"
+        );
+        let documents = [cases[0].document().unwrap()];
+        let outcome = fixtures.check(&cases, &documents, true).unwrap();
+        assert_eq!(outcome.unmeasured, 1, "no official output is not a match");
+        assert_eq!(
+            (outcome.matching, outcome.written),
+            (0, 0),
+            "update never writes the oracle"
+        );
+        assert_eq!(
+            std::fs::read_to_string(unit.join("actual/test.findings/default.json")).unwrap(),
+            "[]\n"
+        );
+        assert!(other.is_file(), "other tasks' outputs stay");
+        let expected = unit.join("expected/test.findings");
+        std::fs::create_dir_all(&expected).unwrap();
+        std::fs::write(expected.join("default.json"), "[]\n").unwrap();
+        let control = fixtures.check(&cases, &documents, false).unwrap();
+        assert_eq!((control.matching, control.unmeasured), (1, 0));
+        std::fs::write(expected.join("default.json"), "[1]\n").unwrap();
+        let differs = fixtures.check(&cases, &documents, false).unwrap();
+        assert_eq!((differs.matching, differs.differing), (0, 1));
         std::fs::remove_dir_all(root).unwrap();
     }
 }

@@ -1,2 +1,0 @@
-warning legacy_component_creation 7:5-7:42 Svelte 5 components are no longer classes. Instantiate them using `mount` or `hydrate` (imported from 'svelte') instead.
-    https://svelte.dev/e/legacy_component_creation

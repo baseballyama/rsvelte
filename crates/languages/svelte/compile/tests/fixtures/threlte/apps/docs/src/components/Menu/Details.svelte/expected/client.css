@@ -1,7 +1,0 @@
-
-  details.svelte-qinqw1 > summary:where(.svelte-qinqw1) {
-    list-style: none;
-  }
-  details.svelte-qinqw1 > summary:where(.svelte-qinqw1)::-webkit-details-marker {
-    display: none;
-  }

@@ -3,10 +3,11 @@ use std::path::Path;
 
 use rsvelte_kernel::computation::pipeline::{Document, DocumentResult, TaskOutput};
 use rsvelte_kernel::diagnostics::diagnostic::Severity;
+use rsvelte_kernel::output::task_files;
 use rsvelte_kernel::source::positions::LineIndex;
 use rustc_hash::FxHashSet;
 
-use crate::cases::{Case, Expected};
+use crate::cases::{Case, Kind};
 use crate::javascript;
 
 const EXPECTED_DIR: &str = "expected";
@@ -20,6 +21,19 @@ pub(crate) struct Snapshot {
     pub(crate) name: &'static str,
     /// Whether the `.js` file of a corpus case may match the official one as a syntax tree.
     pub(crate) javascript_tree: bool,
+}
+
+impl Snapshot {
+    /// What the names of this snapshot's files start with, relative to `expected/` and `actual/`.
+    fn prefix(&self, kind: Kind) -> String {
+        match kind {
+            Kind::HandWritten | Kind::Copied => format!("{}.", self.name),
+            Kind::Corpus => {
+                let (dir, variant) = task_files::location(self.task);
+                format!("{dir}/{variant}.")
+            }
+        }
+    }
 }
 
 /// How a corpus case compares with the official output. A case takes the worst verdict of its
@@ -92,8 +106,8 @@ pub(crate) fn check(
     let mut produced = Vec::new();
     for s in snapshots {
         match result.outputs.iter().find(|(task, _)| *task == s.task) {
-            Some((_, out)) => produce(s, document, out, &mut produced),
-            None if case.expected == Expected::Snapshot => {
+            Some((_, out)) => produce(s, case.kind, document, out, &mut produced),
+            None if case.kind == Kind::HandWritten => {
                 outcome.problem(case, &format!("{} did not run on this input", s.task));
             }
             None => {}
@@ -109,19 +123,27 @@ pub(crate) fn check(
             outcome.problem(case, &format!("two outputs are named {name}"));
         }
     }
-    if let Err(e) = write_actual(&case.dir.join(ACTUAL_DIR), &produced) {
+    let actual_dir = case.dir.join(ACTUAL_DIR);
+    let written = match case.kind {
+        Kind::HandWritten | Kind::Copied => write_actual(&actual_dir, &produced),
+        // Other tasks' files in the unit's `actual/` are not this harness's to remove.
+        Kind::Corpus => snapshots
+            .iter()
+            .try_for_each(|s| write_owned(&actual_dir, &s.prefix(Kind::Corpus), &produced)),
+    };
+    if let Err(e) = written {
         outcome.problem(case, &e);
     }
     let expected_dir = case.dir.join(EXPECTED_DIR);
-    let existing = match existing_snapshots(&expected_dir, snapshots) {
+    let existing = match existing_snapshots(&expected_dir, case.kind, snapshots) {
         Ok(e) => e,
         Err(e) => {
             outcome.problem(case, &e);
             return outcome;
         }
     };
-    match case.expected {
-        Expected::Snapshot => {
+    match case.kind {
+        Kind::HandWritten => {
             compare_snapshots(
                 case,
                 &expected_dir,
@@ -131,16 +153,23 @@ pub(crate) fn check(
                 &mut outcome,
             );
         }
-        Expected::Oracle if !ran => outcome.not_run += 1,
-        Expected::Oracle if existing.is_empty() => {
+        Kind::Copied | Kind::Corpus if !ran => outcome.not_run += 1,
+        Kind::Copied | Kind::Corpus if existing.is_empty() => {
             outcome.unmeasured += 1;
             outcome
                 .verdicts
                 .push(format!("unmeasured {} oracle", case.name));
         }
-        Expected::Oracle => {
+        Kind::Copied | Kind::Corpus => {
+            // A snapshot the official tool has no output for is not measured on this unit.
+            let measured: Vec<String> = snapshots
+                .iter()
+                .map(|s| s.prefix(case.kind))
+                .filter(|p| existing.iter().any(|e| e.starts_with(p.as_str())))
+                .collect();
+            produced.retain(|(name, _)| measured.iter().any(|p| name.starts_with(p.as_str())));
             let (verdict, files) =
-                compare_with_oracle(&expected_dir, &existing, &produced, snapshots);
+                compare_with_oracle(&expected_dir, case.kind, &existing, &produced, snapshots);
             outcome.verdicts.extend(
                 files
                     .into_iter()
@@ -161,6 +190,7 @@ pub(crate) fn check(
 /// has.
 fn compare_with_oracle<'a>(
     expected_dir: &Path,
+    kind: Kind,
     existing: &'a [String],
     produced: &'a [(String, String)],
     snapshots: &[Snapshot],
@@ -178,7 +208,7 @@ fn compare_with_oracle<'a>(
             .then(|| std::fs::read_to_string(expected_dir.join(name)))
         {
             Some(Ok(e)) if e == *text => Verdict::Bytes,
-            Some(Ok(e)) if is_javascript_tree(name, snapshots) => {
+            Some(Ok(e)) if is_javascript_tree(name, kind, snapshots) => {
                 match javascript::same_tree(&e, text) {
                     Ok(true) => Verdict::Tree,
                     Ok(false) => Verdict::Differs,
@@ -212,10 +242,10 @@ impl Verdict {
     }
 }
 
-fn is_javascript_tree(file: &str, snapshots: &[Snapshot]) -> bool {
+fn is_javascript_tree(file: &str, kind: Kind, snapshots: &[Snapshot]) -> bool {
     snapshots
         .iter()
-        .any(|s| s.javascript_tree && file.strip_prefix(s.name).is_some_and(|rest| rest == ".js"))
+        .any(|s| s.javascript_tree && file == format!("{}js", s.prefix(kind)))
 }
 
 /// Makes `dir` hold exactly `produced`. Most runs change few files, and creating and removing
@@ -260,6 +290,48 @@ fn write_actual(dir: &Path, produced: &[(String, String)]) -> Result<(), String>
         }
         std::fs::write(&path, text).map_err(|e| format!("{ACTUAL_DIR}/{name}: {e}"))?;
     }
+    Ok(())
+}
+
+/// Makes the files under `actual` whose paths start with `prefix` (`<task>/<variant>.`) exactly
+/// the `produced` files with that prefix, writing only changed files.
+fn write_owned(actual: &Path, prefix: &str, produced: &[(String, String)]) -> Result<(), String> {
+    let (task, start) = prefix
+        .rsplit_once('/')
+        .ok_or_else(|| format!("{prefix}: not `<task>/<variant>.`"))?;
+    let dir = actual.join(task);
+    let at = |e: std::io::Error| format!("{}: {e}", dir.display());
+    let mine: Vec<(&str, &str)> = produced
+        .iter()
+        .filter(|(path, _)| path.starts_with(prefix))
+        .map(|(path, text)| (&path[task.len() + 1..], text.as_str()))
+        .collect();
+    match std::fs::read_dir(&dir) {
+        Ok(read) => {
+            for entry in read {
+                let entry = entry.map_err(at)?;
+                let name = entry.file_name();
+                let Some(name) = name.to_str() else { continue };
+                if name.starts_with(start) && !mine.iter().any(|(n, _)| *n == name) {
+                    std::fs::remove_file(entry.path()).map_err(at)?;
+                }
+            }
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound && mine.is_empty() => return Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            std::fs::create_dir_all(&dir).map_err(at)?;
+        }
+        Err(e) => return Err(at(e)),
+    }
+    for (name, text) in &mine {
+        let path = dir.join(name);
+        if std::fs::read(&path).is_ok_and(|old| old == text.as_bytes()) {
+            continue;
+        }
+        std::fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))?;
+    }
+    // Fails while another variant's files are still there.
+    drop(std::fs::remove_dir(&dir));
     Ok(())
 }
 
@@ -312,10 +384,18 @@ fn compare_snapshots(
 
 fn produce(
     s: &Snapshot,
+    kind: Kind,
     document: &Document,
     out: &TaskOutput,
     produced: &mut Vec<(String, String)>,
 ) {
+    if kind == Kind::Corpus {
+        let (dir, variant) = task_files::location(s.task);
+        for (name, text) in task_files::files(variant, &document.text, out) {
+            produced.push((format!("{dir}/{name}"), text.into_owned()));
+        }
+        return;
+    }
     for f in &out.files {
         produced.push((format!("{}.{}", s.name, f.name), f.text.clone()));
     }
@@ -355,28 +435,38 @@ fn diagnostics_text(document: &Document, out: &TaskOutput) -> String {
     text
 }
 
-/// File names in `expected/` that belong to one of the snapshots.
-fn existing_snapshots(dir: &Path, snapshots: &[Snapshot]) -> Result<Vec<String>, String> {
-    let read = match std::fs::read_dir(dir) {
-        Ok(r) => r,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(e) => return Err(format!("{}: {e}", dir.display())),
-    };
+/// The files in `expected/` that belong to one of the snapshots, as paths relative to it.
+fn existing_snapshots(
+    expected: &Path,
+    kind: Kind,
+    snapshots: &[Snapshot],
+) -> Result<Vec<String>, String> {
     let mut names = Vec::new();
-    for entry in read {
-        let entry = entry.map_err(|e| format!("{}: {e}", dir.display()))?;
-        let Ok(name) = entry.file_name().into_string() else {
-            continue;
+    for s in snapshots {
+        let prefix = s.prefix(kind);
+        let (dir, start) = prefix.rsplit_once('/').unwrap_or(("", prefix.as_str()));
+        let directory = expected.join(dir);
+        let read = match std::fs::read_dir(&directory) {
+            Ok(r) => r,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(format!("{}: {e}", directory.display())),
         };
-        let owned = snapshots.iter().any(|s| {
-            name.strip_prefix(s.name)
-                .is_some_and(|rest| rest.starts_with('.'))
-        });
-        if owned && !entry.path().is_dir() {
-            names.push(name);
+        for entry in read {
+            let entry = entry.map_err(|e| format!("{}: {e}", directory.display()))?;
+            let Ok(name) = entry.file_name().into_string() else {
+                continue;
+            };
+            if name.starts_with(start) && !entry.path().is_dir() {
+                names.push(if dir.is_empty() {
+                    name
+                } else {
+                    format!("{dir}/{name}")
+                });
+            }
         }
     }
     names.sort_unstable();
+    names.dedup();
     Ok(names)
 }
 

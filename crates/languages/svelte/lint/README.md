@@ -24,9 +24,10 @@ and shared facts without enabling its task. Use
 
 ## Fixtures
 
-The shared suite reads inputs directly from `../compile/tests/fixtures`. Only lint
-snapshots live here. Hand-written cases fail on differences. Copied corpus cases
-without a lint oracle remain UNMEASURED. Non-component inputs are not run.
+`tests/fixtures.rs` runs the corpus and the compiler's hand-written inputs
+(`../compile/tests/fixtures`); only their lint snapshots live here. Hand-written cases fail on
+differences. Corpus units without a lint oracle remain UNMEASURED. Non-component inputs are not
+run.
 
 `tests/upstream.rs` runs eslint-plugin-svelte's own rule tests, copied unchanged to
 [`tests/upstream/eslint-plugin-svelte`](tests/upstream/eslint-plugin-svelte), and this crate's cases in `tests/cases`, which use the same layout:

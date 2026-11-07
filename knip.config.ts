@@ -18,7 +18,7 @@ export default {
 			entry: ['behaviour/{browser-runner,client,server,worker}.ts'],
 			project: ['**/*.{ts,svelte,vue}', '!behaviour/tests/**'],
 			// Oracles run from their installed path or named in reports, not imported.
-			ignoreDependencies: ['svelte-check', 'svelte-eslint-parser', 'vue-tsc'],
+			ignoreDependencies: ['svelte-check', 'vue-tsc'],
 		},
 		'tools/performance': {
 			entry: ['workloads/*/*.ts'],

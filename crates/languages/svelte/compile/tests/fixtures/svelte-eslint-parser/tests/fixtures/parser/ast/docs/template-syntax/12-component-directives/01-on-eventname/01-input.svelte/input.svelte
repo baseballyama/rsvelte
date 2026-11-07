@@ -1,1 +1,0 @@
-<MyComp on:eventname={handler}/>

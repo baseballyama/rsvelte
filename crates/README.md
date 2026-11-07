@@ -22,7 +22,7 @@ crates/
 ├── languages/vue/compile_svelte/         Vue compiled for the Svelte runtime
 ├── tooling/lint/              rule running and ESLint-style reports, shared by every linter
 ├── hosts/                     command_line, browser, config: see hosts/README.md
-└── test_harness/              the snapshot harness for each crate's tests/fixtures/
+└── test_harness/              runs each crate's tasks over its tests/fixtures/ and the corpus
 ```
 
 How the crates depend on each other is in the [root README](../README.md).

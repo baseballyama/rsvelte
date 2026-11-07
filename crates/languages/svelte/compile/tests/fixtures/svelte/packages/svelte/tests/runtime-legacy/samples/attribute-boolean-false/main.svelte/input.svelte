@@ -1,1 +1,0 @@
-<textarea readonly="{false}"></textarea>

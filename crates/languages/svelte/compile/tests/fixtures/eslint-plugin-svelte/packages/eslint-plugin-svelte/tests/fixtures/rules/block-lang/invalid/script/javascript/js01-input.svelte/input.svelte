@@ -1,1 +1,0 @@
-<script lang="js"></script>

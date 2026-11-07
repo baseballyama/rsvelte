@@ -2,8 +2,8 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use rsvelte_kernel::computation::pipeline::{Registry, RunOptions, Sharing};
+use rsvelte_kernel::output::task_files::diagnostics_json;
 
-use crate::output::diagnostics_json;
 use crate::usage;
 
 pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str]) -> ExitCode {
@@ -39,7 +39,7 @@ pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str]) -> ExitCode 
         if !out.diagnostics.is_empty() {
             println!(
                 "// {task} diagnostics\n{}",
-                diagnostics_json(&document, out)
+                diagnostics_json(&document.text, out)
             );
         }
     }

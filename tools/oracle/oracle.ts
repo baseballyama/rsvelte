@@ -9,8 +9,6 @@
 //   check [--update]                                          every task over every unit, against parity.json
 //   run-all [--binary <binary>]                               write rsvelte's output to every unit's actual/
 //   stats                                                     count the units
-//   crate --family name --task id,... --to <dir> [--source id,...]
-//                                                             copy units into a crate's tests/fixtures/
 //   upstream <name> <checkout>                                copy an upstream project's test fixtures into its crate's tests
 //   lint-cases [--update]                                     write ESLint's reports for the lint crate's own rule cases
 //   import-lint <eslint-plugin-svelte checkout>               copy the upstream typed lint rule cases into lint_typed
@@ -26,7 +24,6 @@ const commands: Record<string, () => Promise<{ main(args: string[]): Promise<voi
 	check: () => import('./check.ts'),
 	'run-all': () => import('./run-all.ts'),
 	stats: () => import('./stats.ts'),
-	crate: () => import('./crate.ts'),
 	upstream: () => import('./upstream.ts'),
 	'lint-cases': () => import('./lint-cases.ts'),
 	'import-lint': () => import('./import-lint.ts'),

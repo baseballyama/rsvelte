@@ -1,2 +1,0 @@
-warning block_empty 8:17-9:1 Empty block
-    https://svelte.dev/e/block_empty

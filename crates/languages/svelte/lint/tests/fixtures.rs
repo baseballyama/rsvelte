@@ -7,6 +7,7 @@ fn main() -> ExitCode {
     rsvelte_svelte_lint::register(&mut registry);
     rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
         .inputs_from(concat!(env!("CARGO_MANIFEST_DIR"), "/../compile"))
+        .corpus("svelte")
         .snapshot("svelte.lint/default", "findings")
         .run()
 }

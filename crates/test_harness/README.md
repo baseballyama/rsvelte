@@ -1,49 +1,48 @@
 # Crate fixture tests
 
-Each crate keeps cases for its own tasks in `tests/fixtures/`. `rsvelte_test_harness` runs them with
-`cargo test`, writes rsvelte's output to each case's `actual/` (not in git), and compares it with
-`expected/`. Compare the two directories to see a difference (`diff -ru <case>/expected <case>/actual`).
+`rsvelte_test_harness` runs a crate's tasks with `cargo test` over two kinds of case, writes
+rsvelte's output to each case's `actual/` (not in git), and compares it with `expected/`
+(`diff -ru <case>/expected <case>/actual` shows a difference).
 
-A case has one of two kinds of `expected/`:
+| Kind         | Where                                                                 | `expected/` holds                                     | A difference           |
+| ------------ | --------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------- |
+| hand-written | the crate's `tests/fixtures/` (`rsvelte/` and others in `compile`)    | rsvelte's own output, accepted with `UPDATE_EXPECT=1` | fails the test         |
+| corpus unit  | [`corpus/<family>/`](../../corpus/README.md), with `Fixtures::corpus` | the official tool's output                            | is counted, not failed |
+| copied       | a directory of `tests/fixtures/` with `source.json` (`lint_typed`)    | the official tool's output                            | is counted, not failed |
 
-| Kind                   | Where                                                                          | `expected/` holds                                     | A difference           |
-| ---------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------- | ---------------------- |
-| hand-written           | any directory without `source.json` above it (`rsvelte/` in the compile crate) | rsvelte's own output, accepted with `UPDATE_EXPECT=1` | fails the test         |
-| copied from the corpus | `tests/fixtures/<source>/`, which holds `source.json`                          | the official tool's output                            | is counted, not failed |
-
-Snapshots show what changed. Only copied cases show what is correct. A snapshot registered with
+Snapshots show what changed. Only corpus units show what is correct. A snapshot registered with
 `javascript_snapshot` compares its `.js` file with the official one as a syntax tree, with the
 meaning of `tools/oracle/canonical.ts` (layout, comments and literal spelling are ignored;
 `@__PURE__` on calls is not). Other files are compared as bytes. `[[adjust]]` entries apply only to
-the full check over [`corpus/`](../../corpus/README.md).
+`oracle check`.
 
 ## A case
 
 ```
 crates/languages/svelte/compile/tests/fixtures/
-├── rsvelte/each-keyed/          a hand-written case; nested directories are allowed
-│   ├── input.svelte             the input; exactly one `input.<ext>` per case
-│   ├── expected/
-│   │   ├── client.js            the `client` snapshot
-│   │   ├── server.js            the `server` snapshot
-│   │   └── client.diagnostics.txt   only when the task reports diagnostics
-│   └── actual/                  the same names, written by every run
-└── bits-ui/                     copied from the corpus by `oracle crate`
-    ├── source.json              repository, commit, license and oracle versions
-    ├── licenses/
-    └── src/lib/button.svelte/   one unit; the directory is the file's path in the repository
-        ├── input.svelte
-        └── expected/            client.js, server.js, client.css, client.diagnostics.txt, ...
+└── rsvelte/each-keyed/          a hand-written case; nested directories are allowed
+    ├── input.svelte             the input; exactly one `input.<ext>` per case
+    ├── expected/
+    │   ├── client.js            the `client` snapshot
+    │   ├── server.js            the `server` snapshot
+    │   └── client.diagnostics.txt   only when the task reports diagnostics
+    └── actual/                  the same names, written by every run
+
+corpus/svelte/bits-ui/src/lib/button.svelte/   a corpus unit; the directory is the file's path
+├── input.svelte
+├── expected/svelte.compile/     client.js, server.js, client.css, client.warnings.json, ...
+└── actual/svelte.compile/       client.js, ..., client.diagnostics.json, as `rsvelte corpus` writes
 ```
 
-- A hand-written document is named `<case>.<ext>` (here `rsvelte/each-keyed.svelte`). A copied
+- A hand-written document is named `<case>.<ext>` (here `rsvelte/each-keyed.svelte`). A corpus
   document is named by its path in the repository (here `src/lib/button.svelte`), the file name
   the official tool was given. Component names and style hashes come from that name.
-- A snapshot is `<name>.<file>`: `<name>` is set by the crate's test, `<file>` by the task's
-  output (`js`, `css`, `lint.json`, ...).
-- Diagnostics are one line each: `severity code line:column-line:column message`. Lines and
-  columns count from 1, and columns are in UTF-16 code units. The official warnings and errors are
-  written in the same format.
+- A hand-written snapshot is `<name>.<file>`: `<name>` is set by the crate's test, `<file>` by the
+  task's output (`js`, `css`, `lint.json`, ...). Its diagnostics are one line each:
+  `severity code line:column-line:column message`, with lines and columns counted from 1 and
+  columns in UTF-16 code units.
+- A corpus unit's files are `<task>/<variant>.<file>`. The harness changes only the files of its
+  own tasks in `actual/`. A task with no official output for the unit is not measured on it.
 - Other files in the case are not read by the harness (for example `behaviour.toml`, read by the
   behaviour oracle's tests in `tools/oracle`).
 
@@ -56,28 +55,17 @@ UPDATE_EXPECT=1 cargo test -p rsvelte_svelte_compile --test fixtures -- my-case
 git diff -- crates/languages/svelte/compile/tests/fixtures   # read every snapshot you accept
 ```
 
-## Copy the corpus into a crate
-
-Run this again after the corpus changes (`oracle import` or `regen`). It replaces each
-`tests/fixtures/<source>/` and never touches hand-written cases.
-
-```sh
-F=tools/oracle/oracle.ts
-mise exec -- node $F crate --family svelte --task svelte.compile,svelte.compileModule \
-  --to crates/languages/svelte/compile/tests/fixtures
-```
-
 ## Run
 
 ```sh
 cargo test -p rsvelte_svelte_compile --test fixtures                 # every case
-cargo test -p rsvelte_svelte_compile --test fixtures -- bits-ui       # cases whose name contains `bits-ui`
+cargo test -p rsvelte_svelte_compile --test fixtures -- svelte/bits-ui # cases whose name contains it
 cargo test -p rsvelte_svelte_compile --test fixtures -- --exact rsvelte/each-keyed
 UPDATE_EXPECT=1 cargo test -p rsvelte_svelte_compile --test fixtures  # write changed snapshots, remove stale ones
 ```
 
 The test fails when a hand-written snapshot differs, is missing, or is no longer produced, when a
-task panics on any case, and when no case exists. For copied cases it prints how many match the
+task panics on any case, and when no case exists. For corpus units it prints how many match the
 official output byte for byte, how many match it only as JavaScript syntax trees, how many differ,
 how many have JavaScript that does not parse, and how many no task ran on (for example
 `.svelte.ts` modules, which rsvelte does not compile yet).
@@ -104,6 +92,7 @@ fn main() -> ExitCode {
     let mut registry = Registry::new();
     rsvelte_svelte_compile::register(&mut registry);
     rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
+        .corpus("svelte")
         .javascript_snapshot("svelte.compile/client", "client")
         .javascript_snapshot("svelte.compile/server", "server")
         .run()
@@ -131,6 +120,7 @@ Type-check tasks need native TypeScript 7.1 and the framework packages.
 | `languages/vue/compile_svelte`           | `svue.compile/client`, `/server`            | `client`, `server` |
 | `hosts/command_line`                     | `ts.check/default` (registered by the host) | `ts-check`         |
 
-Svelte type checking and TypeScript projection use `Fixtures::inputs_from` to read the compiler's exact input
-population. Each crate keeps its own expectations and actual outputs. Missing external
-oracle snapshots report `UNMEASURED`, not a match.
+The Svelte crates in the table run the corpus too. Lint, type checking and TypeScript projection
+use `Fixtures::inputs_from` to read the compiler's hand-written inputs, and keep their own
+snapshots of them. Type checking runs each source on its own (`Fixtures::per_project`). A unit
+without an official output reports `UNMEASURED`, not a match.

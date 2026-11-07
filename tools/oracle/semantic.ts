@@ -18,9 +18,7 @@ export async function main(args: string[]): Promise<void> {
 	if (!values.report) throw new Error('--report <file> is required');
 	const report = await comparePopulation({
 		tools,
-		inputs: path.resolve(
-			values.inputs ?? path.join(tools, '../../crates/languages/svelte/compile/tests/fixtures'),
-		),
+		inputs: path.resolve(values.inputs ?? path.join(tools, '../../corpus/svelte')),
 		projector: path.resolve(
 			values.projector ?? path.join(tools, '../../target/debug/examples/semantic'),
 		),

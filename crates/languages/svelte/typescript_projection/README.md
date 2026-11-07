@@ -55,8 +55,8 @@ Program for both consumers. The existing Rust CLI checker has not been connected
 ```sh
 cargo test -p rsvelte_svelte_typescript_projection
 cargo test -p rsvelte_svelte_typescript_projection --test fixtures
-cargo run --profile benchmark -p rsvelte_svelte_typescript_projection --example verify -- crates/languages/svelte/compile/tests/fixtures
-cargo run --profile benchmark -p rsvelte_svelte_typescript_projection --example benchmark -- crates/languages/svelte/compile/tests/fixtures 20
+cargo run --profile benchmark -p rsvelte_svelte_typescript_projection --example verify -- corpus/svelte
+cargo run --profile benchmark -p rsvelte_svelte_typescript_projection --example benchmark -- corpus/svelte 20
 cargo run -p rsvelte_svelte_typescript_projection --example layout
 ```
 
@@ -66,7 +66,8 @@ measures lowering and printing for parsed components with an instance TypeScript
 its process CPU counters also include file reads and source parsing. Layout sizes are payload
 measurements, not proof of cache residency. See [performance tools](../../../../tools/performance/README.md).
 
-The fixture test reads the exact input population from `../compile/tests/fixtures`.
+The fixture test runs the corpus and the compiler's hand-written inputs
+(`../compile/tests/fixtures`).
 Only projection expectations and actual outputs live here. It checks every emitted file
 with an independent TypeScript parser, including external cases without oracle snapshots.
 Handwritten snapshots detect changes in our own output; they do not establish type equivalence

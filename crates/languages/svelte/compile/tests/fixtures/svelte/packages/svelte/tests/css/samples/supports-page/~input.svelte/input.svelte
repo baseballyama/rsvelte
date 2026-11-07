@@ -1,7 +1,0 @@
-<style>
-	@page{
-		margin: 1cm;
-		size: A4;
-		bleed: 7pt;
-	}
-</style>
