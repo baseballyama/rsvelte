@@ -1,3 +1,4 @@
+use std::fmt::{self, Debug, Write as _};
 use std::sync::{Arc, Mutex};
 
 use rsvelte_kernel::computation::database::{ArtifactAccess, DocumentContext};
@@ -6,6 +7,7 @@ use rsvelte_kernel::computation::pipeline::{
 };
 use rsvelte_kernel::diagnostics::diagnostic::{Diagnostic, Severity};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
+use rsvelte_kernel::source::positions::LineIndex;
 
 const MAX_INPUT_BYTES: usize = 64 * 1024;
 const MAX_SNAPSHOT_CHARS: usize = 80_000;
@@ -13,6 +15,7 @@ const PLUGINS: &[&str] = &["svelte", "vue", "svue", "vuelte"];
 const OPERATIONS: &[&str] = &["compile-client", "compile-server", "format", "lint"];
 
 struct Observation {
+    identifier: &'static str,
     accesses: Vec<ArtifactAccess>,
     artifacts: Vec<(&'static str, String)>,
 }
@@ -44,6 +47,7 @@ impl Task for ObservedTask {
             .lock()
             .expect("the observation lock contains no plugin code")
             .push(Observation {
+                identifier: self.task.identifier(),
                 accesses,
                 artifacts,
             });
@@ -51,67 +55,58 @@ impl Task for ObservedTask {
 }
 
 fn snapshot(context: &DocumentContext<'_>, name: &str) -> Option<String> {
-    let mut text = match name {
-        "svelte.parse" => format!("{:#?}", context.get::<rsvelte_svelte::Parsed>()),
-        "svelte.resolve" => format!("{:#?}", context.get::<rsvelte_svelte::Resolved>()),
-        "svelte.compiler_syntax_tree" => {
-            format!("{:#?}", context.get::<rsvelte_svelte::Normalized>())
-        }
-        "svelte.analyze" => format!("{:#?}", context.get::<rsvelte_svelte::Analyzed>()),
-        "svelte.css" => format!(
-            "{:#?}",
-            context.get::<rsvelte_svelte_compile::ScopedStylesheet>()
-        ),
-        "vue.parse" => format!("{:#?}", context.get::<rsvelte_vue::Parsed>()),
-        "vue.compiler_syntax_tree" => format!("{:#?}", context.get::<rsvelte_vue::Lowered>()),
-        "vue.resolve" => format!("{:#?}", context.get::<rsvelte_vue::Resolved>()),
-        "svue.translate.client" => {
-            format!(
-                "{:#?}",
-                context.get::<rsvelte_svue::Translated<rsvelte_svue::Client>>()
-            )
-        }
-        "svue.resolve.client" => {
-            format!(
-                "{:#?}",
-                context.get::<rsvelte_svue::Resolved<rsvelte_svue::Client>>()
-            )
-        }
-        "svue.analyze.client" => {
-            format!(
-                "{:#?}",
-                context.get::<rsvelte_svue::Analyzed<rsvelte_svue::Client>>()
-            )
-        }
-        "svue.translate.server" => {
-            format!(
-                "{:#?}",
-                context.get::<rsvelte_svue::Translated<rsvelte_svue::Server>>()
-            )
-        }
-        "svue.resolve.server" => {
-            format!(
-                "{:#?}",
-                context.get::<rsvelte_svue::Resolved<rsvelte_svue::Server>>()
-            )
-        }
-        "svue.analyze.server" => {
-            format!(
-                "{:#?}",
-                context.get::<rsvelte_svue::Analyzed<rsvelte_svue::Server>>()
-            )
-        }
-        "vuelte.check" => format!(
-            "{:#?}",
-            context.get::<rsvelte_svelte_compile_vapor::Checked>()
-        ),
+    use rsvelte_svue::{Client, Server};
+    Some(match name {
+        "svelte.parse" => bounded_debug(context.get::<rsvelte_svelte::Parsed>()),
+        "svelte.resolve" => bounded_debug(context.get::<rsvelte_svelte::Resolved>()),
+        "svelte.compiler_syntax_tree" => bounded_debug(context.get::<rsvelte_svelte::Normalized>()),
+        "svelte.analyze" => bounded_debug(context.get::<rsvelte_svelte::Analyzed>()),
+        "svelte.css" => bounded_debug(context.get::<rsvelte_svelte_compile::ScopedStylesheet>()),
+        "vue.parse" => bounded_debug(context.get::<rsvelte_vue::Parsed>()),
+        "vue.compiler_syntax_tree" => bounded_debug(context.get::<rsvelte_vue::Lowered>()),
+        "vue.resolve" => bounded_debug(context.get::<rsvelte_vue::Resolved>()),
+        "svue.translate.client" => bounded_debug(context.get::<rsvelte_svue::Translated<Client>>()),
+        "svue.resolve.client" => bounded_debug(context.get::<rsvelte_svue::Resolved<Client>>()),
+        "svue.analyze.client" => bounded_debug(context.get::<rsvelte_svue::Analyzed<Client>>()),
+        "svue.translate.server" => bounded_debug(context.get::<rsvelte_svue::Translated<Server>>()),
+        "svue.resolve.server" => bounded_debug(context.get::<rsvelte_svue::Resolved<Server>>()),
+        "svue.analyze.server" => bounded_debug(context.get::<rsvelte_svue::Analyzed<Server>>()),
+        "vuelte.check" => bounded_debug(context.get::<rsvelte_svelte_compile_vapor::Checked>()),
         _ => return None,
-    };
-    if let Some((at, _)) = text.char_indices().nth(MAX_SNAPSHOT_CHARS) {
-        text.truncate(at);
-        text.push_str("\n[Snapshot truncated after 80000 characters]");
+    })
+}
+
+/// `{:#?}` of `value`, cut after [`MAX_SNAPSHOT_CHARS`] characters.
+fn bounded_debug(value: &impl Debug) -> String {
+    struct Bounded {
+        text: String,
+        room: usize,
     }
-    Some(text)
+    impl fmt::Write for Bounded {
+        fn write_str(&mut self, s: &str) -> fmt::Result {
+            for ch in s.chars() {
+                if self.room == 0 {
+                    // Stops the formatter, so a large tree is not formatted only to be cut.
+                    return Err(fmt::Error);
+                }
+                self.room -= 1;
+                self.text.push(ch);
+            }
+            Ok(())
+        }
+    }
+    let mut out = Bounded {
+        text: String::new(),
+        room: MAX_SNAPSHOT_CHARS,
+    };
+    if write!(out, "{value:#?}").is_err() {
+        write!(
+            out.text,
+            "\n[Snapshot truncated after {MAX_SNAPSHOT_CHARS} characters]"
+        )
+        .expect("writing to a String does not fail");
+    }
+    out.text
 }
 
 fn registry(plugins: &[&str]) -> Registry {
@@ -251,11 +246,18 @@ fn execute(
         let observations = observations
             .lock()
             .map_err(|e| format!("cannot read pipeline observations: {e}"))?;
-        if result.outputs.len() != observations.len() {
-            return Err("task outputs and observations have different lengths".to_owned());
+        if result.outputs.len() != observations.len()
+            || result
+                .outputs
+                .iter()
+                .zip(observations.iter())
+                .any(|((identifier, _), observed)| *identifier != observed.identifier)
+        {
+            return Err("task outputs and observations do not match".to_owned());
         }
+        let index = LineIndex::new(&document.text);
         for ((identifier, out), observed) in result.outputs.iter().zip(observations.iter()) {
-            step_json(&mut json, identifier, out, observed, &document);
+            step_json(&mut json, identifier, out, observed, &index);
         }
     }
     json.end_array().end_object();
@@ -267,7 +269,7 @@ fn step_json(
     identifier: &str,
     out: &TaskOutput,
     observed: &Observation,
-    document: &Document,
+    index: &LineIndex,
 ) {
     json.begin_object()
         .key("id")
@@ -301,18 +303,13 @@ fn step_json(
             .end_object();
     }
     json.end_array().key("diagnostics").begin_array();
-    let index = rsvelte_kernel::source::positions::LineIndex::new(&document.text);
     for diagnostic in &out.diagnostics {
-        diagnostic_json(json, diagnostic, &index);
+        diagnostic_json(json, diagnostic, index);
     }
     json.end_array().end_object();
 }
 
-fn diagnostic_json(
-    json: &mut StructuredDataWriter,
-    diagnostic: &Diagnostic,
-    index: &rsvelte_kernel::source::positions::LineIndex,
-) {
+fn diagnostic_json(json: &mut StructuredDataWriter, diagnostic: &Diagnostic, index: &LineIndex) {
     let at = index.line_column(diagnostic.span.start_offset);
     json.begin_object()
         .key("code")
@@ -365,6 +362,16 @@ mod tests {
             assert!(json.contains(r#""name":"js""#), "{json}");
             assert!(json.contains(artifact), "{json}");
         }
+    }
+
+    #[test]
+    fn snapshots_stop_at_the_character_limit() {
+        let long = "日".repeat(MAX_SNAPSHOT_CHARS);
+        let text = bounded_debug(&long);
+        let (kept, note) = text.split_once('\n').expect("a truncation note");
+        assert_eq!(kept.chars().count(), MAX_SNAPSHOT_CHARS);
+        assert_eq!(note, "[Snapshot truncated after 80000 characters]");
+        assert_eq!(bounded_debug(&"short"), "\"short\"");
     }
 
     #[test]
