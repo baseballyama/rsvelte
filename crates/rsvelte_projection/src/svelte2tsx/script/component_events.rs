@@ -254,7 +254,6 @@ impl ComponentEvents {
 
     /// Get event entries for the return statement, in official insertion order.
     /// Returns (name, value) pairs like ("hi", "__`sveltets_2_customEvent`").
-    #[must_use]
     pub fn get_event_entries(&self) -> impl ExactSizeIterator<Item = (&str, &'static str)> {
         self.dispatched_order
             .iter()

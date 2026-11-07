@@ -88,7 +88,11 @@ pub(crate) fn run_native_rules_on_root(
 ) -> Vec<LintDiagnostic> {
     let rules = all_rules();
     let sveltekit = crate::sveltekit::available(path);
-    let runes = Some(crate::runes_mode::component_runes_mode(root, source));
+    let runes = Some(crate::runes_mode::component_runes_mode(
+        config.svelte_features_runes(),
+        root,
+        source,
+    ));
     let enabled: Vec<EnabledRule> = rules
         .iter()
         .filter_map(|r| {
@@ -351,7 +355,8 @@ pub(crate) fn run_script_rules_on_root(
     scope_resolver: Option<&ScopeResolver>,
 ) -> Vec<LintDiagnostic> {
     let rules = all_script_rules();
-    let runes = crate::runes_mode::component_runes_mode(root, source);
+    let runes =
+        crate::runes_mode::component_runes_mode(config.svelte_features_runes(), root, source);
     let enabled = enabled_script_rules(&rules, config, path, Some(runes));
     if enabled.is_empty() {
         return Vec::new();
