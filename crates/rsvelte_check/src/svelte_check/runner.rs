@@ -256,6 +256,10 @@ pub fn run(options: &RunOptions) -> RunResult {
     let kit_files = relevant.kit;
     let files_checked = files.len();
     phases.mark("walk");
+    let need_overlay = options.emit_overlay || options.type_check;
+    let _cache_lock = (need_overlay || options.incremental)
+        .then(|| lock_cache_dir(&options.workspace))
+        .flatten();
     let diagnostics = compile_files_with_cache(
         &files,
         &options.workspace,
@@ -269,7 +273,6 @@ pub fn run(options: &RunOptions) -> RunResult {
         overlay: None,
     };
 
-    let need_overlay = options.emit_overlay || options.type_check;
     if need_overlay {
         let root_dir_default = if options.type_check {
             RootDirDefault::for_typescript_major(
@@ -328,6 +331,8 @@ pub fn run(options: &RunOptions) -> RunResult {
                 });
             }
         }
+        overlay::wait_for_overlay_cleanup();
+        phases.mark("cleanup");
     }
 
     // Scope reported diagnostics to the workspace being checked. Official
@@ -356,6 +361,49 @@ pub fn run(options: &RunOptions) -> RunResult {
     phases.report();
 
     result
+}
+
+/// Hold `<workspace>/.svelte-check` for one run. A cold run clears the shadow
+/// tree first, which another process on the same workspace (a `--watch`
+/// beside a one-off check) may still be emitting into or type-checking.
+/// Best-effort: a cache that cannot be locked is used unlocked.
+fn lock_cache_dir(workspace: &Path) -> Option<std::fs::File> {
+    let cache_dir = workspace.join(".svelte-check");
+    match std::fs::symlink_metadata(&cache_dir) {
+        // A symlink (or a file) here is refused by the overlay itself.
+        Ok(metadata) if !metadata.is_dir() => return None,
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            match std::fs::create_dir(&cache_dir) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(_) => return None,
+            }
+        }
+        Err(_) => return None,
+    }
+    let lock_path = cache_dir.join(".lock");
+    if std::fs::symlink_metadata(&lock_path).is_ok_and(|m| !m.is_file()) {
+        return None;
+    }
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(&lock_path)
+        .ok()?;
+    match file.try_lock() {
+        Ok(()) => Some(file),
+        Err(std::fs::TryLockError::WouldBlock) => {
+            eprintln!(
+                "rsvelte-check: waiting for another run on {} to finish",
+                cache_dir.display()
+            );
+            file.lock().ok()?;
+            Some(file)
+        }
+        Err(std::fs::TryLockError::Error(_)) => None,
+    }
 }
 
 /// Run the project's function `warningFilter` over the collected Svelte warnings
@@ -1018,5 +1066,30 @@ mod tests {
         apply_filters(&mut diags, &opts);
         let sources: Vec<_> = diags.iter().map(|d| d.source).collect();
         assert_eq!(sources, vec!["svelte", "ts"]);
+    }
+
+    #[test]
+    fn a_second_run_on_one_cache_waits_for_the_first() {
+        let tmp = std::env::temp_dir().join(format!("svc_runner_lock_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        let first = lock_cache_dir(&tmp).expect("the cache is lockable");
+        let (tx, rx) = std::sync::mpsc::channel();
+        let workspace = tmp.clone();
+        let second = std::thread::spawn(move || {
+            let lock = lock_cache_dir(&workspace);
+            tx.send(lock.is_some()).unwrap();
+        });
+        assert!(
+            rx.recv_timeout(std::time::Duration::from_millis(300))
+                .is_err(),
+            "the second run did not wait"
+        );
+        drop(first);
+        assert!(rx.recv_timeout(std::time::Duration::from_secs(10)).unwrap());
+        second.join().unwrap();
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
