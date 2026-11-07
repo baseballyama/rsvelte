@@ -130,6 +130,10 @@ lazy_static = "1.5.0"
 indexmap = { version = "2.13.0", features = ["serde"] }
 oxc_ast_visit = "0.149"
 
+# On-demand stack segments for recursion whose depth follows the AST (see
+# `src/stack.rs`). Not on wasm: stacker cannot read the stack limit there.
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+stacker = "0.1"
 
 [dev-dependencies]
 # Testing

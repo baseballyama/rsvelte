@@ -4,6 +4,9 @@
 
 use super::super::svelte2tsx::slice_src;
 use super::super::utils::lexical::contains_word;
+use oxc_ast::ast as oxc;
+use oxc_ast_visit::{Visit, walk};
+use oxc_syntax::scope::ScopeFlags;
 
 /// Find the start of `</script>` tag by scanning backwards from the script end position.
 pub fn find_script_close_tag_start(source: &str, script_end: u32) -> u32 {
@@ -291,163 +294,151 @@ fn scan_back_leading_comments(
     (first_comment, trivia_start)
 }
 
-/// Detect whether a script content contains top-level `await` expressions.
+/// Detect whether the instance script has a top-level `await`.
 ///
-/// Checks the retained OXC program for `AwaitExpression` at the top level.
-pub fn detect_top_level_await(content: &str, program: &oxc_ast::ast::Program) -> bool {
-    use oxc_ast::ast as oxc;
-
-    // Fast path: an `await` substring is required for any top-level await
-    // to exist. Skip the AST walk when the keyword is absent.
+/// Port of `processInstanceScriptContent.ts`: an `AwaitExpression` counts when
+/// no enclosing node is a `Block` or function-like (`ts.isBlock(node) ||
+/// ts.isFunctionLike(node)` pushes a scope). oxc's unambiguous parse also reads
+/// an ambiguous `await (x)` as an `AwaitExpression` once the file turns out to
+/// be ESM, including through an `await` elsewhere or `export as namespace`,
+/// where TypeScript parses a call unless the file is an external module.
+pub fn detect_top_level_await(content: &str, program: &oxc::Program) -> bool {
     if !contains_word(content.as_bytes(), b"await") {
         return false;
     }
-
-    // Mirror upstream `processInstanceScriptContent.ts` which sets
-    // `hasTopLevelAwait = true` whenever an AwaitExpression is visited at the
-    // root scope (i.e. not inside any Block / FunctionLike node).
-    //
-    // We do not have the upstream's full AST-walker machinery, but we can
-    // replicate the effect for the cases that actually occur in Svelte
-    // components:
-    //
-    //   • `VariableDeclaration` at module top-level whose initialiser
-    //     *contains* an AwaitExpression (e.g. `let x = $derived(await f())`
-    //     or `const user = await getUser()`).
-    //   • `ExpressionStatement` at module top-level whose expression
-    //     *contains* an AwaitExpression (e.g. `y = await promise`).
-    //
-    // For both, we use a deep recursive scan that stops at function
-    // boundaries (`FunctionExpression` / `ArrowFunctionExpression`) — those
-    // introduce a new scope and their inner `await` is NOT top-level.
-    for stmt in &program.body {
-        match stmt {
-            oxc::Statement::VariableDeclaration(decl) => {
-                for declarator in &decl.declarations {
-                    if let Some(ref init) = declarator.init
-                        && expr_contains_await_deep(init)
-                    {
-                        return true;
-                    }
-                }
-            }
-            oxc::Statement::ExpressionStatement(expr)
-                if expr_contains_await_deep(&expr.expression) =>
-            {
-                return true;
-            }
-            _ => {}
-        }
-    }
-    false
+    let mut finder = TopLevelAwaitFinder {
+        source: content,
+        is_external_module: program.body.iter().any(is_external_module_indicator),
+        depth: 0,
+        found: false,
+        found_if_external_module: false,
+    };
+    finder.visit_program(program);
+    finder.found || (finder.found_if_external_module && finder.is_external_module)
 }
 
-/// Deep check: returns `true` if `expr` is, or transitively contains (outside
-/// any function boundary), an `AwaitExpression`.
-///
-/// Mirrors the upstream TypeScript walker's `scope === rootScope` predicate:
-/// we recurse into all expression sub-nodes but stop when entering a
-/// `FunctionExpression` or `ArrowFunctionExpression` (a new async scope
-/// whose internal `await` is not "top-level" for the Svelte component).
-///
-/// Reference: `processInstanceScriptContent.ts` lines 246-349
-///   `if (ts.isBlock(node) || ts.isFunctionLike(node)) pushScope();`
-///   `if (isSvelte5Plus && ts.isAwaitExpression(node) && scope === rootScope)`
-pub fn expr_contains_await_deep(expr: &oxc_ast::ast::Expression) -> bool {
-    use oxc_ast::ast::{Argument, Expression as E};
-
-    match expr {
-        // Base case: this expression is an await.
-        E::AwaitExpression(_) => true,
-
-        // Function boundaries: do NOT recurse — their inner awaits are in a
-        // new scope and are not "top-level" from the component's perspective.
-        // Parenthesised expression: transparent wrapper.
-        E::ParenthesizedExpression(p) => expr_contains_await_deep(&p.expression),
-
-        // Assignment: `x = await y` or `x = f(await y)` — check the RHS.
-        // (LHS is a pattern/identifier and cannot contain await directly.)
-        E::AssignmentExpression(a) => expr_contains_await_deep(&a.right),
-
-        // Binary / logical: check both sides.
-        E::BinaryExpression(b) => {
-            expr_contains_await_deep(&b.left) || expr_contains_await_deep(&b.right)
-        }
-        E::LogicalExpression(l) => {
-            expr_contains_await_deep(&l.left) || expr_contains_await_deep(&l.right)
-        }
-
-        // Conditional: test ? consequent : alternate.
-        E::ConditionalExpression(c) => {
-            expr_contains_await_deep(&c.test)
-                || expr_contains_await_deep(&c.consequent)
-                || expr_contains_await_deep(&c.alternate)
-        }
-
-        // Unary / yield: single argument.
-        E::UnaryExpression(u) => expr_contains_await_deep(&u.argument),
-        E::YieldExpression(y) => y
-            .argument
-            .as_ref()
-            .is_some_and(|a| expr_contains_await_deep(a)),
-
-        // Sequence: any expression in the list.
-        E::SequenceExpression(s) => s.expressions.iter().any(expr_contains_await_deep),
-
-        // Call expression: callee + arguments.  This is the key case for
-        // `$derived(await x)` — the callee is `$derived` and the argument
-        // is an AwaitExpression.
-        //
-        // `Argument` inherits `Expression` variants via `@inherit Expression`;
-        // `to_expression()` panics for `SpreadElement` (handled first in the
-        // match), and returns the inner `&Expression` for all other variants.
-        E::CallExpression(call) => {
-            expr_contains_await_deep(&call.callee)
-                || call.arguments.iter().any(|arg| match arg {
-                    Argument::SpreadElement(sp) => expr_contains_await_deep(&sp.argument),
-                    _ => expr_contains_await_deep(arg.to_expression()),
-                })
-        }
-
-        // `new Foo(await x)`.
-        E::NewExpression(n) => n.arguments.iter().any(|arg| match arg {
-            Argument::SpreadElement(sp) => expr_contains_await_deep(&sp.argument),
-            _ => expr_contains_await_deep(arg.to_expression()),
+/// `isAnExternalModuleIndicatorNode` over a top-level statement.
+fn is_external_module_indicator(statement: &oxc::Statement) -> bool {
+    match statement {
+        oxc::Statement::TSImportEqualsDeclaration(decl) => matches!(
+            decl.module_reference,
+            oxc::TSModuleReference::ExternalModuleReference(_)
+        ),
+        _ => statement.as_module_declaration().is_some_and(|decl| {
+            !matches!(
+                decl,
+                oxc::ModuleDeclaration::TSNamespaceExportDeclaration(_)
+            )
         }),
+    }
+}
 
-        // Member expressions: `obj[await key]` or `obj.prop`.
-        E::ComputedMemberExpression(c) => {
-            expr_contains_await_deep(&c.object) || expr_contains_await_deep(&c.expression)
+struct TopLevelAwaitFinder<'s> {
+    source: &'s str,
+    /// Only `import.meta` can still turn this on once the walk has started.
+    is_external_module: bool,
+    depth: u32,
+    found: bool,
+    found_if_external_module: bool,
+}
+
+impl TopLevelAwaitFinder<'_> {
+    fn nested(&mut self, walk: impl FnOnce(&mut Self)) {
+        if self.found {
+            return;
         }
-        E::StaticMemberExpression(s) => expr_contains_await_deep(&s.object),
-        E::PrivateFieldExpression(p) => expr_contains_await_deep(&p.object),
+        self.depth += 1;
+        walk(self);
+        self.depth -= 1;
+    }
+}
 
-        // Template literals: `${await x}`.
-        E::TemplateLiteral(tl) => tl.expressions.iter().any(expr_contains_await_deep),
-        E::TaggedTemplateExpression(tt) => {
-            expr_contains_await_deep(&tt.tag)
-                || tt.quasi.expressions.iter().any(expr_contains_await_deep)
+impl<'a> Visit<'a> for TopLevelAwaitFinder<'_> {
+    fn visit_await_expression(&mut self, it: &oxc::AwaitExpression<'a>) {
+        if self.depth == 0 {
+            if ts_parses_as_await_expression(self.source, it.span.start as usize + "await".len()) {
+                self.found = true;
+                return;
+            }
+            self.found_if_external_module = true;
         }
+        walk::walk_await_expression(self, it);
+    }
 
-        // Object / array literals: `$derived({ value: await x })`, `[await x]`.
-        E::ObjectExpression(o) => o.properties.iter().any(|p| match p {
-            oxc_ast::ast::ObjectPropertyKind::ObjectProperty(prop) => {
-                expr_contains_await_deep(&prop.value)
-            }
-            oxc_ast::ast::ObjectPropertyKind::SpreadProperty(sp) => {
-                expr_contains_await_deep(&sp.argument)
-            }
-        }),
-        E::ArrayExpression(a) => a.elements.iter().any(|el| match el {
-            oxc_ast::ast::ArrayExpressionElement::SpreadElement(sp) => {
-                expr_contains_await_deep(&sp.argument)
-            }
-            oxc_ast::ast::ArrayExpressionElement::Elision(_) => false,
-            other => other.as_expression().is_some_and(expr_contains_await_deep),
-        }),
+    fn visit_import_meta(&mut self, _: &oxc::ImportMeta) {
+        self.is_external_module = true;
+    }
 
-        // Everything else (literals, identifiers, `this`, …) cannot contain await.
-        _ => false,
+    // TypeScript has no `Block` node for a `case` clause, a namespace body or
+    // a class body, so only these nest a scope.
+    fn visit_block_statement(&mut self, it: &oxc::BlockStatement<'a>) {
+        self.nested(|v| walk::walk_block_statement(v, it));
+    }
+
+    fn visit_static_block(&mut self, it: &oxc::StaticBlock<'a>) {
+        self.nested(|v| walk::walk_static_block(v, it));
+    }
+
+    fn visit_function(&mut self, it: &oxc::Function<'a>, flags: ScopeFlags) {
+        self.nested(|v| walk::walk_function(v, it, flags));
+    }
+
+    fn visit_arrow_function_expression(&mut self, it: &oxc::ArrowFunctionExpression<'a>) {
+        self.nested(|v| walk::walk_arrow_function_expression(v, it));
+    }
+
+    // A TypeScript method / accessor / constructor node owns its decorators and
+    // computed name, which oxc hangs outside the `Function`.
+    fn visit_method_definition(&mut self, it: &oxc::MethodDefinition<'a>) {
+        self.nested(|v| walk::walk_method_definition(v, it));
+    }
+
+    fn visit_object_property(&mut self, it: &oxc::ObjectProperty<'a>) {
+        if it.method || it.kind != oxc::PropertyKind::Init {
+            self.nested(|v| walk::walk_object_property(v, it));
+        } else {
+            walk::walk_object_property(self, it);
+        }
+    }
+}
+
+/// Outside an await context TypeScript reads `await` as an `AwaitExpression`
+/// only when the next token is an identifier, keyword or numeric / string
+/// literal on the same line (`nextTokenIsIdentifierOrKeywordOrLiteralOnSameLine`);
+/// otherwise `await (x)` is a call to an identifier named `await`.
+fn ts_parses_as_await_expression(source: &str, after_await: usize) -> bool {
+    const LINE_BREAKS: [char; 4] = ['\n', '\r', '\u{2028}', '\u{2029}'];
+    let mut rest = &source[after_await..];
+    let mut line_break = false;
+    loop {
+        if let Some(comment) = rest.strip_prefix("//") {
+            rest = &comment[comment.find(LINE_BREAKS).unwrap_or(comment.len())..];
+            continue;
+        }
+        if let Some(comment) = rest.strip_prefix("/*") {
+            let Some(end) = comment.find("*/") else {
+                return false;
+            };
+            line_break |= comment[..end].contains(LINE_BREAKS);
+            rest = &comment[end + 2..];
+            continue;
+        }
+        let Some(c) = rest.chars().next() else {
+            return false;
+        };
+        if LINE_BREAKS.contains(&c) {
+            line_break = true;
+        } else if !(c.is_whitespace() || matches!(c, '\u{200B}' | '\u{FEFF}')) {
+            return !line_break
+                && match c {
+                    '.' => rest[1..].starts_with(|d: char| d.is_ascii_digit()),
+                    '_' | '$' | '\\' | '#' | '\'' | '"' => true,
+                    // oxc accepted an operand here, so a non-ASCII start is an
+                    // identifier.
+                    c => c.is_ascii_alphanumeric() || !c.is_ascii(),
+                };
+        }
+        rest = &rest[c.len_utf8()..];
     }
 }
 

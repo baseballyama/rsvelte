@@ -53,7 +53,7 @@ memchr = "2.7"
 regex = { version = "1.11", default-features = false, features = ["std", "perf", "unicode-perl", "unicode-case"] }
 # Fallback for `sort-attributes`'s `order` patterns only, which are JS regexes and
 # may use lookaround. Never on the default path: `regex` is tried first.
-fancy-regex = { version = "0.19", default-features = false, features = ["std", "perf", "unicode"] }
+fancy-regex = { version = "0.20", default-features = false, features = ["std", "perf", "unicode"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
@@ -78,7 +78,7 @@ oxc_syntax = "0.149"
 javascript-globals = "2.0.0"
 
 [dev-dependencies]
-criterion = { version = "5.0.0", features = [
+criterion = { version = "6.0.0", features = [
     "html_reports",
 ], package = "codspeed-criterion-compat" }
 serde_json = "1.0"

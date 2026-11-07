@@ -29,6 +29,7 @@ mimalloc = { version = "0.1", features = ["local_dynamic_tls"] }
 notify = { version = "8", default-features = false, features = ["macos_kqueue"] }
 oxc_allocator = "0.149"
 oxc_ast = "0.149"
+oxc_ast_visit = "0.149"
 oxc_parser = "0.149"
 oxc_resolver = "11"
 oxc_span = "0.149"

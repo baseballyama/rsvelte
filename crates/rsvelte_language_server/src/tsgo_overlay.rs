@@ -14,8 +14,8 @@ use std::str::FromStr;
 
 use lsp_types::{Position, Range, Uri};
 use rsvelte_check::overlay::{
-    CACHE_GITIGNORE, FallbackSvelteTypes, SHIM_FILES, SHIM_JSX_V4_NAME, fallback_svelte_types,
-    global_type_files,
+    CACHE_GITIGNORE, FallbackSvelteTypes, RootDirDefault, SHIM_FILES, SHIM_JSX_V4_NAME,
+    fallback_svelte_types, global_type_files, overlay_root_dir,
 };
 use rsvelte_projection::{
     ProjectionEngine, ProjectionMap, RewriteExternalImportsOptions, Svelte2TsxMode,
@@ -1141,6 +1141,8 @@ impl TsgoOverlay {
                 generated_path: shadow_path.display().to_string(),
                 workspace_path: self.workspace.display().to_string(),
             }),
+            // The shadow is a `.svelte.tsx` where upstream's snapshot is a `.ts`.
+            disambiguate_for_tsx: true,
             ..Svelte2TsxOptions::default()
         }
     }
@@ -1292,6 +1294,13 @@ impl TsgoOverlay {
         }
         if let Some(source) = &self.source_tsconfig {
             config["extends"] = json!(path_for_tsconfig(source));
+            // The server always runs TypeScript 7, which defaults `rootDir` to this overlay's
+            // directory; the shadows live under `mirror_root`.
+            if let Some(root_dir) =
+                overlay_root_dir(source, &self.mirror_root, RootDirDefault::ConfigDir)
+            {
+                config["compilerOptions"]["rootDir"] = json!(path_for_tsconfig(&root_dir));
+            }
         }
         if let Some(exclude) = specs.exclude {
             config["exclude"] = json!(exclude);
@@ -2714,6 +2723,68 @@ mod tests {
     }
 
     #[test]
+    fn overlay_config_keeps_the_project_root_dir_default() {
+        let workspace = TestWorkspace::new("root-dir-default");
+        let root = fs::canonicalize(&workspace.0).unwrap();
+        write(
+            &root.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "outDir": "./dist" } }"#,
+        );
+        write(&root.join("src/main.ts"), "export const main = 1;");
+        let root_dir = |overlay: &TsgoOverlay| {
+            let config: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap())
+                    .unwrap();
+            config["compilerOptions"].get("rootDir").cloned()
+        };
+
+        let overlay = build_overlay(&root).unwrap();
+        assert_eq!(root_dir(&overlay), Some(json!(path_for_tsconfig(&root))));
+
+        write(
+            &root.join("nested/tsconfig.json"),
+            r#"{ "extends": "../tsconfig.json" }"#,
+        );
+        let nested = TsgoOverlay::build_nested(
+            &root.join("nested"),
+            &root.join("nested/tsconfig.json"),
+            &root,
+        )
+        .unwrap();
+        assert_eq!(
+            root_dir(&nested),
+            Some(json!(path_for_tsconfig(&root))),
+            "a nested project's shadows live under the enclosing workspace"
+        );
+
+        write(
+            &root.join("configs/base.json"),
+            r#"{ "compilerOptions": { "rootDir": "../src" } }"#,
+        );
+        write(
+            &root.join("tsconfig.json"),
+            r#"{ "extends": "./configs/base.json", "compilerOptions": { "outDir": "./dist" } }"#,
+        );
+        let overlay = build_overlay(&root).unwrap();
+        assert_eq!(
+            root_dir(&overlay),
+            None,
+            "a declared rootDir is inherited unchanged"
+        );
+
+        write(
+            &root.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "strict": true } }"#,
+        );
+        let overlay = build_overlay(&root).unwrap();
+        assert_eq!(
+            root_dir(&overlay),
+            None,
+            "without outDir an explicit rootDir would report sources outside the project"
+        );
+    }
+
+    #[test]
     fn overlay_config_merges_inherited_plain_project_specs() {
         let workspace = TestWorkspace::new("config-specs");
         write(
@@ -3060,6 +3131,37 @@ mod tests {
             Some(shadow.shadow_uri)
         );
         assert!(overlay.shadow_for_source(&source).is_none());
+    }
+
+    /// The shadow is a `.svelte.tsx`, so `.ts`-only angle-bracket forms must
+    /// not reach it verbatim, and a position after one on the same line must
+    /// still map both ways.
+    #[test]
+    fn tsx_shadow_disambiguates_angle_brackets_and_keeps_later_columns_mapped() {
+        let workspace = TestWorkspace::new("tsx-angle-brackets");
+        let app = workspace.0.join("src/App.svelte");
+        let source = "<script lang=\"ts\">\n  const raw: unknown = 1; const id = <T>(x: T) => x; const n = <number>raw; const after = id(n);\n</script>\n<p>{(<U>(u: U) => u)(after)}</p>\n";
+        write(&app, source);
+        let mut overlay = build_overlay(&workspace.0).unwrap();
+        let shadow = overlay.open_or_update(&app, source, 1).unwrap();
+        assert!(shadow.text.contains("<T,>(x: T)"), "{}", shadow.text);
+        assert!(shadow.text.contains("<U,>(u: U)"), "{}", shadow.text);
+        assert!(shadow.text.contains("(raw as number)"), "{}", shadow.text);
+
+        let source_position =
+            LineIndex::new(source).position(source, source.find("after = id").unwrap());
+        let generated = overlay.map_source_position(&app, source_position).unwrap();
+        let generated_offset = LineIndex::new(&shadow.text).offset(&shadow.text, generated);
+        assert!(
+            shadow.text[generated_offset..].starts_with("after = id"),
+            "{generated:?} in {}",
+            shadow.text
+        );
+        let shadow_path = overlay.shadow_dir.join("src/App.svelte.tsx");
+        assert_eq!(
+            overlay.map_generated_position(&shadow_path, generated),
+            Some(source_position)
+        );
     }
 
     #[test]
