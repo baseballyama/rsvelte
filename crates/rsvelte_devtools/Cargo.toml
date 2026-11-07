@@ -60,7 +60,7 @@ pprof = { version = "0.15", default-features = false, optional = true }
 tikv-jemallocator = { version = "0.7", optional = true }
 
 [dev-dependencies]
-criterion = { version = "5.0.0", features = [
+criterion = { version = "6.0.0", features = [
     "html_reports",
 ], package = "codspeed-criterion-compat" }
 similar = { version = "3.0", features = ["text"] }
