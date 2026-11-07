@@ -175,6 +175,8 @@ pub fn transform(params: &TransformParams, options: &MapperOptions) -> Transform
         Svelte2TsxOptions {
             filename,
             is_ts_file: true,
+            // The text is served as `.tsx`, where upstream checks a `.ts`.
+            disambiguate_for_tsx: true,
             ..Default::default()
         },
     );
@@ -301,6 +303,23 @@ mod tests {
             let orig = &src[os as usize..(os + olen) as usize];
             assert_eq!(virt, orig, "verbatim span text must be identical");
         }
+    }
+
+    #[test]
+    fn tsx_rewrites_keep_every_verbatim_span_verbatim() {
+        let src = "<script lang=\"ts\">\n  const raw: unknown = 1; const id = <T>(x: T) => x; const n = <number>raw; const after = id(n);\n</script>\n<b>{after}</b>\n";
+        let out = transform(&params(src), &MapperOptions::default());
+        assert!(out.text.contains("<T,>(x: T)"), "{}", out.text);
+        assert!(out.text.contains("(raw as number)"), "{}", out.text);
+        let after = u32::try_from(src.find("after = id").unwrap()).unwrap();
+        let mut covered = false;
+        for [vs, vlen, os, olen, _] in out.mappings.iter().copied() {
+            let virt = &out.text[vs as usize..(vs + vlen) as usize];
+            let orig = &src[os as usize..(os + olen) as usize];
+            assert_eq!(virt, orig, "verbatim span text must be identical");
+            covered |= (os..os + olen).contains(&after);
+        }
+        assert!(covered, "the identifier after both rewrites stays mapped");
     }
 
     #[test]

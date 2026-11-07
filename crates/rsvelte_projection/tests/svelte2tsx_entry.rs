@@ -716,7 +716,7 @@ fn test_boundary_failed_snippet_with_params() {
 
 /// Direct top-level await (`const x = await fetch(1)`) must produce:
 ///   • `async function $$render() {` (the `async` keyword)
-///   • `/*Ωignore_startΩ*/ const $$$render = await $$render(); /*Ωignore_endΩ*/`
+///   • `/*Ωignore_startΩ*/const $$$render = await $$render();/*Ωignore_endΩ*/`
 ///   • `const Foo__SvelteComponent_ = __sveltets_2_fn_component($$$render);`
 #[test]
 fn test_async_component_direct_await() {
@@ -749,8 +749,7 @@ fn test_async_component_direct_await() {
 
 /// Nested top-level await inside `$derived(await x)` must also be detected.
 ///
-/// This tests the deep recursive `expr_contains_await_deep` walk that the old
-/// shallow `contains_await_expression` missed.  Ground truth: upstream
+/// Ground truth: upstream
 /// `processInstanceScriptContent.ts` sets `hasTopLevelAwait` for any
 /// AwaitExpression at the root scope, including inside a CallExpression argument.
 #[test]

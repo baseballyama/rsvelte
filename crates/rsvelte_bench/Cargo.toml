@@ -9,7 +9,7 @@ rsvelte_core = { path = "../rsvelte_core" }
 rsvelte_esrap = { path = "../rsvelte_esrap" }
 
 [dev-dependencies]
-criterion = { version = "5.0.0", features = ["html_reports"], package = "codspeed-criterion-compat" }
+criterion = { version = "6.0.0", features = ["html_reports"], package = "codspeed-criterion-compat" }
 oxc_allocator = "0.149"
 oxc_ast = "0.149"
 oxc_codegen = "0.149"
