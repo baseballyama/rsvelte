@@ -4402,8 +4402,14 @@ fn rewrite_aliased_svelte_imports(
             return None;
         }
         // A leading `#` names a package.json `imports` entry, not a fragment.
-        let path = spec.strip_prefix('#').unwrap_or(spec);
-        let path_part = path.split(['?', '#']).next().unwrap_or(path);
+        let path_part = spec.strip_prefix('#').unwrap_or(spec);
+        // `Foo.svelte?raw` / `Foo.svelte#frag` name another module than the
+        // component: TypeScript resolves the whole string, so official
+        // svelte-check reaches Vite's ambient `*?raw` (or nothing), never the
+        // component's types.
+        if path_part.contains(['?', '#']) {
+            return None;
+        }
         if !path_part.ends_with(".svelte") {
             return None;
         }
@@ -6207,6 +6213,98 @@ mod tests {
         assert!(
             !app_tsx.contains("$lib/Button.svelte"),
             "alias was not rewritten:\n{app_tsx}"
+        );
+        assert!(
+            app_tsx.contains("Button.svelte.tsx"),
+            "rewrite did not point at the shadow:\n{app_tsx}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn a_svelte_specifier_with_a_query_or_fragment_is_left_to_typescript() {
+        // `?raw` / `?url` name another module than the component (Vite's
+        // `*?raw` ambient types it as a string), and TypeScript resolves the
+        // whole string, so official svelte-check never reaches the component
+        // through them. Only the bare `#lib/Foo.svelte` is a component import.
+        let tmp = std::env::temp_dir().join(format!("svc_hash_query_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib")).unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            "{\"compilerOptions\":{\"paths\":{\"$lib/*\":[\"./src/lib/*\"]}}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("package.json"),
+            "{\"name\":\"app\",\"imports\":{\"#lib/*\":\"./src/lib/*\"}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/lib/Foo.svelte"),
+            "<script lang=\"ts\"></script>\n<i></i>\n",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/App.svelte"),
+            "<script lang=\"ts\">import a from '#lib/Foo.svelte?raw';\nimport b from '$lib/Foo.svelte?raw';\nimport c from '$lib/Foo.svelte#frag';\nimport d from '#lib/Foo.svelte#frag';\nimport Foo from '#lib/Foo.svelte';</script>\n<Foo />{a}{b}{c}{d}\n",
+        )
+        .unwrap();
+        let files = vec![tmp.join("src/App.svelte"), tmp.join("src/lib/Foo.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
+        let app_tsx =
+            fs::read_to_string(tmp.join(".svelte-check/svelte/src/App.svelte.tsx")).unwrap();
+        let _ = fs::remove_dir_all(&tmp);
+        for kept in [
+            "'#lib/Foo.svelte?raw'",
+            "'$lib/Foo.svelte?raw'",
+            "'$lib/Foo.svelte#frag'",
+            "'#lib/Foo.svelte#frag'",
+        ] {
+            assert!(app_tsx.contains(kept), "{kept} was rewritten:\n{app_tsx}");
+        }
+        assert!(
+            app_tsx.contains("'./lib/Foo.svelte.tsx'"),
+            "the bare `#lib` import was not rewritten:\n{app_tsx}"
+        );
+    }
+
+    #[test]
+    fn package_imports_subpath_to_a_svelte_file_is_rewritten_to_its_shadow() {
+        let tmp = std::env::temp_dir().join(format!("svc_hash_alias_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib")).unwrap();
+        fs::write(tmp.join("tsconfig.json"), "{\"compilerOptions\":{}}").unwrap();
+        fs::write(
+            tmp.join("package.json"),
+            "{\"name\":\"app\",\"imports\":{\"#lib/*\":\"./src/lib/*\"}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/lib/Button.svelte"),
+            "<script lang=\"ts\">let { n }: { n: number } = $props();</script>\n<button>{n}</button>\n",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/App.svelte"),
+            "<script lang=\"ts\">import Button from '#lib/Button.svelte';</script>\n<Button n={1} />\n",
+        )
+        .unwrap();
+
+        let files = vec![
+            tmp.join("src/App.svelte"),
+            tmp.join("src/lib/Button.svelte"),
+        ];
+        let tsconfig = tmp.join("tsconfig.json");
+        materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
+
+        let app_tsx =
+            fs::read_to_string(tmp.join(".svelte-check/svelte/src/App.svelte.tsx")).unwrap();
+        assert!(
+            !app_tsx.contains("#lib/Button.svelte"),
+            "the `#lib` subpath import was not rewritten:\n{app_tsx}"
         );
         assert!(
             app_tsx.contains("Button.svelte.tsx"),

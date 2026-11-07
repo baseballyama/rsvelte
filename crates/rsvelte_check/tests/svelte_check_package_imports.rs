@@ -224,3 +224,79 @@ fn package_imports_follow_typescript_conditions_precedence_and_null() {
         ],
     );
 }
+
+/// `Foo.svelte?raw` is Vite's raw-source module, typed by an ambient `*?raw`
+/// declaration; official svelte-check types `#lib/Foo.svelte?raw` and
+/// `$lib/Foo.svelte?raw` as `string` and a fragment as unresolvable, never as
+/// the component.
+#[test]
+fn a_query_or_fragment_specifier_is_not_the_component() {
+    if find_compiler(&PathBuf::from("."), true).is_err() {
+        assert!(
+            std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+            "no TypeScript 7 native compiler in a job that declares RSVELTE_REQUIRE_PREREQS"
+        );
+        eprintln!("skip package imports: no TSGO_BIN and no @typescript/native-preview");
+        return;
+    }
+    let dir =
+        std::env::temp_dir().join(format!("rsvelte_pkg_imports_query_{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(dir.join("src/lib")).unwrap();
+    fs::create_dir_all(dir.join("src/routes")).unwrap();
+    fs::write(
+        dir.join("package.json"),
+        r##"{ "name": "app", "type": "module", "imports": { "#lib/*": "./src/lib/*" } }"##,
+    )
+    .unwrap();
+    fs::write(
+        dir.join("tsconfig.json"),
+        r#"{ "compilerOptions": { "moduleResolution": "bundler", "module": "esnext", "target": "esnext", "allowArbitraryExtensions": true, "strict": true, "skipLibCheck": true, "noEmit": true, "paths": { "$lib/*": ["./src/lib/*"] } }, "include": ["src/**/*.ts", "src/**/*.svelte"] }"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.join("src/lib/Foo.svelte"),
+        "<script module lang=\"ts\">export const SIZE: number = 1;</script>\n<i></i>\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.join("src/ambient.d.ts"),
+        "declare module '*?raw' { const source: string; export default source; }\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.join("src/routes/Q.svelte"),
+        "<script lang=\"ts\">import a from '#lib/Foo.svelte?raw';\nimport b from '$lib/Foo.svelte?raw';\nimport { SIZE } from '#lib/Foo.svelte';\nimport c from '#lib/Foo.svelte#frag';\nconst s: string = a + b;\nconst n: number = SIZE;</script>\n{s}{n}{c}\n",
+    )
+    .unwrap();
+    write_svelte_stub(&dir);
+
+    let opts = RunOptions {
+        workspace: dir.clone(),
+        tsconfig: Some(dir.join("tsconfig.json")),
+        type_check: true,
+        prefer_tsgo: true,
+        ignore: vec!["node_modules".to_string()],
+        ..RunOptions::default()
+    };
+    let errs: Vec<String> = run(&opts)
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == DiagnosticSeverity::Error)
+        .map(|d| {
+            format!(
+                "{} {}",
+                d.file.file_name().unwrap_or_default().to_string_lossy(),
+                d.message
+            )
+        })
+        .collect();
+    let _ = fs::remove_dir_all(&dir);
+
+    assert_eq!(
+        errs,
+        [
+            "Q.svelte Cannot find module '#lib/Foo.svelte#frag' or its corresponding type declarations."
+        ],
+    );
+}
