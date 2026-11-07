@@ -97,6 +97,40 @@ fn is_meta_rule(code: &str) -> bool {
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
 const SKIP: &[&str] = &[
+    // `no-unused-props` fixtures added by eslint-plugin-svelte 3.24.0
+    // (sveltejs/eslint-plugin-svelte#1566, #1627): destructuring the props
+    // object, object- vs iterable-spread consumption, computed / numeric /
+    // template member keys, TS expression wrappers, type queries and the
+    // per-path recursion guard. The port tracks member chains by scanning
+    // source text, which cannot express these; not yet ported.
+    "no-unused-props/invalid/alias-nested-unused-input.svelte",
+    "no-unused-props/invalid/destructure-derived-member-unused-input.svelte",
+    "no-unused-props/invalid/destructure-multi-level-unused-input.svelte",
+    "no-unused-props/invalid/destructure-nested-prop-unused-input.svelte",
+    "no-unused-props/invalid/destructure-props-object-const-tag-input.svelte",
+    "no-unused-props/invalid/destructure-props-object-default-input.svelte",
+    "no-unused-props/invalid/destructure-props-object-unused-binding-input.svelte",
+    "no-unused-props/invalid/destructure-props-object-unused-default-input.svelte",
+    "no-unused-props/invalid/destructure-props-object-unused-input.svelte",
+    "no-unused-props/invalid/destructure-props-object-var-redeclare-input.svelte",
+    "no-unused-props/invalid/numeric-member-key-input.svelte",
+    "no-unused-props/invalid/same-type-siblings-input.svelte",
+    "no-unused-props/invalid/spread-dotted-key-input.svelte",
+    "no-unused-props/invalid/spread-iterable-with-member-input.svelte",
+    "no-unused-props/invalid/spread-sibling-unused-input.svelte",
+    "no-unused-props/invalid/template-literal-member-key-input.svelte",
+    "no-unused-props/invalid/ts-expression-wrapped-props-input.svelte",
+    "no-unused-props/valid/destructure-allow-unused-nested-input.svelte",
+    "no-unused-props/valid/destructure-computed-key-input.svelte",
+    "no-unused-props/valid/destructure-derived-props-object-input.svelte",
+    "no-unused-props/valid/destructure-ignore-property-patterns-input.svelte",
+    "no-unused-props/valid/destructure-props-object-array-pattern-input.svelte",
+    "no-unused-props/valid/destructure-props-object-cast-input.svelte",
+    "no-unused-props/valid/destructure-props-object-input.svelte",
+    "no-unused-props/valid/destructure-props-object-rest-input.svelte",
+    "no-unused-props/valid/destructure-props-object-spread-binding-input.svelte",
+    "no-unused-props/valid/destructure-props-object-whole-use-input.svelte",
+    "no-unused-props/valid/props-object-passed-input.svelte",
     // Recorded against a dart-sass that accepted indented `lang="sass"` after a
     // leading blank line; dart-sass 1.107 rejects it, so the style is no longer
     // compiled and the ignore is not "used". The live oracle (`lint-verify`)
@@ -107,8 +141,20 @@ const SKIP: &[&str] = &[
     // external `.ts` module) needs the TypeScript checker / tsgo. The ES path
     // (stores created via `writable`/`readable`/`derived`) covers the rest, and
     // the `valid/ts/` half is enrolled — rsvelte reports nothing there, which is
-    // what those fixtures expect.
-    "require-store-reactive-access/invalid/ts/",
+    // what those fixtures expect. `ts-logical-assign01` needs no type and is
+    // enrolled.
+    "require-store-reactive-access/invalid/ts/ts-callable-store01-input",
+    "require-store-reactive-access/invalid/ts/ts-callable-store02-input",
+    "require-store-reactive-access/invalid/ts/ts-callable-store03-input",
+    "require-store-reactive-access/invalid/ts/ts-class-directives01-input",
+    "require-store-reactive-access/invalid/ts/ts-i18n-input",
+    "require-store-reactive-access/invalid/ts/ts-if-block01-input",
+    "require-store-reactive-access/invalid/ts/ts-local-store01-input",
+    "require-store-reactive-access/invalid/ts/ts-logical01-input",
+    "require-store-reactive-access/invalid/ts/ts-nullish01-input",
+    "require-store-reactive-access/invalid/ts/ts-nullish02-input",
+    "require-store-reactive-access/invalid/ts/ts-stores01-input",
+    "require-store-reactive-access/invalid/ts/ts-test01-input",
     // ESLint ≤8 `no-inner-declarations` fixtures (older option/strict-mode
     // semantics). rsvelte mirrors the ESLint ≥9 rule, exercised by the
     // sibling non-`v8` fixtures.
@@ -123,6 +169,10 @@ const SKIP: &[&str] = &[
     "valid-compile/valid/svelte-config-warning-filter",
     // `experimental.async` enabled via a `_config.cjs` (JS config) — same reason.
     "valid-compile/valid/svelte-config-experimental-async",
+    // `compilerOptions.runes` set from a `_config.cjs` (JS config, the `-fn`
+    // variants a function of the filename) — same reason.
+    "valid-compile/invalid/svelte-config-runes/",
+    "valid-compile/invalid/svelte-config-runes-fn/",
     // `valid-compile` compile-*error* fixtures: rsvelte's `AnalysisError` variants
     // carry no source span yet (they report at the default position), so the exact
     // line/column of `experimental_async` / `dollar_prefix_invalid` can't be
@@ -398,6 +448,68 @@ fn load_options(input: &Path) -> Option<Value> {
     None
 }
 
+/// A fixture's `languageOptions.parserOptions.svelteFeatures.runes`, from the
+/// same config files [`load_options`] reads.
+fn load_svelte_features_runes(input: &Path) -> Option<bool> {
+    let dir = input.parent()?;
+    let name = input.file_name()?.to_string_lossy().to_string();
+    let stem = name.split('.').next().unwrap_or("");
+    let per_case = stem
+        .strip_suffix("input")
+        .map(|p| dir.join(format!("{p}config.json")));
+    for cand in [per_case, Some(dir.join("_config.json"))]
+        .into_iter()
+        .flatten()
+    {
+        if let Ok(txt) = std::fs::read_to_string(&cand)
+            && let Ok(v) = serde_json::from_str::<Value>(&txt)
+            && let Some(runes) = v
+                .pointer("/languageOptions/parserOptions/svelteFeatures/runes")
+                .and_then(Value::as_bool)
+        {
+            return Some(runes);
+        }
+    }
+    None
+}
+
+/// The `runes` and `experimental.async` compiler options of a fixture's JSON
+/// `languageOptions.parserOptions.svelteConfig.compilerOptions`.
+fn load_compile_options(input: &Path) -> CompileOptions {
+    let mut options = CompileOptions::default();
+    let Some(dir) = input.parent() else {
+        return options;
+    };
+    let name = input
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let stem = name.split('.').next().unwrap_or("");
+    let per_case = stem
+        .strip_suffix("input")
+        .map(|p| dir.join(format!("{p}config.json")));
+    for cand in [per_case, Some(dir.join("_config.json"))]
+        .into_iter()
+        .flatten()
+    {
+        if let Ok(txt) = std::fs::read_to_string(&cand)
+            && let Ok(v) = serde_json::from_str::<Value>(&txt)
+            && let Some(compiler) =
+                v.pointer("/languageOptions/parserOptions/svelteConfig/compilerOptions")
+        {
+            options.runes = compiler.get("runes").and_then(Value::as_bool);
+            if let Some(enabled) = compiler
+                .pointer("/experimental/async")
+                .and_then(Value::as_bool)
+            {
+                options.experimental.r#async = enabled;
+            }
+            break;
+        }
+    }
+    options
+}
+
 /// Whether a fixture's `svelte` requirement (if any) admits Svelte 5. We run
 /// Svelte-5 semantics, so legacy-only (`^3`/`^4` without 5) fixtures are skipped.
 fn requirements_ok(input: &Path) -> bool {
@@ -436,7 +548,9 @@ fn svelte5_in_range(range: &str) -> bool {
 }
 
 fn findings_for(source: &str, file: &Path, code: &str, options: &Option<Value>) -> Vec<Diagnostic> {
-    let mut cfg = LintConfig::empty().with_override(code, Severity::Error);
+    let mut cfg = LintConfig::empty()
+        .with_override(code, Severity::Error)
+        .with_svelte_features_runes(load_svelte_features_runes(file));
     if let Some(opts) = options {
         cfg = cfg.with_options(code, opts.clone());
     }
@@ -445,7 +559,7 @@ fn findings_for(source: &str, file: &Path, code: &str, options: &Option<Value>) 
     let name = file
         .file_name()
         .map_or_else(|| PathBuf::from("Fixture.svelte"), PathBuf::from);
-    lint_source(source, &name, &CompileOptions::default(), &cfg)
+    lint_source(source, &name, &load_compile_options(file), &cfg)
         .into_iter()
         .filter(|d| d.code.as_deref() == Some(code))
         .collect()
@@ -466,7 +580,9 @@ fn raw_findings_for(
     code: &str,
     options: &Option<Value>,
 ) -> Vec<LintDiagnostic> {
-    let mut cfg = LintConfig::empty().with_override(code, Severity::Error);
+    let mut cfg = LintConfig::empty()
+        .with_override(code, Severity::Error)
+        .with_svelte_features_runes(load_svelte_features_runes(file));
     if let Some(opts) = options {
         cfg = cfg.with_options(code, opts.clone());
     }
@@ -579,7 +695,9 @@ fn eval_invalid_fixture(input: &Path, code: &str, fixable: bool) -> Option<Resul
         && let Some(opath) = output_path(input)
         && let Ok(expected_out) = std::fs::read_to_string(&opath)
     {
-        let mut cfg = LintConfig::empty().with_override(code, Severity::Error);
+        let mut cfg = LintConfig::empty()
+            .with_override(code, Severity::Error)
+            .with_svelte_features_runes(load_svelte_features_runes(input));
         if let Some(opts) = load_options(input) {
             cfg = cfg.with_options(code, opts);
         }

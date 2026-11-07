@@ -401,11 +401,6 @@ struct SortEntry {
     end: u32,
     /// Whether this is a spread attribute.
     spread: bool,
-    /// Whether upstream would see this node as a `SvelteAttribute` — the only
-    /// node type the spread-between escape hatch applies to. Shorthand `{name}`
-    /// is a distinct `SvelteShorthandAttribute` upstream and so reports
-    /// directly, as does the `this=` special directive.
-    is_plain_attr: bool,
 }
 
 impl SortEntry {
@@ -413,14 +408,11 @@ impl SortEntry {
         let key = attr_key_text(src, a);
         let (start, end) = attr_range(a);
         let spread = matches!(a, Attribute::SpreadAttribute(_));
-        let is_plain_attr = matches!(a, Attribute::Attribute(_))
-            && src.as_bytes().get(start as usize) != Some(&b'{');
         Self {
             key,
             start,
             end,
             spread,
-            is_plain_attr,
         }
     }
 }
@@ -572,7 +564,7 @@ impl SortAttributes {
                 // Check whether there's a spread attribute between prev_idx and i.
                 let has_spread_between = entries[prev_idx..i].iter().any(|e| e.spread);
 
-                if !entry.is_plain_attr || !has_spread_between {
+                if !has_spread_between {
                     // Standard report + fix.
                     let fix = build_fix(src, entries, prev_idx, i);
                     ctx.report_with_fix(
@@ -678,7 +670,6 @@ impl SortAttributes {
                 start: this_start,
                 end: this_end,
                 spread: false,
-                is_plain_attr: false,
             };
             // Insert at the correct source-order position.
             let pos = entries
@@ -705,7 +696,6 @@ impl SortAttributes {
                 start: this_start,
                 end: this_end,
                 spread: false,
-                is_plain_attr: false,
             };
             let pos = entries
                 .iter()
