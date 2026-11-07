@@ -69,6 +69,18 @@ fn a_mistyped_option_is_not_a_directory() {
 }
 
 #[test]
+fn performance_needs_at_least_one_round() {
+    let scratch = Scratch::new("rounds");
+    let output = rsvelte(&["performance", scratch.path(), "rounds=0"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("expected a positive integer"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
 fn outputs_that_cannot_be_written_fail_the_run() {
     let scratch = Scratch::new("unwritable");
     let unit = scratch.0.join("App.svelte");

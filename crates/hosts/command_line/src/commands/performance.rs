@@ -10,6 +10,9 @@
 //! `rounds=2` and one with `rounds=1`: exactly one warm round, whatever loading and warming cost.
 //! That needs no `metrics` feature, so the instructions are the shipped build's; without the
 //! feature the allocation fields are `UNMEASURED`.
+//!
+//! A document whose task panicked loses its outputs, so the counters would measure less work and
+//! look like an improvement: such a run reports the documents and fails.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -35,7 +38,11 @@ impl Options {
         for a in arguments {
             match a.split_once('=') {
                 Some(("rounds", n)) => {
-                    o.rounds = n.parse().map_err(|e| format!("rounds={n}: {e}"))?;
+                    o.rounds = n
+                        .parse()
+                        .ok()
+                        .filter(|&n| n > 0)
+                        .ok_or_else(|| format!("rounds={n}: expected a positive integer"))?;
                 }
                 Some(("json", f)) => o.json = Some(PathBuf::from(f)),
                 Some(_) => return Err(format!("unknown performance option {a}")),
@@ -81,13 +88,22 @@ pub(crate) fn performance(
         }
         None => print!("{report}"),
     }
-    ExitCode::SUCCESS
+    if m.panicked.is_empty() {
+        ExitCode::SUCCESS
+    } else {
+        for (path, message) in &m.panicked {
+            eprintln!("rsvelte performance: panicked: {path}: {message}");
+        }
+        ExitCode::FAILURE
+    }
 }
 
 struct Measured {
     totals: Option<measurement::GlobalMeasurements>,
     phases: Vec<measurement::PhaseMeasurements>,
     output_bytes: usize,
+    /// (document path, panic message) of the last round.
+    panicked: Vec<(String, String)>,
 }
 
 /// `rounds` serial runs; the counters are the last round's.
@@ -99,6 +115,7 @@ fn measure(reg: &Registry, docs: &[Document], tasks: &[&str], rounds: usize) -> 
     };
     let mut totals = None;
     let mut output_bytes = 0usize;
+    let mut panicked = Vec::new();
     for round in 0..rounds {
         let last = round + 1 == rounds;
         if last {
@@ -106,7 +123,7 @@ fn measure(reg: &Registry, docs: &[Document], tasks: &[&str], rounds: usize) -> 
             measurement::track_global(true);
         }
         // `main` has checked the task identifiers.
-        let results = pipeline::run(reg, docs, &run).expect("known task ids");
+        let mut results = pipeline::run(reg, docs, &run).expect("known task ids");
         if last {
             output_bytes = results
                 .iter()
@@ -114,9 +131,19 @@ fn measure(reg: &Registry, docs: &[Document], tasks: &[&str], rounds: usize) -> 
                 .flat_map(|(_, o)| &o.files)
                 .map(|f| f.text.len())
                 .sum();
+            // Moved, not copied, while the counters run: a run without panics allocates nothing.
+            let panics: Vec<(usize, String)> = results
+                .iter_mut()
+                .enumerate()
+                .filter_map(|(i, r)| Some((i, r.panic.take()?)))
+                .collect();
             drop(results);
             measurement::track_global(false);
             totals = Some(measurement::global());
+            panicked = panics
+                .into_iter()
+                .map(|(i, message)| (docs[i].path.clone(), message))
+                .collect();
         }
     }
     let mut phases = measurement::snapshot();
@@ -125,6 +152,7 @@ fn measure(reg: &Registry, docs: &[Document], tasks: &[&str], rounds: usize) -> 
         totals,
         phases,
         output_bytes,
+        panicked,
     }
 }
 
@@ -152,8 +180,17 @@ fn report(
         .write_number(docs.iter().map(|d| d.text.len()).sum::<usize>())
         .key("output_bytes")
         .write_number(m.output_bytes)
-        .key("tasks")
+        .key("panicked")
         .begin_array();
+    for (path, message) in &m.panicked {
+        w.begin_object()
+            .key("path")
+            .write_string(path)
+            .key("panic")
+            .write_string(message)
+            .end_object();
+    }
+    w.end_array().key("tasks").begin_array();
     for t in tasks {
         w.write_string(t);
     }
@@ -189,4 +226,59 @@ fn report(
     }
     w.end_object();
     w.finish()
+}
+
+#[cfg(test)]
+mod tests {
+    use rsvelte_kernel::computation::database::DocumentContext;
+    use rsvelte_kernel::computation::pipeline::{Task, TaskOutput};
+
+    use super::*;
+
+    struct Panics;
+
+    impl Task for Panics {
+        fn identifier(&self) -> &'static str {
+            "test.panics"
+        }
+
+        fn applies(&self, document: &Document) -> bool {
+            document.path.starts_with("panics")
+        }
+
+        fn run(&self, _: &DocumentContext<'_>, _: &mut TaskOutput) {
+            panic!("injected");
+        }
+    }
+
+    #[test]
+    fn a_panicking_document_is_reported_not_measured_as_less_work() {
+        let mut reg = Registry::new();
+        reg.task(Panics);
+        let docs = [
+            reg.document("fine.txt", "").expect("small"),
+            reg.document("panics.txt", "").expect("small"),
+        ];
+        let m = measure(&reg, &docs, &["test.panics"], 1);
+        assert_eq!(
+            m.panicked,
+            [("panics.txt".to_owned(), "injected".to_owned())]
+        );
+        let options = Options::parse(&["dir"]).expect("valid").1;
+        let report = report(&m, &docs, 0, &["test.panics"], &options);
+        assert!(report.contains(r#""path": "panics.txt""#), "{report}");
+        assert!(report.contains(r#""panic": "injected""#), "{report}");
+    }
+
+    #[test]
+    fn rounds_are_positive() {
+        assert!(Options::parse(&["dir", "rounds=0"]).is_err());
+        assert_eq!(
+            Options::parse(&["dir", "rounds=3"])
+                .expect("valid")
+                .1
+                .rounds,
+            3
+        );
+    }
 }
