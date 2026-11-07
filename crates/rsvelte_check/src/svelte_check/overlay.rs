@@ -7806,6 +7806,7 @@ mod tests {
                 &settings,
                 &[],
                 &CompilerOptionsSettings::default(),
+                RootDirDefault::ConfigDir,
             )
             .unwrap()
         };
