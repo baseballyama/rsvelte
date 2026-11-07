@@ -502,14 +502,16 @@ pub fn materialize_overlay_with_kit(
     settings: &KitFilesSettings,
     ignore: &[String],
     compiler_opts: &CompilerOptionsSettings,
+    root_dir_default: RootDirDefault,
 ) -> Result<OverlayLayout, OverlayError> {
-    let mut layout = materialize_overlay_with(
+    let mut layout = materialize_overlay_for(
         workspace,
         svelte_files,
         tsconfig_path,
         incremental,
         ignore,
         compiler_opts,
+        root_dir_default,
     )?;
     layout.kit_entries = materialize_kit_files(workspace, &layout.emit_dir, kit_files, settings)?;
     materialize_kit_types(workspace, &layout.emit_dir, kit_files)?;
@@ -534,10 +536,6 @@ pub fn materialize_overlay_with_kit(
 /// # Errors
 ///
 /// Returns an error while reading sources, updating the manifest, or writing artifacts.
-#[allow(
-    clippy::too_many_lines,
-    reason = "overlay lifecycle stays in one transaction to preserve cleanup and manifest ordering"
-)]
 pub fn materialize_overlay_with(
     workspace: &Path,
     files: &[PathBuf],
@@ -546,11 +544,42 @@ pub fn materialize_overlay_with(
     ignore: &[String],
     compiler_opts: &CompilerOptionsSettings,
 ) -> Result<OverlayLayout, OverlayError> {
+    materialize_overlay_for(
+        workspace,
+        files,
+        tsconfig_path,
+        incremental,
+        ignore,
+        compiler_opts,
+        RootDirDefault::ConfigDir,
+    )
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "overlay lifecycle stays in one transaction to preserve cleanup and manifest ordering"
+)]
+fn materialize_overlay_for(
+    workspace: &Path,
+    files: &[PathBuf],
+    tsconfig_path: Option<&Path>,
+    incremental: bool,
+    ignore: &[String],
+    compiler_opts: &CompilerOptionsSettings,
+    root_dir_default: RootDirDefault,
+) -> Result<OverlayLayout, OverlayError> {
     let cache_dir = workspace.join(".svelte-check");
     let emit_dir = cache_dir.join("svelte");
+    let ext_dir = cache_dir.join("ext");
     reject_symlink_components(&cache_dir, &cache_dir)?;
+    // Unlike upstream's overlay, ours includes `./svelte/**/*`, so a shadow or
+    // kit mirror whose source was deleted since the last run is type-checked.
+    if !incremental {
+        retire_overlay_trees(&cache_dir, &[&emit_dir, &ext_dir])?;
+    }
     fs::create_dir_all(&emit_dir)?;
     reject_symlink_components(&emit_dir, &cache_dir)?;
+    reject_symlink_components(&ext_dir, &cache_dir)?;
     // Mark the cache as ignored by git: it is generated in the user's
     // workspace root on every run, and nothing else adds an ignore entry for
     // it. Best-effort — a `.gitignore` we could not write does not affect a
@@ -769,6 +798,8 @@ pub fn materialize_overlay_with(
                         generated_path: tsx_path.display().to_string(),
                         workspace_path: workspace.display().to_string(),
                     }),
+                    // The shadow is a `.tsx` where upstream's is a `.ts`.
+                    disambiguate_for_tsx: true,
                     ..Svelte2TsxOptions::default()
                 };
                 let result = svelte2tsx(&source, opts).map_err(|e| OverlayError::Svelte2Tsx {
@@ -968,6 +999,7 @@ pub fn materialize_overlay_with(
         &alias_path_overrides,
         &global_types,
         any_js_shadow,
+        root_dir_default,
     );
     fs::write(&overlay_tsconfig, tsconfig_json)?;
 
@@ -1340,80 +1372,222 @@ fn emit_external_shadows(
         fs::create_dir_all(&pkg.mirror_dir)?;
         let _ = symlink_dir(&real_nm, &mirror_nm);
     }
+    let emitted: Vec<Result<bool, OverlayError>> = pkg
+        .svelte_files
+        .par_iter()
+        .map(|abs_source| -> Result<bool, OverlayError> {
+            let rel = safe_relative(abs_source, &pkg.real_dir);
+            let source = fs::read_to_string(abs_source)?;
+            let is_ts_file = is_typescript_component(&source);
+            let ext = shadow_extension_for(is_ts_file);
+            let tsx_path = pkg.mirror_dir.join(append_extension(&rel, ext));
+            let dts_path = pkg.mirror_dir.join(append_extension(&rel, ".d.ts"));
+            if let Some(parent) = tsx_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            remove_stale_counterpart(&tsx_path, ext);
+            let opts = Svelte2TsxOptions {
+                filename: abs_source.display().to_string(),
+                is_ts_file,
+                mode: Svelte2TsxMode::Ts,
+                accessors,
+                namespace,
+                version: SvelteVersion::V5,
+                runes: None,
+                emit_jsdoc: true,
+                // Imports that stay within the external package keep resolving via
+                // the package↔mirror `rootDirs` pair; only imports escaping the
+                // package get rebased.
+                rewrite_external_imports: Some(RewriteExternalImportsOptions {
+                    source_path: abs_source.display().to_string(),
+                    generated_path: tsx_path.display().to_string(),
+                    workspace_path: pkg.real_dir.display().to_string(),
+                }),
+                disambiguate_for_tsx: true,
+                ..Svelte2TsxOptions::default()
+            };
+            // A component the user never asked about must not be able to fail the
+            // whole run: an external package is somebody else's source, and the
+            // consumer can only lose the shadow's extra precision, falling back to
+            // the ambient `*.svelte` wildcard for that one file (issue #2714).
+            let Ok(result) = svelte2tsx(&source, opts) else {
+                return Ok(false);
+            };
+            let mut tsx_code =
+                rewrite_companion_module_imports(&result.code, abs_source, &tsx_path);
+            if blank_svelte_reference {
+                blank_svelte_type_reference(&mut tsx_code);
+            }
+            // An external package commonly imports its OWN components through the
+            // same public alias its consumers use (`$lib/Input.svelte` from
+            // inside `SelectionMenu.svelte`, both living in the same package) —
+            // without this, that self-referential import is left unrewritten,
+            // falls back to the ambient `*.svelte` wildcard, and poisons any
+            // `ComponentProps<typeof Input>` a consumer computes through it (#1887).
+            if let Some(resolver) = pkg_resolver.as_ref().or(resolver) {
+                tsx_code = rewrite_aliased_svelte_imports(
+                    &tsx_code,
+                    abs_source,
+                    &tsx_path,
+                    workspace,
+                    emit_dir,
+                    resolver,
+                    ext_pairs,
+                    Some(&pkg.real_dir),
+                );
+            }
+            fs::write(&tsx_path, &tsx_code)?;
+            let dts_content = shadow_reexport(&tsx_path);
+            // See the twin's comment in `materialize_overlay_with`: next to a
+            // `.jsx` shadow this file IS its declaration counterpart, so writing
+            // it makes the shadow resolve to itself.
+            if ext == ".tsx" {
+                fs::write(&dts_path, &dts_content)?;
+            } else {
+                let _ = fs::remove_file(&dts_path);
+            }
+            write_esm_bridge(&tsx_path, &dts_content, false)?;
+            Ok(ext == ".jsx")
+        })
+        .collect();
     let mut any_js_shadow = false;
-    for abs_source in &pkg.svelte_files {
-        let rel = safe_relative(abs_source, &pkg.real_dir);
-        let source = fs::read_to_string(abs_source)?;
-        let is_ts_file = is_typescript_component(&source);
-        let ext = shadow_extension_for(is_ts_file);
-        any_js_shadow |= ext == ".jsx";
-        let tsx_path = pkg.mirror_dir.join(append_extension(&rel, ext));
-        let dts_path = pkg.mirror_dir.join(append_extension(&rel, ".d.ts"));
-        if let Some(parent) = tsx_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        remove_stale_counterpart(&tsx_path, ext);
-        let opts = Svelte2TsxOptions {
-            filename: abs_source.display().to_string(),
-            is_ts_file,
-            mode: Svelte2TsxMode::Ts,
-            accessors,
-            namespace,
-            version: SvelteVersion::V5,
-            runes: None,
-            emit_jsdoc: true,
-            // Imports that stay within the external package keep resolving via
-            // the package↔mirror `rootDirs` pair; only imports escaping the
-            // package get rebased.
-            rewrite_external_imports: Some(RewriteExternalImportsOptions {
-                source_path: abs_source.display().to_string(),
-                generated_path: tsx_path.display().to_string(),
-                workspace_path: pkg.real_dir.display().to_string(),
-            }),
-            ..Svelte2TsxOptions::default()
-        };
-        // A component the user never asked about must not be able to fail the
-        // whole run: an external package is somebody else's source, and the
-        // consumer can only lose the shadow's extra precision, falling back to
-        // the ambient `*.svelte` wildcard for that one file (issue #2714).
-        let Ok(result) = svelte2tsx(&source, opts) else {
-            continue;
-        };
-        let mut tsx_code = rewrite_companion_module_imports(&result.code, abs_source, &tsx_path);
-        if blank_svelte_reference {
-            blank_svelte_type_reference(&mut tsx_code);
-        }
-        // An external package commonly imports its OWN components through the
-        // same public alias its consumers use (`$lib/Input.svelte` from
-        // inside `SelectionMenu.svelte`, both living in the same package) —
-        // without this, that self-referential import is left unrewritten,
-        // falls back to the ambient `*.svelte` wildcard, and poisons any
-        // `ComponentProps<typeof Input>` a consumer computes through it (#1887).
-        if let Some(resolver) = pkg_resolver.as_ref().or(resolver) {
-            tsx_code = rewrite_aliased_svelte_imports(
-                &tsx_code,
-                abs_source,
-                &tsx_path,
-                workspace,
-                emit_dir,
-                resolver,
-                ext_pairs,
-                Some(&pkg.real_dir),
-            );
-        }
-        fs::write(&tsx_path, &tsx_code)?;
-        let dts_content = shadow_reexport(&tsx_path);
-        // See the twin's comment in `materialize_overlay_with`: next to a
-        // `.jsx` shadow this file IS its declaration counterpart, so writing
-        // it makes the shadow resolve to itself.
-        if ext == ".tsx" {
-            fs::write(&dts_path, &dts_content)?;
-        } else {
-            let _ = fs::remove_file(&dts_path);
-        }
-        write_esm_bridge(&tsx_path, &dts_content, false)?;
+    for shadow in emitted {
+        any_js_shadow |= shadow?;
     }
     Ok(any_js_shadow)
+}
+
+/// Port of svelte2tsx's `getExternalImportRewrite`: the prefix that makes a
+/// `../` specifier escaping `workspace` resolve from `generated_dir` to the
+/// file it names from `source_dir`. Inside the workspace `rootDirs` already
+/// pairs the copy with its source.
+fn external_import_prefix(
+    specifier: &str,
+    source_dir: &Path,
+    generated_dir: &Path,
+    workspace: &Path,
+) -> Option<String> {
+    let path_part = &specifier[..specifier.find(['?', '#']).unwrap_or(specifier.len())];
+    if !path_part.starts_with("../") {
+        return None;
+    }
+    let target = normalize_abs(&source_dir.join(path_part));
+    if target.starts_with(workspace) {
+        return None;
+    }
+    let rewritten = lexical_relative_posix(generated_dir, &target);
+    if rewritten == path_part {
+        return None;
+    }
+    // Upstream slices the rewrite to `path_part`'s length, which is garbage for
+    // a non-normalised specifier (`../a/../../x`); climbing back to the source
+    // directory first resolves to the same file and stays a pure insertion.
+    let prefix = match rewritten.strip_suffix(path_part) {
+        Some(prefix) => prefix.to_string(),
+        None => format!("{}/", lexical_relative_posix(generated_dir, source_dir)),
+    };
+    (!prefix.is_empty()).then_some(prefix)
+}
+
+/// Offset just inside the opening quote of every module specifier upstream's
+/// `rewriteExternalImportsInNode` visits, with the specifier's text: import /
+/// export declarations, `import()`, `require()` and `import('…')` types.
+fn module_specifier_sites(path: &Path, source: &str) -> Vec<(u32, String)> {
+    use oxc_ast_visit::{Visit, walk};
+
+    struct Sites(Vec<(u32, String)>);
+    impl Sites {
+        fn literal(&mut self, lit: &oxc::StringLiteral<'_>) {
+            self.0.push((lit.span.start + 1, lit.value.to_string()));
+        }
+        fn argument(&mut self, expr: &oxc::Expression<'_>) {
+            match expr {
+                oxc::Expression::StringLiteral(lit) => self.literal(lit),
+                oxc::Expression::TemplateLiteral(tpl) if tpl.expressions.is_empty() => {
+                    if let Some(cooked) = tpl.quasis.first().and_then(|q| q.value.cooked) {
+                        self.0.push((tpl.span.start + 1, cooked.to_string()));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    impl<'a> Visit<'a> for Sites {
+        fn visit_import_declaration(&mut self, it: &oxc::ImportDeclaration<'a>) {
+            self.literal(&it.source);
+            walk::walk_import_declaration(self, it);
+        }
+        fn visit_export_from_declaration(&mut self, it: &oxc::ExportFromDeclaration<'a>) {
+            self.literal(&it.source);
+            walk::walk_export_from_declaration(self, it);
+        }
+        fn visit_export_all_declaration(&mut self, it: &oxc::ExportAllDeclaration<'a>) {
+            self.literal(&it.source);
+            walk::walk_export_all_declaration(self, it);
+        }
+        fn visit_import_expression(&mut self, it: &oxc::ImportExpression<'a>) {
+            self.argument(&it.source);
+            walk::walk_import_expression(self, it);
+        }
+        fn visit_call_expression(&mut self, it: &oxc::CallExpression<'a>) {
+            if let oxc::Expression::Identifier(callee) = &it.callee
+                && callee.name == "require"
+                && let Some(first) = it.arguments.first().and_then(|a| a.as_expression())
+            {
+                self.argument(first);
+            }
+            walk::walk_call_expression(self, it);
+        }
+        fn visit_ts_import_type(&mut self, it: &oxc::TSImportType<'a>) {
+            self.literal(&it.source);
+            walk::walk_ts_import_type(self, it);
+        }
+    }
+
+    let source_type = if path.extension().is_some_and(|e| e == "ts") {
+        SourceType::ts()
+    } else {
+        SourceType::default()
+    };
+    let allocator = Allocator::default();
+    let parsed = OxcParser::new(&allocator, source, source_type).parse();
+    let mut sites = Sites(Vec::new());
+    sites.visit_program(&parsed.program);
+    sites.0
+}
+
+/// Port of svelte2tsx's `applyExternalImportRewritesToAddedCode`: a kit file's
+/// mirror copy sits deeper than its source, so a relative specifier that
+/// leaves the workspace gets a prefix inserted as one more `AddedCode`, which
+/// keeps the mapper's position remapping exact on the rest of the line.
+fn add_external_import_rewrites(
+    adds: &mut Vec<AddedCode>,
+    raw: &str,
+    source: &Path,
+    out_path: &Path,
+    workspace: &Path,
+) {
+    let (Some(source_dir), Some(out_dir)) = (source.parent(), out_path.parent()) else {
+        return;
+    };
+    let source_dir = absolutize(source_dir);
+    let out_dir = absolutize(out_dir);
+    let workspace = absolutize(workspace);
+    for (pos, specifier) in module_specifier_sites(source, raw) {
+        let Some(prefix) = external_import_prefix(&specifier, &source_dir, &out_dir, &workspace)
+        else {
+            continue;
+        };
+        // Upstream's `insertCode`: after every insertion at or before `pos`.
+        let at = adds.partition_point(|a| a.original_pos <= pos);
+        adds.insert(
+            at,
+            AddedCode {
+                original_pos: pos,
+                inserted: prefix,
+            },
+        );
+    }
 }
 
 fn materialize_kit_files(
@@ -1435,19 +1609,11 @@ fn materialize_kit_files(
             fs::create_dir_all(parent)?;
         }
         let raw = fs::read_to_string(&abs)?;
-        let Some(adds) = kit_file::build_added_code(&abs, &raw, settings) else {
-            // Not a kit file we recognise (or nothing to augment) —
-            // drop a verbatim copy so module resolution still works.
-            fs::write(&out_path, &raw)?;
-            out.push(KitOverlayEntry {
-                source_path: abs,
-                out_path,
-                added_code: Vec::new(),
-            });
-            continue;
-        };
-        let augmented = kit_file::apply_added_code(&raw, &adds);
-        fs::write(&out_path, &augmented)?;
+        // `None`: not a kit file we recognise (or nothing to augment) — still
+        // mirrored so module resolution works from the copy.
+        let mut adds = kit_file::build_added_code(&abs, &raw, settings).unwrap_or_default();
+        add_external_import_rewrites(&mut adds, &raw, &abs, &out_path, workspace);
+        fs::write(&out_path, kit_file::apply_added_code(&raw, &adds))?;
         out.push(KitOverlayEntry {
             source_path: abs,
             out_path,
@@ -1623,6 +1789,73 @@ fn append_extension(rel: &Path, extra: &str) -> PathBuf {
 
 /// Refuse an overlay path once an existing component redirects filesystem
 /// operations through a symlink. The cache must never write outside itself.
+static PENDING_CLEANUP: std::sync::Mutex<Vec<std::thread::JoinHandle<()>>> =
+    std::sync::Mutex::new(Vec::new());
+
+/// Move each tree out of the overlay with one rename and delete it on a
+/// background thread: unlinking a large shadow tree takes as long as emitting
+/// it, and nothing reads the old tree once it is out of `svelte/` and `ext/`.
+fn retire_overlay_trees(cache_dir: &Path, trees: &[&Path]) -> io::Result<()> {
+    if !cache_dir.is_dir() {
+        return Ok(());
+    }
+    let graveyard = cache_dir.join(".stale");
+    if fs::symlink_metadata(&graveyard).is_ok_and(|m| !m.is_dir()) {
+        clear_overlay_tree(&graveyard)?;
+    }
+    match fs::create_dir(&graveyard) {
+        Err(error) if error.kind() != io::ErrorKind::AlreadyExists => return Err(error),
+        _ => {}
+    }
+    reject_symlink_components(&graveyard, cache_dir)?;
+    static BURIED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    for tree in trees {
+        let is_real_dir = fs::symlink_metadata(tree).is_ok_and(|m| m.is_dir());
+        let index = BURIED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let buried = graveyard.join(format!("{}-{index}", std::process::id()));
+        if !is_real_dir || fs::rename(tree, &buried).is_err() {
+            clear_overlay_tree(tree)?;
+        }
+    }
+    // Also takes whatever an interrupted run left behind.
+    let handle = std::thread::spawn(move || {
+        let _ = clear_overlay_tree(&graveyard);
+    });
+    PENDING_CLEANUP
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .push(handle);
+    Ok(())
+}
+
+/// Wait for the trees a cold run retired to be deleted, so a process does not
+/// exit with a half-deleted `.svelte-check/.stale` left behind.
+pub fn wait_for_overlay_cleanup() {
+    let pending = std::mem::take(
+        &mut *PENDING_CLEANUP
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
+    );
+    for handle in pending {
+        let _ = handle.join();
+    }
+}
+
+/// Remove a generated tree without following any symlink in it — a planted
+/// link, the tree's own path included, loses the link and never its target.
+/// `remove_dir_all` unlinks a symlink rather than descending into it.
+fn clear_overlay_tree(path: &Path) -> io::Result<()> {
+    let result = match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_file() => fs::remove_file(path),
+        Ok(_) => fs::remove_dir_all(path),
+        Err(error) => Err(error),
+    };
+    match result {
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+        other => other,
+    }
+}
+
 fn reject_symlink_components(path: &Path, cache_dir: &Path) -> io::Result<()> {
     let relative = path.strip_prefix(cache_dir).unwrap_or_else(|_| {
         debug_assert!(false, "overlay path must be inside its cache directory");
@@ -1732,6 +1965,7 @@ fn build_overlay_tsconfig(
     alias_path_overrides: &[(String, PathBuf)],
     global_types: &GlobalTypes,
     any_js_shadow: bool,
+    root_dir_default: RootDirDefault,
 ) -> String {
     let mut obj: BTreeMap<&str, serde_json::Value> = BTreeMap::new();
     if let Some(orig) = original {
@@ -1740,6 +1974,13 @@ fn build_overlay_tsconfig(
     }
     let mut compiler_opts = serde_json::Map::new();
     compiler_opts.insert("noEmit".into(), true.into());
+    // TypeScript 6+ defaults `rootDir` to this overlay's directory, so an inherited `outDir`
+    // would place every project source outside it.
+    if let Some(root_dir) =
+        original.and_then(|original| overlay_root_dir(original, workspace, root_dir_default))
+    {
+        compiler_opts.insert("rootDir".into(), path_relative(cache_dir, &root_dir).into());
+    }
     compiler_opts.insert("allowArbitraryExtensions".into(), true.into());
     // A `.jsx` shadow (see `shadow_extension`) is only admitted to the program
     // when JS files are. `allowJs` defaults to OFF, so without this every
@@ -1987,6 +2228,87 @@ struct InheritedSpecs {
     /// trigger TS6054 since the overlay's `allowArbitraryExtensions`
     /// only applies to module resolution, not to the `files` array).
     files: Vec<String>,
+}
+
+/// Where the TypeScript that reads the overlay puts an unset `rootDir`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum RootDirDefault {
+    /// TypeScript 6 and later: the directory of the config it was given.
+    #[default]
+    ConfigDir,
+    /// TypeScript 5: the common directory of the input files, unless
+    /// `composite` is set, which still defaults to the config's directory.
+    CommonSourceDir,
+}
+
+impl RootDirDefault {
+    /// The default of a compiler whose `typescript` major version is `major`;
+    /// an unknown version is taken as current, where the overlay's own
+    /// directory would otherwise exclude every project source.
+    #[must_use]
+    pub fn for_typescript_major(major: Option<u32>) -> Self {
+        match major {
+            Some(major) if major < 6 => Self::CommonSourceDir,
+            _ => Self::ConfigDir,
+        }
+    }
+}
+
+/// The `rootDir` an overlay config extending `tsconfig` has to state so that
+/// TypeScript checks the project's sources against the directory it would use
+/// when given `tsconfig` itself. `enclosing` is the directory the overlay's
+/// generated files live under; the result widens to it when the project sits
+/// below it.
+///
+/// `None` when the overlay changes nothing by inheriting: the chain declares
+/// `rootDir`, the compiler does not default it to the config's directory, or no
+/// option makes TypeScript compare sources against it (an explicit `rootDir`
+/// would itself switch that comparison on and report every source outside the
+/// project, e.g. a `paths` target in a sibling package).
+#[must_use]
+pub fn overlay_root_dir(
+    tsconfig: &Path,
+    enclosing: &Path,
+    default: RootDirDefault,
+) -> Option<PathBuf> {
+    let chain = extends_chain(tsconfig);
+    // The nearest config naming the key decides, and an explicit `null` there
+    // resets an inherited value.
+    let option = |key: &str| {
+        chain
+            .iter()
+            .find_map(|(_, config)| config.get("compilerOptions")?.get(key))
+            .filter(|value| !value.is_null())
+    };
+    let is_set = |key: &str| option(key).is_some_and(|value| value.as_str() != Some(""));
+    let is_on = |key: &str| option(key).and_then(serde_json::Value::as_bool) == Some(true);
+
+    if is_set("rootDir") {
+        return None;
+    }
+    let composite = is_on("composite");
+    if default == RootDirDefault::CommonSourceDir && !composite {
+        return None;
+    }
+    // `Program::verifyCompilerOptions` compares sources against the common
+    // source directory only under these options.
+    let compared = is_set("outDir")
+        || is_set("sourceRoot")
+        || is_set("mapRoot")
+        || ((is_on("declaration") || composite) && is_set("declarationDir"));
+    if !compared {
+        return None;
+    }
+    let project = absolutize(tsconfig).parent()?.to_path_buf();
+    let enclosing = absolutize(enclosing);
+    Some(
+        project
+            .components()
+            .zip(enclosing.components())
+            .take_while(|(left, right)| left == right)
+            .map(|(component, _)| component.as_os_str())
+            .collect(),
+    )
 }
 
 /// Resolve the user's effective `include` / `exclude` / `files` and
@@ -3230,16 +3552,20 @@ fn compute_alias_path_overrides(
     }
     let candidates = alias_override_candidates(entries, external, module_bridges);
 
+    let alias_targets: Vec<(&String, PathBuf)> = alias_prefixes
+        .iter()
+        .map(|(prefix, target_dir)| (prefix, canonicalized(target_dir)))
+        .collect();
+
     let mut out = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (real_canon, tsx_path) in &candidates {
         // Longest target-dir prefix wins when aliases nest.
-        let best = alias_prefixes
+        let best = alias_targets
             .iter()
-            .filter_map(|(prefix, target_dir)| {
-                let target_canon = canonicalized(target_dir);
+            .filter_map(|(prefix, target_canon)| {
                 real_canon
-                    .strip_prefix(&target_canon)
+                    .strip_prefix(target_canon)
                     .ok()
                     .map(|rel| (prefix, rel.to_path_buf()))
             })
@@ -4563,9 +4889,21 @@ mod tests {
         fs::remove_file(tmp.join(".svelte-check")).unwrap();
         fs::create_dir_all(tmp.join(".svelte-check/svelte")).unwrap();
         symlink(&outside, tmp.join(".svelte-check/svelte/src")).unwrap();
-        let err = materialize_overlay(&tmp, &[tmp.join("src/App.svelte")], None).unwrap_err();
-        assert!(err.to_string().contains("contains a symlink"));
+        // A cold run clears the previous run's shadows first, removing the link
+        // itself and never what it points to, so the new shadows land inside the
+        // workspace.
+        materialize_overlay(&tmp, &[tmp.join("src/App.svelte")], None).unwrap();
         assert!(!outside.join("App.svelte.jsx").exists());
+        assert!(
+            tmp.join(".svelte-check/svelte/src/App.svelte.jsx")
+                .is_file()
+        );
+        assert!(
+            !fs::symlink_metadata(tmp.join(".svelte-check/svelte/src"))
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
 
         let _ = fs::remove_dir_all(&tmp);
         let _ = fs::remove_dir_all(&outside);
@@ -4804,6 +5142,152 @@ mod tests {
             "stale ESM bridge should have been pruned"
         );
 
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn overlay_tsconfig_keeps_the_project_root_dir_default() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_root_dir_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div>hi</div>").unwrap();
+        let files = vec![tmp.join("src/App.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let root_dir = |config: &str| {
+            fs::write(&tsconfig, config).unwrap();
+            let layout = materialize_overlay(&tmp, &files, Some(&tsconfig)).unwrap();
+            let cfg: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap())
+                    .unwrap();
+            cfg["compilerOptions"].get("rootDir").cloned()
+        };
+
+        assert_eq!(
+            root_dir(r#"{ "compilerOptions": { "outDir": "./dist" } }"#),
+            Some(serde_json::json!(".."))
+        );
+        fs::write(
+            tmp.join("base.json"),
+            r#"{ "compilerOptions": { "rootDir": "./src" } }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            root_dir(r#"{ "extends": "./base.json", "compilerOptions": { "outDir": "./dist" } }"#),
+            None,
+            "a declared rootDir is inherited unchanged"
+        );
+        assert_eq!(
+            root_dir(r#"{ "compilerOptions": { "strict": true } }"#),
+            None,
+            "without outDir an explicit rootDir would report sources outside the project"
+        );
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// Expected values come from `tsgo` 7.0.0-dev.20260707.2 and `tsc` 5.9.3 run on
+    /// `<project>/.cache/tsconfig.json` extending the project config: `Some` exactly
+    /// where that overlay reports TS6059 for a source inside the project.
+    #[test]
+    fn overlay_root_dir_follows_where_typescript_compares_sources() {
+        use RootDirDefault::{CommonSourceDir, ConfigDir};
+        let tmp = std::env::temp_dir().join(format!("svc_root_dir_table_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let project = tmp.join("app");
+        fs::create_dir_all(project.join("node_modules/@acme/tsconfig")).unwrap();
+        fs::write(
+            project.join("node_modules/@acme/tsconfig/tsconfig.json"),
+            r#"{ "compilerOptions": { "outDir": "./dist" } }"#,
+        )
+        .unwrap();
+        fs::write(
+            project.join("base.json"),
+            r#"{ "compilerOptions": { "outDir": "./dist", "rootDir": "./src" } }"#,
+        )
+        .unwrap();
+        let tsconfig = project.join("tsconfig.json");
+        let cases: &[(&str, RootDirDefault, bool)] = &[
+            (r#"{}"#, ConfigDir, false),
+            (
+                r#"{ "compilerOptions": { "outDir": "./dist" } }"#,
+                ConfigDir,
+                true,
+            ),
+            (
+                r#"{ "compilerOptions": { "outDir": "./dist" } }"#,
+                CommonSourceDir,
+                false,
+            ),
+            (
+                r#"{ "compilerOptions": { "outDir": "./dist", "composite": true } }"#,
+                CommonSourceDir,
+                true,
+            ),
+            (
+                r#"{ "compilerOptions": { "composite": true } }"#,
+                ConfigDir,
+                false,
+            ),
+            (
+                r#"{ "compilerOptions": { "declaration": true } }"#,
+                ConfigDir,
+                false,
+            ),
+            (
+                r#"{ "compilerOptions": { "declaration": true, "declarationDir": "./t" } }"#,
+                ConfigDir,
+                true,
+            ),
+            (
+                r#"{ "compilerOptions": { "declaration": true, "declarationDir": "./t" } }"#,
+                CommonSourceDir,
+                false,
+            ),
+            (
+                r#"{ "compilerOptions": { "sourceMap": true, "sourceRoot": "/x" } }"#,
+                ConfigDir,
+                true,
+            ),
+            (
+                r#"{ "compilerOptions": { "sourceMap": true, "mapRoot": "/x" } }"#,
+                ConfigDir,
+                true,
+            ),
+            (r#"{ "extends": "./base.json" }"#, ConfigDir, false),
+            (
+                r#"{ "extends": "./base.json", "compilerOptions": { "outDir": null } }"#,
+                ConfigDir,
+                false,
+            ),
+            (
+                r#"{ "extends": "./base.json", "compilerOptions": { "rootDir": null } }"#,
+                ConfigDir,
+                true,
+            ),
+            (r#"{ "extends": "@acme/tsconfig" }"#, ConfigDir, true),
+            (
+                r#"{ "extends": ["@acme/tsconfig", "./base.json"] }"#,
+                ConfigDir,
+                false,
+            ),
+        ];
+        for (config, default, expected) in cases {
+            fs::write(&tsconfig, config).unwrap();
+            assert_eq!(
+                overlay_root_dir(&tsconfig, &project, *default),
+                expected.then(|| absolutize(&project)),
+                "{config} under {default:?}"
+            );
+        }
+        fs::write(
+            &tsconfig,
+            r#"{ "compilerOptions": { "outDir": "./dist" } }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            overlay_root_dir(&tsconfig, &tmp, ConfigDir),
+            Some(absolutize(&tmp)),
+            "generated files under an enclosing workspace widen the root"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -5575,6 +6059,171 @@ mod tests {
     }
 
     #[test]
+    fn kit_file_relative_import_outside_the_workspace_is_repointed() {
+        let tmp = std::env::temp_dir().join(format!("svc_kit_escape_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("app/src/routes/x")).unwrap();
+        fs::create_dir_all(tmp.join("shared")).unwrap();
+        fs::write(tmp.join("shared/data.json"), "{\"n\":1}").unwrap();
+        let kit_file = tmp.join("app/src/routes/x/+page.server.ts");
+        fs::write(
+            &kit_file,
+            "import data from '../../../../shared/data.json';\nimport local from './local';\nexport const load = () => data;\n",
+        )
+        .unwrap();
+        fs::write(tmp.join("app/src/routes/x/local.ts"), "export default 1;\n").unwrap();
+
+        let workspace = tmp.join("app");
+        let emit_dir = workspace.join(".svelte-check/svelte");
+        fs::create_dir_all(&emit_dir).unwrap();
+        let entries = materialize_kit_files(
+            &workspace,
+            &emit_dir,
+            std::slice::from_ref(&kit_file),
+            &KitFilesSettings::default(),
+        )
+        .unwrap();
+        let copy = fs::read_to_string(&entries[0].out_path).unwrap();
+
+        // The source climbs four levels (`routes/x` → `app`'s parent); the copy
+        // sits two directories deeper, so it must climb six to reach the same file.
+        assert!(
+            copy.contains("from '../../../../../../shared/data.json'"),
+            "the import that leaves the workspace was not re-pointed:\n{copy}"
+        );
+        // An import that stays inside the workspace is left for `rootDirs`.
+        assert!(copy.contains("from './local'"), "{copy}");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    fn materialize_one_kit_file(tag: &str, name: &str, source: &str) -> (PathBuf, KitOverlayEntry) {
+        let tmp = std::env::temp_dir().join(format!("svc_kit_{tag}_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("app/src/routes/x")).unwrap();
+        let kit_file = tmp.join("app/src/routes/x").join(name);
+        fs::write(&kit_file, source).unwrap();
+        let workspace = tmp.join("app");
+        let emit_dir = workspace.join(".svelte-check/svelte");
+        fs::create_dir_all(&emit_dir).unwrap();
+        let mut entries = materialize_kit_files(
+            &workspace,
+            &emit_dir,
+            std::slice::from_ref(&kit_file),
+            &KitFilesSettings::default(),
+        )
+        .unwrap();
+        (tmp, entries.remove(0))
+    }
+
+    #[test]
+    fn kit_file_external_import_rewrite_visits_only_module_specifiers() {
+        let source = "import type { T } from '../../../../shared/t';\n\
+                      import '../../../../shared/side.css';\n\
+                      export * from '../../../../shared/all';\n\
+                      export { x } from '../../../../shared/named';\n\
+                      import raw from '../../../../shared/a.txt?raw';\n\
+                      type U = typeof import('../../../../shared/u');\n\
+                      const lazy = () => import('../../../../shared/lazy');\n\
+                      const tpl = () => import(`../../../../shared/tpl`);\n\
+                      // import x from '../../../../shared/line-comment';\n\
+                      /* import y from '../../../../shared/block-comment'; */\n\
+                      const s = \"from '../../../../shared/string'\";\n\
+                      const t = `import('../../../../shared/template')`;\n\
+                      declare module '../../../../shared/augment' { }\n\
+                      import inside from '../../lib/inside';\n\
+                      import dot from './../../../../shared/dot';\n";
+        let (tmp, entry) = materialize_one_kit_file("sites", "+page.ts", source);
+        let copy = fs::read_to_string(&entry.out_path).unwrap();
+        for rewritten in [
+            "from '../../../../../../shared/t'",
+            "import '../../../../../../shared/side.css'",
+            "export * from '../../../../../../shared/all'",
+            "from '../../../../../../shared/named'",
+            "from '../../../../../../shared/a.txt?raw'",
+            "import('../../../../../../shared/u')",
+            "import('../../../../../../shared/lazy')",
+            "import(`../../../../../../shared/tpl`)",
+        ] {
+            assert!(copy.contains(rewritten), "missing {rewritten}:\n{copy}");
+        }
+        // Comments, strings, template literals and module augmentations are not
+        // specifiers; `./`-led and in-workspace ones are upstream's `null`.
+        for kept in [
+            "// import x from '../../../../shared/line-comment';",
+            "/* import y from '../../../../shared/block-comment'; */",
+            "\"from '../../../../shared/string'\"",
+            "`import('../../../../shared/template')`",
+            "declare module '../../../../shared/augment'",
+            "from '../../lib/inside'",
+            "from './../../../../shared/dot'",
+        ] {
+            assert!(copy.contains(kept), "rewrote {kept}:\n{copy}");
+        }
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn kit_file_require_outside_the_workspace_is_repointed() {
+        let source = "const d = require('../../../../shared/d.cjs');\n";
+        let (tmp, entry) = materialize_one_kit_file("require", "+page.js", source);
+        let copy = fs::read_to_string(&entry.out_path).unwrap();
+        assert!(
+            copy.contains("require('../../../../../../shared/d.cjs')"),
+            "{copy}"
+        );
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn kit_file_diagnostic_after_a_repointed_import_keeps_its_column() {
+        use super::super::mapper::map_tsgo_diagnostics;
+        use super::super::tsgo::RawTsDiagnostic;
+
+        let source = "import d from '../../../../shared/d.json'; const n: number = 'x';\n\
+                      export const load = () => ({ n, d });\n";
+        let (tmp, entry) = materialize_one_kit_file("diagpos", "+page.ts", source);
+        let generated = fs::read_to_string(&entry.out_path).unwrap();
+        assert_ne!(
+            generated.lines().next(),
+            source.lines().next(),
+            "{generated}"
+        );
+
+        let gen_at = generated.find("'x'").unwrap();
+        let gen_line_start = generated[..gen_at].rfind('\n').map_or(0, |i| i + 1);
+        let workspace = tmp.join("app");
+        let overlay = OverlayLayout {
+            workspace: workspace.clone(),
+            cache_dir: workspace.join(".svelte-check"),
+            emit_dir: workspace.join(".svelte-check/svelte"),
+            overlay_tsconfig: workspace.join(".svelte-check/tsconfig.json"),
+            entries: Vec::new(),
+            kit_entries: vec![entry.clone()],
+            import_probes: Vec::new(),
+            withheld_js_modules: Vec::new(),
+            no_implicit_any: false,
+        };
+        let raw = [RawTsDiagnostic {
+            file: entry.out_path.clone(),
+            line: u32::try_from(generated[..gen_at].matches('\n').count()).unwrap() + 1,
+            column: u32::try_from(gen_at - gen_line_start).unwrap() + 1,
+            severity: "error".into(),
+            code: "TS2322".into(),
+            message: "Type 'string' is not assignable to type 'number'.".into(),
+        }];
+        let mapped = map_tsgo_diagnostics(&raw, &overlay, &workspace);
+        let range = mapped.diagnostics[0].range.as_ref().unwrap();
+        assert_eq!(
+            (range.start.line, range.start.column),
+            (1, u32::try_from(source.find("'x'").unwrap()).unwrap()),
+            "{:#?}",
+            mapped.diagnostics
+        );
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
     fn aliased_svelte_import_is_rewritten_to_its_shadow() {
         let tmp = std::env::temp_dir().join(format!("svc_alias_{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
@@ -5757,6 +6406,90 @@ mod tests {
             consumer_tsx.contains("survey-options.svelte.tsx"),
             "rewrite did not point at the external mirror's shadow:\n{consumer_tsx}"
         );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// The shadow is a `.tsx`, so a bare generic arrow must not reach it as
+    /// `<T>(…)`, which TypeScript would lex as a JSX element there.
+    #[test]
+    fn generic_arrow_in_a_ts_component_is_disambiguated_in_its_tsx_shadow() {
+        let tmp = std::env::temp_dir().join(format!("svc_generic_arrow_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(
+            tmp.join("src/G.svelte"),
+            "<script lang=\"ts\">\n  const totalsBy = <K>(pick: (n: number) => K) => pick(1);\n</script>\n<p>{totalsBy(String)}</p>\n",
+        )
+        .unwrap();
+        let files = vec![tmp.join("src/G.svelte")];
+        materialize_overlay_with(&tmp, &files, None, false, &[]).unwrap();
+
+        let tsx = fs::read_to_string(tmp.join(".svelte-check/svelte/src/G.svelte.tsx")).unwrap();
+        assert!(tsx.contains("<K,>(pick"), "{tsx}");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// Every component of an external package gets its shadow, declaration and
+    /// ESM bridge, a JS component still marks the overlay as needing `allowJs`
+    /// shadows, and a component svelte2tsx cannot handle is skipped on its own.
+    #[test]
+    fn external_package_emits_every_component_shadow() {
+        let tmp = std::env::temp_dir().join(format!("svc_xpkg_all_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("pkg-a/src")).unwrap();
+        fs::write(
+            tmp.join("pkg-a/tsconfig.json"),
+            "{\"compilerOptions\":{\"paths\":{\"$libs/*\":[\"../pkg-libs/*\"]}}}",
+        )
+        .unwrap();
+        let names: Vec<String> = (0..24).map(|i| format!("group-{}/c{i}", i % 4)).collect();
+        for name in &names {
+            let path = tmp.join(format!("pkg-libs/{name}.svelte"));
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(
+                path,
+                "<script lang=\"ts\">let { id }: { id: string } = $props();</script>\n<div>{id}</div>\n",
+            )
+            .unwrap();
+        }
+        fs::write(
+            tmp.join("pkg-libs/plain.svelte"),
+            "<script>let { id } = $props();</script>\n<div>{id}</div>\n",
+        )
+        .unwrap();
+        fs::write(tmp.join("pkg-libs/broken.svelte"), "<div>{</div>\n").unwrap();
+        fs::write(
+            tmp.join("pkg-a/src/consumer.svelte"),
+            "<script lang=\"ts\">import C0 from '$libs/group-0/c0.svelte';</script>\n<C0 id=\"a\" />\n",
+        )
+        .unwrap();
+
+        let workspace = tmp.join("pkg-a");
+        let files = vec![workspace.join("src/consumer.svelte")];
+        let tsconfig = workspace.join("tsconfig.json");
+        materialize_overlay_with(&workspace, &files, Some(&tsconfig), false, &[]).unwrap();
+
+        let mirror = workspace.join(".svelte-check/ext/0");
+        for name in &names {
+            for suffix in [".svelte.tsx", ".svelte.d.ts", ".d.svelte.ts"] {
+                assert!(
+                    mirror.join(format!("{name}{suffix}")).is_file(),
+                    "missing {name}{suffix}"
+                );
+            }
+            let own = format!(
+                "./{}.svelte.tsx",
+                Path::new(name).file_name().unwrap().to_str().unwrap()
+            );
+            for suffix in [".svelte.d.ts", ".d.svelte.ts"] {
+                let text = fs::read_to_string(mirror.join(format!("{name}{suffix}"))).unwrap();
+                assert!(text.contains(&own), "{name}{suffix} re-exports {text:?}");
+            }
+        }
+        assert!(mirror.join("plain.svelte.jsx").is_file());
+        assert!(!mirror.join("broken.svelte.tsx").exists());
 
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -7153,5 +7886,161 @@ mod tests {
         let text = "{\n// \"paths\": { \"x\": [\"decoy\"] }\n\"compilerOptions\": {\n\t/* c */ \"strict\": true,\n\t\"paths\": { \"a\": [\"x\"], \"$lib/*\": [\"one\", \"two\"] }\n}\n}\n";
         let (start, end) = paths_value_offset(text, "$lib/*", 1).expect("located");
         assert_eq!(&text[start..end], "\"two\"");
+    }
+    #[test]
+    fn a_cold_run_drops_the_shadows_of_files_deleted_since_the_last() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_stale_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        let kept = tmp.join("src/Kept.svelte");
+        let gone = tmp.join("src/Gone.svelte");
+        fs::write(&kept, "<script>let x = 0;</script>{x}").unwrap();
+        fs::write(&gone, "<script>let y = 0;</script>{y}").unwrap();
+
+        let first = materialize_overlay_with(&tmp, &[kept.clone(), gone.clone()], None, false, &[])
+            .unwrap();
+        let gone_shadow = first.entries[1].tsx_path.clone();
+        assert!(gone_shadow.exists());
+
+        fs::remove_file(&gone).unwrap();
+        let second =
+            materialize_overlay_with(&tmp, std::slice::from_ref(&kept), None, false, &[]).unwrap();
+        assert!(second.entries[0].tsx_path.exists());
+        assert!(
+            !gone_shadow.exists(),
+            "the shadow of a deleted component survived a cold run"
+        );
+        wait_for_overlay_cleanup();
+        assert!(!tmp.join(".svelte-check/.stale").exists());
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn a_cold_run_drops_the_kit_mirror_of_a_route_deleted_since_the_last() {
+        let tmp =
+            std::env::temp_dir().join(format!("svc_overlay_stale_kit_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/routes/gone")).unwrap();
+        let page = tmp.join("src/routes/gone/+page.ts");
+        fs::write(&page, "export { load } from './missing';\n").unwrap();
+        let settings = KitFilesSettings::default();
+        let run = |kit: &[PathBuf], incremental: bool| {
+            materialize_overlay_with_kit(
+                &tmp,
+                &[],
+                kit,
+                None,
+                incremental,
+                &settings,
+                &[],
+                &CompilerOptionsSettings::default(),
+                RootDirDefault::ConfigDir,
+            )
+            .unwrap()
+        };
+
+        let first = run(std::slice::from_ref(&page), false);
+        let mirror = first.kit_entries[0].out_path.clone();
+        assert!(mirror.is_file());
+
+        fs::remove_file(&page).unwrap();
+        run(&[], true);
+        assert!(mirror.is_file(), "an incremental run keeps the cache");
+        run(&[], false);
+        assert!(
+            !mirror.exists(),
+            "the mirror of a deleted route survived a cold run"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_cold_run_unlinks_planted_symlinks_and_never_their_targets() {
+        use std::os::unix::fs::symlink;
+
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_clear_ws_{}", std::process::id()));
+        let outside =
+            std::env::temp_dir().join(format!("svc_overlay_clear_out_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let _ = fs::remove_dir_all(&outside);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        fs::write(tmp.join("src/App.svelte"), "<div />").unwrap();
+        let precious = [
+            "svelte/keep.txt",
+            "ext/0/keep.txt",
+            "inner/keep.txt",
+            "keep.txt",
+        ];
+        for rel in precious {
+            let path = outside.join(rel);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, "user data").unwrap();
+        }
+        let files = [tmp.join("src/App.svelte")];
+        let cache = tmp.join(".svelte-check");
+        let assert_outside_intact = || {
+            for rel in precious {
+                assert_eq!(fs::read_to_string(outside.join(rel)).unwrap(), "user data");
+            }
+        };
+        let is_link =
+            |path: &Path| fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink());
+
+        // The cache directory itself: refused before anything is removed.
+        symlink(&outside, &cache).unwrap();
+        for incremental in [false, true] {
+            let err = materialize_overlay_with(&tmp, &files, None, incremental, &[]).unwrap_err();
+            assert!(err.to_string().contains("contains a symlink"), "{err}");
+            assert_outside_intact();
+        }
+        fs::remove_file(&cache).unwrap();
+
+        // The cleared trees themselves, and links (to a directory and to a
+        // file) inside them, including a mirror's `node_modules` link.
+        fs::create_dir_all(cache.join("svelte/src")).unwrap();
+        fs::create_dir_all(cache.join("ext/0")).unwrap();
+        symlink(outside.join("inner"), cache.join("svelte/src/linked")).unwrap();
+        symlink(
+            outside.join("keep.txt"),
+            cache.join("svelte/src/App.svelte.tsx"),
+        )
+        .unwrap();
+        symlink(&outside, cache.join("ext/0/node_modules")).unwrap();
+        materialize_overlay_with(&tmp, &files, None, false, &[]).unwrap();
+        assert_outside_intact();
+        assert!(!cache.join("svelte/src/linked").exists());
+        assert!(!cache.join("ext").exists());
+        assert!(!is_link(&cache.join("svelte/src/App.svelte.tsx")));
+
+        fs::remove_dir_all(cache.join("svelte")).unwrap();
+        symlink(outside.join("svelte"), cache.join("svelte")).unwrap();
+        symlink(outside.join("ext"), cache.join("ext")).unwrap();
+        // `--incremental` keeps the cache, so it refuses the links instead.
+        let err = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap_err();
+        assert!(err.to_string().contains("contains a symlink"), "{err}");
+        fs::remove_file(cache.join("svelte")).unwrap();
+        fs::create_dir_all(cache.join("svelte")).unwrap();
+        let err = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap_err();
+        assert!(err.to_string().contains("contains a symlink"), "{err}");
+        assert_outside_intact();
+        fs::remove_dir_all(cache.join("svelte")).unwrap();
+        symlink(outside.join("svelte"), cache.join("svelte")).unwrap();
+
+        let layout = materialize_overlay_with(&tmp, &files, None, false, &[]).unwrap();
+        assert_outside_intact();
+        assert!(!is_link(&cache.join("svelte")) && !cache.join("ext").exists());
+        assert!(layout.entries[0].tsx_path.starts_with(cache.join("svelte")));
+        assert!(layout.entries[0].tsx_path.is_file());
+        assert_eq!(
+            fs::read_dir(&outside).unwrap().count(),
+            4,
+            "nothing was written outside the workspace"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+        let _ = fs::remove_dir_all(&outside);
     }
 }

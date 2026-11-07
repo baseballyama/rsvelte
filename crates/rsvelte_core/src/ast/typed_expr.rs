@@ -1150,6 +1150,12 @@ fn opaque_ts_with_comments(value: &Value) -> Value {
 // starts at capacity 0 and rehashes its way up.
 impl Serialize for JsNode {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        crate::stack::ensure_sufficient_stack(|| self.serialize_inner(serializer))
+    }
+}
+
+impl JsNode {
+    fn serialize_inner<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
             Self::Identifier {
                 start,

@@ -4,7 +4,7 @@
 
 use crate::ast::template::Root;
 
-use super::interfaces::{Svelte2TsxMode, Svelte2TsxOptions};
+use super::interfaces::{Svelte2TsxMode, Svelte2TsxOptions, SvelteVersion};
 use super::magic_string::MagicString;
 use super::nodes::generics::{
     extract_generics_from_script_tag, split_generic_param_names, type_text_references_any,
@@ -55,8 +55,9 @@ pub fn process_instance_script_tag(
     // official does NOT detect its top-level `await` / wrap `$$render` in
     // `async`; mirror that (the awaits stay in the raw, oxfmt-skipped output).
     let script_parse_failed = !instance.raw_content.is_empty();
-    let has_top_level_await =
-        !script_parse_failed && detect_top_level_await(raw_content, instance_program);
+    let has_top_level_await = matches!(options.version, SvelteVersion::V5)
+        && !script_parse_failed
+        && detect_top_level_await(raw_content, instance_program);
     if has_top_level_await {
         exported_names.set_uses_runes(true);
     }

@@ -34,11 +34,8 @@ mod tests {
 
     #[test]
     fn test_generic_arrow_is_copied_verbatim() {
-        // Upstream copies a `<T>` arrow into the overlay unchanged. It really is
-        // lexed as JSX there — but reproducing that is what byte parity means,
-        // and inserting a disambiguating comma changes the program the checker
-        // sees: `<string>() => a` becomes a generic arrow whose type parameter
-        // is named `string`.
+        // Upstream copies a `<T>` arrow unchanged; its svelte-check reads the
+        // output as a `.ts` file, where that is a generic arrow, not JSX.
         let source =
             "<script lang=\"ts\">\nconst id = <T>(x: T): T => x;\n</script>\n<p>{id(1)}</p>";
         let result = run_svelte2tsx(source);
@@ -52,6 +49,73 @@ mod tests {
             "No disambiguating comma is inserted.\nGot: {}",
             result.code
         );
+    }
+
+    #[test]
+    fn test_generic_arrow_gets_a_trailing_comma_for_a_tsx_consumer() {
+        let source = "<script module lang=\"ts\">\nexport const m = <K>(k: K) => k;\n</script>\n\
+            <script lang=\"ts\">\n\
+            const id = <T>(x: T): T => x;\n\
+            const pair = <T, U>(a: T, b: U) => [a, b];\n\
+            const bounded = <T extends string>(x: T) => x;\n\
+            const safe = <T,>(x: T) => x;\n\
+            const raw: unknown = 1;\n\
+            const n = <number>raw;\n\
+            </script>\n<p>{id(1)}{pair(1, 2)}{bounded('a')}{safe(1)}{m(1)}{n}</p>\n\
+            <p>{(<V>(v: V) => v)(1)}{<string>raw}</p>\n\
+            {#snippet row<R>(r: R)}<i>{String(r)}</i>{/snippet}";
+        let result = super::super::test_support::run_svelte2tsx_for_tsx(source);
+        for expected in [
+            "<K,>(k: K)",
+            "<T,>(x: T): T",
+            "<T, U>(a: T, b: U)",
+            "<T extends string>(x: T)",
+            "<T,>(x: T) => x",
+            "(raw as number)",
+            "<V,>(v: V)",
+            "(raw as string)",
+            "<R,>(",
+        ] {
+            assert!(
+                result.code.contains(expected),
+                "missing {expected}:\n{}",
+                result.code
+            );
+        }
+        assert_eq!(result.code.matches(",>").count(), 5, "{}", result.code);
+    }
+
+    /// The comma and the assertion rewrite shift every later column on their
+    /// line; the identifier after them must still map to its own source column.
+    #[test]
+    fn a_column_after_a_tsx_rewrite_maps_back_to_its_source_column() {
+        let source = "<script lang=\"ts\">\nconst raw: unknown = 1; const id = <T>(x: T) => x; const n = <number>raw; const after = id(n);\n</script>\n<p>{after}</p>";
+        let result = super::super::test_support::run_svelte2tsx_for_tsx(source);
+        let map =
+            sourcemap::SourceMap::from_slice(result.map.as_ref().unwrap().as_bytes()).unwrap();
+        let generated = result.code.find("after = id(n)").expect("rewritten line");
+        let line = u32::try_from(result.code[..generated].matches('\n').count()).unwrap();
+        let col =
+            u32::try_from(generated - result.code[..generated].rfind('\n').map_or(0, |i| i + 1))
+                .unwrap();
+        let token = map.lookup_token(line, col).expect("mapped");
+        assert_eq!((token.get_dst_line(), token.get_dst_col()), (line, col));
+        let source_line = source.lines().nth(token.get_src_line() as usize).unwrap();
+        assert_eq!(
+            &source_line[token.get_src_col() as usize..][..5],
+            "after",
+            "{}",
+            result.code
+        );
+
+        let moved = result.code.find("as number").unwrap() + 3;
+        let line = u32::try_from(result.code[..moved].matches('\n').count()).unwrap();
+        let col =
+            u32::try_from(moved - result.code[..moved].rfind('\n').map_or(0, |i| i + 1)).unwrap();
+        let token = map.lookup_token(line, col).expect("mapped");
+        let source_line = source.lines().nth(token.get_src_line() as usize).unwrap();
+        let src_col = token.get_src_col() + (col - token.get_dst_col());
+        assert_eq!(&source_line[src_col as usize..][..6], "number");
     }
 
     #[test]

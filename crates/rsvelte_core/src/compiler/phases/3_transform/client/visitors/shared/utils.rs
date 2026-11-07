@@ -784,6 +784,16 @@ pub fn apply_transforms_to_expression_with_shadowed(
     context: &ComponentContext,
     local_scope: &LocalScope,
 ) -> JsExpr {
+    crate::stack::ensure_sufficient_stack(|| {
+        apply_transforms_to_expression_with_shadowed_inner(expr, context, local_scope)
+    })
+}
+
+fn apply_transforms_to_expression_with_shadowed_inner(
+    expr: &JsExpr,
+    context: &ComponentContext,
+    local_scope: &LocalScope,
+) -> JsExpr {
     // Helper macro for recursive calls with current local scope
     macro_rules! recurse {
         ($e:expr) => {

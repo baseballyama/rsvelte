@@ -24,8 +24,8 @@ use super::manifest::{
     current_content_digest, current_stats,
 };
 use super::mapper::{is_syntactic_ts_code, map_tsgo_diagnostics};
-use super::overlay::{self, OverlayLayout, materialize_overlay_with_kit};
-use super::tsgo::{TsgoError, find_compiler, run_tsgo};
+use super::overlay::{self, OverlayLayout, RootDirDefault, materialize_overlay_with_kit};
+use super::tsgo::{TsgoError, find_compiler, run_tsgo, typescript_major};
 use super::walker::find_relevant_files;
 
 /// Per-warning override: promote to error or drop entirely. Mirrors
@@ -256,6 +256,10 @@ pub fn run(options: &RunOptions) -> RunResult {
     let kit_files = relevant.kit;
     let files_checked = files.len();
     phases.mark("walk");
+    let need_overlay = options.emit_overlay || options.type_check;
+    let _cache_lock = (need_overlay || options.incremental)
+        .then(|| lock_cache_dir(&options.workspace))
+        .flatten();
     let diagnostics = compile_files_with_cache(
         &files,
         &options.workspace,
@@ -269,8 +273,17 @@ pub fn run(options: &RunOptions) -> RunResult {
         overlay: None,
     };
 
-    let need_overlay = options.emit_overlay || options.type_check;
     if need_overlay {
+        let root_dir_default = if options.type_check {
+            RootDirDefault::for_typescript_major(
+                find_compiler(&options.workspace, options.prefer_tsgo)
+                    .ok()
+                    .as_ref()
+                    .and_then(typescript_major),
+            )
+        } else {
+            RootDirDefault::default()
+        };
         match materialize_overlay_with_kit(
             &options.workspace,
             &files,
@@ -280,6 +293,7 @@ pub fn run(options: &RunOptions) -> RunResult {
             &kit_settings,
             &options.ignore,
             &compiler_opts,
+            root_dir_default,
         ) {
             Ok(layout) => {
                 phases.mark("overlay");
@@ -317,6 +331,8 @@ pub fn run(options: &RunOptions) -> RunResult {
                 });
             }
         }
+        overlay::wait_for_overlay_cleanup();
+        phases.mark("cleanup");
     }
 
     // Scope reported diagnostics to the workspace being checked. Official
@@ -345,6 +361,49 @@ pub fn run(options: &RunOptions) -> RunResult {
     phases.report();
 
     result
+}
+
+/// Hold `<workspace>/.svelte-check` for one run. A cold run clears the shadow
+/// tree first, which another process on the same workspace (a `--watch`
+/// beside a one-off check) may still be emitting into or type-checking.
+/// Best-effort: a cache that cannot be locked is used unlocked.
+fn lock_cache_dir(workspace: &Path) -> Option<std::fs::File> {
+    let cache_dir = workspace.join(".svelte-check");
+    match std::fs::symlink_metadata(&cache_dir) {
+        // A symlink (or a file) here is refused by the overlay itself.
+        Ok(metadata) if !metadata.is_dir() => return None,
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            match std::fs::create_dir(&cache_dir) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(_) => return None,
+            }
+        }
+        Err(_) => return None,
+    }
+    let lock_path = cache_dir.join(".lock");
+    if std::fs::symlink_metadata(&lock_path).is_ok_and(|m| !m.is_file()) {
+        return None;
+    }
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(&lock_path)
+        .ok()?;
+    match file.try_lock() {
+        Ok(()) => Some(file),
+        Err(std::fs::TryLockError::WouldBlock) => {
+            eprintln!(
+                "rsvelte-check: waiting for another run on {} to finish",
+                cache_dir.display()
+            );
+            file.lock().ok()?;
+            Some(file)
+        }
+        Err(std::fs::TryLockError::Error(_)) => None,
+    }
 }
 
 /// Run the project's function `warningFilter` over the collected Svelte warnings
@@ -511,7 +570,7 @@ fn run_type_check_phase(
 ///
 /// TypeScript/tsgo suppress every SEMANTIC diagnostic (`TS2xxx`+)
 /// program-wide the moment the program contains ANY syntactic error
-/// (`TS1xxx`). So if one generated `.tsx` overlay fails to parse, tsgo
+/// (see `mapper::PARSER_TS_CODES`). So if one generated `.tsx` overlay fails to parse, tsgo
 /// prints only syntax errors and silently drops every real type error in
 /// the whole project — a silent false negative, the worst failure mode for
 /// a type-checker.
@@ -523,11 +582,11 @@ fn run_type_check_phase(
 ///     our bug; emit an `internal error … please report this` per file.
 ///   * **user's own syntax error** — the `.svelte`/`.ts` source is itself
 ///     malformed. That's already reported (on the Svelte side for
-///     `.svelte`, or as a passthrough `TS1xxx` for plain `.ts`), so we don't
+///     `.svelte`, or as a passthrough parser diagnostic for plain `.ts`), so we don't
 ///     blame rsvelte — but semantics are STILL suppressed program-wide, so
 ///     we attach one note so the hidden type errors aren't a surprise.
 ///
-/// Returns an empty vec for clean programs (no `TS1xxx` anywhere), so the
+/// Returns an empty vec for clean programs (no parser diagnostic anywhere), so the
 /// common all-overlays-valid path is untouched and never gains a false
 /// positive.
 fn overlay_syntax_loud_diagnostics(
@@ -537,11 +596,14 @@ fn overlay_syntax_loud_diagnostics(
     workspace: &Path,
 ) -> Vec<Diagnostic> {
     // Any syntactic diagnostic anywhere in the overlay program — including
-    // passthrough TS1xxx on plain user `.ts`/`.js` files that never went
+    // passthrough parser diagnostics on plain user `.ts`/`.js` files that never went
     // through svelte2tsx — means semantics were suppressed program-wide.
-    let any_syntactic = mapped_ts
-        .iter()
-        .any(|d| d.source == "ts" && d.code.as_deref().is_some_and(is_syntactic_ts_code));
+    // An overlay's syntax error can also sit where the mapper drops it (an
+    // `Ωignore` region, inserted text), and it gates semantics just the same.
+    let any_syntactic = !overlay_syntax_sources.is_empty()
+        || mapped_ts
+            .iter()
+            .any(|d| d.source == "ts" && d.code.as_deref().is_some_and(is_syntactic_ts_code));
     if !any_syntactic {
         return Vec::new();
     }
@@ -885,12 +947,11 @@ mod tests {
         // `overlay-invalid-tsx` internal error nor a `tsgo-semantics-suppressed`
         // note — otherwise every consumer of such a component drowns in a
         // spurious "rsvelte produced invalid TSX" banner.
-        let sources = vec![PathBuf::from("/ws/Foo.svelte")];
         let mapped = vec![
             ts_diag("/ws/Foo.svelte", "TS1192", DiagnosticSeverity::Error),
             ts_diag("/ws/Bar.svelte", "TS7006", DiagnosticSeverity::Error),
         ];
-        let loud = overlay_syntax_loud_diagnostics(&sources, &mapped, &[], Path::new("/ws"));
+        let loud = overlay_syntax_loud_diagnostics(&[], &mapped, &[], Path::new("/ws"));
         assert!(
             loud.is_empty(),
             "TS1192 is semantic and must not trip the loud syntax-taint path: {loud:?}"
@@ -934,6 +995,20 @@ mod tests {
             ..RunResult::default()
         };
         assert_eq!(result.exit_code(false), 1);
+    }
+
+    #[test]
+    fn loud_syntax_error_the_mapper_dropped_still_taints() {
+        // A syntax error inside an `Ωignore` region is recorded but not
+        // reported, and it suppresses semantics just the same.
+        let sources = vec![PathBuf::from("/ws/Foo.svelte")];
+        let loud = overlay_syntax_loud_diagnostics(&sources, &[], &[], Path::new("/ws"));
+        let codes: Vec<_> = loud.iter().filter_map(|d| d.code.as_deref()).collect();
+        assert_eq!(
+            codes,
+            ["overlay-invalid-tsx", "tsgo-semantics-suppressed"],
+            "{loud:?}"
+        );
     }
 
     #[test]
@@ -991,5 +1066,30 @@ mod tests {
         apply_filters(&mut diags, &opts);
         let sources: Vec<_> = diags.iter().map(|d| d.source).collect();
         assert_eq!(sources, vec!["svelte", "ts"]);
+    }
+
+    #[test]
+    fn a_second_run_on_one_cache_waits_for_the_first() {
+        let tmp = std::env::temp_dir().join(format!("svc_runner_lock_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        let first = lock_cache_dir(&tmp).expect("the cache is lockable");
+        let (tx, rx) = std::sync::mpsc::channel();
+        let workspace = tmp.clone();
+        let second = std::thread::spawn(move || {
+            let lock = lock_cache_dir(&workspace);
+            tx.send(lock.is_some()).unwrap();
+        });
+        assert!(
+            rx.recv_timeout(std::time::Duration::from_millis(300))
+                .is_err(),
+            "the second run did not wait"
+        );
+        drop(first);
+        assert!(rx.recv_timeout(std::time::Duration::from_secs(10)).unwrap());
+        second.join().unwrap();
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
