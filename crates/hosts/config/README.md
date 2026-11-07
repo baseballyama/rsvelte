@@ -34,12 +34,12 @@ See [Node's TypeScript documentation](https://nodejs.org/api/typescript.html).
 ## Type checker
 
 ```json
-{ "typeChecker": { "command": ["node_modules/.bin/tsrs", "--fast"] } }
+{ "typeChecker": { "command": ["tsrs", "--fast"] } }
 ```
 
 `command` is the program and its own arguments. A program with a `/` is relative to the
-configuration file; a bare name is looked up in `PATH`. `--type-checker` on the command line
-replaces it.
+configuration file. A bare name is looked for in `node_modules/.bin` next to the file and in its
+parents, then in `PATH`. `--type-checker` on the command line replaces it.
 
 ## Settings and functions
 

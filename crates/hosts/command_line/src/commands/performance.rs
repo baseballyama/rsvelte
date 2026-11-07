@@ -21,6 +21,7 @@ use rsvelte_kernel::performance::measurement;
 pub(crate) struct Options {
     rounds: usize,
     json: Option<PathBuf>,
+    pub(crate) type_checker: Option<crate::Identity>,
 }
 
 impl Options {
@@ -28,6 +29,7 @@ impl Options {
         let mut o = Self {
             rounds: 2,
             json: None,
+            type_checker: None,
         };
         let mut roots = Vec::new();
         for a in arguments {
@@ -66,7 +68,7 @@ pub(crate) fn performance(
         tasks
     };
     let m = measure(reg, &docs, tasks, options.rounds);
-    let report = report(&m, &docs, skipped, tasks, options.rounds);
+    let report = report(&m, &docs, skipped, tasks, options);
     match &options.json {
         Some(path) => {
             if let Err(e) = std::fs::write(path, &report) {
@@ -128,16 +130,17 @@ fn report(
     docs: &[Document],
     skipped: usize,
     tasks: &[&str],
-    rounds: usize,
+    options: &Options,
 ) -> String {
     let mut w = StructuredDataWriter::new(true);
     w.begin_object()
         .key("rev")
-        .write_string(env!("RSV_BUILD_REV"))
-        .key("metrics")
+        .write_string(env!("RSV_BUILD_REV"));
+    crate::Identity::write(options.type_checker.as_ref(), &mut w);
+    w.key("metrics")
         .write_boolean(measurement::ENABLED)
         .key("rounds")
-        .write_number(rounds)
+        .write_number(options.rounds)
         .key("documents")
         .write_number(docs.len())
         .key("skipped")

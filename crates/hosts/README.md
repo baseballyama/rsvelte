@@ -38,8 +38,12 @@ Svelte type checking needs a type checker and the precomputed content mapper exe
 checker is TypeScript 7.1's `tsc` or any product with its command line, such as `tsrs`: rsvelte
 adds `-p <dir> --pretty true --runExternalCode` and reads its report. Name it with
 `--type-checker <program>` (or `--tsc`) and a repeatable `--type-checker-arg <argument>`, or with
-`typeChecker.command` in [the configuration file](config/README.md); the command line wins. The
-CLI finds the mapper on `PATH`; `RSVELTE_TYPESCRIPT_CONTENT_MAPPER` can set its path.
+`typeChecker.command` in [the configuration file](config/README.md); the command line wins. A bare
+name such as `tsrs` is looked for in the project's `node_modules/.bin`, then in `PATH`. Before any
+file is read, the CLI runs `<checker> --version`: a checker that is missing, fails or is a `tsc`
+older than 7.1, and a check task without what it needs, stop the run with exit code 2. `benchmark`
+and `performance` record the checker and its version in `type_checker`. The CLI finds the mapper
+on `PATH`; `RSVELTE_TYPESCRIPT_CONTENT_MAPPER` can set its path.
 
 ```sh
 cargo install --path crates/languages/typescript/content_mapper

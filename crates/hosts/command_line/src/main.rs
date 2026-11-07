@@ -63,6 +63,36 @@ fn registry(
     reg
 }
 
+/// The type checker a run used, for the measurement reports.
+#[derive(Clone, Debug)]
+pub(crate) struct Identity {
+    pub(crate) command: String,
+    pub(crate) version: String,
+}
+
+impl Identity {
+    /// `type_checker`: `{ command, version }`, or null when no task ran one.
+    pub(crate) fn write(
+        identity: Option<&Self>,
+        w: &mut rsvelte_kernel::output::structured_data::StructuredDataWriter,
+    ) {
+        w.key("type_checker");
+        match identity {
+            Some(i) => {
+                w.begin_object()
+                    .key("command")
+                    .write_string(&i.command)
+                    .key("version")
+                    .write_string(&i.version)
+                    .end_object();
+            }
+            None => {
+                w.null();
+            }
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let mut tasks = Vec::new();
@@ -89,7 +119,11 @@ fn main() -> ExitCode {
             if a == "--type-checker-arg" {
                 checker_arguments.push(value.clone());
             } else {
-                match program_path(value) {
+                let here = match std::env::current_dir() {
+                    Ok(here) => here,
+                    Err(e) => return usage(&format!("{a} {value}: {e}")),
+                };
+                match configuration::program_path(value, &here) {
                     Ok(p) => program = Some(p),
                     Err(e) => return usage(&format!("{a} {value}: {e}")),
                 }
@@ -131,9 +165,10 @@ fn main() -> ExitCode {
         Ok(checker) => checker,
         Err(error) => return usage(&error),
     };
-    if tsc.is_none() && (svelte.is_some() || vue.is_some()) {
-        return usage("--svelte and --vue need a type checker (--type-checker or typeChecker)");
-    }
+    let identity = match identify(&tasks, tsc.as_ref(), svelte.is_some(), vue.is_some()) {
+        Ok(identity) => identity,
+        Err(error) => return usage(&error),
+    };
     let (svelte, vue, polyglot) = check_configurations(tsc, svelte, vue, tsconfig);
     let reg = match configured_registry(&svelte, &vue, polyglot, loaded.as_ref().map(|(_, l)| l)) {
         Ok(registry) => registry,
@@ -142,25 +177,7 @@ fn main() -> ExitCode {
     if let Err(e) = reg.check_task_identifiers(&tasks) {
         return usage(&e.to_string());
     }
-    match positional.as_slice() {
-        ["corpus", dirs @ ..] if !dirs.is_empty() => {
-            let roots: Vec<&Path> = dirs.iter().map(Path::new).collect();
-            corpus(&reg, &roots, &tasks)
-        }
-        ["run", file] => run_file(&reg, Path::new(file), &tasks),
-        ["benchmark", dir, rest @ ..] => match benchmark::Options::parse(rest) {
-            Ok(options) => benchmark::benchmark(&reg, Path::new(dir), &tasks, &options),
-            Err(e) => usage(&e),
-        },
-        ["performance", rest @ ..] => match performance::Options::parse(rest) {
-            Ok((roots, options)) => performance::performance(&reg, &roots, &tasks, &options),
-            Err(e) => usage(&e),
-        },
-        _ => usage(concat!(
-            "expected `corpus <dir>...`, `run <file>`, ",
-            "`benchmark <dir>` or `performance <dir>...`"
-        )),
-    }
+    dispatch(&reg, &positional, &tasks, identity)
 }
 
 /// The check tasks' configurations: Svelte's, Vue's and `ts.check`'s, which share one type checker.
@@ -203,6 +220,60 @@ fn check_configurations(
     (svelte, vue, polyglot)
 }
 
+/// The tasks that run a type checker, and what else each needs.
+const CHECKS: [(&str, Option<&str>); 3] = [
+    (
+        "svelte.check/default",
+        Some("--svelte <svelte package dir>"),
+    ),
+    ("vue.check/default", Some("--vue <vue package dir>")),
+    ("ts.check/default", None),
+];
+
+/// Refuses a check task that is asked for but cannot run, and returns the type checker's command
+/// and version when a task will run it. Every mistake is reported here, once, not on each file.
+fn identify(
+    tasks: &[&str],
+    checker: Option<&rsvelte_typescript_check::TypeChecker>,
+    svelte: bool,
+    vue: bool,
+) -> Result<Option<Identity>, String> {
+    if checker.is_none() && (svelte || vue) {
+        return Err(
+            "--svelte and --vue need a type checker: --type-checker <program> or \
+             typeChecker.command in rsvelte.config.json"
+                .to_owned(),
+        );
+    }
+    for (task, package) in CHECKS {
+        if !tasks.contains(&task) {
+            continue;
+        }
+        if checker.is_none() {
+            return Err(format!(
+                "{task} needs a type checker: --type-checker <program> or typeChecker.command in \
+                 rsvelte.config.json"
+            ));
+        }
+        let given = match task {
+            "svelte.check/default" => svelte,
+            "vue.check/default" => vue,
+            _ => true,
+        };
+        if let (false, Some(package)) = (given, package) {
+            return Err(format!("{task} needs {package}"));
+        }
+    }
+    let runs = tasks.is_empty() || CHECKS.iter().any(|(t, _)| tasks.contains(t));
+    match checker {
+        Some(checker) if runs => Ok(Some(Identity {
+            command: checker.to_string(),
+            version: checker.identify()?,
+        })),
+        _ => Ok(None),
+    }
+}
+
 /// The command line's type checker, or else the configuration file's.
 fn type_checker(
     program: Option<std::path::PathBuf>,
@@ -224,14 +295,37 @@ fn type_checker(
     }
 }
 
-/// A name without a separator is looked up in `PATH`; a path is made absolute, since the type
-/// checker runs in a temporary directory.
-fn program_path(value: &str) -> std::io::Result<std::path::PathBuf> {
-    let path = Path::new(value);
-    if path.components().count() > 1 {
-        std::path::absolute(path)
-    } else {
-        Ok(path.to_owned())
+/// Runs the subcommand.
+fn dispatch(
+    reg: &Registry,
+    positional: &[&str],
+    tasks: &[&str],
+    identity: Option<Identity>,
+) -> ExitCode {
+    match positional {
+        ["corpus", dirs @ ..] if !dirs.is_empty() => {
+            let roots: Vec<&Path> = dirs.iter().map(Path::new).collect();
+            corpus(reg, &roots, tasks)
+        }
+        ["run", file] => run_file(reg, Path::new(file), tasks),
+        ["benchmark", dir, rest @ ..] => match benchmark::Options::parse(rest) {
+            Ok(mut options) => {
+                options.type_checker = identity;
+                benchmark::benchmark(reg, Path::new(dir), tasks, &options)
+            }
+            Err(e) => usage(&e),
+        },
+        ["performance", rest @ ..] => match performance::Options::parse(rest) {
+            Ok((roots, mut options)) => {
+                options.type_checker = identity;
+                performance::performance(reg, &roots, tasks, &options)
+            }
+            Err(e) => usage(&e),
+        },
+        _ => usage(concat!(
+            "expected `corpus <dir>...`, `run <file>`, ",
+            "`benchmark <dir>` or `performance <dir>...`"
+        )),
     }
 }
 
@@ -324,7 +418,22 @@ mod tests {
         let checker = type_checker(None, Vec::new(), Some(&bare))
             .unwrap()
             .unwrap();
-        assert_eq!(checker.program, Path::new("tsrs"));
+        assert_eq!(
+            checker.program,
+            Path::new("tsrs"),
+            "not installed: looked up in PATH"
+        );
+        let bin = bare.0.with_file_name("node_modules/.bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::write(bin.join("tsrs"), "").unwrap();
+        let checker = type_checker(None, Vec::new(), Some(&bare))
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            checker.program,
+            std::path::absolute(bin.join("tsrs")).unwrap(),
+            "the project's own copy comes first"
+        );
         let empty = configuration("empty", r#"{ "typeChecker": { "command": [] } }"#);
         type_checker(None, Vec::new(), Some(&empty)).unwrap_err();
         for f in [bare, empty] {

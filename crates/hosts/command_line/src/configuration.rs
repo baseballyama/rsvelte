@@ -119,14 +119,9 @@ pub(crate) fn type_checker(
     let Some((program, arguments)) = options.command.split_first() else {
         return Err(CallError("typeChecker.command needs a program".into()));
     };
-    let program = Path::new(program);
-    // The type checker runs in a temporary directory, so a path must be absolute.
-    let program = if program.components().count() > 1 {
-        std::path::absolute(path.with_file_name(program))
-            .map_err(|e| CallError(format!("typeChecker.command {}: {e}", program.display())))?
-    } else {
-        program.to_owned()
-    };
+    let base = path.parent().unwrap_or_else(|| Path::new("."));
+    let program = program_path(program, base)
+        .map_err(|e| CallError(format!("typeChecker.command {program}: {e}")))?;
     Ok(Some(rsvelte_typescript_check::TypeChecker {
         program,
         arguments: arguments.to_vec(),
@@ -220,4 +215,20 @@ fn decode<T: serde::de::DeserializeOwned>(
     raw: &serde_json::value::RawValue,
 ) -> Result<T, CallError> {
     serde_json::from_str(raw.get()).map_err(|error| CallError(error.to_string()))
+}
+
+/// Where the type checker's program is. A path is relative to `base`, and made absolute since the
+/// checker runs in a temporary directory. A bare name is looked for in `node_modules/.bin` of
+/// `base` and its parents first, as package managers run a project's tools, then in `PATH`.
+pub(crate) fn program_path(value: &str, base: &Path) -> std::io::Result<PathBuf> {
+    let path = Path::new(value);
+    if path.components().count() > 1 {
+        return std::path::absolute(base.join(path));
+    }
+    let base = std::path::absolute(base)?;
+    let installed = base
+        .ancestors()
+        .map(|d| d.join("node_modules/.bin").join(path))
+        .find(|candidate| candidate.is_file());
+    Ok(installed.unwrap_or_else(|| path.to_owned()))
 }

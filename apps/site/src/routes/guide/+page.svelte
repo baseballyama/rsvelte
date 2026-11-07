@@ -182,15 +182,16 @@
 				</p>
 				<GuideCode code={guideExamples.check} label="型チェックの設定と実行" />
 				<p>
-					<code>--type-checker</code> は型チェッカーの実行ファイルです。TypeScript 7.1 の
-					<code>tsc</code>
-					のほか、同じコマンドラインを持つ製品（<code>tsrs</code>
-					など）も使えます。型チェッカー自身の引数は
-					<code>--type-checker-arg</code> で 1 つずつ渡します。設定ファイルの
-					<code>typeChecker.command</code>
-					でも指定できます。<code>--svelte</code> は Svelte パッケージのディレクトリです。<code
-						>--tsconfig</code
+					<code>--type-checker</code> は型チェッカーです。TypeScript 7.1 の <code>tsc</code>
+					のほか、同じコマンドラインを持つ製品（<code>tsrs</code> など）も使えます。<code>tsrs</code
 					>
+					のように名前だけを書くと、プロジェクトの <code>node_modules/.bin</code>、次に
+					<code>PATH</code> から探します。型チェッカー自身の引数は <code>--type-checker-arg</code>
+					で 1 つずつ渡します。設定ファイルの <code>typeChecker.command</code>
+					でも指定できます。型チェッカーが見つからない、古い、といった問題は、ファイルを読む前にまとめて報告されます。<code
+						>--svelte</code
+					>
+					は Svelte パッケージのディレクトリです。<code>--tsconfig</code>
 					で指定した設定を引き継いで検査します。
 				</p>
 				<p>プロジェクト設定がない場合は、<code>--tsconfig</code> とそのパスを省略できます。</p>

@@ -43,6 +43,69 @@ impl TypeChecker {
             arguments: Vec::new(),
         }
     }
+
+    /// What `--version` prints, such as `Version 7.1.0`, so a result can name the checker that
+    /// made it. Fails, saying what to change, when the checker cannot run or is a `tsc` older than
+    /// 7.1.
+    ///
+    /// # Errors
+    /// The checker is missing, cannot run, fails, or is too old.
+    pub fn identify(&self) -> Result<String, String> {
+        let output = match Command::new(&self.program)
+            .args(&self.arguments)
+            .arg("--version")
+            .output()
+        {
+            Ok(output) => output,
+            Err(e) => return Err(self.cannot_start(&e)),
+        };
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let version = stdout.lines().map(str::trim).find(|l| !l.is_empty());
+        let (true, Some(version)) = (output.status.success(), version) else {
+            return Err(format!(
+                "type checker `{self} --version` failed ({}): {}{stdout}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        };
+        if let Some(old) = typescript_before_7_1(version) {
+            return Err(format!(
+                "type checker `{self}` is TypeScript {old}; rsvelte needs {CONTRACT}, such as \
+                 TypeScript 7.1 or tsrs"
+            ));
+        }
+        Ok(version.to_owned())
+    }
+
+    fn cannot_start(&self, e: &std::io::Error) -> String {
+        let bare = self.program.components().count() == 1;
+        match e.kind() {
+            std::io::ErrorKind::NotFound if bare => format!(
+                "type checker `{}` is not in node_modules/.bin or on PATH: install it in the \
+                 project, or give its path with --type-checker or typeChecker.command",
+                self.program.display()
+            ),
+            std::io::ErrorKind::NotFound => {
+                format!("type checker `{}` does not exist", self.program.display())
+            }
+            std::io::ErrorKind::PermissionDenied => {
+                format!(
+                    "type checker `{}` is not executable",
+                    self.program.display()
+                )
+            }
+            _ => format!("type checker `{self}`: {e}"),
+        }
+    }
+}
+
+/// `major.minor` of a `tsc` that prints `Version <major>.<minor>...` and is older than 7.1.
+fn typescript_before_7_1(version: &str) -> Option<&str> {
+    let number = version.strip_prefix("Version ")?;
+    let mut parts = number.split(['.', '-']);
+    let major: u32 = parts.next()?.parse().ok()?;
+    let minor: u32 = parts.next()?.parse().ok()?;
+    ((major, minor) < (7, 1)).then_some(number)
 }
 
 impl std::fmt::Display for TypeChecker {
