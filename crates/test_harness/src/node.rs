@@ -72,7 +72,8 @@ impl NodePackages {
     }
 
     /// The type checker the check tests run, as its program and arguments: `FIXTURE_TYPE_CHECKER`,
-    /// such as `tsrs --fast`, or else [`Self::tsc`]. A bare program is looked for in
+    /// such as `tsrs --fast`, or else [`Self::tsc`] with `--singleThreaded`, since the tests run
+    /// several projects at once. A bare program is looked for in
     /// `tools/oracle/node_modules/.bin`, then in `PATH`. Prints the checker and what its
     /// `--version` says, so a run names the checker it measured.
     ///
@@ -82,7 +83,9 @@ impl NodePackages {
     #[must_use]
     pub fn type_checker(&self) -> (PathBuf, Vec<String>) {
         let (program, arguments) = match std::env::var(TYPE_CHECKER_VARIABLE) {
-            Err(std::env::VarError::NotPresent) => (self.tsc(), Vec::new()),
+            Err(std::env::VarError::NotPresent) => {
+                (self.tsc(), vec!["--singleThreaded".to_owned()])
+            }
             Ok(command) => {
                 let mut words = command.split_whitespace().map(str::to_owned);
                 let program = words
