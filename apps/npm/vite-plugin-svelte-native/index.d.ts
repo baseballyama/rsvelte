@@ -480,7 +480,7 @@ export interface PreprocessorOptions {
 	content: string;
 	filename?: string;
 	attributes: Record<string, string | boolean>;
-	markup?: string;
+	markup: string;
 }
 
 /** Result returned by a preprocessor callback. `undefined`/`null` is a no-op. */
