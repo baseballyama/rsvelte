@@ -1,4 +1,4 @@
-// Hard-copies admitted files from local checkouts of the registered sources into fixtures/<family>/.
+// Hard-copies admitted files from local checkouts of the registered sources into corpus/<family>/.
 // The checkouts are only read; after an import the fixture set is self-contained.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -198,7 +198,7 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 	return { orphans };
 }
 
-/** `fixtures import --from <dir> [--source id,...] [--accept-commit]` */
+/** `oracle import --from <dir> [--source id,...] [--accept-commit]` */
 export async function main(args: string[]): Promise<void> {
 	const { values } = parseArgs({
 		args,

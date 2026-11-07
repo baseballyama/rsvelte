@@ -1,8 +1,8 @@
 # Every gate the repository has, on every push and pull request:
 # - rust: formatting, the lint gate (both feature sets, rustdoc), the test suites (each crate's
-#   fixture snapshots included; the type-check ones run tsc from tools/fixtures/node_modules);
-# - fixtures: every task over every fixture unit, against the oracle snapshots (the parity ratchet,
-#   fixtures/_registry/parity.json), the adjustments' validity and the behaviour oracle's own tests;
+#   fixture snapshots included; the type-check ones run tsc from tools/oracle/node_modules);
+# - corpus: every task over every corpus unit, against the oracle snapshots (the parity ratchet,
+#   corpus/_registry/parity.json), the adjustments' validity and the behaviour oracle's own tests;
 # - performance: the deterministic performance ratchet (tools/performance/baseline.json): allocations exactly,
 #   and cachegrind's instruction counts (a warm round, and loading) on the platform the baseline
 #   records (arm64 Linux);
@@ -51,7 +51,7 @@ jobs:
           # setup-node 5+ caches the package manager's store on its own; CI has never cached it.
           package-manager-cache: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/fixtures...
+      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/oracle...
       - run: cargo test --offline --workspace
       - run: cargo run --offline -p rsvelte_command_line --example repo_layout > type-layout.json
       - if: always()
@@ -61,7 +61,7 @@ jobs:
           path: type-layout.json
           if-no-files-found: ignore
 
-  fixtures:
+  corpus:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -73,21 +73,21 @@ jobs:
           node-version: 26.13.0
           package-manager-cache: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/fixtures...
+      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/oracle...
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: node --test tools/structure/*.test.ts
       - run: node tools/structure/structure.ts
       # The semantic tests build other crates with --offline, so fetch the whole lockfile first.
       - run: cargo fetch
       - run: cargo build --release -p rsvelte_command_line
-      - run: node tools/fixtures/fixtures.ts run-all
-      - run: node fixtures.ts check
-        working-directory: tools/fixtures
-      - run: node fixtures.ts adjust
-        working-directory: tools/fixtures
+      - run: node tools/oracle/oracle.ts run-all
+      - run: node oracle.ts check
+        working-directory: tools/oracle
+      - run: node oracle.ts adjust
+        working-directory: tools/oracle
       # The behaviour oracle against hand-written twins and deliberately wrong translations.
       - run: pnpm test
-        working-directory: tools/fixtures
+        working-directory: tools/oracle
 
   typescript:
     runs-on: ubuntu-24.04

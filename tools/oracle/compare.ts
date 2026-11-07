@@ -182,7 +182,7 @@ export async function compare({ taskId, variantId, sourceIds, families }: Compar
 	return { units: units.length, rows, counts };
 }
 
-/** `fixtures compare --task id --variant id [--source id,...] [--family name,...] [--report <file>]` */
+/** `oracle compare --task id --variant id [--source id,...] [--family name,...] [--report <file>]` */
 export async function main(args: string[]): Promise<void> {
 	const { values } = parseArgs({
 		args,

@@ -1,4 +1,4 @@
-// `fixtures upstream <name> <checkout>`: copy an upstream project's own test fixtures, byte for
+// `oracle upstream <name> <checkout>`: copy an upstream project's own test fixtures, byte for
 // byte, into tests/upstream/ of the crate that ports it, which reads them the way the
 // project's test runner does. UPSTREAM.json records the commit, and the oracle versions that
 // the fixtures' requirements files are checked against.
@@ -38,7 +38,7 @@ export async function main(args: string[]): Promise<void> {
 	const [name = '', checkoutArgument] = args;
 	const upstream = UPSTREAMS[name];
 	if (!upstream || !checkoutArgument)
-		throw new Error(`usage: fixtures upstream <${Object.keys(UPSTREAMS).join('|')}> <checkout>`);
+		throw new Error(`usage: oracle upstream <${Object.keys(UPSTREAMS).join('|')}> <checkout>`);
 	const root = path.resolve(import.meta.dirname, '../..');
 	const checkout = fs.realpathSync(checkoutArgument);
 	const require = createRequire(path.join(import.meta.dirname, 'package.json'));

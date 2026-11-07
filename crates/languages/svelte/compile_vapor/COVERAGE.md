@@ -52,7 +52,7 @@ Run the snapshots and the runtime comparisons:
 
 ```sh
 cargo test -p rsvelte_svelte_compile_vapor
-mise exec -- node --test tools/fixtures/behaviour/*.test.ts
+mise exec -- node --test tools/oracle/behaviour/*.test.ts
 ```
 
 Runtime comparisons include mount, user actions, head output, and explicit

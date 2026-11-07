@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use rsvelte_kernel::computation::pipeline::Document;
 
 const INPUT_STEM: &str = "input.";
-/// Marks `tests/fixtures/<source>/` as copied from the corpus (`tools/fixtures`, command `crate`).
+/// Marks `tests/fixtures/<source>/` as copied from the corpus (`tools/oracle`, command `crate`).
 const SOURCE_FILE: &str = "source.json";
 /// The corpus stores a path segment that collides with a reserved name with this prefix.
 const ESCAPE: char = '~';

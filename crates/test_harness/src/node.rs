@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 const INSTALL_HINT: &str = "run `pnpm install --frozen-lockfile` at the repository root";
 
-/// The Node packages `tools/fixtures` installs. Type-check tasks need TypeScript 7's native
+/// The Node packages `tools/oracle` installs. Type-check tasks need TypeScript 7's native
 /// `tsc` and the framework packages' types from there.
 #[derive(Debug)]
 pub struct NodePackages {
@@ -12,11 +12,11 @@ pub struct NodePackages {
 impl NodePackages {
     /// # Panics
     ///
-    /// If `tools/fixtures/node_modules` is not installed.
+    /// If `tools/oracle/node_modules` is not installed.
     #[must_use]
     pub fn locate() -> Self {
         let node_modules =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/fixtures/node_modules");
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/oracle/node_modules");
         assert!(
             node_modules.is_dir(),
             "{} is missing: {INSTALL_HINT}",

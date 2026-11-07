@@ -36,8 +36,8 @@ an implemented rule must pass; the others are counted.
 
 ```sh
 cargo test -p rsvelte_svelte_lint --test upstream
-mise exec -- node tools/fixtures/fixtures.ts upstream eslint-plugin-svelte <checkout at the oracle's tag>
-mise exec -- node tools/fixtures/fixtures.ts lint-cases   # write errors.yaml for a new case in tests/cases
+mise exec -- node tools/oracle/oracle.ts upstream eslint-plugin-svelte <checkout at the oracle's tag>
+mise exec -- node tools/oracle/oracle.ts lint-cases   # write errors.yaml for a new case in tests/cases
 ```
 
 To add a rule, add it to `IMPLEMENTED` in `tests/upstream.rs`. `errors.yaml` is written by ESLint,

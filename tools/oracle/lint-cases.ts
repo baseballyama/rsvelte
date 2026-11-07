@@ -1,4 +1,4 @@
-// `fixtures lint-cases [--update]`: write ESLint's verdict for the lint crate's own rule cases
+// `oracle lint-cases [--update]`: write ESLint's verdict for the lint crate's own rule cases
 // (crates/languages/svelte/lint/tests/cases), which follow eslint-plugin-svelte's fixture layout:
 // `<rule>/{valid,invalid}/…/<name>-input.svelte`, options in `<name>-config.json` or
 // `_config.json`, the reports in `<name>-errors.yaml`. As upstream's runner does, a missing

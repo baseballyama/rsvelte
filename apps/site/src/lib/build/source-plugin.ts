@@ -102,7 +102,7 @@ interface ParityRow {
 	verdicts: Record<string, number>;
 }
 
-/** fixtures/_registry/parity.json (`"<task>/<variant> <unit>": verdict`), counted per task and verdict. */
+/** corpus/_registry/parity.json (`"<task>/<variant> <unit>": verdict`), counted per task and verdict. */
 function paritySummary(entries: Record<string, string>): { units: number; rows: ParityRow[] } {
 	const byTask = new Map<string, Record<string, number>>();
 	for (const [key, verdict] of Object.entries(entries)) {
@@ -152,7 +152,7 @@ export function rsvelteSource(): Plugin {
 			const root = path.dirname(cratesDir);
 			const { rev, clean } = revision(root);
 			const baselineFile = path.join(root, 'tools/performance/baseline.json');
-			const parityFile = path.join(root, 'fixtures/_registry/parity.json');
+			const parityFile = path.join(root, 'corpus/_registry/parity.json');
 			this.addWatchFile(baselineFile);
 			this.addWatchFile(parityFile);
 			return [

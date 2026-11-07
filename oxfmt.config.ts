@@ -10,9 +10,9 @@ export default defineConfig({
 	overrides: [{ files: ['*.md', '*.yml', '*.yaml', '*.toml'], options: { useTabs: false } }],
 	ignorePatterns: [
 		// Inputs and expected outputs; their bytes are the test.
-		'fixtures/**',
+		'corpus/**',
 		'crates/**/tests/**',
-		'tools/fixtures/behaviour/tests/**',
+		'tools/oracle/behaviour/tests/**',
 		'apps/site/src/lib/data/**',
 		// Text that a compiler embeds in its output byte for byte (include_str!).
 		'crates/languages/svelte/compile_vapor/src/compilation/**/*.js',

@@ -27,12 +27,12 @@ cargo run -p rsvelte_command_line -- run App.svelte --task svelte.lint/default
 Repeat `--task` to request more than one task. `run` prints generated files and
 diagnostics to standard output, with task labels. It does not edit the input file.
 
-| Command                                    | Purpose                                                          |
-| ------------------------------------------ | ---------------------------------------------------------------- |
-| `run <file> --task <identifier>`           | Run selected tasks on one file                                   |
-| `fixtures <dir>... --task <identifier>`    | Write task outputs under each fixture unit's `actual/` directory |
-| `benchmark <dir> --task <identifier>`      | Measure pipeline time                                            |
-| `performance <dir>... --task <identifier>` | Measure performance counters                                     |
+| Command                                    | Purpose                                                         |
+| ------------------------------------------ | --------------------------------------------------------------- |
+| `run <file> --task <identifier>`           | Run selected tasks on one file                                  |
+| `corpus <dir>... --task <identifier>`      | Write task outputs under each corpus unit's `actual/` directory |
+| `benchmark <dir> --task <identifier>`      | Measure pipeline time                                           |
+| `performance <dir>... --task <identifier>` | Measure performance counters                                    |
 
 Svelte type checking needs native TypeScript 7.1 and the precomputed content mapper executable.
 The CLI finds the mapper on `PATH`; `RSVELTE_TYPESCRIPT_CONTENT_MAPPER` can set its path.
@@ -46,7 +46,7 @@ cargo run -p rsvelte_command_line -- run App.svelte \
 
 The CLI argument handling and registered tools are in
 [`command_line/src/main.rs`](command_line/src/main.rs).
-See [the fixture guide](../../fixtures/README.md) for oracle comparisons.
+See [the corpus guide](../../corpus/README.md) for oracle comparisons.
 
 ## Browser / WebAssembly
 

@@ -94,7 +94,7 @@ async function expected(unit: Unit, target: Target): Promise<string> {
 	return artifacts.trace!.text;
 }
 
-/** What `fixtures compare` reports for `src` (a component in the target's language) translating `unit`: null on a match. */
+/** What `oracle compare` reports for `src` (a component in the target's language) translating `unit`: null on a match. */
 async function verdict(
 	unit: Unit,
 	src: string,

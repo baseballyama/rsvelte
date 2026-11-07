@@ -1,4 +1,4 @@
-# The shared .git/info/exclude ignores `fixtures` for main's generated tree; this branch commits it.
+# The shared .git/info/exclude ignores `fixtures` for main's generated tree; the crates' tests/fixtures/ are committed here.
 !fixtures
 # Anchored: unanchored names would also hide fixture inputs whose original path contains them.
 /target/
@@ -8,9 +8,9 @@
 # Measurement output, kept next to the tool that writes it.
 /tools/*/generated/
 # Per-unit implementation output and cached snapshots. Original path segments with these names are
-# stored as `~actual` / `~cache` (tools/fixtures/paths.ts), so the patterns reach only unit children.
-/fixtures/**/actual/
-/fixtures/**/cache/
+# stored as `~actual` / `~cache` (tools/oracle/paths.ts), so the patterns reach only unit children.
+/corpus/**/actual/
+/corpus/**/cache/
 # rsvelte's output in crate fixture tests; `expected/` next to it is committed.
 /crates/**/tests/fixtures/**/actual/
 /crates/**/tests/rules/**/actual/

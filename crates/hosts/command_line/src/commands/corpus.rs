@@ -7,7 +7,7 @@ use crate::input::load;
 use crate::output::{report_metrics, write_outputs};
 use crate::usage;
 
-pub(crate) fn fixtures(reg: &Registry, roots: &[&Path], tasks: &[&str]) -> ExitCode {
+pub(crate) fn corpus(reg: &Registry, roots: &[&Path], tasks: &[&str]) -> ExitCode {
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering::Relaxed;
     let (docs, dirs, skipped) = load(reg, roots);

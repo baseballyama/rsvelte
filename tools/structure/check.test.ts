@@ -66,10 +66,10 @@ test('only handwritten sources are measured and an empty population fails', () =
 	assert.equal(isSource('apps/site/src/routes/+page.svelte'), true);
 	assert.equal(isSource('crates/languages/svelte/compile/tests/fixtures.rs'), true);
 	for (const file of [
-		'fixtures/input.svelte',
+		'corpus/input.svelte',
 		'crates/a/vendor/types.d.ts',
 		'apps/site/generated/wasm/kernel/index.js',
-		'tools/fixtures/behaviour/tests/wrong/input.svelte',
+		'tools/oracle/behaviour/tests/wrong/input.svelte',
 		'crates/languages/svelte/compile/tests/fixtures/rsvelte/counter/input.svelte',
 		'crates/languages/svelte/compile/tests/fixtures/rsvelte/counter/expected/client.js',
 		'crates/languages/svelte/lint/tests/upstream/eslint-plugin-svelte/indent/invalid/input.svelte',

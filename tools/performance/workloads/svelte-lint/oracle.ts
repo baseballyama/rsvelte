@@ -3,7 +3,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const root = path.resolve(import.meta.dirname, '../../../..');
-const require = createRequire(path.join(root, 'tools/fixtures/package.json'));
+const require = createRequire(path.join(root, 'tools/oracle/package.json'));
 const { Linter } = require('eslint');
 const plugin = require('eslint-plugin-svelte').default;
 const parser = require('@typescript-eslint/parser');

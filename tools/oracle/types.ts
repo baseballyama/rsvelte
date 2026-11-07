@@ -54,7 +54,7 @@ type Admission =
 
 export interface Language {
 	id: string;
-	/** Top-level fixtures/<family>/ directory; languages that belong together share one. */
+	/** Top-level corpus/<family>/ directory; languages that belong together share one. */
 	family: string;
 	/** Extension of the copied input, `input<ext>`. */
 	ext: string;

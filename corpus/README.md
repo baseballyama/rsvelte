@@ -1,10 +1,10 @@
-# fixtures
+# corpus
 
 Real files from permissively licensed projects, and the official tools' output for them. One
-input file is one **unit**. Commands: [tools/fixtures](../tools/fixtures/README.md).
+input file is one **unit**. Commands: [tools/oracle](../tools/oracle/README.md).
 
 ```
-fixtures/
+corpus/
 ├── _registry/
 │   ├── sources.json          source repositories: URL, commit, license (written by hand)
 │   ├── oracles.json          versions of the official tools that wrote expected/

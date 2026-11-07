@@ -54,7 +54,7 @@ export function isSource(file: string): boolean {
 		!file.split('/').includes('vendor') &&
 		!file.startsWith('apps/site/generated/') &&
 		!/^crates\/.+\/tests\/(fixtures|upstream)\//.test(file) &&
-		!file.startsWith('tools/fixtures/behaviour/tests/wrong/')
+		!file.startsWith('tools/oracle/behaviour/tests/wrong/')
 	);
 }
 

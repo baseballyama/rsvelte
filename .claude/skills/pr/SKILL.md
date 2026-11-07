@@ -42,7 +42,7 @@ Repeat at most 5 times; stop when a round changes nothing.
    hash. Resolve a thread only if a bot opened it.
 3. **CI.** `gh pr checks <PR> --watch --fail-fast`. A cancelled check or no checks is not a pass.
    Read the full failed log (`gh run view <id> --log-failed`), fix the real cause, and rerun
-   once only for infrastructure errors. Never edit `fixtures/**/expected/`.
+   once only for infrastructure errors. Never edit `corpus/**/expected/`.
 
 Mark ready (`gh pr ready`) only when CI is green, no comment you can handle is left, and two
 polls a few minutes apart show no new bot comments. For a PR from an issue, wait until a human

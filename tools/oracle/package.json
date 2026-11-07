@@ -1,10 +1,10 @@
 {
-	"name": "@rsvelte-experimental/fixtures",
+	"name": "@rsvelte-experimental/oracle",
 	"private": true,
-	"description": "The fixture corpus: imports sources, runs the oracles, compares rsvelte against them and copies cases into crates",
+	"description": "The official tools: imports the corpus, runs the oracles over it, compares rsvelte against them and writes the crates' upstream cases",
 	"type": "module",
 	"scripts": {
-		"fixtures": "node fixtures.ts",
+		"oracle": "node oracle.ts",
 		"test": "node --test '*.test.ts' '*/*.test.ts'",
 		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
 	},

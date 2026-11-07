@@ -13,7 +13,7 @@ export default {
 			// wasm-pack's output, which only the site job builds.
 			ignoreUnresolved: [/^#generated\/wasm\//],
 		},
-		'tools/fixtures': {
+		'tools/oracle': {
 			// Loaded by URL into a browser, a worker or a child process, not imported.
 			entry: ['behaviour/{browser-runner,client,server,worker}.ts'],
 			project: ['**/*.{ts,svelte,vue}', '!behaviour/tests/**'],
@@ -22,7 +22,7 @@ export default {
 		},
 		'tools/performance': {
 			entry: ['workloads/*/*.ts'],
-			// The svelte-lint workload's oracle requires the packages tools/fixtures installs.
+			// The svelte-lint workload's oracle requires the packages tools/oracle installs.
 			ignoreDependencies: ['eslint', 'eslint-plugin-svelte', '@typescript-eslint/parser'],
 		},
 	},

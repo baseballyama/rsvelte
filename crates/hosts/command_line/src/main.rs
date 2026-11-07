@@ -1,4 +1,4 @@
-//! `rsvelte fixtures <dir>... [--task <identifier>]...` runs tasks over every fixture unit below
+//! `rsvelte corpus <dir>... [--task <identifier>]...` runs tasks over every corpus unit below
 //! the given directories, in one run, and writes `actual/<task>.<ext>` next to `expected/`.
 //! `rsvelte run <file> --task <identifier>` prints one task's outputs for one file.
 //! `rsvelte benchmark <dir> [--task <identifier>]... [rounds=N] [json=<file>]` measures the
@@ -24,7 +24,7 @@ mod output;
 use std::path::Path;
 use std::process::ExitCode;
 
-use commands::fixtures::fixtures;
+use commands::corpus::corpus;
 use commands::run::run_file;
 use commands::{benchmark, performance};
 use input::load;
@@ -98,7 +98,7 @@ fn main() -> ExitCode {
             None => tasks.push(value.as_str()),
         }
     }
-    if let (None, ["fixtures", dir, ..]) = (&tsconfig, positional.as_slice()) {
+    if let (None, ["corpus", dir, ..]) = (&tsconfig, positional.as_slice()) {
         let default = Path::new(dir).join("tsconfig.json");
         tsconfig = default
             .is_file()
@@ -137,9 +137,9 @@ fn main() -> ExitCode {
         return usage(&e.to_string());
     }
     match positional.as_slice() {
-        ["fixtures", dirs @ ..] if !dirs.is_empty() => {
+        ["corpus", dirs @ ..] if !dirs.is_empty() => {
             let roots: Vec<&Path> = dirs.iter().map(Path::new).collect();
-            fixtures(&reg, &roots, &tasks)
+            corpus(&reg, &roots, &tasks)
         }
         ["run", file] => run_file(&reg, Path::new(file), &tasks),
         ["benchmark", dir, rest @ ..] => match benchmark::Options::parse(rest) {
@@ -151,7 +151,7 @@ fn main() -> ExitCode {
             Err(e) => usage(&e),
         },
         _ => usage(concat!(
-            "expected `fixtures <dir>...`, `run <file>`, ",
+            "expected `corpus <dir>...`, `run <file>`, ",
             "`benchmark <dir>` or `performance <dir>...`"
         )),
     }

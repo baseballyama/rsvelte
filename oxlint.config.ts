@@ -9,9 +9,9 @@ export default defineConfig({
 		'import/no-unassigned-import': ['error', { allow: ['**/*.css'] }],
 	},
 	ignorePatterns: [
-		'fixtures/**',
+		'corpus/**',
 		'crates/**/tests/**',
-		'tools/fixtures/behaviour/tests/**',
+		'tools/oracle/behaviour/tests/**',
 		'**/vendor/**',
 		'**/generated/**',
 		// Text that a compiler embeds in its output byte for byte (include_str!).

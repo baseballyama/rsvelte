@@ -1,5 +1,5 @@
 // Runs each task's oracle over every unit and rewrites the expected snapshots. After an oracle bump
-// this is the whole upgrade: `git diff` over fixtures/**/expected/ is then the upstream behaviour change.
+// this is the whole upgrade: `git diff` over corpus/**/expected/ is then the upstream behaviour change.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -94,7 +94,7 @@ export async function regen({
 	return { unparseable };
 }
 
-/** `fixtures regen [--task id,...] [--source id,...]` */
+/** `oracle regen [--task id,...] [--source id,...]` */
 export async function main(args: string[]): Promise<void> {
 	const { values } = parseArgs({
 		args,

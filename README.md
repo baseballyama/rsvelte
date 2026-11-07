@@ -10,7 +10,7 @@ only a diff oracle and a performance baseline.
 | Directory                           | What it holds                                                                 |
 | ----------------------------------- | ----------------------------------------------------------------------------- |
 | [`crates/`](crates/README.md)       | The Rust toolchain                                                            |
-| [`fixtures/`](fixtures/README.md)   | Real files from open-source projects, and the official tools' output for them |
+| [`corpus/`](corpus/README.md)       | Real files from open-source projects, and the official tools' output for them |
 | [`tools/`](tools/README.md)         | TypeScript tools: the fixture runner, the performance gate, …                 |
 | [`apps/site/`](apps/site/README.md) | The website, built with SvelteKit                                             |
 
@@ -27,7 +27,7 @@ only a diff oracle and a performance baseline.
 ## Correctness and speed
 
 Expected output comes from the official tools (`svelte`, `prettier`, `eslint`, `svelte-check`,
-…), run over the files in `fixtures/`; rsvelte must match it. Performance is gated by allocation
+…), run over the files in `corpus/`; rsvelte must match it. Performance is gated by allocation
 and instruction counts in `tools/performance/baseline.json`.
 
 ## Commands
@@ -37,8 +37,8 @@ cargo test                                      # Rust tests, the fixture tests 
 mise run lint                                   # clippy and rustdoc, every lint denies
 mise run fmt                                    # rustfmt on the pinned nightly
 pnpm install && pnpm run check                  # TypeScript side: oxfmt, oxlint, knip, tsc
-node tools/fixtures/fixtures.ts run-all         # rsvelte's output for every fixture unit
-node tools/fixtures/fixtures.ts check           # ... compared with the official tools' output
+node tools/oracle/oracle.ts run-all         # rsvelte's output for every fixture unit
+node tools/oracle/oracle.ts check           # ... compared with the official tools' output
 node tools/performance/performance.ts ratchet   # the performance gate
 cargo run -p rsvelte_command_line -- run App.svelte --task svelte.compile/client
 ```

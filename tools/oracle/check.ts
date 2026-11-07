@@ -5,7 +5,7 @@ import { compare } from './compare.ts';
 import { REGISTRY } from './paths.ts';
 import { TASKS } from './tasks.ts';
 
-/** `fixtures check [--update]` */
+/** `oracle check [--update]` */
 export async function main(args: string[]): Promise<void> {
 	const { values } = parseArgs({
 		args,
@@ -73,6 +73,6 @@ export async function main(args: string[]): Promise<void> {
 	console.log(
 		`${Object.keys(now).length} units compared (refused ones not listed), ${moved.length} moved from ${path.relative(process.cwd(), file)}`,
 	);
-	if (moved.length) console.log('record an intended change with `fixtures check --update`');
+	if (moved.length) console.log('record an intended change with `oracle check --update`');
 	if (moved.length) process.exitCode = 1;
 }

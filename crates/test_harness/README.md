@@ -13,9 +13,9 @@ A case has one of two kinds of `expected/`:
 
 Snapshots show what changed. Only copied cases show what is correct. A snapshot registered with
 `javascript_snapshot` compares its `.js` file with the official one as a syntax tree, with the
-meaning of `tools/fixtures/canonical.ts` (layout, comments and literal spelling are ignored;
+meaning of `tools/oracle/canonical.ts` (layout, comments and literal spelling are ignored;
 `@__PURE__` on calls is not). Other files are compared as bytes. `[[adjust]]` entries apply only to
-the full check over [`fixtures/`](../../fixtures/README.md).
+the full check over [`corpus/`](../../corpus/README.md).
 
 ## A case
 
@@ -28,7 +28,7 @@ crates/languages/svelte/compile/tests/fixtures/
 │   │   ├── server.js            the `server` snapshot
 │   │   └── client.diagnostics.txt   only when the task reports diagnostics
 │   └── actual/                  the same names, written by every run
-└── bits-ui/                     copied from the corpus by `fixtures crate`
+└── bits-ui/                     copied from the corpus by `oracle crate`
     ├── source.json              repository, commit, license and oracle versions
     ├── licenses/
     └── src/lib/button.svelte/   one unit; the directory is the file's path in the repository
@@ -45,7 +45,7 @@ crates/languages/svelte/compile/tests/fixtures/
   columns count from 1, and columns are in UTF-16 code units. The official warnings and errors are
   written in the same format.
 - Other files in the case are not read by the harness (for example `behaviour.toml`, read by the
-  behaviour oracle's tests in `tools/fixtures`).
+  behaviour oracle's tests in `tools/oracle`).
 
 ## Add a case
 
@@ -58,11 +58,11 @@ git diff -- crates/languages/svelte/compile/tests/fixtures   # read every snapsh
 
 ## Copy the corpus into a crate
 
-Run this again after the corpus changes (`fixtures import` or `regen`). It replaces each
+Run this again after the corpus changes (`oracle import` or `regen`). It replaces each
 `tests/fixtures/<source>/` and never touches hand-written cases.
 
 ```sh
-F=tools/fixtures/fixtures.ts
+F=tools/oracle/oracle.ts
 mise exec -- node $F crate --family svelte --task svelte.compile,svelte.compileModule \
   --to crates/languages/svelte/compile/tests/fixtures
 ```
@@ -111,7 +111,7 @@ fn main() -> ExitCode {
 ```
 
 Type-check tasks need native TypeScript 7.1 and the framework packages.
-`NodePackages::locate()` finds them in `tools/fixtures/node_modules`; install them with
+`NodePackages::locate()` finds them in `tools/oracle/node_modules`; install them with
 `pnpm install --frozen-lockfile` at the repository root.
 
 ## Where the cases are

@@ -150,7 +150,7 @@ export function reportAdjustments(write: boolean): number {
 	return r.counts.stale + r.counts.redundant + (write ? 0 : r.counts.rebased);
 }
 
-/** `fixtures adjust [--write]` */
+/** `oracle adjust [--write]` */
 export async function main(args: string[]): Promise<void> {
 	const { values } = parseArgs({
 		args,

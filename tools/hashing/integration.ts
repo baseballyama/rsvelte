@@ -7,8 +7,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
-import task from '../fixtures/tasks/vue-compile.ts';
-import type { Unit } from '../fixtures/types.ts';
+import task from '../oracle/tasks/vue-compile.ts';
+import type { Unit } from '../oracle/types.ts';
 
 export async function main(args: string[]): Promise<void> {
 	const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -114,13 +114,13 @@ export async function main(args: string[]): Promise<void> {
 				official: {
 					compilerSfc: JSON.parse(
 						fs.readFileSync(
-							path.join(root, 'tools/fixtures/node_modules/@vue/compiler-sfc/package.json'),
+							path.join(root, 'tools/oracle/node_modules/@vue/compiler-sfc/package.json'),
 							'utf8',
 						),
 					).version,
 					typescript: JSON.parse(
 						fs.readFileSync(
-							path.join(root, 'tools/fixtures/node_modules/typescript/package.json'),
+							path.join(root, 'tools/oracle/node_modules/typescript/package.json'),
 							'utf8',
 						),
 					).version,

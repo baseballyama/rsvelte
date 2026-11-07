@@ -25,12 +25,12 @@ export async function main(): Promise<void> {
 		`[\n${entries.map(([name, code]) => `    ("${name}", ${String(code).replace(/\B(?=(\d{3})+(?!\d))/g, '_')}),`).join('\n')}\n]\n`,
 	);
 	copyFileSync(
-		path.join(root, 'tools/fixtures/node_modules/svelte/LICENSE.md'),
+		path.join(root, 'tools/oracle/node_modules/svelte/LICENSE.md'),
 		path.join(directory, 'LICENSE.svelte.md'),
 	);
 	writeFileSync(
 		path.join(directory, 'README.md'),
-		'Named character reference data from the MIT-licensed Svelte compiler.\n\nRegenerate with `mise exec -- node tools/fixtures/fixtures.ts entities`.\nThe installed oracle version is recorded in `pnpm-lock.yaml`.\n',
+		'Named character reference data from the MIT-licensed Svelte compiler.\n\nRegenerate with `mise exec -- node tools/oracle/oracle.ts entities`.\nThe installed oracle version is recorded in `pnpm-lock.yaml`.\n',
 	);
 	console.log(`Wrote ${entries.length} named character references`);
 }

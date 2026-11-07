@@ -23,13 +23,13 @@ function rustString(value: string) {
 
 export async function main(args: string[]): Promise<void> {
 	const root = path.resolve(import.meta.dirname, '../..');
-	const require = createRequire(path.join(root, 'tools/fixtures/package.json'));
+	const require = createRequire(path.join(root, 'tools/oracle/package.json'));
 	const { Linter } = require('eslint');
 	const plugin = require('eslint-plugin-svelte').default;
 	const parser = require('@typescript-eslint/parser');
 	const upstreamArgument = args[0];
 	if (!upstreamArgument)
-		throw new Error('usage: fixtures import-lint <eslint-plugin-svelte checkout>');
+		throw new Error('usage: oracle import-lint <eslint-plugin-svelte checkout>');
 	const upstream = fs.realpathSync(upstreamArgument);
 	const manifest = JSON.parse(
 		fs.readFileSync(path.join(import.meta.dirname, 'svelte-upstream-hashes.json'), 'utf8'),
@@ -51,12 +51,12 @@ export async function main(args: string[]): Promise<void> {
 			imported: {} as Record<string, string>,
 		};
 	};
-	// The lint crate reads eslint-plugin-svelte's fixtures as they are (`fixtures upstream`).
+	// The lint crate reads eslint-plugin-svelte's fixtures as they are (`oracle upstream`).
 	const suites = [newSuite('lint_typed')] as const;
 	const suiteFor = (_rule: string) => suites[0];
 	const project = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-lint-oracle-'));
 	fs.symlinkSync(
-		path.join(root, 'tools/fixtures/node_modules'),
+		path.join(root, 'tools/oracle/node_modules'),
 		path.join(project, 'node_modules'),
 		'dir',
 	);

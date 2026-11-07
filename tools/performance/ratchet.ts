@@ -66,7 +66,7 @@ const pct = (a: number, b: number) =>
 export async function main(args: string[]): Promise<void> {
 	const ROOT = path.resolve(import.meta.dirname, '../..');
 	const BASELINE = path.join(ROOT, 'tools/performance/baseline.json');
-	const POPULATION = ['fixtures/svelte'];
+	const POPULATION = ['corpus/svelte'];
 	/** Relative; cachegrind repeats itself exactly on one machine, this absorbs libc and CPU dispatch. */
 	const INSTRUCTION_TOLERANCE = 0.002;
 

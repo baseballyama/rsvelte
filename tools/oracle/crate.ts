@@ -118,7 +118,7 @@ export function exportToCrate({ family, taskIds, to, sourceIds }: CrateExportOpt
 	return { units: units.length, files };
 }
 
-/** `fixtures crate --family name --task id,... --to <crate>/tests/fixtures [--source id,...]` */
+/** `oracle crate --family name --task id,... --to <crate>/tests/fixtures [--source id,...]` */
 export async function main(args: string[]): Promise<void> {
 	const { values } = parseArgs({
 		args,

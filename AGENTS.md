@@ -22,16 +22,16 @@ Svelte 4 → 5 migration, text-level svelte2tsx compatibility, many general JS l
 
 ## Correctness and speed
 
-- `fixtures/` holds real Svelte 5 files from permissive licenses only (MIT, Apache-2.0, ISC,
+- `corpus/` holds real Svelte 5 files from permissive licenses only (MIT, Apache-2.0, ISC,
   BSD-3-Clause, Unlicense). Expected output comes from the official tools; never edit it by
   hand. When our output means the same thing, add an `[[adjust]]` entry to `fixture.toml`.
-  See [fixtures/README.md](fixtures/README.md) and
+  See [corpus/README.md](corpus/README.md) and
   [crates/test_harness/README.md](crates/test_harness/README.md).
 - Speed: compare the official tools, `main`, and this rewrite. See
   [tools/performance/README.md](tools/performance/README.md).
 
 ```sh
-F=tools/fixtures/fixtures.ts   # zsh: keep only the path in the variable
+F=tools/oracle/oracle.ts   # zsh: keep only the path in the variable
 mise exec -- node $F compare --task svelte.compile --variant client --report <file>
 cargo test -p rsvelte_svelte_compile --test fixtures            # UPDATE_EXPECT=1 to accept
 cargo fmt && cargo clippy --all-targets -- -D warnings && cargo test

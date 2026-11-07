@@ -1,4 +1,4 @@
-//! `behaviour.toml` in a case is read by the behaviour oracle's tests in `tools/fixtures`.
+//! `behaviour.toml` in a case is read by the behaviour oracle's tests in `tools/oracle`.
 
 use std::process::ExitCode;
 

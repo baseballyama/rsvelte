@@ -1,7 +1,7 @@
 import { allUnits, applies, includedSources } from './manifest.ts';
 import { TASKS } from './tasks.ts';
 
-/** `fixtures stats` */
+/** `oracle stats` */
 export async function main(): Promise<void> {
 	const units = allUnits();
 	const by = (f: (u: (typeof units)[number]) => string) =>

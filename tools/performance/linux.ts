@@ -32,7 +32,7 @@ export async function main(args: string[]): Promise<void> {
 			'rust-toolchain.toml',
 			'crates',
 			'tools/performance',
-			'fixtures',
+			'corpus',
 		],
 		{ encoding: 'utf8', maxBuffer: 1 << 28 },
 	)

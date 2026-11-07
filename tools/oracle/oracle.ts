@@ -1,6 +1,6 @@
-// fixtures <command> [options]
+// oracle <command> [options]
 //
-//   import --from <dir> [--source id,...] [--accept-commit]   copy the registered sources into fixtures/
+//   import --from <dir> [--source id,...] [--accept-commit]   copy the registered sources into corpus/
 //   regen [--task id,...] [--source id,...]                   write each oracle's output to expected/
 //   upgrade                                                   regen every task, then check the adjustments
 //   adjust [--write]                                          check the [[adjust]] entries
@@ -36,7 +36,7 @@ const commands: Record<string, () => Promise<{ main(args: string[]): Promise<voi
 
 const [name = '', ...args] = process.argv.slice(2);
 if (!Object.hasOwn(commands, name)) {
-	console.error(`usage: fixtures <${Object.keys(commands).join('|')}> [options]`);
+	console.error(`usage: oracle <${Object.keys(commands).join('|')}> [options]`);
 	process.exit(2);
 }
 await (await commands[name]!()).main(args);

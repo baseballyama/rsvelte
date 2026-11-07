@@ -8,7 +8,7 @@
 import { execFileSync } from 'node:child_process';
 
 type FileChange = { path: string; lines: number };
-type Category = 'rust' | 'tools' | 'fixtures' | 'ci' | 'docs' | 'other';
+type Category = 'rust' | 'tools' | 'corpus' | 'ci' | 'docs' | 'other';
 
 const MAX_LINES_PER_CHUNK = 500;
 const MAX_FILES_PER_CHUNK = 10;
@@ -61,20 +61,20 @@ function selectBase(): string {
 	return existing.reduce((best, ref) => (size(ref) < size(best) ? ref : best));
 }
 
-// Under fixtures/, only hand-written files are reviewed. Copied inputs, oracle output, license
+// Under corpus/, only hand-written files are reviewed. Copied inputs, oracle output, license
 // copies and reports are data that tools write; a person does not read them line by line.
-const REVIEWED_FIXTURE_FILES =
-	/^fixtures\/(README\.md|_registry\/(sources|oracles)\.json|.+\/fixture\.toml)$/;
+const REVIEWED_CORPUS_FILES =
+	/^corpus\/(README\.md|_registry\/(sources|oracles)\.json|.+\/fixture\.toml)$/;
 
 function skipReason(path: string): string | null {
-	if (path.startsWith('fixtures/') && !REVIEWED_FIXTURE_FILES.test(path)) return 'fixture data';
+	if (path.startsWith('corpus/') && !REVIEWED_CORPUS_FILES.test(path)) return 'corpus data';
 	if (/(^|\/)(pnpm-lock\.yaml|Cargo\.lock)$/.test(path)) return 'lock files';
 	return null;
 }
 
 function categoryOf(path: string): Category {
 	if (path.startsWith('.github/')) return 'ci';
-	if (path.startsWith('fixtures/')) return 'fixtures';
+	if (path.startsWith('corpus/')) return 'corpus';
 	if (path.endsWith('.rs') || /(^|\/)Cargo\.toml$/.test(path) || path.startsWith('crates/'))
 		return 'rust';
 	if (path.startsWith('tools/') || path.startsWith('.claude/') || /\.(ts|mts|js|mjs)$/.test(path))
@@ -155,7 +155,7 @@ for (const f of files) {
 	buckets.set(cat, [...(buckets.get(cat) ?? []), f]);
 }
 
-const order: Category[] = ['rust', 'tools', 'fixtures', 'ci', 'docs', 'other'];
+const order: Category[] = ['rust', 'tools', 'corpus', 'ci', 'docs', 'other'];
 const chunks = order
 	.flatMap((cat) => chunkFiles(cat, buckets.get(cat) ?? []))
 	.map((c, i, all) => Object.assign(c, { index: i + 1, total: all.length }));

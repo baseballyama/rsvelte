@@ -10,7 +10,7 @@ import { SyntaxKind, SpanMapFeature, SpanMapFidelity } from 'typescript-7/ast';
 import { ProjectTypeInfo } from '@rsvelte-experimental/type-information';
 
 const repository = path.resolve(import.meta.dirname, '../../..');
-const tools = path.join(repository, 'tools/fixtures');
+const tools = path.join(repository, 'tools/oracle');
 const binary = path.join(repository, 'target/debug/rsvelte-svelte-content-mapper');
 
 before(() => {

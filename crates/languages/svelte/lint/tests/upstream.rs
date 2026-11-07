@@ -1,5 +1,5 @@
 //! eslint-plugin-svelte's own rule tests, copied byte for byte to `tests/upstream`, and this
-//! crate's cases in the same layout (`tests/cases`, reports written by `fixtures lint-cases`), read
+//! crate's cases in the same layout (`tests/cases`, reports written by `oracle lint-cases`), read
 //! the way upstream's runner (`tests/utils/utils.ts`, `loadTestCases`) reads them. Every case of a
 //! rule this crate implements must pass; the others are counted.
 

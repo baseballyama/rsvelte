@@ -238,10 +238,10 @@
 
 	<H2 id="parity" />
 	<p>
-		性能だけでなく、出力の一致も検査します。<code>fixtures check</code>
+		性能だけでなく、出力の一致も検査します。<code>oracle check</code>
 		は、タスク・出力の種類・検証例ごとに判定を出します。 複数の成果物がある場合は、最も悪い判定を採用します。
 		判定を
-		<code>fixtures/_registry/parity.json</code>
+		<code>corpus/_registry/parity.json</code>
 		と比べ、改善も悪化も検出します。検査する件数に上限はありません。次の表は、このページをビルドしたときの
 		<code>parity.json</code> を数えたものです。
 	</p>
@@ -467,7 +467,7 @@ node tools/performance/performance.ts linux --update
 
 # 壁時計のベンチマーク
 cargo build --release -p rsvelte_command_line --features metrics
-./target/release/rsvelte benchmark fixtures/svelte rounds=5 json=benchmark.json</code
+./target/release/rsvelte benchmark corpus/svelte rounds=5 json=benchmark.json</code
 	></pre>
 
 <div class="prose-learn">

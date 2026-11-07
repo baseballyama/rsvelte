@@ -70,7 +70,7 @@ The fixture test reads the exact input population from `../compile/tests/fixture
 Only projection expectations and actual outputs live here. It checks every emitted file
 with an independent TypeScript parser, including external cases without oracle snapshots.
 Handwritten snapshots detect changes in our own output; they do not establish type equivalence
-with svelte2tsx. The semantic harness (`tools/fixtures/fixtures.ts semantic`)
+with svelte2tsx. The semantic harness (`tools/oracle/oracle.ts semantic`)
 compares source-visible types from both projections through TS 7.1 content mappers over the same compiler inputs.
 The harness also compares public props, instance exports, and bindable keys. Missing queries
 and unsupported public contract shapes remain `UNMEASURED`.

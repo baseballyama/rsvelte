@@ -1,11 +1,11 @@
-//! Fixture discovery and document loading.
+//! Corpus discovery and document loading.
 
 use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::computation::pipeline::{Document, Registry};
 
 /// A unit is a directory holding `input.<ext>`; its path relative to its source directory
-/// (`fixtures/<family>/<source>`), with the reserved-name `~` escape undone, is the filename the
+/// (`corpus/<family>/<source>`), with the reserved-name `~` escape undone, is the filename the
 /// original file had. The source directory is found from the unit, not from `root`, so the path
 /// (and every output derived from it: component names, CSS hashes) does not depend on which
 /// directory the run was started from.
@@ -18,7 +18,7 @@ pub(crate) fn units(root: &Path) -> Vec<Unit> {
         Unit(Unit),
     }
     let mut out = Vec::new();
-    let depth = depth_in_fixtures(root);
+    let depth = depth_in_corpus(root);
     let rel = source_of(root, depth).map(|source| unescaped(root.strip_prefix(source)));
     let mut stack = vec![Item::Dir(root.to_path_buf(), depth, rel)];
     let mut entries = Vec::new();
@@ -103,18 +103,18 @@ fn unescaped(rel: Result<&Path, std::path::StripPrefixError>) -> String {
     path
 }
 
-/// `fixtures/<family>/<source>` at or above `dir`, which is `depth` below its fixture root.
+/// `corpus/<family>/<source>` at or above `dir`, which is `depth` below its corpus root.
 pub(crate) fn source_of(dir: &Path, depth: Option<usize>) -> Option<&Path> {
     depth
         .filter(|&d| d >= 2)
         .and_then(|d| dir.ancestors().nth(d - 2))
 }
 
-/// How far `dir` is below the nearest directory holding `_registry/` (the fixture root, `dir`
-/// itself included); its source directory, `fixtures/<family>/<source>`, is the ancestor two
-/// levels below that. `None` outside a fixture tree. The walk in [`units`] carries this down
+/// How far `dir` is below the nearest directory holding `_registry/` (the corpus root, `dir`
+/// itself included); its source directory, `corpus/<family>/<source>`, is the ancestor two
+/// levels below that. `None` outside a corpus tree. The walk in [`units`] carries this down
 /// rather than asking again for every unit.
-pub(crate) fn depth_in_fixtures(dir: &Path) -> Option<usize> {
+pub(crate) fn depth_in_corpus(dir: &Path) -> Option<usize> {
     dir.ancestors().position(|a| a.join("_registry").is_dir())
 }
 

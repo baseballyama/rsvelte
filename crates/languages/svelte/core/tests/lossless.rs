@@ -21,7 +21,7 @@ fn inputs(dir: &Path, out: &mut Vec<PathBuf>) {
 
 #[test]
 fn every_parsed_component_is_its_tokens() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../fixtures/svelte");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../corpus/svelte");
     let mut files = Vec::new();
     inputs(&root, &mut files);
     let (mut parsed, mut rejected, mut unreadable) = (0, 0, 0);

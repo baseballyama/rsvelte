@@ -18,7 +18,7 @@
 	}
 	const H = 58;
 	const boxes: Box[] = [
-		{ id: 'rsvelte_command_line', x: 250, y: 10, w: 260, role: 'fixtures · run · benchmark' },
+		{ id: 'rsvelte_command_line', x: 250, y: 10, w: 260, role: 'corpus · run · benchmark' },
 		{ id: 'rsvelte_svelte', x: 250, y: 110, w: 260, role: 'parse · resolve · analysis' },
 		{ id: 'rsvelte_typescript', x: 90, y: 210, w: 260, role: 'JS/TS: parse · scope · print' },
 		{ id: 'rsvelte_stylesheet', x: 410, y: 210, w: 260, role: 'CSS: parse · scope' },

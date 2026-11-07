@@ -63,7 +63,7 @@ fn a_name_used_only_in_types_is_used() {
     );
 }
 
-// Expected value from the oracle (tools/fixtures svelte.lint on this input).
+// Expected value from the oracle (tools/oracle svelte.lint on this input).
 #[test]
 fn exported_declarations_are_not_unused() {
     let got =

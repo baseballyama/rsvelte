@@ -267,7 +267,7 @@
 					<div class="mt-4 overflow-x-auto">
 						<table class="table">
 							<caption class="mb-2 text-left font-mono text-[12px] tracking-normal text-muted">
-								fixtures/_registry/parity.json · {fmt(data.parity.units)} 検証例 · ビルド時に集計
+								corpus/_registry/parity.json · {fmt(data.parity.units)} 検証例 · ビルド時に集計
 							</caption>
 							<thead
 								><tr><th>タスク</th><th class="w-[40%]">判定の内訳</th><th class="num">一致</th></tr
