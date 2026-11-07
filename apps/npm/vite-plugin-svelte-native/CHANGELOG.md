@@ -1,5 +1,15 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.18
+
+### Patch Changes
+
+- 601715f: fix(compiler): a `{const x = $derived(…)}` or `{let x = $state(…)}` declaration tag now reads, updates and passes `x` through `$.get` on the client even when another binding in the component (an `{#each}` context, a function parameter, or an instance binding the `$derived` tag shadows) has the same name.
+- 4e91ebd: fix(compiler): in dev mode with `experimental.async`, comments around a `for await` loop's iterable now print inside `$.for_await_track_reactivity_loss(…)` the way the official compiler places them, instead of staying outside the wrapper.
+- c7e9d9e: fix(compiler): with `experimental.async`, a comment in front of an `await` that is a rune's argument or an assignment's value (`$derived(/* c */ await load())`, `$state(/** @type {T} */ (await load()))`, `x = /* c */ await load()`) no longer produces unparseable client dev output, and a comment right after `await` inside `$derived` (`(await /* c */ load()) + 1`) no longer yields an empty `$.save()`.
+- 718e0cd: fix(compiler): follow Svelte 5.57.3. A second `{:else}` in an `{#if}` or `{#each}` block, and an `{:else if}` after an `{:else}`, is now the `block_duplicate_clause` error (sveltejs/svelte#18900); a `let:` directive on a component that also has a `children` snippet is the new `let_directive_snippet_conflict` error (sveltejs/svelte#18873); a `role` attribute's tokens are matched ASCII case-insensitively and split on ASCII whitespace only, the element's effective role for the interaction checks is the first known non-abstract fallback role (sveltejs/svelte#19045), and `<area role="link">` without `href` is no longer a redundant role (sveltejs/svelte#18872); an event handler bound to a variable that is assigned after a top-level `await` is wrapped like an imported one so it is read when the event fires (sveltejs/svelte#18933). On the server, an expression tag that both awaits and reads a top-level-`await` binding is emitted as an `async` push with its `await` `$.save`-wrapped instead of an `await` inside a synchronous arrow, and an async `{#key}` block gets its `<!--[-->` / `<!--]-->` markers; a function declaration reached from a later `await` statement now inherits that statement's blocker.
+- 7d8d624: fix(compiler): follow Svelte 5.57.3 (sveltejs/svelte#18859) in dev mode: a comment in front of an `await` — including a JSDoc cast such as `/** @type {T} */ (await load())` — now stays on the `await` inside `(await $.track_reactivity_loss(…))()` instead of moving onto the awaited operand.
+
 ## 0.3.17
 
 ### Patch Changes

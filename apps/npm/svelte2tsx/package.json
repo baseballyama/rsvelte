@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/svelte2tsx",
-  "version": "0.2.28",
+  "version": "0.2.29",
   "description": "Rust-powered svelte2tsx — generates TSX from Svelte source",
   "license": "MIT",
   "repository": {
