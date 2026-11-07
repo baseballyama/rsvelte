@@ -15,7 +15,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use rsvelte_kernel::computation::database::{DocumentContext, Facet};
 use rsvelte_kernel::computation::pipeline::{Document, FinishTask, Part, TaskOutput};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
-use rsvelte_kernel::output::emitter::Emitter;
+use rsvelte_kernel::output::emitter::{Emitter, Mapping};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
@@ -342,10 +342,20 @@ fn check_projected(
         mapped_files: docs
             .iter()
             .map(|d| {
+                let bom = byte_order_mark(&d.source_text);
                 d.env.mapped_extension.map(|extension| ContentMappedInput {
-                    source: d.source_text.clone(),
+                    source: d.source_text[bom as usize..].to_owned(),
                     extension,
-                    mappings: d.projection.mappings.clone(),
+                    mappings: d
+                        .projection
+                        .mappings
+                        .iter()
+                        .filter(|m| m.source_text >= bom)
+                        .map(|m| Mapping {
+                            source_text: m.source_text - bom,
+                            ..*m
+                        })
+                        .collect(),
                 })
             })
             .collect(),
@@ -373,20 +383,35 @@ fn check_projected(
     let mut per_doc: Vec<Vec<(Span, u32, String)>> = vec![Vec::new(); docs.len()];
     for f in found {
         let d = &docs[f.file];
+        let bom = byte_order_mark(&d.source_text);
         let mapped = if d.env.mapped_extension.is_some() {
             Some(f.span)
         } else {
-            (d.map_back)(&d.projection, f.span)
+            (d.map_back)(&d.projection, f.span).and_then(|span| {
+                Some(Span::new(
+                    span.start_offset.checked_sub(bom)?,
+                    span.end_offset.checked_sub(bom)?,
+                ))
+            })
         };
         if let Some(span) = mapped {
             per_doc[f.file].push((span, f.code, f.message));
         }
     }
+    // svelte-check and vue-tsc count positions in the text TypeScript reads: without the mark.
     for ((d, out), mut found) in docs.iter().zip(outs).zip(per_doc) {
-        out.file(
-            "json",
-            render_findings(&LineIndex::new(&d.source_text), &mut found),
-        );
+        let text = &d.source_text[byte_order_mark(&d.source_text) as usize..];
+        out.file("json", render_findings(&LineIndex::new(text), &mut found));
+    }
+}
+
+/// The length of a leading byte order mark. TypeScript removes it when it reads a file, so the
+/// content mapper and the report count positions from after it.
+fn byte_order_mark(source: &str) -> u32 {
+    if source.starts_with('\u{feff}') {
+        '\u{feff}'.len_utf8() as u32
+    } else {
+        0
     }
 }
 

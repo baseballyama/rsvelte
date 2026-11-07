@@ -16,7 +16,9 @@ JSON input is decoded into typed records; output uses the kernel's streaming wri
 `rsvelte-typescript-content-mapper` serves precomputed projections. For `input.ext`, it reads
 `input.ext.projection.json`: `source`, `text`, and `mappings`. Each tuple is
 `[virtualStart, virtualLength, originalStart, originalLength, kind]`.
-The original content must equal `source`. Native TypeScript validates ranges and verbatim text.
+The original content must equal `source`. Native TypeScript removes a leading byte order mark
+before it sends the content, so `source` and the mappings count from after it. Native TypeScript
+validates ranges and verbatim text, and stops using a mapper after five failed transforms.
 
 ```sh
 cargo install --path crates/languages/typescript/content_mapper
