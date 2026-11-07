@@ -22,6 +22,7 @@ mod cases;
 mod javascript;
 mod node;
 mod oracle;
+mod parallel;
 mod snapshots;
 
 use std::collections::BTreeMap;
@@ -184,8 +185,9 @@ impl Fixtures {
         let mut problems = 0;
         let mut documents = Vec::with_capacity(selected.len());
         let mut runnable = Vec::with_capacity(selected.len());
-        for c in selected {
-            match c.document() {
+        let read = parallel::map(&selected, Case::document);
+        for (c, document) in selected.into_iter().zip(read) {
+            match document {
                 Ok(d) => {
                     documents.push(d);
                     runnable.push(c);

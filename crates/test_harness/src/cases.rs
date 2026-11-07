@@ -118,28 +118,35 @@ pub(crate) fn corpus(corpus: &Path, family: &str) -> Result<Vec<Case>, String> {
         return Err(format!("{REGISTRY} is not a family"));
     }
     let root = corpus.join(family);
+    let sources = children(&root)?;
     let mut cases = Vec::new();
-    for source in children(&root)? {
-        let source_name = relative_name(&root, &source)?;
-        walk(&source, &mut |dir, input, _, fixture| {
-            let path = original_path(&relative_name(&source, dir)?);
-            let skip = if fixture {
-                skipped(&dir.join(FIXTURE_FILE))?
-            } else {
-                Vec::new()
-            };
-            cases.push(Case {
-                name: format!("{family}/{source_name}/{path}"),
-                dir: dir.to_path_buf(),
-                kind: Kind::Corpus,
-                input,
-                path,
-                skip,
-            });
-            Ok(())
-        })?;
+    for found in crate::parallel::map(&sources, |s| units(&root, family, s)) {
+        cases.extend(found?);
     }
     cases.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+    Ok(cases)
+}
+
+fn units(root: &Path, family: &str, source: &Path) -> Result<Vec<Case>, String> {
+    let source_name = relative_name(root, source)?;
+    let mut cases = Vec::new();
+    walk(source, &mut |dir, input, _, fixture| {
+        let path = original_path(&relative_name(source, dir)?);
+        let skip = if fixture {
+            skipped(&dir.join(FIXTURE_FILE))?
+        } else {
+            Vec::new()
+        };
+        cases.push(Case {
+            name: format!("{family}/{source_name}/{path}"),
+            dir: dir.to_path_buf(),
+            kind: Kind::Corpus,
+            input,
+            path,
+            skip,
+        });
+        Ok(())
+    })?;
     Ok(cases)
 }
 
