@@ -18,6 +18,8 @@ export interface PerformanceBaseline {
 	phases: Record<string, PerformancePhase>;
 	instructions: Record<string, number>;
 	load_instructions: Record<string, number>;
+	/** What the instructions count, when it is not every document. */
+	instruction_sample?: { every: number; documents: number; source_bytes: number };
 }
 
 export { PLATFORM } from '#lib/build/performance-history.ts';

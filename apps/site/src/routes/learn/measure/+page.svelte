@@ -27,7 +27,7 @@
 	const totalSelf = $derived(data.phases.reduce((n, p) => n + p.self_ms, 0));
 	const maxMs = $derived(Math.max(...data.arms.map((x) => x.plain[0])));
 	const verdicts = ['match', 'mismatch', 'unparseable', 'unexpected', 'missing'];
-	const perByte = (n: number) => (n / data.performance.population.source_bytes).toFixed(1);
+	const perByte = (n: number) => (n / data.performance.instructionSample.source_bytes).toFixed(1);
 </script>
 
 <svelte:head><title>{c.title} — rsvelte Learn</title></svelte:head>
@@ -73,14 +73,22 @@
 			<tr><td>割り当てバイト</td><td class="num">{fmt(data.performance.allocBytes)}</td></tr>
 			<tr><td>使用中のメモリのピーク増分</td><td class="num">{fmt(data.performance.peak)}</td></tr>
 			<tr
-				><td>命令数、1 ラウンド（{data.performance.platform}）</td><td class="num"
+				><td
+					>命令数、1 ラウンド（{data.performance.platform}、{fmt(
+						data.performance.instructionSample.documents,
+					)} 文書）</td
+				><td class="num"
 					>{fmt(data.performance.instructions)}（入力 1 バイトあたり {perByte(
 						data.performance.instructions,
 					)}）</td
 				></tr
 			>
 			<tr
-				><td>命令数、読み込み（{data.performance.platform}）</td><td class="num"
+				><td
+					>命令数、読み込み（{data.performance.platform}、{fmt(
+						data.performance.instructionSample.documents,
+					)} 文書）</td
+				><td class="num"
 					>{fmt(data.performance.load)}（入力 1 バイトあたり {perByte(data.performance.load)}）</td
 				></tr
 			>
@@ -110,7 +118,11 @@
 			cachegrind（valgrind）の下で走らせ、実行した命令の数（<code>I references</code
 			>）を数えます。<code>rounds=2</code>
 			の実行から <code>rounds=1</code> の実行を引くので、ちょうど温まった 1
-			ラウンドの分になります。比べ方は <strong>±0.2%</strong> です。
+			ラウンドの分になります。比べ方は <strong>±0.2%</strong> です。cachegrind
+			は実機よりずっと遅いので、命令数だけは検証用のソースファイル集を名前順に並べて
+			{data.performance.instructionSample.every} 個に 1 個（{fmt(
+				data.performance.instructionSample.documents,
+			)} 文書）で数え、3 回の実行を同時に走らせます。割り当ては全体で数えます。
 		</li>
 		<li>
 			命令数（読み込み）: <code>rounds=0</code> の実行、つまり起動、ディレクトリの走査、ファイルの読み込み、文書の構築です。コマンドラインの実行プログラム

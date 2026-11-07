@@ -16,6 +16,8 @@ export interface PerformanceRecord {
 	peak_live_growth_bytes: number;
 	instructions: number | null;
 	load_instructions: number | null;
+	/** The instructions count every this-th file; records with different samples do not compare. */
+	instruction_sample: number;
 }
 
 interface BaselineCounters {
@@ -24,6 +26,7 @@ interface BaselineCounters {
 	peak_live_growth_bytes: number;
 	instructions?: Record<string, number>;
 	load_instructions?: Record<string, number>;
+	instruction_sample?: { every: number };
 }
 
 const counters = (b: BaselineCounters) => ({
@@ -32,6 +35,7 @@ const counters = (b: BaselineCounters) => ({
 	peak_live_growth_bytes: b.peak_live_growth_bytes,
 	instructions: b.instructions?.[PLATFORM] ?? null,
 	load_instructions: b.load_instructions?.[PLATFORM] ?? null,
+	instruction_sample: b.instruction_sample?.every ?? 1,
 });
 
 /**

@@ -7,14 +7,15 @@
 // - instructions (`--instructions`, Linux with valgrind): cachegrind's instruction counts of the
 //   shipped build (no `metrics`), recorded per `<arch>-<os>` and compared within
 //   INSTRUCTION_TOLERANCE: one warm round, taken as the difference between `rounds=2` and
-//   `rounds=1`, and loading (`rounds=0`: start-up, the walk, reading the files and constructing
-//   the documents), which every invocation pays. The walk visits directories in name order, so
-//   neither depends on the order the file system lists them in.
+//   `rounds=1`, and loading (`rounds=0`: start-up, reading the files and constructing the
+//   documents), which every invocation pays. cachegrind runs some fifty times slower than the
+//   machine, so these count every INSTRUCTION_SAMPLE-th unit of the corpus in name order, not the
+//   corpus; the three runs go at once, beside the allocation run.
 //
 // The ratchet is two-sided: a counter that rose fails, and so does one that fell without the
 // baseline recording it, so an improvement is locked in by the change that made it. `--update`
 // writes what was measured into the baseline (instruction counts of other platforms are kept).
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -49,6 +50,14 @@ interface Baseline {
 	instructions: Record<string, number>;
 	/** Loading's instructions (`rounds=0`), per `<arch>-<os>`. */
 	load_instructions: Record<string, number>;
+	/** What the instructions count: every `every`-th unit; absent: every unit. */
+	instruction_sample?: Sample;
+}
+
+interface Sample {
+	every: number;
+	documents: number;
+	source_bytes: number;
 }
 
 interface Row {
@@ -63,12 +72,36 @@ const fmt = (n: number) => n.toLocaleString('en-US');
 const pct = (a: number, b: number) =>
 	a === 0 ? (b === 0 ? '0%' : '+inf') : `${b >= a ? '+' : ''}${(((b - a) / a) * 100).toFixed(2)}%`;
 
+function took(cmd: string, argv: string[], started: number) {
+	// A slow CI job names its slow step.
+	const seconds = ((performance.now() - started) / 1000).toFixed(1);
+	console.error(`  ${seconds} s: ${path.basename(cmd)} ${argv.slice(0, 6).join(' ')}`);
+}
+
+/** The corpus units (directories holding an `input.<ext>`) below `root`, in name order. */
+function units(root: string): string[] {
+	const found: string[] = [];
+	const visit = (dir: string) => {
+		const entries = fs.readdirSync(dir, { withFileTypes: true });
+		if (entries.some((e) => e.isFile() && e.name.startsWith('input.'))) {
+			found.push(dir);
+			return;
+		}
+		for (const e of entries.toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)))
+			if (e.isDirectory()) visit(path.join(dir, e.name));
+	};
+	visit(root);
+	return found;
+}
+
 export async function main(args: string[]): Promise<void> {
 	const ROOT = path.resolve(import.meta.dirname, '../..');
 	const BASELINE = path.join(ROOT, 'tools/performance/baseline.json');
 	const POPULATION = ['corpus/svelte'];
 	/** Relative; cachegrind repeats itself exactly on one machine, this absorbs libc and CPU dispatch. */
 	const INSTRUCTION_TOLERANCE = 0.002;
+	/** Instructions count every this-th corpus unit. */
+	const INSTRUCTION_SAMPLE = 10;
 
 	const { values } = parseArgs({
 		args,
@@ -80,35 +113,54 @@ export async function main(args: string[]): Promise<void> {
 	});
 
 	function run(cmd: string, argv: string[], env: NodeJS.ProcessEnv = process.env) {
+		const started = performance.now();
 		const r = spawnSync(cmd, argv, { cwd: ROOT, env, encoding: 'utf8', maxBuffer: 1 << 28 });
 		if (r.status !== 0) throw new Error(`${cmd} ${argv.join(' ')} exited ${r.status}\n${r.stderr}`);
+		took(cmd, argv, started);
 		return r;
 	}
 
-	/** A private copy, so a build that finishes after the copy cannot swap the binary while it is measured. */
+	/** `run` without waiting; resolves with the command's stderr. */
+	function start(cmd: string, argv: string[]): Promise<string> {
+		const started = performance.now();
+		return new Promise((resolve, reject) => {
+			const child = spawn(cmd, argv, { cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'] });
+			let stderr = '';
+			child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk));
+			child.on('error', reject);
+			child.on('close', (status) => {
+				if (status !== 0) {
+					reject(new Error(`${cmd} ${argv.join(' ')} exited ${status}\n${stderr}`));
+					return;
+				}
+				took(cmd, argv, started);
+				resolve(stderr);
+			});
+		});
+	}
+
+	/**
+	 * A private copy, so a build that finishes after the copy cannot swap the binary while it is
+	 * measured. Both flavours share one target directory: only the crates the feature touches build
+	 * twice.
+	 */
 	function build(flavour: 'metrics' | 'plain', directory: string): string {
-		const dir = path.join(ROOT, 'target', 'performance', flavour);
+		const dir = path.join(ROOT, 'target', 'performance');
 		const features = flavour === 'metrics' ? ['--features', 'metrics'] : [];
 		run('cargo', ['build', '--release', '--offline', '-p', 'rsvelte_command_line', ...features], {
 			...process.env,
 			CARGO_TARGET_DIR: dir,
 		});
-		const copy = path.join(directory, 'rsvelte');
+		fs.mkdirSync(path.join(directory, flavour));
+		const copy = path.join(directory, flavour, 'rsvelte');
 		fs.copyFileSync(path.join(dir, 'release', 'rsvelte'), copy);
 		return copy;
 	}
 
-	function allocations(): Report {
-		// A fixed path lets two runs in one worktree read each other's report.
-		const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-performance-'));
+	async function allocations(rsvelte: string, directory: string): Promise<Report> {
 		const out = path.join(directory, 'report.json');
-		let r: Report;
-		try {
-			run(build('metrics', directory), ['performance', ...POPULATION, `json=${out}`]);
-			r = JSON.parse(fs.readFileSync(out, 'utf8')) as Report;
-		} finally {
-			fs.rmSync(directory, { recursive: true, force: true });
-		}
+		await start(rsvelte, ['performance', ...POPULATION, `json=${out}`]);
+		const r = JSON.parse(fs.readFileSync(out, 'utf8')) as Report;
 		if (!r.metrics || typeof r.allocs !== 'number')
 			throw new Error('rsvelte performance reported no allocation counts: not a metrics build');
 		if (r.documents < 1000)
@@ -118,43 +170,68 @@ export async function main(args: string[]): Promise<void> {
 		return r;
 	}
 
-	/** cachegrind's `I refs` of one invocation. */
-	function irefs(rsvelte: string, rounds: number): number {
-		const r = run('valgrind', [
+	/** cachegrind's `I refs` of one invocation over the sample. */
+	async function irefs(rsvelte: string, sample: string[], rounds: number): Promise<number> {
+		const stderr = await start('valgrind', [
 			'--tool=cachegrind',
 			'--cache-sim=no',
 			'--cachegrind-out-file=/dev/null',
 			rsvelte,
 			'performance',
-			...POPULATION,
+			...sample,
 			`rounds=${rounds}`,
 			'json=/dev/null',
 		]);
-		const m = /I\s+refs:\s+([\d,]+)/.exec(r.stderr);
-		if (!m) throw new Error(`no "I refs" line in cachegrind's output:\n${r.stderr.slice(-2000)}`);
+		const m = /I\s+refs:\s+([\d,]+)/.exec(stderr);
+		if (!m) throw new Error(`no "I refs" line in cachegrind's output:\n${stderr.slice(-2000)}`);
 		return Number(m[1]!.replaceAll(',', ''));
 	}
 
-	function instructions(): { warm: number; load: number } {
-		const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-performance-'));
-		let load: number, one: number, two: number;
-		try {
-			const rsvelte = build('plain', directory);
-			[load, one, two] = [irefs(rsvelte, 0), irefs(rsvelte, 1), irefs(rsvelte, 2)];
-		} finally {
-			fs.rmSync(directory, { recursive: true, force: true });
-		}
-		const warm = two - one;
-		if (!(load > 0 && one > load && two > one))
+	async function instructions(
+		rsvelte: string,
+	): Promise<{ warm: number; load: number; sample: Sample }> {
+		const all = POPULATION.flatMap((p) => units(path.join(ROOT, p)));
+		const sample = all
+			.filter((_, i) => i % INSTRUCTION_SAMPLE === 0)
+			.map((u) => path.relative(ROOT, u));
+		const sourceBytes = sample
+			.flatMap((u) =>
+				fs
+					.readdirSync(path.join(ROOT, u))
+					.filter((f) => f.startsWith('input.'))
+					.map((f) => fs.statSync(path.join(ROOT, u, f)).size),
+			)
+			.reduce((a, b) => a + b, 0);
+		const [load, one, two] = await Promise.all(
+			[0, 1, 2].map((rounds) => irefs(rsvelte, sample, rounds)),
+		);
+		const warm = two! - one!;
+		if (!(load! > 0 && one! > load! && two! > one!))
 			throw new Error(
 				`counts that do not grow with the rounds: rounds=0 ${load}, rounds=1 ${one}, rounds=2 ${two}`,
 			);
-		return { warm, load };
+		return {
+			warm,
+			load: load!,
+			sample: { every: INSTRUCTION_SAMPLE, documents: sample.length, source_bytes: sourceBytes },
+		};
+	}
+
+	const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-performance-'));
+	let report: Report;
+	let instr: { warm: number; load: number; sample: Sample } | undefined;
+	try {
+		const metrics = build('metrics', directory);
+		const plain = values.instructions ? build('plain', directory) : undefined;
+		[report, instr] = await Promise.all([
+			allocations(metrics, directory),
+			plain === undefined ? undefined : instructions(plain),
+		]);
+	} finally {
+		fs.rmSync(directory, { recursive: true, force: true });
 	}
 
 	const platform = `${process.arch}-${process.platform}`;
-	const report = allocations();
-	const instr = values.instructions ? instructions() : undefined;
 
 	const measured: Baseline = {
 		population: {
@@ -168,6 +245,7 @@ export async function main(args: string[]): Promise<void> {
 		phases: report.phases,
 		instructions: instr === undefined ? {} : { [platform]: instr.warm },
 		load_instructions: instr === undefined ? {} : { [platform]: instr.load },
+		...(instr === undefined ? {} : { instruction_sample: instr.sample }),
 	};
 	if (values.json)
 		fs.writeFileSync(
@@ -181,6 +259,14 @@ export async function main(args: string[]): Promise<void> {
 
 	function compare(a: Baseline, b: Baseline): { rows: Row[]; population: string[] } {
 		const population: string[] = [];
+		if (
+			b.instruction_sample !== undefined &&
+			JSON.stringify(a.instruction_sample) !== JSON.stringify(b.instruction_sample)
+		) {
+			population.push(
+				`instruction sample changed: ${JSON.stringify(a.instruction_sample ?? 'every unit')} -> ${JSON.stringify(b.instruction_sample)}`,
+			);
+		}
 		if (JSON.stringify(a.population) !== JSON.stringify(b.population)) {
 			population.push(
 				`population changed: ${JSON.stringify(a.population)} -> ${JSON.stringify(b.population)}`,
@@ -236,11 +322,15 @@ export async function main(args: string[]): Promise<void> {
 		`  allocs ${fmt(report.allocs)} (${((report.allocs / report.source_bytes) * 1000).toFixed(2)} per KB), bytes ${fmt(report.alloc_bytes)}, peak live +${fmt(report.peak_live_growth_bytes)}`,
 	);
 	if (instr !== undefined) {
+		const { every, documents, source_bytes } = instr.sample;
 		console.log(
-			`  instructions (${platform}, one warm round) ${fmt(instr.warm)} (${(instr.warm / report.source_bytes).toFixed(1)} per source byte)`,
+			`  instructions over every ${every}th unit (${fmt(documents)} documents, ${fmt(source_bytes)} bytes):`,
 		);
 		console.log(
-			`  instructions (${platform}, loading) ${fmt(instr.load)} (${(instr.load / report.source_bytes).toFixed(1)} per source byte)`,
+			`    one warm round (${platform}) ${fmt(instr.warm)} (${(instr.warm / source_bytes).toFixed(1)} per source byte)`,
+		);
+		console.log(
+			`    loading (${platform}) ${fmt(instr.load)} (${(instr.load / source_bytes).toFixed(1)} per source byte)`,
 		);
 	}
 
@@ -249,6 +339,12 @@ export async function main(args: string[]): Promise<void> {
 			...measured,
 			instructions: { ...old?.instructions, ...measured.instructions },
 			load_instructions: { ...old?.load_instructions, ...measured.load_instructions },
+			...(old?.instruction_sample === undefined
+				? {}
+				: { instruction_sample: old.instruction_sample }),
+			...(measured.instruction_sample === undefined
+				? {}
+				: { instruction_sample: measured.instruction_sample }),
 		};
 		fs.writeFileSync(BASELINE, JSON.stringify(next, null, '\t') + '\n');
 		if (old) {

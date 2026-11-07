@@ -13,6 +13,12 @@ export const load = () => {
 			peak: b.peak_live_growth_bytes,
 			instructions: b.instructions[PLATFORM],
 			load: b.load_instructions[PLATFORM],
+			// The instructions count a sample of the documents; per byte divides by its bytes.
+			instructionSample: b.instruction_sample ?? {
+				every: 1,
+				documents: b.population.documents,
+				source_bytes: b.population.source_bytes,
+			},
 			platform: PLATFORM,
 			phases: Object.entries(b.phases)
 				.map(([name, { calls, allocations, alloc_bytes }]) => ({

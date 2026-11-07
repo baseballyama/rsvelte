@@ -24,10 +24,26 @@
 		now === null || was === null || was === undefined || now === was
 			? ''
 			: `${now > was ? '+' : '−'}${(Math.abs(now / was - 1) * 100).toFixed(1)}%`;
-	const firstInstr = $derived(data.history.find((r) => r.instructions !== null)!);
 	const lastRec = $derived(data.history.at(-1)!);
-	const firstLoad = $derived(data.history.find((r) => r.load_instructions !== null)!);
-	const maxInstr = $derived(Math.max(...data.history.map((r) => r.instructions ?? 0)));
+	// Instructions counted over different samples of the files do not compare.
+	const sameSample = (r: { instruction_sample: number }) =>
+		r.instruction_sample === lastRec.instruction_sample;
+	const firstInstr = $derived(data.history.find((r) => r.instructions !== null && sameSample(r))!);
+	const firstLoad = $derived(
+		data.history.find((r) => r.load_instructions !== null && sameSample(r))!,
+	);
+	const maxInstr = (sample: number) =>
+		Math.max(
+			...data.history
+				.filter((r) => r.instruction_sample === sample)
+				.map((r) => r.instructions ?? 0),
+		);
+	const sampleDelta = (
+		r: { instruction_sample: number },
+		prev: { instruction_sample: number } | undefined,
+		now: number | null,
+		was: number | null | undefined,
+	) => (prev && prev.instruction_sample !== r.instruction_sample ? '' : delta(now, was));
 </script>
 
 <svelte:head><title>{c.title} — rsvelte Learn</title></svelte:head>
@@ -107,13 +123,18 @@
 					<td class="align-middle">
 						{#if r.instructions !== null}
 							<div class="h-2 bg-surface">
-								<div class="h-2 bg-fg" style:width="{(r.instructions / maxInstr) * 100}%"></div>
+								<div
+									class="h-2 bg-fg"
+									style:width="{(r.instructions / maxInstr(r.instruction_sample)) * 100}%"
+								></div>
 							</div>
 						{/if}
 					</td>
 					<td class="num">
 						{r.instructions === null ? '—' : fmt(r.instructions)}
-						<div class="text-[12px] text-muted">{delta(r.instructions, prev?.instructions)}</div>
+						<div class="text-[12px] text-muted">
+							{sampleDelta(r, prev, r.instructions, prev?.instructions)}
+						</div>
 					</td>
 					<td class="num"
 						>{fmt(r.allocations)}
@@ -126,7 +147,7 @@
 					<td class="num">
 						{r.load_instructions === null ? '—' : fmt(r.load_instructions)}
 						<div class="text-[12px] text-muted">
-							{delta(r.load_instructions, prev?.load_instructions)}
+							{sampleDelta(r, prev, r.load_instructions, prev?.load_instructions)}
 						</div>
 					</td>
 				</tr>
@@ -137,7 +158,10 @@
 		各行はそのコミットの <code>baseline.json</code>。差は直前の行との比。—
 		はまだ数えていなかった量です（命令数を基準値に記録したのは 2 行目から、読み込みは a5822ee26f
 		から）。母集団は
-		<code>b58a0a72be</code> で 1 文書増えています（<code>minimal/emoji-width.svelte</code>）。
+		<code>b58a0a72be</code> で 1 文書増えています（<code>minimal/emoji-width.svelte</code>）。<code
+			>{firstInstr.sha ?? '作業ツリー'}</code
+		>
+		からの命令数は、検証用のソースファイル集を名前順に並べて {lastRec.instruction_sample} 個に 1 個を数えたものです（自動検査の時間を縮めるため）。それより前の行の命令数とは比べられないので、その境目に差を出していません。
 	</figcaption>
 </figure>
 
