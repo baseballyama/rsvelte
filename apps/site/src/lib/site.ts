@@ -323,7 +323,11 @@ export const appendix = [
 export function moduleFile(module: string): string {
 	const [crate, ...rest] = module.split('/');
 	const directory =
-		crate === 'kernel' ? 'crates/kernel/src' : crate === 'lint' ? 'crates/tooling/lint/src' : null;
+		crate === 'kernel'
+			? 'crates/language_independent/kernel/src'
+			: crate === 'lint'
+				? 'crates/tooling/lint/src'
+				: null;
 	if (!directory) throw new Error(`no crate directory for ${module}`);
 	return `${directory}/${rest.join('/')}.rs`;
 }

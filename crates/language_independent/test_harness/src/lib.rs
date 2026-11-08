@@ -6,7 +6,7 @@
 //! `actual/<name>.diagnostics.txt`; the case fails when `actual/` differs from `expected/`, and
 //! `UPDATE_EXPECT=1` copies the new output there instead. A corpus unit has the official output in
 //! `expected/<task>/<variant>.<ext>`; rsvelte's goes to `actual/` in the same layout, and the
-//! differences are counted, not failed. See `crates/test_harness/README.md`.
+//! differences are counted, not failed. See `crates/language_independent/test_harness/README.md`.
 
 #![expect(
     clippy::print_stdout,
@@ -59,7 +59,7 @@ pub fn content_mapper() -> PathBuf {
 }
 
 const FIXTURES_DIR: &str = "tests/fixtures";
-const CORPUS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../corpus");
+const CORPUS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../corpus");
 pub(crate) const UPDATE_VARIABLE: &str = "UPDATE_EXPECT";
 /// Set to 1, a corpus unit's `actual/` is written; the comparison does not need it.
 const ACTUAL_VARIABLE: &str = "FIXTURE_ACTUAL";

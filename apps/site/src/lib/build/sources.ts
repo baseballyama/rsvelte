@@ -19,7 +19,7 @@ export const CRATES: Record<string, string> = {
 
 /** Every kernel module, plus the plugin code the guide uses as worked examples. */
 export function sources(cratesDir: string): { key: string; file: string }[] {
-	const kernel = readdirSync(path.join(cratesDir, 'kernel/src'), {
+	const kernel = readdirSync(path.join(cratesDir, 'language_independent/kernel/src'), {
 		recursive: true,
 		encoding: 'utf8',
 	})
@@ -27,7 +27,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		.toSorted()
 		.map((file) => ({
 			key: `kernel/${file.replaceAll(path.sep, '/').replace(/(?:\/mod)?\.rs$/, '')}`,
-			file: `kernel/src/${file}`,
+			file: `language_independent/kernel/src/${file}`,
 		}));
 	const groups: [string, string, string[]][] = [
 		['lint', 'tooling/lint/src', ['rules', 'output']],

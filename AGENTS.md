@@ -27,7 +27,7 @@ Svelte 4 → 5 migration, text-level svelte2tsx compatibility, many general JS l
   hand. `cargo test` compares every unit with it and records each verdict in the parity ratchet
   (`corpus/_registry/parity.json`); an intended change is recorded with `UPDATE_EXPECT=1`.
   See [corpus/README.md](corpus/README.md) and
-  [crates/test_harness/README.md](crates/test_harness/README.md).
+  [crates/language_independent/test_harness/README.md](crates/language_independent/test_harness/README.md).
 - Speed: compare the official tools, `main`, and this rewrite. See
   [tools/performance/README.md](tools/performance/README.md).
 

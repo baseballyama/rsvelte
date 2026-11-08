@@ -84,7 +84,7 @@ export const overviewNodes: OverviewNode[] = [
 		what: 'プラグイン、タスク、計算結果の型、共通の呼び出し窓口を受け取ります。',
 		href: '/learn/kernel/pipeline#registry',
 		source: {
-			path: 'crates/kernel/src/computation/pipeline.rs',
+			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
 			line: 96,
 			text: 'pub struct Registry {',
 		},
@@ -98,7 +98,7 @@ export const overviewNodes: OverviewNode[] = [
 		what: 'プラグインの依存先と版を、処理を始める前に確かめます。',
 		href: '/learn/kernel#modules',
 		source: {
-			path: 'crates/kernel/src/computation/pipeline.rs',
+			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
 			line: 130,
 			text: 'pub fn validate_plugins(&self) -> Result<(), PluginError> {',
 		},
@@ -112,7 +112,7 @@ export const overviewNodes: OverviewNode[] = [
 		what: '文書に当てはまるタスクを順に呼び、異常終了をその文書だけに閉じ込めます。',
 		href: '/learn/kernel/pipeline#run-document',
 		source: {
-			path: 'crates/kernel/src/computation/pipeline.rs',
+			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
 			line: 318,
 			text: 'fn run_document(',
 		},
@@ -125,7 +125,11 @@ export const overviewNodes: OverviewNode[] = [
 		code: 'run, run_each',
 		what: '文書を一つずつワーカーに渡して並列に処理します。',
 		href: '/learn/kernel/pipeline#run',
-		source: { path: 'crates/kernel/src/computation/pipeline.rs', line: 493, text: 'pub fn run(' },
+		source: {
+			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
+			line: 493,
+			text: 'pub fn run(',
+		},
 		box: { x: right, y: 162, w: width, h: height },
 	},
 	{
@@ -136,7 +140,7 @@ export const overviewNodes: OverviewNode[] = [
 		what: '求められた計算結果を文書ごとに一度だけ計算し、次からは保存した値を返します。',
 		href: '/learn/kernel/database',
 		source: {
-			path: 'crates/kernel/src/computation/database.rs',
+			path: 'crates/language_independent/kernel/src/computation/database.rs',
 			line: 197,
 			text: 'pub fn get<A: Artifact>(&self) -> &A::Output {',
 		},
@@ -150,7 +154,7 @@ export const overviewNodes: OverviewNode[] = [
 		what: '言語ごとに答え方が違う問いを、同じ型で受け取ります。',
 		href: '/learn/kernel/database#facet',
 		source: {
-			path: 'crates/kernel/src/computation/database.rs',
+			path: 'crates/language_independent/kernel/src/computation/database.rs',
 			line: 34,
 			text: "pub trait Facet: 'static {",
 		},
@@ -164,7 +168,7 @@ export const overviewNodes: OverviewNode[] = [
 		what: '各文書で準備した部分を集め、まとめる処理を一度だけ呼びます。',
 		href: '/learn/kernel/pipeline#project',
 		source: {
-			path: 'crates/kernel/src/computation/pipeline.rs',
+			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
 			line: 388,
 			text: 'fn run_finish_tasks(',
 		},
@@ -178,7 +182,7 @@ export const overviewNodes: OverviewNode[] = [
 		what: 'タスクごとに、生成したファイルと診断を集めます。',
 		href: '/learn/kernel/pipeline#tasks',
 		source: {
-			path: 'crates/kernel/src/computation/pipeline.rs',
+			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
 			line: 74,
 			text: 'pub struct TaskOutput {',
 		},
@@ -282,7 +286,7 @@ export const sharedParts: SharedPart[] = [
 	},
 ];
 
-const pipeline = 'crates/kernel/src/computation/pipeline.rs';
+const pipeline = 'crates/language_independent/kernel/src/computation/pipeline.rs';
 
 export const overviewEdges: OverviewEdge[] = [
 	{
@@ -376,7 +380,7 @@ export const overviewEdges: OverviewEdge[] = [
 		path: 'M306 304 H220',
 		at: [228, 318],
 		source: {
-			path: 'crates/kernel/src/computation/database.rs',
+			path: 'crates/language_independent/kernel/src/computation/database.rs',
 			line: 27,
 			text: "pub trait Artifact: 'static {",
 		},
@@ -389,7 +393,7 @@ export const overviewEdges: OverviewEdge[] = [
 		path: 'M486 304 H534',
 		at: [496, 318],
 		source: {
-			path: 'crates/kernel/src/computation/database.rs',
+			path: 'crates/language_independent/kernel/src/computation/database.rs',
 			line: 219,
 			text: 'pub fn facet<F: Facet>(&self) -> Option<&F::Output> {',
 		},

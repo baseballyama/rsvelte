@@ -54,7 +54,7 @@ const SCENARIOS: Scenario[] = [
 	},
 	...(
 		[
-			['kernel', 'crates/kernel/src/lib.rs'],
+			['kernel', 'crates/language_independent/kernel/src/lib.rs'],
 			['svelte', 'crates/languages/svelte/compile/src/lib.rs'],
 		] as const
 	).flatMap(([crate, file]) =>

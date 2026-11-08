@@ -23,9 +23,9 @@ type Role = 'kernel' | 'core' | 'support' | 'host' | 'capability';
 function role(manifestPath: string): Role | undefined {
 	const path = /\/crates\/(.+)\/Cargo\.toml$/.exec(manifestPath)?.[1];
 	if (path === undefined) return undefined;
-	if (path === 'kernel') return 'kernel';
+	if (path === 'language_independent/kernel') return 'kernel';
 	if (
-		path === 'test_harness' ||
+		path === 'language_independent/test_harness' ||
 		path === 'hosts/config' ||
 		path.startsWith('tooling/') ||
 		path === 'languages/typescript/content_mapper'

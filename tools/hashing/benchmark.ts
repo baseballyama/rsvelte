@@ -30,8 +30,13 @@ export async function main(args: string[]): Promise<void> {
 			maxBuffer: 64 * 1024 * 1024,
 			...options,
 		});
-	const baseline = run('git', ['show', `${baselineRev}:crates/kernel/src/source/hashing.rs`]);
-	const sourcePath = path.join(root, 'crates/kernel/src/source/hashing.rs');
+	// The kernel has moved between revisions, so the baseline's path comes from its own tree.
+	const baselinePaths = run('git', ['ls-tree', '-r', '--name-only', baselineRev, '--', 'crates'])
+		.split('\n')
+		.filter((file) => file.endsWith('kernel/src/source/hashing.rs'));
+	assert.equal(baselinePaths.length, 1, `${baselineRev} has one kernel hashing.rs`);
+	const baseline = run('git', ['show', `${baselineRev}:${baselinePaths[0]}`]);
+	const sourcePath = path.join(root, 'crates/language_independent/kernel/src/source/hashing.rs');
 	const measuredSource = fs.readFileSync(sourcePath);
 	fs.writeFileSync(path.join(scratch, 'src/baseline.rs'), baseline);
 	fs.copyFileSync(path.join(root, 'tools/hashing/benchmark.rs'), path.join(scratch, 'src/main.rs'));
@@ -42,7 +47,7 @@ name = "rsvelte-hashing-comparison"
 version = "0.0.0"
 edition = "2024"
 [dependencies]
-rsvelte_kernel = { path = ${JSON.stringify(path.join(root, 'crates/kernel'))} }
+rsvelte_kernel = { path = ${JSON.stringify(path.join(root, 'crates/language_independent/kernel'))} }
 sha2 = { version = "=0.11.0", default-features = false }
 ring = "=0.17.14"
 [profile.release]

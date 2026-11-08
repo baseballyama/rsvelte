@@ -6,7 +6,7 @@ resolve runtime or native functions before tasks run. Node is optional.
 A host connects the rsvelte toolchain to an execution environment. It chooses
 tools, accepts input, runs tasks through the kernel, and returns their output.
 Language trees and tool implementations live in `../languages/`; shared data and
-task scheduling live in `../kernel/`.
+task scheduling live in `../language_independent/kernel/`.
 
 | Host            | Who uses it                                                          | Interface                          |
 | --------------- | -------------------------------------------------------------------- | ---------------------------------- |

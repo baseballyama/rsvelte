@@ -18,7 +18,7 @@ impl NodePackages {
     #[must_use]
     pub fn locate() -> Self {
         let node_modules =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/oracle/node_modules");
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../tools/oracle/node_modules");
         assert!(
             node_modules.is_dir(),
             "{} is missing: {INSTALL_HINT}",

@@ -1,7 +1,7 @@
 {
 	"maxLines": 600,
 	"exceptions": {
-		"crates/kernel/src/output/document.rs": {
+		"crates/language_independent/kernel/src/output/document.rs": {
 			"maxLines": 1309,
 			"reason": "Existing source; keep its size until its responsibility can be split."
 		},

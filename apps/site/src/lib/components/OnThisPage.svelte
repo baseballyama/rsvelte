@@ -8,7 +8,7 @@
 	const index = $derived(chapter.sections.findIndex((s) => s.id === active));
 	const sourceHref = $derived(
 		chapter.module
-			? `${REPO_URL}/blob/main/crates/kernel/src/${chapter.module.split('/')[1]}.rs`
+			? `${REPO_URL}/blob/main/crates/language_independent/kernel/src/${chapter.module.split('/')[1]}.rs`
 			: undefined,
 	);
 </script>
