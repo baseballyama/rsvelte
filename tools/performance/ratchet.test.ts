@@ -10,6 +10,7 @@ const WAIT_MS = 20_000;
 // A stand-in for cargo that "builds" an rsvelte which writes a report, then waits on a file barrier.
 // The report's `rev` is the path the ratchet ran, so a test can see which binary was measured.
 const CARGO = `#!/bin/sh
+if [ "$1" = --version ]; then echo 'cargo 0.0.0 (fake)'; exit 0; fi
 printf '%s' "$CARGO_BUILD_JOBS" > "$FAKE_DIR/jobs-$FAKE_ROLE"
 mkdir -p "$CARGO_TARGET_DIR/release"
 cat > "$CARGO_TARGET_DIR/release/rsvelte.$$" <<'RSVELTE'
