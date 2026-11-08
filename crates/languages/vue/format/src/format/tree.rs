@@ -1,8 +1,19 @@
 use super::{
-    Attributes, Cow, Embed, Kind2, LineIndex, Node, R, REFUSED_TAGS, ROOT, SingleFileComponent,
-    Span, TagAttributes, TemplateNode, TemplateNodeIdentifier, Tree, Unsupported, VOID_TAGS,
-    only_ws,
+    Attributes, Cow, Embed, Kind2, LineIndex, Node, R, ROOT, SingleFileComponent, Span,
+    TagAttributes, TemplateNode, TemplateNodeIdentifier, Tree, Unsupported, VOID_TAGS, only_ws,
 };
+
+/// Elements whose `white-space` is not `normal` (`CSS_WHITE_SPACE_TAGS`) or whose attributes
+/// prettier formats with a language this port does not have.
+const REFUSED_TAGS: &[&str] = &[
+    "listing",
+    "plaintext",
+    "pre",
+    "xmp",
+    "textarea",
+    "svg",
+    "math",
+];
 
 impl<'a> Tree<'a> {
     pub(super) fn build(

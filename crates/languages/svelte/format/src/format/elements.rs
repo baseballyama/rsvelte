@@ -1,7 +1,13 @@
 use super::{
-    ElementKind, LayoutInstructionIdentifier, Printer, R, SELF_CLOSING, TemplateNode,
-    TemplateNodeIdentifier, Unsupported,
+    ElementKind, LayoutInstructionIdentifier, Printer, R, TemplateNode, TemplateNodeIdentifier,
+    Unsupported,
 };
+
+/// prettier-plugin-svelte `selfClosingTags`.
+const SELF_CLOSING: &[&str] = &[
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
+    "track", "wbr",
+];
 
 impl Printer<'_, '_> {
     #[expect(

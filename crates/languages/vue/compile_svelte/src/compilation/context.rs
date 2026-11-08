@@ -238,41 +238,6 @@ impl<'a> Info<'a> {
     }
 }
 
-/// compiler-core `isGloballyAllowed`: what a template expression reads from the global scope
-/// rather than from the component instance.
-pub(crate) fn globally_allowed(name: &str) -> bool {
-    matches!(
-        name,
-        "Infinity"
-            | "undefined"
-            | "NaN"
-            | "isFinite"
-            | "isNaN"
-            | "parseFloat"
-            | "parseInt"
-            | "decodeURI"
-            | "decodeURIComponent"
-            | "encodeURI"
-            | "encodeURIComponent"
-            | "Math"
-            | "Number"
-            | "Date"
-            | "Array"
-            | "Object"
-            | "Boolean"
-            | "String"
-            | "RegExp"
-            | "Map"
-            | "Set"
-            | "JSON"
-            | "Intl"
-            | "BigInt"
-            | "console"
-            | "Error"
-            | "Symbol"
-    )
-}
-
 /// compiler-sfc `canNeverBeRef` without `reactive`: a value no template unwraps.
 pub(crate) fn can_never_be_ref(syntax_tree: &SyntaxTree, e: NodeIdentifier) -> bool {
     match syntax_tree.kind(e) {

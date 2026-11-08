@@ -23,9 +23,6 @@ use crate::syntax_tree::{
 
 type R<T> = Result<T, Diagnostic>;
 
-/// A directive's name, argument and modifiers.
-type ParsedDirective = (DirectiveName, Option<Span>, Box<[Span]>);
-
 /// `@vue/shared`'s `VOID_TAGS`.
 const VOID_TAGS: &[&str] = &[
     "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
@@ -191,31 +188,6 @@ impl<'a> P<'a> {
         v.extend(items);
         Range { start, len }
     }
-}
-
-/// `/([\s\S]*?)\s+(?:in|of)\s+(\S[\s\S]*)/`: (end of the alias, start of the keyword).
-fn split_for(text: &str) -> Option<(usize, usize)> {
-    let b = text.as_bytes();
-    for kw in 1..b.len() {
-        let is_kw = (text[kw..].starts_with("in") || text[kw..].starts_with("of"))
-            && b[kw - 1].is_ascii_whitespace()
-            && b.get(kw + 2).is_some_and(u8::is_ascii_whitespace);
-        if !is_kw {
-            continue;
-        }
-        let mut alias_end = kw - 1;
-        while alias_end > 0 && b[alias_end - 1].is_ascii_whitespace() {
-            alias_end -= 1;
-        }
-        let mut source = kw + 2;
-        while b.get(source).is_some_and(u8::is_ascii_whitespace) {
-            source += 1;
-        }
-        if source < b.len() {
-            return Some((alias_end, kw));
-        }
-    }
-    None
 }
 
 mod blocks;

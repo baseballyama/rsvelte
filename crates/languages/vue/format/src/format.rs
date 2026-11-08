@@ -32,106 +32,6 @@ type R<T> = Result<T, Unsupported>;
 const PRINT_WIDTH: usize = 80;
 const TAB_WIDTH: usize = 2;
 
-/// prettier's `CSS_DISPLAY_TAGS` (from `html-ua-styles`, with its special cases), for the tags
-/// whose display is not `inline`.
-const STYLESHEET_DISPLAY: &[(&str, &str)] = &[
-    ("area", "none"),
-    ("base", "none"),
-    ("basefont", "none"),
-    ("datalist", "none"),
-    ("head", "none"),
-    ("link", "none"),
-    ("meta", "none"),
-    ("noembed", "none"),
-    ("noframes", "none"),
-    ("param", "block"),
-    ("rp", "none"),
-    ("script", "block"),
-    ("style", "none"),
-    ("title", "none"),
-    ("html", "block"),
-    ("body", "block"),
-    ("address", "block"),
-    ("blockquote", "block"),
-    ("center", "block"),
-    ("dialog", "block"),
-    ("div", "block"),
-    ("figure", "block"),
-    ("figcaption", "block"),
-    ("footer", "block"),
-    ("form", "block"),
-    ("header", "block"),
-    ("hr", "block"),
-    ("legend", "block"),
-    ("listing", "block"),
-    ("main", "block"),
-    ("p", "block"),
-    ("plaintext", "block"),
-    ("pre", "block"),
-    ("search", "block"),
-    ("xmp", "block"),
-    ("slot", "contents"),
-    ("ruby", "ruby"),
-    ("rt", "ruby-text"),
-    ("article", "block"),
-    ("aside", "block"),
-    ("h1", "block"),
-    ("h2", "block"),
-    ("h3", "block"),
-    ("h4", "block"),
-    ("h5", "block"),
-    ("h6", "block"),
-    ("hgroup", "block"),
-    ("nav", "block"),
-    ("section", "block"),
-    ("dir", "block"),
-    ("dd", "block"),
-    ("dl", "block"),
-    ("dt", "block"),
-    ("menu", "block"),
-    ("ol", "block"),
-    ("ul", "block"),
-    ("li", "list-item"),
-    ("table", "table"),
-    ("caption", "table-caption"),
-    ("colgroup", "table-column-group"),
-    ("col", "table-column"),
-    ("thead", "table-header-group"),
-    ("tbody", "table-row-group"),
-    ("tfoot", "table-footer-group"),
-    ("tr", "table-row"),
-    ("td", "table-cell"),
-    ("th", "table-cell"),
-    ("input", "inline-block"),
-    ("button", "inline-block"),
-    ("fieldset", "block"),
-    ("details", "block"),
-    ("summary", "block"),
-    ("marquee", "inline-block"),
-    ("option", "block"),
-    ("optgroup", "block"),
-    ("select", "inline-block"),
-    ("source", "block"),
-    ("track", "block"),
-    ("meter", "inline-block"),
-    ("progress", "inline-block"),
-    ("object", "inline-block"),
-    ("video", "inline-block"),
-    ("audio", "inline-block"),
-];
-
-/// Elements whose `white-space` is not `normal` (`CSS_WHITE_SPACE_TAGS`) or whose attributes
-/// prettier formats with a language this port does not have.
-const REFUSED_TAGS: &[&str] = &[
-    "listing",
-    "plaintext",
-    "pre",
-    "xmp",
-    "textarea",
-    "svg",
-    "math",
-];
-
 /// `@vue/shared`'s `VOID_TAGS`, which the HTML parser prettier uses agrees with.
 const VOID_TAGS: &[&str] = &[
     "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
@@ -288,13 +188,6 @@ struct Printer<'a, 'd> {
 impl Printer<'_, '_> {
     const fn d(&mut self) -> &mut LayoutInstructions {
         self.javascript.docs
-    }
-}
-
-const fn attributes_len(a: Attributes<'_>) -> usize {
-    match a {
-        Attributes::Template(l) => l.len(),
-        Attributes::Block(l) => l.len(),
     }
 }
 

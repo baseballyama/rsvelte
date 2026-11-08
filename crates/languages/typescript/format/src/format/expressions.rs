@@ -1,7 +1,45 @@
 use super::{
     Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, PatternContext, R, Slot,
-    TypeScriptKind, TypeScriptSyntax, Unsupported, op_of, print_number, should_flatten,
+    TypeScriptKind, TypeScriptSyntax, Unsupported, op_of, should_flatten,
 };
+
+/// Prettier's `printNumber`.
+#[must_use]
+pub(super) fn print_number(raw: &str) -> String {
+    let s = raw.to_ascii_lowercase();
+    if s.starts_with("0x") || s.starts_with("0o") || s.starts_with("0b") || s.ends_with('n') {
+        return s;
+    }
+    let (mantissa, exponent) = match s.split_once('e') {
+        Some((m, e)) => (m, Some(e)),
+        None => (s.as_str(), None),
+    };
+    let mut m = if mantissa.starts_with('.') {
+        format!("0{mantissa}")
+    } else {
+        mantissa.to_owned()
+    };
+    if let Some(dot) = m.find('.') {
+        let frac = &m[dot + 1..];
+        let kept = frac.trim_end_matches('0').len().max(1).min(frac.len());
+        m.truncate(dot + 1 + kept);
+        if m.ends_with('.') {
+            m.pop();
+        }
+    }
+    match exponent {
+        None => m,
+        Some(e) => {
+            let sign = if e.starts_with('-') { "-" } else { "" };
+            let digits = e.trim_start_matches(['+', '-']).trim_start_matches('0');
+            if digits.is_empty() {
+                m
+            } else {
+                format!("{m}e{sign}{digits}")
+            }
+        }
+    }
+}
 
 impl Formatter<'_> {
     pub(super) fn expression(

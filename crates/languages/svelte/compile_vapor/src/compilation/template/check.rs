@@ -1,8 +1,84 @@
 use super::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
-    FxHashSet, Kind, NodeIdentifier, NodeKind, R, REFUSED_ELEMENTS, Resolution, SyntaxTree,
-    check_table_part, span_of, unsupported, walk,
+    Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
+    ElementKind, FxHashSet, Kind, NodeIdentifier, NodeKind, R, Resolution, Span, SyntaxTree,
+    span_of, unsupported, walk,
 };
+
+/// The parents a table part needs for the browser to parse it where it is written.
+fn table_parents(tag: &str) -> Option<&'static [&'static str]> {
+    Some(match tag {
+        "caption" | "colgroup" | "tbody" | "thead" | "tfoot" => &["table"],
+        "col" => &["colgroup"],
+        "tr" => &["tbody", "thead", "tfoot"],
+        "td" | "th" => &["tr"],
+        _ => return None,
+    })
+}
+
+/// A table part outside its parent, which the browser reparents or drops when it parses Svelte's
+/// client template, unless the part is alone in its template (the template element's own
+/// insertion mode then fits it).
+fn check_table_part(
+    compiler_syntax_tree: &CompilerSyntaxTree,
+    source_text: &str,
+    identifier: CompilerNodeIdentifier,
+    tag: &str,
+    at: Span,
+) -> R<()> {
+    let Some(parents) = table_parents(tag) else {
+        return Ok(());
+    };
+    let parent = compiler_syntax_tree.node(identifier).parent;
+    let lists: Vec<Children> = match parent.map(|p| &compiler_syntax_tree.node(p).kind) {
+        None => vec![compiler_syntax_tree.root],
+        Some(NodeKind::Element(el)) => {
+            if parents.contains(&el.name.text(source_text)) {
+                return Ok(());
+            }
+            vec![el.children]
+        }
+        Some(NodeKind::If {
+            branches,
+            otherwise,
+        }) => compiler_syntax_tree
+            .branches(*branches)
+            .iter()
+            .map(|b| b.body)
+            .chain(*otherwise)
+            .collect(),
+        Some(NodeKind::Each(each)) => std::iter::once(each.body).chain(each.fallback).collect(),
+        Some(_) => Vec::new(),
+    };
+    let alone = lists
+        .iter()
+        .map(|&l| compiler_syntax_tree.children(l))
+        .find(|l| l.contains(&identifier))
+        .is_some_and(|l| {
+            l.iter().all(|&s| match &compiler_syntax_tree.node(s).kind {
+                NodeKind::Text { raw, .. } => {
+                    s == identifier || raw.text(source_text).trim().is_empty()
+                }
+                NodeKind::Comment { .. } => true,
+                _ => s == identifier,
+            })
+        });
+    if alone {
+        return Ok(());
+    }
+    Err(unsupported(
+        format_args!(
+            "a <{tag}> outside {} beside other content",
+            parents.join(" or ")
+        ),
+        at,
+    ))
+}
+
+/// Element names whose content or namespace the translation does not handle. Svelte's client
+/// template drops `<html>`, `<head>` and `<body>` when the browser parses it.
+const REFUSED_ELEMENTS: &[&str] = &[
+    "script", "slot", "noscript", "iframe", "object", "html", "head", "body",
+];
 
 /// The cheap checks, before anything is built: element kinds and names, attribute shapes, the
 /// names template expressions read.

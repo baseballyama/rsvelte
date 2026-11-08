@@ -211,40 +211,6 @@ impl T<'_, '_> {
     }
 }
 
-/// The `:key` of a `v-for` element.
-fn directive_key<'h>(
-    compiler_syntax_tree: &'h CompilerSyntaxTree,
-    el: &Element,
-    source_text: &str,
-) -> Option<(&'h Property, &'h Directive)> {
-    compiler_syntax_tree
-        .props(el.props)
-        .iter()
-        .find_map(|p| match &p.kind {
-            PropertyKind::Directive(d)
-                if d.name == DirectiveName::Bind
-                    && d.arg.as_ref().is_some_and(|a| a.text(source_text) == "key") =>
-            {
-                Some((p, d))
-            }
-            _ => None,
-        })
-}
-
-fn check_name(name: &str, span: Span) -> R<()> {
-    if name.is_empty()
-        || !name
-            .bytes()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
-    {
-        return Err(unsupported(
-            format_args!("the attribute name `{name}` (svue takes lowercase names)"),
-            span,
-        ));
-    }
-    Ok(())
-}
-
 /// `@vue/shared`'s `isBooleanAttr` with `isSpecialBooleanAttr`.
 fn is_boolean_attribute(name: &str) -> bool {
     matches!(
@@ -276,20 +242,6 @@ fn is_boolean_attribute(name: &str) -> bool {
             | "multiple"
             | "selected"
     )
-}
-
-/// Whether Vue's runtime leaves the attribute as written: runtime-dom's `shouldSetAsProp` sets
-/// some names as DOM properties, and these properties either do not reflect to the attribute or
-/// reflect it converted (to a number, or for `value` not at all).
-fn reflects_as_written(name: &str, tag: &str) -> bool {
-    match name {
-        "checked" | "selected" | "muted" | "autofocus" | "indeterminate" | "start" | "size"
-        | "span" | "high" | "low" | "optimum" | "srcobject" | "innerhtml" | "textcontent"
-        | "innertext" => false,
-        "min" | "max" => tag == "input",
-        "width" | "height" => matches!(tag, "img" | "video" | "canvas" | "source"),
-        _ => true,
-    }
 }
 
 mod runtime;

@@ -1,7 +1,56 @@
 use super::{
     Attribute, AttributeKind, AttributeValue, Cow, ElementKind, LayoutInstructionIdentifier, Part,
-    Printer, R, Unsupported, normalize_class,
+    Printer, R, Unsupported,
 };
+
+/// The plugin's whitespace normalization of a `class` attribute's text on a regular element.
+fn normalize_class(raw: &str, is_last_part: bool) -> String {
+    // `([^ \t\n])(([ \t]+$)|([ \t]+(\r?\n))|[ \t]+)` → collapse inner runs, drop them before a
+    // line break, keep them at the very end.
+    let b = raw.as_bytes();
+    let mut out = String::with_capacity(raw.len());
+    let mut i = 0;
+    while i < b.len() {
+        let c = b[i];
+        let run_start = i + 1;
+        if !matches!(c, b' ' | b'\t' | b'\n')
+            && run_start < b.len()
+            && matches!(b[run_start], b' ' | b'\t')
+        {
+            let mut j = run_start;
+            while j < b.len() && matches!(b[j], b' ' | b'\t') {
+                j += 1;
+            }
+            out.push_str(&raw[i..run_start]);
+            if j == b.len() {
+                out.push_str(&raw[run_start..j]);
+            } else if b[j] == b'\n' {
+                out.push('\n');
+                j += 1;
+            } else if b[j] == b'\r' && b.get(j + 1) == Some(&b'\n') {
+                out.push_str("\r\n");
+                j += 2;
+            } else {
+                out.push(' ');
+            }
+            i = j;
+            continue;
+        }
+        let ch = raw[i..].chars().next().expect("in bounds");
+        out.push(ch);
+        i += ch.len_utf8();
+    }
+    // `([^ \t\n])[ \t]+$` → `$1` at the end of the value, `$1 ` before an expression.
+    let trimmed = out.trim_end_matches([' ', '\t']);
+    if trimmed.len() < out.len() && !trimmed.is_empty() && !trimmed.ends_with('\n') {
+        let mut s = trimmed.to_owned();
+        if !is_last_part {
+            s.push(' ');
+        }
+        return s;
+    }
+    out
+}
 
 impl Printer<'_, '_> {
     pub(super) fn attribute(

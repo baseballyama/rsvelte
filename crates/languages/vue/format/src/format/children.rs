@@ -1,6 +1,13 @@
 use super::{
-    Between, GroupIdentifier, Kind2, LayoutInstructionIdentifier, Printer, R, ROOT, attributes_len,
+    Attributes, Between, GroupIdentifier, Kind2, LayoutInstructionIdentifier, Printer, R, ROOT,
 };
+
+const fn attributes_len(a: Attributes<'_>) -> usize {
+    match a {
+        Attributes::Template(l) => l.len(),
+        Attributes::Block(l) => l.len(),
+    }
+}
 
 impl Printer<'_, '_> {
     // ---- print/children.js -----------------------------------------------------------

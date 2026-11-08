@@ -1,8 +1,43 @@
 use super::{
     BindingIdentifier, BindingType, Class, DeclarationKind, Diagnostic, FxHashMap, Info, Kind,
     NodeIdentifier, R, Resolution, Rewrite, ScopeIdentifier, SourceLocation, SyntaxTree,
-    can_never_be_ref, copy, copy_node, flag, globally_allowed, span_of, unsupported,
+    can_never_be_ref, copy, copy_node, flag, span_of, unsupported,
 };
+
+/// compiler-core `isGloballyAllowed`: what a template expression reads from the global scope
+/// rather than from the component instance.
+pub(crate) fn globally_allowed(name: &str) -> bool {
+    matches!(
+        name,
+        "Infinity"
+            | "undefined"
+            | "NaN"
+            | "isFinite"
+            | "isNaN"
+            | "parseFloat"
+            | "parseInt"
+            | "decodeURI"
+            | "decodeURIComponent"
+            | "encodeURI"
+            | "encodeURIComponent"
+            | "Math"
+            | "Number"
+            | "Date"
+            | "Array"
+            | "Object"
+            | "Boolean"
+            | "String"
+            | "RegExp"
+            | "Map"
+            | "Set"
+            | "JSON"
+            | "Intl"
+            | "BigInt"
+            | "console"
+            | "Error"
+            | "Symbol"
+    )
+}
 
 /// Copies one user expression or statement of the Vue tree into the output, rewriting what Vue
 /// and Svelte spell differently and refusing what svue does not translate.

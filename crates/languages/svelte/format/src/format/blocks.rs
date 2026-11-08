@@ -1,7 +1,14 @@
 use super::{
-    BlockWs, LayoutInstructionIdentifier, Printer, R, TemplateNode, TemplateNodeIdentifier,
-    Unsupported, ends_with_linebreak, only_ws, starts_with_linebreak,
+    LayoutInstructionIdentifier, Printer, R, TemplateNode, TemplateNodeIdentifier, Unsupported,
+    ends_with_linebreak, only_ws, starts_with_linebreak,
 };
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum BlockWs {
+    None,
+    Space,
+    Line,
+}
 
 impl Printer<'_, '_> {
     pub(super) fn if_block(

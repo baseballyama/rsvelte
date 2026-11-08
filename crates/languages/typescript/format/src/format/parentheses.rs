@@ -1,7 +1,13 @@
 use super::{
-    BinaryOperator, Formatter, Kind, NodeIdentifier, Op, Slot, UnaryOperator, mixes_nullish, op_of,
-    should_flatten,
+    BinaryOperator, Formatter, Kind, LogicalOperator, NodeIdentifier, Op, Slot, UnaryOperator,
+    op_of, should_flatten,
 };
+
+fn mixes_nullish(a: Op, b: Op) -> bool {
+    let nullish = |o: Op| o == Op::Log(LogicalOperator::Nullish);
+    let and_or = |o: Op| matches!(o, Op::Log(LogicalOperator::And | LogicalOperator::Or));
+    (nullish(a) && and_or(b)) || (and_or(a) && nullish(b))
+}
 
 impl Formatter<'_> {
     /// The node an expression statement (or arrow body) starts with, when it must be wrapped in

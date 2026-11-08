@@ -1,9 +1,11 @@
 use super::{
     AssignmentOperator, Attribute, BinaryOperator, BindingKind, Builder, DeclarationKind,
     DirectiveExpression, DirectiveName, Helper, Kind, LogicalOperator, NodeIdentifier, R,
-    SourceLocation, Span, Steps, TEXT_INPUT_TYPES, bound, directive, spelled, static_type,
-    unsupported, vue,
+    SourceLocation, Span, Steps, bound, directive, spelled, static_type, unsupported, vue,
 };
+
+/// The text-like input types whose `bind:value` is Svelte's string binding.
+const TEXT_INPUT_TYPES: &[&str] = &["text", "search", "email", "url", "tel", "password"];
 
 impl Builder<'_, '_> {
     pub(super) fn binding_read(&mut self, target: NodeIdentifier) -> NodeIdentifier {

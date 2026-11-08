@@ -1,8 +1,44 @@
 use super::{
-    BLOCK_ELEMENTS, Cow, ElementKind, LayoutInstructionIdentifier, LayoutInstructions, Printer,
-    TemplateNode, TemplateNodeIdentifier, ends_with_linebreak, is_collapse_ws, only_ws,
-    starts_with_linebreak,
+    Cow, ElementKind, LayoutInstructionIdentifier, LayoutInstructions, Printer, TemplateNode,
+    TemplateNodeIdentifier, ends_with_linebreak, is_collapse_ws, only_ws, starts_with_linebreak,
 };
+
+/// prettier-plugin-svelte `blockElements`.
+const BLOCK_ELEMENTS: &[&str] = &[
+    "address",
+    "article",
+    "aside",
+    "blockquote",
+    "details",
+    "dialog",
+    "dd",
+    "div",
+    "dl",
+    "dt",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "footer",
+    "form",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "header",
+    "hgroup",
+    "hr",
+    "li",
+    "main",
+    "nav",
+    "ol",
+    "p",
+    "pre",
+    "section",
+    "table",
+    "ul",
+];
 
 impl<'a> Printer<'a, '_> {
     pub(super) const fn d(&mut self) -> &mut LayoutInstructions {

@@ -1,9 +1,29 @@
 use super::{
-    Branch, CompilerNodeIdentifier, Directive, DirectiveExpression, DirectiveName, Each, Helper,
-    Kind, NodeIdentifier, NodeKind, Property, PropertyKind, R, SourceLocation, Span,
-    SvelteNodeIdentifier, SvelteNodeKind, T, TagType, directive, directive_key, directives,
-    expression_of, span_of, svelte, unsupported,
+    Branch, CompilerNodeIdentifier, CompilerSyntaxTree, Directive, DirectiveExpression,
+    DirectiveName, Each, Element, Helper, Kind, NodeIdentifier, NodeKind, Property, PropertyKind,
+    R, SourceLocation, Span, SvelteNodeIdentifier, SvelteNodeKind, T, TagType, directive,
+    directives, expression_of, span_of, svelte, unsupported,
 };
+
+/// The `:key` of a `v-for` element.
+fn directive_key<'h>(
+    compiler_syntax_tree: &'h CompilerSyntaxTree,
+    el: &Element,
+    source_text: &str,
+) -> Option<(&'h Property, &'h Directive)> {
+    compiler_syntax_tree
+        .props(el.props)
+        .iter()
+        .find_map(|p| match &p.kind {
+            PropertyKind::Directive(d)
+                if d.name == DirectiveName::Bind
+                    && d.arg.as_ref().is_some_and(|a| a.text(source_text) == "key") =>
+            {
+                Some((p, d))
+            }
+            _ => None,
+        })
+}
 
 impl T<'_, '_> {
     pub(super) fn list(

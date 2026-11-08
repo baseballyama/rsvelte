@@ -227,21 +227,6 @@ impl Semantic {
     }
 }
 
-#[derive(Clone, Copy)]
-enum ReferenceContext {
-    Expression,
-    /// A binding pattern: identifiers declare, defaults and computed keys are expressions.
-    /// `initializer` when the identifiers are also written (an initialised declarator, a default
-    /// value).
-    Pattern {
-        initializer: bool,
-    },
-    /// An assignment target; `read` for compound operators.
-    Target {
-        read: bool,
-    },
-}
-
 struct Analyzer<'a> {
     syntax_tree: &'a SyntaxTree,
     s: Semantic,

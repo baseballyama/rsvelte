@@ -78,21 +78,6 @@ impl<'a> CompileInput<'a> {
     }
 }
 
-/// compiler-sfc's macros other than `defineProps` and `defineOptions`, none of which the port
-/// compiles yet.
-const OTHER_MACROS: &[&str] = &[
-    "defineEmits",
-    "defineExpose",
-    "defineSlots",
-    "defineModel",
-    "withDefaults",
-];
-
-const DEFINE_OPTIONS: &str = "defineOptions";
-
-/// The keys `processDefineOptions` rejects: each has a macro of its own.
-const OPTIONS_OWNED_BY_MACROS: &[&str] = &["props", "emits", "expose", "slots"];
-
 /// `@vitejs/plugin-vue`'s scope identifier: the first 8 hex digits of the SHA-256 of the path.
 #[must_use]
 pub fn scope_identifier(path: &str) -> String {

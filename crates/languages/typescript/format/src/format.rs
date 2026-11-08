@@ -365,12 +365,6 @@ fn op_of(syntax_tree: &SyntaxTree, identifier: NodeIdentifier) -> Option<Op> {
     }
 }
 
-fn mixes_nullish(a: Op, b: Op) -> bool {
-    let nullish = |o: Op| o == Op::Log(LogicalOperator::Nullish);
-    let and_or = |o: Op| matches!(o, Op::Log(LogicalOperator::And | LogicalOperator::Or));
-    (nullish(a) && and_or(b)) || (and_or(a) && nullish(b))
-}
-
 /// Prettier's `shouldFlatten`.
 fn should_flatten(parent: Op, child: Op) -> bool {
     use BinaryOperator::{
@@ -419,44 +413,6 @@ fn is_plain_type(text: &str) -> bool {
                 .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
                 && cs.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
         })
-}
-
-/// Prettier's `printNumber`.
-#[must_use]
-pub fn print_number(raw: &str) -> String {
-    let s = raw.to_ascii_lowercase();
-    if s.starts_with("0x") || s.starts_with("0o") || s.starts_with("0b") || s.ends_with('n') {
-        return s;
-    }
-    let (mantissa, exponent) = match s.split_once('e') {
-        Some((m, e)) => (m, Some(e)),
-        None => (s.as_str(), None),
-    };
-    let mut m = if mantissa.starts_with('.') {
-        format!("0{mantissa}")
-    } else {
-        mantissa.to_owned()
-    };
-    if let Some(dot) = m.find('.') {
-        let frac = &m[dot + 1..];
-        let kept = frac.trim_end_matches('0').len().max(1).min(frac.len());
-        m.truncate(dot + 1 + kept);
-        if m.ends_with('.') {
-            m.pop();
-        }
-    }
-    match exponent {
-        None => m,
-        Some(e) => {
-            let sign = if e.starts_with('-') { "-" } else { "" };
-            let digits = e.trim_start_matches(['+', '-']).trim_start_matches('0');
-            if digits.is_empty() {
-                m
-            } else {
-                format!("{m}e{sign}{digits}")
-            }
-        }
-    }
 }
 
 mod strings;

@@ -1,8 +1,23 @@
 use super::{
-    BindingType, CompileInput, DEFINE_OPTIONS, DeclarationKind, Kind, NodeIdentifier,
-    OPTIONS_OWNED_BY_MACROS, OTHER_MACROS, R, Resolution, Rewrite, ScopeIdentifier, SourceLocation,
-    SyntaxTree, Unsupported, Verbatim, call_name, copy, flag, is_static, template,
+    BindingType, CompileInput, DeclarationKind, Kind, NodeIdentifier, R, Resolution, Rewrite,
+    ScopeIdentifier, SourceLocation, SyntaxTree, Unsupported, Verbatim, call_name, copy, flag,
+    is_static, template,
 };
+
+/// compiler-sfc's macros other than `defineProps` and `defineOptions`, none of which the port
+/// compiles yet.
+const OTHER_MACROS: &[&str] = &[
+    "defineEmits",
+    "defineExpose",
+    "defineSlots",
+    "defineModel",
+    "withDefaults",
+];
+
+/// The keys `processDefineOptions` rejects: each has a macro of its own.
+const OPTIONS_OWNED_BY_MACROS: &[&str] = &["props", "emits", "expose", "slots"];
+
+const DEFINE_OPTIONS: &str = "defineOptions";
 
 /// compileScript for `<script setup>` with `inlineTemplate`.
 pub(super) fn script_setup(

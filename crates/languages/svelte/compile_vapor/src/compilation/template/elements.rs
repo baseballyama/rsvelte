@@ -1,9 +1,14 @@
 use super::{
     Attribute, AttributeValue, BinaryOperator, Builder, CompilerNodeIdentifier,
-    DirectiveExpression, DirectiveName, Helper, LOAD_ERROR_ELEMENTS, Name, NodeIdentifier,
-    NodeKind, Parent, R, SourceLocation, Span, Steps, TypedIndex, bound, captured_event, directive,
-    unsupported, vue,
+    DirectiveExpression, DirectiveName, Helper, Name, NodeIdentifier, NodeKind, Parent, R,
+    SourceLocation, Span, Steps, TypedIndex, bound, captured_event, directive, unsupported, vue,
 };
+
+/// Svelte's `LOAD_ERROR_ELEMENTS`: its server marks `onload` / `onerror` on them so that the
+/// client can replay an event that fired before hydration.
+const LOAD_ERROR_ELEMENTS: &[&str] = &[
+    "body", "embed", "iframe", "img", "link", "object", "script", "style", "track",
+];
 
 impl Builder<'_, '_> {
     #[expect(
