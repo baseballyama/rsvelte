@@ -150,6 +150,20 @@ impl LineIndex {
         })
     }
 
+    /// Byte offset of a UTF-16 offset; `None` past the end or inside a character, the inverse of
+    /// [`LineIndex::utf16`] on character boundaries.
+    #[must_use]
+    pub fn byte(&self, utf16: u32) -> Option<u32> {
+        let i = self.wide.partition_point(|w| w.utf16_end() <= utf16);
+        if self.wide.get(i).is_some_and(|w| w.utf16 < utf16) {
+            return None;
+        }
+        let byte = i.checked_sub(1).map_or(utf16, |j| {
+            self.wide[j].end + (utf16 - self.wide[j].utf16_end())
+        });
+        (byte <= self.len).then_some(byte)
+    }
+
     /// The line and column of a byte offset, rounded as [`LineIndex::utf16`] rounds.
     #[must_use]
     pub fn line_column(&self, byte: u32) -> LineColumn {

@@ -77,3 +77,16 @@ fn utf16_and_offset_agree_with_a_walk_of_the_text() {
         }
     }
 }
+
+#[test]
+fn byte_inverts_utf16_on_character_boundaries() {
+    let source_text = "aé😀b";
+    let lines = LineIndex::new(source_text);
+    for (byte, _) in source_text.char_indices().chain([(source_text.len(), ' ')]) {
+        let byte = byte as u32;
+        assert_eq!(lines.byte(lines.utf16(byte)), Some(byte));
+    }
+    // Between the surrogates of the emoji, and past the end.
+    assert_eq!(lines.byte(3), None);
+    assert_eq!(lines.byte(6), None);
+}

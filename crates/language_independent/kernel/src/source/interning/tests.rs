@@ -27,3 +27,11 @@ fn a_hit_does_not_grow_the_table() {
     assert!(i.table.len() > cap);
     assert_eq!(i.lookup("new"), Some(Atom(32)));
 }
+
+#[test]
+fn a_static_name_is_made_once() {
+    let first = static_name("org/rule-a");
+    let again = static_name(&String::from("org/rule-a"));
+    assert!(std::ptr::eq(first, again));
+    assert_eq!(static_name("org/rule-b"), "org/rule-b");
+}
