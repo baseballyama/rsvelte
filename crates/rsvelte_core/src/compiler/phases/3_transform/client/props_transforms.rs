@@ -2370,6 +2370,12 @@ pub(super) fn is_simple_expression_str(
         return false;
     }
 
+    // Upstream decides on the AST; the text rules below only cover text that
+    // does not parse as one expression.
+    if let Some(simple) = ast_expr_is_simple(trimmed, analysis, dev) {
+        return simple;
+    }
+
     // Unary expressions (e.g., `-1`, `+x`, `!foo`, `~bar`) are NOT simple.
     // The official Svelte compiler's `is_simple_expression()` only treats `Literal`,
     // `Identifier`, `ArrowFunctionExpression`, `FunctionExpression`, and recursively
@@ -2477,17 +2483,6 @@ pub(super) fn is_simple_expression_str(
         && trimmed.contains('.')
         && trimmed.parse::<f64>().is_err()
     {
-        return false;
-    }
-
-    // Conditional / binary / logical expressions are simple ONLY when every
-    // operand is itself simple — mirroring upstream `is_simple_expression`
-    // (utils/ast.js), which recurses into test/consequent/alternate (and
-    // left/right). The string heuristic above never recursed, so e.g.
-    // `solid() ? "a" : "b"` (whose test is a CallExpression) was wrongly treated
-    // as simple, dropping PROPS_IS_LAZY_INITIAL and the default thunk. Defer to an
-    // exact AST check; only flips a heuristic `true` to `false`, never the reverse.
-    if ast_expr_is_simple(trimmed, analysis, dev) == Some(false) {
         return false;
     }
 
