@@ -149,7 +149,7 @@ pub struct AwaitedDeclaration {
 impl ScriptContent {
     /// Extract script content from an AST Script node and source,
     /// with optional forced TypeScript stripping.
-    /// `force_typescript` is true when another script in the component has `lang="ts"`.
+    /// `force_typescript` is the component-wide `parser.ts`.
     pub(crate) fn from_script_with_ts(
         script: &Script,
         source: &str,
@@ -167,18 +167,7 @@ impl ScriptContent {
             program.source().len() == raw_source.len()
                 && std::ptr::eq(program.source().as_ptr(), raw_source.as_ptr())
         });
-        // Check if this script uses TypeScript
-        let is_typescript = force_typescript
-            || script.attributes.iter().any(|attr| {
-                if attr.name == "lang"
-                    && let crate::ast::template::AttributeValue::Sequence(parts) = &attr.value
-                    && let Some(crate::ast::template::AttributeValuePart::Text(text)) =
-                        parts.first()
-                {
-                    return text.data == "ts" || text.data == "typescript";
-                }
-                false
-            });
+        let is_typescript = force_typescript || script.is_typescript;
         // Strip TypeScript from the raw content if this is a TypeScript script
         let (raw, source_projection) = if is_typescript && !raw_source.is_empty() {
             retained_program
@@ -2321,12 +2310,12 @@ impl ComponentAnalysis {
         source: &str,
         retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
     ) {
-        // Check if any script in the component uses TypeScript.
-        // In Svelte, if the module script has lang="ts", the instance script
-        // is also treated as TypeScript (even without its own lang attribute).
-        let any_script_is_typescript =
-            Self::script_is_typescript_attr(ast.module.as_ref().map(|s| s.as_ref()))
-                || Self::script_is_typescript_attr(ast.instance.as_ref().map(|s| s.as_ref()));
+        // How the parser read the scripts, not their `lang`: upstream's one
+        // `parser.ts` covers every script, and `ast.ts` can be on with no
+        // top-level `lang="ts"` (`<script data-lang="ts">`).
+        let any_script_is_typescript = ast.ts
+            || ast.module.as_ref().is_some_and(|s| s.is_typescript)
+            || ast.instance.as_ref().is_some_and(|s| s.is_typescript);
 
         // Store the TypeScript flag for later use (e.g., scope building)
         self.is_typescript = any_script_is_typescript;
@@ -2381,24 +2370,6 @@ impl ComponentAnalysis {
             );
             self.module_script_content = Some(content);
         }
-    }
-
-    /// Check if a script node has `lang="ts"` or `lang="typescript"` attribute.
-    fn script_is_typescript_attr(script: Option<&Script>) -> bool {
-        script
-            .map(|s| {
-                s.attributes.iter().any(|attr| {
-                    if attr.name == "lang"
-                        && let crate::ast::template::AttributeValue::Sequence(parts) = &attr.value
-                        && let Some(crate::ast::template::AttributeValuePart::Text(text)) =
-                            parts.first()
-                    {
-                        return text.data == "ts" || text.data == "typescript";
-                    }
-                    false
-                })
-            })
-            .unwrap_or(false)
     }
 
     /// Create scopes for the component.

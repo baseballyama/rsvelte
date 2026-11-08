@@ -1,5 +1,5 @@
 import type { InlineConfig, ResolvedConfig } from 'vite';
-import type { CompileOptions, Warning, PreprocessorGroup } from '@rsvelte/vite-plugin-svelte-native';
+import type { CompileOptions, Warning, PreprocessorGroup } from 'svelte/compiler';
 import type { Options as InspectorOptions } from '@sveltejs/vite-plugin-svelte-inspector';
 
 export type Options = Omit<SvelteConfig, 'vitePlugin'> & PluginOptionsInline;

@@ -1,6 +1,6 @@
 declare module '@rsvelte/vite-plugin-svelte' {
 	import type { InlineConfig, ResolvedConfig } from 'vite';
-	import type { CompileOptions, Warning, PreprocessorGroup } from '@rsvelte/compiler';
+	import type { CompileOptions, Warning, PreprocessorGroup } from 'svelte/compiler';
 	import type { Options as InspectorOptions } from '@sveltejs/vite-plugin-svelte-inspector';
 	export type Options = Omit<SvelteConfig, 'vitePlugin'> & PluginOptionsInline;
 
@@ -219,7 +219,7 @@ declare module '@rsvelte/vite-plugin-svelte' {
 	 *
 	 * */
 	export function svelte(inlineOptions?: Partial<Options>): import("vite").Plugin[];
-	export function vitePreprocess(opts?: VitePreprocessOptions): import("@rsvelte/compiler").PreprocessorGroup;
+	export function vitePreprocess(opts?: VitePreprocessOptions): import("svelte/compiler").PreprocessorGroup;
 	export function loadSvelteConfig(viteConfig?: import("vite").UserConfig, inlineOptions?: Partial<Options>): Promise<Partial<SvelteConfig> | undefined>;
 
 	export {};

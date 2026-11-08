@@ -970,8 +970,7 @@ fn transform_script<'a>(
     // index into the local `src`, and the reparse helpers copy the slice text into
     // the state allocator — none of them index `state.source` directly. So binding
     // `src` to the stripped buffer keeps offsets internally consistent.
-    let script_is_typescript =
-        super::super::helpers::script_is_typescript(script) || state.analysis.is_typescript;
+    let script_is_typescript = script.is_typescript || state.analysis.is_typescript;
     let source_slice = &state.source[start..end];
     let stripped;
     // TS is detected COMPONENT-wide, not per-script: if EITHER script carries
@@ -3731,8 +3730,7 @@ fn transform_script_legacy<'a>(
 
     // TypeScript components: strip TS from the slice before parsing (see the
     // matching note in `transform_script` for the offset-consistency rationale).
-    let script_is_typescript =
-        super::super::helpers::script_is_typescript(script) || state.analysis.is_typescript;
+    let script_is_typescript = script.is_typescript || state.analysis.is_typescript;
     let source_slice = &state.source[start..end];
     let stripped;
     // TS is detected COMPONENT-wide, not per-script: if EITHER script carries

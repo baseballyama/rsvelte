@@ -8,10 +8,10 @@
     "types"
   ],
   "type": "module",
-  "types": "types/index.d.ts",
+  "types": "types/entry.d.ts",
   "exports": {
     ".": {
-      "types": "./types/index.d.ts",
+      "types": "./types/entry.d.ts",
       "default": "./src/index.js"
     }
   },
