@@ -1,9 +1,8 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
-use rsvelte_kernel::computation::pipeline::{
-    Document, Registry, RunOptions, Sharing, Task, TaskOutput, run,
-};
+use rsvelte_kernel::computation::pipeline::{Registry, RunOptions, Sharing, Task, TaskOutput, run};
+use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::{Diagnostic, Span};
 
 static COMPUTATIONS: AtomicUsize = AtomicUsize::new(0);

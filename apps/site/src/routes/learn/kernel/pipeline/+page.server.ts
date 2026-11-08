@@ -7,7 +7,7 @@ export const load = () => ({
 	streaming: arm('streaming'),
 	serial: arm('serial'),
 	code: excerpts({
-		document: 'kernel/computation/pipeline/Document',
+		document: 'kernel/source/document/Document',
 		task: 'kernel/computation/pipeline/Task',
 		part: 'kernel/computation/pipeline/Part',
 		finishTask: 'kernel/computation/pipeline/FinishTask',

@@ -1,7 +1,8 @@
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
-use rsvelte_kernel::computation::pipeline::{Document, Registry};
+use rsvelte_kernel::computation::pipeline::Registry;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::source::document::Document;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 
 #[must_use]

@@ -1,7 +1,7 @@
 const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	'kernel/source': {
 		title: 'ソースの記録',
-		summary: '位置、名前、字句、構文木の識別番号を扱う機能をまとめます。',
+		summary: '文書、位置、名前、字句、構文木の識別番号を扱う機能をまとめます。',
 	},
 	'kernel/computation': {
 		title: '計算と実行',
@@ -22,6 +22,10 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	'document_printer/width': {
 		title: '文字の表示幅',
 		summary: '文字が画面で占める幅を、Unicode の幅の規則で計算します。',
+	},
+	'kernel/source/document': {
+		title: '文書',
+		summary: '処理する文書のパスと本文を持ち、大きさの上限を入口で一度だけ確かめます。',
 	},
 	'kernel/source/positions': {
 		title: 'ソース内の位置',

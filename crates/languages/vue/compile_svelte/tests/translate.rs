@@ -1,4 +1,5 @@
-use rsvelte_kernel::computation::pipeline::{Document, Registry, RunOptions, Sharing, run};
+use rsvelte_kernel::computation::pipeline::{Registry, RunOptions, Sharing, run};
+use rsvelte_kernel::source::document::Document;
 
 const CLIENT: &str = "svue.compile/client";
 const SERVER: &str = "svue.compile/server";

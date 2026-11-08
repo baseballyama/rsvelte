@@ -3,9 +3,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rsvelte_kernel::computation::database::{Artifact, ArtifactRegistry, DocumentContext};
 use rsvelte_kernel::computation::pipeline::{
-    Document, DocumentResult, FinishTask, Part, Registry, RunOptions, Sharing, Task, TaskOutput,
-    run, run_each,
+    DocumentResult, FinishTask, Part, Registry, RunOptions, Sharing, Task, TaskOutput, run,
+    run_each,
 };
+use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::{Diagnostic, Span};
 
 struct Length;

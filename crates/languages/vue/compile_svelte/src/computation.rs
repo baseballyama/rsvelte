@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
-use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
+use rsvelte_kernel::computation::pipeline::{Registry, Task, TaskOutput};
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::source::document::Document;
 use rsvelte_svelte_compile::Target;
 
 /// One of the two targets, as a type, so each gets its own chain of artifacts.

@@ -1,7 +1,6 @@
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::computation::pipeline::{
-    Document, Registry, RunOptions, Sharing, Task, TaskOutput, run,
-};
+use rsvelte_kernel::computation::pipeline::{Registry, RunOptions, Sharing, Task, TaskOutput, run};
+use rsvelte_kernel::source::document::Document;
 use rsvelte_svelte::Parsed;
 
 #[derive(Debug)]

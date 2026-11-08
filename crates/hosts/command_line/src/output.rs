@@ -2,8 +2,9 @@
 
 use std::path::Path;
 
-use rsvelte_kernel::computation::pipeline::{Document, DocumentResult};
+use rsvelte_kernel::computation::pipeline::DocumentResult;
 use rsvelte_kernel::output::task_files;
+use rsvelte_kernel::source::document::Document;
 
 /// Writes each task's files below `actual`; returns how many were written.
 ///

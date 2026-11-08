@@ -3,10 +3,11 @@ use std::sync::{Arc, Mutex};
 
 use rsvelte_kernel::computation::database::{ArtifactAccess, DocumentContext};
 use rsvelte_kernel::computation::pipeline::{
-    self, Document, Registry, RunOptions, Sharing, Task, TaskOutput,
+    self, Registry, RunOptions, Sharing, Task, TaskOutput,
 };
 use rsvelte_kernel::diagnostics::diagnostic::{Diagnostic, Severity};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
+use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;
 
 const MAX_INPUT_BYTES: usize = 64 * 1024;

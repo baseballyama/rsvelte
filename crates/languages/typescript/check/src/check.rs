@@ -13,11 +13,12 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use rsvelte_kernel::computation::database::{ArtifactRegistry, DocumentContext, Facet};
-use rsvelte_kernel::computation::pipeline::{Document, FinishTask, Part, TaskOutput};
+use rsvelte_kernel::computation::pipeline::{FinishTask, Part, TaskOutput};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::output::emitter::{Emitter, Mapping};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
+use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 
 /// What a type checker must accept: rsvelte runs it in a directory with a generated

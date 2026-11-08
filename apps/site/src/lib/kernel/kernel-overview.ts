@@ -43,7 +43,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/plugins',
 		source: {
 			path: 'crates/languages/svelte/compile/src/task.rs',
-			line: 29,
+			line: 30,
 			text: '.task(Compile {',
 		},
 		box: { x: 32, y: 162, w: 188, h: height },
@@ -85,7 +85,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#registry',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
-			line: 96,
+			line: 69,
 			text: 'pub struct Registry {',
 		},
 		box: { x: left, y: 60, w: width, h: height },
@@ -99,7 +99,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel#modules',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
-			line: 130,
+			line: 103,
 			text: 'pub fn validate_plugins(&self) -> Result<(), PluginError> {',
 		},
 		box: { x: right, y: 60, w: width, h: height },
@@ -113,7 +113,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#run-document',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
-			line: 318,
+			line: 292,
 			text: 'fn run_document(',
 		},
 		box: { x: left, y: 162, w: width, h: height },
@@ -127,7 +127,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#run',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
-			line: 493,
+			line: 467,
 			text: 'pub fn run(',
 		},
 		box: { x: right, y: 162, w: width, h: height },
@@ -169,7 +169,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#project',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
-			line: 388,
+			line: 362,
 			text: 'fn run_finish_tasks(',
 		},
 		box: { x: left, y: 362, w: width, h: height },
@@ -183,7 +183,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#tasks',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
-			line: 74,
+			line: 47,
 			text: 'pub struct TaskOutput {',
 		},
 		box: { x: right, y: 362, w: width, h: height },
@@ -197,7 +197,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel#life',
 		source: {
 			path: 'crates/hosts/browser/src/computation/playground.rs',
-			line: 237,
+			line: 238,
 			text: 'pipeline::run(&reg',
 		},
 		box: { x: 790, y: 162, w: 176, h: height },
@@ -205,6 +205,12 @@ export const overviewNodes: OverviewNode[] = [
 ];
 
 export const sharedParts: SharedPart[] = [
+	{
+		id: 'source_document',
+		label: '文書',
+		module: 'kernel/source/document',
+		href: '/learn/kernel/source#loc',
+	},
 	{
 		id: 'positions',
 		label: 'ソース内の位置',
@@ -299,7 +305,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [560, 0],
 		source: {
 			path: 'crates/hosts/browser/src/computation/playground.rs',
-			line: 117,
+			line: 118,
 			text: 'rsvelte_svelte_compile::register(&mut reg);',
 		},
 	},
@@ -312,7 +318,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [480, 52],
 		source: {
 			path: pipeline,
-			line: 498,
+			line: 472,
 			text: 'reg.validate_plugins().map_err(RunError::Plugins)?;',
 		},
 	},
@@ -323,7 +329,7 @@ export const overviewEdges: OverviewEdge[] = [
 		sentence: 'ホストは、文書と選んだタスクを実行に渡します。',
 		path: 'M790 192 H714',
 		at: [720, 184],
-		source: { path: pipeline, line: 291, text: "pub struct RunOptions<'a> {" },
+		source: { path: pipeline, line: 265, text: "pub struct RunOptions<'a> {" },
 	},
 	{
 		from: 'run',
@@ -332,7 +338,7 @@ export const overviewEdges: OverviewEdge[] = [
 		sentence: '文書ごとに、別々のワーカーで一つの文書の処理を呼びます。',
 		path: 'M534 192 H486',
 		at: [498, 184],
-		source: { path: pipeline, line: 511, text: 'docs.par_iter().map(compile).collect()' },
+		source: { path: pipeline, line: 485, text: 'docs.par_iter().map(compile).collect()' },
 	},
 	{
 		from: 'run-document',
@@ -343,7 +349,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [230, 178],
 		source: {
 			path: pipeline,
-			line: 331,
+			line: 305,
 			text: 'for task in tasks.iter().filter(|t| t.applies(document)) {',
 		},
 	},
@@ -395,7 +401,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [512, 352],
 		source: {
 			path: pipeline,
-			line: 87,
+			line: 60,
 			text: 'pub fn file(&mut self, name: impl Into<String>, text: String) {',
 		},
 	},
@@ -406,7 +412,7 @@ export const overviewEdges: OverviewEdge[] = [
 		sentence: '全文書をまとめる処理には、各文書で準備した部分を渡します。',
 		path: 'M306 214 H296 V392 H306',
 		at: [310, 352],
-		source: { path: pipeline, line: 61, text: 'pub trait FinishTask: Send + Sync {' },
+		source: { path: pipeline, line: 34, text: 'pub trait FinishTask: Send + Sync {' },
 	},
 	{
 		from: 'project',
@@ -415,7 +421,7 @@ export const overviewEdges: OverviewEdge[] = [
 		sentence: '全文書の処理が終わってから、型検査のようなまとめる処理を一度だけ呼びます。',
 		path: 'M306 392 H220',
 		at: [232, 384],
-		source: { path: pipeline, line: 518, text: 'run_finish_tasks(&finish_tasks, &mut results);' },
+		source: { path: pipeline, line: 492, text: 'run_finish_tasks(&finish_tasks, &mut results);' },
 	},
 	{
 		from: 'output',
@@ -424,7 +430,7 @@ export const overviewEdges: OverviewEdge[] = [
 		sentence: '出力は文書ごとの結果としてホストに返ります。',
 		path: 'M714 392 H878 V222',
 		at: [740, 384],
-		source: { path: pipeline, line: 300, text: 'pub struct DocumentResult {' },
+		source: { path: pipeline, line: 274, text: 'pub struct DocumentResult {' },
 	},
 ];
 

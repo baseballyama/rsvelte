@@ -2,7 +2,8 @@ use rsvelte_kernel::source::positions::LineIndex;
 
 fn lint(source_text: &str) -> String {
     use rsvelte_kernel::computation::database::DocumentContext;
-    use rsvelte_kernel::computation::pipeline::{Document, Registry};
+    use rsvelte_kernel::computation::pipeline::Registry;
+    use rsvelte_kernel::source::document::Document;
     let mut registry = Registry::new();
     crate::register(&mut registry);
     let document =

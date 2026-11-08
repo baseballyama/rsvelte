@@ -39,14 +39,14 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let document =
-        match rsvelte_kernel::computation::pipeline::Document::new(path.clone(), source_text) {
-            Ok(document) => document,
-            Err(error) => {
-                eprintln!("{path}: {error:?}");
-                return ExitCode::FAILURE;
-            }
-        };
+    let document = match rsvelte_kernel::source::document::Document::new(path.clone(), source_text)
+    {
+        Ok(document) => document,
+        Err(error) => {
+            eprintln!("{path}: {error:?}");
+            return ExitCode::FAILURE;
+        }
+    };
     let source_text = document.text.as_str();
     let mut registry = rsvelte_kernel::computation::pipeline::Registry::new();
     rsvelte_svelte_lint::register(&mut registry);

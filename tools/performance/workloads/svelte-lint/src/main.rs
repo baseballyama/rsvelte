@@ -1,5 +1,6 @@
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
+use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::computation::pipeline::{Registry, Task, TaskOutput};
 use rsvelte_kernel::performance::measurement;
 use rsvelte_svelte::{Normalized, Parsed, Resolved};
 #[allow(dead_code)]

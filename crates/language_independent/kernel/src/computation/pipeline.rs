@@ -17,34 +17,7 @@ use crate::computation::database::{Artifact, ArtifactRegistry, DocumentContext, 
 use crate::computation::plugins::{Plugin, PluginError, Plugins};
 use crate::diagnostics::diagnostic::Diagnostic;
 use crate::performance::measurement;
-use crate::source::positions::MAXIMUM_SOURCE_LENGTH;
-
-/// Built only by [`Document::new`], which checks the size limit.
-#[non_exhaustive]
-#[derive(Debug)]
-pub struct Document {
-    /// Path as the user knows it; also the `filename` that output may depend on.
-    pub path: String,
-    pub text: String,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum DocumentError {
-    /// Byte length; positions are `u32` (see [`MAXIMUM_SOURCE_LENGTH`]).
-    TooLarge(usize),
-}
-
-impl Document {
-    /// # Errors
-    ///
-    /// [`DocumentError::TooLarge`] if `text` is [`MAXIMUM_SOURCE_LENGTH`] bytes or longer.
-    pub fn new(path: String, text: String) -> Result<Self, DocumentError> {
-        if text.len() >= MAXIMUM_SOURCE_LENGTH as usize {
-            return Err(DocumentError::TooLarge(text.len()));
-        }
-        Ok(Self { path, text })
-    }
-}
+use crate::source::document::{Document, DocumentError};
 
 /// Tasks read shared artifacts and produce separate output; they do not modify the input.
 pub trait Task: Send + Sync {
@@ -205,7 +178,8 @@ impl Registry {
 
     /// # Errors
     ///
-    /// [`DocumentError::TooLarge`] if `text` is [`MAXIMUM_SOURCE_LENGTH`] bytes or longer.
+    /// [`DocumentError::TooLarge`] if `text` is
+    /// [`MAXIMUM_SOURCE_LENGTH`](crate::source::positions::MAXIMUM_SOURCE_LENGTH) bytes or longer.
     pub fn document(
         &self,
         path: impl Into<String>,

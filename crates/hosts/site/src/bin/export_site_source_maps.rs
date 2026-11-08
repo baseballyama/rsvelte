@@ -16,8 +16,9 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::computation::pipeline::{Document, Registry};
+use rsvelte_kernel::computation::pipeline::Registry;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
+use rsvelte_kernel::source::document::Document;
 use rsvelte_svelte_compile::{Target, lower_document};
 
 fn main() -> ExitCode {

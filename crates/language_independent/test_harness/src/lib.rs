@@ -35,7 +35,8 @@ use arguments::{Arguments, flag};
 use cases::Case;
 pub use node::NodePackages;
 use oracle::Verdict;
-use rsvelte_kernel::computation::pipeline::{Document, Registry, RunOptions, Sharing, run_each};
+use rsvelte_kernel::computation::pipeline::{Registry, RunOptions, Sharing, run_each};
+use rsvelte_kernel::source::document::Document;
 use snapshots::{Outcome, Snapshot};
 
 /// `rsvelte-typescript-content-mapper`, which cargo builds in the target directory of the test

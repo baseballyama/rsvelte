@@ -292,7 +292,7 @@ mod tests {
 
 /// Sources must be shorter than this, so that [`SourceLocation`] can keep "synthesized" in the same
 /// 8 bytes. Checked once where text enters the pipeline
-/// ([`crate::computation::pipeline::Document::new`]).
+/// ([`crate::source::document::Document::new`]).
 pub const MAXIMUM_SOURCE_LENGTH: u32 = u32::MAX;
 
 /// Where a tree node came from: a source range, or nowhere (a lowering made it up).

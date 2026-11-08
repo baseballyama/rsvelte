@@ -2,8 +2,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::computation::pipeline::{Document, Registry, Task};
+use rsvelte_kernel::computation::pipeline::{Registry, Task};
 use rsvelte_kernel::diagnostics::diagnostic::Severity;
+use rsvelte_kernel::source::document::Document;
 use rsvelte_markup::button_type::Allowed;
 use rsvelte_svelte_lint_typed::Configuration;
 use rsvelte_svelte_lint_typed::computation::ConditionTypes;

@@ -20,8 +20,8 @@ use std::cell::RefCell;
 
 use rustc_hash::FxHashMap;
 
-use crate::computation::pipeline::Document;
 use crate::performance::{buffer_pool, measurement};
+use crate::source::document::Document;
 use crate::source::positions::LineIndex;
 
 pub trait Artifact: 'static {
