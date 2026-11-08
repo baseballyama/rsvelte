@@ -24,4 +24,8 @@ runs:
       run: |
         rustup toolchain install
         for target in $TARGETS; do rustup target add "$target"; done
+    # rust-cache saves only under a new key, so a change to which target directories a job
+    # builds needs a new prefix to be cached.
     - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        prefix-key: v1-rust
