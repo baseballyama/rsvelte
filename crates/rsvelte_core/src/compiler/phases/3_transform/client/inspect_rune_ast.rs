@@ -384,7 +384,7 @@ impl<'a, 'src> Visit<'a> for TraceLabelCollector<'src> {
             && is_function_expression(&prop.value)
             && let Some(name) = prop.key.static_name()
         {
-            self.lend(name.to_string());
+            self.lend(name.display().to_string());
         }
         walk::walk_object_property(self, prop);
     }

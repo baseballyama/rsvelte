@@ -314,7 +314,9 @@ fn create_comment_object(
     _line_offsets: &[usize],
 ) -> JsNode {
     let comment_type = match kind {
-        oxc_ast::ast::CommentKind::Line => "Line",
+        oxc_ast::ast::CommentKind::Line
+        | oxc_ast::ast::CommentKind::HtmlOpen
+        | oxc_ast::ast::CommentKind::HtmlClose => "Line",
         oxc_ast::ast::CommentKind::SingleLineBlock | oxc_ast::ast::CommentKind::MultiLineBlock => {
             "Block"
         }
@@ -359,7 +361,9 @@ fn record_oxc_comment(
     line_offsets: &[usize],
 ) {
     let comment_kind = match kind {
-        oxc_ast::ast::CommentKind::Line => crate::ast::template::JsCommentKind::Line,
+        oxc_ast::ast::CommentKind::Line
+        | oxc_ast::ast::CommentKind::HtmlOpen
+        | oxc_ast::ast::CommentKind::HtmlClose => crate::ast::template::JsCommentKind::Line,
         oxc_ast::ast::CommentKind::SingleLineBlock | oxc_ast::ast::CommentKind::MultiLineBlock => {
             crate::ast::template::JsCommentKind::Block
         }
@@ -384,6 +388,8 @@ fn record_oxc_comment(
 fn extract_comment_value(raw: &str, kind: oxc_ast::ast::CommentKind) -> String {
     match kind {
         oxc_ast::ast::CommentKind::Line => raw.strip_prefix("//").unwrap_or(raw).to_string(),
+        oxc_ast::ast::CommentKind::HtmlOpen => raw.strip_prefix("<!--").unwrap_or(raw).to_string(),
+        oxc_ast::ast::CommentKind::HtmlClose => raw.strip_prefix("-->").unwrap_or(raw).to_string(),
         oxc_ast::ast::CommentKind::SingleLineBlock | oxc_ast::ast::CommentKind::MultiLineBlock => {
             raw.strip_prefix("/*")
                 .and_then(|s| s.strip_suffix("*/"))
@@ -1922,7 +1928,9 @@ fn bare_parse_error(content: &str, source_type: SourceType) -> Option<(String, u
             .labels
             .first()
             .map_or(0, |label| (label.offset() as usize).min(content.len()));
-        Some((first_error.message.to_string(), pos))
+        let message = super::early_errors::parser_diagnostic_acorn_wording(&first_error.message)
+            .unwrap_or(&first_error.message);
+        Some((message.to_string(), pos))
     })
 }
 
@@ -2091,7 +2099,8 @@ pub fn check_js_parse_error_with_pos(content: &str, ts: bool) -> Option<(String,
                 {
                     "Unexpected token"
                 } else {
-                    first_error.message.as_ref()
+                    super::early_errors::parser_diagnostic_acorn_wording(&first_error.message)
+                        .unwrap_or(&first_error.message)
                 };
                 // A label which is itself the offending token already has the
                 // acorn position above. Re-parsing it bare can turn that token
@@ -2215,6 +2224,8 @@ pub fn check_snippet_header_parse_error(header: &str, ts: bool) -> Option<(Strin
             if message.starts_with("Expected `,` or `)` but found ") {
                 return Some(("Unexpected token".to_string(), at));
             }
+            let message =
+                super::early_errors::parser_diagnostic_acorn_wording(message).unwrap_or(message);
             return Some((message.to_string(), at));
         }
         acorn_only_violation(&result.program, &text, ts)
@@ -2268,7 +2279,10 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
                 .first()
                 .map(|label| (label.offset() as usize).min(content.len()))
                 .unwrap_or(0);
-            return Some((first_error.message.to_string(), pos));
+            let message =
+                super::early_errors::parser_diagnostic_acorn_wording(&first_error.message)
+                    .unwrap_or(&first_error.message);
+            return Some((message.to_string(), pos));
         }
         acorn_only_violation(&result.program, content, ts)
             .map(|(at, message)| (message, (at as usize).min(content.len())))
@@ -4480,7 +4494,7 @@ fn convert_ts_type(
                             .value
                             .cooked
                             .as_ref()
-                            .map(|s| Value::String(s.to_string()))
+                            .map(|s| Value::String(s.display().to_string()))
                             .unwrap_or(Value::Null),
                     );
                     q.set_field("value", Value::Object(value));
@@ -4533,7 +4547,7 @@ fn convert_ts_import_type(
         ts_literal_value(
             offset + import.source.span.start as usize,
             offset + import.source.span.end as usize,
-            Value::String(import.source.value.to_string()),
+            Value::String(import.source.value.display().to_string()),
             import.source.raw.as_ref().map(|raw| raw.to_string()),
             line_offsets,
         ),
@@ -5020,7 +5034,7 @@ fn convert_ts_property_key(
             ts_literal_value(
                 start,
                 end,
-                Value::String(s.value.to_string()),
+                Value::String(s.value.display().to_string()),
                 s.raw.as_ref().map(|r| r.to_string()),
                 line_offsets,
             )
@@ -5055,7 +5069,7 @@ fn convert_ts_literal(
             ts_literal_value(
                 start,
                 end,
-                Value::String(s.value.to_string()),
+                Value::String(s.value.display().to_string()),
                 s.raw.as_ref().map(|r| r.to_string()),
                 line_offsets,
             )
@@ -5113,7 +5127,7 @@ fn convert_ts_literal(
                             .value
                             .cooked
                             .as_ref()
-                            .map(|s| Value::String(s.to_string()))
+                            .map(|s| Value::String(s.display().to_string()))
                             .unwrap_or(Value::Null),
                     );
                     q.set_field("value", Value::Object(value));
@@ -5308,7 +5322,13 @@ fn convert_expression<'a>(
             let start = offset + str_lit.span.start as usize - 1;
             let end = offset + str_lit.span.end as usize - 1;
             let raw = str_lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
-            create_string_literal(&str_lit.value, raw, start, end, line_offsets)
+            create_string_literal(
+                &str_lit.value.display().to_string(),
+                raw,
+                start,
+                end,
+                line_offsets,
+            )
         }
         OxcExpression::BooleanLiteral(bool_lit) => {
             let start = offset + bool_lit.span.start as usize - 1;
@@ -7491,7 +7511,9 @@ fn convert_function_body_directive(
         start: expression_start as u32,
         end: expression_end as u32,
         loc: expression_loc,
-        value: LiteralValue::String(CompactString::from(directive.expression.value.as_str())),
+        value: LiteralValue::String(CompactString::from(
+            directive.expression.value.display().to_string(),
+        )),
         raw: CompactString::from(raw),
         regex: None,
     };
@@ -8015,7 +8037,7 @@ fn create_template_literal<'a>(
                         .value
                         .cooked
                         .as_ref()
-                        .map(|s| CompactString::from(s.as_str())),
+                        .map(|s| CompactString::from(s.display().to_string())),
                 },
             }
         })
@@ -8452,14 +8474,26 @@ fn is_acorn_unchecked_ts_grammar_rule(diagnostic: &OxcDiagnostic) -> bool {
             .is_some_and(|n| ACORN_UNCHECKED_TS_GRAMMAR_RULES.contains(&n))
 }
 
+/// OXC's TS8009 rejects a TS-only class-member modifier in a plain-JS source at
+/// the modifier keyword. Acorn has no such check: it reads the modifier as the
+/// member's name and throws on the token after it, which `acorn_only_violation`
+/// reproduces — and a member OXC already rejected still carries that diagnostic
+/// underneath this one. Reporting TS8009 would move both classes off the
+/// offsets official answers with.
+fn is_plain_js_modifier_rejection(diagnostic: &OxcDiagnostic) -> bool {
+    diagnostic.code.scope.as_deref() == Some("TS")
+        && diagnostic.code.number.as_deref() == Some("8009")
+}
+
 /// The first diagnostic acorn would also have raised. Every OXC boundary in the
 /// pipeline has to agree on this, or one host rejects what another compiles.
 pub(crate) fn first_reportable_diagnostic<'d>(
     diagnostics: impl IntoIterator<Item = &'d OxcDiagnostic>,
 ) -> Option<&'d OxcDiagnostic> {
-    diagnostics
-        .into_iter()
-        .find(|diagnostic| !is_acorn_unchecked_ts_grammar_rule(diagnostic))
+    diagnostics.into_iter().find(|diagnostic| {
+        !is_acorn_unchecked_ts_grammar_rule(diagnostic)
+            && !is_plain_js_modifier_rejection(diagnostic)
+    })
 }
 
 /// `await` / `yield` inside a function's formal parameters — acorn's
@@ -9347,7 +9381,11 @@ fn convert_parsed_program<'ast>(
         });
         let mut parse_error = reported_at.as_ref().map(|(at, message)| {
             let pos = at + offset;
-            crate::error::ParseError::svelte("js_parse_error", message.clone(), (pos, pos))
+            // The early-error table reads SemanticBuilder diagnostics; a check
+            // the parser itself raises needs its acorn wording applied here.
+            let message = super::early_errors::parser_diagnostic_acorn_wording(message)
+                .map_or(message.clone(), str::to_string);
+            crate::error::ParseError::svelte("js_parse_error", message, (pos, pos))
         });
 
         if parse_error.is_none() {
@@ -9655,7 +9693,9 @@ fn comment_value_text(comment: &oxc_ast::ast::Comment, content: &str) -> String 
         .unwrap_or("");
     let value = extract_comment_value(raw, comment.kind);
     match comment.kind {
-        oxc_ast::ast::CommentKind::Line => value,
+        oxc_ast::ast::CommentKind::Line
+        | oxc_ast::ast::CommentKind::HtmlOpen
+        | oxc_ast::ast::CommentKind::HtmlClose => value,
         oxc_ast::ast::CommentKind::SingleLineBlock | oxc_ast::ast::CommentKind::MultiLineBlock => {
             normalize_block_comment_indentation(&value, content, comment.span.start as usize)
         }
@@ -9667,7 +9707,9 @@ fn build_comment_value(comment: &oxc_ast::ast::Comment, content: &str, offset: u
     let comment_start = offset + comment.span.start as usize;
     let comment_end = offset + comment.span.end as usize;
     let comment_type = match comment.kind {
-        oxc_ast::ast::CommentKind::Line => "Line",
+        oxc_ast::ast::CommentKind::Line
+        | oxc_ast::ast::CommentKind::HtmlOpen
+        | oxc_ast::ast::CommentKind::HtmlClose => "Line",
         oxc_ast::ast::CommentKind::SingleLineBlock | oxc_ast::ast::CommentKind::MultiLineBlock => {
             "Block"
         }
@@ -10163,7 +10205,7 @@ fn convert_statement_for_program(
             let source_end = offset + source_lit.span.end as usize;
             let raw = source_lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
             let source = expr_to_node(create_string_literal(
-                &source_lit.value,
+                &source_lit.value.display().to_string(),
                 raw,
                 source_start,
                 source_end,
@@ -10373,7 +10415,7 @@ fn convert_statement_for_program(
             let source_end = offset + source_lit.span.end as usize;
             let raw = source_lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
             let source = expr_to_node(create_string_literal(
-                &source_lit.value,
+                &source_lit.value.display().to_string(),
                 raw,
                 source_start,
                 source_end,
@@ -11075,7 +11117,7 @@ fn convert_ts_module_reference(
             let mut lit_obj = Map::new();
             lit_obj.set_field("type", Value::String("Literal".to_string()));
             push_span_fields(&mut lit_obj, lit_start, lit_end, line_offsets);
-            lit_obj.set_field("value", Value::String(lit.value.to_string()));
+            lit_obj.set_field("value", Value::String(lit.value.display().to_string()));
             if let Some(raw) = &lit.raw {
                 lit_obj.set_field("raw", Value::String(raw.to_string()));
             }
@@ -11174,9 +11216,9 @@ fn external_module_id(
         start: start as u32,
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
-        value: LiteralValue::String(id.value.as_str().into()),
+        value: LiteralValue::String(id.value.display().to_string().into()),
         raw: id.raw.as_ref().map_or_else(
-            || format!("\"{}\"", id.value).into(),
+            || format!("\"{}\"", id.value.display()).into(),
             |raw| raw.as_str().into(),
         ),
         regex: None,
@@ -11260,7 +11302,7 @@ fn convert_ts_enum_declaration_value(
                 oxc_ast::ast::TSEnumMemberName::String(lit) => ts_literal_value(
                     offset + lit.span.start as usize,
                     offset + lit.span.end as usize,
-                    Value::String(lit.value.to_string()),
+                    Value::String(lit.value.display().to_string()),
                     lit.raw.as_ref().map(|a| a.as_str().to_string()),
                     line_offsets,
                 ),
@@ -11270,7 +11312,7 @@ fn convert_ts_enum_declaration_value(
                 oxc_ast::ast::TSEnumMemberName::ComputedString(lit) => ts_literal_value(
                     offset + lit.span.start as usize,
                     offset + lit.span.end as usize,
-                    Value::String(lit.value.to_string()),
+                    Value::String(lit.value.display().to_string()),
                     lit.raw.as_ref().map(|a| a.as_str().to_string()),
                     line_offsets,
                 ),
@@ -12013,14 +12055,20 @@ fn convert_import_attributes(
                     let key_start = offset + lit.span.start as usize;
                     let key_end = offset + lit.span.end as usize;
                     let raw = lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
-                    create_string_literal(&lit.value, raw, key_start, key_end, line_offsets)
+                    create_string_literal(
+                        &lit.value.display().to_string(),
+                        raw,
+                        key_start,
+                        key_end,
+                        line_offsets,
+                    )
                 }
             };
             let value_start = offset + attr.value.span.start as usize;
             let value_end = offset + attr.value.span.end as usize;
             let value_raw = attr.value.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
             let value = create_string_literal(
-                &attr.value.value,
+                &attr.value.value.display().to_string(),
                 value_raw,
                 value_start,
                 value_end,
@@ -12308,7 +12356,13 @@ fn convert_expression_for_program<'a>(
             let start = offset + str_lit.span.start as usize;
             let end = offset + str_lit.span.end as usize;
             let raw = str_lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
-            create_string_literal(&str_lit.value, raw, start, end, line_offsets)
+            create_string_literal(
+                &str_lit.value.display().to_string(),
+                raw,
+                start,
+                end,
+                line_offsets,
+            )
         }
         OxcExpression::BooleanLiteral(bool_lit) => {
             let start = offset + bool_lit.span.start as usize;
@@ -12854,7 +12908,7 @@ fn convert_expression_for_program<'a>(
                                 .value
                                 .cooked
                                 .as_ref()
-                                .map(|s| CompactString::from(s.as_str())),
+                                .map(|s| CompactString::from(s.display().to_string())),
                         },
                     }
                 })
@@ -13204,7 +13258,7 @@ fn convert_expression_for_program<'a>(
                                 .value
                                 .cooked
                                 .as_ref()
-                                .map(|s| CompactString::from(s.as_str())),
+                                .map(|s| CompactString::from(s.display().to_string())),
                         },
                     }
                 })
@@ -15548,7 +15602,14 @@ fn convert_expression_with_adjustment(
             let start = doc_offset + lit.span.start as usize - prefix_len;
             let end = doc_offset + lit.span.end as usize - prefix_len;
             let raw = lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
-            create_string_literal_for_binding(&lit.value, raw, start, end, line_offsets).to_value()
+            create_string_literal_for_binding(
+                &lit.value.display().to_string(),
+                raw,
+                start,
+                end,
+                line_offsets,
+            )
+            .to_value()
         }
         OxcExpression::TemplateLiteral(template) => {
             let start = doc_offset + template.span.start as usize - prefix_len;
@@ -15973,7 +16034,7 @@ fn create_template_literal_with_adjustment(
                     .value
                     .cooked
                     .as_ref()
-                    .map(|s| Value::String(s.to_string()))
+                    .map(|s| Value::String(s.display().to_string()))
                     .unwrap_or(Value::Null),
             );
             q_obj.set_field("value", Value::Object(value_obj));
@@ -16324,7 +16385,7 @@ fn convert_export_named_as_node(
         let source_end = offset + source.span.end as usize;
         let raw = source.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
         arena.alloc_js_node(expr_to_node(create_string_literal(
-            &source.value,
+            &source.value.display().to_string(),
             raw,
             source_start,
             source_end,

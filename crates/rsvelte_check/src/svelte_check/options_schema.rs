@@ -574,7 +574,9 @@ mod derived {
                     .elements
                     .iter()
                     .map(|el| match el {
-                        oxc::ArrayExpressionElement::StringLiteral(s) => s.value.to_string(),
+                        oxc::ArrayExpressionElement::StringLiteral(s) => {
+                            s.value.display().to_string()
+                        }
                         oxc::ArrayExpressionElement::NumericLiteral(n) => format!("{}", n.value),
                         _ => "?".to_string(),
                     })

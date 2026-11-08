@@ -693,7 +693,7 @@ fn register_comment_region(
         .iter()
         .filter(|c| c.span.start >= prev_end && c.span.end <= region_end)
         .map(|c| {
-            let mut c = *c;
+            let mut c = c.clone();
             c.span = Span::new(c.span.start - prev_end, c.span.end - prev_end);
             c
         })
@@ -2262,7 +2262,7 @@ fn ctor_target_name(target: &oxc_ast::ast::AssignmentTarget) -> Option<(String, 
             }
             // Only literal computed keys are state fields (写经 analyze skip).
             match &m.expression {
-                E::StringLiteral(s) => Some((s.value.as_str().to_string(), false)),
+                E::StringLiteral(s) => Some((s.value.display().to_string(), false)),
                 E::NumericLiteral(n) => Some((n.value.to_string(), false)),
                 _ => None,
             }
@@ -2440,7 +2440,7 @@ impl<'a> VisitMut<'a> for ClassFieldRuneLower<'a> {
             // (non-`#`) derived constructor fields take an accessor; `$state` /
             // private constructor fields keep their declaration (they fall through).
             if is_plain_field && !is_private {
-                let field_name = prop_box.key.name().map(|c| c.to_string());
+                let field_name = prop_box.key.name().map(|c| c.display().to_string());
                 if let Some(fname) = &field_name
                     && ctor_fields.iter().any(|cf| {
                         &cf.name == fname
@@ -2473,7 +2473,7 @@ impl<'a> VisitMut<'a> for ClassFieldRuneLower<'a> {
             let public_name = prop_box
                 .key
                 .name()
-                .map(|c| c.to_string())
+                .map(|c| c.display().to_string())
                 .unwrap_or_default();
             let mut deconflicted = REGEX_INVALID_IDENTIFIER_CHARS
                 .replace_all(&public_name, "_")
@@ -2981,7 +2981,9 @@ fn exclude_object_key<'a>(
         | PropertyKey::BigIntLiteral(_)
         | PropertyKey::RegExpLiteral(_)
         | PropertyKey::NullLiteral(_)
-        | PropertyKey::StaticIdentifier(_) => key.static_name().map(|name| b.string(&name)),
+        | PropertyKey::StaticIdentifier(_) => key
+            .static_name()
+            .and_then(|name| name.as_str().map(|s| b.string(s))),
         key => Some(b.call(
             "String",
             vec![key.clone_in(state.allocator).into_expression()],

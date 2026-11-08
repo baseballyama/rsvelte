@@ -2225,7 +2225,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         synth
             .comments
             .extend(ret.program.comments.iter().map(|comment| {
-                let mut comment = *comment;
+                let mut comment = comment.clone();
                 comment.span.start += shift;
                 comment.span.end += shift;
                 comment.attached_to += shift;

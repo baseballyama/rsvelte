@@ -465,7 +465,7 @@ fn print_inner<'a>(
         // for a trailing comment of the previous one.
         buf.push('\n');
         comments.extend(chunk.comments.iter().map(|c| {
-            let mut c = *c;
+            let mut c = c.clone();
             c.span = Span::new(c.span.start + base, c.span.end + base);
             c.attached_to = c.span.end;
             c

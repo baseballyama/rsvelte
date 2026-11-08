@@ -181,6 +181,24 @@ const TABLE: &[EarlyError] = &[
     },
 ];
 
+/// acorn's wording for a check OXC's parser raises itself, so
+/// `find_early_error`'s semantic run never sees it. Each one is labelled where
+/// acorn stops, so only the wording needs translating:
+///
+/// - a nested `import`/`export` declaration, labelled at the keyword (skipped
+///   for TypeScript sources, matching acorn-typescript);
+/// - an optional class member (`x?`, `m?()`) in plain JS, labelled at the `?`
+///   acorn cannot read after a property name.
+pub fn parser_diagnostic_acorn_wording(message: &str) -> Option<&'static str> {
+    if message.contains("declaration can only be used at the top level of a module") {
+        Some("'import' and 'export' may only appear at the top level")
+    } else if message == "Optional class members can only be used in TypeScript files." {
+        Some("Unexpected token")
+    } else {
+        None
+    }
+}
+
 /// The earliest early error in `program`, as `(offset, acorn's message)`.
 ///
 /// Runs ONCE per script. It must not be reached from the per-expression parse

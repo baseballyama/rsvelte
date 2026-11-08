@@ -145,9 +145,9 @@ impl Collector {
                     }
                 }
                 Expression::StringLiteral(value) => match value.value.as_str() {
-                    "readonly" | "readable" => GlobalValue::Readonly,
-                    "writable" | "writeable" => GlobalValue::Writable,
-                    "off" => GlobalValue::Off,
+                    Some("readonly" | "readable") => GlobalValue::Readonly,
+                    Some("writable" | "writeable") => GlobalValue::Writable,
+                    Some("off") => GlobalValue::Off,
                     _ => continue,
                 },
                 _ => continue,
@@ -176,7 +176,7 @@ fn property_key_name<'a>(key: &'a PropertyKey<'a>) -> Option<&'a str> {
     match key {
         PropertyKey::StaticIdentifier(id) => Some(id.name.as_str()),
         _ => key.as_expression().and_then(|e| match e {
-            Expression::StringLiteral(s) => Some(s.value.as_str()),
+            Expression::StringLiteral(s) => s.value.as_str(),
             _ => None,
         }),
     }
@@ -186,7 +186,7 @@ fn property_key_name<'a>(key: &'a PropertyKey<'a>) -> Option<&'a str> {
 fn severity_of(expr: &Expression) -> Option<Severity> {
     match expr {
         Expression::NumericLiteral(n) => Severity::parse(&(n.value as i64).to_string()),
-        Expression::StringLiteral(s) => Severity::parse(s.value.as_str()),
+        Expression::StringLiteral(s) => s.value.as_str().and_then(Severity::parse),
         Expression::ArrayExpression(arr) => match arr.elements.first() {
             Some(ArrayExpressionElement::SpreadElement(_)) | None => None,
             Some(el) => el.as_expression().and_then(severity_of),

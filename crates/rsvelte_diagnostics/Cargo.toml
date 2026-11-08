@@ -2,7 +2,7 @@
 name = "rsvelte_diagnostics"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.95"
+rust-version = "1.97"
 description = "Shared diagnostic records and renderers for rsvelte workspace tools"
 license = "MIT"
 repository = "https://github.com/baseballyama/rsvelte"

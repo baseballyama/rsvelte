@@ -30,7 +30,7 @@ allocator selection, profiling, or benchmarks.
 
 All four crates:
 
-- require Rust 1.95 or newer;
+- require Rust 1.97 or newer;
 - have an empty default feature set;
 - explicitly allow publication only to the `crates-io` registry;
 - carry crate-local README and LICENSE files;
@@ -84,7 +84,7 @@ RUSTDOCFLAGS="-D warnings" cargo doc --locked -p rsvelte \
 Inspect both `cargo package --list -p <crate>` and the generated `.crate`
 archive. The compressed archive must remain below crates.io's 10 MiB limit.
 The CI package-policy job runs the policy, registry-surface, MSRV, test, and
-documentation checks on Rust 1.95. It verifies normalized dependent archives
+documentation checks on Rust 1.97. It verifies normalized dependent archives
 whenever their exact versions already exist on crates.io. For a new release
 set, the protected publish workflow performs those final package dry-runs in
 dependency order after each prerequisite becomes visible in the registry.

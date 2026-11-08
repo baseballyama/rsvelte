@@ -2,7 +2,7 @@
 name = "rsvelte_content_mapper"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.95"
+rust-version = "1.97"
 description = "TypeScript content mapper that teaches tsc/tsgo to read .svelte files"
 license = "MIT"
 repository = "https://github.com/baseballyama/rsvelte"

@@ -228,3 +228,64 @@ fn a_keyword_that_is_not_a_modifier_still_compiles() {
         }
     }
 }
+
+fn error_with_message<T>(
+    result: Result<T, rsvelte_core::compiler::CompileError>,
+) -> Option<(String, u32, String)> {
+    result.err().map(|e| {
+        let d = e.diagnostic();
+        let message = d.message.lines().next().unwrap_or_default().to_string();
+        (
+            d.code.unwrap_or_default(),
+            d.span.unwrap_or_default().0,
+            message,
+        )
+    })
+}
+
+/// An optional class member is TypeScript too. OXC's parser rejects it in a
+/// plain-JS source with wording of its own, labelled at the `?` — exactly where
+/// acorn stops after reading the name — so only the wording may differ from
+/// official's. Offsets measured against `svelte@5.57.1`.
+#[test]
+fn an_optional_class_member_is_rejected_with_acorn_wording() {
+    let unexpected = |at: u32| {
+        Some((
+            "js_parse_error".to_string(),
+            at,
+            "Unexpected token".to_string(),
+        ))
+    };
+    for (source, at) in [
+        ("<script>class A { x? = 1 }</script>", 19),
+        ("<script>class A {\n  x?;\n}</script>", 21),
+        ("<script>class A { m?() {} }</script>", 19),
+        ("<p>{new (class { x? = 1 })()}</p>", 18),
+        ("{#snippet s(a = class { x? = 1 })}{/snippet}", 25),
+        ("{#if 1}{@const A = class { x? = 1 }}{/if}", 28),
+    ] {
+        let result = compile(
+            source,
+            CompileOptions {
+                filename: Some("Test.svelte".to_string()),
+                generate: GenerateMode::Client,
+                ..Default::default()
+            },
+        );
+        assert_eq!(error_with_message(result), unexpected(at), "`{source}`");
+    }
+    let result = compile_module(
+        "class A { x? = 1 }",
+        ModuleCompileOptions {
+            filename: Some("A.svelte.js".to_string()),
+            generate: GenerateMode::Client,
+            ..Default::default()
+        },
+    );
+    assert_eq!(error_with_message(result), unexpected(11), "compileModule");
+    assert_eq!(
+        source_error("<script lang=\"ts\">class A { x? = 1 }</script>"),
+        None,
+        "`<script lang=\"ts\">` must keep compiling an optional member"
+    );
+}
