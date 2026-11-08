@@ -6,7 +6,10 @@ mod boundary;
 mod children;
 mod directives;
 mod dynamic_element;
-mod elements;
+mod elements {
+    mod regular_element;
+    mod select_value;
+}
 mod events;
 mod expressions;
 mod fragments;

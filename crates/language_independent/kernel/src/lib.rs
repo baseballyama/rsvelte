@@ -12,10 +12,32 @@
 //! 7. `computation::pipeline`
 //! 8. `task_files`
 
-pub mod computation;
+/// Registration, cached computation, and task execution.
+pub mod computation {
+    pub mod database;
+    pub mod pipeline;
+    pub mod plugins;
+    pub mod registry;
+    pub mod task;
+}
 pub mod diagnostics;
 pub mod index;
-pub mod output;
-pub mod performance;
-pub mod source;
+/// Generated code and structured data.
+pub mod output {
+    pub mod edits;
+    pub mod emitter;
+    pub mod structured_data;
+}
+/// Runtime measurements and reusable working buffers.
+pub mod performance {
+    pub mod buffer_pool;
+    pub mod measurement;
+}
+/// Documents, source positions, names, and tokens.
+pub mod source {
+    pub mod document;
+    pub mod interning;
+    pub mod positions;
+    pub mod tokens;
+}
 pub mod task_files;

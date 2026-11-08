@@ -59,9 +59,14 @@ function violations(files: Map<string, string>): { failures: string[]; uses: num
 	const ranks = layers(lib);
 	const failures: string[] = [];
 	if (ranks.size === 0) failures.push('lib.rs lists no layers');
-	const modules = new Set([...files.keys()].map((file) => modulePath(file).join('::')));
+	// A directory is a module too: its declarations sit inline in the parent.
+	const modules = new Set(
+		[...files.keys()].flatMap((file) =>
+			modulePath(file).map((_, end, path) => path.slice(0, end + 1).join('::')),
+		),
+	);
 	for (const [unit, rank] of ranks) {
-		if (!modules.has(unit)) failures.push(`the layer list names \`${unit}\`, which has no file`);
+		if (!modules.has(unit)) failures.push(`the layer list names \`${unit}\`, which is no module`);
 		if (Number.isNaN(rank)) failures.push(`the layer list names \`${unit}\` twice`);
 	}
 	// `#[macro_export]` puts a macro at the crate root; it belongs to the layer of its file.
@@ -78,10 +83,7 @@ function violations(files: Map<string, string>): { failures: string[]; uses: num
 		const ownUnit = unitOf(own, ranks);
 		const body = code(text);
 		if (ownUnit === undefined) {
-			const declarations = body.split('\n').filter((line) => line.trim() !== '');
-			if (!declarations.every((line) => /^pub mod [a-z_]+;$/.test(line))) {
-				failures.push(`${file}: in no layer of lib.rs, and not only module declarations`);
-			}
+			failures.push(`${file}: in no layer of lib.rs`);
 			continue;
 		}
 		if (/\bcrate::\{/.test(body)) failures.push(`${file}: write one path per \`use crate::\``);
@@ -159,8 +161,8 @@ test('the check rejects a module outside the list and a list entry without a mod
 		files.get('lib.rs')!.replace('//! 8. `task_files`', '//! 8. `task_files`, `missing`'),
 	);
 	assert.deepEqual(violations(files).failures, [
-		'the layer list names `missing`, which has no file',
-		'extra.rs: in no layer of lib.rs, and not only module declarations',
+		'the layer list names `missing`, which is no module',
+		'extra.rs: in no layer of lib.rs',
 	]);
 	const twice = read();
 	twice.set(

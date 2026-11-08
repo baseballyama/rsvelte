@@ -1,6 +1,8 @@
 //! Svelte parsing.
 
-pub mod syntax;
+pub mod syntax {
+    pub mod parse;
+}
 pub use syntax::parse;
 
 mod computation;

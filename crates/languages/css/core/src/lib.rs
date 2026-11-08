@@ -7,11 +7,18 @@
 pub use parser::parse;
 pub use syntax_tree::StyleSheet;
 
-pub mod syntax;
+pub mod syntax {
+    pub mod parser;
+    pub mod syntax_tree;
+}
 pub use syntax::{parser, syntax_tree};
 
-pub mod semantic;
+pub mod semantic {
+    pub mod matcher;
+}
 pub use semantic::matcher;
 
-pub mod compilation;
+pub mod compilation {
+    pub mod scope;
+}
 pub use compilation::scope;

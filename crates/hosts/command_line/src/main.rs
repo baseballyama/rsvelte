@@ -17,7 +17,13 @@
     reason = "a command-line tool reports on stdout and stderr"
 )]
 
-mod commands;
+/// Command execution.
+mod commands {
+    pub(crate) mod benchmark;
+    pub(crate) mod corpus;
+    pub(crate) mod performance;
+    pub(crate) mod run;
+}
 mod configuration;
 mod input;
 mod output;
