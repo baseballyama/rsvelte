@@ -151,8 +151,8 @@ pub(crate) fn compute_eval_inputs(
     }
 
     // Check if any script uses TypeScript (needed for $derived expression stripping)
-    let is_ts = instance_script.is_some_and(script_is_typescript)
-        || module_script.is_some_and(script_is_typescript);
+    let is_ts = instance_script.is_some_and(|s| s.is_typescript)
+        || module_script.is_some_and(|s| s.is_typescript);
 
     // After we have both text-based and scope-based constants, try to fold
     // $derived() expressions whose inner value can be evaluated with known constants.
@@ -863,19 +863,6 @@ pub(crate) fn strip_ts_type_annotation(param: &str) -> String {
 // ============================================================================
 // Functions extracted from transform_server.rs
 // ============================================================================
-
-/// Check if a Script node has `lang="ts"` or `lang="typescript"` attribute.
-pub(crate) fn script_is_typescript(script: &Script) -> bool {
-    script.attributes.iter().any(|attr| {
-        if attr.name == "lang"
-            && let crate::ast::template::AttributeValue::Sequence(parts) = &attr.value
-            && let Some(crate::ast::template::AttributeValuePart::Text(text)) = parts.first()
-        {
-            return text.data == "ts" || text.data == "typescript";
-        }
-        false
-    })
-}
 
 /// Sanitize a name to be a valid JavaScript identifier.
 /// Replaces invalid identifier characters with underscores.

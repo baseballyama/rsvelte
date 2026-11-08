@@ -35,8 +35,8 @@ static SCRIPT_TAG_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
     std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"<script"));
 static HTML_COMMENT_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
     std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"<!--"));
-static LANG_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
-    std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"lang"));
+static LANG_EQ_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
+    std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"lang="));
 static COMMENT_END_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
     std::sync::LazyLock::new(|| memchr::memmem::Finder::new(b"-->"));
 
@@ -71,6 +71,171 @@ pub(crate) fn is_js_whitespace_byte(b: u8) -> bool {
 /// Byte length of `source` after upstream's `template.trimEnd()`.
 pub(crate) fn js_trim_end_len(source: &str) -> usize {
     source.trim_end_matches(is_js_whitespace).len()
+}
+
+/// Byte length of the `\s+` run starting at `pos` (0 when there is none).
+fn js_whitespace_run(src: &str, pos: usize) -> usize {
+    src.get(pos..).map_or(0, |rest| {
+        rest.chars()
+            .take_while(|&c| is_js_whitespace(c))
+            .map(char::len_utf8)
+            .sum()
+    })
+}
+
+/// Upstream's `regex_lang_attribute` from a sequence of `<script` candidates in
+/// increasing order. The regex is re-run from scratch at every candidate, which
+/// is quadratic over a run of `<script ` tags; every memo here holds an answer
+/// that does not depend on the candidate, so each byte is scanned a bounded
+/// number of times.
+struct LangAttributeMatcher<'s> {
+    src: &'s str,
+    bytes: &'s [u8],
+    /// `[^>]*>` can still match from any offset up to here.
+    last_gt: Option<usize>,
+    /// The segment `[from, gt)` and the last `lang=` in it whose value matches.
+    segment: Option<(usize, usize, Option<usize>)>,
+    /// Attribute-walk positions already explored without a match.
+    failed: std::collections::HashSet<usize>,
+    /// The first `[=>'"/]` at or after `from`.
+    key_stop: Option<(usize, usize)>,
+}
+
+impl<'s> LangAttributeMatcher<'s> {
+    fn new(src: &'s str) -> Self {
+        let bytes = src.as_bytes();
+        Self {
+            src,
+            bytes,
+            last_gt: memchr::memrchr(b'>', bytes),
+            segment: None,
+            failed: std::collections::HashSet::new(),
+            key_stop: None,
+        }
+    }
+
+    /// `lang=(["'])?([^"' >]+)\1[^>]*>` at `pos`; returns group 2.
+    fn lang_value(&self, pos: usize) -> Option<&'s [u8]> {
+        let bytes = self.bytes;
+        let rest = bytes.get(pos..)?.strip_prefix(b"lang=")?;
+        let v = pos + 5;
+        let is_value_byte = |b: u8| !matches!(b, b'"' | b'\'' | b' ' | b'>');
+        let (value, after) = match rest.first() {
+            Some(&q @ (b'"' | b'\'')) => {
+                let n = rest[1..].iter().take_while(|&&b| is_value_byte(b)).count();
+                if n == 0 || rest.get(1 + n) != Some(&q) {
+                    return None;
+                }
+                (&bytes[v + 1..v + 1 + n], v + 2 + n)
+            }
+            _ => {
+                let n = rest.iter().take_while(|&&b| is_value_byte(b)).count();
+                if n == 0 {
+                    return None;
+                }
+                (&bytes[v..v + n], v + n)
+            }
+        };
+        self.last_gt.is_some_and(|gt| gt >= after).then_some(value)
+    }
+
+    /// The attribute part of the regex, after `<script\s+`:
+    /// `(?:[^>]*|(?:[^=>'"/]+=(?:"[^"]*"|'[^']*'|[^>\s]+)\s+)*)lang=…`, in the
+    /// regex's preference order (first alternative, greedy repetition).
+    fn match_at(&mut self, start: usize) -> Option<&'s [u8]> {
+        // `[^>]*lang=`: greedy, so the last valid `lang=` before the first `>`
+        // wins, and that one is the same for every start in the segment.
+        if !self
+            .segment
+            .is_some_and(|(from, gt, _)| from <= start && start <= gt)
+        {
+            let gt =
+                memchr::memchr(b'>', &self.bytes[start..]).map_or(self.bytes.len(), |o| start + o);
+            let mut end = gt;
+            let mut last_valid = None;
+            while let Some(o) = memchr::memmem::rfind(&self.bytes[start..end], b"lang=") {
+                if self.lang_value(start + o).is_some() {
+                    last_valid = Some(start + o);
+                    break;
+                }
+                // Cutting the `=` off excludes this occurrence from the next search.
+                end = start + o + 4;
+            }
+            self.segment = Some((start, gt, last_valid));
+        }
+        if let Some((_, _, Some(q))) = self.segment
+            && q >= start
+        {
+            return self.lang_value(q);
+        }
+
+        // Attribute-by-attribute walk, whose quoted values may contain `>`.
+        // Greedy `*` means deeper boundaries are tried first. A position's
+        // outcome does not depend on where the walk entered it, and any success
+        // ends the whole search, so every position seen before has failed.
+        let mut stack: Vec<(usize, bool)> = vec![(start, false)];
+        while let Some((pos, expanded)) = stack.pop() {
+            if expanded {
+                if let Some(value) = self.lang_value(pos) {
+                    return Some(value);
+                }
+                continue;
+            }
+            if !self.failed.insert(pos) {
+                continue;
+            }
+            stack.push((pos, true));
+            let eq = self.key_end(pos);
+            if eq == pos || self.bytes.get(eq) != Some(&b'=') {
+                continue;
+            }
+            let v = eq + 1;
+            let mut value_ends = Vec::with_capacity(2);
+            if let Some(&q @ (b'"' | b'\'')) = self.bytes.get(v)
+                && let Some(close) = memchr::memchr(q, &self.bytes[v + 1..])
+            {
+                value_ends.push(v + 2 + close);
+            }
+            let unquoted = unquoted_value_len(self.src, v);
+            if unquoted > 0 {
+                value_ends.push(v + unquoted);
+            }
+            // Pushed in reverse so the quoted alternative is explored first.
+            for &value_end in value_ends.iter().rev() {
+                let ws = js_whitespace_run(self.src, value_end);
+                if ws > 0 {
+                    stack.push((value_end + ws, false));
+                }
+            }
+        }
+        None
+    }
+
+    /// End of `[^=>'"/]+` at `pos` (`pos` itself when the run is empty).
+    fn key_end(&mut self, pos: usize) -> usize {
+        if let Some((from, stop)) = self.key_stop
+            && from <= pos
+            && pos <= stop
+        {
+            return stop;
+        }
+        let stop = self.bytes[pos..]
+            .iter()
+            .position(|b| matches!(b, b'=' | b'>' | b'\'' | b'"' | b'/'))
+            .map_or(self.bytes.len(), |o| pos + o);
+        self.key_stop = Some((pos, stop));
+        stop
+    }
+}
+
+/// Byte length of `[^>\s]+` at `pos`.
+fn unquoted_value_len(src: &str, pos: usize) -> usize {
+    src.get(pos..).map_or(0, |rest| {
+        rest.chars()
+            .take_while(|&c| c != '>' && !is_js_whitespace(c))
+            .map(char::len_utf8)
+            .sum()
+    })
 }
 
 /// Last auto-closed tag information.
@@ -365,104 +530,64 @@ impl<'a> Parser<'a> {
         self.arena = ParseArena::new(); // Fresh arena per file
     }
 
-    /// Detect TypeScript mode by looking for `lang="ts"` or `lang='ts'` in script tags.
-    ///
-    /// Uses SIMD-accelerated search for `<script` followed by byte-level attribute scanning.
+    /// `this.ts` in upstream's `Parser` constructor: the first match of
+    /// `regex_lang_attribute` that is a `<script` (not a comment) decides, and
+    /// only its `lang` value — a later `<script lang="ts">` does not count.
     fn detect_typescript_mode(source: &str) -> bool {
         let bytes = source.as_bytes();
-        let len = bytes.len();
 
-        // Every positive answer needs a literal `lang` attribute, so one cheap
-        // pass rules out the two scans below for the whole no-`lang` majority.
-        if LANG_FINDER.find(bytes).is_none() {
+        // Every match needs a literal `lang=`, so one cheap pass rules out the
+        // whole no-`lang` majority.
+        let Some(mut next_lang_eq) = LANG_EQ_FINDER.find(bytes) else {
             return false;
-        }
+        };
 
-        // Jump straight between `<script` occurrences; HTML-comment spans are
-        // resolved lazily so a commented-out script is still ignored.
-        let script_finder = &*SCRIPT_TAG_FINDER;
-        let comment_finder = &*HTML_COMMENT_FINDER;
         let mut comment_pos = 0usize;
+        let mut next_comment = HTML_COMMENT_FINDER.find(bytes);
         let mut script_pos = 0usize;
+        let mut matcher = LangAttributeMatcher::new(source);
 
-        'outer: while let Some(offset) = script_finder.find(&bytes[script_pos..]) {
+        while let Some(offset) = SCRIPT_TAG_FINDER.find(&bytes[script_pos..]) {
             let i = script_pos + offset;
 
-            while comment_pos <= i {
-                let Some(coffset) = comment_finder.find(&bytes[comment_pos..]) else {
-                    comment_pos = len + 1;
-                    break;
-                };
-                let comment_start = comment_pos + coffset;
-                if comment_start > i {
-                    comment_pos = comment_start;
+            // `<!--[^]*?-->` is tried first at every position, so a closed
+            // comment that starts before this `<script` consumes it. An
+            // unclosed `<!--` matches nothing and hides nothing.
+            while let Some(c) = next_comment.map(|o| comment_pos + o) {
+                if c >= i {
                     break;
                 }
-                let comment_end = match COMMENT_END_FINDER.find(&bytes[comment_start + 4..]) {
-                    Some(end_offset) => comment_start + 4 + end_offset + 3,
-                    None => len,
+                match COMMENT_END_FINDER.find(&bytes[c + 4..]) {
+                    Some(end) => {
+                        comment_pos = c + 4 + end + 3;
+                        next_comment = HTML_COMMENT_FINDER.find(&bytes[comment_pos..]);
+                    }
+                    None => next_comment = None,
+                }
+            }
+            if comment_pos > i {
+                script_pos = comment_pos;
+                continue;
+            }
+
+            // Every remaining match needs a `lang=` and a `>` after this point.
+            if next_lang_eq < i {
+                let Some(o) = LANG_EQ_FINDER.find(&bytes[i..]) else {
+                    return false;
                 };
-                comment_pos = comment_end;
-                if comment_end > i {
-                    script_pos = comment_end;
-                    continue 'outer;
+                next_lang_eq = i + o;
+                if matcher.last_gt.is_none_or(|gt| gt < next_lang_eq) {
+                    return false;
                 }
             }
 
             script_pos = i + 7;
-
-            // Check for <script followed by whitespace or >
-            if i + 7 < len
-                && (bytes[i + 7] == b' '
-                    || bytes[i + 7] == b'\t'
-                    || bytes[i + 7] == b'\n'
-                    || bytes[i + 7] == b'\r'
-                    || bytes[i + 7] == b'>')
-            {
-                // Scan attributes for lang="ts" or lang='ts'
-                let mut j = i + 7;
-                while j < len && bytes[j] != b'>' {
-                    if j + 4 <= len
-                        && bytes[j] == b'l'
-                        && bytes[j + 1] == b'a'
-                        && bytes[j + 2] == b'n'
-                        && bytes[j + 3] == b'g'
-                    {
-                        let mut k = j + 4;
-                        while k < len && (bytes[k] == b' ' || bytes[k] == b'\t') {
-                            k += 1;
-                        }
-                        if k < len && bytes[k] == b'=' {
-                            k += 1;
-                            while k < len && (bytes[k] == b' ' || bytes[k] == b'\t') {
-                                k += 1;
-                            }
-                            if k < len {
-                                if (bytes[k] == b'"' || bytes[k] == b'\'') && k + 3 < len {
-                                    let quote = bytes[k];
-                                    if bytes[k + 1] == b't'
-                                        && bytes[k + 2] == b's'
-                                        && bytes[k + 3] == quote
-                                    {
-                                        return true;
-                                    }
-                                } else if k + 1 < len
-                                    && bytes[k] == b't'
-                                    && bytes[k + 1] == b's'
-                                    && (k + 2 >= len
-                                        || bytes[k + 2] == b' '
-                                        || bytes[k + 2] == b'\t'
-                                        || bytes[k + 2] == b'>'
-                                        || bytes[k + 2] == b'/')
-                                {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                    j += 1;
-                }
-                script_pos = if j < len { j + 1 } else { len };
+            let ws = js_whitespace_run(source, i + 7);
+            if ws == 0 {
+                continue;
+            }
+            if let Some(value) = matcher.match_at(i + 7 + ws) {
+                return value == b"ts";
             }
         }
 
@@ -1220,5 +1345,79 @@ impl<'a> Parser<'a> {
             return Err(ParseError::svelte("js_parse_error", message, (at, at)));
         }
         Err(ParseError::expected_token("}", self.content_end))
+    }
+}
+
+#[cfg(test)]
+mod detect_typescript_mode_tests {
+    use super::Parser;
+
+    #[track_caller]
+    fn ts(source: &str, expected: bool) {
+        assert_eq!(Parser::detect_typescript_mode(source), expected, "{source}");
+    }
+
+    #[test]
+    fn quoted_values_containing_gt_before_lang() {
+        ts(
+            r#"<script generics="T extends Record<string, unknown>" lang="ts"></script>"#,
+            true,
+        );
+        ts(
+            r#"<script generics="T extends A<B>" lang="ts"></script>"#,
+            true,
+        );
+        ts(r#"<script x="a>b" lang="ts"></script>"#, true);
+        ts(r#"<script x='a>b' lang="ts"></script>"#, true);
+        ts(
+            r#"<script lang="ts" generics="T extends A<B>"></script>"#,
+            true,
+        );
+        ts(r#"<script x="a>b" lang="js"></script>"#, false);
+    }
+
+    #[test]
+    fn first_matching_script_decides() {
+        ts(
+            r#"<script lang="js"></script><script module lang="ts"></script>"#,
+            false,
+        );
+        ts(
+            r#"<script></script><script module lang="ts"></script>"#,
+            true,
+        );
+        ts(
+            r#"<!-- <script lang="js"> --><script lang="ts"></script>"#,
+            true,
+        );
+        ts(r#"<!-- <script lang="ts"></script>"#, true);
+        ts(r#"<!-- --> <!-- <script lang="ts"> -->"#, false);
+    }
+
+    #[test]
+    fn value_shapes() {
+        ts(r#"<script lang=ts></script>"#, true);
+        ts(r#"<script lang='ts'></script>"#, true);
+        ts(r#"<script lang="typescript"></script>"#, false);
+        ts(r#"<script lang = "ts"></script>"#, false);
+        ts(r#"<script lang="ts""#, false);
+        ts(r#"<script data-lang="ts"></script>"#, true);
+        ts("<script\u{a0}lang=\"ts\"></script>", true);
+        ts(r#"<script>lang="ts"</script>"#, false);
+        ts(r#"<scripts lang="ts"></scripts>"#, false);
+    }
+
+    #[test]
+    fn attribute_walk_preference_order() {
+        ts(r#"<script x="a>b" lang=js y="c>d" lang=ts>"#, true);
+        ts(r#"<script x="a>b" lang=ts y="c>d" lang=js>"#, false);
+    }
+
+    #[test]
+    fn a_run_of_failing_candidates_stays_linear() {
+        let source = format!("{}>", "<script lang=\" ".repeat(70_000));
+        let started = std::time::Instant::now();
+        ts(&source, false);
+        assert!(started.elapsed() < std::time::Duration::from_secs(5));
     }
 }
