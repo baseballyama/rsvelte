@@ -1,8 +1,7 @@
+use rsvelte_css_semantic::matcher::is_global;
+use rsvelte_css_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 use rsvelte_kernel::output::edits::BorrowedEdits as Edits;
 use rsvelte_kernel::source::positions::Span;
-
-use crate::matcher::is_global;
-use crate::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 
 mod keyframes;
 
@@ -76,27 +75,6 @@ pub fn render_with_mode(
     renderer.edits.apply_in(source, sheet.content)
 }
 
-#[must_use]
-pub fn selectors(sheet: &StyleSheet) -> Vec<&ComplexSelector> {
-    let mut out = Vec::new();
-    visit_selectors(sheet, |selector| out.push(selector));
-    out
-}
-
-pub fn visit_selectors<'a>(sheet: &'a StyleSheet, mut visit: impl FnMut(&'a ComplexSelector)) {
-    fn walk<'a>(rules: &'a [Rule], visit: &mut impl FnMut(&'a ComplexSelector)) {
-        for rule in rules {
-            if let RuleKind::Style { selectors, .. } = &rule.kind {
-                for selector in selectors {
-                    visit(selector);
-                }
-            }
-            walk(&rule.children, visit);
-        }
-    }
-    walk(&sheet.rules, &mut visit);
-}
-
 struct Renderer<'a> {
     source: &'a str,
     sheet: &'a StyleSheet,
@@ -125,7 +103,7 @@ impl Renderer<'_> {
         }
     }
 
-    fn minify_declaration(&mut self, declaration: &crate::syntax_tree::Declaration) {
+    fn minify_declaration(&mut self, declaration: &rsvelte_css_syntax::syntax_tree::Declaration) {
         let property = declaration.property.text(self.source);
         let name = property
             .strip_prefix("-webkit-")

@@ -1,6 +1,6 @@
 //! Selector matching against an element model owned by the embedding language.
 
-use crate::syntax_tree::{
+use rsvelte_css_syntax::syntax_tree::{
     AttributeOperator, Combinator, ComplexSelector, RelativeSelector, RuleIdentifier, Simple,
 };
 

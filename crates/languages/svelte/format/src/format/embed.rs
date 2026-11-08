@@ -179,8 +179,7 @@ impl Printer<'_, '_> {
                 self.d().hardline()
             });
         }
-        let stylesheet =
-            rsvelte_stylesheet_format::format(self.source_text, &style.sheet, "", "  ")?;
+        let stylesheet = rsvelte_css_format::format(self.source_text, &style.sheet, "", "  ")?;
         // The CSS printer makes no width decisions; it is exact only while no line has to wrap.
         if stylesheet
             .lines()

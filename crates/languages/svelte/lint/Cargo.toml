@@ -16,7 +16,8 @@ serde.workspace = true
 serde_json.workspace = true
 rsvelte_typescript_syntax.workspace = true
 rsvelte_svelte.workspace = true
-rsvelte_markup.workspace = true
+rsvelte_html_syntax.workspace = true
+rsvelte_html_lint.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript_lint.workspace = true
 

@@ -77,7 +77,7 @@ fn main() {
         let rules = rsvelte_svelte_lint::Configuration::new(vec![
             rsvelte_svelte_lint::RuleConfiguration::ButtonHasType {
                 severity: rsvelte_kernel::diagnostics::Severity::Error,
-                allowed: rsvelte_markup::button_type::Allowed::default(),
+                allowed: rsvelte_html_lint::button_type::Allowed::default(),
             },
         ])
         .expect("config");

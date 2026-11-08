@@ -33,6 +33,20 @@ impl StyleSheet {
             .get(&span)
             .map_or_else(|| span.text(source), |atom| self.atoms.get(*atom))
     }
+
+    pub fn visit_selectors<'a>(&'a self, mut visit: impl FnMut(&'a ComplexSelector)) {
+        fn walk<'a>(rules: &'a [Rule], visit: &mut impl FnMut(&'a ComplexSelector)) {
+            for rule in rules {
+                if let RuleKind::Style { selectors, .. } = &rule.kind {
+                    for selector in selectors {
+                        visit(selector);
+                    }
+                }
+                walk(&rule.children, visit);
+            }
+        }
+        walk(&self.rules, &mut visit);
+    }
 }
 
 #[derive(Debug)]

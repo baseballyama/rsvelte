@@ -98,7 +98,7 @@ impl Text {
     pub fn decoded(raw: Span, source_text: &str) -> Self {
         Self {
             raw,
-            cooked: match rsvelte_markup::decode_text(raw.text(source_text)) {
+            cooked: match rsvelte_html_syntax::decode_text(raw.text(source_text)) {
                 std::borrow::Cow::Borrowed(_) => None,
                 std::borrow::Cow::Owned(s) => Some(s.into_boxed_str()),
             },

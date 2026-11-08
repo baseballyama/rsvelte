@@ -1,5 +1,5 @@
-use rsvelte_stylesheet::matcher;
-use rsvelte_stylesheet::syntax_tree::{Rule, RuleKind};
+use rsvelte_css_semantic::matcher;
+use rsvelte_css_syntax::syntax_tree::{Rule, RuleKind};
 
 pub(super) fn mark_external(
     source: &str,
@@ -7,12 +7,12 @@ pub(super) fn mark_external(
     parent_external: bool,
     used: &mut [bool],
 ) {
-    use rsvelte_stylesheet::syntax_tree::Simple;
+    use rsvelte_css_syntax::syntax_tree::Simple;
     for rule in rules {
         let mut external = parent_external;
         if let RuleKind::Style { selectors, .. } = &rule.kind {
             let external_selector =
-                |selector: &rsvelte_stylesheet::syntax_tree::ComplexSelector| {
+                |selector: &rsvelte_css_syntax::syntax_tree::ComplexSelector| {
                     selector.parts.iter().all(|part| {
                         matcher::is_global(source, part)
                             || parent_external

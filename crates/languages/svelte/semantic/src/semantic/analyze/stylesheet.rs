@@ -1,8 +1,8 @@
 use std::cell::{OnceCell, RefCell};
 
+use rsvelte_css_semantic::matcher::{self, Match};
+use rsvelte_css_syntax::syntax_tree::{Rule, RuleIdentifier};
 use rsvelte_kernel::index::IndexVector;
-use rsvelte_stylesheet::matcher::{self, Match};
-use rsvelte_stylesheet::syntax_tree::{Rule, RuleIdentifier};
 use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
     self, CompilerNodeIdentifier, CompilerSyntaxTree,
 };
@@ -47,7 +47,7 @@ pub(super) fn analyze(
     };
     let nesting = RefCell::new(FxHashMap::default());
     let candidates = Candidates::new(input.compiler_syntax_tree, input.source_text, sheet);
-    rsvelte_stylesheet::scope::visit_selectors(sheet, |selector| {
+    sheet.visit_selectors(|selector| {
         for identifier in candidates.matching(selector, sheet, input.source_text) {
             let element = El {
                 compiler_syntax_tree: input.compiler_syntax_tree,
@@ -107,7 +107,7 @@ impl<'a> Facts<'a> {
 
 #[derive(Clone, Copy)]
 struct El<'a> {
-    sheet: &'a rsvelte_stylesheet::StyleSheet,
+    sheet: &'a rsvelte_css_syntax::StyleSheet,
     compiler_syntax_tree: &'a CompilerSyntaxTree,
     source_text: &'a str,
     identifier: CompilerNodeIdentifier,

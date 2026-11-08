@@ -1,9 +1,9 @@
 use std::cell::OnceCell;
 
+use rsvelte_css_semantic::matcher;
+use rsvelte_css_syntax::syntax_tree::{ComplexSelector, Simple, StyleSheet};
 use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::performance::buffer_pool;
-use rsvelte_stylesheet::matcher;
-use rsvelte_stylesheet::syntax_tree::{ComplexSelector, Simple, StyleSheet};
 use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree,
 };
@@ -41,7 +41,7 @@ impl<'a> Candidates<'a> {
             classes: FxHashMap::default(),
             entries: Vec::new(),
         };
-        rsvelte_stylesheet::scope::visit_selectors(sheet, |selector| {
+        sheet.visit_selectors(|selector| {
             let mut classes = selector_classes(selector, sheet, source);
             if let Some(class) = classes.next() {
                 candidates.classes.entry(class).or_default();
@@ -127,7 +127,7 @@ impl<'a> Candidates<'a> {
 
     fn select_classes(&mut self, sheet: &StyleSheet, source: &str) {
         if self.has_compound_classes {
-            rsvelte_stylesheet::scope::visit_selectors(sheet, |selector| {
+            sheet.visit_selectors(|selector| {
                 let selected = selector_classes(selector, sheet, source)
                     .filter_map(|class| self.classes.get_key_value(class))
                     .min_by_key(|(_, bucket)| bucket.end)

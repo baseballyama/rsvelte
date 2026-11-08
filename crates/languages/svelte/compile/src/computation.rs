@@ -34,9 +34,9 @@ impl Artifact for ScopedStylesheet {
             .ok()?
             .is_custom_element()
         {
-            rsvelte_stylesheet::scope::RenderMode::Minify
+            rsvelte_css_compile::scope::RenderMode::Minify
         } else {
-            rsvelte_stylesheet::scope::RenderMode::Preserve
+            rsvelte_css_compile::scope::RenderMode::Preserve
         };
         crate::stylesheet::scoped_stylesheet_with_mode(
             &component_input(context)?,

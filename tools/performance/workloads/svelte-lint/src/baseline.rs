@@ -6,7 +6,7 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
-use rsvelte_markup::button_type::{Allowed, Problem, check_static};
+use rsvelte_html_lint::button_type::{Allowed, Problem, check_static};
 use rsvelte_svelte::compilation::compiler_syntax_tree::{AttributeValue, CompilerSyntaxTree};
 use rsvelte_svelte::semantic::resolve::Resolution;
 use rsvelte_svelte::syntax::syntax_tree::Component;
@@ -70,7 +70,7 @@ impl<'a> Rule<SyntaxTreeContext<'a>> for NoUnusedVariables {
 
 /// With the default options, so the `forbiddenTypeAttribute` message cannot fire.
 ///
-/// The judgement is [`rsvelte_markup::button_type`]'s, shared with `vue/html-button-has-type`; what
+/// The judgement is [`rsvelte_html_lint::button_type`]'s, shared with `vue/html-button-has-type`; what
 /// is Svelte's is which attribute is the `type` and that findings sit on the whole attribute.
 #[derive(Debug)]
 pub struct ButtonHasType;

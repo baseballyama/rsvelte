@@ -1,10 +1,6 @@
-//! What the HTML-based languages (Svelte, Vue) share. Each language still ports its own tool's
-//! lists where they differ (the void elements of Svelte's parser and Vue's are not the same list);
-//! what lives here is what both read the same way.
+//! HTML character references, decoded the same way by the Svelte and Vue parsers.
 
 use std::borrow::Cow;
-
-pub mod button_type;
 
 /// The value of a text node or attribute chunk: character references decoded.
 #[must_use]

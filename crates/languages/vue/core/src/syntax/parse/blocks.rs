@@ -204,7 +204,7 @@ impl P<'_> {
         let content = self.raw_text("style")?;
         self.c.tokens.push(TokenType::Stylesheet, content);
         self.close_tag("style")?;
-        let sheet = rsvelte_stylesheet::parse(self.source_text, content)
+        let sheet = rsvelte_css_syntax::parse(self.source_text, content)
             .map_err(|e| Diagnostic::error("css_parse_error", e.message, e.span))?;
         self.c.styles.push(Style {
             span: Span::new(start_offset as u32, self.position as u32),

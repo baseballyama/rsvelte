@@ -75,7 +75,7 @@ impl Printer<'_, '_> {
             Embed::Style(index) => {
                 let style = &self.c.styles[index];
                 let stylesheet =
-                    rsvelte_stylesheet_format::format(self.source_text, &style.sheet, "", "  ")?;
+                    rsvelte_css_format::format(self.source_text, &style.sheet, "", "  ")?;
                 if stylesheet
                     .lines()
                     .any(|l| rsvelte_document_printer::string_width(l) > PRINT_WIDTH)

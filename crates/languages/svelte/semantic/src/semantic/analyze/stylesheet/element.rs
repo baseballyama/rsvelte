@@ -1,5 +1,5 @@
-use rsvelte_stylesheet::matcher::{self, Element, Match};
-use rsvelte_stylesheet::syntax_tree::{RuleIdentifier, RuleKind};
+use rsvelte_css_semantic::matcher::{self, Element, Match};
+use rsvelte_css_syntax::syntax_tree::{RuleIdentifier, RuleKind};
 use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{self, AttributeValue, NodeKind};
 
 use super::El;
@@ -161,7 +161,7 @@ impl Element for El<'_> {
     fn attribute_matches(
         &self,
         name: &str,
-        operator: rsvelte_stylesheet::syntax_tree::AttributeOperator,
+        operator: rsvelte_css_syntax::syntax_tree::AttributeOperator,
         value: &str,
         insensitive: Option<bool>,
     ) -> Match {
@@ -173,7 +173,7 @@ impl Element for El<'_> {
                 AttributeValue::Class(_) if name.eq_ignore_ascii_case("class") => {
                     if !matches!(
                         operator,
-                        rsvelte_stylesheet::syntax_tree::AttributeOperator::Includes
+                        rsvelte_css_syntax::syntax_tree::AttributeOperator::Includes
                     ) || attribute.name.text(self.source_text) == value
                     {
                         return Match::Yes;

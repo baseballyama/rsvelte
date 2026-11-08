@@ -4,9 +4,9 @@
 //! expression (the `<script setup>` program and every template expression) lives in the one
 //! [`SyntaxTree`] of the component, so a single scope analysis sees both.
 
+use rsvelte_css_syntax::StyleSheet;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{TokenKind, Tokens};
-use rsvelte_stylesheet::StyleSheet;
 use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 pub type TemplateNodeIdentifier = u32;

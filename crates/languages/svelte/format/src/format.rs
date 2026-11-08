@@ -10,7 +10,7 @@
 //! table (`text`) instead of mutating the shared, immutable component.
 //!
 //! Script and expression bodies go through `rsvelte_typescript_syntax`'s formatter, style bodies
-//! through `rsvelte_stylesheet`'s. Anything neither port covers is an [`Unsupported`] error, never
+//! through `rsvelte_css_syntax`'s. Anything neither port covers is an [`Unsupported`] error, never
 //! an approximation.
 
 use std::borrow::Cow;

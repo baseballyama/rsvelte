@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 
-use rsvelte_stylesheet::matcher::Match;
+use rsvelte_css_semantic::matcher::Match;
 use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
     AttributeIdentifier, AttributeValue, Part,
 };

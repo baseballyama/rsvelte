@@ -178,7 +178,7 @@ pub fn compile_with_configuration(
             &input.component,
             an,
             &identity,
-            rsvelte_stylesheet::scope::RenderMode::Minify,
+            rsvelte_css_compile::scope::RenderMode::Minify,
         )
     } else {
         None

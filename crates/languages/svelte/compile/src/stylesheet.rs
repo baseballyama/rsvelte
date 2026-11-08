@@ -11,7 +11,7 @@ pub fn scoped_stylesheet(
         input,
         an,
         identity,
-        rsvelte_stylesheet::scope::RenderMode::Preserve,
+        rsvelte_css_compile::scope::RenderMode::Preserve,
     )
 }
 
@@ -20,14 +20,14 @@ pub(crate) fn scoped_stylesheet_with_mode(
     input: &input::ComponentInput<'_>,
     an: &rsvelte_svelte::semantic::analyze::Analysis,
     identity: &crate::OutputIdentity,
-    mode: rsvelte_stylesheet::scope::RenderMode,
+    mode: rsvelte_css_compile::scope::RenderMode,
 ) -> Option<String> {
     let (sheet, hash) = match (input.style, identity.stylesheet_hash.as_deref()) {
         (None, _) => return None,
         (Some(sheet), Some(hash)) => (sheet, hash),
         (Some(_), None) => unreachable!("a component with a style has a hash"),
     };
-    Some(rsvelte_stylesheet::scope::render_with_mode(
+    Some(rsvelte_css_compile::scope::render_with_mode(
         input.source_text,
         sheet,
         &an.stylesheet_used,

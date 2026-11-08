@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
+use rsvelte_html_lint::button_type::Allowed;
 use rsvelte_kernel::diagnostics::Severity;
-use rsvelte_markup::button_type::Allowed;
 
 #[derive(Clone, Copy, Debug)]
 pub enum RuleConfiguration {

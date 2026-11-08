@@ -10,7 +10,7 @@ pub struct ComponentInput<'a> {
     pub program: NodeIdentifier,
     pub module: Option<NodeIdentifier>,
     pub compiler_syntax_tree: &'a CompilerSyntaxTree,
-    pub style: Option<&'a rsvelte_stylesheet::StyleSheet>,
+    pub style: Option<&'a rsvelte_css_syntax::StyleSheet>,
     /// Every template expression, in document order.
     pub template_expressions: &'a [NodeIdentifier],
     pub filename: &'a str,
