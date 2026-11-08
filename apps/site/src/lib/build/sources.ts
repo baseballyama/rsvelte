@@ -16,6 +16,7 @@ export const CRATES: Record<string, string> = {
 	rsvelte_svue: 'svue',
 	rsvelte_svelte_compile_vapor: 'vuelte',
 	rsvelte_markup: 'markup',
+	rsvelte_example_plugin: 'example_plugin',
 };
 
 /** Every kernel module, plus the plugin code the guide uses as worked examples. */
@@ -88,7 +89,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		],
 		['markup', 'languages/html/core/src', ['button_type']],
 		['command_line', 'hosts/command_line/src', ['commands/benchmark', 'commands/performance']],
-		['svelte/example_plugin', 'languages/svelte/example_plugin', ['src/lib', 'examples/host']],
+		['example_plugin', '../examples/plugin', ['src/lib', 'examples/host']],
 	];
 	return [
 		...kernel,

@@ -145,7 +145,11 @@ export function rsvelteSource(): Plugin {
 			const modules: HighlightedModule[] = sources(cratesDir).map(({ key, file }) => {
 				const full = path.join(cratesDir, file);
 				this.addWatchFile(full);
-				const m: RustModule = parseRustModule(key, `crates/${file}`, readFileSync(full, 'utf8'));
+				const m: RustModule = parseRustModule(
+					key,
+					path.posix.join('crates', file),
+					readFileSync(full, 'utf8'),
+				);
 				return Object.assign(m, {
 					items: m.items.map((it) => Object.assign(it, { markup: highlight(h, it.code, 'rust') })),
 				});

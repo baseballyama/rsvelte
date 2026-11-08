@@ -10,6 +10,7 @@ only a diff oracle and a performance baseline.
 | Directory                           | What it holds                                                                 |
 | ----------------------------------- | ----------------------------------------------------------------------------- |
 | [`crates/`](crates/README.md)       | The Rust toolchain                                                            |
+| [`examples/`](examples/)            | Code the site's guides quote; it builds and is tested with the workspace      |
 | [`corpus/`](corpus/README.md)       | Real files from open-source projects, and the official tools' output for them |
 | [`tools/`](tools/README.md)         | TypeScript tools: the fixture runner, the performance gate, …                 |
 | [`apps/site/`](apps/site/README.md) | The project site, built with SvelteKit                                        |

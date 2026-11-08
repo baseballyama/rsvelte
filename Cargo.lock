@@ -780,6 +780,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_example_plugin"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_plugin_interface",
+ "rsvelte_svelte",
+ "rsvelte_svelte_format",
+]
+
+[[package]]
 name = "rsvelte_kernel"
 version = "0.0.0"
 dependencies = [
@@ -907,16 +917,6 @@ dependencies = [
  "rsvelte_svelte_syntax",
  "rsvelte_typescript",
  "unicode-id-start",
-]
-
-[[package]]
-name = "rsvelte_svelte_example_plugin"
-version = "0.0.0"
-dependencies = [
- "rsvelte_kernel",
- "rsvelte_plugin_interface",
- "rsvelte_svelte",
- "rsvelte_svelte_format",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
 [package]
-name = "rsvelte_svelte_example_plugin"
+name = "rsvelte_example_plugin"
 description = "A small plugin that counts a component's elements, as a model for new plugins"
 edition.workspace = true
 version.workspace = true

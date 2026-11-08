@@ -13,15 +13,16 @@ const limits = parseLimits(
 );
 // Crate fixtures list tens of thousands of paths, past the default 1 MiB output limit.
 const git = { cwd: root, encoding: 'utf8', maxBuffer: Infinity } as const;
+const checked = ['crates', 'examples', 'tools', 'apps'];
 const files = execFileSync(
 	'git',
-	['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', 'crates', 'tools', 'apps'],
+	['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...checked],
 	git,
 )
 	.split('\0')
 	.filter(Boolean);
 const deleted = new Set(
-	execFileSync('git', ['ls-files', '-z', '--deleted', '--', 'crates', 'tools', 'apps'], git)
+	execFileSync('git', ['ls-files', '-z', '--deleted', '--', ...checked], git)
 		.split('\0')
 		.filter(Boolean),
 );

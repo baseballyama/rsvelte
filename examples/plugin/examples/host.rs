@@ -1,6 +1,6 @@
 //! A host that installs the plugin and runs its task on one component.
 //!
-//! `cargo run -p rsvelte_svelte_example_plugin --example host`
+//! `cargo run -p rsvelte_example_plugin --example host`
 
 use std::sync::Arc;
 
@@ -18,7 +18,7 @@ fn main() -> Result<(), String> {
     let mut registry = Registry::new();
     rsvelte_plugin_interface::install(
         &mut registry,
-        &[&rsvelte_svelte_example_plugin::EXTENSION],
+        &[&rsvelte_example_plugin::EXTENSION],
         &mut settings,
     )
     .map_err(|error| error.0)?;

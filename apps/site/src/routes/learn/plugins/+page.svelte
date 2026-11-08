@@ -197,7 +197,7 @@
 
 <div class="prose-learn">
 	<p>次のコマンドで例を実行すると、<code>elements.txt: 2</code> と表示されます。</p>
-	<pre><code>cargo run -p rsvelte_svelte_example_plugin --example host</code></pre>
+	<pre><code>cargo run -p rsvelte_example_plugin --example host</code></pre>
 	<p>
 		<code>Sharing::Shared</code> は、同じ文書のタスクどうしで計算結果を共有します。<code
 			>Sharing::Isolated</code

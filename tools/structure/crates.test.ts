@@ -17,10 +17,13 @@ const metadata = JSON.parse(
 	}),
 ) as { packages: Package[] };
 
-type Role = 'kernel' | 'core' | 'support' | 'host_library' | 'host' | 'capability';
+type Role = 'kernel' | 'core' | 'support' | 'host_library' | 'host' | 'capability' | 'example';
 
 // Crate names do not follow paths (`rsvelte_svue`, `rsvelte_markup`), so the role comes from the path.
 function role(manifestPath: string): Role | undefined {
+	// No role accepts an example, so nothing can depend on code that exists to be read.
+	if (/\/examples\/[^/]+\/Cargo\.toml$/.test(manifestPath) && !manifestPath.includes('/crates/'))
+		return 'example';
 	const path = /\/crates\/(.+)\/Cargo\.toml$/.exec(manifestPath)?.[1];
 	if (path === undefined) return undefined;
 	if (path === 'language_independent/kernel') return 'kernel';
@@ -48,6 +51,7 @@ const allowed: Record<Role, readonly Role[]> = {
 	host_library: ['kernel', 'support'],
 	capability: ['kernel', 'core', 'support', 'capability'],
 	host: ['kernel', 'core', 'support', 'host_library', 'capability'],
+	example: ['kernel', 'core', 'support', 'capability'],
 };
 
 function toolDependencies(packages: Package[]): string[] {
@@ -103,6 +107,7 @@ test('every workspace crate has a role from its path', () => {
 		'rsvelte_site',
 	]);
 	assert.ok(named('capability').length > 0);
+	assert.deepEqual(named('example'), ['rsvelte_example_plugin']);
 });
 
 test('kernel and language cores do not depend on tools', () => {
@@ -222,7 +227,9 @@ test('new crates get a role from where they are placed', () => {
 		['/r/crates/languages/rust/lint/Cargo.toml', 'capability'],
 		['/r/crates/hosts/editor/Cargo.toml', 'host'],
 		['/r/crates/language_independent/document_printer/Cargo.toml', 'support'],
+		['/r/examples/plugin/Cargo.toml', 'example'],
 		['/r/crates/misc/thing/Cargo.toml', undefined],
+		['/r/crates/languages/rust/examples/thing/Cargo.toml', undefined],
 		['/r/crates/languages/rust/lint/nested/Cargo.toml', undefined],
 	] as const) {
 		assert.equal(role(path), expected, path);
@@ -234,6 +241,8 @@ test('support, plugin and host boundaries reject injected dependencies', () => {
 		['rsvelte_lint_runner', 'rsvelte_svelte'],
 		['rsvelte_plugin_interface', 'rsvelte_svelte_compile'],
 		['rsvelte_svelte_compile', 'rsvelte_configuration_loading'],
+		['rsvelte_svelte_compile', 'rsvelte_example_plugin'],
+		['rsvelte_example_plugin', 'rsvelte_command_line'],
 		['rsvelte_plugin_interface', 'rsvelte_configuration_loading'],
 		['rsvelte_typescript_content_mapper', 'rsvelte_typescript'],
 		['rsvelte_svelte_lint', 'rsvelte_command_line'],
