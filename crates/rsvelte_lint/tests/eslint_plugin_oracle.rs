@@ -97,6 +97,14 @@ fn is_meta_rule(code: &str) -> bool {
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
 const SKIP: &[&str] = &[
+    // `require-event-prefix` fixtures added by eslint-plugin-svelte 3.24.1
+    // (sveltejs/eslint-plugin-svelte#1414) whose no-value return is reached
+    // only through the type checker: a thenable interface, an indexed access
+    // (`Row['done']`) and a generic interface instantiation (`Props<void>`).
+    // The port classifies the annotation text; not yet ported.
+    "require-event-prefix/invalid/checkAsyncFunctions/promise-like01-input.svelte",
+    "require-event-prefix/invalid/no-value-alias01-input.svelte",
+    "require-event-prefix/invalid/generic-interface01-input.svelte",
     // `no-unused-props` fixtures added by eslint-plugin-svelte 3.24.0
     // (sveltejs/eslint-plugin-svelte#1566, #1627): destructuring the props
     // object, object- vs iterable-spread consumption, computed / numeric /
