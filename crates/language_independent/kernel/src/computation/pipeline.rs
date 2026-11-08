@@ -177,6 +177,38 @@ fn run_finish_tasks(finish_tasks: &[&dyn FinishTask], results: &mut [DocumentRes
     }
 }
 
+/// The document tasks and the finish tasks a run runs.
+type Selected<'r> = (Vec<&'r dyn Task>, Vec<&'r dyn FinishTask>);
+
+/// The selected tasks, after the checks every run makes before it runs anything.
+fn selected<'r>(reg: &'r Registry, options: &RunOptions<'_>) -> Result<Selected<'r>, RunError> {
+    reg.validate_plugins().map_err(RunError::Plugins)?;
+    reg.check_task_identifiers(options.tasks)
+        .map_err(RunError::UnknownTask)?;
+    Ok(reg.selected(options.tasks))
+}
+
+/// `visit` over every document with its index, in parallel unless `threads` is one, collected in
+/// document order.
+fn map_documents<T: Send>(
+    docs: &[Document],
+    threads: Option<usize>,
+    visit: impl Fn(usize, &Document) -> T + Sync + Send,
+) -> Vec<T> {
+    let visit = |(i, d)| visit(i, d);
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if threads != Some(1) {
+            return docs.par_iter().enumerate().map(visit).collect();
+        }
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        _ = threads;
+    }
+    docs.iter().enumerate().map(visit).collect()
+}
+
 /// Runs the pipeline and hands each document's result to `sink` as soon as it is final.
 ///
 /// The sink runs on whichever worker finished the document: a document is dropped from memory
@@ -196,13 +228,10 @@ pub fn run_each(
     options: &RunOptions<'_>,
     sink: &(dyn Fn(usize, DocumentResult) + Sync),
 ) -> Result<(), RunError> {
-    reg.validate_plugins().map_err(RunError::Plugins)?;
-    reg.check_task_identifiers(options.tasks)
-        .map_err(RunError::UnknownTask)?;
-    let (tasks, finish_tasks) = reg.selected(options.tasks);
-    let work = || {
+    let (tasks, finish_tasks) = selected(reg, options)?;
+    in_pool(options.threads, || {
         let waiting = std::sync::Mutex::new(Vec::new());
-        let visit = |(i, d)| {
+        map_documents(docs, options.threads, |i, d| {
             let r = run_document(reg, d, &tasks, &finish_tasks, options.sharing);
             if r.parts.is_empty() {
                 sink(i, r);
@@ -212,15 +241,7 @@ pub fn run_each(
                     .expect("no panics under the lock")
                     .push((i, r));
             }
-        };
-        #[cfg(not(target_arch = "wasm32"))]
-        if options.threads == Some(1) {
-            docs.iter().enumerate().for_each(visit);
-        } else {
-            docs.par_iter().enumerate().for_each(visit);
-        }
-        #[cfg(target_arch = "wasm32")]
-        docs.iter().enumerate().for_each(visit);
+        });
         let mut waiting = waiting.into_inner().expect("no panics under the lock");
         waiting.sort_unstable_by_key(|(i, _)| *i);
         let (index, mut results): (Vec<usize>, Vec<DocumentResult>) = waiting.into_iter().unzip();
@@ -228,8 +249,7 @@ pub fn run_each(
         for (i, r) in index.into_iter().zip(results) {
             sink(i, r);
         }
-    };
-    in_pool(options.threads, work);
+    });
     Ok(())
 }
 
@@ -247,26 +267,13 @@ pub fn run(
     docs: &[Document],
     options: &RunOptions<'_>,
 ) -> Result<Vec<DocumentResult>, RunError> {
-    reg.validate_plugins().map_err(RunError::Plugins)?;
-    reg.check_task_identifiers(options.tasks)
-        .map_err(RunError::UnknownTask)?;
-    let (tasks, finish_tasks) = reg.selected(options.tasks);
+    let (tasks, finish_tasks) = selected(reg, options)?;
     // Ordered collection avoids the per-output locks a sink would need.
     let mut results = Vec::new();
     in_pool(options.threads, || {
-        let compile = |d| run_document(reg, d, &tasks, &finish_tasks, options.sharing);
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            results = if options.threads == Some(1) {
-                docs.iter().map(compile).collect()
-            } else {
-                docs.par_iter().map(compile).collect()
-            };
-        }
-        #[cfg(target_arch = "wasm32")]
-        {
-            results = docs.iter().map(compile).collect();
-        }
+        results = map_documents(docs, options.threads, |_, d| {
+            run_document(reg, d, &tasks, &finish_tasks, options.sharing)
+        });
         run_finish_tasks(&finish_tasks, &mut results);
     });
     Ok(results)

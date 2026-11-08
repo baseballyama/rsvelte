@@ -241,14 +241,15 @@
 		は <code>run_each</code>
 		の上に書かれていて、<code>sink</code> が文書ごとの <code>Mutex</code> の
 		配列の位置に結果を置いていました。今は rayon の
-		<code>collect</code> で、文書の順に集めます。
+		<code>collect</code>
+		で、文書の順に集めます。文書の配り方（スレッドが一つなら順に、そうでなければ rayon で並列に）は、<code
+			>run_each</code
+		>
+		と同じ <code>map_documents</code> が決めます。
 	</p>
 </div>
 
-<Code
-	item={data.code.run}
-	mark={['let compile = |d| run_document(reg, d, &tasks, &finish_tasks, options.sharing);']}
-/>
+<Code item={data.code.run} mark={['results = map_documents(docs, options.threads, |_, d| {']} />
 
 <div class="prose-learn">
 	<p>

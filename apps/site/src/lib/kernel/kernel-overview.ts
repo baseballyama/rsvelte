@@ -127,7 +127,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#run',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/pipeline.rs',
-			line: 245,
+			line: 265,
 			text: 'pub fn run(',
 		},
 		box: { x: right, y: 162, w: width, h: height },
@@ -319,7 +319,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [480, 52],
 		source: {
 			path: pipeline,
-			line: 250,
+			line: 185,
 			text: 'reg.validate_plugins().map_err(RunError::Plugins)?;',
 		},
 	},
@@ -339,7 +339,7 @@ export const overviewEdges: OverviewEdge[] = [
 		sentence: '文書ごとに、別々のワーカーで一つの文書の処理を呼びます。',
 		path: 'M534 192 H486',
 		at: [498, 184],
-		source: { path: pipeline, line: 263, text: 'docs.par_iter().map(compile).collect()' },
+		source: { path: pipeline, line: 202, text: 'docs.par_iter().enumerate().map(visit).collect()' },
 	},
 	{
 		from: 'run-document',
@@ -422,7 +422,7 @@ export const overviewEdges: OverviewEdge[] = [
 		sentence: '全文書の処理が終わってから、型検査のようなまとめる処理を一度だけ呼びます。',
 		path: 'M306 392 H220',
 		at: [232, 384],
-		source: { path: pipeline, line: 270, text: 'run_finish_tasks(&finish_tasks, &mut results);' },
+		source: { path: pipeline, line: 277, text: 'run_finish_tasks(&finish_tasks, &mut results);' },
 	},
 	{
 		from: 'output',
