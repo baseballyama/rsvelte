@@ -1928,7 +1928,9 @@ fn bare_parse_error(content: &str, source_type: SourceType) -> Option<(String, u
             .labels
             .first()
             .map_or(0, |label| (label.offset() as usize).min(content.len()));
-        Some((first_error.message.to_string(), pos))
+        let message = super::early_errors::parser_diagnostic_acorn_wording(&first_error.message)
+            .unwrap_or(&first_error.message);
+        Some((message.to_string(), pos))
     })
 }
 
@@ -2097,7 +2099,8 @@ pub fn check_js_parse_error_with_pos(content: &str, ts: bool) -> Option<(String,
                 {
                     "Unexpected token"
                 } else {
-                    first_error.message.as_ref()
+                    super::early_errors::parser_diagnostic_acorn_wording(&first_error.message)
+                        .unwrap_or(&first_error.message)
                 };
                 // A label which is itself the offending token already has the
                 // acorn position above. Re-parsing it bare can turn that token
@@ -2221,6 +2224,8 @@ pub fn check_snippet_header_parse_error(header: &str, ts: bool) -> Option<(Strin
             if message.starts_with("Expected `,` or `)` but found ") {
                 return Some(("Unexpected token".to_string(), at));
             }
+            let message =
+                super::early_errors::parser_diagnostic_acorn_wording(message).unwrap_or(message);
             return Some((message.to_string(), at));
         }
         acorn_only_violation(&result.program, &text, ts)
@@ -2274,7 +2279,10 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
                 .first()
                 .map(|label| (label.offset() as usize).min(content.len()))
                 .unwrap_or(0);
-            return Some((first_error.message.to_string(), pos));
+            let message =
+                super::early_errors::parser_diagnostic_acorn_wording(&first_error.message)
+                    .unwrap_or(&first_error.message);
+            return Some((message.to_string(), pos));
         }
         acorn_only_violation(&result.program, content, ts)
             .map(|(at, message)| (message, (at as usize).min(content.len())))
@@ -9374,9 +9382,8 @@ fn convert_parsed_program<'ast>(
         let mut parse_error = reported_at.as_ref().map(|(at, message)| {
             let pos = at + offset;
             // The early-error table reads SemanticBuilder diagnostics; a check
-            // the parser itself raises (a nested import/export declaration)
-            // needs its acorn wording applied here instead.
-            let message = super::early_errors::parser_top_level_declaration_wording(message)
+            // the parser itself raises needs its acorn wording applied here.
+            let message = super::early_errors::parser_diagnostic_acorn_wording(message)
                 .map_or(message.clone(), str::to_string);
             crate::error::ParseError::svelte("js_parse_error", message, (pos, pos))
         });

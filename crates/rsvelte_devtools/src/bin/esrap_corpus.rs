@@ -192,7 +192,7 @@ fn comment_bodies(program: &Program<'_>, source: &str) -> Vec<(bool, String)> {
         .map(|comment| {
             let span = comment.span();
             let raw = span.source_text(source);
-            let block = !matches!(comment.kind, oxc_ast::ast::CommentKind::Line);
+            let block = comment.is_block();
             let value = if block {
                 let inner = raw
                     .strip_prefix("/*")

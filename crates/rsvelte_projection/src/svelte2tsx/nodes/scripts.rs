@@ -193,7 +193,7 @@ impl<'a> InstanceImportCollector<'a> {
             .map(|comment| LiftedComment {
                 start: comment.span.start,
                 end: comment.span.end,
-                block: !matches!(comment.kind, oxc_ast::ast::CommentKind::Line),
+                block: comment.is_block(),
                 has_trailing_newline: comment_has_trailing_newline(
                     self.bytes,
                     comment.span.end as usize,

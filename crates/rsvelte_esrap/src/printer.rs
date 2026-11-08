@@ -349,9 +349,7 @@ impl<'a> BorrowedCommentDriver<'a> {
             }
             first = false;
             self.write(comment, ctx);
-            if self.has_newline(comment.span.end, to)
-                || matches!(comment.kind, oxc_ast::ast::CommentKind::Line)
-            {
+            if self.has_newline(comment.span.end, to) || comment.is_line() {
                 ctx.newline();
             } else if pad {
                 ctx.write_ascii(b' ');
@@ -375,7 +373,7 @@ impl<'a> BorrowedCommentDriver<'a> {
             ctx.write_ascii(b' ');
             self.write(comment, ctx);
             self.index += 1;
-            if matches!(comment.kind, oxc_ast::ast::CommentKind::Line) {
+            if comment.is_line() {
                 ctx.newline();
                 break;
             }
@@ -395,7 +393,7 @@ impl<'a> BorrowedCommentDriver<'a> {
         ctx: &mut Context<DIRECT>,
     ) {
         let raw = comment.span.source_text(self.source);
-        if matches!(comment.kind, oxc_ast::ast::CommentKind::Line) {
+        if comment.is_line() {
             ctx.write(raw);
             return;
         }
@@ -479,7 +477,7 @@ pub fn build_comments(program: &Program<'_>, source: &str, starts: &[u32]) -> Ve
         .map(|c| {
             let (start, end) = (c.span.start, c.span.end);
             let raw = &source[start as usize..end as usize];
-            let block = !matches!(c.kind, oxc_ast::ast::CommentKind::Line);
+            let block = c.is_block();
             let value = if block {
                 let inner = raw
                     .strip_prefix("/*")
@@ -495,7 +493,14 @@ pub fn build_comments(program: &Program<'_>, source: &str, starts: &[u32]) -> Ve
                     inner.to_string()
                 }
             } else {
-                raw.strip_prefix("//").unwrap_or(raw).to_string()
+                let opener = match c.kind {
+                    oxc_ast::ast::CommentKind::HtmlOpen => "<!--",
+                    oxc_ast::ast::CommentKind::HtmlClose => "-->",
+                    oxc_ast::ast::CommentKind::Line
+                    | oxc_ast::ast::CommentKind::SingleLineBlock
+                    | oxc_ast::ast::CommentKind::MultiLineBlock => "//",
+                };
+                raw.strip_prefix(opener).unwrap_or(raw).to_string()
             };
             Cmt {
                 start,
@@ -1250,7 +1255,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 start: comment.span.start,
                 end: comment.span.end,
                 start_line: 0,
-                block: !matches!(comment.kind, oxc_ast::ast::CommentKind::Line),
+                block: comment.is_block(),
             });
         }
         self.comments.get(index).map(|comment| CommentMeta {
@@ -5793,12 +5798,20 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if let Some(raw) = &s.raw {
             return raw.as_str().into();
         }
-        match s.value.as_str() {
-            Some(value) => quote(value),
-            // A lone-surrogate `JSStr` only arises from a parsed literal, which
-            // always keeps `raw`; synthesized values come from Rust `&str`.
-            None => unreachable!("synthesized string literal has no raw and a non-UTF-8 value"),
+        if let Some(value) = s.value.as_str() {
+            return quote(value);
         }
+        // A lone surrogate has no UTF-8 spelling; an escape keeps the value.
+        let mut out = CompactString::with_capacity(s.value.len() + 2);
+        out.push('\'');
+        for ch in s.value.chars() {
+            match ch.to_char() {
+                Some(c) => push_quoted_char(&mut out, c),
+                None => out.push_str(&format_compact!("\\u{:04x}", ch.to_u32())),
+            }
+        }
+        out.push('\'');
+        out
     }
 }
 
@@ -5815,16 +5828,20 @@ fn quote(value: &str) -> CompactString {
     let mut out = CompactString::with_capacity(value.len() + 2);
     out.push('\'');
     for ch in value.chars() {
-        match ch {
-            '\\' => out.push_str("\\\\"),
-            '\'' => out.push_str("\\'"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            c => out.push(c),
-        }
+        push_quoted_char(&mut out, ch);
     }
     out.push('\'');
     out
+}
+
+fn push_quoted_char(out: &mut CompactString, ch: char) {
+    match ch {
+        '\\' => out.push_str("\\\\"),
+        '\'' => out.push_str("\\'"),
+        '\n' => out.push_str("\\n"),
+        '\r' => out.push_str("\\r"),
+        c => out.push(c),
+    }
 }
 
 /// A pre-rendered element of a comma sequence, plus the layout flags esrap's

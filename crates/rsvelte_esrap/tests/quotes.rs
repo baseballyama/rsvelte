@@ -97,3 +97,13 @@ fn handles_n_r() {
         "const str = 'a\\n\\rb';"
     );
 }
+
+/// A lone surrogate has no UTF-8 spelling, so without `raw` the value can only
+/// survive as an escape; it must not panic or collapse to U+FFFD.
+#[test]
+fn a_lone_surrogate_is_escaped() {
+    assert_eq!(
+        print_stripped("const str = \"a\\uD800'b\""),
+        "const str = 'a\\ud800\\'b';"
+    );
+}
