@@ -64,6 +64,8 @@ All JavaScript-side code is TypeScript that Node 26 runs directly, in one pnpm w
 - Write all code, comments, docs, commits and PRs in plain English.
 - Comments: one line that says why. Do not describe what the code does, its history or issue
   numbers.
+- Declare a module that only lists child modules inline in its parent
+  (`pub mod source { pub mod document; }`). A module with code gets its own `x.rs`.
 - No O(n²) in per-node code; borrow instead of clone.
 - Check input once, where it enters. Do not hide a computed span or index behind
   `unwrap_or(0)` / `unwrap_or_default()`.
