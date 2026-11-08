@@ -24,7 +24,7 @@ debug a failure. For the higher-level project goals, see [`AGENTS.md`](AGENTS.md
 ### Native (recommended for daily work)
 
 You need:
-- Rust **1.90+** (see `Cargo.toml` `rust-version`). Use `rustup update stable`.
+- Rust **1.97+** (see `Cargo.toml` `rust-version`). Use `rustup update stable`.
 - Node.js **20+** and **pnpm 10+** (the repo's package scripts assume pnpm).
 - Git with submodule support.
 

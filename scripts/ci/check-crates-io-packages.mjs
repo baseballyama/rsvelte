@@ -10,7 +10,7 @@ const repoRoot = path.resolve(
   "..",
   "..",
 );
-const MINIMUM_MSRV = "1.95";
+const MINIMUM_MSRV = "1.97";
 // Dependency order is also the only safe first-publication order.
 const CRATES = [
   "rsvelte_esrap",
@@ -76,7 +76,7 @@ function checkMetadata(pkg) {
   ) {
     fail(
       `${pkg.name}: rust-version must be at least ${MINIMUM_MSRV} ` +
-        `(the OXC 0.141 dependency graph requires Rust 1.95; found ${pkg.rust_version ?? "none"})`,
+        `(the OXC 0.157 dependency graph requires Rust 1.97; found ${pkg.rust_version ?? "none"})`,
     );
   }
 
