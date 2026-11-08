@@ -24,26 +24,7 @@
 		now === null || was === null || was === undefined || now === was
 			? ''
 			: `${now > was ? '+' : '−'}${(Math.abs(now / was - 1) * 100).toFixed(1)}%`;
-	const lastRec = $derived(data.history.at(-1)!);
-	// Instructions counted over different samples of the files do not compare.
-	const sameSample = (r: { instruction_sample: number }) =>
-		r.instruction_sample === lastRec.instruction_sample;
-	const firstInstr = $derived(data.history.find((r) => r.instructions !== null && sameSample(r))!);
-	const firstLoad = $derived(
-		data.history.find((r) => r.load_instructions !== null && sameSample(r))!,
-	);
-	const maxInstr = (sample: number) =>
-		Math.max(
-			...data.history
-				.filter((r) => r.instruction_sample === sample)
-				.map((r) => r.instructions ?? 0),
-		);
-	const sampleDelta = (
-		r: { instruction_sample: number },
-		prev: { instruction_sample: number } | undefined,
-		now: number | null,
-		was: number | null | undefined,
-	) => (prev && prev.instruction_sample !== r.instruction_sample ? '' : delta(now, was));
+	const { rows, last: lastRec, first, firstInstr, firstLoad } = $derived(data.history);
 </script>
 
 <svelte:head><title>{c.title} — rsvelte Learn</title></svelte:head>
@@ -83,13 +64,13 @@
 		)} から、今の {fmt(lastRec.instructions!)} へ（{delta(
 			lastRec.instructions,
 			firstInstr.instructions,
-		)}）。割り当ては最初の {fmt(data.history[0].allocations)} 回から {fmt(lastRec.allocations)} 回へ（{delta(
+		)}）。割り当ては最初の {fmt(first.allocations)} 回から {fmt(lastRec.allocations)} 回へ（{delta(
 			lastRec.allocations,
-			data.history[0].allocations,
+			first.allocations,
 		)}）、割り当てバイトは
-		{fmt(data.history[0].alloc_bytes)} から {fmt(lastRec.alloc_bytes)} へ（{delta(
+		{fmt(first.alloc_bytes)} から {fmt(lastRec.alloc_bytes)} へ（{delta(
 			lastRec.alloc_bytes,
-			data.history[0].alloc_bytes,
+			first.alloc_bytes,
 		)}）。読み込みの命令数は、記録を始めた
 		<code>{firstLoad.sha ?? '作業ツリー'}</code> の {fmt(firstLoad.load_instructions!)} から {fmt(
 			lastRec.load_instructions!,
@@ -113,8 +94,8 @@
 			</tr>
 		</thead>
 		<tbody>
-			{#each data.history as r, i (r.sha ?? 'working-tree')}
-				{@const prev = data.history[i - 1]}
+			{#each rows as r (r.sha ?? 'working-tree')}
+				{@const prev = r.prev}
 				<tr>
 					<td
 						><code>{r.sha ?? '作業ツリー'}</code>
@@ -123,18 +104,13 @@
 					<td class="align-middle">
 						{#if r.instructions !== null}
 							<div class="h-2 bg-surface">
-								<div
-									class="h-2 bg-fg"
-									style:width="{(r.instructions / maxInstr(r.instruction_sample)) * 100}%"
-								></div>
+								<div class="h-2 bg-fg" style:width="{r.instructionsWidth * 100}%"></div>
 							</div>
 						{/if}
 					</td>
 					<td class="num">
 						{r.instructions === null ? '—' : fmt(r.instructions)}
-						<div class="text-[12px] text-muted">
-							{sampleDelta(r, prev, r.instructions, prev?.instructions)}
-						</div>
+						<div class="text-[12px] text-muted">{delta(r.instructions, r.instructionsWas)}</div>
 					</td>
 					<td class="num"
 						>{fmt(r.allocations)}
@@ -146,9 +122,7 @@
 					>
 					<td class="num">
 						{r.load_instructions === null ? '—' : fmt(r.load_instructions)}
-						<div class="text-[12px] text-muted">
-							{sampleDelta(r, prev, r.load_instructions, prev?.load_instructions)}
-						</div>
+						<div class="text-[12px] text-muted">{delta(r.load_instructions, r.loadWas)}</div>
 					</td>
 				</tr>
 			{/each}
