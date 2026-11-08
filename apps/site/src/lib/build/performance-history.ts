@@ -47,23 +47,27 @@ export function performanceHistory(root: string): PerformanceRecord[] {
 		execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 1 << 26 }).trim();
 	const file = 'tools/performance/baseline.json';
 	const historicalFile = 'tools/perf/baseline.json';
-	const shas = git('log', '--reverse', '--format=%H', '--', file, historicalFile)
+	// One process for the commits and one for every file version: each git process is slow on a busy machine.
+	const commits = git('log', '--reverse', '--format=%H%x09%s', '--', file, historicalFile)
 		.split('\n')
-		.filter(Boolean);
+		.filter(Boolean)
+		.map((line) => {
+			const tab = line.indexOf('\t');
+			return { sha: line.slice(0, tab), subject: line.slice(tab + 1) };
+		});
 	const shallow = path.resolve(root, git('rev-parse', '--git-path', 'shallow'));
 	const boundary = existsSync(shallow) ? readFileSync(shallow, 'utf8').split('\n') : [];
-	if (shas.length === 0 || boundary.includes(shas[0]!)) {
+	if (commits.length === 0 || boundary.includes(commits[0]!.sha)) {
 		throw new Error(`the history of ${file} is cut by a shallow clone: fetch with depth 0`);
 	}
-	const records: PerformanceRecord[] = shas.map((sha) => {
-		const recordedFile = git('ls-tree', '--name-only', sha, '--', file, historicalFile)
-			.split('\n')
-			.find((candidate) => candidate === file || candidate === historicalFile);
-		if (!recordedFile) throw new Error(`Missing baseline at ${sha}`);
-		return Object.assign(counters(JSON.parse(git('show', `${sha}:${recordedFile}`))), {
-			sha: sha.slice(0, 10),
-			subject: git('log', '-1', '--format=%s', sha),
-		});
+	const blobs = readBlobs(
+		root,
+		commits.flatMap(({ sha }) => [`${sha}:${file}`, `${sha}:${historicalFile}`]),
+	);
+	const records: PerformanceRecord[] = commits.map(({ sha, subject }) => {
+		const recorded = blobs.get(`${sha}:${file}`) ?? blobs.get(`${sha}:${historicalFile}`);
+		if (recorded === undefined) throw new Error(`Missing baseline at ${sha}`);
+		return Object.assign(counters(JSON.parse(recorded)), { sha: sha.slice(0, 10), subject });
 	});
 	const now = counters(JSON.parse(readFileSync(path.join(root, file), 'utf8')));
 	const last = records.at(-1)!;
@@ -71,4 +75,26 @@ export function performanceHistory(root: string): PerformanceRecord[] {
 		records.push({ sha: null, subject: '作業ツリーの未コミットの基準値', ...now });
 	}
 	return records;
+}
+
+/** The contents of `<commit>:<path>` objects that exist, read through one `git cat-file --batch`. */
+function readBlobs(root: string, objects: string[]): Map<string, string> {
+	const output = execFileSync('git', ['-C', root, 'cat-file', '--batch'], {
+		input: objects.join('\n') + '\n',
+		maxBuffer: 1 << 26,
+	});
+	const blobs = new Map<string, string>();
+	let at = 0;
+	for (const object of objects) {
+		const headerEnd = output.indexOf(10, at);
+		const header = output.subarray(at, headerEnd).toString('utf8');
+		at = headerEnd + 1;
+		if (header.endsWith(' missing')) continue;
+		const size = Number(header.split(' ')[2]);
+		if (!Number.isInteger(size)) throw new Error(`Unexpected git cat-file header: ${header}`);
+		blobs.set(object, output.subarray(at, at + size).toString('utf8'));
+		// The content is followed by one newline.
+		at += size + 1;
+	}
+	return blobs;
 }

@@ -117,10 +117,11 @@ function paritySummary(entries: Record<string, string>): { units: number; rows: 
 	return { units: Object.keys(entries).length, rows };
 }
 
-/** The commit the quoted code comes from, or `null` when crates/ differs from it. */
-function revision(root: string): { rev: string; clean: boolean } {
+/** The commit the quoted code comes from, and whether the quoted files still match it. */
+function revision(root: string, files: string[]): { rev: string; clean: boolean } {
 	const rev = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-	const status = execFileSync('git', ['-C', root, 'status', '--porcelain', '--', 'crates'], {
+	// Naming the files keeps Git from walking the ignored test output under crates/, which takes minutes on a busy machine.
+	const status = execFileSync('git', ['-C', root, 'status', '--porcelain', '--', ...files], {
 		encoding: 'utf8',
 	});
 	return { rev, clean: status.trim() === '' };
@@ -150,7 +151,10 @@ export function rsvelteSource(): Plugin {
 				});
 			});
 			const root = path.dirname(cratesDir);
-			const { rev, clean } = revision(root);
+			const { rev, clean } = revision(
+				root,
+				modules.map((m) => m.path),
+			);
 			const baselineFile = path.join(root, 'tools/performance/baseline.json');
 			const parityFile = path.join(root, 'corpus/_registry/parity.json');
 			this.addWatchFile(baselineFile);
