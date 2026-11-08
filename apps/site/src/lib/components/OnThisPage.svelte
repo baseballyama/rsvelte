@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { REPO_URL, type Chapter } from '#lib/site.ts';
+	import { REPO_URL, moduleFile, type Chapter } from '#lib/site.ts';
 	import Icon from './Icon.svelte';
 
 	let { chapter, active, progress }: { chapter: Chapter; active: string | null; progress: number } =
@@ -7,9 +7,7 @@
 
 	const index = $derived(chapter.sections.findIndex((s) => s.id === active));
 	const sourceHref = $derived(
-		chapter.module
-			? `${REPO_URL}/blob/main/crates/language_independent/kernel/src/${chapter.module.split('/')[1]}.rs`
-			: undefined,
+		chapter.module ? `${REPO_URL}/blob/main/${moduleFile(chapter.module)}` : undefined,
 	);
 </script>
 
@@ -46,7 +44,7 @@
 			<a href={sourceHref} rel="noopener" class="flex items-center gap-2 hover:text-fg">
 				<Icon name="file" size={14} />
 				<span class="truncate font-mono text-[12px] tracking-normal"
-					>{chapter.module?.split('/')[1]}.rs</span
+					>{chapter.module && moduleFile(chapter.module).split('/').pop()}</span
 				>
 			</a>
 		{/if}

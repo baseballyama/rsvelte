@@ -19,7 +19,7 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: '性能の計測と改善',
 		summary: '時間とメモリの計測、作業用の保存領域の再利用をまとめます。',
 	},
-	'kernel/output/width': {
+	'document_printer/width': {
 		title: '文字の表示幅',
 		summary: '文字が画面で占める幅を、Unicode の幅の規則で計算します。',
 	},
@@ -92,7 +92,7 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: 'コードの問題の検査',
 		summary: '検査ルールを実行し、指摘の並び順を決めます。',
 	},
-	'kernel/output/document': {
+	'document_printer/lib': {
 		title: 'コードの整形',
 		summary: '改行と字下げの指示を組み合わせ、指定した幅に合わせて文字列を作ります。',
 	},

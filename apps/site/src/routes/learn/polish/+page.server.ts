@@ -36,8 +36,8 @@ export const load = () => ({
 	polish: polishArms(),
 	history: history(),
 	code: excerpts({
-		replaceParts: 'kernel/output/document/LayoutInstructions::replace_parts',
-		trimLeft: 'kernel/output/document/LayoutInstructions::trim_left',
+		replaceParts: 'document_printer/lib/LayoutInstructions::replace_parts',
+		trimLeft: 'document_printer/lib/LayoutInstructions::trim_left',
 		take: 'kernel/performance/buffer_pool/take',
 		runEach: 'kernel/computation/pipeline/run_each',
 		punct: 'typescript/syntax/lexer/Lexer::punct',

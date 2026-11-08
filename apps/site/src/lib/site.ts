@@ -167,7 +167,7 @@ export const chapters: Chapter[] = [
 		title: '改行と字下げの決め方',
 		abstract:
 			'Prettier と同じ規則で、一行に収めるか改行するかを決める。整形用のデータ構造と、それを文字列にする処理。',
-		module: 'kernel/output/document',
+		module: 'document_printer/lib',
 		minutes: 20,
 		sections: [
 			s('ir', '整形用のデータ構造と保存領域'),
@@ -322,12 +322,11 @@ export const appendix = [
 /** The Rust file a chapter's `module` key names, as the source plugin reads it. */
 export function moduleFile(module: string): string {
 	const [crate, ...rest] = module.split('/');
-	const directory =
-		crate === 'kernel'
-			? 'crates/language_independent/kernel/src'
-			: crate === 'lint'
-				? 'crates/language_independent/lint_runner/src'
-				: null;
+	const directory = {
+		kernel: 'crates/language_independent/kernel/src',
+		lint: 'crates/language_independent/lint_runner/src',
+		document_printer: 'crates/language_independent/document_printer/src',
+	}[crate];
 	if (!directory) throw new Error(`no crate directory for ${module}`);
 	return `${directory}/${rest.join('/')}.rs`;
 }

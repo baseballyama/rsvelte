@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use rsvelte_kernel::output::document::{
-    GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions,
-};
+use rsvelte_document_printer::{GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions};
 
 /// Values nested deeper than this are refused; the parser recurses once per level.
 const MAX_DEPTH: usize = 256;
@@ -419,9 +417,9 @@ mod tests {
             .docs
             .print(
                 parsed.root,
-                &rsvelte_kernel::output::document::PrintOptions {
+                &rsvelte_document_printer::PrintOptions {
                     width,
-                    ..rsvelte_kernel::output::document::PrintOptions::default()
+                    ..rsvelte_document_printer::PrintOptions::default()
                 },
             )
             .map_err(|_refused| LayoutExpressionError {

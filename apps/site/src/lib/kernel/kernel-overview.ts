@@ -245,7 +245,7 @@ export const sharedParts: SharedPart[] = [
 	{
 		id: 'document',
 		label: 'コードの整形',
-		module: 'kernel/output/document',
+		module: 'document_printer/lib',
 		href: '/learn/kernel/document',
 	},
 	{
@@ -269,7 +269,7 @@ export const sharedParts: SharedPart[] = [
 	{
 		id: 'width',
 		label: '文字の表示幅',
-		module: 'kernel/output/width',
+		module: 'document_printer/width',
 		href: '/learn/kernel/document',
 	},
 	{

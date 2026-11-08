@@ -14,6 +14,7 @@ rsvelte_config.workspace = true
 rsvelte_vue.workspace = true
 rsvelte_stylesheet_format.workspace = true
 rsvelte_kernel.workspace = true
+rsvelte_document_printer.workspace = true
 rsvelte_typescript_format.workspace = true
 rsvelte_typescript.workspace = true
 

@@ -14,8 +14,10 @@
 
 use std::num::NonZeroU32;
 
-pub use super::width::string_width;
-use crate::performance::buffer_pool;
+mod width;
+
+use rsvelte_kernel::performance::buffer_pool;
+pub use width::string_width;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct LayoutInstructionIdentifier(u32);
@@ -83,7 +85,7 @@ enum Node {
     FlatOnly(LayoutInstructionIdentifier),
 }
 
-/// The document arena. Its buffers come from and go back to [`crate::performance::buffer_pool`], so
+/// The document arena. Its buffers come from and go back to [`rsvelte_kernel::performance::buffer_pool`], so
 /// a worker processing one file after another reuses their capacity.
 #[derive(Debug)]
 pub struct LayoutInstructions {

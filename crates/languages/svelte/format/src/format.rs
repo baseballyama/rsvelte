@@ -15,7 +15,7 @@
 
 use std::borrow::Cow;
 
-use rsvelte_kernel::output::document::{
+use rsvelte_document_printer::{
     LayoutInstructionIdentifier, LayoutInstructions, PrintOptions, Refused,
 };
 use rsvelte_kernel::source::positions::{LineIndex, Span};

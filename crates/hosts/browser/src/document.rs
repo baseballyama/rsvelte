@@ -1,8 +1,6 @@
 //! Browser rendering for the kernel document printer.
 
-use rsvelte_kernel::output::document::{
-    GroupDecision, PrintOptions, TraceEvent, TraceMode, string_width,
-};
+use rsvelte_document_printer::{GroupDecision, PrintOptions, TraceEvent, TraceMode, string_width};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use wasm_bindgen::prelude::*;
 

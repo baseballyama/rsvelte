@@ -317,7 +317,7 @@
 		'P4',
 		'LayoutInstruction のアリーナが書き換えられる',
 		'upstream',
-		'output/document.rs · LayoutInstructions::trim_left、trim_right、replace_parts',
+		'document_printer · LayoutInstructions::trim_left、trim_right、replace_parts',
 	)}
 </div>
 
@@ -369,14 +369,14 @@
 		'P7',
 		'shouldBreak の group が親の group を壊さなかった',
 		'fixed',
-		'output/document.rs · LayoutInstructions::push',
+		'document_printer · LayoutInstructions::push',
 	)}
 	<p>
 		<code>group_broken</code> で作った group が親の group を壊さず、Prettier
 		と違う出力になっていました（708a4403d5、<a href="/learn/kernel/document#printer">08</a>）。
 	</p>
 
-	{@render item('P8', '文字列の幅が Prettier と違った', 'fixed', 'output/width.rs · string_width')}
+	{@render item('P8', '文字列の幅が Prettier と違った', 'fixed', 'document_printer · string_width')}
 	<p>
 		絵文字、異体字セレクタ、ゼロ幅の文字の数え方が違っていました。今は Unicode
 		の幅の規則（unicode-width）で数えます。Prettier の表との一致は目的にしていません（b58a0a72be、<a

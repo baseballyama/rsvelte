@@ -770,6 +770,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_document_printer"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "unicode-width",
+]
+
+[[package]]
 name = "rsvelte_kernel"
 version = "0.0.0"
 dependencies = [
@@ -777,13 +785,13 @@ dependencies = [
  "rustc-hash",
  "semver",
  "sha2",
- "unicode-width",
 ]
 
 [[package]]
 name = "rsvelte_kernel_browser"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_svelte",
  "rsvelte_svelte_compile",
@@ -906,6 +914,7 @@ name = "rsvelte_svelte_format"
 version = "0.0.0"
 dependencies = [
  "rsvelte_config",
+ "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_stylesheet_format",
  "rsvelte_svelte",
@@ -1087,6 +1096,7 @@ name = "rsvelte_typescript_format"
 version = "0.0.0"
 dependencies = [
  "rsvelte_config",
+ "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_typescript",
 ]
@@ -1145,6 +1155,7 @@ name = "rsvelte_vue_format"
 version = "0.0.0"
 dependencies = [
  "rsvelte_config",
+ "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_stylesheet_format",
  "rsvelte_test_harness",

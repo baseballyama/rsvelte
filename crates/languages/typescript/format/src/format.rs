@@ -15,8 +15,8 @@
 //! [`rsvelte_typescript::syntax_tree::TypeScriptSyntax`]); a type prints as its source text only
 //! when that text is a plain type reference (`Props`, `string`, `a.B[]`).
 
+use rsvelte_document_printer::{LayoutInstructionIdentifier, LayoutInstructions};
 pub use rsvelte_kernel::diagnostics::diagnostic::Unsupported;
-use rsvelte_kernel::output::document::{LayoutInstructionIdentifier, LayoutInstructions};
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_typescript::operators::{BinaryOperator, LogicalOperator, UnaryOperator};
 use rsvelte_typescript::syntax_tree::{

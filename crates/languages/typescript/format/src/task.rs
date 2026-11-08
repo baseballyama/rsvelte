@@ -1,8 +1,8 @@
+use rsvelte_document_printer::{LayoutInstructions, PrintOptions};
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
-use rsvelte_kernel::output::document::{LayoutInstructions, PrintOptions};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript::Parsed;
 

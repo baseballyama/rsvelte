@@ -184,7 +184,7 @@ impl Printer<'_, '_> {
         // The CSS printer makes no width decisions; it is exact only while no line has to wrap.
         if stylesheet
             .lines()
-            .any(|l| TAB_WIDTH + rsvelte_kernel::output::document::string_width(l) > PRINT_WIDTH)
+            .any(|l| TAB_WIDTH + rsvelte_document_printer::string_width(l) > PRINT_WIDTH)
         {
             return Err(Unsupported::at(
                 "a CSS line longer than the print width",

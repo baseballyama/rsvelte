@@ -78,7 +78,7 @@ impl Printer<'_, '_> {
                     rsvelte_stylesheet_format::format(self.source_text, &style.sheet, "", "  ")?;
                 if stylesheet
                     .lines()
-                    .any(|l| rsvelte_kernel::output::document::string_width(l) > PRINT_WIDTH)
+                    .any(|l| rsvelte_document_printer::string_width(l) > PRINT_WIDTH)
                 {
                     return Err(Unsupported::at(
                         "a CSS line longer than the print width",

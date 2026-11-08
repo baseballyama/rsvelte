@@ -8,6 +8,7 @@ import path from 'node:path';
 export const CRATES: Record<string, string> = {
 	rsvelte_kernel: 'kernel',
 	rsvelte_lint_runner: 'lint',
+	rsvelte_document_printer: 'document_printer',
 	rsvelte_svelte: 'svelte',
 	rsvelte_typescript: 'typescript',
 	rsvelte_command_line: 'command_line',
@@ -31,6 +32,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		}));
 	const groups: [string, string, string[]][] = [
 		['lint', 'language_independent/lint_runner/src', ['rules', 'output']],
+		['document_printer', 'language_independent/document_printer/src', ['lib', 'width']],
 		[
 			'typescript',
 			'languages/typescript/core/src',

@@ -92,6 +92,7 @@ test('every workspace crate has a role from its path', () => {
 	]);
 	assert.deepEqual(named('support'), [
 		'rsvelte_config',
+		'rsvelte_document_printer',
 		'rsvelte_lint_runner',
 		'rsvelte_test_harness',
 		'rsvelte_typescript_content_mapper',

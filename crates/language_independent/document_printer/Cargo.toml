@@ -1,0 +1,17 @@
+[package]
+name = "rsvelte_document_printer"
+description = "Layout instructions and a printer that fits them to a width"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+rsvelte_kernel.workspace = true
+unicode-width.workspace = true
+
+[lints]
+workspace = true
