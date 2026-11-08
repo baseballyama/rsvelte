@@ -215,6 +215,7 @@ impl<'a> Parser<'a> {
             instance: self.instance_script.take().map(Box::new),
             module: self.module_script.take().map(Box::new),
             skip_expression_loc: self.options.skip_expression_loc,
+            ts: self.ts,
             parse_warnings: std::mem::take(&mut self.parse_warnings),
             // Upstream assigns `end` only to the innermost node still open at
             // EOF (`1-parse/index.js`); every other keeps the `-1` it was

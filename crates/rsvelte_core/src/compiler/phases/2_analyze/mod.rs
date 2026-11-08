@@ -187,23 +187,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
             let start = json.field("start")?.as_u64()? as usize;
             let end = json.field("end")?.as_u64()? as usize;
             let text = source.get(start..end)?.to_string();
-            let is_ts = |script: &Option<Box<crate::ast::Script>>| {
-                script.as_ref().is_some_and(|s| {
-                    s.attributes.iter().any(|attr| {
-                        attr.name.as_str() == "lang"
-                            && matches!(
-                                &attr.value,
-                                crate::ast::AttributeValue::Sequence(parts)
-                                    if matches!(
-                                        parts.first(),
-                                        Some(crate::ast::AttributeValuePart::Text(t))
-                                            if t.data.as_ref() == "ts" || t.data.as_ref() == "typescript"
-                                    )
-                            )
-                    })
-                })
-            };
-            if is_ts(&ast.instance) || is_ts(&ast.module) {
+            if ast.ts {
                 Some(types::strip_typescript(&text))
             } else {
                 Some(text)
