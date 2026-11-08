@@ -1,49 +1,46 @@
 # Writing the site
 
-Use Japanese for reader-facing text. Use common words and short sentences. Describe what
-each module does before showing its implementation name. Do not use abbreviations in prose,
-headings, navigation, captions, controls, or labels. Use the full word or a clear Japanese
-description. AST and HIR are allowed technical terms; define them at their first use on a page.
-This includes quoted code: rename project-defined files, modules, types,
-fields and variables in the implementation, then update their references and excerpts.
-`Term` supplies a Japanese explanation; it must not hide an abbreviated implementation name.
-Keep quoted source code exact. Rust keywords, Cargo's required layout, external library names,
-language syntax and public protocol field names must retain their specified spelling.
+Write the site in Japanese for frontend engineers. Follow the `docs` skill
+(`.claude/skills/docs/SKILL.md`); this file lists only what is specific to the site.
 
-Avoid jargon, metaphors, vague claims, and promotional language. Explain a mechanism with
-its input, operation, and result. Do not invent a new term for a familiar action.
+- Say what a module does before you show its implementation name.
+- Use well-known acronyms (`acronyms` in `tools/writing/words.ts`) as they are, and define AST
+  and HIR at their first use on a page. Spell out every other acronym and shortened name.
+  Rename shortened project names in the code too, then update the quoted excerpts.
+- `Term` adds a Japanese explanation to a word. It must not hide a shortened name.
+- Keep quoted code exact. Rust keywords, Cargo's layout, library names, language syntax and
+  public protocol fields keep their own spelling.
+- A comparison names the other tool's relevant feature and links its official page, with the
+  date you checked it. A cache claim says when the value expires.
+- Animation must not suggest a measured speed, and the text must work with motion turned off.
 
-For explanation pages:
+## Checks
 
-- Write for frontend engineers. Use standard terms (parsing, name resolution, hydration).
-  Follow one example far enough to show the consequence. Say each claim once.
-- Keep implemented behavior, plans, and measured effects distinct. A cache claim says when the
-  value expires. A comparison states the other tool's relevant capability and links its
-  official page, with the check date.
-- Animation must not imply measured speed. The text must work with motion disabled.
-- Check every code example and link. A clean lint does not prove the text is accurate.
+```sh
+pnpm run lint:prose [file ...]   # textlint on the visible Japanese text
+pnpm run lint:code-names         # shortened names in Rust and the site's own declarations
+pnpm run test && pnpm run check && pnpm run build
+```
 
-Run `pnpm run lint:code-names`, `pnpm run lint:prose`, `pnpm run test`, `pnpm run check`, and `pnpm run build` after edits.
-The test and build commands enforce the writing rules, including in the existing site job.
-Do not suppress findings or add a baseline for existing bad prose; rewrite the text.
+`test` and `build` run both lints. Rewrite the text to fix a finding. Do not suppress it or add
+a baseline.
 
-The code-name guard checks every first-party Rust source file and its path, plus declarations
-in the site's TypeScript and Svelte scripts, not just the subset quoted by the guide.
-It skips comments and string literals because these may contain
-source-language examples or protocol keys. Add new shortened forms and their full words to
-`scripts/code-names.ts` when they are found; no suppression baseline is allowed.
+The textlint rules are in `.textlintrc.json`, and `writing.yml` lists terms to replace. The
+`no-abbreviations` rule is in `scripts/no-abbreviations.ts`. The extractor
+(`scripts/prose.ts`) parses Svelte and TypeScript and checks visible static text and reader
+strings. It does not run expressions, so review dynamic labels yourself. textlint sees one
+passage at a time, so read the whole page for rules that span paragraphs.
 
-The rules use [Japanese technical writing](https://github.com/textlint-ja/textlint-rule-preset-ja-technical-writing),
-[AI writing patterns](https://github.com/textlint-ja/textlint-rule-preset-ai-writing), and
-[prh](https://github.com/textlint-rule/textlint-rule-prh). The configuration is `.textlintrc.json`, plus the `scripts/no-abbreviations.ts` rule that `scripts/prose.ts` adds;
-the terminology dictionary is `writing.yml`. The extractor uses the Svelte and TypeScript
-parsers. It checks visible static text and reader-facing strings, but does not evaluate
-runtime expressions or rewrite quoted code. Review dynamic labels when adding them.
-It preserves emphasis, heading levels and list markers for the AI pattern rules.
-Rules that need adjacent blocks still need manual review because passages are checked separately.
+Rules turned off, and why:
 
-Fragments include headings and controls, so sentence-final punctuation and tone rules are
-disabled. Question marks are allowed in teaching. Number style is not a readability gate.
-The repeated-particle rule flags normal Japanese enumeration; comma limits flag numeric
-thousands separators. The Japanese comma limit remains enabled. Advisory writing guidance
-is disabled because it requires human judgment; concrete pattern rules fail the build.
+- Sentence-final punctuation and tone: headings and buttons are fragments.
+- Question marks: questions help teaching.
+- Number style (`一つ` or `1つ`): it does not change readability.
+- Commas in English sentences: they count thousands separators. The Japanese comma limit stays on.
+- The repeated-particle rule allows も, や, か and と, because normal Japanese lists repeat them.
+- Advisory AI-writing guidance: it needs a person's judgment. The concrete AI-pattern rules stay on.
+- Hiragana for adverbs (`ja-hiragana-fukushi`): it asks to write 正しく as まさしく.
+
+The code-name guard reads every first-party Rust file and path, and the declarations in the
+site's TypeScript and Svelte. It skips comments and string literals, which may quote another
+language. Add a newly found shortened name and its full word to `scripts/code-names.ts`.

@@ -18,5 +18,7 @@ export default defineConfig({
 		'crates/languages/svelte/compile_vapor/src/compilation/**/*.js',
 		'crates/languages/svelte/typescript_projection/projection.d.ts',
 		'**/vendor/**',
+		// A skill copied from another project, kept as published.
+		'.claude/skills/humanizer/**',
 	],
 });
