@@ -388,13 +388,19 @@ fn is_empty_nonhug_element(name: &str, fragment: &Fragment) -> bool {
 /// judged against the width without the `{/…}` after it and stayed flat by
 /// exactly the closers' width. Only a closer glued with no whitespace counts:
 /// anything else offers a break opportunity of its own.
-fn trailing_tag_width(source: &str, start: u32, end: u32) -> usize {
-    // Only when the element itself renders on one line: otherwise the closers sit
-    // on the CLOSE tag's line (`</td>{/each}`), not on the open tag's, and adding
-    // them there breaks an open tag that fits.
+fn trailing_tag_width(source: &str, fragment: &Fragment, end: u32) -> usize {
+    // Only when the element's body and close tag stay on the open tag's line:
+    // otherwise the closers sit on the CLOSE tag's line (`</td>{/each}`), and
+    // adding them there breaks an open tag that fits. The open tag's own line
+    // breaks are what this measurement decides, so they do not count; a
+    // self-closing element has no body and its closers always follow it.
+    let body_start = fragment
+        .nodes
+        .first()
+        .map_or(end, |node| crate::collapse::template_node_span(node).0);
     if source
-        .get(start as usize..end as usize)
-        .is_none_or(|whole| whole.contains('\n'))
+        .get(body_start as usize..end as usize)
+        .is_none_or(|body| body.contains('\n'))
     {
         return 0;
     }
@@ -459,7 +465,7 @@ fn handle_element(
         empty_nonhug,
         regular_element,
         in_pre,
-        trailing_tag_width(source, start, end),
+        trailing_tag_width(source, fragment, end),
         options,
         edits,
     )?;

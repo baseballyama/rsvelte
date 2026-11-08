@@ -1,0 +1,73 @@
+//! A self-closing element glued between block tags (`{:else if …}<Second … />{:else}`)
+//! whose open tag the first run wraps: the closers after it were counted only
+//! while the source element sat on one line, so the second run measured the
+//! wrapped form without them, judged it to fit and joined it back. The two
+//! layouts alternated forever (#4765).
+//!
+//! Every expectation below is the oxfmt(`svelte: true`) oracle's own output for
+//! the input above it; the oracle is a fixed point on each of them.
+
+use rsvelte_formatter::{FormatOptions, JsFormatOptions, LineWidth, format};
+
+fn fmt(src: &str, width: u16) -> String {
+    let opts = FormatOptions {
+        js: JsFormatOptions {
+            line_width: LineWidth::try_from(width).expect("valid line width"),
+            ..JsFormatOptions::default()
+        },
+        ..FormatOptions::default()
+    };
+    format(src, &opts).expect("format ok")
+}
+
+fn assert_fmt(src: &str, width: u16, expected: &str) {
+    let out = fmt(src, width);
+    assert_eq!(out, expected, "got:\n{out}");
+    let again = fmt(&out, width);
+    assert_eq!(again, out, "not idempotent:\n{again}");
+}
+
+#[test]
+fn self_closing_arm_after_a_nested_block() {
+    assert_fmt(
+        "{#if a}{#if b}<First name={b.owner.name} />{/if}{:else if c && b}<Second viewer={b.view.as} {c} />{:else}<Third />{/if}\n",
+        100,
+        "{#if a}{#if b}<First name={b.owner.name} />{/if}{:else if c && b}<Second\n    viewer={b.view.as}\n    {c}\n  />{:else}<Third />{/if}\n",
+    );
+}
+
+#[test]
+fn self_closing_arm_before_the_closer() {
+    assert_fmt(
+        "{#if a}{#if b}<First name={b.owner.name} />{/if}{:else if c && b}<Second viewer={b.view.as} {c} />{/if}\n",
+        100,
+        "{#if a}{#if b}<First name={b.owner.name} />{/if}{:else if c && b}<Second\n    viewer={b.view.as}\n    {c}\n  />{/if}\n",
+    );
+}
+
+#[test]
+fn self_closing_element_in_an_each_body() {
+    assert_fmt(
+        "{#each items as item}{#if b}<First name={b.owner.name} />{/if}<Second viewer={b.view.as} {c} />{/each}\n",
+        100,
+        "{#each items as item}{#if b}<First name={b.owner.name} />{/if}<Second\n    viewer={b.view.as}\n    {c}\n  />{/each}\n",
+    );
+}
+
+#[test]
+fn control_at_width_80() {
+    assert_fmt(
+        "{#if a}{#if b}<First name={b.owner.name} />{/if}{:else if c && b}<Second viewer={b.view.as} {c} />{:else}<Third />{/if}\n",
+        80,
+        "{#if a}{#if b}<First name={b.owner.name} />{/if}{:else if c && b}<Second\n    viewer={b.view.as}\n    {c}\n  />{:else}<Third />{/if}\n",
+    );
+}
+
+#[test]
+fn control_that_fits_at_width_120() {
+    assert_fmt(
+        "{#if a}{#if b}<First name={b.owner.name} />{/if}{:else if c && b}<Second viewer={b.view.as} {c} />{:else}<Third />{/if}\n",
+        120,
+        "{#if a}{#if b}<First name={b.owner.name} />{/if}{:else if c && b}<Second viewer={b.view.as} {c} />{:else}<Third />{/if}\n",
+    );
+}
