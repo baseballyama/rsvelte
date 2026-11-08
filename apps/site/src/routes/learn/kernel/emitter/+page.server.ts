@@ -11,7 +11,7 @@ export const load = () => ({
 		pushFor: 'kernel/output/emitter/Emitter::push_for',
 		lookup: 'kernel/output/emitter/Emitter::lookup',
 		lookupSpan: 'kernel/output/emitter/Emitter::lookup_span',
-		spansTest: 'kernel/output/emitter/tests::spans_map_back_through_copies_and_quotes',
+		spansTest: 'kernel/output/emitter/tests/spans_map_back_through_copies_and_quotes',
 		points: 'kernel/output/emitter/Emitter::points',
 		sourceMap: 'kernel/output/emitter/Emitter::source_map',
 		vlq: 'kernel/output/emitter/vlq',

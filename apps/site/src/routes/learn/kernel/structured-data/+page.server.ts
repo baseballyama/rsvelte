@@ -10,8 +10,8 @@ export const load = () => ({
 		num: 'kernel/output/structured_data/StructuredDataWriter::write_number',
 		fixed: 'kernel/output/structured_data/StructuredDataWriter::fixed',
 		escapeTest:
-			'kernel/output/structured_data/tests::strings_are_escaped_as_one_character_at_a_time',
+			'kernel/output/structured_data/tests/strings_are_escaped_as_one_character_at_a_time',
 		writeString: 'kernel/output/structured_data/write_string',
-		test: 'kernel/output/structured_data/tests::nested_values_and_keys',
+		test: 'kernel/output/structured_data/tests/nested_values_and_keys',
 	}),
 });

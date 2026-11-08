@@ -13,7 +13,11 @@ const root = resolve(import.meta.dirname, '../..');
 function rustFiles(): string[] {
 	const git = { cwd: root, encoding: 'utf8', maxBuffer: Infinity } as const;
 	const list = (args: string[]) =>
-		execFileSync('git', ['ls-files', '-z', ...args, '--', 'crates', 'tools', 'apps'], git)
+		execFileSync(
+			'git',
+			['ls-files', '-z', ...args, '--', 'crates', 'examples', 'tools', 'apps'],
+			git,
+		)
 			.split('\0')
 			.filter(Boolean);
 	const deleted = new Set(list(['--deleted']));
