@@ -48,8 +48,6 @@ type R<T> = Result<T, Diagnostic>;
 const BLOCK_OPEN: &str = "<!--[-->";
 const BLOCK_OPEN_ELSE: &str = "<!--[!-->";
 const BLOCK_CLOSE: &str = "<!--]-->";
-const EMPTY_COMMENT: &str = "<!---->";
-const ELEMENT_IS_INPUT: u32 = 1 << 2;
 
 /// One piece of a server template before it is folded into `$$renderer.push(…)` calls.
 enum Piece {

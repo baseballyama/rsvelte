@@ -4,7 +4,7 @@ use super::{
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum BlockWs {
+enum BlockWs {
     None,
     Space,
     Line,
@@ -176,7 +176,7 @@ impl Printer<'_, '_> {
     }
 
     /// `checkWhitespaceAtStartOfSvelteBlock` / `…AtEndOfSvelteBlock`.
-    pub(super) fn block_ws(&self, children: &[TemplateNodeIdentifier], start: bool) -> BlockWs {
+    fn block_ws(&self, children: &[TemplateNodeIdentifier], start: bool) -> BlockWs {
         let edge = if start {
             children[0]
         } else {

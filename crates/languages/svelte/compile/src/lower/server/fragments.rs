@@ -1,7 +1,8 @@
 use super::{
-    EMPTY_COMMENT, NodeIdentifier, Piece, R, ServerCompilationContext, SourceLocation,
-    sanitize_template_string,
+    NodeIdentifier, Piece, R, ServerCompilationContext, SourceLocation, sanitize_template_string,
 };
+
+const EMPTY_COMMENT: &str = "<!---->";
 
 impl ServerCompilationContext<'_> {
     pub(super) fn fragment(

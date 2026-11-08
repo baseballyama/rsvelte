@@ -1,10 +1,17 @@
 use rsvelte_svelte::compilation::compiler_syntax_tree::Each;
 
 use crate::lower::client::{
-    BindingIdentifier, ClientCompilationContext, CompilerNodeIdentifier, EACH_INDEX_REACTIVE,
-    EACH_IS_CONTROLLED, EACH_ITEM_IMMUTABLE, EACH_ITEM_REACTIVE, Frag, Lists, NodeIdentifier,
-    NodeKind, R, Read, SourceLocation, has_dependency, unsupported,
+    BindingIdentifier, ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists,
+    NodeIdentifier, NodeKind, R, Read, SourceLocation, has_dependency, unsupported,
 };
+
+const EACH_ITEM_REACTIVE: u32 = 1;
+
+const EACH_INDEX_REACTIVE: u32 = 1 << 1;
+
+const EACH_IS_CONTROLLED: u32 = 1 << 2;
+
+const EACH_ITEM_IMMUTABLE: u32 = 1 << 4;
 
 /// The bindings an `{#each}` block declares: its item and its index.
 #[derive(Clone, Copy)]

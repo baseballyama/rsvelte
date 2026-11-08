@@ -1,8 +1,11 @@
 use super::{
     ClientCompilationContext, Frag, Item, Kind, Lists, NodeIdentifier, NodeKind, Prev, R,
-    SourceLocation, TEMPLATE_FRAGMENT, TEMPLATE_USE_IMPORT_NODE, Template,
-    sanitize_template_string,
+    SourceLocation, Template, sanitize_template_string,
 };
+
+const TEMPLATE_FRAGMENT: u32 = 1;
+
+const TEMPLATE_USE_IMPORT_NODE: u32 = 2;
 
 impl ClientCompilationContext<'_> {
     /// Upstream `Fragment` visitor: the statements of one block.
