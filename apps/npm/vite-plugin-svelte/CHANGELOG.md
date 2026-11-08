@@ -1,5 +1,28 @@
 # @sveltejs/vite-plugin-svelte
 
+## 0.5.4
+
+### Patch Changes
+
+- 45ac168: fix(vps): the published types resolve under the SvelteKit override alias and match `svelte/compiler`. Installed as `@sveltejs/vite-plugin-svelte`, as the README's SvelteKit setup does, every import of the plugin failed type-checking with "is not a module", because dts-buddy declares the types under `@rsvelte/vite-plugin-svelte` only; a module entry now re-exports them under whichever name the package is installed as. The public types also imported `@rsvelte/compiler`, which the plugin does not depend on; they now use `svelte/compiler`, as upstream does, so user preprocessors, `vitePreprocess()` and `compilerOptions` type-check against the official API. `@rsvelte/vite-plugin-svelte-native` types the `markup` it always passes to script and style preprocessors as required, as upstream does.
+- Updated dependencies [9789cd5]
+- Updated dependencies [c0efbac]
+- Updated dependencies [9905231]
+- Updated dependencies [601715f]
+- Updated dependencies [4e91ebd]
+- Updated dependencies [58ffa79]
+- Updated dependencies [ac35842]
+- Updated dependencies [9d67877]
+- Updated dependencies [c7e9d9e]
+- Updated dependencies [a196b02]
+- Updated dependencies [280ccbe]
+- Updated dependencies [8f7e729]
+- Updated dependencies [fe48eee]
+- Updated dependencies [718e0cd]
+- Updated dependencies [7d8d624]
+- Updated dependencies [45ac168]
+  - @rsvelte/vite-plugin-svelte-native@0.3.18
+
 ## 0.5.3
 
 ### Patch Changes

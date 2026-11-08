@@ -1,5 +1,40 @@
 # @rsvelte/compiler
 
+## 0.12.7
+
+### Patch Changes
+
+- 9789cd5: Keep a statement whole when a component with a top-level `await` (`experimental.async`) is split into its async body. A line ending in `=>` or another operator (including after a trailing comment, or a string that contains `//`), a keyword such as `typeof`, `await` or `else`, or the header of a brace-less `if`/`for`/`while`, no longer ends the statement when the next line starts with a `$.` call or a statement keyword; the output used to be unparseable or, after a `// comment`, silently different. An `async` arrow function declared after the first `await` is now hoisted like any other arrow function, as upstream does.
+- cedb58b: fix(svelte-check, language-server): a TypeScript component's generic arrows and `<T>expr` assertions no longer type-check as JSX elements. Upstream svelte-check and the language server type-check each shadow as a `.ts` file; rsvelte writes `.svelte.tsx`, where `const f = <T>(x: T) => x` and `<number>raw` are lexed as JSX, so such a component reported a cascade of `JSX element 'T' has no corresponding closing tag` errors (and the syntax error then suppressed every type error program-wide). Both shadow writers, and the content mapper, now ask svelte2tsx to rewrite these forms — `<T,>(x: T) => x` and `(raw as number)` — wherever they reach the output: the instance and module scripts, markup expressions and a snippet's type parameters. svelte2tsx's own output is unchanged.
+- c0efbac: Keep a class field whole in server output when its initializer breaks across lines after `=` or at a binary or logical operator (for example a bit-flag union formatted one operand per line) in a class that also has a `$state` / `$derived` field. The output used to split it into one statement per line, which is not valid JavaScript.
+- 9905231: Stop wrapping a component `{@attach}` expression in `($$node) => (expr || $.noop)($$node)` when it reads no state, for example `{@attach (el) => el.focus()}`, and drop `|| $.noop` when the expression is known to be a function, as upstream does.
+- 601715f: fix(compiler): a `{const x = $derived(…)}` or `{let x = $state(…)}` declaration tag now reads, updates and passes `x` through `$.get` on the client even when another binding in the component (an `{#each}` context, a function parameter, or an instance binding the `$derived` tag shadows) has the same name.
+- 4e91ebd: fix(compiler): in dev mode with `experimental.async`, comments around a `for await` loop's iterable now print inside `$.for_await_track_reactivity_loss(…)` the way the official compiler places them, instead of staying outside the wrapper.
+- 58ffa79: Upgrade the oxc crates from 0.149 to 0.157 (and `rsvelte-fmt`'s embedded `oxc_formatter` / `oxc_formatter_css` to the matching 0.75 release). Parse errors keep acorn's wording and offsets where oxc's parser now reports first: a nested `import` / `export` declaration still says `'import' and 'export' may only appear at the top level`, a TypeScript-only class-member modifier in a plain-JavaScript script is still rejected at the token after it, and an optional class member (`x?`, `m?()`) in plain JavaScript is `Unexpected token` at the `?`. An HTML-like comment (`<!--` / `-->`, script-mode only) is still printed as a line comment. `rsvelte-fmt` now formats a `font-family` list with a `-`-prefixed member (`-apple-system`) by filling to the print width instead of breaking one item per line, and opens an over-wide `calc()` parenthesized operand the way Prettier does.
+- ac35842: fix(compiler): a class with a `$state` field no longer rewrites a longer private field that starts with the same name (`++this.#historyGeneration` next to `history = $state(…)` came out as `$.update_pre(this.#history)Generation`, which does not parse), including names continued by `$` or a non-ASCII letter. The client class transform also leaves `++this.#x` / `this.#x--` and `this.#x` reads inside strings, comments and template text alone, keeps `++this.#x.v` an update of the member, and reads `a+++this.#x` as `a++ + this.#x`.
+- 9d67877: Pass a `$props()` / `export let` default eagerly whenever upstream does, deciding on the parsed expression rather than its text. Defaults such as `2_000.5` (a numeric separator with a fraction), `(1.5)`, `1.5 + 1`, `true ? 2_000.5 : 1` or `1.5 || 0` were wrapped in a lazy thunk.
+- c7e9d9e: fix(compiler): with `experimental.async`, a comment in front of an `await` that is a rune's argument or an assignment's value (`$derived(/* c */ await load())`, `$state(/** @type {T} */ (await load()))`, `x = /* c */ await load()`) no longer produces unparseable client dev output, and a comment right after `await` inside `$derived` (`(await /* c */ load()) + 1`) no longer yields an empty `$.save()`.
+- a196b02: Detect `lang="ts"` on a `<script>` tag whose earlier attribute value contains `>`, such as `generics="T extends Record<string, unknown>"`. TypeScript in template expressions used to fail with `js_parse_error` when `lang` came after such an attribute. Detection now follows upstream's rule exactly, including that only the first `<script>` carrying a `lang` attribute decides.
+
+  The compiler now also strips TypeScript whenever the parser read the component as TypeScript, as upstream does, instead of only when a top-level script carries `lang="ts"`. A component the parser treats as TypeScript without one (`<script data-lang="ts">`, or a `<script lang="ts">` nested in the markup) used to keep type annotations and interfaces in its JavaScript output.
+
+- ae1a804: Keep instance-script comments under `experimental.async` when the component has a top-level `await`. On the server the async body split printed and re-parsed the instance body without its comments, so every comment in it was dropped, including those inside function bodies. On both targets the split also dropped an own-line comment that preceded a declaration or other keyword statement.
+- 280ccbe: In server output, emit the hoisted `var bind_get` / `var bind_set` of a component's `bind:x={get, set}` after the enclosing block's `{@const}` and snippet declarations, as the official compiler does, instead of ahead of a `const` they reference. The other statements upstream collects in the same place now keep its order too: a `<title>` in `<svelte:head>`, a snippet declared inside a plain element or inside bound content, a dev `<svelte:element>` tag check, and the `let`s and `$$renderer.run(…)` of an async `{@const}` group, including in an element with async attributes and its own `{const}`.
+- 8f7e729: fix(parser): a snippet's parameter list is delimited by counting parentheses only, as upstream does. The scan also skipped `'`/`"` strings, so an apostrophe in a comment inside the parameter types (`// it's …`) opened a string that ran to the end of the file and failed the component with `Expected token )`.
+
+  A header whose parenthesis count stops inside a string, template, regex or comment is now a `js_parse_error` at upstream's position in TypeScript components too, rather than `Expected token }`. Type parameters are read with upstream's bracket matcher: whitespace is allowed before `<`, backtick strings are skipped, an unterminated quote is `unterminated_string_constant`, and `typeParams` keeps its inner whitespace.
+
+- fe48eee: With `experimental.async`, wrap a component, `{@render}` or element whose props / attributes read an async `{const}` / `{@const}` binding of the same block in `$$renderer.async_block` / `$$renderer.async`, as the official compiler does. Server rendering used to read the binding before `$$renderer.run` assigned it and threw `TypeError: v is not a function`.
+
+  A read of an each item, snippet parameter or other template binding that shares its name with a top-level-await binding no longer waits on that binding.
+
+- 1fe4395: Grow the stack on demand in two recursions whose depth follows the input's expression nesting: serializing JavaScript AST nodes, and applying client expression transforms. A long chain such as `x1 + x2 + … + x32` overflowed the default 2 MB thread stack in debug builds. Native targets only; the wasm build is unchanged.
+- 718e0cd: fix(compiler): follow Svelte 5.57.3. A second `{:else}` in an `{#if}` or `{#each}` block, and an `{:else if}` after an `{:else}`, is now the `block_duplicate_clause` error (sveltejs/svelte#18900); a `let:` directive on a component that also has a `children` snippet is the new `let_directive_snippet_conflict` error (sveltejs/svelte#18873); a `role` attribute's tokens are matched ASCII case-insensitively and split on ASCII whitespace only, the element's effective role for the interaction checks is the first known non-abstract fallback role (sveltejs/svelte#19045), and `<area role="link">` without `href` is no longer a redundant role (sveltejs/svelte#18872); an event handler bound to a variable that is assigned after a top-level `await` is wrapped like an imported one so it is read when the event fires (sveltejs/svelte#18933). On the server, an expression tag that both awaits and reads a top-level-`await` binding is emitted as an `async` push with its `await` `$.save`-wrapped instead of an `await` inside a synchronous arrow, and an async `{#key}` block gets its `<!--[-->` / `<!--]-->` markers; a function declaration reached from a later `await` statement now inherits that statement's blocker.
+- dc3009c: fix(svelte2tsx): follow svelte2tsx 0.7.62 (sveltejs/language-tools#3126) — a `$props<T>()` type argument no longer types the props. Only the declarator annotation (`let { … }: T = $props()`) does; the type argument stays in place so TypeScript reports it, and the props fall back to the inferred `$$ComponentProps`, as upstream now does.
+- dc3009c: fix(svelte2tsx): a top-level snippet whose parameter type annotation or default value references an instance-script value (`{#snippet s(r: ReturnType<typeof c.raise>)}`) now stays inside `$$render` as upstream does. Only the names a parameter binds shadow outer references; identifiers in its annotation or default were wrongly treated as parameters too, so the snippet was hoisted to module scope where `c` is not in scope.
+- 740c395: fix(svelte2tsx): decide whether `$$render` is async the way upstream does. Any `await` outside a block or function now counts, including one under a TypeScript wrapper (`(await f()) as T`, `satisfies`, `!`, `<T>x`), in an optional chain, in a statement other than a declaration or expression (`if (c) await f();`, `for (x of await y)`, `switch`, `export const`), in a destructuring default, a computed key, a decorator or a class field. As in TypeScript, `await (x)` in a script without imports or exports stays a call to an identifier named `await`, and Svelte 4 output is never async. The `const $$$render = await $$render();` line now matches upstream byte for byte.
+- 7d8d624: fix(compiler): follow Svelte 5.57.3 (sveltejs/svelte#18859) in dev mode: a comment in front of an `await` — including a JSDoc cast such as `/** @type {T} */ (await load())` — now stays on the `await` inside `(await $.track_reactivity_loss(…))()` instead of moving onto the awaited operand.
+
 ## 0.12.6
 
 ### Patch Changes
@@ -92,7 +127,7 @@
 
   An annotation, its type arguments, its type parameters and a return type are serialized from an
   opaque value, so their nested nodes never consulted the comment side table. `type T = { /** doc */
-b: string }` kept the comment and every other context dropped it — a plain or destructured
+  b: string }` kept the comment and every other context dropped it — a plain or destructured
   declarator, `$props()`, a function parameter, an `as` cast and a type argument. The parse-AST
   parity ratchet falls from 163 to 149 keys.
 
@@ -168,7 +203,7 @@ b: string }` kept the comment and every other context dropped it — a plain or 
   positions are `offset + span - prefix`. Spelling that as a pre-subtracted
   `usize` made the base itself negative whenever a caller starts at 0 — modular
   arithmetic that comes out right in release and panics `attempt to subtract with
-overflow` in debug. The `convert_ts_*` family now carries `AdjustedOffset`,
+  overflow` in debug. The `convert_ts_*` family now carries `AdjustedOffset`,
   which keeps base and prefix apart and only ever hands out a sum.
 
 - 256591a: A comment left behind by an erased TypeScript annotation on a destructuring pattern now lands inside the pattern's brackets, where upstream puts it, instead of ahead of the initializer
@@ -187,7 +222,7 @@ overflow` in debug. The `convert_ts_*` family now carries `AdjustedOffset`,
 
   Measured over all 1,389 `.svelte` files of `compatibility/pattern-corpus` x
   client/server, 2,536 live units: **0 move** on the default `enable_sourcemap:
-true` path — this cannot touch what anyone compiles today — and exactly the two
+  true` path — this cannot touch what anyone compiles today — and exactly the two
   semantic units move under `--no-sourcemap`, both onto official's answer.
 
 - c83c8b8: fix(parse): `PseudoClassSelector.args` is `null`, not absent, when the pseudo-class takes none
@@ -312,7 +347,7 @@ true` path — this cannot touch what anyone compiles today — and exactly the 
 
   `SCOPE_DIRECT_SUPER` is ported with it, so a `super()` call in a field
   initializer or a static block now says `super() call outside constructor of a
-subclass` where it said `'super' keyword outside a method`. acorn checks
+  subclass` where it said `'super' keyword outside a method`. acorn checks
   `allowSuper` at the `super` token and `allowDirectSuper` only after the `(`, so
   a bare `super()` in a plain function keeps the first message.
 
@@ -1235,7 +1270,7 @@ subclass` where it said `'super' keyword outside a method`. acorn checks
   Upstream fills `SnippetBlock.metadata.sites` in one pass over `analysis.snippet_renderers`
   (`2-analyze/index.js:847`): a renderer whose callee resolves to a local snippet is a site of
   that block NODE, one that resolves to nothing gets `node.metadata.snippets =
-analysis.snippets` and so is a site of every snippet in the component, and one that resolves
+  analysis.snippets` and so is a site of every snippet in the component, and one that resolves
   outside it — a prop, an import — is a site of none. rsvelte keyed that map by the snippet's
   name, so two `{#snippet row()}` in different scopes merged and each was given the other's
   ancestors; and it had no notion of an unresolved renderer, so `{@render f()}` with `f` an
@@ -1360,7 +1395,7 @@ analysis.snippets` and so is a site of every snippet in the component, and one t
 
   It is an `Element` whose node type is not `Element`, so the attribute-case fold and
   the number-only rewrite do not reach it — `<svelte:fragment slot="s" someProp="0"
-cols="3" />` keeps `someProp` and types `cols` as a string. And its opener is
+  cols="3" />` keeps `someProp` and types `cols` as a string. And its opener is
   position-preserving like any other element's: the columns the stripped `slot=` and
   `let:` occupy come back as spaces whether or not another attribute survives, where
   rsvelte emitted them only when nothing did.
@@ -2345,7 +2380,7 @@ cols="3" />` keeps `someProp` and types `cols` as a string. And its opener is
   render.
 
   Upstream's `SvelteElement` visitor gives its inner context `memoizer: new
-Memoizer()` and closes it with `build_render_statement`, which reads that
+  Memoizer()` and closes it with `build_render_statement`, which reads that
   memoizer's parameters. rsvelte assembled the same `template_effect` by hand with
   a hard-coded empty parameter list and never installed the inner memoizer, so the
   entry `build_set_class` had just added went to the _enclosing_ memoizer — where
@@ -2901,7 +2936,7 @@ Memoizer()` and closes it with `build_render_statement`, which reads that
   in which `null` and `undefined` are the same value and `0` and `'0'` are the
   same value. It now shares the `scope.evaluate` port the server transform
   already used, so a fold keeps the operand's type: `$derived(cond ? undefined :
-null)` stays reactive instead of being judged constant and hoisted out of
+  null)` stays reactive instead of being judged constant and hoisted out of
   `$.template_effect`, and `typeof '0'`, `'0' + 0`, `'0' === 0`, `'10' < '9'`,
   `null + ''` and `true + 1` all fold to what the official compiler folds them to.
 
@@ -3278,7 +3313,7 @@ null)` stays reactive instead of being judged constant and hoisted out of
   The quiet half was a plain `this.#d = v` **outside** a constructor: the setter
   rewrite only ran on constructors, so a method body kept the assignment, replaced
   the callable with a plain value, and the next read threw `this.#d is not a
-function`. That output parsed, so no parse-level check could see it.
+  function`. That output parsed, so no parse-level check could see it.
 
   Both are now handled in one place, for constructors, methods and arrow-function
   class fields.
@@ -4212,7 +4247,7 @@ function`. That output parsed, so no parse-level check could see it.
   attribute-name case fold, so `<element someAttr="hi">` projects as
   `"someAttr"`. rsvelte had no `foreign` namespace at all: the value was
   unreachable from the napi and wasm boundaries (it fell into the `_ =>
-Svelte2TsxNamespace::Html` arm), `MarkupNamespace` had no matching variant,
+  Svelte2TsxNamespace::Html` arm), `MarkupNamespace` had no matching variant,
   and `Svelte2TsxOptions::namespace` was never read by the projection — so even
   a caller constructing the option directly got attribute names folded to lower
   case with no diagnostic. This affects users whose `svelte.config.js` sets
@@ -4321,7 +4356,7 @@ Svelte2TsxNamespace::Html` arm), `MarkupNamespace` had no matching variant,
 - 867c596: Pass the memoized `$0`/`$1` parameters and their deps array to the `$.template_effect` emitted inside an element block, so an element that contains a `{#snippet}` or a `{const}` no longer generates a zero-argument callback whose body references unbound identifiers.
 - a7dbe9f: Fold constants that reach a template through a non-literal initializer. A `const`
   whose initializer is a call, binary or conditional expression (`const rows =
-Math.ceil(sprites / cols)`) is now evaluated at compile time when it is read from
+  Math.ceil(sprites / cols)`) is now evaluated at compile time when it is read from
   a template chunk, so `style="background-size: {64 * rows}px"` emits the folded
   literal instead of a reactive interpolation — matching the official compiler on
   client, dev-client and server output.
@@ -4402,7 +4437,7 @@ Math.ceil(sprites / cols)`) is now evaluated at compile time when it is read fro
 
   **Silent content loss.** On the server target the class body's closing brace was
   found with a bare character loop, so a `}` written inside a comment (`// returns
-{ ok, err }`) closed the class early and _every member after it was dropped from
+  { ok, err }`) closed the class early and _every member after it was dropped from
   the output_ — no error, no warning, just a class missing its methods. The client
   member scan had the same defect one level down and split a method in two at such
   a comment.
@@ -4681,7 +4716,7 @@ Math.ceil(sprites / cols)`) is now evaluated at compile time when it is read fro
   (`<div let:x>` / `<svelte:fragment let:x>`) never got its
   `$$slot_def.default` destructuring prologue and every `let:` binding resolved
   as an undeclared identifier in the generated TSX; a `<svelte:fragment
-slot="a">` child likewise kept a plain `"slot":\`a\`,`attribute instead of the`$$slot_def["a"]`wrapper. Official svelte2tsx treats`svelte:component`as an`InlineComponent`, so slot content forwards the same way there.
+  slot="a">` child likewise kept a plain `"slot":\`a\`,`attribute instead of the`$$slot_def["a"]`wrapper. Official svelte2tsx treats`svelte:component`as an`InlineComponent`, so slot content forwards the same way there.
 - c854cfb: Fix the client preamble emitting `$$ownership_validator` before `$.append_styles` when `css: 'injected'` and dev-mode mutation validation are both active. Upstream unshifts `$$ownership_validator` before it unshifts `$.append_styles`, so the later unshift ends up closer to the front — the correct order is `$.push(...)`, `$.append_styles(...)`, then `$$ownership_validator = ...`. `$.append_styles` is now inserted at the same anchor point as `$$ownership_validator`, in the same call order as upstream's unshifts, instead of being built at an unrelated position in the component body.
 
 ## 0.10.1
@@ -4691,7 +4726,7 @@ slot="a">` child likewise kept a plain `"slot":\`a\`,`attribute instead of the`$
 - f56f20c: Release the AST-transform thread-local arena once it grows past 16MB instead of only `reset`-ing it between components. Previously, one outsized component would pin its peak arena size on that thread for the rest of the process — this matters for long-lived Vite/Node dev-server workers. Mirrors the cap svelte-rs applies when returning an arena to its pool. No output change.
 - 6139059: fix(svelte2tsx): move a default-slot `let:` element's leading gap space ahead
   of its `$$slot_def.default` destructure. Upstream's `Element.
-performTransformation` runs the destructure through the SAME `transform()`
+  performTransformation` runs the destructure through the SAME `transform()`
   call as the element's own opening-tag rewrite, so the element's leading gap
   lands before the destructure instead of before the element itself. rsvelte
   inserted the destructure with no leading space and left the gap on the
@@ -4820,7 +4855,7 @@ performTransformation` runs the destructure through the SAME `transform()`
   injected `;let $props = __sveltets_2_store_get(props);` right after the
   declaration — after the `$props()` call that opens the same line, which
   TypeScript then reports as `TS2448: Block-scoped variable '$props' used before
-its declaration`.
+  its declaration`.
 
   Upstream's `processInstanceScriptContent` tags each `$props.id()` occurrence
   `isPropsId` and drops all of them once it has seen a `props` binding
@@ -5762,7 +5797,7 @@ its declaration`.
   `state` prop read as `$state` — upstream `get_rune` returns null (the
   auto-created `$state` store-subscription binding shadows the rune), so the
   declarator is a store read: `let x = $.store_get(($$store_subs ??= {}),
-"$state", state)()`. Detect that in `lower_variable_declaration` by looking up
+  "$state", state)()`. Detect that in `lower_variable_declaration` by looking up
   the `$`-prefixed callee name as a `BindingKind::StoreSub` binding that is
   lexically visible at (an ancestor-or-self of) the instance scope, gated to the
   instance script only. Precise enough to leave ordinary runes alone:
@@ -6056,7 +6091,7 @@ its declaration`.
 
   1. **Destructuring shadow in a reactive statement.** A `$:` body that is not a
      simple assignment (e.g. `$: if (cond) { items.map((p) => { const [x, y] =
-f(p); … }) }`) was routed through the scope-unaware text prop-read transform,
+     f(p); … }) }`) was routed through the scope-unaware text prop-read transform,
      wrapping the destructuring binding targets that shadow props `x`/`y` →
      `const [x(), y()] = …` (a syntax error). It now goes through the AST wrapper
      (`wrap_prop_source_reads_ast`), which uses OXC semantics to skip locally
@@ -6304,7 +6339,7 @@ f(p); … }) }`) was routed through the scope-unaware text prop-read transform,
     excluded. Store auto-subscriptions (`$label`) are skipped (no real scope binding
     upstream).
   - **assignment LHS is reactive** (`has_reactive_state` AssignmentExpression): `{(x.value
-= [])}` now reads `x` on the LHS, so the text is reactive (`$.template_effect`) rather
+    = [])}` now reads `x` on the LHS, so the text is reactive (`$.template_effect`) rather
     than a static `nodeValue =`.
   - **invalidate wrap on prop member mutations** (template assignment + component
     `bind:value` setter): a prop member mutation whose prop has `legacy_indirect_bindings`
@@ -6369,7 +6404,7 @@ f(p); … }) }`) was routed through the scope-unaware text prop-read transform,
   — was emitted without the `(deps, $.untrack(...))` dependency sequence, so its
   reactive dependencies (`c`, `rest`, …) weren't tracked. Upstream's
   `2-analyze/visitors/SpreadElement.js` sets `has_call = true` (and `has_state =
-true`) for any spread ("treat `[...x]` like `[...x.values()]`"), which makes
+  true`) for any spread ("treat `[...x]` like `[...x.values()]`"), which makes
   `build_expression` wrap the value. rsvelte's metadata walks omitted spreads, so
   `has_call`/`has_member`/`has_assignment` were all false → the value was emitted
   bare.
@@ -6740,7 +6775,7 @@ true`) for any spread ("treat `[...x]` like `[...x.values()]`"), which makes
     `(…)` is not mis-parsed as the constructor arguments.
   - A multi-node `<title>` interpolation uses the canonical `is_expression_defined`
     check, so a conditional with two string branches (`{name ? \`…\` : ""}`) no longer
-gets a spurious `?? ""` coercion.
+    gets a spurious `?? ""` coercion.
 
 - 244264a: fix(transform): scope-range store-subscription parameter shadows
 
@@ -6871,7 +6906,7 @@ gets a spurious `?? ""` coercion.
 - f061348: fix(transform): three `.svelte.(js|ts)` class-field SSR fixes
 
   - Private `$derived` reads inside arrow-function class fields (`onkeydown = (e) =>
-{ … this.#derived … }`) are now called (`this.#derived()`), matching the
+    { … this.#derived … }`) are now called (`this.#derived()`), matching the
     Field/Method handling.
   - A multi-line `$state(...)` / `$state.raw({ … })` field initializer is now
     unwrapped to its inner value (a plain public server field) instead of leaking

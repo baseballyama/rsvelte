@@ -1,5 +1,18 @@
 # @rsvelte/lint
 
+## 0.12.7
+
+### Patch Changes
+
+- bda064d: feat(lint): track eslint-plugin-svelte 3.24.1. `svelte/no-export-load-in-svelte-module-in-kit-pages` and `svelte/prefer-destructured-store-props` recognize `<script module>` as a module script; the `svelte/prefer-derived-over-derived-by` autofix keeps parentheses, comments and the return type (as `$derived<T>(…)`), wraps a bare sequence expression, and is withheld when it would drop a comment or change what `this` / `arguments` / the function's own name refer to; `svelte/require-event-prefix` reports only function props whose annotated return type produces no value (`void` / `undefined` / `null`, or a `Promise` of one with `checkAsyncFunctions`).
+- bbc612e: feat(lint): track eslint-plugin-svelte 3.24.0. `svelte/prefer-svelte-reactivity` no longer reports in non-runes components; `svelte/sort-attributes` no longer reports or moves shorthand attributes and directives across a spread attribute; `svelte/require-each-key` ends its report at the opening tag's closing brace; `svelte/no-top-level-browser-globals` accepts the `$app/env` alias of `$app/environment`; `svelte/no-unused-svelte-ignore` skips ignores for runtime-only warnings, honours an ignore on a nested script node and no longer attributes a trailing comment to the next node; `svelte/require-store-reactive-access` checks `??=` / `||=` / `&&=` and only offers the `$` fix where Svelte accepts `$store`; `svelte/no-navigation-without-resolve` follows array / object literal elements (including spreads and `{#each}` destructuring) and only treats a complete `external` token in `rel` as external.
+- c021878: fix(lint): honour the SvelteKit major that eslint-plugin-svelte gates rules on. `svelte/no-goto-without-base` and `svelte/no-navigation-without-base` no longer run in a SvelteKit 3 project (upstream limits them to SvelteKit 1 and 2), and `svelte/no-navigation-without-resolve` no longer runs past SvelteKit 3. The version is read the way upstream reads it: the installed `node_modules/@sveltejs/kit` version first, else the first parseable `@sveltejs/kit` range declared in a `package.json` up the file's directory chain.
+- 58ffa79: Upgrade the oxc crates from 0.149 to 0.157 (and `rsvelte-fmt`'s embedded `oxc_formatter` / `oxc_formatter_css` to the matching 0.75 release). Parse errors keep acorn's wording and offsets where oxc's parser now reports first: a nested `import` / `export` declaration still says `'import' and 'export' may only appear at the top level`, a TypeScript-only class-member modifier in a plain-JavaScript script is still rejected at the token after it, and an optional class member (`x?`, `m?()`) in plain JavaScript is `Unexpected token` at the `?`. An HTML-like comment (`<!--` / `-->`, script-mode only) is still printed as a line comment. `rsvelte-fmt` now formats a `font-family` list with a `-`-prefixed member (`-apple-system`) by filling to the print width instead of breaking one item per line, and opens an over-wide `calc()` parenthesized operand the way Prettier does.
+- 0371b04: fix(preprocess): an indented-syntax (`lang="sass"`) style block whose first non-blank line is indented is now rejected with `Indenting at the beginning of the document is illegal.`, as dart-sass 1.107 does, instead of having its shared indentation removed. Whitespace-only leading lines are still accepted.
+- a196b02: Detect `lang="ts"` on a `<script>` tag whose earlier attribute value contains `>`, such as `generics="T extends Record<string, unknown>"`. TypeScript in template expressions used to fail with `js_parse_error` when `lang` came after such an attribute. Detection now follows upstream's rule exactly, including that only the first `<script>` carrying a `lang` attribute decides.
+
+  The compiler now also strips TypeScript whenever the parser read the component as TypeScript, as upstream does, instead of only when a top-level script carries `lang="ts"`. A component the parser treats as TypeScript without one (`<script data-lang="ts">`, or a `<script lang="ts">` nested in the markup) used to keep type annotations and interfaces in its JavaScript output.
+
 ## 0.12.6
 
 No changes in this release.
@@ -361,10 +374,10 @@ No changes in this release.
   its interpreter by reading the _target file's shebang at shim-generation
   time_ — before `postinstall` has necessarily run. If that read sees this
   file's original `#!/usr/bin/env node` shebang, pnpm bakes `exec node
-".../bin/rsvelte-lint" "$@"` into the shim permanently. `postinstall`'s later
+  ".../bin/rsvelte-lint" "$@"` into the shim permanently. `postinstall`'s later
   swap to a native Mach-O/ELF binary then makes that baked-in Node try to parse
   binary bytes as JS: `SyntaxError: Invalid or unexpected token` on `pnpm exec
-rsvelte-lint`.
+  rsvelte-lint`.
 
   `bin/rsvelte-lint` is now always the Node launcher (never mutated at install
   time); it resolves and execs the platform-native binary itself, forwarding

@@ -1,5 +1,9 @@
 # @rsvelte/svelte-check-darwin-x64
 
+## 0.5.33
+
+No changes in this release.
+
 ## 0.5.32
 
 No changes in this release.

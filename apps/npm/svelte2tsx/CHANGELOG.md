@@ -1,5 +1,37 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.29
+
+### Patch Changes
+
+- cedb58b: fix(svelte-check, language-server): a TypeScript component's generic arrows and `<T>expr` assertions no longer type-check as JSX elements. Upstream svelte-check and the language server type-check each shadow as a `.ts` file; rsvelte writes `.svelte.tsx`, where `const f = <T>(x: T) => x` and `<number>raw` are lexed as JSX, so such a component reported a cascade of `JSX element 'T' has no corresponding closing tag` errors (and the syntax error then suppressed every type error program-wide). Both shadow writers, and the content mapper, now ask svelte2tsx to rewrite these forms — `<T,>(x: T) => x` and `(raw as number)` — wherever they reach the output: the instance and module scripts, markup expressions and a snippet's type parameters. svelte2tsx's own output is unchanged.
+- 58ffa79: Upgrade the oxc crates from 0.149 to 0.157 (and `rsvelte-fmt`'s embedded `oxc_formatter` / `oxc_formatter_css` to the matching 0.75 release). Parse errors keep acorn's wording and offsets where oxc's parser now reports first: a nested `import` / `export` declaration still says `'import' and 'export' may only appear at the top level`, a TypeScript-only class-member modifier in a plain-JavaScript script is still rejected at the token after it, and an optional class member (`x?`, `m?()`) in plain JavaScript is `Unexpected token` at the `?`. An HTML-like comment (`<!--` / `-->`, script-mode only) is still printed as a line comment. `rsvelte-fmt` now formats a `font-family` list with a `-`-prefixed member (`-apple-system`) by filling to the print width instead of breaking one item per line, and opens an over-wide `calc()` parenthesized operand the way Prettier does.
+- dc3009c: fix(svelte2tsx): follow svelte2tsx 0.7.62 (sveltejs/language-tools#3126) — a `$props<T>()` type argument no longer types the props. Only the declarator annotation (`let { … }: T = $props()`) does; the type argument stays in place so TypeScript reports it, and the props fall back to the inferred `$$ComponentProps`, as upstream now does.
+- dc3009c: fix(svelte2tsx): a top-level snippet whose parameter type annotation or default value references an instance-script value (`{#snippet s(r: ReturnType<typeof c.raise>)}`) now stays inside `$$render` as upstream does. Only the names a parameter binds shadow outer references; identifiers in its annotation or default were wrongly treated as parameters too, so the snippet was hoisted to module scope where `c` is not in scope.
+- 740c395: fix(svelte2tsx): decide whether `$$render` is async the way upstream does. Any `await` outside a block or function now counts, including one under a TypeScript wrapper (`(await f()) as T`, `satisfies`, `!`, `<T>x`), in an optional chain, in a statement other than a declaration or expression (`if (c) await f();`, `for (x of await y)`, `switch`, `export const`), in a destructuring default, a computed key, a decorator or a class field. As in TypeScript, `await (x)` in a script without imports or exports stays a call to an identifier named `await`, and Svelte 4 output is never async. The `const $$$render = await $$render();` line now matches upstream byte for byte.
+- Updated dependencies [9789cd5]
+- Updated dependencies [cedb58b]
+- Updated dependencies [c0efbac]
+- Updated dependencies [9905231]
+- Updated dependencies [601715f]
+- Updated dependencies [4e91ebd]
+- Updated dependencies [58ffa79]
+- Updated dependencies [ac35842]
+- Updated dependencies [9d67877]
+- Updated dependencies [c7e9d9e]
+- Updated dependencies [a196b02]
+- Updated dependencies [ae1a804]
+- Updated dependencies [280ccbe]
+- Updated dependencies [8f7e729]
+- Updated dependencies [fe48eee]
+- Updated dependencies [1fe4395]
+- Updated dependencies [718e0cd]
+- Updated dependencies [dc3009c]
+- Updated dependencies [dc3009c]
+- Updated dependencies [740c395]
+- Updated dependencies [7d8d624]
+  - @rsvelte/compiler@0.12.7
+
 ## 0.2.28
 
 ### Patch Changes
@@ -49,7 +81,7 @@
 
   An annotation, its type arguments, its type parameters and a return type are serialized from an
   opaque value, so their nested nodes never consulted the comment side table. `type T = { /** doc */
-b: string }` kept the comment and every other context dropped it — a plain or destructured
+  b: string }` kept the comment and every other context dropped it — a plain or destructured
   declarator, `$props()`, a function parameter, an `as` cast and a type argument. The parse-AST
   parity ratchet falls from 163 to 149 keys.
 
@@ -372,7 +404,7 @@ b: string }` kept the comment and every other context dropped it — a plain or 
 
   It is an `Element` whose node type is not `Element`, so the attribute-case fold and
   the number-only rewrite do not reach it — `<svelte:fragment slot="s" someProp="0"
-cols="3" />` keeps `someProp` and types `cols` as a string. And its opener is
+  cols="3" />` keeps `someProp` and types `cols` as a string. And its opener is
   position-preserving like any other element's: the columns the stripped `slot=` and
   `let:` occupy come back as spaces whether or not another attribute survives, where
   rsvelte emitted them only when nothing did.
@@ -1155,7 +1187,7 @@ cols="3" />` keeps `someProp` and types `cols` as a string. And its opener is
   attribute-name case fold, so `<element someAttr="hi">` projects as
   `"someAttr"`. rsvelte had no `foreign` namespace at all: the value was
   unreachable from the napi and wasm boundaries (it fell into the `_ =>
-Svelte2TsxNamespace::Html` arm), `MarkupNamespace` had no matching variant,
+  Svelte2TsxNamespace::Html` arm), `MarkupNamespace` had no matching variant,
   and `Svelte2TsxOptions::namespace` was never read by the projection — so even
   a caller constructing the option directly got attribute names folded to lower
   case with no diagnostic. This affects users whose `svelte.config.js` sets
@@ -1480,7 +1512,7 @@ Svelte2TsxNamespace::Html` arm), `MarkupNamespace` had no matching variant,
   (`<div let:x>` / `<svelte:fragment let:x>`) never got its
   `$$slot_def.default` destructuring prologue and every `let:` binding resolved
   as an undeclared identifier in the generated TSX; a `<svelte:fragment
-slot="a">` child likewise kept a plain `"slot":\`a\`,`attribute instead of the`$$slot_def["a"]`wrapper. Official svelte2tsx treats`svelte:component`as an`InlineComponent`, so slot content forwards the same way there.
+  slot="a">` child likewise kept a plain `"slot":\`a\`,`attribute instead of the`$$slot_def["a"]`wrapper. Official svelte2tsx treats`svelte:component`as an`InlineComponent`, so slot content forwards the same way there.
 - Updated dependencies [843f64c]
 - Updated dependencies [485f999]
 - Updated dependencies [dfc15c3]
@@ -1506,7 +1538,7 @@ slot="a">` child likewise kept a plain `"slot":\`a\`,`attribute instead of the`$
 
 - 6139059: fix(svelte2tsx): move a default-slot `let:` element's leading gap space ahead
   of its `$$slot_def.default` destructure. Upstream's `Element.
-performTransformation` runs the destructure through the SAME `transform()`
+  performTransformation` runs the destructure through the SAME `transform()`
   call as the element's own opening-tag rewrite, so the element's leading gap
   lands before the destructure instead of before the element itself. rsvelte
   inserted the destructure with no leading space and left the gap on the
@@ -1634,7 +1666,7 @@ performTransformation` runs the destructure through the SAME `transform()`
   injected `;let $props = __sveltets_2_store_get(props);` right after the
   declaration — after the `$props()` call that opens the same line, which
   TypeScript then reports as `TS2448: Block-scoped variable '$props' used before
-its declaration`.
+  its declaration`.
 
   Upstream's `processInstanceScriptContent` tags each `$props.id()` occurrence
   `isPropsId` and drops all of them once it has seen a `props` binding
@@ -1833,7 +1865,7 @@ its declaration`.
 - c3d6b2a: chore(svelte2tsx): shrink module-wide lint allows and fix doc attribution
 
   Remove the blanket `#[allow(dead_code, doc_lazy_continuation,
-if_same_then_else, unnecessary_unwrap, ...)]` module attributes on the
+  if_same_then_else, unnecessary_unwrap, ...)]` module attributes on the
   svelte2tsx submodules — only `module_inception` remains (with its own
   reason), since `svelte2tsx::svelte2tsx` mirrors the upstream package
   layout. Truly dead helpers are deleted (unused JSON rune-global walkers,

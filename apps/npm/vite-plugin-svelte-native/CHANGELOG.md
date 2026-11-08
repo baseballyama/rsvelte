@@ -1,5 +1,35 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.18
+
+### Patch Changes
+
+- 9789cd5: Keep a statement whole when a component with a top-level `await` (`experimental.async`) is split into its async body. A line ending in `=>` or another operator (including after a trailing comment, or a string that contains `//`), a keyword such as `typeof`, `await` or `else`, or the header of a brace-less `if`/`for`/`while`, no longer ends the statement when the next line starts with a `$.` call or a statement keyword; the output used to be unparseable or, after a `// comment`, silently different. An `async` arrow function declared after the first `await` is now hoisted like any other arrow function, as upstream does.
+- c0efbac: Keep a class field whole in server output when its initializer breaks across lines after `=` or at a binary or logical operator (for example a bit-flag union formatted one operand per line) in a class that also has a `$state` / `$derived` field. The output used to split it into one statement per line, which is not valid JavaScript.
+- 9905231: Stop wrapping a component `{@attach}` expression in `($$node) => (expr || $.noop)($$node)` when it reads no state, for example `{@attach (el) => el.focus()}`, and drop `|| $.noop` when the expression is known to be a function, as upstream does.
+- 601715f: fix(compiler): a `{const x = $derived(…)}` or `{let x = $state(…)}` declaration tag now reads, updates and passes `x` through `$.get` on the client even when another binding in the component (an `{#each}` context, a function parameter, or an instance binding the `$derived` tag shadows) has the same name.
+- 4e91ebd: fix(compiler): in dev mode with `experimental.async`, comments around a `for await` loop's iterable now print inside `$.for_await_track_reactivity_loss(…)` the way the official compiler places them, instead of staying outside the wrapper.
+- 58ffa79: Upgrade the oxc crates from 0.149 to 0.157 (and `rsvelte-fmt`'s embedded `oxc_formatter` / `oxc_formatter_css` to the matching 0.75 release). Parse errors keep acorn's wording and offsets where oxc's parser now reports first: a nested `import` / `export` declaration still says `'import' and 'export' may only appear at the top level`, a TypeScript-only class-member modifier in a plain-JavaScript script is still rejected at the token after it, and an optional class member (`x?`, `m?()`) in plain JavaScript is `Unexpected token` at the `?`. An HTML-like comment (`<!--` / `-->`, script-mode only) is still printed as a line comment. `rsvelte-fmt` now formats a `font-family` list with a `-`-prefixed member (`-apple-system`) by filling to the print width instead of breaking one item per line, and opens an over-wide `calc()` parenthesized operand the way Prettier does.
+- ac35842: fix(compiler): a class with a `$state` field no longer rewrites a longer private field that starts with the same name (`++this.#historyGeneration` next to `history = $state(…)` came out as `$.update_pre(this.#history)Generation`, which does not parse), including names continued by `$` or a non-ASCII letter. The client class transform also leaves `++this.#x` / `this.#x--` and `this.#x` reads inside strings, comments and template text alone, keeps `++this.#x.v` an update of the member, and reads `a+++this.#x` as `a++ + this.#x`.
+- 9d67877: Pass a `$props()` / `export let` default eagerly whenever upstream does, deciding on the parsed expression rather than its text. Defaults such as `2_000.5` (a numeric separator with a fraction), `(1.5)`, `1.5 + 1`, `true ? 2_000.5 : 1` or `1.5 || 0` were wrapped in a lazy thunk.
+- c7e9d9e: fix(compiler): with `experimental.async`, a comment in front of an `await` that is a rune's argument or an assignment's value (`$derived(/* c */ await load())`, `$state(/** @type {T} */ (await load()))`, `x = /* c */ await load()`) no longer produces unparseable client dev output, and a comment right after `await` inside `$derived` (`(await /* c */ load()) + 1`) no longer yields an empty `$.save()`.
+- a196b02: Detect `lang="ts"` on a `<script>` tag whose earlier attribute value contains `>`, such as `generics="T extends Record<string, unknown>"`. TypeScript in template expressions used to fail with `js_parse_error` when `lang` came after such an attribute. Detection now follows upstream's rule exactly, including that only the first `<script>` carrying a `lang` attribute decides.
+
+  The compiler now also strips TypeScript whenever the parser read the component as TypeScript, as upstream does, instead of only when a top-level script carries `lang="ts"`. A component the parser treats as TypeScript without one (`<script data-lang="ts">`, or a `<script lang="ts">` nested in the markup) used to keep type annotations and interfaces in its JavaScript output.
+
+- 280ccbe: In server output, emit the hoisted `var bind_get` / `var bind_set` of a component's `bind:x={get, set}` after the enclosing block's `{@const}` and snippet declarations, as the official compiler does, instead of ahead of a `const` they reference. The other statements upstream collects in the same place now keep its order too: a `<title>` in `<svelte:head>`, a snippet declared inside a plain element or inside bound content, a dev `<svelte:element>` tag check, and the `let`s and `$$renderer.run(…)` of an async `{@const}` group, including in an element with async attributes and its own `{const}`.
+- 8f7e729: fix(parser): a snippet's parameter list is delimited by counting parentheses only, as upstream does. The scan also skipped `'`/`"` strings, so an apostrophe in a comment inside the parameter types (`// it's …`) opened a string that ran to the end of the file and failed the component with `Expected token )`.
+
+  A header whose parenthesis count stops inside a string, template, regex or comment is now a `js_parse_error` at upstream's position in TypeScript components too, rather than `Expected token }`. Type parameters are read with upstream's bracket matcher: whitespace is allowed before `<`, backtick strings are skipped, an unterminated quote is `unterminated_string_constant`, and `typeParams` keeps its inner whitespace.
+
+- fe48eee: With `experimental.async`, wrap a component, `{@render}` or element whose props / attributes read an async `{const}` / `{@const}` binding of the same block in `$$renderer.async_block` / `$$renderer.async`, as the official compiler does. Server rendering used to read the binding before `$$renderer.run` assigned it and threw `TypeError: v is not a function`.
+
+  A read of an each item, snippet parameter or other template binding that shares its name with a top-level-await binding no longer waits on that binding.
+
+- 718e0cd: fix(compiler): follow Svelte 5.57.3. A second `{:else}` in an `{#if}` or `{#each}` block, and an `{:else if}` after an `{:else}`, is now the `block_duplicate_clause` error (sveltejs/svelte#18900); a `let:` directive on a component that also has a `children` snippet is the new `let_directive_snippet_conflict` error (sveltejs/svelte#18873); a `role` attribute's tokens are matched ASCII case-insensitively and split on ASCII whitespace only, the element's effective role for the interaction checks is the first known non-abstract fallback role (sveltejs/svelte#19045), and `<area role="link">` without `href` is no longer a redundant role (sveltejs/svelte#18872); an event handler bound to a variable that is assigned after a top-level `await` is wrapped like an imported one so it is read when the event fires (sveltejs/svelte#18933). On the server, an expression tag that both awaits and reads a top-level-`await` binding is emitted as an `async` push with its `await` `$.save`-wrapped instead of an `await` inside a synchronous arrow, and an async `{#key}` block gets its `<!--[-->` / `<!--]-->` markers; a function declaration reached from a later `await` statement now inherits that statement's blocker.
+- 7d8d624: fix(compiler): follow Svelte 5.57.3 (sveltejs/svelte#18859) in dev mode: a comment in front of an `await` — including a JSDoc cast such as `/** @type {T} */ (await load())` — now stays on the `await` inside `(await $.track_reactivity_loss(…))()` instead of moving onto the awaited operand.
+- 45ac168: fix(vps): the published types resolve under the SvelteKit override alias and match `svelte/compiler`. Installed as `@sveltejs/vite-plugin-svelte`, as the README's SvelteKit setup does, every import of the plugin failed type-checking with "is not a module", because dts-buddy declares the types under `@rsvelte/vite-plugin-svelte` only; a module entry now re-exports them under whichever name the package is installed as. The public types also imported `@rsvelte/compiler`, which the plugin does not depend on; they now use `svelte/compiler`, as upstream does, so user preprocessors, `vitePreprocess()` and `compilerOptions` type-check against the official API. `@rsvelte/vite-plugin-svelte-native` types the `markup` it always passes to script and style preprocessors as required, as upstream does.
+
 ## 0.3.17
 
 ### Patch Changes
@@ -285,7 +315,7 @@
   The N-API `compile`/`compileModule` surface now decodes every option the way
   `svelte/compiler`'s `validate-options.js` does, instead of failing the whole
   call with a raw N-API conversion error (`Failed to convert napi value into rust
-type \`bool\``, `Failed to convert js number to serde_json::Number`, …) on a
+  type \`bool\``, `Failed to convert js number to serde_json::Number`, …) on a
   non-boolean or non-finite value.
 
   - `runes` mirrors upstream's `parametric` validator: it accepts any JS value and
@@ -352,7 +382,7 @@ type \`bool\``, `Failed to convert js number to serde_json::Number`, …) on a
   was the legacy module script with a plain `str::contains("context=\"module\"")`
   (and the `'…'` / unquoted variants). That substring check matched inside any
   attribute whose name merely _ends_ in `context` — e.g. `<script
-data-context="module">` — misclassifying an ordinary instance script as the
+  data-context="module">` — misclassifying an ordinary instance script as the
   module script and corrupting the HMR full-reload/hot-update decision.
 
   The bare `module` attribute form already required a whitespace/`=`/`/`/`>`

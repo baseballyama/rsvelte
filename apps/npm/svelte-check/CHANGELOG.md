@@ -1,5 +1,35 @@
 # @rsvelte/svelte-check
 
+## 0.5.33
+
+### Patch Changes
+
+- aca8c09: fix(check): a run without `--incremental` now clears the previous run's shadows and SvelteKit mirrors from `.svelte-check` before emitting, so a component or route deleted since no longer fails the check. Symlinks inside the cache are removed, never followed. Two runs on the same workspace (e.g. `--watch` beside a one-off check) now take turns on the cache instead of one clearing files the other is still type-checking.
+- 788eff5: fix(svelte-check): a component shadow of an external (workspace-sibling) package now resolves its relative imports of plain source and `.svelte.ts` modules to the package's own files. Through the overlay's pooled `rootDirs` they could reach another package that shares the relative path, and which one won depended on the host's directory order, so one monorepo type-checked differently on macOS and Linux. External packages are now numbered in sorted order, and a cached `ext/<n>` mirror that belonged to another package is cleared before it is reused.
+- 1a3ae27: fix(check): a SvelteKit kit file (`+page.ts`, `hooks.server.ts`, …) whose relative import leaves the workspace no longer reports a false `Cannot find module` (TS2307). Like upstream's `upsertKitFile`, such specifiers in import / export declarations, `import()`, `require()` and `import('…')` types are re-pointed from the overlay copy, and diagnostics later on the same line keep their column.
+- c021878: fix(svelte-check): type SvelteKit 3 hooks from `@sveltejs/kit/hooks`. SvelteKit 3 moved `Handle`, `HandleFetch`, `HandleServerError`, `HandleClientError` and `Reroute` out of `@sveltejs/kit`, so the annotations rsvelte-check adds to untyped hooks in `hooks.server`, `hooks.client` and `hooks` files raised TS2694 (and, in JS files, TS7031) where official svelte-check reports nothing. The module is now chosen as upstream chooses it: `@sveltejs/kit/hooks` when the `@sveltejs/kit` resolved from the file is version 3 or later, `@sveltejs/kit` otherwise.
+- 979789c: perf(svelte-check): emit an external package's shadows in parallel and canonicalize each `paths` alias target once instead of once per candidate file. Output is unchanged; on a 1,189-file app with a 258-component sibling library the overlay step drops from ~530 ms to ~330 ms.
+- 120d96e: fix(svelte-check): a syntax error that makes TypeScript skip type checking no longer reads as a clean pass. A parse error in the shadow of an imported workspace-sibling package (`<cache>/ext/<n>/`) was dropped as a library internal, and one inside a generated (`Ωignore`) region of a component's own overlay was recorded but never reported; both suppress every semantic diagnostic in the program, so the run printed `0 errors`. Both now surface. Which diagnostics count as syntax errors is now the set tsgo's parser and scanner emit, instead of the `TS1xxx` range: checker grammar errors such as `TS1064` or `TS1378` no longer raise the invalid-overlay alarm (and stay dropped inside a dependency), while parser-emitted JSX and JS-file errors such as `TS17002` and `TS8010` now do.
+- cedb58b: fix(svelte-check, language-server): a TypeScript component's generic arrows and `<T>expr` assertions no longer type-check as JSX elements. Upstream svelte-check and the language server type-check each shadow as a `.ts` file; rsvelte writes `.svelte.tsx`, where `const f = <T>(x: T) => x` and `<number>raw` are lexed as JSX, so such a component reported a cascade of `JSX element 'T' has no corresponding closing tag` errors (and the syntax error then suppressed every type error program-wide). Both shadow writers, and the content mapper, now ask svelte2tsx to rewrite these forms — `<T,>(x: T) => x` and `(raw as number)` — wherever they reach the output: the instance and module scripts, markup expressions and a snippet's type parameters. svelte2tsx's own output is unchanged.
+- 2853520: fix(check,lsp): a project that sets `outDir` (or `declarationDir`, `sourceRoot`, `mapRoot`) without `rootDir` no longer gets TS6059 "not under 'rootDir'" for every source under TypeScript 6+. The generated overlay tsconfig now states the `rootDir` TypeScript would default to for the project's own config, and only when one of those options makes TypeScript compare sources against it, so a project without `outDir` that imports a sibling package through `paths` is not newly reported. With a TypeScript 5 `tsc` backend, where the default is the common source directory, nothing is added unless `composite` is set.
+- 58ffa79: Upgrade the oxc crates from 0.149 to 0.157 (and `rsvelte-fmt`'s embedded `oxc_formatter` / `oxc_formatter_css` to the matching 0.75 release). Parse errors keep acorn's wording and offsets where oxc's parser now reports first: a nested `import` / `export` declaration still says `'import' and 'export' may only appear at the top level`, a TypeScript-only class-member modifier in a plain-JavaScript script is still rejected at the token after it, and an optional class member (`x?`, `m?()`) in plain JavaScript is `Unexpected token` at the `?`. An HTML-like comment (`<!--` / `-->`, script-mode only) is still printed as a line comment. `rsvelte-fmt` now formats a `font-family` list with a `-`-prefixed member (`-apple-system`) by filling to the print width instead of breaking one item per line, and opens an over-wide `calc()` parenthesized operand the way Prettier does.
+- a196b02: Detect `lang="ts"` on a `<script>` tag whose earlier attribute value contains `>`, such as `generics="T extends Record<string, unknown>"`. TypeScript in template expressions used to fail with `js_parse_error` when `lang` came after such an attribute. Detection now follows upstream's rule exactly, including that only the first `<script>` carrying a `lang` attribute decides.
+
+  The compiler now also strips TypeScript whenever the parser read the component as TypeScript, as upstream does, instead of only when a top-level script carries `lang="ts"`. A component the parser treats as TypeScript without one (`<script data-lang="ts">`, or a `<script lang="ts">` nested in the markup) used to keep type annotations and interfaces in its JavaScript output.
+
+- 8f7e729: fix(parser): a snippet's parameter list is delimited by counting parentheses only, as upstream does. The scan also skipped `'`/`"` strings, so an apostrophe in a comment inside the parameter types (`// it's …`) opened a string that ran to the end of the file and failed the component with `Expected token )`.
+
+  A header whose parenthesis count stops inside a string, template, regex or comment is now a `js_parse_error` at upstream's position in TypeScript components too, rather than `Expected token }`. Type parameters are read with upstream's bracket matcher: whitespace is allowed before `<`, backtick strings are skipped, an unterminated quote is `unterminated_string_constant`, and `typeParams` keeps its inner whitespace.
+
+- 2c00325: fix(svelte-check): a plain `.ts` file importing a component through any of several tsconfig `paths` aliases that reach it (`$lib/*` and `~/*` on one directory, or `$ui/*` nested inside `$lib/*`) now gets the component's types for each of them; only one alias per component received an exact `paths` entry, and the others reported `TS2307`. An alias is skipped where TypeScript would route its specifier through a longer pattern (`$lib/over/*` beside `$lib/*`), and a multi-target alias uses the first target that has the file.
+- 9634faa: fix(svelte-check): a component in a workspace dependency that imports through the dependency's own package.json `imports` (`#ui/utils.js`) now resolves from the dependency's files, as official svelte-check does, instead of reporting TS2307 inside the dependency and typing its exports as `any` for the consumer. The rewritten import names a TypeScript file by its JavaScript extension (`./utils.js` for `utils.ts`, `./decl.js` for a `types` target `decl.d.ts`), and the import resolver maps `.js` / `.jsx` / `.mjs` / `.cjs` back to their TypeScript sources as TypeScript does.
+- e12ea3d: fix(svelte-check): a `.svelte` specifier carrying a query or fragment (`$lib/Foo.svelte?raw`, `#lib/Foo.svelte?raw`, `Foo.svelte#frag`) is no longer rewritten to the component's shadow. TypeScript resolves the whole string, so official svelte-check types `?raw` through Vite's ambient `*?raw` module (a `string`) and reports a fragment as unresolvable; rsvelte-check typed both as the component.
+- 5920294: fix(svelte-check): a plain `.ts` file importing a component a workspace dependency publishes through package.json `exports` (`@scope/pkg/ui/Card.svelte`, or `./cmp/*` patterns) now gets the component's types instead of reporting `TS2307`. Subpaths follow TypeScript's resolution of `exports` (key precedence, `null` exclusions, `types` / `import` / `customConditions` / `default` in declaration order), and a subpath TypeScript sends to a declaration file keeps it.
+- 7574e3e: fix(svelte-check): a `.svelte` component imported through package.json `imports` (SvelteKit 3's `#lib/*`, which replaces the `$lib` tsconfig alias and leaves the generated `paths` empty) now resolves to its shadow instead of reporting `TS2307: Cannot find module '#lib/components/Foo.svelte'`. The alias rewrite for `.svelte` importers read the leading `#` as a URL fragment and so never looked at the specifier, and the exact `paths` entries that let plain `.ts` importers reach a component came from tsconfig `paths` only. Both now follow TypeScript's resolution of `imports`: the package.json nearest each checked component, exact keys before patterns and the longest pattern first (including `*` in the middle of a key), `null` exclusions, and TypeScript's conditions in declaration order (`types`, `import`, `node` under `node16`/`nodenext`, `customConditions`, `default`). The `.svelte`-importer rewrite no longer matches a `svelte` condition, which TypeScript never does.
+- dc3009c: fix(svelte2tsx): follow svelte2tsx 0.7.62 (sveltejs/language-tools#3126) — a `$props<T>()` type argument no longer types the props. Only the declarator annotation (`let { … }: T = $props()`) does; the type argument stays in place so TypeScript reports it, and the props fall back to the inferred `$$ComponentProps`, as upstream now does.
+- dc3009c: fix(svelte2tsx): a top-level snippet whose parameter type annotation or default value references an instance-script value (`{#snippet s(r: ReturnType<typeof c.raise>)}`) now stays inside `$$render` as upstream does. Only the names a parameter binds shadow outer references; identifiers in its annotation or default were wrongly treated as parameters too, so the snippet was hoisted to module scope where `c` is not in scope.
+- 740c395: fix(svelte2tsx): decide whether `$$render` is async the way upstream does. Any `await` outside a block or function now counts, including one under a TypeScript wrapper (`(await f()) as T`, `satisfies`, `!`, `<T>x`), in an optional chain, in a statement other than a declaration or expression (`if (c) await f();`, `for (x of await y)`, `switch`, `export const`), in a destructuring default, a computed key, a decorator or a class field. As in TypeScript, `await (x)` in a script without imports or exports stays a call to an identifier named `await`, and Svelte 4 output is never async. The `const $$$render = await $$render();` line now matches upstream byte for byte.
+
 ## 0.5.32
 
 ### Patch Changes
@@ -39,7 +69,7 @@
 
   An annotation, its type arguments, its type parameters and a return type are serialized from an
   opaque value, so their nested nodes never consulted the comment side table. `type T = { /** doc */
-b: string }` kept the comment and every other context dropped it — a plain or destructured
+  b: string }` kept the comment and every other context dropped it — a plain or destructured
   declarator, `$props()`, a function parameter, an `as` cast and a type argument. The parse-AST
   parity ratchet falls from 163 to 149 keys.
 
@@ -330,7 +360,7 @@ b: string }` kept the comment and every other context dropped it — a plain or 
 
   It is an `Element` whose node type is not `Element`, so the attribute-case fold and
   the number-only rewrite do not reach it — `<svelte:fragment slot="s" someProp="0"
-cols="3" />` keeps `someProp` and types `cols` as a string. And its opener is
+  cols="3" />` keeps `someProp` and types `cols` as a string. And its opener is
   position-preserving like any other element's: the columns the stripped `slot=` and
   `let:` occupy come back as spaces whether or not another attribute survives, where
   rsvelte emitted them only when nothing did.
@@ -558,7 +588,7 @@ cols="3" />` keeps `someProp` and types `cols` as a string. And its opener is
   attribute-name case fold, so `<element someAttr="hi">` projects as
   `"someAttr"`. rsvelte had no `foreign` namespace at all: the value was
   unreachable from the napi and wasm boundaries (it fell into the `_ =>
-Svelte2TsxNamespace::Html` arm), `MarkupNamespace` had no matching variant,
+  Svelte2TsxNamespace::Html` arm), `MarkupNamespace` had no matching variant,
   and `Svelte2TsxOptions::namespace` was never read by the projection — so even
   a caller constructing the option directly got attribute names folded to lower
   case with no diagnostic. This affects users whose `svelte.config.js` sets
@@ -719,7 +749,7 @@ Svelte2TsxNamespace::Html` arm), `MarkupNamespace` had no matching variant,
   (`<div let:x>` / `<svelte:fragment let:x>`) never got its
   `$$slot_def.default` destructuring prologue and every `let:` binding resolved
   as an undeclared identifier in the generated TSX; a `<svelte:fragment
-slot="a">` child likewise kept a plain `"slot":\`a\`,`attribute instead of the`$$slot_def["a"]`wrapper. Official svelte2tsx treats`svelte:component`as an`InlineComponent`, so slot content forwards the same way there.
+  slot="a">` child likewise kept a plain `"slot":\`a\`,`attribute instead of the`$$slot_def["a"]`wrapper. Official svelte2tsx treats`svelte:component`as an`InlineComponent`, so slot content forwards the same way there.
 
 ## 0.5.7
 
@@ -728,7 +758,7 @@ slot="a">` child likewise kept a plain `"slot":\`a\`,`attribute instead of the`$
 - db787d8: fix(svelte-check): resolve a rune module imported through a `paths` alias (`$lib/state.svelte` for a real `state.svelte.ts`). Its `.d.svelte.ts` ESM bridge was reachable only through `rootDirs`, which TypeScript applies to relative specifiers alone, so under `moduleResolution: nodenext` the specifier fell through to the ambient `declare module '*.svelte'` and every named import errored with TS2614. The bridge now also gets an exact `compilerOptions.paths` override, with a sibling `.svelte` component still winning the specifier.
 - 6139059: fix(svelte2tsx): move a default-slot `let:` element's leading gap space ahead
   of its `$$slot_def.default` destructure. Upstream's `Element.
-performTransformation` runs the destructure through the SAME `transform()`
+  performTransformation` runs the destructure through the SAME `transform()`
   call as the element's own opening-tag rewrite, so the element's leading gap
   lands before the destructure instead of before the element itself. rsvelte
   inserted the destructure with no leading space and left the gap on the
@@ -828,7 +858,7 @@ performTransformation` runs the destructure through the SAME `transform()`
   injected `;let $props = __sveltets_2_store_get(props);` right after the
   declaration — after the `$props()` call that opens the same line, which
   TypeScript then reports as `TS2448: Block-scoped variable '$props' used before
-its declaration`.
+  its declaration`.
 
   Upstream's `processInstanceScriptContent` tags each `$props.id()` occurrence
   `isPropsId` and drops all of them once it has seen a `props` binding
@@ -897,7 +927,7 @@ its declaration`.
   Fix the overlay tsconfig synthesized for a `--tsconfig`-less run specifying
   no `target`, which let tsgo/tsc fall back to the ES5 default lib — the
   vendored shims themselves then failed to compile (`Cannot find name
-'Iterable'`) before any user code was considered. The overlay now mirrors
+  'Iterable'`) before any user code was considered. The overlay now mirrors
   official svelte-check's own default-compiler-options forcing: an unset
   target becomes the latest (`ESNext`), and a target below ES2015 is bumped
   up to ES2015; an already-modern target is left untouched. Fixes #1898.
@@ -974,7 +1004,7 @@ its declaration`.
   the overlay.
 
   The `const` + arrow-function/function-expression form (`export const
-handle = (...) => {...}`, fixed by #1892) already anchored the JSDoc
+  handle = (...) => {...}`, fixed by #1892) already anchored the JSDoc
   annotation correctly and is unaffected.
 
   This completes #1886's fix for the JSDoc/JS path (closed by #1892, but
@@ -1038,7 +1068,7 @@ handle = (...) => {...}`, fixed by #1892) already anchored the JSDoc
   alias-resolution `Resolver` — otherwise oxc_resolver's tsconfig discovery
   silently returns `NotFound` for any `paths` target escaping the CWD via `..`,
   which is exactly the cross-package aliases this fix (and `--tsconfig
-./tsconfig.json`, the CLI's own documented usage) depends on.
+  ./tsconfig.json`, the CLI's own documented usage) depends on.
 
   An external package's aliases are resolved with that package's own tsconfig
   when it ships one, and a specifier that resolves outside the package being
@@ -1188,7 +1218,7 @@ handle = (...) => {...}`, fixed by #1892) already anchored the JSDoc
 - c3d6b2a: chore(svelte2tsx): shrink module-wide lint allows and fix doc attribution
 
   Remove the blanket `#[allow(dead_code, doc_lazy_continuation,
-if_same_then_else, unnecessary_unwrap, ...)]` module attributes on the
+  if_same_then_else, unnecessary_unwrap, ...)]` module attributes on the
   svelte2tsx submodules — only `module_inception` remains (with its own
   reason), since `svelte2tsx::svelte2tsx` mirrors the upstream package
   layout. Truly dead helpers are deleted (unused JSON rune-global walkers,
@@ -1555,7 +1585,7 @@ if_same_then_else, unnecessary_unwrap, ...)]` module attributes on the
   — are emitted by the checker, not the parser. They do **not** trigger
   TypeScript's program-wide semantic-diagnostic suppression, so flagging them as
   syntactic raised a spurious `internal error: rsvelte produced invalid TSX … /
-TypeScript suppressed type errors for the rest of the project` banner even
+  TypeScript suppressed type errors for the rest of the project` banner even
   though every real type error was still reported.
 
   This surfaced on components that have a sibling `Foo.svelte.ts` companion
@@ -1822,7 +1852,7 @@ TypeScript suppressed type errors for the rest of the project` banner even
 
   The 0.1.0 platform tarballs ship `svelte-check` without the execute bit
   because `pnpm pack` (used by `pnpm publish` and therefore `changeset
-publish` when pnpm is detected) normalises file modes to 0644. Running
+  publish` when pnpm is detected) normalises file modes to 0644. Running
   `pnpm dlx @rsvelte/svelte-check` (or `npx`) on a fresh install fails with
   `spawnSync ... EACCES`.
 
