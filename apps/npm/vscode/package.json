@@ -61,10 +61,10 @@
     "vscode:prepublish": "node build.mjs"
   },
   "dependencies": {
-    "vscode-languageclient": "^10.0.0"
+    "vscode-languageclient": "^11.0.0"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.0.0",
     "@types/vscode": "^1.85.0",
     "esbuild": "^0.28.0",
     "typescript": "^7.0.0"

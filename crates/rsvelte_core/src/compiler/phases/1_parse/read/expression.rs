@@ -2156,17 +2156,18 @@ pub(crate) fn is_code_empty(content: &str, ts: bool) -> bool {
     })
 }
 
-/// Check whether a parameter list (e.g. snippet params) parses as valid
-/// function parameters in the given language mode.
+/// The `js_parse_error` upstream's `{#snippet}` raises for a header, if any.
 ///
-/// Mirrors upstream's snippet handling (1-parse/state/tag.js), which builds
-/// `${params} => {}` and parses it with `parse_expression_at` using the
-/// file's `parser.ts` mode — so TypeScript annotations in a snippet's
-/// parameters are a `js_parse_error` unless the component uses `lang="ts"`.
+/// `header` runs from the type parameters (or the `(`) through the `)` the
+/// paren count stopped at, and is parsed as upstream does: `${header} => {}`,
+/// with no separator, so a `//` comment the count stopped inside swallows the
+/// arrow. In TypeScript mode only an error that proves the header unreadable
+/// (an unterminated literal or comment, or input that runs out) is reported,
+/// because acorn-typescript accepts headers OXC rejects.
 ///
-/// Returns `Some((message, pos_in_params))` when parsing fails.
-pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize)> {
-    let wrapped = wrap_for_parse("(", params, ") => {}");
+/// Returns `Some((message, pos_in_header))` in acorn's spelling.
+pub fn check_snippet_header_parse_error(header: &str, ts: bool) -> Option<(String, usize)> {
+    let text = format!("{header} => {{}}");
 
     with_oxc_allocator(|allocator| {
         let source_type = if ts {
@@ -2174,31 +2175,72 @@ pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize
         } else {
             SourceType::mjs()
         };
-        let result = OxcParser::new(allocator, &wrapped, source_type).parse();
-        if let Some(first_error) = first_reportable_diagnostic(&result.diagnostics) {
-            let pos = first_error
+        let result = OxcParser::new(allocator, &text, source_type).parse();
+        let acorn_spelling = |diagnostic: &OxcDiagnostic| {
+            let at = diagnostic
                 .labels
                 .first()
-                .map(|label| {
-                    (label.offset() as usize)
-                        .saturating_sub(1)
-                        .min(params.len())
-                })
-                .unwrap_or(0);
-            let message = if !ts
-                && matches!(
-                    first_error.message.as_ref(),
-                    "Expected `,` or `)` but found `:`" | "Expected `,` or `)` but found `?`"
-                ) {
-                "Unexpected token"
-            } else {
-                first_error.message.as_ref()
-            };
-            return Some((message.to_string(), pos));
+                .map_or(0, |label| label.offset() as usize)
+                .min(text.len());
+            acorn_lexical_or_eof_error(&text, diagnostic.message.as_ref(), at)
+        };
+        if ts {
+            let unreadable = result
+                .diagnostics
+                .iter()
+                .any(|d| !is_acorn_unchecked_ts_grammar_rule(d) && acorn_spelling(d).is_some());
+            if !unreadable {
+                return None;
+            }
         }
-        acorn_only_violation(&result.program, &wrapped, ts)
-            .map(|(at, message)| (message, (at as usize).saturating_sub(1).min(params.len())))
+        if let Some(first_error) = first_reportable_diagnostic(&result.diagnostics) {
+            if let Some(error) = acorn_spelling(first_error) {
+                return Some(error);
+            }
+            let at = first_error
+                .labels
+                .first()
+                .map_or(0, |label| label.offset() as usize)
+                .min(text.len());
+            let message = first_error.message.as_ref();
+            if message == "Expected `,` or `)` but found `?`" {
+                // acorn reads `c?` as the test of a conditional and fails on
+                // the token after the `?`.
+                let rest = text.get(at + 1..).unwrap_or_default();
+                return Some((
+                    "Unexpected token".to_string(),
+                    text.len() - rest.trim_start().len(),
+                ));
+            }
+            if message.starts_with("Expected `,` or `)` but found ") {
+                return Some(("Unexpected token".to_string(), at));
+            }
+            return Some((message.to_string(), at));
+        }
+        acorn_only_violation(&result.program, &text, ts)
+            .map(|(at, message)| (message, (at as usize).min(header.len())))
     })
+}
+
+/// Acorn's spelling of an OXC diagnostic that comes from the lexer running
+/// off an unterminated token, or from the input running out.
+fn acorn_lexical_or_eof_error(text: &str, message: &str, at: usize) -> Option<(String, usize)> {
+    match message {
+        // acorn reports a string at its quote, a template at the character
+        // after the backtick (or the `}` that resumes it).
+        "Unterminated string" => Some(match text.as_bytes().get(at) {
+            Some(b'`' | b'}') => ("Unterminated template".to_string(), at + 1),
+            _ => ("Unterminated string constant".to_string(), at),
+        }),
+        "Unterminated multiline comment" => Some(("Unterminated comment".to_string(), at)),
+        "Unterminated regular expression" => {
+            Some(("Unterminated regular expression".to_string(), at + 1))
+        }
+        _ if at == text.len() || message.ends_with("but found `EOF`") => {
+            Some(("Unexpected token".to_string(), text.len()))
+        }
+        _ => None,
+    }
 }
 
 /// Check whether `content` parses as a JS/TS *statement* (program), returning
@@ -16470,10 +16512,13 @@ mod tests {
     #[test]
     fn plain_js_snippet_type_annotation_uses_acorns_message() {
         assert_eq!(
-            check_params_parse_error("error: App.Error", false),
-            Some(("Unexpected token".to_string(), 5))
+            check_snippet_header_parse_error("(error: App.Error)", false),
+            Some(("Unexpected token".to_string(), 6))
         );
-        assert_eq!(check_params_parse_error("error: App.Error", true), None);
+        assert_eq!(
+            check_snippet_header_parse_error("(error: App.Error)", true),
+            None
+        );
     }
 
     #[test]

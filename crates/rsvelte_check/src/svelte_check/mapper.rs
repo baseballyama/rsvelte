@@ -93,45 +93,43 @@ impl EntryMap {
     }
 }
 
-/// TS `1xxx` codes that are emitted by the BINDER/CHECKER (semantic), not the
-/// parser, despite living in the range otherwise reserved for parse errors.
-///
-/// The `1xxx` range is *mostly* syntactic, but TypeScript reuses a handful of
-/// codes in it for module/import semantics that require symbol resolution.
-/// These do NOT cause the parser to fail, so they do NOT trigger the
-/// program-wide semantic-diagnostic suppression that `is_syntactic_ts_code`
-/// guards against — treating them as syntactic raises a spurious
-/// `overlay-invalid-tsx` / `tsgo-semantics-suppressed` alarm when, in fact,
-/// every real type error is still reported (e.g. a `.svelte` component with a
-/// sibling `Foo.svelte.ts` companion re-exported into the shadow can surface
-/// `TS1192` while `TS7006` & friends keep flowing — proof semantics were never
-/// suppressed).
-const SEMANTIC_TS_1XXX_CODES: &[u32] = &[
-    1192, // "Module '{0}' has no default export."
-    1259, // "Module '{0}' can only be default-imported using the '{1}' flag."
-    1361, // "'{0}' cannot be used as a value because it was imported using 'import type'."
-    1371, // "This import is never used as a value and must use 'import type' ..."
+/// Every code tsgo's parser or scanner can attach to a source file, i.e. what
+/// `Program::GetSyntacticDiagnostics` returns: the `diagnostics.*` messages
+/// referenced under `internal/parser` and `internal/scanner` of
+/// `submodules/typescript-go`. The `1xxx` range is not this set: most of it is
+/// checker grammar codes (`TS1064`, `TS1308`, `TS1378`, …) that do not
+/// gate anything, and the parser emits JSX and JS-file codes outside it
+/// (`TS17002`, `TS17008`, `TS8010`, …).
+const PARSER_TS_CODES: &[u32] = &[
+    1002, 1003, 1005, 1007, 1010, 1011, 1012, 1034, 1068, 1069, //
+    1084, 1109, 1110, 1121, 1124, 1125, 1126, 1127, 1128, 1129, //
+    1130, 1131, 1132, 1134, 1135, 1136, 1137, 1138, 1139, 1140, //
+    1142, 1144, 1145, 1146, 1160, 1161, 1177, 1178, 1179, 1180, //
+    1181, 1185, 1198, 1199, 1206, 1209, 1223, 1228, 1260, 1327, //
+    1328, 1351, 1352, 1353, 1357, 1359, 1369, 1381, 1382, 1385, //
+    1386, 1387, 1388, 1389, 1390, 1433, 1434, 1435, 1436, 1437, //
+    1438, 1439, 1440, 1441, 1442, 1443, 1453, 1472, 1477, 1478, //
+    1486, 1487, 1488, 1489, 1490, 1499, 1500, 1501, 1502, 1503, //
+    1504, 1505, 1506, 1507, 1508, 1509, 1510, 1511, 1512, 1513, //
+    1514, 1515, 1516, 1517, 1518, 1519, 1520, 1521, 1522, 1523, //
+    1524, 1525, 1526, 1527, 1528, 1529, 1530, 1531, 1532, 1533, //
+    1534, 1535, 1536, 1537, 1538, 2427, 2457, 2657, 2754, 2809, //
+    2819, 2880, 6188, 6189, 8002, 8003, 8004, 8005, 8006, 8008, //
+    8009, 8010, 8011, 8012, 8013, 8016, 8017, 8033, 8034, 8037, //
+    8038, 8039, 17002, 17006, 17007, 17008, 17014, 17015, 17021, 18009, //
+    18016, 18026, 18029, 18030, 18062, 18063,
 ];
 
-/// Whether a TypeScript diagnostic code denotes a SYNTACTIC error.
+/// Whether a TypeScript diagnostic code is one the parser emits.
 ///
-/// TypeScript groups syntax (parse) errors under the `TS1xxx` range — e.g.
-/// `TS1005` (`',' expected`), `TS1109` (`Expression expected`), `TS1128`
-/// (`Declaration or statement expected`), `TS1136` (`Property assignment
-/// expected`). Semantic / type errors live in `TS2xxx`+ — plus the handful of
-/// binder/checker-emitted `1xxx` codes listed in `SEMANTIC_TS_1XXX_CODES`,
-/// which are explicitly excluded here.
-///
-/// This distinction is load-bearing: TypeScript (and tsgo) suppress ALL
-/// semantic diagnostics program-wide as soon as the program contains ANY
-/// syntactic error. So a single generated `.tsx` overlay that fails to
-/// parse silently drops every real type error in the whole project — the
-/// dangerous false-negative this module guards against (#728).
+/// This distinction is load-bearing: tsgo's CLI reports semantic diagnostics
+/// only when no file in the program has a syntactic one
+/// (`GetDiagnosticsOfAnyProgram`). So a single generated `.tsx` overlay that
+/// fails to parse silently drops every real type error in the whole project —
+/// the dangerous false-negative this module guards against (#728).
 #[must_use]
 pub fn is_syntactic_ts_code(code: &str) -> bool {
-    code.strip_prefix("TS")
-        .and_then(|n| n.parse::<u32>().ok())
-        .is_some_and(|n| (1000..2000).contains(&n) && !SEMANTIC_TS_1XXX_CODES.contains(&n))
+    ts_error_number(code).is_some_and(|n| PARSER_TS_CODES.binary_search(&n).is_ok())
 }
 
 /// The numeric part of a `TS1234` diagnostic code.
@@ -221,7 +219,7 @@ pub struct MappedTsDiagnostics {
     /// Diagnostics with `file` / `range` pointing at the original source.
     pub diagnostics: Vec<Diagnostic>,
     /// `.svelte` source files whose GENERATED overlay `.tsx` produced at
-    /// least one SYNTACTIC (`TS1xxx`) diagnostic. Because TypeScript
+    /// least one parser-emitted (see `PARSER_TS_CODES`) diagnostic. Because TypeScript
     /// suppresses every semantic diagnostic program-wide once any syntax
     /// error exists, a syntactically-invalid overlay hides all real type
     /// errors elsewhere. The runner cross-references these against the
@@ -333,7 +331,7 @@ pub fn map_tsgo_diagnostics(
     // `Ωignore`-wrapped insertions (see its `IGNORE_START_COMMENT` doc comment).
     let mut kit_generated_texts: HashMap<PathBuf, String> = HashMap::new();
     let mut out: Vec<Diagnostic> = Vec::with_capacity(raw.len());
-    // `.svelte` sources whose generated overlay produced a TS1xxx syntax
+    // `.svelte` sources whose generated overlay produced a parser-emitted
     // diagnostic, in first-seen order (deduped). Recorded regardless of
     // whether the position mapped back cleanly — any syntax error on a
     // generated `.tsx` is overlay-attributable.
@@ -351,6 +349,12 @@ pub fn map_tsgo_diagnostics(
         let canon = absolute.canonicalize().unwrap_or_else(|_| absolute.clone());
         // Suppress imported-library-internal diagnostics (see `ext_root` above).
         if absolute.starts_with(&ext_root) || canon.starts_with(&ext_root_canon) {
+            // A syntax error is not a library internal: TypeScript drops every
+            // semantic diagnostic of the whole program once one exists, so
+            // dropping it here would turn the run into a clean-looking pass.
+            if is_syntactic_ts_code(&diag.code) {
+                out.push(passthrough(diag, &absolute, workspace));
+            }
             continue;
         }
         // Drop the raw (pre-injection) source route file's diagnostics; the
@@ -437,16 +441,18 @@ pub fn map_tsgo_diagnostics(
                 .entry(entry.tsx_path.clone())
                 .or_insert_with(|| std::fs::read_to_string(&entry.tsx_path).unwrap_or_default());
             let off = line_col_to_byte_offset(tsx_text, diag.line as usize, diag.column as usize);
-            if is_in_generated_code(tsx_text, off, off) {
-                continue;
-            }
             // A syntax error in this generated `.tsx` overlay taints the
             // whole program's semantic checking — record its `.svelte`
-            // source so the runner can surface it loudly.
+            // source so the runner can surface it loudly. This comes before
+            // the generated-code filter: a syntax error inside synthesised
+            // code taints the program just the same, and is our defect.
             if is_syntactic_ts_code(&diag.code)
                 && overlay_syntax_seen.insert(entry.source_path.clone())
             {
                 overlay_syntax_sources.push(entry.source_path.clone());
+            }
+            if is_in_generated_code(tsx_text, off, off) {
+                continue;
             }
             let entry_map = match maps.get(&entry.tsx_path) {
                 Some(em) => em,
@@ -951,6 +957,98 @@ mod tests {
             "consumer-file diagnostic must survive:\n{:#?}",
             mapped.diagnostics
         );
+    }
+
+    #[test]
+    fn surfaces_a_syntax_error_in_an_external_package_shadow() {
+        // TypeScript reports no semantic diagnostic for a program that has a
+        // syntax error, so dropping one in a dependency's shadow as a "library
+        // internal" would leave the run looking clean.
+        let workspace = Path::new("/tmp/ws_ext_syntax");
+        let overlay = empty_layout(workspace);
+        let diags = [raw(
+            ".svelte-check/ext/1/src/lib/Dropdown.svelte.tsx",
+            "TS1005",
+            "',' expected.",
+        )];
+        let mapped = map_tsgo_diagnostics(&diags, &overlay, workspace);
+        assert_eq!(
+            mapped.diagnostics.len(),
+            1,
+            "a syntax error in an ext/<n> shadow must not be dropped:\n{:#?}",
+            mapped.diagnostics
+        );
+        assert_eq!(mapped.diagnostics[0].code.as_deref(), Some("TS1005"));
+    }
+
+    #[test]
+    fn keeps_dropping_checker_grammar_codes_in_an_external_package_shadow() {
+        // `TS1378` (top-level await) and `TS1064` are checker grammar errors:
+        // they arrive alongside semantic diagnostics, so they gate nothing and
+        // stay library internals (#941). A parser-emitted JSX code outside the
+        // 1xxx range does gate semantics and must surface.
+        let workspace = Path::new("/tmp/ws_ext_grammar");
+        let overlay = empty_layout(workspace);
+        let shadow = ".svelte-check/ext/1/src/lib/Dropdown.svelte.tsx";
+        let diags = [
+            raw(
+                shadow,
+                "TS1378",
+                "Top-level 'await' expressions are only allowed when ...",
+            ),
+            raw(shadow, "TS1064", "The return type of an async function ..."),
+            raw(
+                shadow,
+                "TS17002",
+                "Expected corresponding JSX closing tag for 'div'.",
+            ),
+        ];
+        let mapped = map_tsgo_diagnostics(&diags, &overlay, workspace);
+        let codes: Vec<_> = mapped
+            .diagnostics
+            .iter()
+            .map(|d| d.code.as_deref().unwrap_or_default())
+            .collect();
+        assert_eq!(codes, ["TS17002"], "{:#?}", mapped.diagnostics);
+    }
+
+    #[test]
+    fn records_a_syntax_error_inside_an_ignore_region() {
+        let tmp = std::env::temp_dir().join(format!(
+            "rsvelte_mapper_ignore_syntax_{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let source_path = tmp.join("App.svelte");
+        let tsx_path = tmp.join("App.svelte.tsx");
+        std::fs::write(&tsx_path, "/*Ωignore_startΩ*/let x = ;/*Ωignore_endΩ*/\n").unwrap();
+        let overlay = OverlayLayout {
+            entries: vec![OverlayEntry {
+                source_path: source_path.clone(),
+                tsx_path: tsx_path.clone(),
+                dts_path: tmp.join("App.svelte.d.ts"),
+                source_map: None,
+            }],
+            ..empty_layout(&tmp)
+        };
+        let column = "/*Ωignore_startΩ*/let x = ".chars().count() as u32 + 1;
+        let diags = [RawTsDiagnostic {
+            file: tsx_path,
+            line: 1,
+            column,
+            severity: "error".into(),
+            code: "TS1109".into(),
+            message: "Expression expected.".into(),
+        }];
+        let mapped = map_tsgo_diagnostics(&diags, &overlay, &tmp);
+        let _ = std::fs::remove_dir_all(&tmp);
+        assert!(mapped.diagnostics.is_empty(), "{:#?}", mapped.diagnostics);
+        assert_eq!(mapped.overlay_syntax_sources, [source_path]);
+    }
+
+    #[test]
+    fn parser_codes_are_sorted_for_binary_search() {
+        assert!(PARSER_TS_CODES.windows(2).all(|w| w[0] < w[1]));
     }
 
     #[test]

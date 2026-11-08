@@ -45,7 +45,7 @@ ignore = "0.4.25"
 mimalloc = "0.1"
 
 [dev-dependencies]
-criterion = { version = "5.0.0", features = [
+criterion = { version = "6.0.0", features = [
     "html_reports",
 ], package = "codspeed-criterion-compat" }
 

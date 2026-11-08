@@ -9,7 +9,9 @@
 //! we do the same with oxc. `.ts` files get inline type annotations;
 //! `.js` files get the equivalent `JSDoc` tag.
 
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast as oxc;
@@ -373,6 +375,7 @@ pub fn build_added_code(
         source,
         comments: &result.program.comments,
         is_ts,
+        path,
     };
 
     let mut adds: Vec<AddedCode> = Vec::new();
@@ -609,6 +612,7 @@ struct FileCtx<'a> {
     source: &'a str,
     comments: &'a [oxc::Comment],
     is_ts: bool,
+    path: &'a Path,
 }
 
 impl<'a> FileCtx<'a> {
@@ -1055,29 +1059,37 @@ fn visit_param_statement(stmt: &oxc::Statement, ctx: &FileCtx, adds: &mut Vec<Ad
 }
 
 fn visit_server_hooks_statement(stmt: &oxc::Statement, ctx: &FileCtx, adds: &mut Vec<AddedCode>) {
+    let kit = kit_type_import_path(ctx.path);
     add_hooks_type(
         stmt,
         ctx,
         "handleError",
-        "import('@sveltejs/kit').HandleServerError",
+        &format!("import('{kit}').HandleServerError"),
         adds,
     );
-    add_hooks_type(stmt, ctx, "handle", "import('@sveltejs/kit').Handle", adds);
+    add_hooks_type(
+        stmt,
+        ctx,
+        "handle",
+        &format!("import('{kit}').Handle"),
+        adds,
+    );
     add_hooks_type(
         stmt,
         ctx,
         "handleFetch",
-        "import('@sveltejs/kit').HandleFetch",
+        &format!("import('{kit}').HandleFetch"),
         adds,
     );
 }
 
 fn visit_client_hooks_statement(stmt: &oxc::Statement, ctx: &FileCtx, adds: &mut Vec<AddedCode>) {
+    let kit = kit_type_import_path(ctx.path);
     add_hooks_type(
         stmt,
         ctx,
         "handleError",
-        "import('@sveltejs/kit').HandleClientError",
+        &format!("import('{kit}').HandleClientError"),
         adds,
     );
 }
@@ -1087,13 +1099,78 @@ fn visit_universal_hooks_statement(
     ctx: &FileCtx,
     adds: &mut Vec<AddedCode>,
 ) {
+    let kit = kit_type_import_path(ctx.path);
     add_hooks_type(
         stmt,
         ctx,
         "reroute",
-        "import('@sveltejs/kit').Reroute",
+        &format!("import('{kit}').Reroute"),
         adds,
     );
+}
+
+/// Port of `getKitTypeImportPath`: `SvelteKit` 3 moved the hook types to
+/// `@sveltejs/kit/hooks`, so the module is chosen by the major of the
+/// `@sveltejs/kit/package.json` that node10 resolution finds from the file.
+fn kit_type_import_path(path: &Path) -> &'static str {
+    static CACHE: OnceLock<Mutex<HashMap<PathBuf, &'static str>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(map) = cache.lock()
+        && let Some(hit) = map.get(path)
+    {
+        return hit;
+    }
+    let version = resolve_kit_package_json(path)
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+        .and_then(|m| m.get("version").cloned());
+    let import_path = if version.as_ref().is_some_and(js_parse_int_at_least_3) {
+        "@sveltejs/kit/hooks"
+    } else {
+        "@sveltejs/kit"
+    };
+    if let Ok(mut map) = cache.lock() {
+        map.insert(path.to_path_buf(), import_path);
+    }
+    import_path
+}
+
+/// `ts.resolveModuleName('@sveltejs/kit/package.json', …, NodeJs)`: the first
+/// `node_modules/@sveltejs/kit/package.json` walking up from the file, never
+/// looking inside a `node_modules/node_modules`.
+fn resolve_kit_package_json(path: &Path) -> Option<PathBuf> {
+    let mut dir = path.parent();
+    while let Some(d) = dir {
+        if d.file_name().is_none_or(|n| n != "node_modules") {
+            let candidate = d.join("node_modules/@sveltejs/kit/package.json");
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+        dir = d.parent();
+    }
+    None
+}
+
+/// `Number.parseInt(version, 10) >= 3`, where `NaN` compares false.
+fn js_parse_int_at_least_3(version: &serde_json::Value) -> bool {
+    let text = match version {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Number(n) => n.to_string(),
+        _ => return false,
+    };
+    let body = text.trim_start();
+    let (negative, body) = match body.as_bytes().first() {
+        Some(b'-') => (true, &body[1..]),
+        Some(b'+') => (false, &body[1..]),
+        _ => (false, body),
+    };
+    let int_part = &body[..body.bytes().take_while(u8::is_ascii_digit).count()];
+    if int_part.is_empty() || negative {
+        return false;
+    }
+    let significant = int_part.trim_start_matches('0');
+    significant.len() > 1 || significant.parse::<u8>().is_ok_and(|n| n >= 3)
 }
 
 fn add_hooks_type(
@@ -2432,6 +2509,80 @@ mod tests {
             "a vite config is not a kit.files source"
         );
 
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn kit_version_parse_int_follows_javascript() {
+        use serde_json::json;
+        for (v, at_least_3) in [
+            (json!("3.1.1"), true),
+            (json!("10.0.0"), true),
+            (json!(" 3.0.0-next.1"), true),
+            (json!("+4"), true),
+            (json!("03"), true),
+            (json!(3), true),
+            (json!("2.62.0"), false),
+            (json!("1.0.0-next.589"), false),
+            (json!("-3"), false),
+            (json!("next"), false),
+            (json!("^3.0.0"), false),
+            (json!(null), false),
+        ] {
+            assert_eq!(js_parse_int_at_least_3(&v), at_least_3, "{v}");
+        }
+    }
+
+    // SvelteKit 3 moved the hook types to `@sveltejs/kit/hooks`; the module is
+    // picked by the kit resolved from the file, not by anything in the file.
+    #[test]
+    fn hook_types_follow_the_resolved_kit_major() {
+        let tmp =
+            std::env::temp_dir().join(format!("rsvelte_kit_hooks_major_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        for (project, version, module) in [
+            ("kit2", Some("2.62.0"), "@sveltejs/kit"),
+            ("kit3", Some("3.1.1"), "@sveltejs/kit/hooks"),
+            ("unresolved", None, "@sveltejs/kit"),
+        ] {
+            let src = tmp.join(project).join("src");
+            std::fs::create_dir_all(&src).unwrap();
+            if let Some(version) = version {
+                let kit = tmp.join(project).join("node_modules/@sveltejs/kit");
+                std::fs::create_dir_all(&kit).unwrap();
+                std::fs::write(
+                    kit.join("package.json"),
+                    format!(r#"{{"version":"{version}"}}"#),
+                )
+                .unwrap();
+            }
+            for (file, source, ty) in [
+                (
+                    "hooks.server.ts",
+                    "export const handle = async ({ event, resolve }) => resolve(event);\n",
+                    "Handle",
+                ),
+                (
+                    "hooks.client.ts",
+                    "export const handleError = ({ error }) => {};\n",
+                    "HandleClientError",
+                ),
+                (
+                    "hooks.ts",
+                    "export const reroute = ({ url }) => url.pathname;\n",
+                    "Reroute",
+                ),
+            ] {
+                let adds = build_added_code(&src.join(file), source, &KitFilesSettings::default())
+                    .expect("an untyped hook gets its type");
+                let augmented = apply_added_code(source, &adds);
+                let needle = format!("Parameters<import('{module}').{ty}>[0]");
+                assert!(
+                    augmented.contains(&needle),
+                    "{project}/{file}: {augmented:?}"
+                );
+            }
+        }
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

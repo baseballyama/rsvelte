@@ -118,6 +118,17 @@
       "enabled": false
     },
     {
+      "description": "The lint gates' fixture manifests are test inputs, not dependencies: eslint-plugin-svelte reads the declared @sveltejs/kit major to decide which kit-gated rules run (no-goto-without-base and no-navigation-without-base stop at kit 2), so the adversarial corpus stays on kit 2 to keep every gated rule exercised, and each compatibility/lint-env project is named after the major it declares. A bump there silently retires gate coverage rather than updating anything.",
+      "matchFileNames": [
+        "compatibility/lint-adversarial/**",
+        "compatibility/lint-env/**"
+      ],
+      "matchDepNames": [
+        "@sveltejs/kit"
+      ],
+      "enabled": false
+    },
+    {
       "description": "ubuntu-22.04 is load-bearing at 15 sites: 14 release/publish matrix entries (release.yml x10, release-capi.yml x2, publish-vscode.yml x2) and one mirror of them, ci.yml's glibc-floor job, which builds a shipped binary the same way and asserts GLIBC_FLOOR=2.35. Renovate's github-actions manager sees only the bare `runs-on:` in ci.yml and not the 14 `os:` values inside the release matrices, so it can only ever raise the 1-of-15 PR that breaks the mirror (#3882) - and check-glibc-floor.sh is designed to go red on it. Move all 15 in one PR and re-derive the floor when 22.04 is retired.",
       "matchManagers": [
         "github-actions"

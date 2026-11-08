@@ -1,0 +1,5 @@
+{
+	"description": "Angle-bracket forms TypeScript lexes as JSX in a `.tsx` file but not in a `.ts` one: lone unconstrained generic arrows (`<T>`, `<const T>`, `async <T>`, a class field, a nested arrow, the module script, markup expressions, `{@const}`, an event handler, a snippet's `<T>`) and `<T>expr` assertions in the script and the markup. Upstream svelte-check type-checks its shadows as `.ts`; rsvelte-check writes `.svelte.tsx`, so it has to rewrite these forms to say the same thing. One syntax error would suppress every type error program-wide, so each component also carries a real type error after a rewritten form on the same line; columns are pinned by the projection's source-map test, since this gate keys on lines.",
+	"workspace": ".",
+	"tsconfig": "tsconfig.json"
+}
