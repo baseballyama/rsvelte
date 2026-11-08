@@ -21,10 +21,10 @@ export const lang_sep = '.vite-preprocess';
 
 /**
  * @param {import('./public.d.ts').VitePreprocessOptions} [opts]
- * @returns {import('@rsvelte/vite-plugin-svelte-native').PreprocessorGroup}
+ * @returns {import('svelte/compiler').PreprocessorGroup}
  */
 export function vitePreprocess(opts) {
-	/** @type {import('@rsvelte/vite-plugin-svelte-native').PreprocessorGroup} */
+	/** @type {import('svelte/compiler').PreprocessorGroup} */
 	const preprocessor = { name: 'vite-preprocess' };
 	if (opts?.script === true) {
 		preprocessor.script = rolldownVersion ? viteScriptOxc().script : viteScript().script;
@@ -37,7 +37,7 @@ export function vitePreprocess(opts) {
 }
 
 /**
- * @returns {{ script: import('@rsvelte/vite-plugin-svelte-native').Preprocessor }}
+ * @returns {{ script: import('svelte/compiler').Preprocessor }}
  */
 function viteScript() {
 	return {
@@ -67,7 +67,7 @@ function viteScript() {
 }
 
 /**
- * @returns {{ script: import('@rsvelte/vite-plugin-svelte-native').Preprocessor }}
+ * @returns {{ script: import('svelte/compiler').Preprocessor }}
  */
 function viteScriptOxc() {
 	return {
@@ -101,12 +101,12 @@ function viteScriptOxc() {
 
 /**
  * @param {import('vite').ResolvedConfig | import('vite').InlineConfig} config
- * @returns {{ style: import('@rsvelte/vite-plugin-svelte-native').Preprocessor }}
+ * @returns {{ style: import('svelte/compiler').Preprocessor }}
  */
 function viteStyle(config = {}) {
 	/** @type {Promise<CssTransform> | CssTransform} */
 	let cssTransform;
-	/** @type {import('@rsvelte/vite-plugin-svelte-native').Preprocessor} */
+	/** @type {import('svelte/compiler').Preprocessor} */
 	const style = async ({ attributes, content, filename = '' }) => {
 		const ext = attributes.lang ? `.${attributes.lang}` : '.css';
 		if (attributes.lang && !isCSSRequest(ext)) return;
@@ -132,7 +132,7 @@ function viteStyle(config = {}) {
 }
 
 /**
- * @param {import('@rsvelte/vite-plugin-svelte-native').Preprocessor} style
+ * @param {import('svelte/compiler').Preprocessor} style
  * @param {import('vite').ResolvedConfig | import('vite').InlineConfig} config
  * @returns {Promise<CssTransform>}
  */
