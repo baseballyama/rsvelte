@@ -143,6 +143,16 @@ fn lint_reports_unused_bindings_and_keeps_used_exports() {
     );
 }
 
+// ESLint sorts by position; a reassignment moves `a`'s finding after `b`'s declaration.
+#[test]
+fn lint_findings_are_in_source_order_not_declaration_order() {
+    let output = task("let a = 1; let b = 2; a = 3;", "ts.lint/default");
+    let text = &output.files[0].text;
+    let a = text.find("'a' is").expect("a is unused");
+    let b = text.find("'b' is").expect("b is unused");
+    assert!(b < a, "{text}");
+}
+
 #[test]
 fn invalid_source_is_reported_by_each_tree_task() {
     for identifier in ["ts.compile/default", "ts.format/default", "ts.lint/default"] {

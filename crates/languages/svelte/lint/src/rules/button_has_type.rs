@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_markup::button_type::{Allowed, Problem, check_static};
 use rsvelte_svelte::syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode,
@@ -10,7 +10,7 @@ pub(super) fn check(
     component: &Component,
     source: &str,
     allowed: Allowed,
-    out: &mut Vec<Diagnostic>,
+    reporter: &mut Reporter<'_>,
 ) {
     for node in &component.nodes {
         let TemplateNode::Element {
@@ -65,7 +65,7 @@ pub(super) fn check(
             },
         };
         if let Some(message) = message {
-            out.push(Diagnostic::error("svelte/button-has-type", message, span));
+            reporter.range(message, span);
         }
     }
 }

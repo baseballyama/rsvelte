@@ -1,6 +1,7 @@
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
-use rsvelte_lint_runner::rules::{Findings, Rule};
+use rsvelte_kernel::diagnostics::diagnostic::{Diagnostic, Severity};
+use rsvelte_lint_runner::findings::Findings;
+use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_svelte::Parsed;
 
 use crate::RuleConfiguration;
@@ -14,10 +15,7 @@ pub(crate) fn execute(
     rules: &[RuleConfiguration],
 ) -> Vec<Diagnostic> {
     let mut findings = Findings::new();
-    for rule in rules {
-        let rule: &dyn Rule<DocumentContext<'_>> = rule;
-        findings.run(&[rule], context);
-    }
+    findings.run(rules, context);
     findings.finish()
 }
 
@@ -26,23 +24,26 @@ impl Rule<DocumentContext<'_>> for RuleConfiguration {
         (*self).name()
     }
 
-    fn check(&self, context: &DocumentContext<'_>, out: &mut Vec<Diagnostic>) {
-        let before = out.len();
+    fn severity(&self) -> Severity {
+        match *self {
+            Self::NoUnusedVariables(s) | Self::ValidEachKey(s) => s,
+            Self::ButtonHasType { severity, .. } => severity,
+        }
+    }
+
+    fn check(&self, context: &DocumentContext<'_>, reporter: &mut Reporter<'_>) {
         match *self {
             Self::ButtonHasType { allowed, .. } => {
                 let tree = context
                     .get::<Parsed>()
                     .as_ref()
                     .expect("lint checks parsing first");
-                button_has_type::check(tree, context.source_text(), allowed, out);
+                button_has_type::check(tree, context.source_text(), allowed, reporter);
             }
             Self::NoUnusedVariables(_) => {
-                no_unused_variables::check(context, self.identifier(), out);
+                no_unused_variables::check(context, reporter);
             }
-            Self::ValidEachKey(_) => valid_each_key::check(context, out),
-        }
-        for diagnostic in &mut out[before..] {
-            diagnostic.severity = self.severity();
+            Self::ValidEachKey(_) => valid_each_key::check(context, reporter),
         }
     }
 }

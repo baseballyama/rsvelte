@@ -59,10 +59,13 @@ impl Task for Lint {
             },
         };
         let findings = crate::lint::lint(&rule_context);
-        let rules: Vec<&str> = crate::lint::rule_identifiers().collect();
         out.file(
             "lint.json",
-            rsvelte_lint_runner::output::render_json(context.line_index(), &rules, &findings),
+            rsvelte_lint_runner::output::render_json(
+                context.line_index(),
+                crate::lint::rule_identifiers(),
+                &findings,
+            ),
         );
     }
 }

@@ -1,10 +1,24 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
+use rsvelte_lint_runner::findings::Findings;
+use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_typescript::{Parsed, Resolved};
 
-use crate::lint;
-const UNUSED_VARIABLES_RULE: &str = "@typescript-eslint/no-unused-vars";
+use crate::lint::{self, JavaScriptFacts};
+
+#[derive(Debug)]
+struct NoUnusedVariables;
+
+impl Rule<JavaScriptFacts<'_>> for NoUnusedVariables {
+    fn identifier(&self) -> &'static str {
+        "@typescript-eslint/no-unused-vars"
+    }
+
+    fn check(&self, context: &JavaScriptFacts<'_>, reporter: &mut Reporter<'_>) {
+        lint::no_unused_variables(context, |_| true, reporter);
+    }
+}
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "typescript.lint",
@@ -46,19 +60,19 @@ impl Task for Lint {
             .as_ref()
             .expect("a parsed program is resolved");
         let parents = program.syntax_tree.parents();
-        let facts = lint::JavaScriptFacts {
+        let facts = JavaScriptFacts {
             syntax_tree: &program.syntax_tree,
             sem,
             parents: &parents,
         };
-        let mut findings = Vec::new();
-        lint::no_unused_variables(&facts, UNUSED_VARIABLES_RULE, |_| true, &mut findings);
+        let mut findings = Findings::new();
+        findings.run([&NoUnusedVariables], &facts);
         out.file(
             "lint.json",
             rsvelte_lint_runner::output::render_json(
                 context.line_index(),
-                &[UNUSED_VARIABLES_RULE],
-                &findings,
+                [NoUnusedVariables.identifier()],
+                &findings.finish(),
             ),
         );
     }

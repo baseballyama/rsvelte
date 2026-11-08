@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use rsvelte_kernel::computation::functions::CallError;
 use rsvelte_kernel::computation::pipeline::Registry;
-use rsvelte_lint_runner::level::Level;
+use rsvelte_lint_runner::configuration::RuleEntry;
 use rsvelte_markup::button_type::Allowed;
 use rsvelte_plugin_interface::{Extension, Settings};
 use serde::Deserialize;
@@ -36,13 +36,6 @@ const fn enabled() -> bool {
     true
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-enum RuleOptions {
-    Level(Level),
-    WithOptions((Level, ButtonOptions)),
-}
-
 fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallError> {
     let Some(rules) = settings
         .options::<Options>(EXTENSION.identifier)?
@@ -65,11 +58,11 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
 /// Rule `identifier` as `raw` configures it; `None` when it is off.
 fn rule(identifier: &str, raw: &RawValue) -> Result<Option<RuleConfiguration>, CallError> {
     let error = |e: String| CallError(format!("svelte.lint rule `{identifier}`: {e}"));
-    let options: RuleOptions = serde_json::from_str(raw.get()).map_err(|e| error(e.to_string()))?;
-    let (level, button) = match options {
-        RuleOptions::Level(level) => (level, None),
-        RuleOptions::WithOptions((level, options)) => (level, Some(options)),
-    };
+    let RuleEntry {
+        level,
+        options: button,
+    } = serde_json::from_str::<RuleEntry<ButtonOptions>>(raw.get())
+        .map_err(|e| error(e.to_string()))?;
     if !matches!(
         identifier,
         "no-unused-vars" | "svelte/button-has-type" | "svelte/valid-each-key"
@@ -83,7 +76,7 @@ fn rule(identifier: &str, raw: &RawValue) -> Result<Option<RuleConfiguration>, C
             "rule `{identifier}` does not accept options"
         )));
     }
-    let Some(severity) = level.severity().map_err(error)? else {
+    let Some(severity) = level.severity() else {
         return Ok(None);
     };
     Ok(Some(match identifier {

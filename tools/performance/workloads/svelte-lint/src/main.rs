@@ -30,10 +30,9 @@ fn baseline(mode: &str, context: &DocumentContext<'_>, out: &mut TaskOutput) {
         source_text: context.source_text(),
     };
     let (rules, findings) = if mode == "before-button" {
-        use rsvelte_lint_runner::rules::Rule;
-        let mut findings = Vec::new();
-        baseline::ButtonHasType.check(&late, &mut findings);
-        (vec!["svelte/button-has-type"], findings)
+        let mut findings = rsvelte_lint_runner::findings::Findings::new();
+        findings.run([&baseline::ButtonHasType], &late);
+        (vec!["svelte/button-has-type"], findings.finish())
     } else {
         (
             baseline::rule_identifiers().collect(),
@@ -42,7 +41,11 @@ fn baseline(mode: &str, context: &DocumentContext<'_>, out: &mut TaskOutput) {
     };
     out.file(
         "lint.json",
-        rsvelte_lint_runner::output::render_json(context.line_index(), &rules, &findings),
+        rsvelte_lint_runner::output::render_json(
+            context.line_index(),
+            rules.iter().copied(),
+            &findings,
+        ),
     );
 }
 fn main() {

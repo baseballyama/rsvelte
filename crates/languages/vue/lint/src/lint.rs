@@ -7,7 +7,8 @@
 
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_lint_runner::rules::{Findings, Rule};
+use rsvelte_lint_runner::findings::Findings;
+use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_markup::button_type::{Allowed, Problem, check_static};
 use rsvelte_typescript::scope::{DeclarationKind, HostRoot};
 use rsvelte_typescript_lint::JavaScriptFacts;
@@ -37,11 +38,11 @@ static RULES: &[&VueRule] = &[
 #[must_use]
 pub fn lint(context: &RuleContext<'_>) -> Vec<Diagnostic> {
     let mut f = Findings::new();
-    f.run::<RuleContext<'_>>(RULES, context);
+    f.run(RULES.iter().copied(), context);
     f.finish()
 }
 
-pub fn rule_identifiers() -> impl Iterator<Item = &'static str> {
+pub fn rule_identifiers() -> impl Iterator<Item = &'static str> + Clone {
     RULES.iter().map(|r| r.identifier())
 }
 
@@ -53,13 +54,12 @@ impl<'a> Rule<RuleContext<'a>> for NoUnusedVariables {
         "no-unused-vars"
     }
 
-    fn check(&self, context: &RuleContext<'a>, out: &mut Vec<Diagnostic>) {
+    fn check(&self, context: &RuleContext<'a>, reporter: &mut Reporter<'_>) {
         let sem = &context.res.sem;
         rsvelte_typescript_lint::no_unused_variables(
             &context.javascript,
-            self.identifier(),
             |b| sem.bindings[b].kind != DeclarationKind::Host,
-            out,
+            reporter,
         );
     }
 }
@@ -74,7 +74,7 @@ impl<'a> Rule<RuleContext<'a>> for VueNoUnusedVariables {
         "vue/no-unused-vars"
     }
 
-    fn check(&self, context: &RuleContext<'a>, out: &mut Vec<Diagnostic>) {
+    fn check(&self, context: &RuleContext<'a>, reporter: &mut Reporter<'_>) {
         let mut stack: Vec<&HostRoot> = context.res.host.iter().rev().collect();
         while let Some(r) = stack.pop() {
             let HostRoot::Scope(h) = r else { continue };
@@ -94,8 +94,7 @@ impl<'a> Rule<RuleContext<'a>> for VueNoUnusedVariables {
                     continue;
                 }
                 let identifier = context.res.sem.bindings[b].node;
-                out.push(Diagnostic::error(
-                    self.identifier(),
+                reporter.range(
                     format!(
                         "'{}' is defined but never used.",
                         context.c.javascript.name(identifier)
@@ -106,7 +105,7 @@ impl<'a> Rule<RuleContext<'a>> for VueNoUnusedVariables {
                         .source_location(identifier)
                         .span()
                         .expect("a parsed alias has a range"),
-                ));
+                );
             }
             stack.extend(h.body.iter().rev());
         }
@@ -157,7 +156,7 @@ impl<'a> Rule<RuleContext<'a>> for MarkupButtonHasType {
         "vue/html-button-has-type"
     }
 
-    fn check(&self, context: &RuleContext<'a>, out: &mut Vec<Diagnostic>) {
+    fn check(&self, context: &RuleContext<'a>, reporter: &mut Reporter<'_>) {
         let (sfc, source_text) = (context.c, context.source_text);
         for n in &sfc.nodes {
             let TemplateNode::Element {
@@ -177,9 +176,7 @@ impl<'a> Rule<RuleContext<'a>> for MarkupButtonHasType {
             let stat = attributes
                 .iter()
                 .find(|a| matches!(a.kind, AttributeKind::Static) && is_type(a.name));
-            let mut report = |p: Problem<'_>, span| {
-                out.push(Diagnostic::error(self.identifier(), p.message(), span));
-            };
+            let mut report = |p: Problem<'_>, span| reporter.range(p.message(), span);
             if let Some(a) = stat {
                 let Some(v) = a.value else {
                     report(Problem::Empty, a.span);
@@ -257,20 +254,16 @@ impl<'a> Rule<RuleContext<'a>> for MultiWordComponentNames {
         "vue/multi-word-component-names"
     }
 
-    fn check(&self, context: &RuleContext<'a>, out: &mut Vec<Diagnostic>) {
+    fn check(&self, context: &RuleContext<'a>, reporter: &mut Reporter<'_>) {
         let file = context.path.rsplit('/').next().unwrap_or(context.path);
         let name = file.rfind('.').map_or(file, |i| &file[..i]);
         let valid = matches!(name, "App" | "app")
             || BUILTIN.contains(&name)
             || kebab_case(name).split('-').count() > 1;
         if !valid {
-            out.push(
-                Diagnostic::error(
-                    self.identifier(),
-                    format!("Component name \"{name}\" should always be multi-word."),
-                    Span::new(0, 0),
-                )
-                .without_end(),
+            reporter.point(
+                format!("Component name \"{name}\" should always be multi-word."),
+                0,
             );
         }
     }

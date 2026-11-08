@@ -88,7 +88,11 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: '検査結果の書き出し',
 		summary: '指摘の位置を行と列に直し、検査結果を書き出します。',
 	},
-	'lint/rules': {
+	'lint/rule': {
+		title: '検査ルールの約束',
+		summary: '検査ルールが実装する処理と、指摘を報告する唯一の窓口を定めます。',
+	},
+	'lint/findings': {
 		title: 'コードの問題の検査',
 		summary: '検査ルールを実行し、指摘の並び順を決めます。',
 	},

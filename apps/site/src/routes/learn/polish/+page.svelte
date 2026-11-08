@@ -304,11 +304,12 @@
 		'P3',
 		'範囲の検査が debug ビルドだけだった',
 		'fixed',
-		'output/emitter.rs · Edits::apply_in、lint/rules.rs · run、check/report.rs · parse_report',
+		'output/emitter.rs · Edits::apply_in、lint/rule.rs · Reporter、check/report.rs · parse_report',
 	)}
 	<p>
-		<code>Edits</code> の重なりと範囲、lint ルールが自分の識別番号で報告しているかは、release
-		でも確かめます。<code>Span::new</code> は
+		<code>Edits</code> の重なりと範囲は、release でも確かめます。lint
+		ルールは指摘の識別名を自分で書かず、<code>Reporter</code>
+		が付けるので、別の名前では報告できません。<code>Span::new</code> は
 		<code>debug_assert!</code> のままです。パーサが読んだテキストから Span を作る、一番よく通る道だからです。その代わり、外から来た位置（tsc
 		のレポート）は、Span を作る前に解析の側で確かめます。
 	</p>

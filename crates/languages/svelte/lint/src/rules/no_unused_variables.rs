@@ -1,5 +1,5 @@
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte::{Parsed, Resolved};
 
 use crate::computation::Parents;
@@ -7,11 +7,7 @@ use crate::computation::Parents;
 #[cfg(test)]
 mod tests;
 
-pub(super) fn check(
-    context: &DocumentContext<'_>,
-    identifier: &'static str,
-    out: &mut Vec<Diagnostic>,
-) {
+pub(super) fn check(context: &DocumentContext<'_>, reporter: &mut Reporter<'_>) {
     let component = context
         .get::<Parsed>()
         .as_ref()
@@ -25,5 +21,5 @@ pub(super) fn check(
         sem: &resolution.sem,
         parents: context.get::<Parents>(),
     };
-    rsvelte_typescript_lint::no_unused_variables(&facts, identifier, |_| true, out);
+    rsvelte_typescript_lint::no_unused_variables(&facts, |_| true, reporter);
 }

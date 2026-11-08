@@ -557,8 +557,8 @@
 	item={data.code.ruleImpl}
 	mark={[
 		'.get::<Parsed>()',
-		'no_unused_variables::check(context, self.identifier(), out)',
-		'valid_each_key::check(context, out)',
+		'no_unused_variables::check(context, reporter)',
+		'valid_each_key::check(context, reporter)',
 	]}
 />
 <Code

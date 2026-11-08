@@ -160,7 +160,7 @@ export const chapters: Chapter[] = [
 		number: '08',
 		title: 'コード検査のルールの実行',
 		abstract: 'Rule の守るべき条件、指摘の並び順、ESLint の位置での書き出し。',
-		module: 'lint/rules',
+		module: 'lint/rule',
 		minutes: 5,
 		sections: [
 			s('rule', '検査ルールが実装する処理'),

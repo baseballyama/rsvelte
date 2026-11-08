@@ -71,11 +71,9 @@ impl Task for Lint {
             "lint.json",
             rsvelte_lint_runner::output::render_json(
                 context.line_index(),
-                if configuration.no_unnecessary_condition.is_some() {
-                    &[crate::rules::RULE]
-                } else {
-                    &[]
-                },
+                configuration
+                    .no_unnecessary_condition
+                    .map(|_| crate::rules::RULE),
                 &findings,
             ),
         );

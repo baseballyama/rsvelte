@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use rsvelte_kernel::computation::functions::CallError;
 use rsvelte_kernel::computation::pipeline::Registry;
-use rsvelte_lint_runner::level::Level;
+use rsvelte_lint_runner::configuration::Level;
 use rsvelte_plugin_interface::{Extension, Settings};
 use serde::Deserialize;
 
@@ -36,9 +36,7 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
                 "unknown typed Svelte lint rule `{identifier}`"
             )));
         }
-        configuration.no_unnecessary_condition = level
-            .severity()
-            .map_err(|e| CallError(format!("svelte.lint.typed rule `{identifier}`: {e}")))?;
+        configuration.no_unnecessary_condition = level.severity();
     }
     crate::register_with_configuration(registry, configuration);
     Ok(())

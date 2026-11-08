@@ -25,8 +25,14 @@ integers!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize);
 impl StructuredDataWriter {
     #[must_use]
     pub fn new(pretty: bool) -> Self {
+        Self::with_capacity(pretty, 0)
+    }
+
+    /// A writer whose output holds `capacity` bytes before it grows.
+    #[must_use]
+    pub fn with_capacity(pretty: bool, capacity: usize) -> Self {
         Self {
-            out: String::new(),
+            out: String::with_capacity(capacity),
             stack: buffer_pool::take_keyed::<Self, bool>(),
             after_key: false,
             pretty,

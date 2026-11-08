@@ -4,7 +4,8 @@
 //! resolution the compiler uses.
 
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
-use rsvelte_lint_runner::rules::{Findings, Rule};
+use rsvelte_lint_runner::findings::Findings;
+use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_markup::button_type::{Allowed, Problem, check_static};
 use rsvelte_svelte::compilation::compiler_syntax_tree::{AttributeValue, CompilerSyntaxTree};
 use rsvelte_svelte::semantic::resolve::Resolution;
@@ -41,13 +42,13 @@ pub fn lint(
     late: &CompilerSyntaxTreeContext<'_>,
 ) -> Vec<Diagnostic> {
     let mut f = Findings::new();
-    f.run::<SyntaxTreeContext<'_>>(EARLY, early)
-        .run::<CompilerSyntaxTreeContext<'_>>(LATE, late);
+    f.run(EARLY.iter().copied(), early)
+        .run(LATE.iter().copied(), late);
     f.finish()
 }
 
 /// The identifiers of the rules [`lint`] runs, in the order it runs them.
-pub fn rule_identifiers() -> impl Iterator<Item = &'static str> {
+pub fn rule_identifiers() -> impl Iterator<Item = &'static str> + Clone {
     EARLY
         .iter()
         .map(|r| r.identifier())
@@ -62,13 +63,8 @@ impl<'a> Rule<SyntaxTreeContext<'a>> for NoUnusedVariables {
         "no-unused-vars"
     }
 
-    fn check(&self, context: &SyntaxTreeContext<'a>, out: &mut Vec<Diagnostic>) {
-        rsvelte_typescript_lint::no_unused_variables(
-            &context.javascript,
-            self.identifier(),
-            |_| true,
-            out,
-        );
+    fn check(&self, context: &SyntaxTreeContext<'a>, reporter: &mut Reporter<'_>) {
+        rsvelte_typescript_lint::no_unused_variables(&context.javascript, |_| true, reporter);
     }
 }
 
@@ -84,7 +80,7 @@ impl<'a> Rule<CompilerSyntaxTreeContext<'a>> for ButtonHasType {
         "svelte/button-has-type"
     }
 
-    fn check(&self, context: &CompilerSyntaxTreeContext<'a>, out: &mut Vec<Diagnostic>) {
+    fn check(&self, context: &CompilerSyntaxTreeContext<'a>, reporter: &mut Reporter<'_>) {
         let (compiler_syntax_tree, source_text) =
             (context.compiler_syntax_tree, context.source_text);
         for (_, el) in compiler_syntax_tree.elements() {
@@ -126,7 +122,7 @@ impl<'a> Rule<CompilerSyntaxTreeContext<'a>> for ButtonHasType {
                 None => continue,
             };
             if let Some(p) = problem {
-                out.push(Diagnostic::error(self.identifier(), p.message(), span));
+                reporter.range(p.message(), span);
             }
         }
     }

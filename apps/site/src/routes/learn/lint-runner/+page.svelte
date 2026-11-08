@@ -31,6 +31,15 @@
 
 <div class="prose-learn">
 	<p>
+		ルールは指摘を <code>Reporter</code>
+		に渡します。<code>Reporter</code> はルールの識別名と重大度を各指摘に付けるので、ルールは別のルールの名前で報告できません。ルールが渡すのはメッセージと位置だけです。
+	</p>
+</div>
+
+<Code item={data.code.reporter} />
+
+<div class="prose-learn">
+	<p>
 		Svelte プラグインのコンテキストは、文書の計算結果を持つ <code>DocumentContext</code>
 		一つです。設定の中の各ルール（<code>RuleConfiguration</code>）が
 		<code>Rule&lt;DocumentContext&gt;</code>
@@ -43,7 +52,7 @@
 <Code item={data.code.ruleImpl} />
 <Code
 	item={data.code.noUnused}
-	mark={['rsvelte_typescript_lint::no_unused_variables(&facts, identifier, |_| true, out)']}
+	mark={['rsvelte_typescript_lint::no_unused_variables(&facts, |_| true, reporter)']}
 />
 
 <div class="prose-learn">
@@ -61,14 +70,18 @@
 	<H2 id="order" />
 	<p>
 		<code>Findings</code>
-		は、層ごとのルールの組を順に走らせ、ルールごとに計測のフェーズを開き、最後に指摘を開始位置で並べます。層が一つなら
-		<code>rsvelte_lint_runner::rules::run</code> が同じことをします。
+		は、層ごとのルールの組を順に走らせ、ルールごとに計測のフェーズを開き、最後に指摘を開始位置で並べます。ルールの組は、Svelte
+		の設定のような値の列でも、Vue のような <code>dyn Rule</code> の列でも渡せます。
 	</p>
 </div>
 
 <Code
 	item={data.code.run}
-	mark={['measurement::phase(rule.identifier())', 'assert!(', 'sort_by_key']}
+	mark={[
+		'measurement::phase(rule.identifier())',
+		'Reporter::new(rule, &mut self.out)',
+		'sort_by_key',
+	]}
 />
 
 <div class="prose-learn">
@@ -82,28 +95,21 @@
 <Code item={data.code.orderTest} />
 
 <div class="prose-learn">
-	<p>
-		<code>assert!</code>
-		は、ルールが自分の識別名（文字列）以外のコードで報告していないかを確かめます。release ビルドでも確かめるので、守るべき条件を破ったルールはその場で
-		panic し、<code>run_document</code>
-		がその文書の panic として報告します（<a href="/learn/kernel/pipeline#run-document">06</a
-		>）。コストはルールが出した指摘の数だけの比較です。
-	</p>
-
 	<H2 id="render" />
 	<p>
-		<code>render_json_with_rules</code> は指摘を ESLint と同じ形の 構造化データ形式にします（<code
-			>render_json</code
+		<code>render_json</code> は指摘を ESLint と同じ形の
+		構造化データ形式にします。ルール名は反復子で受け取るので、呼び出し側は名前の配列を作りません。出力の長さは先に見積もり、文字列の確保を一度で済ませます。行は
+		1 から、列も 1 から、単位は ユニコードの16ビット符号化方式 です。<code>LineColumn::column</code>
+		は 0 から数えるので、<code>position</code> で 1 を足します。終端を持たない指摘では、<code
+			>end</code
 		>
-		もこれを呼びます）。行は 1 から、列も 1 から、単位は ユニコードの16ビット符号化方式 です。<code
-			>LineColumn::column</code
-		>
-		は 0 から数えるので、ここで 1 を足します。終端を持たない指摘では、<code>end</code> を
+		を
 		<code>null</code> と書きます。
 	</p>
 </div>
 
-<Code item={data.code.render} mark={['lc.column + 1', 'if key == "end" && !d.has_end {']} />
+<Code item={data.code.render} mark={['capacity(rules.clone(), findings)', 'if d.has_end {']} />
+<Code item={data.code.position} mark={['at.column + 1']} />
 <Code item={data.code.columnsTest} />
 
 <ChapterFooter chapter={c} />

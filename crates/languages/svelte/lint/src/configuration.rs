@@ -22,13 +22,6 @@ impl RuleConfiguration {
             Self::ValidEachKey(_) => "svelte/valid-each-key",
         }
     }
-
-    pub(crate) const fn severity(self) -> Severity {
-        match self {
-            Self::NoUnusedVariables(s) | Self::ValidEachKey(s) => s,
-            Self::ButtonHasType { severity, .. } => severity,
-        }
-    }
 }
 
 #[derive(Clone, Debug)]

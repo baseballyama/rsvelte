@@ -1,14 +1,14 @@
 //! Lint rules over JavaScript facts alone, for every language that embeds JavaScript.
 //!
-//! A host language wraps them in its own [`rsvelte_lint_runner::rules::Rule`]. Its template
+//! A host language wraps them in its own [`rsvelte_lint_runner::rule::Rule`]. Its template
 //! expressions are scope-analysis roots ([`rsvelte_typescript::scope::HostRoot`]), so their reads
 //! are already here; which bindings a rule reports on is the host's decision (`considered`),
 //! because the upstream plugins differ: svelte-eslint-parser puts `{#each}` names in the scope core
 //! rules read, while Vue's `v-for` names are reported by `vue/no-unused-variables` instead.
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::source::index::TypedIndex;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_typescript::operators::AssignmentOperator;
 use rsvelte_typescript::scope::{BindingIdentifier, DeclarationKind, Reference, Semantic};
 use rsvelte_typescript::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, TypeScriptKind};
@@ -54,9 +54,8 @@ impl JavaScriptFacts<'_> {
 /// A [`DeclarationKind::Host`] binding is judged as a variable (not a parameter).
 pub fn no_unused_variables(
     f: &JavaScriptFacts<'_>,
-    rule: &'static str,
     considered: impl Fn(BindingIdentifier) -> bool,
-    out: &mut Vec<Diagnostic>,
+    reporter: &mut Reporter<'_>,
 ) {
     for (b, binding) in f.sem.bindings.iter_enumerated() {
         if !considered(b) {
@@ -97,14 +96,13 @@ pub fn no_unused_variables(
         } else {
             "defined"
         };
-        out.push(Diagnostic::error(
-            rule,
+        reporter.range(
             format!(
                 "'{}' is {action} but never used.",
                 f.syntax_tree.name(binding.node)
             ),
             identifier_range(f, node),
-        ));
+        );
     }
 }
 

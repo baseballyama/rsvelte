@@ -1,7 +1,6 @@
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::diagnostics::diagnostic::{Diagnostic, Severity};
-use rsvelte_kernel::source::positions::Span;
-use rsvelte_lint_runner::rules::Rule;
+use rsvelte_kernel::diagnostics::diagnostic::Severity;
+use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_svelte::Parsed;
 use rsvelte_typescript::operators::{LogicalOperator, UnaryOperator};
 use rsvelte_typescript::syntax_tree::TypeScriptKind;
@@ -12,7 +11,7 @@ use crate::types::TypeFacts;
 
 pub(crate) const RULE: &str = "svelte/@typescript-eslint/no-unnecessary-condition";
 
-fn check_conditions(context: &DocumentContext<'_>, types: &TypeFacts, out: &mut Vec<Diagnostic>) {
+fn check_conditions(context: &DocumentContext<'_>, types: &TypeFacts, reporter: &mut Reporter<'_>) {
     let component = context
         .get::<Parsed>()
         .as_ref()
@@ -30,7 +29,7 @@ fn check_conditions(context: &DocumentContext<'_>, types: &TypeFacts, out: &mut 
         let end = assertions.partition_point(|(id, _)| id.index() <= node.index());
         start..end
     };
-    let report = |node, message, out: &mut Vec<Diagnostic>| {
+    let report = |node, message, reporter: &mut Reporter<'_>| {
         let mut span = tree
             .source_location(node)
             .span()
@@ -39,9 +38,9 @@ fn check_conditions(context: &DocumentContext<'_>, types: &TypeFacts, out: &mut 
             span.start_offset = span.start_offset.min(assertion.start_offset);
             span.end_offset = span.end_offset.max(assertion.end_offset);
         }
-        out.push(Diagnostic::error(RULE, message, span));
+        reporter.range(message, span);
     };
-    let condition = |mut node: NodeIdentifier, out: &mut Vec<Diagnostic>| {
+    let condition = |mut node: NodeIdentifier, reporter: &mut Reporter<'_>| {
         let mut is_not_argument = false;
         loop {
             if !assertion_range(node).is_empty() {
@@ -67,14 +66,14 @@ fn check_conditions(context: &DocumentContext<'_>, types: &TypeFacts, out: &mut 
                 } else {
                     "Unnecessary conditional, value is always falsy."
                 },
-                out,
+                reporter,
             );
         }
     };
     for index in 0..tree.len() {
         let node = NodeIdentifier(index as u32);
         match tree.kind(node) {
-            Kind::If { test, .. } | Kind::Conditional { test, .. } => condition(test, out),
+            Kind::If { test, .. } | Kind::Conditional { test, .. } => condition(test, reporter),
             Kind::Logical(LogicalOperator::Nullish, left, _) => {
                 if let Some(nullish) = types.get(left).nullish() {
                     report(
@@ -91,11 +90,11 @@ fn check_conditions(context: &DocumentContext<'_>, types: &TypeFacts, out: &mut 
                                 "to be possibly null or undefined."
                             )
                         },
-                        out,
+                        reporter,
                     );
                 }
             }
-            Kind::Logical(_, left, _) => condition(left, out),
+            Kind::Logical(_, left, _) => condition(left, reporter),
             _ => {}
         }
     }
@@ -108,22 +107,15 @@ impl Rule<DocumentContext<'_>> for NoUnnecessaryCondition {
         RULE
     }
 
-    fn check(&self, context: &DocumentContext<'_>, out: &mut Vec<Diagnostic>) {
-        let before = out.len();
+    fn severity(&self) -> Severity {
+        self.0
+    }
+
+    fn check(&self, context: &DocumentContext<'_>, reporter: &mut Reporter<'_>) {
         if let Some(types) = context.facet::<ConditionTypes>() {
-            check_conditions(context, types, out);
+            check_conditions(context, types, reporter);
         } else {
-            out.push(
-                Diagnostic::error(
-                    RULE,
-                    "This rule requires a condition type provider.",
-                    Span::new(0, 0),
-                )
-                .without_end(),
-            );
-        }
-        for diagnostic in &mut out[before..] {
-            diagnostic.severity = self.0;
+            reporter.point("This rule requires a condition type provider.", 0);
         }
     }
 }

@@ -10,12 +10,8 @@ fn lint(source_text: &str) -> String {
     let context = DocumentContext::new(&document, registry.artifacts());
     let configuration = crate::Configuration::default();
     let findings = crate::lint(&context, &configuration).expect("source parses");
-    let rules: Vec<_> = configuration
-        .rules()
-        .iter()
-        .map(|rule| rule.name())
-        .collect();
-    rsvelte_lint_runner::output::render_json(&LineIndex::new(source_text), &rules, &findings)
+    let rules = configuration.rules().iter().map(|rule| rule.name());
+    rsvelte_lint_runner::output::render_json(&LineIndex::new(source_text), rules, &findings)
 }
 
 fn unused(source_text: &str) -> Vec<String> {

@@ -46,7 +46,7 @@ export const load = () => ({
 		buttonType: 'markup/button_type/check_static',
 		vueButton: 'vue/lint/lint/MarkupButtonHasType::check',
 		tokensDefault: 'kernel/source/tokens/impl Default for Tokens',
-		findings: 'lint/rules/impl Findings',
+		findings: 'lint/findings/impl Findings',
 		lint: 'svelte/lint/lint/lint',
 		ruleImpl: 'svelte/lint/rules/impl Rule for RuleConfiguration',
 		button: 'svelte/lint/rules/button_has_type/check',

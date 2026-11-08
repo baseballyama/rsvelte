@@ -1,9 +1,9 @@
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte::compilation::compiler_syntax_tree::NodeKind;
 use rsvelte_svelte::{Normalized, Parsed, Resolved};
 
-pub(super) fn check(context: &DocumentContext<'_>, out: &mut Vec<Diagnostic>) {
+pub(super) fn check(context: &DocumentContext<'_>, reporter: &mut Reporter<'_>) {
     let component = context
         .get::<Parsed>()
         .as_ref()
@@ -55,11 +55,10 @@ pub(super) fn check(context: &DocumentContext<'_>, out: &mut Vec<Diagnostic>) {
             javascript.for_each_child(expression, |child| pending.push(child));
         }
         if !uses_iteration_variable {
-            out.push(Diagnostic::error(
-                "svelte/valid-each-key",
+            reporter.range(
                 "Expected key to use the variables which are defined by the `{#each}` block.",
                 span(key),
-            ));
+            );
         }
     }
 }
