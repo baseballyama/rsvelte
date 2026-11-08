@@ -24,7 +24,8 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Instant;
 
-use rsvelte_kernel::computation::pipeline::{self, DocumentResult, Registry, RunOptions, Sharing};
+use rsvelte_kernel::computation::pipeline::{self, DocumentResult, RunOptions, Sharing};
+use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;

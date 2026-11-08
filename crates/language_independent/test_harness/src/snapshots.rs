@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
-use rsvelte_kernel::computation::pipeline::{DocumentResult, TaskOutput};
+use rsvelte_kernel::computation::pipeline::DocumentResult;
+use rsvelte_kernel::computation::task::TaskOutput;
 use rsvelte_kernel::diagnostics::diagnostic::Severity;
 use rsvelte_kernel::output::task_files;
 use rsvelte_kernel::source::document::Document;

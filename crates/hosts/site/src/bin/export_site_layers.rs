@@ -48,7 +48,7 @@ fn main() -> ExitCode {
         }
     };
     let source_text = document.text.as_str();
-    let mut registry = rsvelte_kernel::computation::pipeline::Registry::new();
+    let mut registry = rsvelte_kernel::computation::registry::Registry::new();
     rsvelte_svelte_lint::register(&mut registry);
     let context = rsvelte_kernel::computation::database::DocumentContext::new(
         &document,

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use rsvelte_kernel::computation::pipeline::{Registry, RunOptions, Sharing, run};
+use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
+use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_plugin_interface::{CallError, Function};
 use rsvelte_svelte_compile::{Configuration, CssHash};
 

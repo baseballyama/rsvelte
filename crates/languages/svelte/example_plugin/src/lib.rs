@@ -2,8 +2,9 @@
 //! site's plugin guide walks through it.
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
-use rsvelte_kernel::computation::pipeline::{Registry, Task, TaskOutput};
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
 use rsvelte_plugin_interface::Extension;
 use rsvelte_svelte::Parsed;

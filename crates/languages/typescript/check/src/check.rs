@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use rsvelte_kernel::computation::database::{ArtifactRegistry, DocumentContext, Facet};
-use rsvelte_kernel::computation::pipeline::{FinishTask, Part, TaskOutput};
+use rsvelte_kernel::computation::task::{FinishTask, Part, TaskOutput};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::output::emitter::{Emitter, Mapping};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;

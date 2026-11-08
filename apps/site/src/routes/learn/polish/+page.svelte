@@ -402,7 +402,7 @@
 		'C1',
 		'Task::id のドキュメントの例が実際の識別番号と違った',
 		'fixed',
-		'computation/pipeline.rs · Task::identifier',
+		'computation/task.rs · Task::identifier',
 	)}
 	<p>
 		実際の形 <code>&lt;言語&gt;.&lt;タスク&gt;/&lt;変種&gt;</code> と例（<code
@@ -414,7 +414,7 @@
 		'C2',
 		'知らないタスク識別番号を黙って無視していた',
 		'fixed',
-		'computation/pipeline.rs · Registry::check_task_identifiers、run_each',
+		'computation/registry.rs · Registry::check_task_identifiers、computation/pipeline.rs · run_each',
 	)}
 	<p>
 		<code>run_each</code> と <code>run</code> は、知らない識別番号があれば何も走らせずに

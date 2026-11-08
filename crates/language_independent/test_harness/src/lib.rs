@@ -35,7 +35,8 @@ use arguments::{Arguments, flag};
 use cases::Case;
 pub use node::NodePackages;
 use oracle::Verdict;
-use rsvelte_kernel::computation::pipeline::{Registry, RunOptions, Sharing, run_each};
+use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run_each};
+use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::Document;
 use snapshots::{Outcome, Snapshot};
 
@@ -445,7 +446,7 @@ fn fail(message: &str) -> ExitCode {
 #[cfg(test)]
 mod tests {
     use rsvelte_kernel::computation::database::DocumentContext;
-    use rsvelte_kernel::computation::pipeline::{Task, TaskOutput};
+    use rsvelte_kernel::computation::task::{Task, TaskOutput};
 
     use super::*;
 

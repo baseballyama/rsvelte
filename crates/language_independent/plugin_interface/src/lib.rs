@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use rsvelte_kernel::computation::pipeline::Registry;
+use rsvelte_kernel::computation::registry::Registry;
 use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 

@@ -1,4 +1,4 @@
-use rsvelte_kernel::computation::pipeline::Registry;
+use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_plugin_interface::{
     CallError, Contract, Extension, Function, FunctionReference, Settings, TextContract,
 };

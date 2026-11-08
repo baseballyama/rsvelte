@@ -1,242 +1,20 @@
-//! Tasks and the scheduler.
+//! The scheduler: runs a [`Registry`]'s tasks over documents.
 //!
-//! A plugin registers its artifacts and [`Task`]s into a [`Registry`]. [`run`] then processes
-//! documents in parallel: each document gets one [`DocumentContext`] on
-//! one worker, and the selected tasks run on it back to back while its data is hot in cache.
-//!
-//! A [`FinishTask`] is for results that depend on other documents (type checking): its
-//! per-document half runs in the same parallel pass, on the same `DocumentContext`, and its project
-//! half runs once after.
+//! [`run`] processes documents in parallel: each document gets one [`DocumentContext`] on one
+//! worker, and the selected tasks run on it back to back while its data is hot in cache. The
+//! project halves of finish tasks run once after every document's pass.
 
 use std::any::Any;
 
 #[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
 
-use crate::computation::database::{Artifact, ArtifactRegistry, DocumentContext, Facet};
-use crate::computation::plugins::{Plugin, PluginError, Plugins};
-use crate::diagnostics::diagnostic::Diagnostic;
+use crate::computation::database::DocumentContext;
+use crate::computation::plugins::PluginError;
+use crate::computation::registry::{Registry, UnknownTask};
+use crate::computation::task::{FinishTask, Part, Task, TaskOutput};
 use crate::performance::measurement;
-use crate::source::document::{Document, DocumentError};
-
-/// Tasks read shared artifacts and produce separate output; they do not modify the input.
-pub trait Task: Send + Sync {
-    /// Opaque name used for task selection and measurement.
-    fn identifier(&self) -> &'static str;
-    fn applies(&self, document: &Document) -> bool;
-    fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput);
-}
-
-/// What a [`FinishTask`] carries from a document's pass to the project pass. Owned: the
-/// document's `DocumentContext` is gone by then.
-pub type Part = Box<dyn Any + Send>;
-
-pub trait FinishTask: Send + Sync {
-    fn identifier(&self) -> &'static str;
-    /// `artifacts` lets a task select the documents a facet is provided for, whichever plugin
-    /// provides it.
-    fn applies(&self, document: &Document, artifacts: &ArtifactRegistry) -> bool;
-    /// On the document's worker. Returns `None` when the document is finished here (its output
-    /// is already in `out`).
-    fn prepare(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) -> Option<Part>;
-    /// Once, over every document `prepare` returned a part for; `parts[i]` belongs to `outs[i]`.
-    fn finish(&self, parts: Vec<Part>, outs: Vec<&mut TaskOutput>);
-}
-
-#[derive(Default, Debug)]
-pub struct TaskOutput {
-    pub files: Vec<OutputFile>,
-    pub diagnostics: Vec<Diagnostic>,
-}
-
-#[derive(Debug)]
-pub struct OutputFile {
-    /// Relative name chosen by the task.
-    pub name: String,
-    pub text: String,
-}
-
-impl TaskOutput {
-    pub fn file(&mut self, name: impl Into<String>, text: String) {
-        self.files.push(OutputFile {
-            name: name.into(),
-            text,
-        });
-    }
-}
-
-#[derive(Default)]
-pub struct Registry {
-    tasks: Vec<Box<dyn Task>>,
-    finish_tasks: Vec<Box<dyn FinishTask>>,
-    artifacts: ArtifactRegistry,
-    plugins: Plugins,
-}
-
-impl std::fmt::Debug for Registry {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Registry")
-            .field("artifacts", &self.artifacts)
-            .field("plugins", &self.plugins)
-            .finish_non_exhaustive()
-    }
-}
-
-impl Registry {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn plugin(&mut self, plugin: &'static Plugin) -> &mut Self {
-        self.plugins.register(plugin);
-        self
-    }
-
-    pub fn plugins(&self) -> impl ExactSizeIterator<Item = &'static Plugin> + '_ {
-        self.plugins.declarations()
-    }
-
-    /// # Errors
-    ///
-    /// Invalid declarations, missing or incompatible dependencies, or a dependency cycle.
-    pub fn validate_plugins(&self) -> Result<(), PluginError> {
-        self.plugins.validate()
-    }
-
-    /// # Panics
-    ///
-    /// If another document or finish task uses the same identifier.
-    pub fn task(&mut self, t: impl Task + 'static) -> &mut Self {
-        self.assert_new_task_identifier(t.identifier());
-        self.tasks.push(Box::new(t));
-        self
-    }
-
-    /// # Panics
-    ///
-    /// If another document or finish task uses the same identifier.
-    pub fn finish_task(&mut self, t: impl FinishTask + 'static) -> &mut Self {
-        self.assert_new_task_identifier(t.identifier());
-        self.finish_tasks.push(Box::new(t));
-        self
-    }
-
-    fn assert_new_task_identifier(&self, identifier: &str) {
-        assert!(
-            self.tasks.iter().all(|t| t.identifier() != identifier)
-                && self
-                    .finish_tasks
-                    .iter()
-                    .all(|t| t.identifier() != identifier),
-            "task `{identifier}` is registered twice"
-        );
-    }
-
-    pub fn artifact<A: Artifact>(&mut self) -> &mut Self {
-        self.artifacts.register::<A>();
-        self
-    }
-
-    /// See [`ArtifactRegistry::provide`].
-    pub fn provide<F: Facet>(
-        &mut self,
-        identifier: &'static str,
-        applies: impl Fn(&Document) -> bool + Send + Sync + 'static,
-        provider: impl Fn(&DocumentContext<'_>) -> F::Output + Send + Sync + 'static,
-    ) -> &mut Self {
-        self.artifacts.provide::<F>(identifier, applies, provider);
-        self
-    }
-
-    #[must_use]
-    pub const fn artifacts(&self) -> &ArtifactRegistry {
-        &self.artifacts
-    }
-
-    /// Tasks that run per document only (no project pass).
-    #[must_use]
-    pub fn document_task_identifiers(&self) -> Vec<&'static str> {
-        self.tasks.iter().map(|t| t.identifier()).collect()
-    }
-
-    pub fn wrap_document_tasks(&mut self, mut wrap: impl FnMut(Box<dyn Task>) -> Box<dyn Task>) {
-        self.tasks = std::mem::take(&mut self.tasks)
-            .into_iter()
-            .map(&mut wrap)
-            .collect();
-    }
-
-    #[must_use]
-    pub fn task_identifiers(&self) -> Vec<&'static str> {
-        self.tasks
-            .iter()
-            .map(|t| t.identifier())
-            .chain(self.finish_tasks.iter().map(|t| t.identifier()))
-            .collect()
-    }
-
-    /// # Errors
-    ///
-    /// [`DocumentError::TooLarge`] if `text` is
-    /// [`MAXIMUM_SOURCE_LENGTH`](crate::source::positions::MAXIMUM_SOURCE_LENGTH) bytes or longer.
-    pub fn document(
-        &self,
-        path: impl Into<String>,
-        text: impl Into<String>,
-    ) -> Result<Document, DocumentError> {
-        Document::new(path.into(), text.into())
-    }
-
-    /// # Errors
-    ///
-    /// [`UnknownTask`] naming the first identifier no registered task has.
-    pub fn check_task_identifiers(&self, identifiers: &[&str]) -> Result<(), UnknownTask> {
-        let known = self.task_identifiers();
-        identifiers
-            .iter()
-            .find(|identifier| !known.contains(identifier))
-            .map_or(Ok(()), |identifier| {
-                Err(UnknownTask {
-                    identifier: identifier.to_string(),
-                    known,
-                })
-            })
-    }
-
-    fn selected(&self, identifiers: &[&str]) -> (Vec<&dyn Task>, Vec<&dyn FinishTask>) {
-        let wanted = |identifier: &str| identifiers.is_empty() || identifiers.contains(&identifier);
-        (
-            self.tasks
-                .iter()
-                .filter(|t| wanted(t.identifier()))
-                .map(AsRef::as_ref)
-                .collect(),
-            self.finish_tasks
-                .iter()
-                .filter(|t| wanted(t.identifier()))
-                .map(AsRef::as_ref)
-                .collect(),
-        )
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct UnknownTask {
-    pub identifier: String,
-    pub known: Vec<&'static str>,
-}
-
-impl std::fmt::Display for UnknownTask {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "unknown task {}; known: {}",
-            self.identifier,
-            self.known.join(", ")
-        )
-    }
-}
+use crate::source::document::Document;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RunError {
@@ -298,8 +76,8 @@ fn run_document(
 ) -> DocumentResult {
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let shared = std::cell::OnceCell::new();
-        let shared = || shared.get_or_init(|| DocumentContext::new(document, &reg.artifacts));
-        let isolated = || DocumentContext::new(document, &reg.artifacts);
+        let shared = || shared.get_or_init(|| DocumentContext::new(document, reg.artifacts()));
+        let isolated = || DocumentContext::new(document, reg.artifacts());
         let mut outputs = Vec::new();
         let mut parts = Vec::new();
         for task in tasks.iter().filter(|t| t.applies(document)) {
@@ -319,7 +97,7 @@ fn run_document(
             outputs.push((task.identifier(), out));
         }
         for (k, task) in finish_tasks.iter().enumerate() {
-            if !task.applies(document, &reg.artifacts) {
+            if !task.applies(document, reg.artifacts()) {
                 continue;
             }
             let own;

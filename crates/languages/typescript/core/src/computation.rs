@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
-use rsvelte_kernel::computation::pipeline::Registry;
 use rsvelte_kernel::computation::plugins::Plugin;
+use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::Span;

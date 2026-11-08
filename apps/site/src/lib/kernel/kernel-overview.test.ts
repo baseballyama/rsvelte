@@ -32,6 +32,8 @@ describe('the overview figure draws only what the code shows', () => {
 			'kernel/computation/database',
 			'kernel/computation/plugins',
 			'kernel/computation/plugins/error',
+			'kernel/computation/registry',
+			'kernel/computation/task',
 			...sharedParts.map((part) => part.module),
 		]);
 		const groups = new Set([

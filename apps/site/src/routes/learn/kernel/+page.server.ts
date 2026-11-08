@@ -25,7 +25,7 @@ export const load = () => {
 			register: 'svelte/computation/register',
 			vueRegister: 'vue/computation/artifacts/register',
 			vueParsed: 'vue/computation/artifacts/impl Artifact for Parsed',
-			registry: 'kernel/computation/pipeline/Registry',
+			registry: 'kernel/computation/registry/Registry',
 			runDocument: 'kernel/computation/pipeline/run_document',
 		}),
 	};

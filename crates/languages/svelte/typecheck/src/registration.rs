@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::computation::pipeline::Registry;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
+use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;

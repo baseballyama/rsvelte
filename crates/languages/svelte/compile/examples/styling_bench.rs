@@ -2,7 +2,8 @@ use std::hint::black_box;
 use std::io::Write;
 use std::time::Instant;
 
-use rsvelte_kernel::computation::pipeline::{self, Registry, RunOptions, Sharing};
+use rsvelte_kernel::computation::pipeline::{self, RunOptions, Sharing};
+use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::Document;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

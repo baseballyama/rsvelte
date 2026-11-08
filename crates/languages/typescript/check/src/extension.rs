@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rsvelte_kernel::computation::pipeline::Registry;
+use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_plugin_interface::{CallError, Extension, Settings, TaskKind, program_path};
 use serde::Deserialize;
 

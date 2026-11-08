@@ -1,5 +1,7 @@
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::computation::pipeline::{Registry, RunOptions, Sharing, TaskOutput, run};
+use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::task::TaskOutput;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript::{Parsed, Resolved};
 use rsvelte_typescript_check::{TypeScriptDocument, TypeScriptView};

@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-use rsvelte_kernel::computation::pipeline::Registry;
+use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_test_harness::NodePackages;
 use rsvelte_vue_check::{Configuration, TypeCheckConfiguration};
 

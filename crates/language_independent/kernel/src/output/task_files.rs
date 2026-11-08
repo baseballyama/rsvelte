@@ -6,7 +6,7 @@
 
 use std::borrow::Cow;
 
-use crate::computation::pipeline::TaskOutput;
+use crate::computation::task::TaskOutput;
 use crate::output::structured_data::StructuredDataWriter;
 use crate::source::positions::LineIndex;
 

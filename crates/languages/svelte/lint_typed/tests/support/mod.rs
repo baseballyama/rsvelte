@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::computation::pipeline::{Registry, Task, TaskOutput};
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::diagnostic::Severity;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_svelte_lint_typed::Configuration;

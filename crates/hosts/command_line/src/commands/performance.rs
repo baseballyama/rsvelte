@@ -18,7 +18,8 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use rsvelte_kernel::computation::pipeline::{self, Registry, RunOptions, Sharing};
+use rsvelte_kernel::computation::pipeline::{self, RunOptions, Sharing};
+use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
@@ -231,7 +232,7 @@ fn report(
 #[cfg(test)]
 mod tests {
     use rsvelte_kernel::computation::database::DocumentContext;
-    use rsvelte_kernel::computation::pipeline::{Task, TaskOutput};
+    use rsvelte_kernel::computation::task::{Task, TaskOutput};
 
     use super::*;
 
