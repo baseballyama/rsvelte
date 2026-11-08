@@ -3,37 +3,37 @@
 		{
 			label: '全呼び出しで同じ定数',
 			code: '<Badge tone="quiet" />',
-			fact: '全呼び出しで tone = "quiet" を確認',
-			result: 'propsの定数化の安全条件を検証',
+			fact: 'すべての呼び出しが tone = "quiet" を渡す',
+			result: 'props を定数にしても安全かを検証する',
 			detail:
-				'全呼び出し箇所を列挙できるという前提で、リテラルの一致を確認した状態です。子コンポーネントでの再代入、$bindable、デフォルト値の副作用などを検証してから、構文木の変換を判断します。',
+				'呼び出し箇所をすべて列挙でき、渡すリテラルも一致しています。子コンポーネントでの再代入、$bindable、デフォルト値の副作用を調べてから、構文木を変換するかを決めます。',
 			known: true,
 		},
 		{
-			label: '動的なprops',
+			label: '変数で渡す props',
 			code: '<Badge tone={currentTone} />',
-			fact: 'currentTone の値を静的に確定できない',
+			fact: 'currentTone の値はコンパイル前に決まらない',
 			result: 'tone の受け取り方を変えない',
 			detail:
-				'この設計では、識別子で渡された値を定数とは判定しません。ほかの呼び出しがリテラルでも、tone が全呼び出しで同じ値であるとは証明できません。',
+				'この設計では、識別子で渡した値を定数とみなしません。ほかの呼び出しがリテラルでも、tone がすべての呼び出しで同じ値だとは証明できません。',
 			known: false,
 		},
 		{
 			label: '属性のスプレッド',
 			code: '<Badge {...settings} />',
-			fact: 'tone が含まれるか確定できない',
-			result: 'propsの定数化を適用しない',
+			fact: 'tone が含まれるかが決まらない',
+			result: 'props を定数にしない',
 			detail:
-				'スプレッドされたオブジェクトは tone を含む可能性があります。設計では、いずれかの呼び出しにスプレッドがあれば、そのコンポーネントに渡されるpropsの情報を不明として扱います。',
+				'どれか一つの呼び出しにスプレッドがあれば、そのコンポーネントに渡す props を不明として扱います。',
 			known: false,
 		},
 		{
-			label: '外部にexportする',
+			label: '外部に export する',
 			code: 'export { default as Badge } from "./Badge.svelte";',
-			fact: 'プロジェクト外の呼び出しを列挙できない',
-			result: 'このコンポーネントを最適化しない',
+			fact: 'プロジェクトの外からの呼び出しは列挙できない',
+			result: 'このコンポーネントは最適化しない',
 			detail:
-				'エントリーモジュールからexportされたコンポーネントは、外部のコードから別のpropsで呼ばれる可能性があります。内部の呼び出しだけを根拠に、propsを定数化しません。',
+				'エントリーモジュールから export したコンポーネントは、外部のコードから別の props で呼ばれることがあります。内部の呼び出しだけを根拠に props を定数にはしません。',
 			known: false,
 		},
 	];
@@ -41,8 +41,8 @@
 	const current = $derived(cases[choice]);
 </script>
 
-<figure aria-label="呼び出し元の違いによる、最適化の判断の変化">
-	<figcaption>呼び出し箇所の解析結果と、propsの定数化の判定</figcaption>
+<figure aria-label="呼び出し元によって変わる最適化の判断">
+	<figcaption>呼び出し箇所の解析結果と、props を定数にするかの判定</figcaption>
 	<div class="controls" role="group" aria-label="呼び出し元の条件">
 		{#each cases as example, index}
 			<button type="button" aria-pressed={choice === index} onclick={() => (choice = index)}
@@ -53,7 +53,9 @@
 	<div class="graph">
 		<div class="callers">
 			<div><span>呼び出し元 A</span><code>&lt;Badge tone="quiet" /&gt;</code></div>
-			<div><span>呼び出し元 B / エントリーモジュール</span><code>{current.code}</code></div>
+			<div>
+				<span>呼び出し元 B（export の例ではエントリーモジュール）</span><code>{current.code}</code>
+			</div>
 		</div>
 		<div class="arrow" aria-hidden="true">→</div>
 		<div class="component">
@@ -69,9 +71,7 @@
 			<p>{current.detail}</p>
 		</div>
 	{/key}
-	<p class="caption">
-		未実装の設計を説明するモデルです。コードをコンパイルするものではありません。定数の一致と、構文木の変換の安全条件は別に検証します。
-	</p>
+	<p class="caption">上のボタンで呼び出し元 B のコードを切り替えると、判定が変わります。</p>
 </figure>
 
 <style>

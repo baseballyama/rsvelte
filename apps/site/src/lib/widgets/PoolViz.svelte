@@ -54,7 +54,7 @@
 				<span class="text-muted">文書 {cur.doc + 1}（ノード {sizes[cur.doc]}）·</span>
 				{#if cur.event.kind === 'take'}
 					take() for <span class="text-c-src">{cur.event.syntax_tree}</span> →
-					{cur.event.got === null ? '空の Vec' : `容量 ${cur.event.got} を再利用`}、{cur.event.need} 要素まで伸ばす:
+					{cur.event.got === null ? '空の Vec' : `容量 ${cur.event.got} を再利用`}、{cur.event.need} 要素まで伸ばす：
 					<span class={cur.event.allocations ? 'text-accent' : ''}
 						>確保 {cur.event.allocations} 回</span
 					>
@@ -104,16 +104,15 @@
 			<div class="mt-4 text-muted">ここまでの確保</div>
 			<div class="text-[18px] tnum">{cur.allocations}</div>
 			<div class="mt-2 text-muted">
-				最後まで: {steps.at(-1)!.allocations}（{enabled ? 'pool なし' : 'pool あり'}なら {other.at(
-					-1,
-				)!.allocations}）
+				最後まで：{steps.at(-1)!.allocations}（{enabled ? 'pool なしなら' : 'pool ありなら'}
+				{other.at(-1)!.allocations}）
 			</div>
 		</div>
 	</div>
 	{#snippet caption()}
 		模型です。<code>rsvelte_typescript::SyntaxTree</code>
-		の列の一つ（一つの鍵）だけを追います。順序は実際の Svelte プラグインと同じで、パースした木は文書の終わりまで生き、compile
-		の各ターゲットが作る木は出力のあとに落ちます。ノード数と、lower した木がパースの 1.6 倍・1.3 倍になるという比は例示です。「予算」は要素の数で数えていますが、本物の
-		<code>MAXIMUM_BYTES</code> はスレッドのすべての鍵を合わせたバイト数（64 MiB）です。
+		の列の一つ（一つの鍵）だけを追います。木を作って捨てる順序は、実際の Svelte プラグインと同じです。パースした木は文書の終わりまで残ります。コンパイルの出力先ごとに作る木は、出力した後に捨てます。ノード数は例です。出力用の木のノード数も、パースした木の
+		1.6 倍（ブラウザ向け）と 1.3 倍（サーバー向け）と仮に決めています。図の「予算」は要素の数で数えます。本物の
+		<code>MAXIMUM_BYTES</code> は、スレッドのすべての鍵を合わせたバイト数（64 MiB）です。
 	{/snippet}
 </Figure>

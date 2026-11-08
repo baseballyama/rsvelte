@@ -168,8 +168,8 @@
 							</td>
 							<td>{b.declaration}</td>
 							<td>{b.rune}</td>
-							<td class="text-right tnum" title="テンプレートからの参照 / 読み取りの合計"
-								>{refCount(b.id)} / {b.reads}</td
+							<td class="text-right tnum" title="テンプレートからの参照の数と、読み取りの合計"
+								>{refCount(b.id)}/{b.reads}</td
 							>
 						</tr>
 					{/each}
@@ -177,7 +177,7 @@
 			</table>
 		</div>
 		<div class="min-w-0 p-4">
-			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-muted">lint の指摘</div>
+			<div class="mb-2 font-mono text-[11.5px] tracking-normal text-muted">コード検査の指摘</div>
 			<ul class="space-y-1 font-mono text-[12px] tracking-normal">
 				{#each d.lint as f, i (i)}
 					<li>
@@ -200,12 +200,10 @@
 	{#snippet caption()}
 		行にポインタを重ねると、対応する位置がつながります。<span class="c-gen"
 			>コンパイル用に整理した構文木</span
-		>
-		の <code>← n</code> は、その要素を作った<span class="c-src">元の構文木の要素</span
-		>の番号です。<code>{'{:else if}'}</code> は表層では <code>alternate</code> の中の
+		>の <code>← n</code> は、その要素を作った<span class="c-src">元の構文木の要素</span
+		>の番号です。<code>{'{:else if}'}</code> は、元の構文木では <code>alternate</code> の中の
 		<code>If</code>
-		ですが、コンパイル用に整理した構文木では一つの
-		<code>If</code> の枝になります。束縛にポインタを重ねると、宣言（塗り）とテンプレートからの参照（枠）が光ります。空白だけのテキスト要素は省いています。値はすべて
-		Rust のパイプラインが出したもので、lint の二件は ESLint の出力と位置まで一致します。
+		です。コンパイル用に整理した構文木では、一つの <code>If</code> の枝になります。束縛にポインタを重ねると、宣言（塗り）とテンプレートからの参照（枠）が光ります。空白だけのテキスト要素は省いています。値はすべて
+		Rust のパイプラインの出力で、コード検査の指摘二件は、ESLint の出力と位置まで一致します。
 	{/snippet}
 </Figure>

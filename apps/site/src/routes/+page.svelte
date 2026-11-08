@@ -13,9 +13,9 @@
 	const VERDICTS = [
 		{ key: 'match', label: '一致', dot: 'bg-ok' },
 		{ key: 'mismatch', label: '不一致', dot: 'bg-line-strong' },
-		{ key: 'unparseable', label: 'パースできない出力', dot: 'bg-warn' },
-		{ key: 'unexpected', label: '上流にない出力', dot: 'bg-accent' },
-		{ key: 'missing', label: '未対応として拒否', dot: 'bg-fg-2/25' },
+		{ key: 'unparseable', label: 'JavaScript として解析できない出力', dot: 'bg-warn' },
+		{ key: 'unexpected', label: 'rsvelte だけが出力', dot: 'bg-accent' },
+		{ key: 'missing', label: '公式ツールだけが出力', dot: 'bg-fg-2/25' },
 	];
 	const arm = (name: string) => {
 		const a = data.benchmark.arms.find((x) => x.name === name);
@@ -24,11 +24,11 @@
 	};
 	const maxMs = $derived(Math.max(...data.benchmark.arms.map((a) => a.median)));
 	const armNote: Record<string, string> = {
-		shared: '文書のタスクが計算結果を共有',
-		isolated: 'タスクごとに計算し直す',
-		nopool: 'バッファプールなし',
+		shared: 'ファイル内の処理が計算結果を共有',
+		isolated: '処理ごとに計算し直す',
+		nopool: '作業用メモリを再利用しない',
 		serial: '1 スレッド',
-		streaming: '結果を確定した順に捨てる',
+		streaming: '確定した結果から順に捨てる',
 	};
 
 	// Every figure in the hero is a ratio of two arms from the same benchmark run; nothing here is typed in.
@@ -36,26 +36,26 @@
 		{
 			value: `${arm('shared').median.toFixed(1)}`,
 			unit: 'ms',
-			label: `${fmt(data.benchmark.documents)} 文書・${mb(data.benchmark.bytes)} メガバイトに ${data.benchmark.tasks} タスク`,
+			label: `${fmt(data.benchmark.documents)} ファイル（${mb(data.benchmark.bytes)} メガバイト）に ${data.benchmark.tasks} 種類の処理をかける 1 ラウンドの時間`,
 			detail: `${data.benchmark.threads} スレッド、${data.benchmark.rounds} ラウンドの中央値`,
 		},
 		{
 			value: `${(arm('isolated').median / arm('shared').median).toFixed(1)}`,
 			unit: '×',
-			label: 'パースを共有した効果',
-			detail: `タスクごとに計算し直すと ${arm('isolated').median.toFixed(0)} ms`,
+			label: '構文解析の結果を共有した効果',
+			detail: `処理ごとに計算し直すと ${arm('isolated').median.toFixed(0)} ms`,
 		},
 		{
 			value: `${(arm('serial').median / arm('shared').median).toFixed(1)}`,
 			unit: '×',
-			label: '文書単位の並列化',
+			label: 'ファイルごとの並列実行',
 			detail: `1 スレッドでは ${arm('serial').median.toFixed(0)} ms`,
 		},
 		{
 			value: `${mb(arm('streaming').peak)}`,
 			unit: 'メガバイト',
-			label: 'ストリーミング時のピーク増分',
-			detail: `溜め込むと ${mb(arm('shared').peak)} メガバイト`,
+			label: '確定した結果から順に捨てたときのメモリ増加の最大値',
+			detail: `結果をすべて保持すると ${mb(arm('shared').peak)} メガバイト`,
 		},
 	]);
 
@@ -65,8 +65,8 @@
 		if (first < 0) return [{ title: '章', items: chapters }];
 		return [
 			{ title: 'はじめに', items: chapters.slice(0, first) },
-			{ title: 'カーネルのモジュール', items: chapters.slice(first, last + 1) },
-			{ title: '測って磨く', items: chapters.slice(last + 1) },
+			{ title: 'モジュールごとの解説', items: chapters.slice(first, last + 1) },
+			{ title: '計測・改善・拡張', items: chapters.slice(last + 1) },
 		].filter((g) => g.items.length > 0);
 	});
 	const totalMinutes = chapters.reduce((n, c) => n + c.minutes, 0);
@@ -82,10 +82,10 @@
 </script>
 
 <svelte:head>
-	<title>rsvelte — Svelte のツールチェーンを、ひとつのカーネルで</title>
+	<title>rsvelte — Rust で書いた Svelte 5 のツールチェーン</title>
 	<meta
 		name="description"
-		content="rsvelte は Svelte 5 のコンパイル・整形・lint・型検査を、ひとつの Rust カーネルの上で動かす実験的な実装です。"
+		content="rsvelte は、Svelte 5 のコンパイル・整形・コード検査・型検査を Rust で実装した実験的なツールチェーンです。ソースを一度だけ構文解析し、その結果をすべての処理で使います。"
 	/>
 </svelte:head>
 
@@ -101,50 +101,67 @@
 					class="shrink-0 rounded-full bg-accent-wash px-2 py-0.5 font-mono text-[11px] tracking-normal text-accent"
 					>experimental</span
 				>
-				Rust で書いた Svelte 5 のツールチェーン
+				設計の全体像（1 章）
 				<Icon name="arrow-right" size={13} class="text-muted" />
 			</a>
 			<h1
 				class="mt-7 max-w-[15em] text-[36px] leading-[1.22] font-semibold tracking-[0.005em] sm:text-[clamp(44px,5.4vw,72px)] sm:leading-[1.14]"
 				style="font-stretch: 88%"
 			>
-				Svelte のツールチェーンを、<br class="hidden sm:inline" /><span class="text-accent"
-					>ひとつのカーネル</span
-				>で。
+				Svelte 5 の 4 つのツールが、<br class="hidden sm:inline" /><span class="text-accent"
+					>同じ構文木</span
+				>を使う
 			</h1>
 			<div class="mt-8 grid grid-cols-[minmax(0,1fr)] gap-x-16 gap-y-12 lg:grid-cols-12">
 				<div class="lg:col-span-6">
 					<p class="max-w-[36em] text-[17px] leading-[1.9] text-fg-2 sm:text-[19px]">
-						コンパイル、整形、lint、型検査を、同じパースと同じ解析の上で走らせます。文書ごとに一度だけパースし、移植していない構文は近似せずに「未対応」と報告します。どこで時間とメモリを使ったかは、カーネル自身が数えます。
+						rsvelte は、Svelte 5 のコンパイル、整形、コード検査、型検査を Rust
+						で書いた実験的なツールチェーンです。Svelte
+						のソースはファイルごとに一度だけ構文解析し、その結果を 4
+						つの処理で共有します。まだ対応していない構文は、近似せずに未対応として報告します。
 					</p>
-					<div class="mt-9 flex flex-wrap items-center gap-3 text-[15px]">
-						<a
-							href="/guide"
-							class="inline-flex h-11 items-center gap-2 rounded-md bg-fg px-5 font-medium text-bg shadow-sm hover:bg-accent"
-							>使い方ガイド<Icon name="arrow-right" size={15} /></a
-						>
-						<a
-							href="/why"
-							class="inline-flex h-11 items-center gap-2 rounded-md border border-line bg-raised px-5 font-medium text-fg hover:border-line-strong"
-							>なぜrsvelteを作るのか<Icon name="arrow-right" size={15} /></a
-						>
-						<a
-							href="/learn"
-							class="inline-flex h-11 items-center gap-2 rounded-md border border-line bg-raised px-5 font-medium text-fg hover:border-line-strong"
-							>カーネルを学ぶ<Icon name="arrow-right" size={15} /></a
-						>
-						<a
-							href="/learn/playground"
-							class="inline-flex h-11 items-center rounded-md border border-line bg-raised px-5 text-fg hover:border-line-strong"
-							>プラグインを試す</a
-						>
-						<a
-							href={REPO_URL}
-							rel="noopener"
-							class="inline-flex h-11 items-center gap-2 rounded-md px-3 text-fg-2 hover:text-fg"
-							><Icon name="github" size={17} />GitHub</a
-						>
-					</div>
+					<p class="mt-4 max-w-[36em] text-[15px] leading-[1.9] text-fg-2">
+						今は試す段階です。ブラウザの<a class="link" href="/learn/playground">プレイグラウンド</a
+						>か、ソースからビルドしたコマンドで動かせます。配布用のパッケージはまだありません。実際のコードには未対応の構文があり、公式ツールの代わりに本番で使える段階ではありません。
+					</p>
+					<ul class="mt-9 flex flex-wrap items-center gap-3 text-[15px]">
+						<li>
+							<a
+								href="/guide"
+								class="inline-flex h-11 items-center gap-2 rounded-md bg-fg px-5 font-medium text-bg shadow-sm hover:bg-accent"
+								>使い方ガイド<Icon name="arrow-right" size={15} /></a
+							>
+						</li>
+						<li>
+							<a
+								href="/why"
+								class="inline-flex h-11 items-center gap-2 rounded-md border border-line bg-raised px-5 font-medium text-fg hover:border-line-strong"
+								>rsvelte を作る理由<Icon name="arrow-right" size={15} /></a
+							>
+						</li>
+						<li>
+							<a
+								href="/learn"
+								class="inline-flex h-11 items-center gap-2 rounded-md border border-line bg-raised px-5 font-medium text-fg hover:border-line-strong"
+								>開発者向けの教材<Icon name="arrow-right" size={15} /></a
+							>
+						</li>
+						<li>
+							<a
+								href="/learn/playground"
+								class="inline-flex h-11 items-center rounded-md border border-line bg-raised px-5 text-fg hover:border-line-strong"
+								>プレイグラウンド</a
+							>
+						</li>
+						<li>
+							<a
+								href={REPO_URL}
+								rel="noopener"
+								class="inline-flex h-11 items-center gap-2 rounded-md px-3 text-fg-2 hover:text-fg"
+								><Icon name="github" size={17} />GitHub</a
+							>
+						</li>
+					</ul>
 					<div
 						class="mt-8 flex max-w-[640px] items-center gap-2 rounded-md border border-line bg-sunken py-1.5 pr-1.5 pl-3 font-mono text-[13px]"
 					>
@@ -182,8 +199,12 @@
 						{/each}
 					</dl>
 					<p class="mt-3 font-mono text-[11.5px] tracking-normal text-muted">
-						release ビルド {data.benchmark.rev.slice(0, 10)} の実測。比較対象の定義と再現手順は
-						<a class="link" href="/learn/measure">14 実測</a>に。
+						倍率はどちらも rsvelte 自身の測定条件どうしの比で、公式ツールとの比較ではありません。1
+						ラウンドは全ファイルを 1
+						回処理することで、ファイルの読み込みは含みません。測定条件の定義と再現手順は<a
+							class="link"
+							href="/learn/measure">第 14 章「実測」</a
+						>にあります。
 					</p>
 				</div>
 			</div>
@@ -194,24 +215,27 @@
 		<section class="pt-20" aria-labelledby="hero-fig">
 			<div class="grid grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-4 lg:grid-cols-12 lg:items-end">
 				<div class="lg:col-span-5">
-					<p class="eyebrow">動く図</p>
+					<p class="eyebrow">位置の対応</p>
 					<h2 id="hero-fig" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">
-						出力の位置から、入力の位置へ
+						出力の文字が、入力のどこから来たか
 					</h2>
 				</div>
 				<p class="text-[16px] leading-[1.9] text-fg-2 lg:col-span-7">
-					<span class="c-gen">出力</span>の上でカーソルを動かすと、その文字がどの<span class="c-src"
+					<span class="c-gen">出力</span>の上でカーソルを動かすと、その文字が<span class="c-src"
 						>入力</span
-					>の位置から来たかを、カーネルの <code class="text-[14px]">Emitter::lookup</code> と同じ規則（指定位置以前で最も近い対応点）で引きます。
+					>のどの位置から来たかを表示します。rsvelte
+					はコンパイルのときに、出力と入力の位置を結ぶ対応点を記録します。対応点のない文字には、それより前で最も近い対応点を使います。
 				</p>
 			</div>
 			<div class="mt-8">
-				<SpanFigure data={data.counter} label="図 0 · 出力の位置から入力の位置へ" />
+				<SpanFigure data={data.counter} label="図 0 · 出力の文字と入力の位置の対応" />
 			</div>
 			<p class="mt-3 max-w-[52em] text-[13.5px] leading-[1.8] text-muted">
-				出力と位置の対応点は <code class="text-[12.5px]">{data.counter.fixture}</code> を rsvelte
-				で実際にコンパイルしたもので、位置の対応点はまだ
-				{data.counter.mappings.length} 個しかありません。位置の対応点のない文字は、直前の位置の対応点に吸い寄せられます。
+				図の出力と対応点は、<code class="text-[12.5px]">{data.counter.fixture}</code> を rsvelte
+				で実際にコンパイルしたものです。今のコンパイラが記録する対応点はこのファイルで {data.counter
+					.mappings.length}
+				個だけなので、多くの文字が直前の対応点にまとめて対応します。対応の引き方は、カーネル（言語を知らない共通部分）の
+				<code class="text-[12.5px]">Emitter::lookup</code> と同じです。
 			</p>
 		</section>
 
@@ -225,19 +249,23 @@
 					カーネルは言語を知らない
 				</h2>
 				<p class="mt-4 text-[16px] leading-[1.9] text-fg-2">
-					<code class="text-[14px]">rsvelte_kernel</code> が持つのは、位置、名前、一度だけ計算するキャッシュ、スケジューラ、診断、レイアウト、出力と位置の対応、計測です。Svelte
-					について知っていることはひとつもありません。Svelte は言語プラグインとして、中核の crate が計算結果を、コンパイル・整形・lint・型検査の
-					crate がタスクと共通の呼び出し窓口の提供元を登録します。
+					<code class="text-[14px]">rsvelte_kernel</code>
+					が受け持つのは、ソース内の位置、名前の保存、一度だけ計算するキャッシュ、並列実行、診断、出力と位置の対応、計測です。Svelte
+					への対応は、言語プラグインとしてカーネルに処理を登録します。<code class="text-[14px]"
+						>rsvelte_svelte</code
+					>
+					は構文解析や名前解決の計算結果を登録します。コンパイル・整形・コード検査・型検査の crate は、それぞれのタスク（処理の単位）を登録します。
 				</p>
 				<p class="mt-4 text-[14px] leading-[1.8] text-muted">
-					行数はビルド時に数えています。この図を描き直さなくても、コードが変われば数字も変わります。図は主な
-					crate の抜粋で、破線は図にない crate を通した間接の依存です。すべての crate の役割は「01
-					カーネルの全体像」の図 1.2 にあります。
+					図の数字は各 crate の Rust
+					のコードの行数（テストを含む）で、ビルドのたびに数えます。図は主な crate
+					の抜粋で、破線は図にない crate を通した間接の依存です。すべての crate の役割は、第 1
+					章「カーネルの全体像」の図 1.2 にあります。
 				</p>
 				<a
 					href="/learn/kernel"
 					class="mt-5 inline-flex items-center gap-1.5 text-[15px] font-medium text-accent hover:underline"
-					>01 カーネルの全体像<Icon name="arrow-right" size={14} /></a
+					>第 1 章「カーネルの全体像」<Icon name="arrow-right" size={14} /></a
 				>
 			</div>
 			<div class="rounded-lg border border-line bg-sunken p-4 sm:p-6 lg:col-span-8">
@@ -250,10 +278,13 @@
 				<div class="lg:col-span-4">
 					<p class="eyebrow">正しさ</p>
 					<h2 id="ledger" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">
-						上流との一致
+						公式ツールとの一致
 					</h2>
 					<p class="mt-4 text-[16px] leading-[1.9] text-fg-2">
-						正しさは上流のツールの出力と比べて測ります。手書きの検証例はほぼ揃っていますが、実際のコンポーネントを集めた検証用のソースファイル集では、コンパイル結果が上流と一致するのは出力できたうちの一部です。
+						rsvelte の出力を、公式ツール（公式の Svelte
+						コンパイラなど）の出力と比べます。入力は検証用のソースファイル集で、公開リポジトリから集めた実在の
+						Svelte
+						ファイルです。今この表にあるのはコンパイルの判定だけで、整形・コード検査・型検査はまだ含みません。
 					</p>
 				</div>
 				<div class="mt-8 min-w-0 lg:col-span-8 lg:mt-0">
@@ -267,7 +298,7 @@
 					<div class="mt-4 overflow-x-auto">
 						<table class="table">
 							<caption class="mb-2 text-left font-mono text-[12px] tracking-normal text-muted">
-								corpus/_registry/parity.json · {fmt(data.parity.units)} 検証例 · ビルド時に集計
+								corpus/_registry/parity.json · {fmt(data.parity.units)} 件の判定 · ビルド時に集計
 							</caption>
 							<thead
 								><tr><th>タスク</th><th class="w-[40%]">判定の内訳</th><th class="num">一致</th></tr
@@ -295,7 +326,7 @@
 											</div>
 										</td>
 										<td class="num font-mono text-[14px]"
-											>{fmt(r.verdicts.match ?? 0)} / {fmt(total)}</td
+											>{fmt(r.verdicts.match ?? 0)}/{fmt(total)}</td
 										>
 									</tr>
 								{/each}
@@ -303,11 +334,18 @@
 						</table>
 					</div>
 					<p class="mt-3 text-[13px] leading-[1.8] text-muted">
-						手書きの検証例と、検証用のソースファイル集から取り込んだ検証例を、上流のツールの出力と比べた判定です。変更時の自動検査
-						はこのファイルを基準値との比較検査として扱い、判定が一つでも動けば落ちます（<a
+						判定は 1 ファイル・1 タスクごとに一つです。<code>svelte.compile/client</code>
+						はブラウザ向け、<code>/server</code> はサーバー向けのコンパイルです。<code
+							>compileModule</code
+						>
+						は <code>.svelte.js</code> などのモジュールのコンパイルで、まだ実装していません。JavaScript
+						は構文木として比べます。rsvelte が診断だけを返して出力しなかったファイルは数えません。
+					</p>
+					<p class="mt-2 text-[13px] leading-[1.8] text-muted">
+						変更時の自動検査はこのファイルを基準値とし、判定が一つでも変わると失敗します。良くなった場合も失敗させ、意図した変化だけを人が記録し直します（<a
 							class="link"
-							href="/learn/measure">14 実測</a
-						>）。「未対応」はまだ移植していない構文を正直に拒否したもの、「パースできない」は拒否すべきところで出力してしまった欠陥です。
+							href="/learn/measure">第 14 章「実測」</a
+						>）。
 					</p>
 				</div>
 			</div>
@@ -323,13 +361,13 @@
 					仕組みごとに測る
 				</h2>
 				<p class="mt-4 text-[16px] leading-[1.9] text-fg-2">
-					ベンチマークの各比較対象は、同じ文書・同じタスクを、仕組みをひとつだけ変えて走らせます。比較対象の差が、その仕組みの効果です。ストリーミングは時間をほとんど変えずに、使用中のメモリのピーク増分を
-					{mb(arm('shared').peak)} メガバイト から {mb(arm('streaming').peak)} メガバイト にします。
+					ベンチマークでは、同じファイルに同じ処理を、仕組みを一つだけ変えて実行します。この変え方を測定条件と呼び、測定条件どうしの差をその仕組みの効果とみなします。測定条件はどれも
+					rsvelte 自身の設定で、ほかのツールではありません。
 				</p>
 				<a
 					href="/learn/measure"
 					class="mt-5 inline-flex items-center gap-1.5 text-[15px] font-medium text-accent hover:underline"
-					>14 実測<Icon name="arrow-right" size={14} /></a
+					>第 14 章「実測」<Icon name="arrow-right" size={14} /></a
 				>
 			</div>
 			<div class="mt-8 min-w-0 lg:col-span-8 lg:mt-0">
@@ -337,8 +375,8 @@
 					<table class="table min-w-[560px]">
 						<thead>
 							<tr
-								><th>比較対象</th><th class="w-[42%]">中央値</th><th class="num">ms</th><th
-									class="num">ピーク増分</th
+								><th>測定条件</th><th class="w-[42%]">中央値</th><th class="num">ms</th><th
+									class="num">メモリ増加の最大値</th
 								></tr
 							>
 						</thead>
@@ -368,10 +406,10 @@
 					</table>
 				</div>
 				<p class="mt-3 text-[13px] leading-[1.7] text-muted">
-					{fmt(data.benchmark.documents)} 文書（{mb(data.benchmark.bytes)} メガバイト）を、{data
-						.benchmark.tasks} タスク・{data.benchmark.threads} スレッドで処理しました。 最適化したビルドで
-					{data.benchmark.rounds} 回計測した中央値です。比較対象の実行順は交互に入れ替えています。 時間は計測機能なし、メモリのピークは計測機能ありの別の実行で測りました。ビルド
-					{data.benchmark.rev.slice(0, 10)}。
+					時間は計測機能を外したビルドで、{data.benchmark.rounds}
+					ラウンドの中央値です。メモリは計測機能を入れたビルドで測りました。どちらも同じコミット（<code
+						>{data.benchmark.rev.slice(0, 10)}</code
+					>）の同じ {fmt(data.benchmark.documents)} ファイルです。測定条件の実行順は、ラウンドごとに入れ替えています。
 				</p>
 			</div>
 		</section>
@@ -379,13 +417,14 @@
 		<section class="mt-28" aria-labelledby="learn">
 			<div class="flex flex-wrap items-end justify-between gap-4">
 				<div>
-					<p class="eyebrow">Learn</p>
+					<p class="eyebrow">教材</p>
 					<h2 id="learn" class="mt-2 text-[26px] leading-[1.4] font-semibold sm:text-[30px]">
-						カーネルを読む {chapters.length} 章
+						開発者向けの教材 {chapters.length} 章
 					</h2>
 					<p class="mt-3 max-w-[42em] text-[16px] leading-[1.9] text-fg-2">
-						大枠から細部まで読むための教材です。抜粋はすべてビルド時に実際のソースから切り出していて、行番号はファイルのものです。通して約
-						{totalMinutes} 分。
+						rsvelte
+						の内部を、全体の構成から一行ずつのコードまで順に読む教材です。抜粋はビルド時に実際のソースから切り出し、行番号は元のファイルのものです。通して読むと約
+						{totalMinutes} 分です。
 					</p>
 				</div>
 			</div>

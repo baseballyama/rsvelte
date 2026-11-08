@@ -42,9 +42,9 @@
 </script>
 
 <figure class="pipeline" style:--step-duration="{STEP_DURATION_MS}ms">
-	<figcaption>Greeting.svelteを、4種類のツールで処理する</figcaption>
+	<figcaption>Greeting.svelte を 4 種類の処理にかける</figcaption>
 	<p class="intro">
-		矢印はデータの依存関係です。再生すると実行順に工程が点灯します。オレンジは現在の工程、青い破線はその工程が読む保存済みデータです。
+		矢印はデータの依存関係です。再生すると、実行する順に工程が点灯します。実線の太枠が現在の工程で、青い破線の枠はその工程が読む保存済みのデータです。
 	</p>
 	<div class="controls">
 		<div class="selection">
@@ -78,19 +78,19 @@
 		</div>
 	</div>
 	<div class="diagram">
-		<p class="boundary">文書ごとの処理 · 同じソースのスナップショットと実行コンテキスト</p>
+		<p class="boundary">文書ごとの処理 · 同じソースのスナップショットと実行コンテキストを使う</p>
 		<div class="shared">
 			{#each shared as stage, index}
 				{#if index}<span class="arrow" aria-hidden="true">→</span>{/if}
 				{@render node(stage.identifier)}
 			{/each}
 		</div>
-		<p class="shared-note">ソースAST → テンプレートHIR → スコープ・宣言・参照のサイドテーブル</p>
+		<p class="shared-note">ソース AST → テンプレート HIR → スコープ・宣言・参照の表</p>
 		<div class="branches">
 			{#each pipelineTasks as task}
 				<div class="branch" class:disabled={!selected.includes(task.identifier)}>
 					<h3>{task.label}</h3>
-					<p class="dependency">↓ {task.input}を使う</p>
+					<p class="dependency">↓ 使うデータ：{task.input}</p>
 					{#each task.nodes as identifier, index}
 						{#if index}<div
 								class="vertical-arrow"
@@ -100,7 +100,7 @@
 								↓<i></i>
 							</div>{/if}
 						{#if identifier === 'typescript'}<p class="project-boundary">
-								ここから全ファイルを集約
+								ここから全ファイルをまとめる
 							</p>{/if}
 						{@render node(identifier)}
 					{/each}
@@ -110,7 +110,7 @@
 		</div>
 	</div>
 	{#if current}
-		<div class="progress" aria-label="工程を選択">
+		<div class="progress" aria-label="工程を選ぶ">
 			{#each stages as stage, index}
 				<button
 					type="button"
@@ -129,7 +129,7 @@
 			<div class="detail">
 				<div class="description" aria-live="polite" aria-atomic="true">
 					<p class="step">
-						工程 {position + 1} / {stages.length}{position === stages.length - 1 ? ' · 完了' : ''}
+						工程 {position + 1}/{stages.length}{position === stages.length - 1 ? ' · 完了' : ''}
 					</p>
 					<h3>{current.label}</h3>
 					<p>{current.description}</p>
@@ -137,9 +137,9 @@
 				<div class="code">{@html markup[current.identifier]}</div>
 			</div>
 		</div>
-	{:else}<p class="empty">実行する処理を選択してください。</p>{/if}
+	{:else}<p class="empty">実行する処理を選んでください。</p>{/if}
 	<p class="caption">
-		現在の実装に沿った説明モデルです。中間データと診断は要点を抜粋しています。アニメーションの長さは実行時間を表しません。型検査器によるTypeScriptの解析は別に行われます。
+		中間データと診断は要点だけを抜粋しています。アニメーションの長さは実行時間を表しません。
 	</p>
 </figure>
 
@@ -164,12 +164,12 @@
 					? '保存済みデータを読む'
 					: visited.has(identifier)
 						? '計算済み'
-						: '工程を選択'}</span
+						: '工程を選ぶ'}</span
 		>
 		<strong>{stage.label}</strong>
 		<span class="structure">{stage.structure}</span>
 		{#if identifier === 'input'}<code>Greeting.svelte</code>{:else if identifier === 'parsed'}<span
-				>Svelteソースの解析は1回</span
+				>Svelte のソースの構文解析は 1 回</span
 			>{/if}
 	</button>
 {/snippet}

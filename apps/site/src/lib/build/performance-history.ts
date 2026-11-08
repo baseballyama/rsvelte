@@ -72,7 +72,7 @@ export function performanceHistory(root: string): PerformanceRecord[] {
 	const now = counters(JSON.parse(readFileSync(path.join(root, file), 'utf8')));
 	const last = records.at(-1)!;
 	if ((Object.keys(now) as (keyof typeof now)[]).some((k) => last[k] !== now[k])) {
-		records.push({ sha: null, subject: '作業ツリーの未コミットの基準値', ...now });
+		records.push({ sha: null, subject: '未コミットの基準値', ...now });
 	}
 	return records;
 }

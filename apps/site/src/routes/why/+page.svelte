@@ -7,37 +7,40 @@
 	let { data } = $props();
 
 	const sections = [
-		{ id: 'whole-file', label: 'テンプレートの構文解析' },
-		{ id: 'extensions', label: '独自のlintルール' },
+		{ id: 'whole-file', label: 'テンプレートの解析' },
+		{ id: 'extensions', label: '独自のコード検査ルール' },
 		{ id: 'sharing', label: '解析結果の共有' },
-		{ id: 'project', label: 'クロスファイル最適化' },
+		{ id: 'project', label: 'ファイルをまたぐ最適化' },
 		{ id: 'today', label: '実装状況' },
 	];
 </script>
 
 <svelte:head>
-	<title>なぜrsvelteを作るのか — rsvelte</title>
+	<title>rsvelte を作る理由 — rsvelte</title>
 	<meta
 		name="description"
-		content="Svelteのテンプレートを含む解析、独自の検査ルール、ツール間の解析結果の共有、コンパイル前のクロスファイル最適化。rsvelteが解決したい問題と、現在の実装範囲を説明します。"
+		content="Svelte のテンプレートを含む解析、独自のコード検査ルール、処理の間での解析結果の共有、ファイルをまたぐ最適化。rsvelte が解決したい問題と、今の実装範囲を説明します。"
 	/>
 </svelte:head>
 
 <main class="why">
 	<header class="intro">
 		<p class="eyebrow">プロジェクトの目的</p>
-		<h1>なぜrsvelteを<br />作るのか</h1>
+		<h1>rsvelte を<br />作る理由</h1>
 		<p class="lead">
-			rsvelteは、Svelteの構文木と名前解決の結果を、lint・format・compileで共有するRust製のツールチェーンです。テンプレート内の変数参照やバインディングを含む解析結果を、独自のルールやコンパイラから利用できる構成を目指しています。
+			rsvelte は、Svelte の構文木と名前解決の結果を、コード検査・整形・コンパイル・型検査で共有する
+			Rust
+			製のツールチェーンです。テンプレート内の変数の参照やバインディングまで解析した結果を、独自のルールやコンパイラから使えるようにします。
 		</p>
 		<p>
-			対象はまずSvelte
-			5のrunesモードです。構文解析、解析結果のキャッシュ、タスクの登録と実行を共通化し、各ツールでの再解析や、独自ルールに必要な解析処理の重複を減らします。実装は実験段階です。
+			まずは Svelte 5 の runes
+			モードを対象にします。構文解析、解析結果のキャッシュ、タスク（コンパイルや整形などの処理の単位）の登録と実行を、ツールの間で共通にします。これで、ツールごとの再解析と、独自ルールごとに書く解析処理を減らします。実装は実験段階です。
 		</p>
 		<div class="premise">
-			<span>説明する範囲</span>
+			<span>このページの前提</span>
 			<p>
-				テンプレート解析、独自ルールの登録、タスク間のキャッシュ共有を順に説明します。クロスファイル最適化は未実装の設計です。図はデータの依存関係と判断条件を示すモデルで、実測値ではありません。
+				04
+				のファイルをまたぐ最適化は、まだ設計だけで実装していません。このページの図は、データの依存関係と判断の条件を示すモデルで、実測値ではありません。
 			</p>
 		</div>
 	</header>
@@ -50,59 +53,76 @@
 
 	<section id="whole-file">
 		<p class="eyebrow">01 · 言語の対応範囲</p>
-		<h2>OxlintはSvelteの<br />テンプレートを解析しない</h2>
+		<h2>Oxlint は Svelte の<br />テンプレートを解析しない</h2>
 		<p>
-			Svelteでは、スクリプトで宣言した変数をテンプレートから参照できます。下の例では、式 <code
+			Svelte では、スクリプトで宣言した変数をテンプレートから参照できます。下の例では、式 <code
 				>&#123;name&#125;</code
 			>
-			が変数の読み取り、<code>bind:value=&#123;name&#125;</code> が入力イベントに伴う書き込みを含みます。この関係を解析するには、JavaScriptの構文木に加えて、Svelteのテンプレートの構文木と名前解決が必要です。
+			が変数を読み、<code>bind:value=&#123;name&#125;</code> は入力のたびに変数へ書き込みます。この関係を解析するには、JavaScript
+			の構文木に加えて、テンプレートの構文木と名前解決が必要です。
 		</p>
 		<SvelteSourceFigure markup={data.examples} />
 		<p>
-			OxcはJavaScriptとTypeScriptの解析や変換のためのツール群です。OxlintはSvelteやVueのファイルでもスクリプト部分を検査できます。ただし、公式の対応表ではテンプレートの検査は未対応とされています。Oxfmtでは、Svelteの整形に別途
-			<code>svelte/compiler</code> が必要です。<a href="https://oxc.rs/compatibility"
+			Oxc は、JavaScript と TypeScript を解析・変換するツール群です。Oxlint は Svelte や Vue
+			のファイルでもスクリプト部分を検査できます。ただし、<a href="https://oxc.rs/compatibility"
 				>公式の対応表</a
-			>と<a href="https://oxc.rs/docs/guide/usage/linter">Oxlintの対象範囲</a>で確認できます。
+			>ではテンプレートの検査は未対応です（<a href="https://oxc.rs/docs/guide/usage/linter"
+				>Oxlint の対象範囲</a
+			>）。Oxfmt で Svelte を整形するには、別に <code>svelte/compiler</code> が必要です。
 		</p>
 		<p>
-			スクリプト内の宣言だけを解析しても、テンプレート内の参照先や書き込み先は得られません。変数の使用状況、バインディングの妥当性、未使用のスタイルなどを検査するには、テンプレートを含む解析が必要です。
+			ESLint 向けの eslint-plugin-svelte は、パーサーに <a
+				href="https://github.com/sveltejs/svelte-eslint-parser#usage-for-custom-rules--plugins"
+				>svelte-eslint-parser</a
+			> を使います。このパーサーは、テンプレートを含む Svelte の AST とスコープ解析を、独自ルールに渡します。rsvelte
+			は同じ種類の解析を Rust で持ち、コンパイルや整形と同じ結果を使います。
 		</p>
 		<p>
-			rsvelteはJavaScript、テンプレート、スタイルの構文木を保持します。名前解決では、テンプレート内の識別子を、スクリプトの宣言やテンプレート内のローカル変数に対応付けます。変数のスコープや参照先は構文木とは別の表に保存し、lintとcompileから利用します。一般的なJavaScriptルールの網羅性より、Svelte固有の意味解析を優先します。
+			rsvelte は
+			JavaScript、テンプレート、スタイルの構文木を持ちます。名前解決では、テンプレート内の識別子を、スクリプトの宣言やテンプレート内のローカル変数に結び付けます。スコープと参照先は構文木とは別の表に保存し、コード検査とコンパイルで使います。一般的な
+			JavaScript のコード検査ルールは、多くはそろえない方針です。
 		</p>
 		<p class="reading">設計の詳細：<a href="/learn/kernel/layers">構文木と解析結果の持ち方</a></p>
 	</section>
 
 	<section id="extensions">
 		<p class="eyebrow">02 · 拡張性</p>
-		<h2>独自のlintルールに、<br />テンプレートと名前解決を提供する</h2>
+		<h2>独自のコード検査ルールに、<br />テンプレートと名前解決を渡す</h2>
 		<p>
-			たとえば「フォームの送信には、指定したモジュールからimportした SubmitButton
-			だけを使う」という独自ルールを考えます。タグ名の一致だけでは、同名の別コンポーネントを区別できません。テンプレートの要素と、import宣言への名前解決が必要です。
+			たとえば「フォームの送信には、指定したモジュールから import した SubmitButton
+			だけを使う」というルールを考えます。タグ名を比べるだけでは、同じ名前の別のコンポーネントと区別できません。テンプレートの要素と、その名前が指す
+			import 宣言の両方が必要です。
 		</p>
 		<p>
-			ESLintには<a href="https://eslint.org/docs/latest/extend/custom-rules">独自ルールの仕組み</a
-			>があり、OxlintもJavaScript製のプラグインに対応しています。ルールを追加できることと、ルールから対象言語の構文木や意味解析を利用できることは、別の条件です。Oxlintの<a
+			ESLint では、01 で見た svelte-eslint-parser の AST
+			とスコープ解析を使って、このルールを書けます。Oxlint も JavaScript
+			で書いたプラグインに対応します。ただし、<a
 				href="https://oxc.rs/docs/guide/usage/linter/js-plugins#api-support">プラグインの対応範囲</a
-			>には、SvelteやVueなどの独自形式とパーサーは未対応と記載されています。
+			>には、Svelte や Vue などの独自形式とパーサーは未対応と書かれています。
 		</p>
-		<div class="extension-flow" aria-label="独自ルールが使う入力と出力">
-			<div><span>既存の言語プラグイン</span><strong>テンプレートの構文木・名前解決</strong></div>
+		<div class="extension-flow" aria-label="独自ルールの入力と出力">
+			<div><span>既存の言語プラグイン</span><strong>テンプレートの構文木と名前解決</strong></div>
 			<b aria-hidden="true">→</b>
-			<div><span>追加する処理</span><strong>独自のlintルール</strong></div>
+			<div><span>追加する処理</span><strong>独自のコード検査ルール</strong></div>
 			<b aria-hidden="true">→</b>
-			<div><span>利用者に返す結果</span><strong>ソース範囲を持つ診断</strong></div>
+			<div><span>利用者に返す結果</span><strong>ソース内の範囲を持つ診断</strong></div>
 		</div>
 		<p>
-			rsvelteでは、Rustのタスクを登録し、既存の構文解析結果や名前解決の結果を取得できます。独自の検査は、そのデータを参照して条件を判定し、診断を返します。必要な解析結果は文書ごとのキャッシュから取得するため、ルール側に別のパーサーや名前解決を実装する必要がありません。
+			rsvelte では、Rust
+			で書いたタスクを登録し、既存の構文解析と名前解決の結果を取り出せます。独自の検査はそのデータを見て条件を判定し、診断を返します。ESLint
+			との違いは、ルールがコンパイルや整形と同じプロセスで、同じ構文解析と名前解決の結果を使うことです。結果は文書（処理する
+			1
+			つのファイルの内容）ごとのキャッシュから取り出すため、ルール側でパーサーや名前解決を実装する必要はありません。
 		</p>
 		<p>
-			構文木のノードは元のソースの範囲を保持します。診断はその範囲を使い、共通の出力処理で行・列に変換できます。新しい言語プラグインでも、ソース管理、キャッシュ、診断、スケジューラを再利用します。
+			構文木のノードは、元のソース内の範囲を持ちます。診断はその範囲を使い、共通の出力処理で行と列に変換されます。ソースの管理、キャッシュ、診断、スケジューラは、言語を知らない共通部分（カーネル）にあり、新しい言語プラグインもそれを再利用します。
 		</p>
 		<div class="premise">
-			<span>現在できる拡張</span>
+			<span>今できる拡張</span>
 			<p>
-				現在の拡張は、Rustで実装したタスクや解析処理を、ホストプログラムに静的にリンクする方式です。設定ファイルから任意のプラグインを読み込む仕組みや、ESLint製ルールをそのまま動かす互換性は、まだ提供していません。
+				今の拡張は、Rust で書いたタスクや解析処理を、カーネルを呼び出すプログラム（rsvelte
+				のコマンドなど）に静的にリンクする方式です。設定ファイルで指定できるのは組み込みのプラグインのオプションで、任意のプラグインを読み込む仕組みはまだありません。ESLint
+				のルールをそのまま動かす互換機能もありません。
 			</p>
 		</div>
 		<p class="reading">動く実装例：<a href="/learn/plugins">プラグインを実装する</a></p>
@@ -110,237 +130,255 @@
 
 	<section id="sharing">
 		<p class="eyebrow">03 · 構文解析の重複</p>
-		<h2>4種類の処理に、<br />同じSvelteの構文木を渡す</h2>
+		<h2>4 種類の処理に、<br />同じ Svelte の構文木を渡す</h2>
 		<p>
-			lint、format、compileを別々のプロセスで実行する構成では、各ツールがソースから独自の構文木を生成します。ESLintでSvelteを解析した結果は、通常、そのままPrettierやSvelteコンパイラには渡されません。同じ入力でも、プロセスごとに構文解析が発生します。
+			コード検査、整形、コンパイルを別々のプロセスで実行すると、ツールごとにソースから構文木を作ります。ESLint
+			が Svelte を解析した結果は、通常、Prettier や Svelte のコンパイラには渡りません。
 		</p>
 		<p>
-			一つのlint実行内での構文木の共有や、未変更ファイルを省略するキャッシュは、既存ツールにもあります。rsvelteが共通化するのは、種類の異なるタスクが同じ文書から生成する構文木と解析結果です。
+			一回のコード検査の中で構文木を共有する仕組みや、変更のないファイルを飛ばすキャッシュは、既存のツールにもあります。rsvelte
+			が共通にするのは、種類の違うタスクが同じ文書から作る構文木と解析結果です。
 		</p>
 		<p>
-			下の例では、同じSvelteファイルにフォーマット、Lint、コンパイル、型検査を選んでいます。文書内の処理を順に実行し、型検査は全ファイルの検査用TypeScriptがそろった後に行います。工程の枠を選ぶと、その時点の入力と生成データを確認できます。
+			下の図は、同じ Svelte ファイルに整形、コード検査、コンパイル、型検査の 4
+			つを選んだ状態です。文書内の処理を順に実行し、型検査は全ファイルの検査用 TypeScript
+			がそろってから行います。工程の枠を選ぶと、その時点の入力と生成したデータを確認できます。
 		</p>
 		<p>
-			図では、ソースの構造を保持するAST（抽象構文木）と、コンパイラ向けに整理したHIR（高水準の中間表現）を区別します。スコープや参照先は、ノードの識別番号で引くサイドテーブルに保存します。
+			図と表では、ソースの構造をそのまま持つ構文木を
+			AST（抽象構文木）、コンパイラ向けに整理した構文木を
+			HIR（高水準の中間表現）と呼びます。スコープや参照先は、ノードの識別番号で引く別の表に保存します。
 		</p>
 		<div class="data-structures">
 			<table>
-				<caption>パイプラインが保持する主なデータ構造</caption>
+				<caption>処理の途中で保持する主なデータ構造</caption>
 				<thead
 					><tr
 						><th scope="col">データ構造</th><th scope="col">保持する情報</th><th scope="col"
-							>利用する処理</th
+							>使う処理</th
 						></tr
 					></thead
 				>
 				<tbody>
 					<tr
-						><th scope="row">ソースAST<br /><code>Component</code></th><td
-							>テンプレートのノード、JavaScript/TypeScript
-							AST、スタイルの構文木、元のソース範囲。字句トークンも保持する。</td
-						><td>フォーマット、HIR生成、Lint、型検査用コードの生成。</td></tr
+						><th scope="row">ソース AST<br /><code>Component</code></th><td
+							>テンプレートのノード、JavaScript/TypeScript の
+							AST、スタイルの構文木、元のソース内の範囲。字句トークンも持つ。</td
+						><td>整形、HIR の生成、コード検査、型検査用コードの生成。</td></tr
 					>
 					<tr
-						><th scope="row">JavaScript/TypeScript AST<br /><code>SyntaxTree</code></th><td
-							>スクリプトとテンプレート内のJavaScript式を、同じ木に格納する。</td
-						><td>スコープ・参照解析、Lint、コンパイル。</td></tr
+						><th scope="row">JavaScript/TypeScript の AST<br /><code>SyntaxTree</code></th><td
+							>スクリプトと、テンプレート内の JavaScript の式を、同じ木に入れる。</td
+						><td>スコープと参照の解析、コード検査、コンパイル。</td></tr
 					>
 					<tr
-						><th scope="row">テンプレートHIR<br /><code>CompilerSyntaxTree</code></th><td
-							>分岐や属性を整理したノード、親子関係、元のテンプレートとの対応。JavaScript式はJavaScript/TypeScript
-							ASTのノードを参照する。</td
-						><td>スコープ・参照解析、Lint、コンパイル用の解析と描画計画。</td></tr
+						><th scope="row">テンプレート HIR<br /><code>CompilerSyntaxTree</code></th><td
+							>分岐や属性を整理したノード、親子関係、元のテンプレートとの対応。JavaScript
+							の式は、JavaScript/TypeScript の AST のノードを参照する。</td
+						><td>スコープと参照の解析、コード検査、コンパイル用の解析と描画計画。</td></tr
 					>
 					<tr
 						><th scope="row"
-							>スコープ・参照のサイドテーブル<br /><code>Resolution</code>・<code>Semantic</code
-							></th
+							>スコープと参照の表<br /> <code>Resolution</code>・<code>Semantic</code></th
 						><td
-							>スコープ、宣言、参照先、読み書き、Svelte固有の宣言種別。ASTやHIRのノードに書き込まず、別の表に保存する。</td
-						><td>Lint、コンパイル。</td></tr
+							>スコープ、宣言、参照先、読み書き、Svelte 固有の宣言の種類。AST や HIR
+							のノードには書き込まず、別の表に保存する。</td
+						><td>コード検査、コンパイル。</td></tr
 					>
 					<tr
 						><th scope="row"
-							>コンパイル用の解析結果・描画計画<br /><code>Analysis</code>・<code>RenderPlan</code
+							>コンパイル用の解析結果と描画計画<br /> <code>Analysis</code>・<code>RenderPlan</code
 							></th
-						><td>式の依存関係、動的な断片、スタイルの対応、描画する領域の計画。</td><td
-							>出力JavaScript ASTの生成、スタイルの生成。</td
+						><td>式の依存関係、動的な部分、スタイルの対応、描画する領域の計画。</td><td
+							>出力する JavaScript の AST の生成、スタイルの生成。</td
 						></tr
 					>
 					<tr
-						><th scope="row">出力JavaScript AST<br /><code>LoweredModule</code></th><td
-							>コンパイル先に合わせて新しく生成した <code>SyntaxTree</code
-							>。元のソースASTとは別の木。</td
-						><td>JavaScriptテキストの出力。</td></tr
+						><th scope="row">出力する JavaScript の AST<br /><code>LoweredModule</code></th><td
+							>コンパイル先に合わせて新しく作った <code>SyntaxTree</code>。元のソース AST
+							とは別の木。</td
+						><td>JavaScript のテキストの出力。</td></tr
 					>
 					<tr
 						><th scope="row"
-							>型検査用テキスト・位置対応表<br /><code>TypeScriptDocument</code>・<code
+							>型検査用のテキストと位置の対応表<br /> <code>TypeScriptDocument</code>・<code
 								>Emitter</code
 							></th
 						><td
-							>元のソースASTから生成したTypeScriptと、元のSvelteの位置への対応。テンプレートHIRや出力JavaScript
-							ASTとは別のデータ。</td
-						><td>外部の型検査器、診断位置の変換。</td></tr
+							>元のソース AST から生成した TypeScript と、元の Svelte の位置への対応。テンプレート
+							HIR や出力する JavaScript の AST とは別のデータ。</td
+						><td>外部の型検査器、診断の位置の変換。</td></tr
 					>
 				</tbody>
 			</table>
 		</div>
 		<ParseSharingFigure markup={data.pipeline} />
-		<p>
-			図の「スコープ構築・参照解析」では、識別子と宣言の対応付けに加えて、次のデータを生成します。
-		</p>
+		<p>図の「スコープ構築・参照解析」は、識別子と宣言を結び付けるほかに、次の表を作ります。</p>
 		<ul>
 			<li>
 				スコープ表：関数、ブロック、テンプレートの <code>&#123;#each&#125;</code> などが作るスコープと、その親子関係。
 			</li>
 			<li>
-				宣言表：変数やimportの宣言と所属スコープ。Svelte側では、<code>$state</code> やpropsなどの宣言種別も記録します。
+				宣言表：変数や import の宣言と、それが属するスコープ。Svelte では <code>$state</code> や props
+				などの宣言の種類も記録します。
 			</li>
 			<li>
-				参照表：識別子の参照先と読み書き。<code>bind:value</code> のようなテンプレート側の書き込みも解析対象です。
+				参照表：識別子の参照先と、読み取りか書き込みか。<code>bind:value</code> のようなテンプレート側の書き込みも含みます。
 			</li>
 		</ul>
 		<p>
-			制御フロー解析は、これとは別の処理です。分岐やループを通る実行経路と、識別子が属するスコープは異なる情報です。到達可能性や経路ごとの代入状態を調べる処理では、制御フローの情報が必要になります。現在のrsvelteのスコープ・参照解析は、制御フローグラフを生成していません。型検査は生成したTypeScriptを外部の型検査器に渡すため、その内部の解析も文書コンテキストの共有対象には含まれません。
+			今の rsvelte
+			のスコープと参照の解析は、制御フローグラフを作りません。到達できるかや、経路ごとの代入の状態を調べるには、分岐やループを通る実行経路の解析（制御フロー解析）が別に要ります。
 		</p>
 		<p class="reading">
 			実装：<a
 				href="{REPO_URL}/blob/experimental/crates/languages/typescript/core/src/semantic/scope.rs"
-				>2パスのスコープ・参照解析</a
-			>と<a
+				>2 パスのスコープと参照の解析</a
+			>、<a
 				href="{REPO_URL}/blob/experimental/crates/languages/svelte/semantic/src/semantic/resolve.rs"
-				>Svelteのテンプレートとrunesの解析</a
+				>Svelte のテンプレートと runes の解析</a
 			>
 		</p>
 		<p>
-			タスクは文書の実行コンテキストから、型を指定して解析結果を要求します。最初の要求で計算し、同じ結果への後続の要求にはキャッシュを返します。formatだけを選んだ場合は、コード生成用の計算結果を要求しません。依存関係は、各計算処理が要求する結果によって決まります。
+			タスクは、文書ごとの実行コンテキスト <code>DocumentContext</code> に、欲しい結果の Rust の型を指定して計算結果を求めます。最初の要求で計算し、同じ結果への後の要求にはキャッシュを返します。整形だけを選んだ場合は、コード生成用の計算結果を求めません。計算どうしの依存は、各計算が途中で求める結果から決まります。
 		</p>
 		<p>
-			共有する構文木は不変です。コンパイルの変換処理は別の構文木を生成し、lintやformatが参照する元の構文木を変更しません。途中のコードを文字列として出力し、再解析して次の変換を続ける設計も採りません。
+			共有する構文木は変更しません。コンパイルの変換は別の構文木を作り、コード検査や整形が読む元の構文木には触れません。途中のコードを文字列に出力し、もう一度構文解析して変換を続けることもしません。
 		</p>
 		<p>
-			キャッシュの有効期間は、同じ文書のスナップショットを処理する実行コンテキスト内です。別々のコマンドを起動しても共有される永続キャッシュや、編集前後の結果を使う仕組みは未実装です。型検査用に生成したTypeScriptは外部の型検査器が読むため、ツール全体からすべての構文解析をなくすわけでもありません。
+			キャッシュが有効なのは、一つの文書を処理する <code>DocumentContext</code> の中だけです。別々に起動したコマンドの間で共有する永続キャッシュや、編集前の結果を再利用する仕組みはまだありません。型検査用に生成した
+			TypeScript は外部の型検査器がもう一度構文解析するため、ツール全体で構文解析が一回になるわけではありません。
 		</p>
 		<p>
-			共有の効果は、同じ入力とタスクで「共有する場合」と「個別に計算する場合」を比べて測ります。<a
+			共有の効果は、同じ入力とタスクで「共有する場合」と「処理ごとに計算し直す場合」を比べて測ります（<a
 				href="/learn/measure#arms">測定条件と結果</a
-			>を公開しています。この比較だけで、公式ツールよりアプリ全体のビルドが速いとは判断できません。
+			>）。この比較だけでは、アプリ全体のビルドが公式ツールより速いとは言えません。
 		</p>
 	</section>
 
 	<section id="project">
 		<p class="eyebrow">04 · 将来の設計</p>
-		<h2>全呼び出し元のpropsを解析し、<br />Svelteのコンパイル前に最適化する</h2>
+		<h2>すべての呼び出し元の props を解析し、<br />コンパイル前に最適化する</h2>
 		<p>
 			子コンポーネントが <code>$props()</code> で受け取る <code>tone</code> に、すべての呼び出し元が
-			<code>"quiet"</code> を渡す場合を考えます。子のソースだけでは、その値が全呼び出しで定数かどうかを証明できません。呼び出し元のテンプレートとimportの解決結果を集めれば、定数への置き換えを検討できます。
+			<code>"quiet"</code> を渡す場合を考えます。子のソースだけでは、その値がすべての呼び出しで同じ定数かを証明できません。呼び出し元のテンプレートと
+			import の解決結果を集めれば、定数への置き換えを検討できます。
 		</p>
 		<p>
 			公式の <a href="https://svelte.dev/docs/svelte/svelte-compiler#compile"
-				>Svelteのコンパイル関数</a
-			>は、一つのコンポーネントのソースと設定を受け取ります。全モジュールのimport関係や、各呼び出し箇所のpropsは入力に含まれません。そのため、通常のコンポーネント単位のコンパイルでは、すべての呼び出し元を前提にした最適化はできません。
+				>Svelte のコンパイル関数</a
+			>は、一つのコンポーネントのソースと設定を受け取ります。全モジュールの import
+			関係や、各呼び出し箇所の props
+			は入力に入りません。そのため、コンポーネントごとにコンパイルする通常の方法では、すべての呼び出し元を前提にした最適化はできません。
 		</p>
 		<ProjectFactsFigure />
 		<p>
-			設計では、各ファイルの構文木と名前解決から、import、コンポーネントの呼び出し箇所、渡されるpropsの要約を生成します。要約をプロジェクト全体で結合し、各コンポーネントの全呼び出しを把握できるか判定します。定数の一致と変換の安全条件を満たした場合に、新しいコンパイル用の構文木を生成します。
+			設計では、まず各ファイルの構文木と名前解決から、import、コンポーネントの呼び出し箇所、渡す
+			props
+			の要約を作ります。次に要約をプロジェクト全体で結合し、各コンポーネントの呼び出しをすべて把握できるかを判定します。定数が一致し、変換の安全条件も満たすときだけ、新しいコンパイル用の構文木を作ります。
 		</p>
 		<ol class="project-flow">
 			<li>
-				<span>各ファイル</span><strong>呼び出し箇所の要約を生成</strong>
-				<p>import先と渡すpropsを記録する。</p>
+				<span>各ファイル</span><strong>呼び出し箇所を要約する</strong>
+				<p>import 先と渡す props を記録する。</p>
 			</li>
 			<li>
-				<span>プロジェクト全体</span><strong>要約を結合して条件を判定</strong>
-				<p>全呼び出しと定数値を証明する。</p>
+				<span>プロジェクト全体</span><strong>要約を結合して判定する</strong>
+				<p>すべての呼び出しと定数の値を証明する。</p>
 			</li>
 			<li>
-				<span>コンパイルの前</span><strong>Svelteの構文木を変換</strong>
-				<p>元の木を保持し、意味解析を更新する。</p>
+				<span>コンパイルの前</span><strong>Svelte の構文木を変換する</strong>
+				<p>元の木は残し、意味解析を更新する。</p>
 			</li>
 			<li>
-				<span>コンパイルの後</span><strong>JavaScriptをバンドル</strong>
-				<p>生成後の最適化はRolldownやOxcに任せる。</p>
+				<span>コンパイルの後</span><strong>JavaScript をバンドルする</strong>
+				<p>生成後の最適化は、バンドラーの Rolldown や Oxc に任せる。</p>
 			</li>
 		</ol>
 		<p>
-			RolldownやOxcは、生成後のJavaScriptに対して最適化できます。一方、Svelteのpropsの受け取り方やリアクティビティは、生成後にはランタイム関数の呼び出しとして表現されます。Svelteの構文木を直接変換する段階なら、propsの宣言と参照を解析結果から取得できます。生成コードのパターンを逆に解釈して、Svelteの意味を復元する必要がありません。
+			Rolldown や Oxc は、生成後の JavaScript を最適化できます。ただ、Svelte の props
+			の受け取り方やリアクティビティは、生成後にはランタイム関数の呼び出しになっています。Svelte
+			の構文木を変換する段階なら、props の宣言と参照を解析結果から直接取り出せます。
 		</p>
 		<p>
-			ただし、定数化にはpropsへの代入、<code>$bindable</code
-			>、デフォルト値の評価順序と副作用を確認する必要があります。属性のスプレッド、動的なコンポーネント参照、外部へのexportがあれば、値や呼び出し元を確定できない場合があります。不明な情報は最適化の根拠にしません。現在の設計では、定数化から派生する
-			<code>&#123;#if&#125;</code> の分岐削除も対象外です。
+			ただし、置き換える前に、props への代入、<code>$bindable</code
+			>、デフォルト値を評価する順序と副作用を確かめる必要があります。属性のスプレッド、動的なコンポーネントの参照、外部への
+			export
+			があると、値や呼び出し元を決められないことがあります。分からない情報は、最適化の根拠にしません。今の設計では、定数にした結果として不要になる
+			<code>&#123;#if&#125;</code> の分岐を消すことも対象外です。
 		</p>
 		<div class="premise">
-			<span>最適化の実装と効果は未確認</span>
+			<span>今後の計画</span>
 			<p>
-				この処理は未実装で、速度や出力サイズの改善も未測定です。利用者が明示的に有効にする方式を計画しています。実装時には、描画結果、リアクティブな更新、イベントの実行順序、サーバーレンダリングとハイドレーションの等価性を検証します。
+				速度や出力サイズの改善は、まだ測っていません。利用者が明示的に有効にする方式を計画しています。実装するときは、描画結果、リアクティブな更新、イベントの実行順、サーバーレンダリングとハイドレーションが変わらないことを検証します。
 			</p>
 		</div>
-		<p class="reading">
-			前提と反例：<a
-				href="{REPO_URL}/blob/experimental/docs/project.md#x4-cross-file-optimization--verdict-modify-opt-in-closed-components-only-provable-rewrites-only"
-				>クロスファイル最適化の設計レビュー</a
-			>
-		</p>
 	</section>
 
 	<section id="today">
 		<p class="eyebrow">05 · 実装状況</p>
 		<h2>実装済みの機能と、<br />未実装の設計</h2>
 		<p>
-			すでにSvelte向けのツールを使っているなら、対応している構文と出力の正しさが、置き換えを考える最初の条件になります。rsvelteは実験段階で、実際のソースに未対応の構文があります。速さだけで選べる状態にはありません。
+			Svelte
+			向けのツールをすでに使っているなら、置き換えを考える最初の条件は、対応している構文と出力の正しさです。rsvelte
+			は実験段階で、実際のソースには未対応の構文があります。
 		</p>
 		<div class="status-grid">
 			<div>
-				<span class="status-label">実装あり</span>
+				<span class="status-label">実装済み</span>
 				<h3>文書内での解析結果の共有</h3>
-				<p>言語プラグインが保存した結果を、検査・整形・コンパイルのタスクから取得できます。</p>
-				<a href="/learn/playground">処理の流れを試す →</a>
+				<p>
+					言語プラグインが保存した結果を、コード検査・整形・コンパイルのタスクから取り出せます。
+				</p>
+				<a href="/learn/playground">プレイグラウンドで処理の流れを試す →</a>
 			</div>
 			<div>
-				<span class="status-label">Rustでの組み込み</span>
+				<span class="status-label">実装済み（Rust で静的にリンク）</span>
 				<h3>独自のタスクの登録</h3>
-				<p>既存の構文解析結果を使う実装例があります。配布用の動的プラグインは未提供です。</p>
+				<p>
+					既存の構文解析結果を使う実装例があります。配布できる動的なプラグインはまだありません。
+				</p>
 				<a href="/learn/plugins">実装例を読む →</a>
 			</div>
 			<div>
 				<span class="status-label planned">未実装</span>
-				<h3>クロスファイル最適化と永続キャッシュ</h3>
-				<p>設計を検討しています。実際のアプリでの改善は、今後の実装と測定が必要です。</p>
-				<a href="{REPO_URL}/blob/experimental/docs/project.md">プロジェクト全体の設計を読む →</a>
+				<h3>ファイルをまたぐ最適化と永続キャッシュ</h3>
+				<p>設計を検討している段階で、効果はまだ測っていません。</p>
 			</div>
 		</div>
 		<p>
-			一般的なJavaScriptのlintにはOxlintの既存ルールがあり、Svelte向けには公式のコンパイラや検査ツールがあります。rsvelteの主な検証対象は、テンプレートの解析結果を使う独自タスクと、lint・format・compile間でのキャッシュ共有です。既存ツールの全面的な代替は、対応構文と出力の比較で判断する必要があります。
+			一般的な JavaScript のコード検査には Oxlint の既存ルールがあり、Svelte
+			向けには公式のコンパイラや検査ツールがあります。rsvelte
+			が主に検証しているのは、テンプレートの解析結果を使う独自のタスクと、コード検査・整形・コンパイルの間でのキャッシュの共有です。
 		</p>
-		<p>
-			このプロジェクトでは、公式ツールの出力と比較し、未対応として拒否した入力も含めて結果を公開しています。<a
-				href="/#ledger">現在の一致状況</a
-			>と<a href="/learn/measure">性能の測定</a>を、対応範囲の判断に使ってください。
+		<p class="reading">
+			今の数字：<a href="/#ledger">公式ツールとの一致</a>、<a href="/learn/measure">性能の測定</a>
 		</p>
 	</section>
 
 	<aside class="references" aria-labelledby="references-title">
-		<h2 id="references-title">根拠と、続けて読める資料</h2>
+		<h2 id="references-title">根拠と参考資料</h2>
 		<p>
-			外部ツールの対応範囲は2026年10月2日に公式資料で確認しました。今後変わるため、導入時にはリンク先の情報も確認してください。
+			外部ツールの対応範囲は、公式の資料で確認しました。確認した日は svelte-eslint-parser が 2026 年
+			11 月 8 日、ほかは 2026 年 10 月 2
+			日です。今後変わることがあるため、導入するときはリンク先も確認してください。
 		</p>
 		<ul>
 			<li>
-				<a href="https://oxc.rs/compatibility">OxlintとOxfmtの対応表</a> /
-				<a href="https://oxc.rs/docs/guide/usage/linter/js-plugins">Oxlintの独自プラグイン</a>
+				<a href="https://oxc.rs/compatibility">Oxlint と Oxfmt の対応表</a>、<a
+					href="https://oxc.rs/docs/guide/usage/linter/js-plugins">Oxlint の独自プラグイン</a
+				>
 			</li>
 			<li>
-				<a href="https://eslint.org/docs/latest/extend/custom-rules">ESLintの独自ルール</a> /
-				<a href="https://svelte.dev/docs/svelte/svelte-compiler">Svelteのコンパイル関数</a>
+				<a href="https://eslint.org/docs/latest/extend/custom-rules">ESLint の独自ルール</a>、<a
+					href="https://github.com/sveltejs/svelte-eslint-parser#usage-for-custom-rules--plugins"
+					>svelte-eslint-parser の独自ルール向けの説明</a
+				>、<a href="https://svelte.dev/docs/svelte/svelte-compiler">Svelte のコンパイル関数</a>
 			</li>
 			<li>
-				<a href="{REPO_URL}/blob/experimental/docs/concept.md">rsvelteの設計原則と検討した反例</a>
-			</li>
-			<li>
-				<a href="{REPO_URL}/blob/experimental/docs/architecture.md">実装の構成と測定方法</a> /
-				<a href="{REPO_URL}/blob/experimental/docs/project.md">プロジェクト全体の処理の設計</a>
+				<a href="/learn/kernel">rsvelte の構成（第 1 章「カーネルの全体像」）</a>、<a
+					href="/learn/measure">測定方法（第 14 章「実測」）</a
+				>
 			</li>
 		</ul>
 	</aside>

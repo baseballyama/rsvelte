@@ -140,11 +140,11 @@
 		{#if s}
 			<span><span class="text-c-src">src</span> {s.line}:{s.column}</span>
 			<span class="text-muted">
-				位置の対応 #{which} (generated {mapping?.generated}, src {mapping?.source}, len {mapping?.len})
-				から {position - (mapping?.generated ?? 0)} バイト後
+				対応 #{which}（出力 {mapping?.generated}、元 {mapping?.source}、長さ {mapping?.len}）から
+				{position - (mapping?.generated ?? 0)} バイト後
 			</span>
 		{:else}
-			<span class="text-muted">位置の対応なし: 最初の位置の対応点より前</span>
+			<span class="text-muted">位置の対応なし（最初の位置の対応点より前）</span>
 		{/if}
 	</div>
 </figure>

@@ -22,10 +22,7 @@
 	const hex = (b: number) => b.toString(16).toUpperCase().padStart(2, '0');
 </script>
 
-<Figure
-	label="図 2.1 · ユニコードの8ビット符号化方式 バイト、行、ユニコードの16ビット符号化方式 列"
-	wide
->
+<Figure label="図 2.1 · UTF-8 のバイト、行、UTF-16 の列" wide>
 	{#snippet controls()}
 		{#each [["let 名前 = '😀';\nx", '日本語と絵文字'], ['a😀b\nc', 'Rust のテスト'], ['abc\ndef', 'ASCII']] as [t, name] (name)}
 			<button
@@ -86,7 +83,7 @@
 				<dd class="tnum">{lc.line}</dd>
 				<dt class="text-muted">column</dt>
 				<dd class="tnum">
-					{lc.column} <span class="text-muted">(ユニコードの16ビット符号化方式)</span>
+					{lc.column} <span class="text-muted">(UTF-16)</span>
 				</dd>
 				<dt class="text-muted">character</dt>
 				<dd class="tnum">{lc.character}</dd>
@@ -95,8 +92,7 @@
 			<div class="tnum">[{index.lineStarts.join(', ')}]</div>
 			<div class="mt-3 text-muted">wide <span class="text-[11px]">(byte, utf16 before)</span></div>
 			<div class="tnum">
-				{#if index.wide.length === 0}[] <span class="text-muted"
-						>— 英数字などの基本文字 なので作らない</span
+				{#if index.wide.length === 0}[]<span class="text-muted">（ASCII だけなので空）</span
 					>{:else}[{index.wide.map((w) => `(${w.byte}, ${w.utf16})`).join(', ')}]{/if}
 			</div>
 		</div>
@@ -120,8 +116,8 @@
 		{/if}
 	</div>
 	{#snippet caption()}
-		文字にカーソルを当てると、そのバイト位置を <code>line_column</code>
-		に通した結果が右に出ます。下の段は逆向きの
-		<code>offset</code> です。数値は Rust の <code>LineIndex</code> を移植したコードで計算しています。
+		文字にカーソルを当てると、そのバイト位置で <code>line_column</code>
+		を呼んだ結果が右に出ます。下の段は逆向きの
+		<code>offset</code> です。数値は、Rust の <code>LineIndex</code> を TypeScript に移植したコードで計算します。
 	{/snippet}
 </Figure>

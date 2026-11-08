@@ -10,7 +10,7 @@
 			<p class="purpose">変数を宣言する</p>
 			<div class="example">{@html markup.script}</div>
 			<p>
-				<code class="variable">name</code> の宣言。テンプレート内の同名の識別子は、この宣言を参照する。
+				<code class="variable">name</code> を宣言する。テンプレートの同じ名前の識別子は、この宣言を指す。
 			</p>
 		</div>
 		<div>
@@ -37,9 +37,9 @@
 		>
 	</div>
 	<div class="scope">
-		<span>Oxlint</span><strong>スクリプト内のJavaScriptを検査</strong>
+		<span>Oxlint</span><strong>スクリプト内の JavaScript を検査する</strong>
 		<span>rsvelte</span><strong
-			>テンプレートの変数参照と、スクリプトの宣言を名前解決で対応付ける</strong
+			>テンプレートの変数の参照を、名前解決でスクリプトの宣言に対応付ける</strong
 		>
 	</div>
 </figure>

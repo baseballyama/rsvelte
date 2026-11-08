@@ -219,9 +219,9 @@
 					{/each}
 				</fieldset>
 				<p>
-					対応するプラグインを外すと、その処理は実行されません。Vue のサーバー向け出力と、Vue
-					の入力の Svelte
-					による整形・コード検査には対応していません。型検査と、生成したコードの実行も行いません。
+					入力に対応するプラグインを外すと、その入力の処理は実行されません。Vue
+					のサーバー向け出力には対応していません。Vue の入力を Svelte
+					のプラグインでは整形・検査できません。型検査と、生成したコードの実行もしません。
 				</p>
 			</div>
 		</details>
@@ -276,7 +276,7 @@
 				/>
 			</div>
 			<div class="pane-footer">
-				<span id="editor-keys">Tab は字下げ。Esc の後に Tab でエディタの外へ移動</span><span
+				<span id="editor-keys">Tab は字下げ。Esc の後に Tab でエディタの外へ移動します。</span><span
 					>{drafts[exampleId].split('\n').length} 行</span
 				>
 			</div>
@@ -376,8 +376,8 @@
 			<h2 id="record-heading">処理の記録</h2>
 			<p>
 				{executedShared
-					? '各処理は同じ入力を読み、計算済みの解析結果を共有します。'
-					: '共有を外しているので、処理ごとに解析し直します。'}前の処理の出力は次の処理に渡しません。
+					? '各処理は同じ入力を読み、計算済みの解析結果を共有します。前の処理の出力は次の処理に渡しません。'
+					: '共有を外しているので、処理ごとに解析し直します。前の処理の出力は次の処理に渡しません。'}
 			</p>
 			{#if steps.length}<span class="counts"
 					>構文の読み取り <strong>{parseCount} 回</strong><span aria-hidden="true">/</span

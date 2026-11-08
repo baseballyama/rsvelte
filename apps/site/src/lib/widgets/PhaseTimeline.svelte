@@ -165,9 +165,9 @@
 	</div>
 	{#snippet caption()}
 		各フェーズの長さは、ベンチマーク（build {rev.slice(0, 7)}、metrics
-		あり）のフェーズ表の「そのフェーズ 1 回あたりの平均 self 時間」です。並べ方は
+		あり）のフェーズ表にある、そのフェーズ 1 回あたりの平均 self 時間です。並べ方は
 		<code>run_document</code>
 		と各タスクのコードに従ったモデルです。「format を先に」にしても <code>svelte.parse</code> の self
-		は変わらず、変わるのはどのタスクの total にパースが含まれるかだけです。
+		は変わりません。変わるのは、どのタスクの total にパースが含まれるかだけです。
 	{/snippet}
 </Figure>

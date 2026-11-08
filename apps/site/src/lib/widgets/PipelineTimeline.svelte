@@ -146,25 +146,24 @@
 		<div
 			class="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[11.5px] tracking-normal text-muted"
 		>
-			<span
-				><span class="mr-1 inline-block h-2 w-3 bg-c-src align-middle"></span>すぐ sink に渡る文書</span
-			>
-			<span
-				><span class="mr-1 inline-block h-2 w-3 bg-c-map align-middle"
-				></span>部品を持ち、プロジェクト全体の処理を待つ文書</span
-			>
-			<span
-				><span class="mr-1 inline-block h-2 w-3 bg-c-idle align-middle"
-				></span>FinishTask::finish</span
-			>
-			<span>ピーク: run_each {sim.peakStreaming} · run {sim.peakCollected}</span>
+			<div>
+				<span class="mr-1 inline-block h-2 w-3 bg-c-src align-middle"></span>すぐ sink に渡る文書
+			</div>
+			<div>
+				<span class="mr-1 inline-block h-2 w-3 bg-c-map align-middle"
+				></span>部品を持ち、プロジェクト全体の処理を待つ文書
+			</div>
+			<div>
+				<span class="mr-1 inline-block h-2 w-3 bg-c-idle align-middle"></span>FinishTask::finish
+			</div>
+			<div>ピーク：run_each {sim.peakStreaming} · run {sim.peakCollected}</div>
 		</div>
 	</div>
 	{#snippet caption()}
 		模型です。文書は空いたワーカーに順に配ります（rayon の work stealing
-		を単純化したもの）。処理時間と結果の大きさは例示で、実測ではありません。実線は <code
+		を単純にしたもの）。処理時間と結果の大きさは例で、実測ではありません。実線は <code
 			>run_each</code
 		>
-		が生かしている結果の量、破線は <code>run</code> のように全部を集めた場合の量です。部品を持つ文書が増えるほど、二つの線は近づきます。
+		が持っている結果の量、破線は <code>run</code> のように全部を集めた場合の量です。部品を持つ文書が増えるほど、二つの線は近づきます。
 	{/snippet}
 </Figure>

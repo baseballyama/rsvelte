@@ -80,7 +80,8 @@
 					<div
 						class="flex items-baseline justify-between font-mono text-[11.5px] tracking-normal text-muted tnum"
 					>
-						<span>進み具合</span><span>{ordinal + 1} / {chapters.length}</span>
+						<span>進み具合</span>
+						<span>{ordinal + 1}/{chapters.length} 章</span>
 					</div>
 					<div class="mt-1.5 h-[3px] overflow-hidden rounded-full bg-surface">
 						<div

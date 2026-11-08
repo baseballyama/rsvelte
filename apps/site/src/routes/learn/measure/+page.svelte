@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Term from '#lib/components/Term.svelte';
 	import ChapterFooter from '#lib/components/ChapterFooter.svelte';
 	import ChapterHeader from '#lib/components/ChapterHeader.svelte';
 	import Code from '#lib/components/Code.svelte';
@@ -30,31 +29,29 @@
 	const perByte = (n: number) => (n / data.performance.instructionSample.source_bytes).toFixed(1);
 </script>
 
-<svelte:head><title>{c.title} — rsvelte Learn</title></svelte:head>
+<svelte:head><title>{c.title} — rsvelte 開発者向けの教材</title></svelte:head>
 
 <ChapterHeader
 	chapter={c}
-	lead="性能は一度測って終わりではありません。rsvelte は、マシンの混み具合で揺れない量だけを数えて記録した値と比べる検査を、main と experimental への push とすべての pull request で走らせています。この章では、その仕組みと、各章で触れた実行時間のベンチマークの出どころを見ます。"
+	lead="rsvelte は、マシンの混み具合で揺れない量を数え、記録した基準値と比べます。この検査は main と experimental への push と、すべての pull request で走ります。各章で引用した実行時間のベンチマークの測り方も、この章で示します。"
 />
 
 <div class="prose-learn">
 	<H2 id="ratchet" />
 	<p>
 		<dfn>基準値との比較検査</dfn
-		>では、記録した値からの変化を検出します。検証用のソースファイル集を処理し、メモリを確保する回数・バイト数・命令数を測ります。
-		これらを <code>tools/performance/baseline.json</code> と比べます。増えていれば自動検査を失敗させます。
-		減っていても、基準値を書き換えていなければ失敗します。改善した変更と一緒に基準値を更新し、次回からその値を使います。
+		>は、メモリを確保した回数とバイト数、実行した命令の数を数えて基準値と比べる検査です。数える対象は、検証用のソースファイル集（公式ツールの出力と比べる、実在する
+		Svelte ファイルの集まり）です。その値を
+		<code>tools/performance/baseline.json</code> と比べ、増えていれば自動検査を失敗させます。減ったときも、基準値を書き換えていなければ失敗します。改善した変更は同じコミットで基準値を更新するので、次からはその値が基準になります。
 	</p>
-	<p>
-		次の数は、このページをビルドしたときの <code>tools/performance/baseline.json</code> から読んでいます。
-	</p>
+	<p>次の数は、このページをビルドしたときの <code>baseline.json</code> の値です。</p>
 </div>
 
 <figure class="my-8 overflow-x-auto">
 	<table class="table [&_td:first-child]:pr-6 [&_td:first-child]:whitespace-nowrap">
 		<tbody>
 			<tr
-				><td>母集団</td><td class="num"
+				><td>対象</td><td class="num"
 					>{fmt(data.performance.population.documents)} 文書、{fmt(
 						data.performance.population.source_bytes,
 					)} バイト</td
@@ -95,10 +92,9 @@
 		</tbody>
 	</table>
 	<figcaption class="mt-2 text-[13px] leading-[1.7] text-muted">
-		最後にこの基準値を書き換えたコミットは <code
-			>{data.performance.last.sha ?? '作業ツリー（未コミット）'}</code
-		>（{data.performance.last.subject}）。記録の推移は
-		<a class="link" href="/learn/polish#history">15 磨きどころ</a> にあります。
+		最後に基準値を書き換えたコミット（<code>{data.performance.last.sha ?? '作業ツリー'}</code
+		>）は「{data.performance.last.subject}」です。記録の推移は
+		<a class="link" href="/learn/polish#history">15 章「磨きどころ」</a>にあります。
 	</figcaption>
 </figure>
 
@@ -107,26 +103,27 @@
 	<p>数える量は三種類です。</p>
 	<ul>
 		<li>
-			割り当て: <code>metrics</code> feature を入れたビルドの <code>rsvelte performance</code>
-			が、<Term name="CountingAllocator" />（<a href="/learn/kernel/measurement#alloc">12</a
-			>）で最後のラウンドの割り当て回数とバイト数を数えます。全体の数に加え、フェーズ（計算結果、タスク、ルール）ごとの呼び出し回数・割り当て回数・バイト数、それに使用中のメモリのピーク増分です。比べ方は<strong
-				>完全一致</strong
-			>です。
+			割り当て：<code>metrics</code> feature 付きの <code>rsvelte performance</code>
+			が、<code>CountingAllocator</code>（<a href="/learn/kernel/measurement#alloc">12 章</a
+			>）で数えます。これは確保を数えるアロケータです。数えるのは最後のラウンドです（1
+			ラウンドは、全文書を 1
+			回処理すること）。数えるのは全体の数と、フェーズ（計算結果、タスク、ルール）ごとの呼び出し回数・割り当て回数・バイト数です。使用中のメモリのピーク増分も数えます。基準値とは完全一致で比べます。
 		</li>
 		<li>
-			命令数（1 ラウンド）: metrics なしの出荷用ビルドを
-			cachegrind（valgrind）の下で走らせ、実行した命令の数（<code>I references</code
-			>）を数えます。<code>rounds=2</code>
-			の実行から <code>rounds=1</code> の実行を引くので、ちょうど温まった 1
-			ラウンドの分になります。比べ方は <strong>±0.2%</strong> です。cachegrind
-			は実機よりずっと遅いので、命令数だけは検証用のソースファイル集を名前順に並べて
-			{data.performance.instructionSample.every} 個に 1 個（{fmt(
+			命令数（1 ラウンド）：metrics なしの出荷用ビルドが実行した命令の総数を、Valgrind の cachegrind
+			で数えます。cachegrind はこれを <code>I references</code> と表示します。<code>rounds=2</code>
+			の実行から
+			<code>rounds=1</code>
+			の実行を引くので、温まったラウンド 1 回分の数になります。基準値とは ±0.2% の幅で比べます。cachegrind
+			は実機よりずっと遅いので、命令数は一部の文書だけで数えます。検証用のソースファイル集を名前順に並べ、{data
+				.performance.instructionSample.every} 個に 1 個（{fmt(
 				data.performance.instructionSample.documents,
-			)} 文書）で数え、3 回の実行を同時に走らせます。割り当ては全体で数えます。
+			)} 文書）を選びます。<code>rounds=0</code>・<code>rounds=1</code>・<code>rounds=2</code>
+			の 3 回の実行は同時に走らせます。割り当ては全文書で数えます。
 		</li>
 		<li>
-			命令数（読み込み）: <code>rounds=0</code> の実行、つまり起動、ディレクトリの走査、ファイルの読み込み、文書の構築です。コマンドラインの実行プログラム
-			を呼ぶたびに払う分なので、別に数えます。比べ方は同じく ±0.2% です。
+			命令数（読み込み）：<code>rounds=0</code> の実行、つまり起動、ディレクトリの走査、ファイルの読み込み、文書の構築です。CLI
+			を呼ぶたびにかかるので、別に数えます。比べ方は同じく ±0.2% です。
 		</li>
 	</ul>
 </div>
@@ -154,107 +151,121 @@
 		</tbody>
 	</table>
 	<figcaption class="mt-2 text-[13px] leading-[1.7] text-muted">
-		基準値のフェーズ表。割り当て回数の多い順。割り当ては self（入れ子のフェーズを除いた分）です。
+		基準値のフェーズ表です。割り当て回数の多い順に並べています。割り当ては
+		self（入れ子のフェーズを除いた分）です。
 	</figcaption>
 </figure>
 
 <div class="prose-learn">
 	<H2 id="determinism" />
 	<p>
-		基準値との比較検査が厳密に比べられるのは、数える量が入力とバイナリだけで決まるように測り方を選んでいるからです。
+		比較検査で値を厳密に比べられるのは、数える量が入力とバイナリだけで決まるように測っているからです。
 	</p>
 	<ul>
 		<li>
-			<strong>1 スレッドで走らせる。</strong
-			>並列に走らせると、どの文書がどのスレッドのバッファプールに当たるかが実行ごとに変わり、割り当ての回数も変わります。1
-			スレッドなら、割り当ての列は入力とバイナリの関数です。導入したコミットでは、コミット済みの検証用のソースファイル集を
-			2 回測った結果がバイト単位で一致しました（fa4072dfa3）。
+			1
+			スレッドで走らせます。並列に走らせると、どの文書がどのスレッドのバッファプールに当たるかが実行ごとに変わり、割り当ての回数も変わります。1
+			スレッドなら、割り当ての列は入力とバイナリだけで決まります。導入したコミットでは、コミット済みの検証用のソースファイル集を
+			2 回測り、結果がバイト単位で一致しました。
 		</li>
 		<li>
-			<strong>最後のラウンドだけを数える。</strong
-			>最初のラウンドはバッファプールが空で、容量を伸ばす割り当てが混ざります。数えるのはプールが温まった最後のラウンドです。
+			最後のラウンドだけを数えます。最初のラウンドはバッファプール（作業用の配列を使い回す仕組み、<a
+				href="/learn/kernel/buffer-pool">13 章</a
+			>）が空なので、容量を伸ばす割り当てが混ざります。
 		</li>
 		<li>
-			<strong>プラットフォームに依存する割り当てを消す。</strong><code>run</code> が文書ごとに
+			プラットフォームに依存する割り当てをなくしました。結果をまとめて返す <code>run</code>
+			が文書ごとに
 			<code>Mutex</code>
-			を使っていたころは、macOS のロック処理が初回にメモリを確保しました。macOS と Linux で割り当て回数が文書数だけ違っていたのはそのためです。
-			ロックをなくしてから、二つのプラットフォームは同じ数を報告します（a5f67528cd、<a
-				href="/learn/kernel/pipeline#run">06</a
+			を使っていたころは、macOS のロック処理が初回にメモリを確保しました。そのため macOS と Linux では、割り当て回数が文書数だけ違っていました。ロックをなくしてからは、二つのプラットフォームが同じ数を報告します（<a
+				href="/learn/kernel/pipeline#run">06 章</a
 			>）。
 		</li>
 		<li>
-			<strong>ファイルシステムの順序に依存しない。</strong>コマンドラインの実行プログラム
-			の読み込みは、各ディレクトリの項目を名前の順に深さ優先でたどります。どのファイルシステムでも、文書は同じ順に並びます（a5822ee26f）。
+			ファイルシステムの順序に依存しません。CLI
+			は各ディレクトリの項目を名前の順に深さ優先でたどって読み込むので、どのファイルシステムでも文書は同じ順に並びます。
 		</li>
 		<li>
-			<strong>時間ではなく命令を数える。</strong
-			>命令数も同じマシンではほぼ同じ値を繰り返します。同じツリーを 2 回測った差は 1e-7
-			程度でした（a5f67528cd）。±0.2% の幅は、libc や プロセッサー
-			ごとの関数の選び分けの違いを吸収するためのものです。
+			時間ではなく命令を数えます。命令数も、同じマシンではほぼ同じ値になります。同じツリーを 2
+			回測った差は 1e-7 程度でした。ただし同じ arm64 Linux でも、自動検査のマシンと手元では、CPU や
+			libc の違いで選ばれる関数の変わることがあります。±0.2% の幅はその違いを吸収します。
 		</li>
 	</ul>
 	<p>
 		命令数は、基準値を記録したプラットフォーム（今は arm64
-		Linux）でだけ比べます。割り当ては、どのプラットフォームでも同じ数になるので、macOS の手元でも <code
+		Linux）でだけ比べます。割り当てはどのプラットフォームでも同じ数になるので、macOS の手元でも <code
 			>mise run performance</code
 		>
-		で比べられます。命令数を数えない実行では、その欄は <code>UNMEASURED</code> と表示され、0 とは書きません。
+		で比べられます。命令数を数えない実行では、その欄に 0 ではなく <code>UNMEASURED</code>
+		と表示します。ベンチマークのレポートも、値を出せない欄は同じように書きます。
 	</p>
 
 	<H2 id="ci" />
 	<p>
-		<code>.github/workflows/ci.yml</code> は、main と experimental への push と、すべての pull request
-		で四つのジョブを走らせます。
+		<code>.github/workflows/ci.yml</code> は、次のジョブを同時に走らせます。
 	</p>
 	<ul>
-		<li><code>rust</code>: 整形、二つの feature の組み合わせでの clippy、rustdoc、テスト。</li>
+		<li><code>rust-format</code>：固定した nightly の rustfmt による整形の確認。</li>
 		<li>
-			<code>fixtures</code>:
-			全タスクを全テスト用の入力と期待値に走らせ、比較元の公式ツールの期待値と比べる（次の節の正しさの基準値との比較検査）。
+			<code>rust-lint</code>：二つの feature の組み合わせでの clippy によるコード検査と、rustdoc。
 		</li>
-		<li><code>site</code>: このサイトのテスト、型の検査、ビルド。</li>
 		<li>
-			<code>performance</code>: 64ビットの Arm プロセッサーを使う Ubuntu
-			上で命令数を測ります。計測には Valgrind を使います。 コマンド:<br />
-			<code
-				>node tools/performance/performance.ts ratchet --instructions --json performance-report.json</code
-			>。 レポートは成果物として保存します。
+			<code>rust-test</code
+			>：テスト。全検証例を公式ツールの出力と比べる、正しさの基準値との比較検査（次の節）も含む。
+		</li>
+		<li>
+			<code>oracle</code>：ディレクトリ構成の検査と、公式ツールを動かす道具（<code
+				>tools/oracle</code
+			>）自身のテスト。
+		</li>
+		<li>
+			<code>typescript</code>：pnpm のワークスペース（サイトと <code>tools/</code>）の oxfmt
+			による整形、oxlint と knip によるコード検査、型の検査。
+		</li>
+		<li><code>site</code>：このサイトのテスト、svelte-check、ビルド。</li>
+		<li>
+			<code>performance</code>：arm64 の Ubuntu で、割り当てと命令数を基準値と比べる。命令数は
+			Valgrind で数え、レポートは成果物として保存する。コマンドは次のとおり。
+			<pre
+				class="my-2 overflow-x-auto rounded-sm border border-line bg-sunken p-3 text-[13px]"><code
+					>node tools/performance/performance.ts ratchet --instructions --json performance-report.json</code
+				></pre>
 		</li>
 	</ul>
 	<p>
-		意図して計数を動かした変更は、同じコミットで基準値を書き換えます。割り当ては <code
+		計数を意図して動かした変更は、同じコミットで基準値を書き換えます。割り当ては <code
 			>mise run performance:update</code
 		>
-		で更新します。命令数は64ビットの Arm プロセッサーを使う Linux 上で測ります。
-		<code>node tools/performance/performance.ts linux --update</code> は自動検査と同じ Docker 環境で計測します。その結果を基準値として書き戻します。
+		で更新します。命令数は <code>node tools/performance/performance.ts linux --update</code>
+		で更新します。このコマンドは自動検査と同じ Docker 環境で測り、結果を基準値に書き戻します。
 	</p>
 	<p>
-		<code>linux.ts</code>
-		は作業ツリーではなく、ステージしたソースとテスト用の入力と期待値のスナップショットを測ります。次のコミットに入るものを、変更時の自動検査
-		のクリーンなチェックアウトと同じ形で測るためです。以前はテスト用の入力と期待値だけ作業ツリーのものを使っていて、手元の実行が各検証例の横に残した
-		<code>actual/</code> まで読み込みの走査が数えていました。そのため読み込みの命令数は手元で 345,677,577、変更時の自動検査
-		のクリーンなチェックアウトでは 292,546,145 と食い違っていました。クリーンなワークツリーから基準値との比較検査を走らせて見つかったものです（201b86fd6b）。
+		<code>performance.ts linux</code>（実装は
+		<code>linux.ts</code
+		>）は、ステージしたソースとテスト用の入力と期待値のスナップショットを測ります。次のコミットに入るものを、自動検査のクリーンなチェックアウトと同じ形で測るためです。作業ツリーを測ると、手元の実行が各検証例の横に残した
+		<code>actual/</code> まで読み込みで数えてしまいます。実際に、読み込みの命令数が手元では 345,677,577、クリーンなチェックアウトでは
+		292,546,145 と食い違ったことがあります。
 	</p>
-	<DeepDive title="検査が本当に検査していることの確かめ方">
+	<DeepDive title="検査が失敗することを確かめる">
 		<p>
-			検査を導入したときは、意図的に性能を悪化させ、検査が失敗することを確認しています。
-			ボタンの検査ルールの呼び出しごとに、要素一つ分の配列を余分に確保しました。
-			割り当て回数は973回から6,405回に増え、検査が失敗しました。増分の5,432回はルールの呼び出し回数と同じです。
-			変更を戻すと、93個の計測値はすべて元に戻りました（fa4072dfa3）。
+			検査を入れたときに、わざと性能を悪くして、検査が失敗することを確かめました。コード検査のルール
+			<code>svelte/button-has-type</code>
+			を呼ぶたびに、要素一つの配列を余分に確保しました。当時の検証用のソースファイル集（17,512 文書）で、このフェーズの割り当て回数は
+			973 回から 6,405 回に増え、検査は失敗しました。増えた 5,432 回は、ルールを呼んだ回数と同じです。変更を戻すと、当時比べていた
+			93 個の計数はすべて元に戻りました。
 		</p>
 		<p>
-			出力を比べる検査にも、意図的な変更を入れて確認しました。
-			ある検証例の整形結果の末尾に一文字加えると、一致から不一致に変わったことを報告して失敗します（893f2cf1c7）。
+			出力を比べる検査も同じように確かめました。ある検証例の整形結果の末尾に 1
+			文字足すと、判定が一致から不一致に変わったと報告して失敗します。
 		</p>
 	</DeepDive>
 
 	<H2 id="parity" />
 	<p>
-		性能だけでなく、出力の一致も検査します。<code>cargo test</code>
-		は、タスク・出力の種類・検証例ごとに判定を出します。 複数の成果物がある場合は、最も悪い判定を採用します。
-		判定を
+		出力が公式ツールと一致するかも検査します。<code>cargo test</code>
+		は、タスク・出力の種類・検証例ごとに判定を一つ出します。成果物が複数あるときは、いちばん悪い判定を採ります。判定を
 		<code>corpus/_registry/parity.json</code>
-		と比べ、改善も悪化も検出します。検査する件数に上限はありません。次の表は、このページをビルドしたときの
+		と比べ、悪化も改善も検出します。次の表は、このページをビルドしたときの
 		<code>parity.json</code> を数えたものです。
 	</p>
 </div>
@@ -277,29 +288,35 @@
 		</tbody>
 	</table>
 	<figcaption class="mt-2 text-[13px] leading-[1.7] text-muted">
-		{fmt(data.parity.units)} 件。rsvelte が未対応として拒否した検証例は表に載りません。
+		合計 {fmt(data.parity.units)} 件です。rsvelte が未対応として拒否した検証例は表に載りません。
 	</figcaption>
 </figure>
 
 <div class="prose-learn">
 	<p>
-		拒否した検証例を載せないので、ある検証例が新しく拒否されるようになると、表からエントリが一つ消えたものとして検出されます。<code
+		そのため、ある検証例が新しく拒否されると、表のエントリが一つ消えたものとして検出されます。<code
 			>unparseable</code
 		>
-		は、rsvelte が JavaScript としてパースできない出力を出した検証例で、本来は拒否すべきところです。
+		は、rsvelte の出力を JavaScript として読めない検証例です。本来は拒否すべきものです。<code
+			>mismatch</code
+		>
+		は出力が違う検証例です。<code>unexpected</code> は rsvelte だけが、<code>missing</code>
+		は公式ツールだけがファイルを書いた検証例です。<code>svue</code> は Vue のファイルを Svelte
+		でコンパイルし、<code>vuelte</code> は Svelte のファイルを Vue Vapor にコンパイルします。
 	</p>
 
 	<H2 id="arms" />
 	<p>
-		ここからは、各章で触れた実行時間の計測結果です。五つの条件を比べます。 どれも同じ {fmt(
+		ここからは、各章で引用した実行時間の計測です。<dfn>測定条件</dfn>は、rsvelte
+		自身の設定を一つずつ変えた五つの実行で、ほかのツールとの比較ではありません。どれも同じ {fmt(
 			data.population.documents,
-		)} 文書（{mb(data.population.bytes)} メガバイト）を処理します。 実行する処理は、クライアント用・サーバー用のコンパイル、整形、コード検査です<Note
-			>型検査は外部の <code>tsc</code> を起動するので、ベンチマークには入れていません。</Note
+		)} 文書（{mb(data.population.bytes)} メガバイト）を、クライアント用とサーバー用にコンパイルし、整形し、コード検査します<Note
+			>型検査は外部の <code>tsc</code> を起動するので、ベンチマークに入れていません。</Note
 		>。
 	</p>
 	<p>
-		この表の値は、ビルド <code>{data.build.rev.slice(0, 10)}</code> で測った 構造化データ形式をサイトのデータとしてコミットしたものです。実行時間はマシンの混み具合で揺れるので
-		変更時の自動検査 では監視しておらず、測り直すまでこの値は更新されません。変更の効果は、上の基準値との比較検査の計数で測っています。
+		表の値は、ビルド（<code>{data.build.rev.slice(0, 10)}</code>）で測った JSON
+		を、サイトのデータとしてコミットしたものです。実行時間はマシンの混み具合で揺れるので、自動検査では監視していません。測り直すまで、この値は変わりません。変更の効果は、上の比較検査の計数で確かめます。
 	</p>
 </div>
 
@@ -307,10 +324,10 @@
 
 <div class="prose-learn">
 	<p>
-		時間を測るラウンドは、比較対象を 比較対象を順に実行し、逆順でも実行する
-		の順（奇数ラウンドは逆順）に交互に走らせ、{data.rounds} ラウンドの中央値を取ります。割り当てとピークは、プロセス全体の追跡を入れた別のラウンドで取ります（<a
+		測定条件を走らせる順は、時間を測るラウンドごとに正順と逆順を入れ替えます。値は {data.rounds}
+		ラウンドの中央値です。割り当てとピークは、プロセス全体の追跡を入れた別のラウンドで取ります（<a
 			href="/learn/kernel/measurement#global">12</a
-		>）。ビルドは metrics なしとありの二種類を、それぞれ二回走らせました。
+		>）。ビルドは metrics なしとありの 2 種類で、それぞれ 2 回走らせました。
 	</p>
 
 	<H2 id="time" />
@@ -320,7 +337,7 @@
 	<table class="table min-w-[640px]">
 		<thead>
 			<tr
-				><th>比較対象</th><th class="w-[30%]"></th><th class="num">plain ms</th><th class="num"
+				><th>測定条件</th><th class="w-[30%]"></th><th class="num">plain ms</th><th class="num"
 					>metrics ms</th
 				><th class="num">各ラウンド（plain 1 回目）</th></tr
 			>
@@ -350,33 +367,34 @@
 		</tbody>
 	</table>
 	<figcaption class="mt-2 text-[13px] leading-[1.7] text-muted">
-		計測機能なし・ありで、それぞれ2回実行した中央値です。スレッド数は {data.threads} です。 ビルド設定は
-		{data.build.profile}、コミットは {data.build.rev.slice(0, 10)} です。
+		plain と metrics の列は、metrics なしとありのビルドをそれぞれ 2 回実行したときの、1
+		ラウンドの時間の中央値です。スレッド数は
+		{data.threads}、ビルド設定は {data.build.profile}、コミットは {data.build.rev.slice(0, 10)} です。
 	</figcaption>
 </figure>
 
 <div class="prose-learn">
 	<ul>
 		<li>
-			共有: isolated → shared で {(a('isolated').plain[0] / a('shared').plain[0]).toFixed(1)} 倍速くなります（<a
+			共有：isolated → shared で {(a('isolated').plain[0] / a('shared').plain[0]).toFixed(1)} 倍速くなります（<a
 				href="/learn/kernel/database#sharing">04</a
 			>）。
 		</li>
 		<li>
-			並列化: serial → shared で {(a('serial').plain[0] / a('shared').plain[0]).toFixed(1)} 倍です（{data.threads}
+			並列化：serial → shared で {(a('serial').plain[0] / a('shared').plain[0]).toFixed(1)} 倍です（{data.threads}
 			スレッド）。
 		</li>
 		<li>
-			pool: nopool → shared で時間が {(
+			pool：nopool → shared で時間が {(
 				(1 - a('shared').plain[0] / a('nopool').plain[0]) *
 				100
 			).toFixed(0)}% 減ります（<a href="/learn/kernel/buffer-pool#measure">13</a>）。
 		</li>
 		<li>
-			ストリーミング: 時間の差は、同じ比較対象の二回の実行の差（{Math.abs(
+			ストリーミング：streaming と shared の差は、streaming の 2 回の実行の差（{Math.abs(
 				a('streaming').plain[0] - a('streaming').plain[1],
 			).toFixed(1)}
-			ms）と同じ程度で、差があるとは言えません。
+			ms）と同程度で、揺れと区別できません。
 		</li>
 	</ul>
 
@@ -387,7 +405,7 @@
 	<table class="table">
 		<thead
 			><tr
-				><th>比較対象</th><th class="num">割り当て回数</th><th class="num">バイト</th><th
+				><th>測定条件</th><th class="num">割り当て回数</th><th class="num">バイト</th><th
 					class="num">回/入力バイト</th
 				><th class="num">ピーク増分</th></tr
 			></thead
@@ -405,26 +423,28 @@
 		</tbody>
 	</table>
 	<figcaption class="mt-2 text-[13px] leading-[1.7] text-muted">
-		metrics ありのビルドの 1 回目、プロセス全体を追跡したラウンド（{data.threads} スレッド）。最大 プロセスが使用する物理メモリ
-		は {mb(data.maxRss)} メガバイト（全比較対象を含むプロセスの最高値）。基準値との比較検査の数（1 スレッド、最後のラウンド、タスクの数も違う）とは比べられません。
+		metrics ありのビルドの 1 回目で、プロセス全体を追跡したラウンドの値です（{data.threads}
+		スレッド）。プロセスの最大物理メモリ使用量は {mb(data.maxRss)}
+		メガバイトです（全測定条件を通したプロセスの最高値）。基準値の数とは、スレッド数（基準値は 1）、数えるラウンド（基準値は最後の
+		1 回）、タスクの数が違うので比べられません。
 	</figcaption>
 </figure>
 
 <div class="prose-learn">
 	<p>
-		ピーク増分は、結果を全部持つ比較対象ではどれも約 {mb(a('shared').peak)} メガバイト で、スレッド数にもよりません（serial
-		でも {mb(a('serial').peak)}
-		メガバイト）。支配しているのは処理中の作業ではなく、全結果の保持だということです。<code
-			>run_each</code
+		結果を全部持つ測定条件のピーク増分は、どれも約 {mb(a('shared').peak)}
+		メガバイトです。スレッド数にもよりません（serial でも {mb(a('serial').peak)}
+		メガバイト）。ピークを決めているのは処理中の作業ではなく、全結果の保持です。<code>run_each</code
 		>
-		で結果をすぐ捨てると {mb(a('streaming').peak)}
-		メガバイト になります（<a href="/learn/kernel/pipeline#run-each">06</a>）。
+		で結果をすぐ捨てると {mb(a('streaming').peak)} メガバイトになります（<a
+			href="/learn/kernel/pipeline#run-each">06</a
+		>）。
 	</p>
 
 	<H2 id="phases" />
 	<p>
-		metrics ありのビルドで、shared を一回走らせたときのフェーズ表です。self
-		は入れ子のフェーズを除いた時間で、全スレッドの合計です。
+		metrics ありのビルドで shared を 1 回走らせたときのフェーズ表です。self
+		は入れ子のフェーズを除いた時間で、全スレッドの合計です。上の基準値の表とはビルドが違うので、名前の違うフェーズがあります。
 	</p>
 </div>
 
@@ -451,17 +471,17 @@
 		</tbody>
 	</table>
 	<figcaption class="mt-2 text-[13px] leading-[1.7] text-muted">
-		割合は、この表の self の合計に対するもの。build {data.build.rev.slice(0, 10)}。
+		割合は、この表の self の合計に対する値です。ビルドは {data.build.rev.slice(0, 10)} です。
 	</figcaption>
 </figure>
 
 <div class="prose-learn">
 	<p>
 		<code>svelte.parse</code>
-		は全文書で一回ずつ呼ばれ、下流のフェーズはパースが通った文書でだけ走ります。compile のタスク自体の
-		self はごく小さく、時間はそれが求めた計算結果と、<code>svelte.lower.*</code>・<code
+		は全文書で 1 回ずつ呼ばれます。下流のフェーズは、構文解析が通った文書でだけ走ります。compile のタスク自体の
+		self はごく小さく、時間はタスクが求めた計算結果と、<code>svelte.lower.*</code>・<code
 			>js.print</code
-		> に付いています。
+		> に付きます。
 	</p>
 
 	<H2 id="reproduce" />
@@ -469,7 +489,7 @@
 
 <pre
 	class="my-6 overflow-x-auto rounded-sm border border-line bg-sunken p-4 text-[13px] leading-[1.7]"><code
-		># 性能のラチェット（割り当て。どのプラットフォームでも）
+		># 性能の基準値との比較検査（割り当て。どのプラットフォームでも）
 mise run performance
 mise run performance:update
 
@@ -477,7 +497,7 @@ mise run performance:update
 node tools/performance/performance.ts linux
 node tools/performance/performance.ts linux --update
 
-# 壁時計のベンチマーク
+# 実行時間のベンチマーク
 cargo build --release -p rsvelte_command_line --features metrics
 ./target/release/rsvelte benchmark corpus/svelte rounds=5 json=benchmark.json</code
 	></pre>
@@ -485,14 +505,14 @@ cargo build --release -p rsvelte_command_line --features metrics
 <div class="prose-learn">
 	<p>
 		<code>rsvelte benchmark</code> のレポートの <code>build.rev</code> は、ビルドしたツリーの
-		<code>git rev-parse HEAD</code>
-		です（差分があれば
-		<code>-dirty</code> が付きます）。値を運べない欄は、0 ではなく <code>UNMEASURED</code> と書きます。
+		<code>git rev-parse HEAD</code> です。差分があれば <code>-dirty</code>
+		が付きます。
 	</p>
 	<p>
-		このサイトのベンチマークのデータ（<code>apps/site/src/lib/data/benchmark/</code
-		>）は、古いビルド（d6f426e250）の出力です。欄の名前は、あとで書き換えてあります（e9c1458ade）。たとえば今のコマンドは
-		<code>allocs</code> と書きますが、データは <code>allocations</code> です。今のコマンドの出力は、そのままではサイトのデータになりません。
+		このサイトのベンチマークのデータ（<code>apps/site/src/lib/data/benchmark/</code>）は、古いビルド
+		<code>d6f426e250</code>
+		の出力です。データの欄の名前は、あとで書き換えました。たとえば今のコマンドは
+		<code>allocs</code> と書きますが、データは <code>allocations</code> です。そのため、今のコマンドの出力は、そのままサイトのデータとして使えません。
 	</p>
 </div>
 

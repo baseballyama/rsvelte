@@ -8,9 +8,10 @@
 
 <header class="mb-12 border-b border-line pb-8">
 	<nav aria-label="パンくず" class="flex items-center gap-1.5 text-[13px] text-muted">
-		<a href="/learn" class="hover:text-fg">Learn</a>
-		<Icon name="chevron" size={12} />
-		<span class="font-mono tracking-normal tnum">第 {chapter.number} 章</span>
+		<a href="/learn" class="hover:text-fg">開発者向けの教材</a><Icon
+			name="chevron"
+			size={12}
+		/><span class="font-mono tracking-normal tnum">第 {chapter.number} 章</span>
 	</nav>
 	<h1
 		class="mt-3 text-[30px] leading-[1.35] font-semibold tracking-[0.005em] sm:text-[38px] sm:leading-[1.3]"

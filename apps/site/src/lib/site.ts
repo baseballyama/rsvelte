@@ -29,7 +29,8 @@ export const chapters: Chapter[] = [
 		href: '/learn',
 		number: '00',
 		title: 'この教材について',
-		abstract: '誰のための教材か、どう読むか、何が本物で何がモデルか。',
+		abstract:
+			'誰のための教材か、どう読むか。図とコードのうち、どれが実際のコードでどれが説明用のモデルか。',
 		minutes: 4,
 		sections: [s('audience', '想定読者'), s('honesty', '本物とモデル'), s('path', '読む順番')],
 	},
@@ -39,7 +40,7 @@ export const chapters: Chapter[] = [
 		number: '01',
 		title: 'カーネルの全体像',
 		abstract:
-			'カーネルとプラグインの境界、モジュールの役割、1 文書が通る道、二つ目の言語 Vue と svue。',
+			'カーネルとプラグインの境界、モジュールの役割、1 つの文書を処理する手順。二つ目の言語 Vue と、Vue のファイルを Svelte のコンパイラで扱う svue。',
 		minutes: 15,
 		sections: [
 			s('why', 'なぜカーネルなのか'),
@@ -56,11 +57,11 @@ export const chapters: Chapter[] = [
 		href: '/learn/kernel/source',
 		number: '02',
 		title: 'ソース内の位置と行・列の変換',
-		abstract: 'ソース内の範囲を8バイトで保存する方法と、バイト位置を行・列に変換する仕組み。',
+		abstract: 'ソース内の範囲を 8 バイトで保存する方法と、バイト位置を行・列に変換する仕組み。',
 		module: 'kernel/source/positions',
 		minutes: 10,
 		sections: [
-			s('span', 'ソース内の範囲を8バイトで保存する'),
+			s('span', 'ソース内の範囲を 8 バイトで保存する'),
 			s('loc', '元のソースにない要素の位置'),
 			s('line-index', 'バイト位置と行・列を対応させる'),
 			s('utf16', '外部ツールが使う文字数の数え方'),
@@ -72,7 +73,7 @@ export const chapters: Chapter[] = [
 		href: '/learn/kernel/interning',
 		number: '03',
 		title: '名前の保存と共有',
-		abstract: '1 本のバッファと開番地法のテーブル。名前ごとの割り当てをしない。',
+		abstract: '名前を 1 本のバッファに並べ、開番地法の表で引く。名前ごとにメモリを確保しない。',
 		module: 'kernel/source/interning',
 		minutes: 7,
 		sections: [
@@ -131,17 +132,17 @@ export const chapters: Chapter[] = [
 		number: '06',
 		title: '処理の登録と並列実行',
 		abstract:
-			'タスク・プロジェクトタスク・共通の呼び出し窓口の提供元の登録と、文書単位の並列実行、ストリーミング。',
+			'タスクと共通の呼び出し窓口の登録、文書ごとの並列実行、複数の文書をまとめる処理、結果をできた順に返す仕組み。',
 		module: 'kernel/computation/pipeline',
 		minutes: 16,
 		sections: [
 			s('document', '入力文書と処理対象の判定'),
 			s('tasks', '一つの文書の処理と複数の文書の処理'),
-			s('registry', '処理の登録先'),
+			s('registry', '走らせるタスクを選ぶ'),
 			s('run-document', '文書ごとの処理と異常終了への対処'),
 			s('run-each', '結果ができた文書から順に返す'),
 			s('project', '複数の文書をまとめて処理する'),
-			s('run', '並列処理の結果をロックなしで集める'),
+			s('run', '結果を文書の順にロックなしで集める'),
 		],
 	},
 	{
@@ -149,7 +150,7 @@ export const chapters: Chapter[] = [
 		href: '/learn/kernel/diagnostics',
 		number: '07',
 		title: 'エラーや警告の報告',
-		abstract: 'Diagnostic と、近似しないための Unsupported。',
+		abstract: 'エラーと警告を表す Diagnostic と、未対応の構文を近似せずに報告する Unsupported。',
 		module: 'kernel/diagnostics/diagnostic',
 		minutes: 4,
 		sections: [s('diagnostic', 'エラーや警告の記録'), s('unsupported', '未対応の構文を報告する')],
@@ -193,7 +194,7 @@ export const chapters: Chapter[] = [
 		number: '10',
 		title: '生成したコードと元のソースの位置を対応させる',
 		abstract:
-			'出力バッファと位置の対応、指定位置以前で最も近い対応点の逆引き、source map v3 と 可変長の整数表現。',
+			'出力バッファと位置の対応、指定位置以前で最も近い対応点の逆引き、source map v3 と可変長の整数表現。',
 		module: 'kernel/output/emitter',
 		minutes: 15,
 		sections: [
@@ -209,7 +210,7 @@ export const chapters: Chapter[] = [
 		slug: 'json',
 		href: '/learn/kernel/structured-data',
 		number: '11',
-		title: '構造化データを直接書き出す',
+		title: 'JSON を直接書き出す',
 		abstract: '値の木を作らずに書く。状態はフラグのスタックとビット 1 つ。',
 		module: 'kernel/output/structured_data',
 		minutes: 5,
@@ -256,7 +257,7 @@ export const chapters: Chapter[] = [
 		number: '14',
 		title: '実測 — 性能の基準値との比較検査',
 		abstract:
-			'割り当てと命令数を決定的に数え、main と experimental への push と pull request で基準値と比べる。正しさの基準値との比較検査と、実行時間のベンチマーク。',
+			'メモリの割り当てと命令数を毎回同じ値になるように数える。main と experimental ブランチへの push と pull request で、それを基準値と比べる。正しさの基準値との比較検査と、実行時間のベンチマーク。',
 		minutes: 14,
 		sections: [
 			s('ratchet', '性能の基準値との比較検査'),
@@ -264,7 +265,7 @@ export const chapters: Chapter[] = [
 			s('determinism', '同じ入力で同じ計測値を得る仕組み'),
 			s('ci', '変更時の自動検査と基準値の更新'),
 			s('parity', '正しさの基準値との比較検査'),
-			s('arms', '実行時間の比較対象'),
+			s('arms', '実行時間の測定条件'),
 			s('time', '時間'),
 			s('memory', 'メモリと割り当て'),
 			s('phases', 'フェーズ'),
@@ -310,15 +311,15 @@ export const chapters: Chapter[] = [
 export const appendix = [
 	{
 		href: '/why',
-		title: 'なぜrsvelteを作るのか',
+		title: 'rsvelte を作る理由',
 		abstract:
-			'テンプレートの構文解析、独自のlintルール、解析結果の共有、クロスファイル最適化の目的と実装状況。',
+			'テンプレートを含む解析、独自のコード検査ルール、解析結果の共有、ファイルをまたぐ最適化。それぞれの目的と実装状況。',
 	},
 	{ href: '/learn/reference', title: 'リファレンス', abstract: 'カーネルの全項目を検索する。' },
 	{
 		href: '/learn/playground',
-		title: 'パイプラインのプレイグラウンド',
-		abstract: '言語プラグインを付け外しし、ソースの解析と出力を追う。',
+		title: 'プレイグラウンド',
+		abstract: '言語プラグインを付け外しして、ソースの解析と出力を追う。',
 	},
 	{
 		href: '/learn/playground/doc',

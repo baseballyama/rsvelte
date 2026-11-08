@@ -73,13 +73,13 @@
 					class="flex items-center gap-1 rounded-sm px-1.5 py-0.5 hover:bg-bg hover:text-accent tnum"
 					{href}
 					rel="noopener"
-					title="GitHub で {rev.slice(0, 7)} の該当行を開く"
+					title="GitHub でコミット {rev.slice(0, 7)} の該当行を開く"
 					>L{item.startLine}–{item.endLine}<Icon name="external" size={11} class="opacity-70" /></a
 				>
 			{:else}
 				<span
 					class="px-1.5 tnum"
-					title="crates/ に未コミットの変更がある状態でビルドされたため、行リンクはありません"
+					title="引用元のファイルにコミットしていない変更があるため、GitHub の行へのリンクはありません"
 					>L{item.startLine}–{item.endLine}</span
 				>
 			{/if}

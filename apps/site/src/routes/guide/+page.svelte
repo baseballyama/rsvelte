@@ -8,7 +8,7 @@
 	<title>使い方ガイド — rsvelte</title>
 	<meta
 		name="description"
-		content="rsvelte をブラウザで試し、手元の Svelte ファイルをコンパイル・整形・検査する手順と、Web アプリへの組み込み方を紹介します。"
+		content="rsvelte をブラウザで試す方法と、手元の Svelte ファイルをコンパイル・整形・検査する手順、Web アプリへの組み込み方。"
 	/>
 </svelte:head>
 
@@ -58,12 +58,12 @@
 			<p class="eyebrow">rsvelte を使う</p>
 			<h1 class="mt-3 text-[34px] leading-tight font-semibold sm:text-[42px]">使い方ガイド</h1>
 			<p class="mt-5 text-[17px] leading-[1.9] text-fg-2">
-				Svelte のソースを、コンパイル・整形・検査するための手順です。Rust
-				のコードを読む必要はありません。手元で使う場合は、ソースから実行ファイルをビルドします。
+				Svelte のファイルを rsvelte でコンパイル・整形・検査する手順です。Rust
+				のコードを読む必要はありません。手元で使うときは、ソースから実行ファイルをビルドします。
 			</p>
 			<p class="mt-4 text-[14px] leading-[1.8] text-muted">
-				このガイドは experimental
-				ブランチの実装を対象にしています。対応していない構文や、公式ツールと結果が異なる場合があります。
+				対象は experimental ブランチの実装です。未対応の構文があり、公式ツール（公式の Svelte
+				コンパイラなど）と結果が違うこともあります。
 			</p>
 		</header>
 
@@ -72,51 +72,52 @@
 				<h2>{guideSections[0].title}</h2>
 				<p>
 					<a href="/learn/playground">プレイグラウンド</a
-					>では、インストールせずにコンパイル・整形・検査を試せます。Svelte
-					を選び、ソースを入力して、実行したい処理を選んでください。
+					>なら、インストールせずにコンパイル・整形・検査を試せます。「入力」で Svelte
+					を選び、ソースを編集して「行う処理」を選び、「実行」を押します。
 				</p>
 				<p>
-					生成されたファイルと診断が表示されます。診断は、ソース内の問題や対応していない構文を知らせるメッセージです。ブラウザでは型チェックを実行できません。
+					結果には、生成したファイルと診断が出ます。診断は、ソースの問題や未対応の構文を知らせるメッセージです。ブラウザでは型チェックを実行できません。
 				</p>
 			</section>
 
 			<section id="setup">
 				<h2>{guideSections[1].title}</h2>
 				<p>
-					Git と Rust の開発環境を用意してください。Rust は、リポジトリ内の <code
-						>rust-toolchain.toml</code
-					> で指定した版を使います。次のコマンドをターミナルで実行します。
+					このページのコマンドは、macOS と Linux の bash や zsh 向けです。Windows
+					では確かめていません。
+				</p>
+				<p>
+					Git と Rust を用意してください。Rust の版は、リポジトリの <code>rust-toolchain.toml</code>
+					が決めます。ターミナルで次のコマンドを実行します。
 				</p>
 				<GuideCode code={guideExamples.setup} label="ソースの取得とビルド" />
 				<p>
-					以降のコマンドは、取得した <code>rsvelte</code> ディレクトリで実行します。Windows
-					では、実行ファイルのパスを <code>.\target\release\rsvelte.exe</code>
-					に置き換えてください。複数行のコマンドは、行末の <code>\</code> を除いて 1 行にまとめます。
-				</p>
-				<p>
-					次のソースを <code>Counter.svelte</code> として保存します。クリックすると数値が増える、Svelte
-					5 のコンポーネントです。
+					以降のコマンドは、取得した <code>rsvelte</code>
+					ディレクトリで実行します。次のソースを <code>Counter.svelte</code>
+					として保存してください。クリックすると数が増える Svelte 5 のコンポーネントです。
 				</p>
 				<GuideCode code={guideExamples.source} label="Counter.svelte" />
 			</section>
 
 			<section id="compile">
 				<h2>{guideSections[2].title}</h2>
-				<p>ブラウザで動かす JavaScript を生成します。</p>
+				<p>ブラウザで動く JavaScript を生成します。</p>
 				<GuideCode code={guideExamples.compile} label="ブラウザ向けのコンパイル" />
 				<p>
-					出力は <code>// svelte.compile/client js</code> というラベルから始まります。その後に JavaScript
-					が続きます。サーバーでページのマークアップを生成する場合は、次の処理を選びます。
+					処理は <code>--task</code>
+					で選びます。結果は標準出力に出て、入力ファイルは変わりません。出力は
+					<code>// svelte.compile/client js</code> という見出しの行で始まり、その後に JavaScript
+					が続きます。ソースにスタイルがあれば、<code>// svelte.compile/client css</code>
+					の後にスタイルも出ます。診断は <code>// svelte.compile/client diagnostics</code>
+					の後に JSON で出ます。
 				</p>
+				<p>
+					見出しの行を含むので、出力をそのまま JavaScript
+					ファイルとして保存しても動きません。生成したコードを動かすには、Svelte
+					のランタイムとアプリのビルド設定も必要です。
+				</p>
+				<p>サーバーでページの HTML を生成するときは、次の処理を選びます。</p>
 				<GuideCode code={guideExamples.server} label="サーバー向けのコンパイル" />
-				<p>
-					処理名は <code>--task</code> で指定します。このコマンドは、生成したファイルの内容を標準出力に表示します。入力ファイルは変更しません。
-				</p>
-				<p>
-					スタイルや位置の対応情報も、同じ標準出力にラベル付きで出る場合があります。出力全体をそのまま
-					JavaScript ファイルとして保存する使い方には対応していません。アプリの実行には Svelte
-					の実行時ライブラリと、アプリ側のビルド設定が必要です。
-				</p>
 			</section>
 
 			<section id="format">
@@ -124,182 +125,269 @@
 				<p>整形したソースを表示します。</p>
 				<GuideCode code={guideExamples.format} label="ソースの整形" />
 				<p>
-					<code>// svelte.format/default svelte</code> の後に整形結果が続きます。内容を確認し、ラベルを除いたソースを入力ファイルに反映してください。ファイルを上書きするオプションはありません。
+					<code>// svelte.format/default svelte</code>
+					の後に整形結果が出ます。ファイルを上書きするオプションはありません。結果を確かめてから、見出しの行を除いて入力ファイルに写してください。出力を同じファイルへリダイレクトすると、読む前に中身が消えます。
 				</p>
 			</section>
 
 			<section id="lint">
 				<h2>{guideSections[4].title}</h2>
-				<p>ソースに問題がないかを調べます。</p>
+				<p>ソースの問題を探します。</p>
 				<GuideCode code={guideExamples.lint} label="ソースの検査" />
 				<p>
-					結果は <code>// svelte.lint/default lint.json</code> の後に表示されます。<code>rules</code
+					結果は <code>// svelte.lint/default lint.json</code> の後に JSON で出ます。<code
+						>rules</code
 					>
-					は使用したルール、<code>findings</code> は見つかった問題です。<code>findings</code> が空なら、この検査では問題が見つかっていません。
+					は使ったルール、<code>findings</code> は見つかった問題の一覧です。<code>findings</code>
+					が空なら、問題は見つかっていません。
 				</p>
 				<p>
-					たとえば、例のボタンから <code>type="button"</code> を削除すると、<code
+					たとえば例のボタンから <code>type="button"</code> を消すと、<code
 						>svelte/button-has-type</code
 					>
-					の指摘が出ます。ボタンの種類が指定されていないという内容です。指摘の
-					<code>rule</code>、<code>message</code
-					>、開始位置と終了位置を確認して、ソースを修正します。
+					の指摘が出ます。ボタンの種類を指定していない、という指摘です。各指摘の
+					<code>rule</code>、<code>message</code>、<code>start</code>、<code>end</code>
+					を見てソースを直します。位置の行と列は 1 から数えます。
 				</p>
-				<p>整形と検査を一度に実行する場合は、<code>--task</code> を繰り返します。</p>
+				<p>整形と検査を一度に実行するときは、<code>--task</code> を繰り返します。</p>
 				<GuideCode code={guideExamples.combined} label="整形と検査をまとめて実行" />
-				<p>各処理は元のソースを対象にします。整形結果を次の検査に渡す指定ではありません。</p>
+				<p>検査は、整形する前の元のソースを読みます。</p>
 			</section>
 
 			<section id="check">
 				<h2>{guideSections[5].title}</h2>
+				<p>型チェックには次の三つが必要です。</p>
+				<ul>
+					<li>
+						TypeScript 7.1 以上のネイティブ版の実行ファイル。Node.js で動く従来の TypeScript
+						コマンドとは別のもので、npm のパッケージに入っています。
+					</li>
+					<li>型定義を読むための Svelte パッケージ。</li>
+					<li>
+						<code>rsvelte-typescript-content-mapper</code>。TypeScript が Svelte
+						ファイルを読むときに呼ぶ、rsvelte の実行ファイルです。Svelte から作った TypeScript
+						と、両者の位置の対応を返します。
+					</li>
+				</ul>
 				<p>
-					型チェックには三つのものが必要です。TypeScript 7.1
-					以上のネイティブ版の実行ファイルと、Svelte パッケージの型定義です。三つ目は rsvelte
-					の位置対応の実行ファイル（<code>rsvelte-typescript-content-mapper</code>）です。TypeScript
-					は、Node.js で動く従来の TypeScript
-					コマンドとは別に用意してください。位置対応の実行ファイルは <code>PATH</code>
-					から探します。別の場所に置く場合は、<code>svelte.typecheck</code> のオプション
-					<code>contentMapper</code> にパスを指定します。
+					Node.js と npm も用意してください。<code>rsvelte</code>
+					のディレクトリで、次のコマンドを順に実行します。
 				</p>
+				<GuideCode code={guideExamples.checkSetup} label="型チェックに必要なものを用意する" />
+				<ol>
+					<li>
+						1 行目は、位置対応の実行ファイルを <code>~/.cargo/bin</code>
+						に入れます。このディレクトリが <code>PATH</code> に入っていることを確かめてください。
+					</li>
+					<li>
+						2 行目は、リポジトリの検証と同じ版の TypeScript と Svelte を
+						<code>typecheck-tools/node_modules</code> に取得します。
+					</li>
+					<li>
+						3 行目は、お使いの環境に合うネイティブ版の実行ファイルの絶対パスを、変数
+						<code>TSC</code> に入れます。4 行目がそのパスを表示します。
+					</li>
+				</ol>
 				<p>
-					まだ用意していない場合は、rsvelte
-					のディレクトリで次のコマンドを実行します。最初のコマンドが位置対応の実行ファイルを入れ、次のコマンドが
-					TypeScript と Svelte を取得します。TypeScript
-					はリポジトリの検証でも使っている版です。最後のコマンドは、お使いの環境に合うネイティブ実行ファイルの絶対パスを表示します。
-				</p>
-				<GuideCode code={guideExamples.checkSetup} label="型チェックに必要なパッケージを取得" />
-				<p>
-					この手順では、<code>typecheck-tools/node_modules/svelte</code> が型定義のディレクトリになります。既存のプロジェクトを検査する場合は、そのプロジェクトで使っている
-					Svelte パッケージを指定してください。
-				</p>
-				<p>
-					<code>Counter.svelte</code> を次の内容に置き換えます。数値の変数に文字列を代入しているため、型の不一致を確認できます。
+					<code>Counter.svelte</code>
+					を次の内容に置き換えます。数値の変数に文字列を入れているので、型の不一致が見つかるはずです。
 				</p>
 				<GuideCode code={guideExamples.typedSource} label="型の不一致を含む Counter.svelte" />
 				<p>
-					次のパスを、手元の実行ファイル、Svelte
-					パッケージ、プロジェクト設定の絶対パスに置き換えて実行します。空白を含むパスは引用符で囲んでください。
+					同じターミナルで次のコマンドを実行します。<code>$TSC</code>
+					は、さきほど入れたパスに置き換わります。
 				</p>
-				<GuideCode code={guideExamples.check} label="型チェックの設定と実行" />
+				<GuideCode code={guideExamples.check} label="型チェックの実行" />
 				<p>
-					<code>--options</code>
-					は、プラグイン名と、そのプラグインのオプションを受け取ります。設定ファイルの
-					<code>plugins</code> に同じ内容を書くこともできます。<code>typescript.check</code> の
-					<code>command</code> は型チェッカーとその引数です。TypeScript 7.1 の <code>tsc</code>
-					のほか、同じコマンドラインを持つ製品（<code>tsrs</code> など）も使えます。<code>tsrs</code
+					型の指摘は <code>// svelte.check/default json</code>
+					の後に出ます。この例では、数値の型に文字列を代入できないという <code>2322</code>
+					の指摘が出ます。<code>"zero"</code> を <code>0</code>
+					に変えると、この指摘は消えます。
+				</p>
+				<p>
+					位置の数え方はコード検査と違い、行と文字を 0 から数えます。公式の型チェックツール
+					svelte-check
+					と同じ形式だからです。設定が足りないときや、変換できない構文があるときは、別の診断として出ます。
+				</p>
+				<p>
+					型チェックの対象は <code>lang="ts"</code>
+					のスクリプトだけです。JavaScript のスクリプトは型チェックしません。
+				</p>
+				<h3>オプション</h3>
+				<p>
+					rsvelte
+					の処理は、プラグイン（言語や処理ごとに分かれた機能のまとまり）が提供します。型チェックの処理は、<code
+						>typescript.check</code
 					>
-					のように名前だけを書くと、プロジェクトの <code>node_modules/.bin</code>、次に
-					<code>PATH</code>
-					から探します。型チェッカーが見つからない、古い、といった問題は、ファイルを読む前にまとめて報告されます。<code
-						>svelte.typecheck</code
+					と <code>svelte.typecheck</code> の二つのプラグインの設定を読みます。<code>--options</code
 					>
-					の <code>svelte</code> は Svelte パッケージのディレクトリです。<code>tsconfig</code>
-					で指定した設定を引き継いで検査します。
+					は、プラグイン名と、そのオプションの JSON を受け取ります。
 				</p>
-				<p>プロジェクト設定がない場合は、<code>tsconfig</code> を省略できます。</p>
+				<div class="overflow-x-auto">
+					<table class="table">
+						<caption class="mb-2 text-left text-[14px] text-fg-2">型チェックのオプション</caption>
+						<thead><tr><th>オプション</th><th>指定する値</th></tr></thead>
+						<tbody>
+							<tr
+								><td><code>typescript.check</code> の <code>command</code></td><td
+									>型チェッカーとその引数</td
+								></tr
+							>
+							<tr
+								><td><code>typescript.check</code> の <code>tsconfig</code></td><td
+									>引き継ぐプロジェクトの設定ファイル。省略できます</td
+								></tr
+							>
+							<tr
+								><td><code>svelte.typecheck</code> の <code>svelte</code></td><td
+									>Svelte パッケージのディレクトリ</td
+								></tr
+							>
+							<tr
+								><td><code>svelte.typecheck</code> の <code>contentMapper</code></td><td
+									>位置対応の実行ファイル。省略できます</td
+								></tr
+							>
+						</tbody>
+					</table>
+				</div>
 				<p>
-					型の指摘は <code>// svelte.check/default json</code> の後に表示されます。設定が不足した場合や、変換できない構文がある場合は、別の診断として表示されます。
+					相対パスは、コマンドを実行したディレクトリから解決します。<code>tsconfig</code>
+					を省くと、そのディレクトリに <code>tsconfig.json</code>
+					があれば使います。この例は <code>rsvelte</code> のディレクトリで実行し、そこに
+					<code>tsconfig.json</code>
+					はないので、省いています。既存のプロジェクトを検査するときは、<code>tsconfig</code>
+					と <code>svelte</code> にそのプロジェクトのものを指定します。
 				</p>
 				<p>
-					この例では、数値の型に文字列を代入できないという <code>2322</code> の指摘が出ます。<code
-						>"zero"</code
+					型チェッカーには、TypeScript 7.1 の <code>tsc</code>
+					のほか、同じコマンドラインを持つ型チェッカー（<code>tsrs</code>
+					など）も使えます。名前だけを書くと、現在のディレクトリとその親の
+					<code>node_modules/.bin</code>
+					を探し、なければ <code>PATH</code> から探します。<code>contentMapper</code>
+					を省くと、同じ方法で <code>rsvelte-typescript-content-mapper</code> を探します。
+				</p>
+				<p>
+					型チェッカーが見つからない、版が古い、といった問題は、ファイルを読む前に報告します。同じ設定は、<code
+						>--config</code
 					>
-					を <code>0</code> に変えると、この型の指摘はなくなります。型チェックの位置は、行と文字を 0 から数えます。
-				</p>
-				<p>
-					現在の Svelte の型チェックは、<code>lang="ts"</code> を指定したスクリプトが対象です。通常の
-					JavaScript のスクリプトは型検査を省略します。
+					で渡す設定ファイルの <code>plugins</code> にも書けます。
 				</p>
 			</section>
 
 			<section id="browser">
 				<h2>{guideSections[6].title}</h2>
 				<p>
-					ブラウザ内でソースを処理したい場合は、WebAssembly
-					版を使います。リポジトリのルートで、次のコマンドを実行してください。
+					ブラウザ内でソースを処理するときは、WebAssembly
+					版を使います。リポジトリのルートで次のコマンドを実行してください。
 				</p>
 				<GuideCode
 					code={guideExamples.wasmBuild}
 					label="WebAssembly と JavaScript の接続ファイルを生成"
 				/>
 				<p>
-					ルートの <code>browser-package/</code> に、JavaScript、型定義、WebAssembly のファイルが生成されます。このディレクトリを
-					Web アプリに配置し、次のように呼び出します。
+					ルートの <code>browser-package/</code> に、JavaScript、型定義、WebAssembly
+					のファイルができます。次のコードを、ルートに <code>main.js</code> として保存します。
 				</p>
-				<GuideCode code={guideExamples.wasmUse} label="ブラウザからコンパイルと検査を呼び出す" />
+				<GuideCode code={guideExamples.wasmUse} label="main.js" />
+				<p>同じ場所に、<code>main.js</code> を読み込む <code>index.html</code> を作ります。</p>
+				<GuideCode code={guideExamples.wasmPage} label="index.html" />
 				<p>
-					Web サーバーで配信したページから呼び出してください。<code>init()</code> は WebAssembly
-					の読み込みを待ちます。読み込み後に <code>runPipeline()</code>
-					を呼ぶと、結果を表す文字列が返ります。<code>JSON.parse()</code> で JavaScript の値に変換します。
+					ファイルから直接開くと、ブラウザは WebAssembly
+					を読み込めません。ルートで次のコマンドを実行し、Web サーバーを起動します（Python 3
+					が要ります）。
+				</p>
+				<GuideCode code={guideExamples.wasmServe} label="ルートを配信する Web サーバー" />
+				<p>
+					ブラウザで <code>http://localhost:8000/</code>
+					を開き、開発者ツールのコンソールを見ると、生成したファイルと診断が出ています。<code
+						>import</code
+					>
+					の相対パスは <code>main.js</code> の場所が基準なので、<code>browser-package/</code>
+					は <code>main.js</code> と同じディレクトリに置きます。
+				</p>
+				<p>
+					<code>init()</code> は WebAssembly の読み込みを待ちます。<code>runPipeline()</code>
+					は結果を JSON の文字列で返すので、<code>JSON.parse()</code> で値に変換します。
 				</p>
 				<div class="overflow-x-auto">
 					<table class="table">
 						<caption class="mb-2 text-left text-[14px] text-fg-2">runPipeline の引数</caption>
 						<thead><tr><th>順番</th><th>渡す値</th></tr></thead>
 						<tbody>
-							<tr><td>1</td><td>処理するソース文字列</td></tr>
+							<tr><td>1</td><td>処理するソースの文字列</td></tr>
 							<tr><td>2</td><td>拡張子を含むファイル名。例は <code>App.svelte</code></td></tr>
 							<tr
-								><td>3</td><td>使う言語処理をカンマで区切った文字列。例は <code>svelte</code></td
+								><td>3</td><td
+									>使う言語プラグインをカンマで区切った文字列。例は <code>svelte</code></td
 								></tr
 							>
 							<tr><td>4</td><td>実行する処理をカンマで区切った文字列</td></tr>
-							<tr><td>5</td><td>同じ呼び出し内で解析結果を共有するなら <code>true</code></td></tr>
+							<tr
+								><td>5</td><td
+									><code>true</code> なら、処理どうしで解析結果を共有します。<code>false</code>
+									なら、処理ごとに構文解析からやり直します</td
+								></tr
+							>
 						</tbody>
 					</table>
 				</div>
+				<p>言語プラグインは次の四つから選びます。</p>
+				<ul>
+					<li><code>svelte</code>：Svelte ファイルを処理します。</li>
+					<li><code>vue</code>：Vue ファイルを処理します。</li>
+					<li><code>svue</code>：Vue ファイルを Svelte のコンパイラでコンパイルします。</li>
+					<li><code>vuelte</code>：Svelte ファイルを Vue Vapor 向けにコンパイルします。</li>
+				</ul>
 				<p>
 					処理は <code>compile-client</code>、<code>compile-server</code>、<code>format</code
-					>、<code>lint</code> から選びます。コマンドラインで指定する処理名とは異なります。
+					>、<code>lint</code> から選びます。コマンドラインの処理名とは違います。
 				</p>
 				<p>
-					返り値の <code>ok</code> が <code>false</code> なら、引数や実行に問題があります。<code
-						>true</code
-					>
-					でもソースの問題が報告される場合があります。<code>steps</code> 内の各処理の
-					<code>diagnostics</code>
-					も確認してください。生成されたファイルは <code>files</code> に入ります。
+					返り値の <code>ok</code> が <code>false</code> なら、引数か実行に問題があります。理由は
+					<code>message</code> に入ります。<code>true</code> でも、ソースの問題は <code>steps</code>
+					の各処理の <code>diagnostics</code> に入ります。生成したファイルは <code>files</code>
+					に入ります。
 				</p>
 				<p>
-					解析結果の共有は、その呼び出しが終わると終了します。次の呼び出しには引き継がれません。ブラウザ版は一度に
-					1 ファイルを処理します。入力の上限は、ユニコードの8ビット符号化方式で 65,536
-					バイトです。型チェックは提供していません。
+					解析結果の共有は、その呼び出しの中だけです。ブラウザ版は 1 回に 1 ファイルを処理し、入力は
+					UTF-8 で 65,536 バイトまでです。型チェックはできません。
 				</p>
 			</section>
 
 			<section id="limits">
 				<h2>{guideSections[7].title}</h2>
 				<p>
-					このガイドのコンパイル例は Svelte 5 のルーンを使います。Svelte 4
-					の旧構文、アプリの一括ビルド、Vite への接続は、この手順では扱いません。
+					このガイドの例は Svelte 5 のルーンを使います。Svelte 4 の旧構文、アプリ全体のビルド、Vite
+					との接続は扱いません。
 				</p>
 				<p>
-					<code>run</code> は 1 ファイルを処理します。対応していない構文は診断を確認してください。公式ツールと同じ結果になるとは限らないため、既存のプロジェクトに使う前に、処理したいファイルで結果を確認してください。
+					<code>run</code>
+					は 1 ファイルずつ処理します。既存のプロジェクトで使う前に、処理したいファイルで結果を確かめてください。
 				</p>
 				<p>
-					コマンドの終了コードだけでは、ソースに問題がないかを判断できません。現在の <code>run</code
-					> は、診断が出ても正常終了する場合があります。自動検査に組み込むときは、出力内の診断と型チェックの指摘を確認してください。
+					<code>run</code>
+					は、診断や指摘が出ても終了コード 0 で終わります。自動検査に組み込むときは、出力の診断と指摘を調べてください。
 				</p>
 				<ul>
 					<li>
-						処理名が不明というメッセージが出たら、このガイドの <code>--task</code> と指定を比べます。
+						処理名が不明というメッセージが出たら、<code>--task</code>
+						の値をこのガイドの例と比べます。
 					</li>
+					<li>何も出力されないときは、ファイルの拡張子と処理の言語が合っているかを確かめます。</li>
+					<li>型チェックの設定エラーでは、実行ファイルとパッケージのパスを確かめます。</li>
 					<li>
-						出力がない場合は、ファイルの拡張子と、選んだ処理の言語が合っているかを確認します。
-					</li>
-					<li>型チェックの設定エラーでは、実行ファイルとパッケージのパスを確認します。</li>
-					<li>
-						ブラウザ版を読み込めない場合は、開発者ツールで JavaScript と WebAssembly
-						のファイルの配信を確認します。
+						ブラウザ版を読み込めないときは、開発者ツールで JavaScript と WebAssembly
+						のファイルが配信されているかを確かめます。
 					</li>
 				</ul>
 				<p>
-					問題を報告する場合は、<a href="{REPO_URL}/issues">GitHub の課題一覧</a
-					>に、再現できるソース、実行したコマンド、出力、使ったコミットを添えてください。コミットは
-					<code>git rev-parse HEAD</code> で確認できます。
+					問題は <a href="{REPO_URL}/issues">GitHub の課題一覧</a
+					>に報告してください。再現するソース、実行したコマンド、出力、使ったコミットを添えます。コミットは
+					<code>git rev-parse HEAD</code> で分かります。
 				</p>
 				<p>
-					内部の仕組みや処理の追加方法は、<a href="/learn">開発者向けの教材</a>で説明しています。
+					内部の仕組みや処理の追加方法は、<a href="/learn">開発者向けの教材</a>にあります。
 				</p>
 			</section>
 		</div>

@@ -86,19 +86,19 @@
 						>
 					</div>
 					<div class="text-muted">
-						プローブ: {last.probes
-							.map((p) => `${p.slot}${p.stored ? `(${p.stored})` : '(空)'}`)
+						プローブ：{last.probes
+							.map((p) => `${p.slot}${p.stored ? `（${p.stored}）` : '（空）'}`)
 							.join(' → ')}
 					</div>
 				{:else}
 					<div class="text-muted">
-						まだ何もインターンしていません。「次の名前」を押すと、Counter
-						の出力に出てくる名前を順に入れます。
+						まだ何も入っていません。「次の名前」を押すと、Counter（ボタンで数を増やす Svelte
+						のコンポーネント）をコンパイルした出力に出てくる名前を順に入れます。
 					</div>
 				{/if}
 			</div>
 			<div class="mt-4 font-mono text-[11px] tracking-normal text-muted">
-				buf（ends の位置で区切って表示）
+				buffer（ends の位置で区切って表示）
 			</div>
 			<div class="mt-1 flex flex-wrap font-mono text-[12.5px] tracking-normal">
 				{#each replay.i.ends as _, id (id)}
@@ -107,9 +107,9 @@
 					</span>
 				{/each}
 			</div>
-			<div class="mt-3 font-mono text-[11px] tracking-normal text-muted">
+			<code class="mt-3 block font-mono text-[11px] tracking-normal text-muted">
 				ends = [{replay.i.ends.join(', ')}]
-			</div>
+			</code>
 		</div>
 		<div class="min-w-0 p-4">
 			<div class="mb-2 font-mono text-[11px] tracking-normal text-muted">
@@ -137,7 +137,7 @@
 											? 'bg-surface'
 											: 'bg-bg text-muted',
 							]}
-							title="slot {slot}{v ? `: Atom(${v - 1}) "${replay.i.get(v - 1)}"` : ': 空'}"
+							title="スロット {slot}{v ? `：Atom(${v - 1}) "${replay.i.get(v - 1)}"` : '：空'}"
 						>
 							{v ? v - 1 : '·'}
 						</div>
@@ -147,9 +147,10 @@
 		</div>
 	</div>
 	{#snippet caption()}
-		表のマスには、その 配列の位置が指す Atom の番号が入っています（Rust は「番号 + 1」を格納し、0
-		を空として使います）。橙色は直前の intern が調べた 配列の位置です。ハッシュ関数は FxHash
-		ではなく 別のハッシュ関数 なので、どの 配列の位置に入るかは Rust と違いますが、表の形、負荷率
-		0.5 での拡張、線形プローブの順序は同じです。
+		各スロットには Atom の番号を表示します（Rust は「番号 + 1」を入れ、0
+		を空の印にします）。橙色は直前の intern が調べたスロットです。ハッシュ関数は FxHash の代わりに <code
+			>fnv1a</code
+		> を使うので、名前が入るスロットは Rust と違います。表の形、負荷率 0.5 での拡張、線形プローブの順序は
+		Rust と同じです。
 	{/snippet}
 </Figure>

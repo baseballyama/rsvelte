@@ -65,9 +65,9 @@ export const overviewNodes: OverviewNode[] = [
 	{
 		id: 'typecheck',
 		group: 'plugin',
-		label: '型検査',
+		label: '型検査など',
 		code: 'FinishTask',
-		what: '全文書の準備が終わってから一度だけ動く処理を登録します。',
+		what: '型検査のように、全文書の準備が終わってから一度だけ動く処理を登録します。',
 		href: '/learn/kernel/database#facet',
 		source: {
 			path: 'crates/languages/svelte/typecheck/src/registration.rs',
@@ -232,7 +232,7 @@ export const sharedParts: SharedPart[] = [
 	},
 	{
 		id: 'functions',
-		label: '型を決めた関数',
+		label: '設定で渡す関数',
 		module: 'kernel/computation/functions',
 		href: '/learn/kernel#modules',
 	},
@@ -256,7 +256,7 @@ export const sharedParts: SharedPart[] = [
 	},
 	{
 		id: 'structured_data',
-		label: '構造化データ',
+		label: 'JSON',
 		module: 'kernel/output/structured_data',
 		href: '/learn/kernel/structured-data',
 	},
@@ -474,6 +474,6 @@ export const chapterPositions: Record<string, string[]> = {
 
 export function positionLabel(id: string): string {
 	if (id.startsWith('part:'))
-		return `言語を知らない部品：${sharedParts.find((part) => `part:${part.id}` === id)!.label}`;
+		return '言語を知らない部品：' + sharedParts.find((part) => `part:${part.id}` === id)!.label;
 	return overviewNodes.find((node) => node.id === id)!.label;
 }

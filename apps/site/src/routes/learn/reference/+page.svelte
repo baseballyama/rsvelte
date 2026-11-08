@@ -60,7 +60,7 @@
 	}
 </script>
 
-<svelte:head><title>リファレンス — rsvelte Learn</title></svelte:head>
+<svelte:head><title>リファレンス — rsvelte 開発者向けの教材</title></svelte:head>
 
 <header class="mb-8">
 	<span class="font-mono text-[13px] tracking-normal text-muted">付録</span>
@@ -68,7 +68,10 @@
 		リファレンス
 	</h1>
 	<p class="mt-4 max-w-[40em] text-[17px] leading-[1.8] text-fg-2">
-		サイトのビルド時にソースから切り出した項目の一覧です。項目を選ぶと、その場でコードを取得して表示します。テストは除いています。
+		サイトのビルド時に、カーネルとプラグインの Rust
+		ソースから切り出した項目の一覧です。項目を選ぶと、そのコードを読み込んで表示します。見出しはモジュールとそのファイルの行数です。<code
+			>tests</code
+		> モジュールのテストは除きますが、テスト用のファイルにある補助の項目は残ります。
 	</p>
 </header>
 
@@ -98,7 +101,7 @@
 				<h2
 					class="flex items-baseline justify-between border-b border-line-strong pb-1 font-mono text-[13px] font-medium tracking-normal"
 				>
-					<span>{m.key}</span><span class="text-muted">{m.lines} 行</span>
+					<span>{m.key}</span><span class="text-muted">{m.lines} 行のファイル</span>
 				</h2>
 				<ul>
 					{#each m.items as it (it.key)}

@@ -66,17 +66,16 @@
 			<p class="support-label">上の処理を支える共通機能 <span aria-hidden="true">↑</span></p>
 			<section>
 				{@render group('source')}
-				<p class="support-note">木や解析結果から、同じ位置と識別番号を参照します。</p>
+				<p class="support-note">木と解析結果は、同じ位置と識別番号で要素を指します。</p>
 			</section>
 			<section>
 				{@render group('performance')}
-				<p class="support-note">実行する処理を計測し、作業用の保存領域を再利用します。</p>
+				<p class="support-note">処理を計測し、作業用のメモリを再利用します。</p>
 			</section>
 		</div>
 	</div>
 	{#snippet caption()}
-		矢印は処理と結果の流れを表す概念図です。モジュール間の依存関係や、すべてのタスクが同じ順序で機能を使うことを表すものではありません。
-		破線の枠はカーネルが呼び出す言語プラグインの処理です。
+		矢印は処理と結果の流れです。モジュールの依存関係ではなく、どのタスクも同じ順で機能を使うとは限りません。破線の枠は、カーネルが呼び出す言語プラグインの処理です。
 	{/snippet}
 </Figure>
 

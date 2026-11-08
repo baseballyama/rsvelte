@@ -2,7 +2,7 @@
 	import PipelinePlayground from '#lib/widgets/PipelinePlayground.svelte';
 </script>
 
-<svelte:head><title>プレイグラウンド — rsvelte Learn</title></svelte:head>
+<svelte:head><title>プレイグラウンド — rsvelte 開発者向けの教材</title></svelte:head>
 
 <header class="playground-header">
 	<div>
@@ -10,15 +10,15 @@
 		<h1>プレイグラウンド</h1>
 	</div>
 	<p>
-		Svelte と Vue のソースを、ブラウザ上の Rust
-		のパイプラインで処理します。どの処理がどの解析結果を計算し、どれを再利用したかを下の「処理の記録」で比べられます。
+		Svelte と Vue のソースを、ブラウザで動く Rust
+		のパイプラインで処理します。各処理がどの解析結果を計算し、どれを再利用したかは、下の「処理の記録」で比べられます。
 	</p>
 </header>
 
 <PipelinePlayground />
 
 <footer class="playground-footer">
-	<span>Rust を WebAssembly で実行。ソースはブラウザの外に送りません。</span>
+	<span>Rust を WebAssembly で実行します。ソースはブラウザの外に送りません。</span>
 	<nav aria-label="関連する解説">
 		<a href="/learn/kernel#overview">カーネルとプラグインの全体図</a><a
 			href="/learn/kernel/pipeline">パイプラインの仕組み</a

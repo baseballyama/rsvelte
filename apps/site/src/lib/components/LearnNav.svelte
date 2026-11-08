@@ -20,8 +20,8 @@
 		if (first < 0) return [{ title: '章', items: chapters }];
 		return [
 			{ title: 'はじめに', items: chapters.slice(0, first) },
-			{ title: 'カーネルのモジュール', items: chapters.slice(first, last + 1) },
-			{ title: '測って磨く', items: chapters.slice(last + 1) },
+			{ title: 'モジュールごとの解説', items: chapters.slice(first, last + 1) },
+			{ title: '計測・改善・拡張', items: chapters.slice(last + 1) },
 		].filter((g) => g.items.length > 0);
 	});
 </script>
@@ -72,7 +72,7 @@
 	</li>
 {/snippet}
 
-<nav aria-label="Learn の章" class="text-[14px] leading-[1.55]">
+<nav aria-label="教材の章" class="text-[14px] leading-[1.55]">
 	{#each groups as g (g.title)}
 		<p class="eyebrow mt-6 mb-1.5 px-2 first:mt-0">{g.title}</p>
 		<ol class="space-y-px">

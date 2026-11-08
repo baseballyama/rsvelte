@@ -6,9 +6,9 @@
 	import ThemeToggle from './ThemeToggle.svelte';
 
 	const links = [
-		{ href: '/guide', label: '使い方' },
-		{ href: '/why', label: 'なぜrsvelteか' },
-		{ href: '/learn', label: '開発者向け' },
+		{ href: '/guide', label: '使い方ガイド' },
+		{ href: '/why', label: 'rsvelte を作る理由' },
+		{ href: '/learn', label: '開発者向けの教材' },
 		{ href: '/learn/reference', label: 'リファレンス' },
 		{ href: '/learn/playground', label: 'プレイグラウンド' },
 	];
@@ -30,7 +30,7 @@
 	<div
 		class="mx-auto flex h-full max-w-[1440px] items-center gap-3 px-4 whitespace-nowrap sm:gap-6 md:px-8"
 	>
-		<a href="/" class="flex shrink-0 items-center gap-2" aria-label="rsvelte ホーム">
+		<a href="/" class="flex shrink-0 items-center gap-2" aria-label="rsvelte のトップページ">
 			<svg viewBox="0 0 32 32" class="size-[22px]" aria-hidden="true">
 				<rect width="32" height="32" rx="7" class="fill-fg" />
 				<path
@@ -73,7 +73,7 @@
 				aria-keyshortcuts="Meta+K Control+K /"
 			>
 				<Icon name="search" size={15} />
-				<span class="hidden md:inline">ガイド・教材を検索…</span>
+				<span class="hidden md:inline">使い方ガイドと教材を検索…</span>
 				<span class="ml-auto hidden items-center gap-0.5 sm:flex"
 					><span class="kbd">{mac ? '⌘' : 'Ctrl'}</span><span class="kbd">K</span></span
 				>

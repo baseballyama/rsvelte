@@ -1,23 +1,23 @@
 const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	'kernel/source': {
 		title: 'ソースの記録',
-		summary: '位置、名前、字句、構文木の識別番号を扱う機能をまとめます。',
+		summary: '位置、名前、字句、構文木の識別番号を扱います。',
 	},
 	'kernel/computation': {
 		title: '計算と実行',
-		summary: '計算結果の保存と、処理の登録・実行をまとめます。',
+		summary: '計算結果の保存と、処理の登録と実行を扱います。',
 	},
 	'kernel/diagnostics': {
 		title: '問題の報告',
-		summary: 'どのタスクも使う、エラーや警告の情報をまとめます。',
+		summary: 'どのタスクも使うエラーや警告の型です。',
 	},
 	'kernel/output': {
 		title: '文字列の出力',
-		summary: 'コードの整形、位置の対応、構造化データの出力をまとめます。',
+		summary: '出力文字列の組み立てと位置の対応、JSON の書き出し、タスクの出力ファイルを扱います。',
 	},
 	'kernel/performance': {
 		title: '性能の計測と改善',
-		summary: '時間とメモリの計測、作業用の保存領域の再利用をまとめます。',
+		summary: '時間とメモリの計測と、作業用メモリの再利用を扱います。',
 	},
 	'document_printer/width': {
 		title: '文字の表示幅',
@@ -33,7 +33,7 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	},
 	'kernel/source/tokens': {
 		title: '字句の記録',
-		summary: '空白やコメントを含め、元のソースの文字列を保持します。',
+		summary: '空白やコメントを含むトークンを並べ、元のソースを欠けなく持ちます。',
 	},
 	'kernel/computation/database': {
 		title: '計算結果の保存と再利用',
@@ -57,11 +57,12 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 			'依存関係が正しくなければ、二つの実行の入口がどちらも処理を始める前に止まることを確かめます。',
 	},
 	'kernel/computation/functions': {
-		title: '型を決めた関数',
-		summary: '入力と出力の型、名前、版を決めた関数を表し、呼び出しの失敗をエラーとして返します。',
+		title: '設定で渡す関数',
+		summary:
+			'設定から渡される外部の関数（Svelte の cssHash など）を、入力と出力の型、名前、版を決めて呼び、失敗をエラーで返します。',
 	},
 	'kernel/computation/functions/tests': {
-		title: '型を決めた関数のテスト',
+		title: '設定で渡す関数のテスト',
 		summary:
 			'借用した入力を受け取れること、関数を持つ値が生き続けること、エラーがそのまま返ることを確かめます。',
 	},
@@ -105,12 +106,12 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		summary: '出力文字列を組み立て、生成した位置と元のソースの位置を対応させます。',
 	},
 	'kernel/output/structured_data': {
-		title: '構造化データの書き出し',
-		summary: '文字列・数値・配列・オブジェクトを、直接テキスト形式に書き出します。',
+		title: 'JSON の書き出し',
+		summary: '文字列、数値、配列、オブジェクトを、値の木を作らずに JSON で書き出します。',
 	},
 	'kernel/output/task_files': {
 		title: 'タスクの出力ファイル',
-		summary: 'タスクが文書ごとに残すファイルの名前と中身を決め、診断を構造化データで書き出します。',
+		summary: 'タスクが文書ごとに残すファイルの名前と中身を決め、診断を JSON で書き出します。',
 	},
 	'kernel/performance/measurement': {
 		title: '処理時間とメモリの計測',
@@ -118,11 +119,12 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	},
 	'kernel/performance/buffer_pool': {
 		title: '作業用メモリの再利用',
-		summary: '処理が終わった配列の保存領域を、次の文書の処理で使い回します。',
+		summary: '処理が終わった配列の領域を、同じスレッドの次の文書で使い回します。',
 	},
 	'kernel/source/hashing': {
 		title: 'ハッシュ値の計算',
-		summary: '入力文字列から、公式ツールと同じ識別用のハッシュ値を作ります。',
+		summary:
+			'256 ビットのハッシュ値を計算し、Vue の公式プラグインと同じスタイルの識別子を作ります。',
 	},
 };
 

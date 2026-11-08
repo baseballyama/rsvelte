@@ -22,7 +22,7 @@
 			type="button"
 			class="flex items-center gap-1.5 rounded px-2 py-1 hover:bg-surface hover:text-fg"
 			onclick={copy}
-			aria-label="{label}をコピー"
+			aria-label="「{label}」をコピー"
 		>
 			<Icon name="copy" size={14} />コピー
 		</button>

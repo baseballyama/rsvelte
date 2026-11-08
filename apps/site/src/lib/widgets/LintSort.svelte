@@ -54,7 +54,7 @@
 				</ol>
 			</div>
 			<div>
-				<div class="text-muted">run の戻り値（start_offset で安定ソート）→ 行:列</div>
+				<div class="text-muted">run の戻り値（start_offset で安定ソート）と行・列</div>
 				<ol class="mt-1.5 space-y-0.5">
 					{#each sorted as f (f.seq)}
 						<li>
@@ -67,7 +67,7 @@
 		</div>
 	</div>
 	{#snippet caption()}
-		同じ位置の指摘は、先に走ったルールのものが先に来ます。列は ESLint と同じく 1 から数えた
-		ユニコードの16ビット符号化方式 の単位で、😀 のあとの x は 3 列目です。
+		@ のあとの数は、指摘の開始位置（UTF-8 のバイト位置）です。列は ESLint と同じく 1 から数えた
+		UTF-16 の単位なので、😀（4 バイト、UTF-16 で 2 単位）のあとの x は 3 列目です。
 	{/snippet}
 </Figure>

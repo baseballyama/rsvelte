@@ -103,7 +103,7 @@
 						class="relative mt-1 overflow-visible border-r border-dashed border-line-strong text-[13px] leading-[1.65]"
 						style:width="{width}ch"
 						style:tab-size={2}>{#if wasmError}<span class="text-warn"
-								>WebAssembly の初期化に失敗しました: {wasmError}</span
+								>WebAssembly の初期化に失敗しました：{wasmError}</span
 							>{:else if !result}<span class="text-muted">WebAssembly を読み込んでいます…</span
 							>{:else if result.ok}{#each lines as l, i (i)}<span
 									class={['block', stringWidth(l.replace(/\t/g, '  ')) > width && 'text-warn']}
@@ -169,9 +169,9 @@
 		</div>
 	{/if}
 	{#snippet caption()}
-		Rust の <code>rsvelte_kernel::output::document</code> を WebAssembly
-		としてそのまま動かしています。下の表は、プリンタが group と fill
-		でした判断を順に並べたものです。幅を動かすと、どこで
+		Rust の <code>rsvelte_document_printer</code> を WebAssembly
+		でそのまま動かしています。下の表は、プリンタが group と fill
+		で下した判断の順です。幅を動かすと、どこで
 		<code>fits</code> の答えが変わるかが分かります。
 	{/snippet}
 </Figure>

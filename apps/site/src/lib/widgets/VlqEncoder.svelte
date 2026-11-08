@@ -21,7 +21,7 @@
 			<input class="field w-32 py-1" type="number" bind:value />
 		</label>
 		<p class="mt-3 text-fg-2">
-			符号を最下位ビットへ: {Math.trunc(value || 0)} → {shifted} =
+			符号を最下位ビットへ：{Math.trunc(value || 0)} → {shifted} =
 			<span class="tnum">{shifted.toString(2)}</span><sub class="text-muted">2</sub>
 		</p>
 		<div class="mt-3 flex flex-wrap gap-2">
@@ -37,9 +37,8 @@
 		</div>
 	</div>
 	{#snippet caption()}
-		5 ビットずつ下の桁から取り、続きがあれば 6 ビット目（橙）を立てて base64 の 1
-		文字にします。ボタンの値は、カーネルの 可変長の整数表現 テストと同じ入力です（<code
-			>"A C D gB w+B"</code
-		>）。
+		値を 5 ビットずつ下の桁から取り、続きがあれば 6 ビット目（橙）を立てて base64 の 1
+		文字にします。ボタンの値 0、1、−1、16、1000 はカーネルのテストと同じ入力で、テストは
+		<code>"A C D gB w+B"</code> が出ることを確かめます。
 	{/snippet}
 </Figure>
