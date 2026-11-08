@@ -1,6 +1,6 @@
 [package]
-name = "rsvelte_vue"
-description = "Vue single-file components as a language plugin"
+name = "rsvelte_vue_semantic"
+description = "The Vue template as compiler-core reads it, and scope facts"
 version = "0.0.0"
 edition.workspace = true
 publish = false
@@ -10,6 +10,7 @@ doctest = false
 
 [dependencies]
 rsvelte_kernel.workspace = true
+rsvelte_vue_syntax.workspace = true
 rsvelte_typescript_syntax.workspace = true
 rsvelte_typescript_semantic.workspace = true
 rsvelte_css_syntax.workspace = true

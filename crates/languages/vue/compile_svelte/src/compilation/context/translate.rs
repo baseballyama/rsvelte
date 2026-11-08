@@ -4,8 +4,8 @@ use super::{
 
 /// The whole translation: the script first, as the template reads what it declares.
 pub(crate) fn translate(
-    sfc: &rsvelte_vue::syntax_tree::SingleFileComponent,
-    compiler_syntax_tree: Option<&rsvelte_vue::compiler_syntax_tree::CompilerSyntaxTree>,
+    sfc: &rsvelte_vue_syntax::syntax_tree::SingleFileComponent,
+    compiler_syntax_tree: Option<&rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTree>,
     resolution: &Resolution,
     source_text: &str,
     target: Target,

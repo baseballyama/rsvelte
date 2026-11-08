@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use rsvelte_vue::syntax_tree::TokenType;
+use rsvelte_vue_syntax::syntax_tree::TokenType;
 
 fn inputs(dir: &Path, out: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -27,7 +27,7 @@ fn every_component_is_its_tokens() {
     let mut wrong = Vec::new();
     for f in &files {
         let source_text = std::fs::read_to_string(f).expect("fixture inputs are UTF-8");
-        let c = match rsvelte_vue::parse::parse(&source_text) {
+        let c = match rsvelte_vue_syntax::parse::parse(&source_text) {
             Ok(c) => c,
             Err(e) => {
                 wrong.push(format!("{}: {} at {:?}", f.display(), e.message, e.span));

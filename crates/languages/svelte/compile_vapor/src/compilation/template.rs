@@ -1,5 +1,5 @@
 //! The template: the Svelte HIR, read with Svelte's meaning, as a Vue template HIR built through
-//! [`rsvelte_vue::compiler_syntax_tree::CompilerSyntaxTreeBuilder`].
+//! [`rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTreeBuilder`].
 //!
 //! Text is what Svelte's [`clean_nodes`] leaves; the Vue HIR is post-condense, so the Vue compiler
 //! keeps it as is. Expressions are copied into the component's tree; a reference to a prop becomes
@@ -26,10 +26,10 @@ use rsvelte_typescript_syntax::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator,
 };
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::compiler_syntax_tree::{
+use rsvelte_vue_semantic::compiler_syntax_tree::{
     self as vue, CompilerSyntaxTreeBuilder, Name, PropertyKind, Text,
 };
-use rsvelte_vue::syntax_tree::{DirectiveExpression, DirectiveName, LoopExpression};
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName, LoopExpression};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::helpers::{self, Helper};

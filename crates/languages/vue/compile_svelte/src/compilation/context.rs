@@ -8,7 +8,7 @@ use rsvelte_typescript_compile::copy::{Rewrite, copy, copy_node};
 use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind, ScopeIdentifier};
 use rsvelte_typescript_syntax::syntax_tree::flag;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::resolve::{BindingType, Resolution};
+use rsvelte_vue_semantic::resolve::{BindingType, Resolution};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::Translation;

@@ -745,7 +745,6 @@ dependencies = [
  "rsvelte_svelte_parser",
  "rsvelte_svelte_typecheck",
  "rsvelte_svelte_typescript_projection",
- "rsvelte_svue",
  "rsvelte_test_harness",
  "rsvelte_typescript_check",
  "rsvelte_typescript_compile",
@@ -753,11 +752,12 @@ dependencies = [
  "rsvelte_typescript_lint",
  "rsvelte_typescript_semantic",
  "rsvelte_typescript_syntax",
- "rsvelte_vue",
  "rsvelte_vue_check",
  "rsvelte_vue_compile",
+ "rsvelte_vue_compile_svelte",
  "rsvelte_vue_format",
  "rsvelte_vue_lint",
+ "rsvelte_vue_semantic",
  "serde_json",
 ]
 
@@ -853,12 +853,13 @@ dependencies = [
  "rsvelte_svelte_format",
  "rsvelte_svelte_lint",
  "rsvelte_svelte_typecheck",
- "rsvelte_svue",
- "rsvelte_vue",
  "rsvelte_vue_check",
  "rsvelte_vue_compile",
+ "rsvelte_vue_compile_svelte",
  "rsvelte_vue_format",
  "rsvelte_vue_lint",
+ "rsvelte_vue_semantic",
+ "rsvelte_vue_syntax",
  "wasm-bindgen",
 ]
 
@@ -930,7 +931,8 @@ dependencies = [
  "rsvelte_typescript_compile",
  "rsvelte_typescript_semantic",
  "rsvelte_typescript_syntax",
- "rsvelte_vue",
+ "rsvelte_vue_semantic",
+ "rsvelte_vue_syntax",
  "rustc-hash",
 ]
 
@@ -1061,22 +1063,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsvelte_svue"
-version = "0.0.0"
-dependencies = [
- "rsvelte_kernel",
- "rsvelte_plugin_interface",
- "rsvelte_svelte",
- "rsvelte_svelte_compile",
- "rsvelte_test_harness",
- "rsvelte_typescript_compile",
- "rsvelte_typescript_semantic",
- "rsvelte_typescript_syntax",
- "rsvelte_vue",
- "rustc-hash",
-]
-
-[[package]]
 name = "rsvelte_test_harness"
 version = "0.0.0"
 dependencies = [
@@ -1162,18 +1148,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsvelte_vue"
-version = "0.0.0"
-dependencies = [
- "rsvelte_css_syntax",
- "rsvelte_html_syntax",
- "rsvelte_kernel",
- "rsvelte_typescript_semantic",
- "rsvelte_typescript_syntax",
- "rustc-hash",
-]
-
-[[package]]
 name = "rsvelte_vue_check"
 version = "0.0.0"
 dependencies = [
@@ -1183,7 +1157,8 @@ dependencies = [
  "rsvelte_typescript_check",
  "rsvelte_typescript_semantic",
  "rsvelte_typescript_syntax",
- "rsvelte_vue",
+ "rsvelte_vue_semantic",
+ "rsvelte_vue_syntax",
  "rustc-hash",
  "serde",
 ]
@@ -1199,9 +1174,27 @@ dependencies = [
  "rsvelte_typescript_compile",
  "rsvelte_typescript_semantic",
  "rsvelte_typescript_syntax",
- "rsvelte_vue",
+ "rsvelte_vue_semantic",
+ "rsvelte_vue_syntax",
  "rustc-hash",
  "sha2",
+]
+
+[[package]]
+name = "rsvelte_vue_compile_svelte"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_plugin_interface",
+ "rsvelte_svelte",
+ "rsvelte_svelte_compile",
+ "rsvelte_test_harness",
+ "rsvelte_typescript_compile",
+ "rsvelte_typescript_semantic",
+ "rsvelte_typescript_syntax",
+ "rsvelte_vue_semantic",
+ "rsvelte_vue_syntax",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -1215,7 +1208,7 @@ dependencies = [
  "rsvelte_test_harness",
  "rsvelte_typescript_format",
  "rsvelte_typescript_syntax",
- "rsvelte_vue",
+ "rsvelte_vue_syntax",
 ]
 
 [[package]]
@@ -1231,7 +1224,33 @@ dependencies = [
  "rsvelte_typescript_lint",
  "rsvelte_typescript_semantic",
  "rsvelte_typescript_syntax",
- "rsvelte_vue",
+ "rsvelte_vue_semantic",
+ "rsvelte_vue_syntax",
+]
+
+[[package]]
+name = "rsvelte_vue_semantic"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_css_syntax",
+ "rsvelte_html_syntax",
+ "rsvelte_kernel",
+ "rsvelte_typescript_semantic",
+ "rsvelte_typescript_syntax",
+ "rsvelte_vue_syntax",
+ "rustc-hash",
+]
+
+[[package]]
+name = "rsvelte_vue_syntax"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_css_syntax",
+ "rsvelte_html_syntax",
+ "rsvelte_kernel",
+ "rsvelte_typescript_semantic",
+ "rsvelte_typescript_syntax",
+ "rustc-hash",
 ]
 
 [[package]]

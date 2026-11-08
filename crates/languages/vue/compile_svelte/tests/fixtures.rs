@@ -6,8 +6,8 @@ use rsvelte_kernel::computation::registry::Registry;
 
 fn main() -> ExitCode {
     let mut registry = Registry::new();
-    rsvelte_vue::register(&mut registry);
-    rsvelte_svue::register(&mut registry);
+    rsvelte_vue_semantic::register(&mut registry);
+    rsvelte_vue_compile_svelte::register(&mut registry);
     rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
         .snapshot("svue.compile/client", "client")
         .snapshot("svue.compile/server", "server")

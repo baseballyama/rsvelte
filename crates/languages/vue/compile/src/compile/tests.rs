@@ -3,9 +3,9 @@ use super::*;
 fn refusal(script: &str, template: &str) -> Option<&'static str> {
     let source_text =
         format!("<script setup>\n{script}\n</script>\n<template>{template}</template>\n");
-    let c = rsvelte_vue::parse::parse(&source_text).expect("parses");
-    let compiler_syntax_tree = rsvelte_vue::compiler_syntax_tree::lower(&c, &source_text);
-    let res = rsvelte_vue::resolve::resolve(
+    let c = rsvelte_vue_syntax::parse::parse(&source_text).expect("parses");
+    let compiler_syntax_tree = rsvelte_vue_semantic::compiler_syntax_tree::lower(&c, &source_text);
+    let res = rsvelte_vue_semantic::resolve::resolve(
         &c.javascript,
         c.program,
         compiler_syntax_tree.as_ref(),
@@ -19,9 +19,9 @@ fn refusal(script: &str, template: &str) -> Option<&'static str> {
 fn output(script: &str, template: &str) -> String {
     let source_text =
         format!("<script setup>\n{script}\n</script>\n<template>{template}</template>\n");
-    let c = rsvelte_vue::parse::parse(&source_text).expect("parses");
-    let compiler_syntax_tree = rsvelte_vue::compiler_syntax_tree::lower(&c, &source_text);
-    let res = rsvelte_vue::resolve::resolve(
+    let c = rsvelte_vue_syntax::parse::parse(&source_text).expect("parses");
+    let compiler_syntax_tree = rsvelte_vue_semantic::compiler_syntax_tree::lower(&c, &source_text);
+    let res = rsvelte_vue_semantic::resolve::resolve(
         &c.javascript,
         c.program,
         compiler_syntax_tree.as_ref(),

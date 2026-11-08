@@ -9,14 +9,14 @@ use rsvelte_kernel::source::interning::Atom;
 use rsvelte_typescript_semantic::scope::{self, HostRoot, HostScope, Semantic};
 use rsvelte_typescript_syntax::syntax_tree::flag;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_vue_syntax::syntax_tree::{
+    AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent, TemplateNode,
+    TemplateNodeIdentifier,
+};
 use rustc_hash::FxHashMap;
 
 use crate::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind, PropertyKind,
-};
-use crate::syntax_tree::{
-    AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent, TemplateNode,
-    TemplateNodeIdentifier,
 };
 
 /// compiler-core's `BindingTypes`, the ones `<script setup>` produces.

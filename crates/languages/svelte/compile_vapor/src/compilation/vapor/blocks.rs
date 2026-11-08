@@ -1,8 +1,8 @@
 use rsvelte_typescript_compile::copy::{Verbatim, copy};
-use rsvelte_vue::compiler_syntax_tree::{
+use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, Directive, NodeKind, PropertyKind,
 };
-use rsvelte_vue::syntax_tree::{DirectiveExpression, DirectiveName};
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{Builder, NodeIdentifier, SYNTHETIC};
 

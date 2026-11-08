@@ -1,4 +1,4 @@
-use rsvelte_vue::semantic::expressions::is_global;
+use rsvelte_vue_semantic::expressions::is_global;
 
 use super::{
     BindingType, CAN_CACHE, CAN_SKIP_PATCH, CAN_STRINGIFY, DirectiveName, Exp, Helper, Kind,

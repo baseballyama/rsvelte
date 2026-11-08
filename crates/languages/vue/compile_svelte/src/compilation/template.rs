@@ -13,11 +13,11 @@ use rsvelte_typescript_syntax::operators::{
 };
 use rsvelte_typescript_syntax::syntax_tree::flag;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::compiler_syntax_tree::{
+use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, Directive, Element, NodeKind, Property,
     PropertyKind, TagType,
 };
-use rsvelte_vue::syntax_tree::{DirectiveExpression, DirectiveName};
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 use rustc_hash::FxHashMap;
 
 use crate::context::{Class, Helper, Info, Names, R, Rewriter, span_of, unsupported};

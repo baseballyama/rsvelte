@@ -54,7 +54,7 @@ impl T<'_, '_> {
                 el.tag.span(),
             ));
         }
-        let rsvelte_vue::compiler_syntax_tree::Name::Source(name) = el.tag else {
+        let rsvelte_vue_semantic::compiler_syntax_tree::Name::Source(name) = el.tag else {
             return Err(unsupported("a spelled tag name", el.tag.span()));
         };
         let tag = name.text(source_text);

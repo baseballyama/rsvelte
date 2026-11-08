@@ -15,11 +15,11 @@ use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_semantic::scope::ScopeIdentifier;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
-use rsvelte_vue::resolve::Resolution;
-use rsvelte_vue::semantic::expressions::{
+use rsvelte_vue_semantic::expressions::{
     camelize, can_prefix, collect_identifiers, is_simple_identifier, to_handler_key,
 };
-use rsvelte_vue::syntax_tree::{
+use rsvelte_vue_semantic::resolve::Resolution;
+use rsvelte_vue_syntax::syntax_tree::{
     AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent, TemplateNode,
     TemplateNodeIdentifier,
 };
@@ -166,7 +166,7 @@ impl<'a> Projector<'a> {
                 span,
                 ..
             } => {
-                let condition = rsvelte_vue::resolve::if_directive(self.c, identifier);
+                let condition = rsvelte_vue_semantic::resolve::if_directive(self.c, identifier);
                 let for_exp = self.c.directive(attributes, DirectiveName::For);
                 match (condition, for_exp) {
                     (Some(_), Some((a, _))) => {
@@ -205,7 +205,7 @@ impl<'a> Projector<'a> {
 
     fn open_branch(
         &mut self,
-        attributes: rsvelte_vue::syntax_tree::Range,
+        attributes: rsvelte_vue_syntax::syntax_tree::Range,
         dir: DirectiveName,
     ) -> R<()> {
         let (a, d) = self
@@ -240,7 +240,7 @@ impl<'a> Projector<'a> {
     fn element(
         &mut self,
         name: Span,
-        attributes: rsvelte_vue::syntax_tree::Range,
+        attributes: rsvelte_vue_syntax::syntax_tree::Range,
         end_tag: bool,
     ) -> R<()> {
         let tag = name.text(self.source_text);

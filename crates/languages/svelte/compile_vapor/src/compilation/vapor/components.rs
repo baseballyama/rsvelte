@@ -1,5 +1,5 @@
-use rsvelte_vue::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind, PropertyKind};
-use rsvelte_vue::syntax_tree::DirectiveExpression;
+use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind, PropertyKind};
+use rsvelte_vue_syntax::syntax_tree::DirectiveExpression;
 
 use super::{Builder, NodeIdentifier, SYNTHETIC};
 

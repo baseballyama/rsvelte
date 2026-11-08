@@ -1,0 +1,20 @@
+[package]
+name = "rsvelte_vue_syntax"
+description = "Vue single-file component trees and their parser"
+version = "0.0.0"
+edition.workspace = true
+publish = false
+
+[lib]
+doctest = false
+
+[dependencies]
+rsvelte_kernel.workspace = true
+rsvelte_typescript_syntax.workspace = true
+rsvelte_typescript_semantic.workspace = true
+rsvelte_css_syntax.workspace = true
+rsvelte_html_syntax.workspace = true
+rustc-hash.workspace = true
+
+[lints]
+workspace = true

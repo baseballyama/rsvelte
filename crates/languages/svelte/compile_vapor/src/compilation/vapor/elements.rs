@@ -1,5 +1,5 @@
-use rsvelte_vue::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind, PropertyKind};
-use rsvelte_vue::syntax_tree::{DirectiveExpression, DirectiveName};
+use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind, PropertyKind};
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{Builder, Namespace, NodeIdentifier, SYNTHETIC};
 
@@ -200,7 +200,8 @@ impl Builder<'_> {
             let fragment = self.keyed_fragment(key, render);
             return self.declare(fragment, body);
         }
-        if tag == "template" && el.tag_type == rsvelte_vue::compiler_syntax_tree::TagType::Template
+        if tag == "template"
+            && el.tag_type == rsvelte_vue_semantic::compiler_syntax_tree::TagType::Template
         {
             let children = self.list(tree.children(el.children), body);
             return self.to.array(&children, SYNTHETIC);
@@ -401,7 +402,7 @@ impl Builder<'_> {
 
     fn static_text(
         &mut self,
-        element: &rsvelte_vue::compiler_syntax_tree::Element,
+        element: &rsvelte_vue_semantic::compiler_syntax_tree::Element,
         body: &mut Vec<NodeIdentifier>,
     ) -> NodeIdentifier {
         let property = &self.input.compiler_syntax_tree.props(element.props)[0];

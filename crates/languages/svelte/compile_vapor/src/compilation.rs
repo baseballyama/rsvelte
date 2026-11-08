@@ -20,7 +20,7 @@ pub struct Translation {
     pub javascript: SyntaxTree,
     pub script: NodeIdentifier,
     pub module_script: Option<NodeIdentifier>,
-    pub compiler_syntax_tree: rsvelte_vue::compiler_syntax_tree::CompilerSyntaxTree,
+    pub compiler_syntax_tree: rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTree,
     pub server: bool,
     pub stylesheet: Option<String>,
     pub stylesheet_hash: Option<String>,
@@ -31,13 +31,13 @@ pub struct Translation {
     pub destroy: bool,
     pub helpers: Vec<helpers::Helper>,
     pub namespaces: rustc_hash::FxHashMap<
-        rsvelte_vue::compiler_syntax_tree::CompilerNodeIdentifier,
+        rsvelte_vue_semantic::compiler_syntax_tree::CompilerNodeIdentifier,
         rsvelte_svelte_compile::render_plan::Namespace,
     >,
     pub animation_loops:
-        rustc_hash::FxHashSet<rsvelte_vue::compiler_syntax_tree::CompilerNodeIdentifier>,
+        rustc_hash::FxHashSet<rsvelte_vue_semantic::compiler_syntax_tree::CompilerNodeIdentifier>,
     pub scopes: rustc_hash::FxHashMap<
-        rsvelte_vue::compiler_syntax_tree::CompilerNodeIdentifier,
+        rsvelte_vue_semantic::compiler_syntax_tree::CompilerNodeIdentifier,
         NodeIdentifier,
     >,
 }
@@ -188,7 +188,7 @@ pub fn translate(
 ///
 /// The Vue port's refusal, as a `vuelte_unsupported` [`Diagnostic`].
 pub fn compile(t: &Translation, source_text: &str, _path: &str) -> R<String> {
-    let resolution = rsvelte_vue::resolve::resolve_with_module(
+    let resolution = rsvelte_vue_semantic::resolve::resolve_with_module(
         &t.javascript,
         t.script,
         t.module_script,

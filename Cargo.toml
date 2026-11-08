@@ -32,8 +32,9 @@ rsvelte_svelte_compiler_syntax_tree = { path = "crates/languages/svelte/compiler
 rsvelte_svelte_semantic = { path = "crates/languages/svelte/semantic" }
 rsvelte_html_syntax = { path = "crates/languages/html/syntax" }
 rsvelte_html_lint = { path = "crates/languages/html/lint" }
-rsvelte_vue = { path = "crates/languages/vue/core" }
-rsvelte_svue = { path = "crates/languages/vue/compile_svelte" }
+rsvelte_vue_syntax = { path = "crates/languages/vue/syntax" }
+rsvelte_vue_semantic = { path = "crates/languages/vue/semantic" }
+rsvelte_vue_compile_svelte = { path = "crates/languages/vue/compile_svelte" }
 rsvelte_svelte_compile_vapor = { path = "crates/languages/svelte/compile_vapor" }
 rsvelte_typescript_format = { path = "crates/languages/typescript/format" }
 rsvelte_typescript_lint = { path = "crates/languages/typescript/lint" }

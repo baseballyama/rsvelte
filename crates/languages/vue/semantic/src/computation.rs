@@ -1,30 +1,11 @@
+//! Cached artifacts and plugin registration.
+
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
-use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_kernel::source::document::Document;
+use rsvelte_vue_syntax::Parsed;
 
-use crate::{compiler_syntax_tree, parse, resolve, syntax_tree};
-
-#[must_use]
-pub fn matches(document: &Document) -> bool {
-    std::path::Path::new(&document.path)
-        .extension()
-        .is_some_and(|e| e == "vue")
-}
-
-#[derive(Debug)]
-pub struct Parsed;
-
-impl Artifact for Parsed {
-    type Output = Result<syntax_tree::SingleFileComponent, Diagnostic>;
-
-    const NAME: &'static str = "vue.parse";
-
-    fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        parse::parse(context.source_text())
-    }
-}
+use crate::{compiler_syntax_tree, resolve};
 
 #[derive(Debug)]
 pub struct Lowered;
@@ -63,18 +44,16 @@ impl Artifact for Resolved {
 }
 
 pub static PLUGIN: Plugin = Plugin {
-    identifier: "vue",
+    identifier: "vue.semantic",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "typescript.syntax",
+        identifier: "vue.syntax",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
 
 pub fn register(reg: &mut Registry) {
     reg.plugin(&PLUGIN);
-    rsvelte_typescript_syntax::register(reg);
-    reg.artifact::<Parsed>()
-        .artifact::<Lowered>()
-        .artifact::<Resolved>();
+    rsvelte_vue_syntax::register(reg);
+    reg.artifact::<Lowered>().artifact::<Resolved>();
 }

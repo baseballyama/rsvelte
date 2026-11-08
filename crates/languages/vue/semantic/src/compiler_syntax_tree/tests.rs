@@ -3,7 +3,7 @@ use rsvelte_kernel::index::TypedIndex;
 use super::*;
 
 fn compiler_syntax_tree(source_text: &str) -> (SingleFileComponent, CompilerSyntaxTree) {
-    let c = crate::parse::parse(source_text).expect("parses");
+    let c = rsvelte_vue_syntax::parse::parse(source_text).expect("parses");
     let h = lower(&c, source_text).expect("a template");
     (c, h)
 }

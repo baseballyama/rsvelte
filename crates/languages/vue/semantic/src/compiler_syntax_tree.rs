@@ -1,8 +1,8 @@
 //! The template's HIR: the tree compiler-core's `baseParse` returns, which its transforms read.
 //!
 //! Compilation and name resolution read only this, so any frontend that builds it can be compiled.
-//! The Vue frontend builds it from the surface tree ([`crate::syntax_tree`]) in [`lower`]. What
-//! changes on the way is what `baseParse` does beyond tokenizing:
+//! The Vue frontend builds it from the surface tree ([`rsvelte_vue_syntax::syntax_tree`]) in
+//! [`lower`]. What changes on the way is what `baseParse` does beyond tokenizing:
 //!
 //! - text is decoded and its whitespace condensed (`condenseWhitespace`), and the whitespace-only
 //!   text condensing removes is gone;
@@ -25,8 +25,7 @@ use rsvelte_kernel::index::{IndexRange, IndexVector};
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_syntax::NodeIdentifier;
-
-use crate::syntax_tree::{
+use rsvelte_vue_syntax::syntax_tree::{
     self, AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent, TemplateNode,
     TemplateNodeIdentifier,
 };

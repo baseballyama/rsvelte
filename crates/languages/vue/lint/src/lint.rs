@@ -12,8 +12,10 @@ use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_typescript_lint::JavaScriptFacts;
 use rsvelte_typescript_semantic::scope::{DeclarationKind, HostRoot};
-use rsvelte_vue::resolve::Resolution;
-use rsvelte_vue::syntax_tree::{AttributeKind, DirectiveName, SingleFileComponent, TemplateNode};
+use rsvelte_vue_semantic::resolve::Resolution;
+use rsvelte_vue_syntax::syntax_tree::{
+    AttributeKind, DirectiveName, SingleFileComponent, TemplateNode,
+};
 
 #[derive(Debug)]
 pub struct RuleContext<'a> {

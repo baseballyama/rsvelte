@@ -1,6 +1,6 @@
 use rsvelte_typescript_syntax::syntax_tree::flag;
-use rsvelte_vue::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind, PropertyKind};
-use rsvelte_vue::syntax_tree::{DirectiveExpression, DirectiveName};
+use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind, PropertyKind};
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 
 use super::{Builder, NodeIdentifier, SYNTHETIC, Verbatim, copy};
 
@@ -247,7 +247,7 @@ impl Builder<'_> {
             return self.server_async(value, asynchronous);
         }
         if tag == "template"
-            && element.tag_type == rsvelte_vue::compiler_syntax_tree::TagType::Template
+            && element.tag_type == rsvelte_vue_semantic::compiler_syntax_tree::TagType::Template
         {
             return self.server_list(tree.children(element.children));
         }

@@ -5,8 +5,8 @@ use rsvelte_svelte_compile::render_plan::Namespace;
 use rsvelte_typescript_compile::copy::{Verbatim, copy};
 use rsvelte_typescript_syntax::syntax_tree::flag;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
-use rsvelte_vue::resolve::{Resolution, call_name};
+use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+use rsvelte_vue_semantic::resolve::{Resolution, call_name};
 
 use super::{Translation, helpers};
 

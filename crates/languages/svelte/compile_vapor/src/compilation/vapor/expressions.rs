@@ -3,7 +3,7 @@ pub(super) use asynchronous::script_getter;
 use rsvelte_typescript_compile::copy::{Rewrite, copy};
 use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind};
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::resolve::{BindingType, Resolution};
+use rsvelte_vue_semantic::resolve::{BindingType, Resolution};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::Builder;
@@ -186,10 +186,11 @@ impl ExpressionRewrite<'_> {
             .and_then(|a| self.resolution.binding_type(a));
         let state = declaration.initializer(from).is_some_and(|initializer| {
             if let Kind::Await(value) = from.kind(initializer) {
-                return rsvelte_vue::resolve::call_name(from, value) == Some("$$async_derived");
+                return rsvelte_vue_semantic::resolve::call_name(from, value)
+                    == Some("$$async_derived");
             }
             matches!(
-                rsvelte_vue::resolve::call_name(from, initializer),
+                rsvelte_vue_semantic::resolve::call_name(from, initializer),
                 Some("$$ref" | "$$computed" | "$$prop_cell")
             )
         });

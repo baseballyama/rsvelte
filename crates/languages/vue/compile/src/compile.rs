@@ -12,9 +12,9 @@ use rsvelte_typescript_compile::copy::{Rewrite, Verbatim, copy};
 use rsvelte_typescript_semantic::scope::{DeclarationKind, ScopeIdentifier};
 use rsvelte_typescript_syntax::syntax_tree::flag;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::compiler_syntax_tree::CompilerSyntaxTree;
-use rsvelte_vue::resolve::{BindingType, Resolution, call_name, is_static};
-use rsvelte_vue::syntax_tree::SingleFileComponent;
+use rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTree;
+use rsvelte_vue_semantic::resolve::{BindingType, Resolution, call_name, is_static};
+use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
 
 type R<T> = Result<T, Unsupported>;
 
@@ -29,7 +29,7 @@ pub struct Output {
 /// A component as the compiler reads it, whatever syntax it was written in.
 ///
 /// What a name in its expressions refers to is on the [`Resolution`] built from the same tree and
-/// HIR ([`rsvelte_vue::resolve::resolve`]).
+/// HIR ([`rsvelte_vue_semantic::resolve::resolve`]).
 #[derive(Debug)]
 pub struct CompileInput<'a> {
     /// Every JavaScript expression of the component, script and template.
@@ -53,7 +53,7 @@ pub struct StyleInput<'a> {
 
 impl<'a> CompileInput<'a> {
     /// The Vue frontend's input: the parsed component and its HIR
-    /// ([`rsvelte_vue::compiler_syntax_tree::lower`]).
+    /// ([`rsvelte_vue_semantic::compiler_syntax_tree::lower`]).
     #[must_use]
     pub fn from_single_file_component(
         c: &'a SingleFileComponent,

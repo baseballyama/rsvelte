@@ -71,22 +71,34 @@ impl Task for ObservedTask {
 }
 
 fn snapshot(context: &DocumentContext<'_>, name: &str) -> Option<String> {
-    use rsvelte_svue::{Client, Server};
+    use rsvelte_vue_compile_svelte::{Client, Server};
     Some(match name {
         "svelte.parse" => bounded_debug(context.get::<rsvelte_svelte::Parsed>()),
         "svelte.resolve" => bounded_debug(context.get::<rsvelte_svelte::Resolved>()),
         "svelte.compiler_syntax_tree" => bounded_debug(context.get::<rsvelte_svelte::Normalized>()),
         "svelte.analyze" => bounded_debug(context.get::<rsvelte_svelte::Analyzed>()),
         "svelte.css" => bounded_debug(context.get::<rsvelte_svelte_compile::ScopedStylesheet>()),
-        "vue.parse" => bounded_debug(context.get::<rsvelte_vue::Parsed>()),
-        "vue.compiler_syntax_tree" => bounded_debug(context.get::<rsvelte_vue::Lowered>()),
-        "vue.resolve" => bounded_debug(context.get::<rsvelte_vue::Resolved>()),
-        "svue.translate.client" => bounded_debug(context.get::<rsvelte_svue::Translated<Client>>()),
-        "svue.resolve.client" => bounded_debug(context.get::<rsvelte_svue::Resolved<Client>>()),
-        "svue.analyze.client" => bounded_debug(context.get::<rsvelte_svue::Analyzed<Client>>()),
-        "svue.translate.server" => bounded_debug(context.get::<rsvelte_svue::Translated<Server>>()),
-        "svue.resolve.server" => bounded_debug(context.get::<rsvelte_svue::Resolved<Server>>()),
-        "svue.analyze.server" => bounded_debug(context.get::<rsvelte_svue::Analyzed<Server>>()),
+        "vue.parse" => bounded_debug(context.get::<rsvelte_vue_syntax::Parsed>()),
+        "vue.compiler_syntax_tree" => bounded_debug(context.get::<rsvelte_vue_semantic::Lowered>()),
+        "vue.resolve" => bounded_debug(context.get::<rsvelte_vue_semantic::Resolved>()),
+        "svue.translate.client" => {
+            bounded_debug(context.get::<rsvelte_vue_compile_svelte::Translated<Client>>())
+        }
+        "svue.resolve.client" => {
+            bounded_debug(context.get::<rsvelte_vue_compile_svelte::Resolved<Client>>())
+        }
+        "svue.analyze.client" => {
+            bounded_debug(context.get::<rsvelte_vue_compile_svelte::Analyzed<Client>>())
+        }
+        "svue.translate.server" => {
+            bounded_debug(context.get::<rsvelte_vue_compile_svelte::Translated<Server>>())
+        }
+        "svue.resolve.server" => {
+            bounded_debug(context.get::<rsvelte_vue_compile_svelte::Resolved<Server>>())
+        }
+        "svue.analyze.server" => {
+            bounded_debug(context.get::<rsvelte_vue_compile_svelte::Analyzed<Server>>())
+        }
         "vuelte.check" => bounded_debug(context.get::<rsvelte_svelte_compile_vapor::Checked>()),
         _ => return None,
     })
@@ -144,7 +156,7 @@ fn registry(plugins: &[&str]) -> Registry {
                 rsvelte_vue_lint::register(&mut reg);
                 rsvelte_vue_check::register(&mut reg, &rsvelte_vue_check::Configuration::default());
             }
-            "svue" => rsvelte_svue::register(&mut reg),
+            "svue" => rsvelte_vue_compile_svelte::register(&mut reg),
             "vuelte" => rsvelte_svelte_compile_vapor::register(&mut reg),
             _ => unreachable!("plugin names were validated at the boundary"),
         }

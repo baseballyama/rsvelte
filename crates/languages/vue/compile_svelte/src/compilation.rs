@@ -48,9 +48,9 @@ impl Translation {
 /// A `compile_unsupported` [`Diagnostic`] for what svue does not translate (the crate's doc lists
 /// every refusal).
 pub fn translate(
-    sfc: &rsvelte_vue::syntax_tree::SingleFileComponent,
-    compiler_syntax_tree: Option<&rsvelte_vue::compiler_syntax_tree::CompilerSyntaxTree>,
-    resolution: &rsvelte_vue::resolve::Resolution,
+    sfc: &rsvelte_vue_syntax::syntax_tree::SingleFileComponent,
+    compiler_syntax_tree: Option<&rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTree>,
+    resolution: &rsvelte_vue_semantic::resolve::Resolution,
     source_text: &str,
     target: Target,
 ) -> Result<Translation, Diagnostic> {

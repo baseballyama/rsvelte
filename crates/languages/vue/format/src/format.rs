@@ -22,7 +22,7 @@ use rsvelte_kernel::source::positions::{LineIndex, Span};
 pub use rsvelte_typescript_format::Unsupported;
 use rsvelte_typescript_format::{Formatter, Options as JavaScriptOptions};
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::syntax_tree::{
+use rsvelte_vue_syntax::syntax_tree::{
     Attribute, AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent,
     TagAttributes, TemplateNode, TemplateNodeIdentifier,
 };

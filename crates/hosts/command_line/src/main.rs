@@ -58,7 +58,7 @@ static EXTENSIONS: &[&rsvelte_plugin_interface::Extension] = &[
     &rsvelte_vue_format::EXTENSION,
     &rsvelte_vue_lint::EXTENSION,
     &rsvelte_vue_check::EXTENSION,
-    &rsvelte_svue::EXTENSION,
+    &rsvelte_vue_compile_svelte::EXTENSION,
     &rsvelte_svelte_compile_vapor::EXTENSION,
 ];
 
