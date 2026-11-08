@@ -18,9 +18,9 @@
 //!
 //! `<title>…</title>` lowers to `$$renderer.title(($$renderer) => { <body> });`
 //! where the body is the coalesced `$$renderer.push(\`<title>…</title>\`)`.
-//! Upstream pushes to `init`; the AST pipeline has no separate `init`/`template`
-//! split for the simple cases, so the call is pushed as a `Stmt` entry into the
-//! surrounding template run (correct when title is inside `<svelte:head>`).
+//! Upstream pushes to `init`, and `clean_nodes` hoists `TitleElement`, so the
+//! call is a `HoistableDecl`: it keeps source order among the fragment's other
+//! hoisted nodes and precedes what regular nodes push onto `init`.
 
 use crate::ast::template::TitleElement;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
@@ -58,5 +58,7 @@ pub fn visit_title_element<'a>(node: &TitleElement<'a>, state: &mut ServerTransf
 
     // `$$renderer.title(($$renderer) => { ... })`
     let call = b.call("$$renderer.title", vec![arrow]);
-    state.template.push(TemplateEntry::Stmt(b.stmt(call)));
+    state
+        .template
+        .push(TemplateEntry::HoistableDecl(b.stmt(call)));
 }

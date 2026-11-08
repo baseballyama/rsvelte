@@ -1069,6 +1069,52 @@ fn hoist_declarations<'a>(template: Vec<TemplateEntry<'a>>) -> Vec<TemplateEntry
     hoisted
 }
 
+/// Build `template` for a scope that owns its upstream `state.init`: `init`
+/// lands after the declarations `build_template` lifts, since upstream visits
+/// the hoisted nodes before the regular ones that push `init`.
+pub fn build_template_with_init<'a>(
+    template: Vec<TemplateEntry<'a>>,
+    init: Vec<Statement<'a>>,
+    state: &ServerTransformState<'a>,
+) -> Vec<Statement<'a>> {
+    let hoisted_len = hoisted_decl_count(&template);
+    let mut body = build_template(template, state);
+    body.splice(hoisted_len..hoisted_len, init);
+    body
+}
+
+/// How many leading statements `build_template` makes from lifted declarations.
+pub fn hoisted_decl_count(template: &[TemplateEntry<'_>]) -> usize {
+    template
+        .iter()
+        .filter(|e| matches!(e, TemplateEntry::HoistableDecl(_)))
+        .count()
+}
+
+/// Move the declarations a transparent element's children lifted out of
+/// `template[from..]` onto `state.init`, ahead of `child_init`: upstream visits
+/// the element's hoisted children into the element's own `init`, then appends
+/// that whole `init` to the parent's.
+pub fn lift_element_init<'a>(
+    state: &mut ServerTransformState<'a>,
+    from: usize,
+    child_init: Vec<Statement<'a>>,
+) {
+    if state.template[from..]
+        .iter()
+        .any(|e| matches!(e, TemplateEntry::HoistableDecl(_)))
+    {
+        let tail: Vec<TemplateEntry<'a>> = state.template.drain(from..).collect();
+        for entry in tail {
+            match entry {
+                TemplateEntry::HoistableDecl(stmt) => state.init.push(stmt),
+                other => state.template.push(other),
+            }
+        }
+    }
+    state.init.extend(child_init);
+}
+
 pub fn build_template<'a>(
     template: Vec<TemplateEntry<'a>>,
     state: &ServerTransformState<'a>,
@@ -1203,15 +1249,7 @@ pub fn build_fragment_body<'a, N: AsRef<TemplateNode<'a>>>(
     let saved_blocker_map = state.const_blocker_map.clone();
     let saved_local_derived = state.local_derived_names.clone();
 
-    // 写经 upstream `SnippetBlock.js`: a NON-hoistable snippet pushes its function
-    // declaration onto the ENCLOSING render scope's `state.init`. Each fragment
-    // body (root component, block bodies, snippet bodies) is its own init scope,
-    // so save/restore `snippet_inits` around this fragment: snippets collected
-    // while walking THIS fragment's children (including those nested in inline
-    // RegularElements, which do not open a new init scope) belong here and are
-    // prepended to this fragment's body; a parent scope's pending inits are
-    // restored afterward.
-    let saved_snippet_inits = std::mem::take(&mut state.snippet_inits);
+    let saved_init = std::mem::take(&mut state.init);
 
     // 写经 upstream `Fragment.js` → `clean_nodes(..., infer_namespace(...))`: a
     // fragment whose direct RegularElement children are all SVG (or all MathML)
@@ -1238,52 +1276,17 @@ pub fn build_fragment_body<'a, N: AsRef<TemplateNode<'a>>>(
         state,
     );
     let template = std::mem::replace(&mut state.template, saved);
+    let hoisted_len = hoisted_decl_count(&template);
     let mut body = build_template(template, state);
-
-    // Prepend this fragment's non-hoistable snippet function declarations to the
-    // front of the body (ahead of the rendered template), then restore the
-    // parent scope's pending inits.
-    let fragment_snippet_inits = std::mem::replace(&mut state.snippet_inits, saved_snippet_inits);
-    if !fragment_snippet_inits.is_empty() {
-        let mut prelude = fragment_snippet_inits;
-        prelude.append(&mut body);
-        body = prelude;
-    }
+    let init = std::mem::replace(&mut state.init, saved_init);
 
     // 写经 `Fragment.js`: when this fragment opened an async `{@const}` group,
-    // prepend `let a; let b; var promises = $$renderer.run([thunks…]);` ahead of
-    // the template body (`state.init.push(...)` → `[...state.init, ...template]`).
-    if let Some(group) = state.async_consts.take()
-        && !group.thunks.is_empty()
-    {
-        let run_decl = build_async_consts_run(state, &group);
-        // 写经 upstream `state.init` order. The async-const `let`s land AFTER the
-        // leading sync hoisted-const declarations (`build_template` lifts
-        // `{const sync = 'sync'}` to the front), so a sync `{const}` precedes
-        // them. The `var promises = run([…])` itself floats further, to AFTER all
-        // leading hoisted declarations INCLUDING snippet `function` declarations
-        // (`{#snippet}` bodies emitted into the init), since the run is built last
-        // at the fragment-init end: `[const sync, let …, function greet(){…}, var
-        // promises = run([…]), …pushes]`.
-        let let_split = body
-            .iter()
-            .position(|s| !matches!(s, Statement::VariableDeclaration(_)))
-            .unwrap_or(body.len());
-        let mut new_body: Vec<Statement<'a>> = body.drain(..let_split).collect();
-        new_body.extend(group.let_decls);
-        new_body.append(&mut body);
-        let run_split = new_body
-            .iter()
-            .position(|s| {
-                !matches!(
-                    s,
-                    Statement::VariableDeclaration(_) | Statement::FunctionDeclaration(_)
-                )
-            })
-            .unwrap_or(new_body.len());
-        new_body.insert(run_split, run_decl);
-        body = new_body;
-    }
+    // its `let`s and `var promises = $$renderer.run([thunks…])` join `init`.
+    let group = state
+        .async_consts
+        .take()
+        .filter(|group| !group.thunks.is_empty());
+    splice_init(state, &mut body, hoisted_len, init, group);
 
     state.async_consts = saved_async_consts;
     state.const_blocker_map = saved_blocker_map;
@@ -1300,7 +1303,7 @@ pub fn build_fragment_body<'a, N: AsRef<TemplateNode<'a>>>(
 /// Saved parent async-const scope (group + blocker map) returned by
 /// [`open_async_consts_scope`] and consumed by [`flush_element_async_consts`].
 pub(super) type SavedAsyncConstsScope<'a> = (
-    Option<crate::compiler::phases::phase3_transform::server::ast::AsyncConstsGroup<'a>>,
+    Option<crate::compiler::phases::phase3_transform::server::ast::AsyncConstsGroup>,
     rustc_hash::FxHashMap<
         String,
         crate::compiler::phases::phase3_transform::server::ast::ConstBlocker,
@@ -1318,44 +1321,45 @@ pub(super) fn open_async_consts_scope<'a>(
     (state.async_consts.take(), state.const_blocker_map.clone())
 }
 
-/// Flush a `has_declarations` element's OWN async-const group into `body`: emit
-/// the `let …; var promisesN = $$renderer.run([…]);` prelude AFTER the element's
-/// leading sync hoisted-const declarations (mirroring upstream's `state.init`
-/// ordering — a sync `{const nested = 'nested'}` precedes the async run that
-/// depends on a parent-group binding), then restore the parent async-const scope.
-/// No-op when the element opened no async group.
+/// Splice a `has_declarations` element's own `init` and async-const run into
+/// `body` (see [`splice_init`]), then restore the parent async-const scope.
 pub(super) fn flush_element_async_consts<'a>(
     state: &mut ServerTransformState<'a>,
     saved: SavedAsyncConstsScope<'a>,
     body: &mut Vec<Statement<'a>>,
+    init: Vec<Statement<'a>>,
+    hoisted_len: usize,
 ) {
     let (saved_group, saved_map) = saved;
-    if let Some(group) = state.async_consts.take()
-        && !group.thunks.is_empty()
-    {
-        let run_decl = build_async_consts_run(state, &group);
-        // Insert after the run of leading VariableDeclarations (the sync hoisted
-        // `{const}`s that `build_template` lifted to the front) so the async
-        // `let`s + run land between them and the rendered template pushes.
-        let split = body
-            .iter()
-            .position(|s| !matches!(s, Statement::VariableDeclaration(_)))
-            .unwrap_or(body.len());
-        let mut new_body: Vec<Statement<'a>> =
-            Vec::with_capacity(body.len() + group.let_decls.len() + 1);
-        new_body.extend(body.drain(..split));
-        new_body.extend(group.let_decls);
-        new_body.push(run_decl);
-        new_body.append(body);
-        *body = new_body;
-    }
+    let group = state
+        .async_consts
+        .take()
+        .filter(|group| !group.thunks.is_empty());
+    splice_init(state, body, hoisted_len, init, group);
     state.async_consts = saved_group;
     state.const_blocker_map = saved_map;
 }
 
+/// Put a scope's upstream `init` into its built body: the hoisted declarations
+/// `build_template` lifted (`hoisted_len` leading statements, including an async
+/// `{@const}`'s `let`s) come first, then what regular nodes pushed, then the
+/// async group's run, which upstream pushes last.
+fn splice_init<'a>(
+    state: &ServerTransformState<'a>,
+    body: &mut Vec<Statement<'a>>,
+    hoisted_len: usize,
+    mut init: Vec<Statement<'a>>,
+    group: Option<crate::compiler::phases::phase3_transform::server::ast::AsyncConstsGroup>,
+) {
+    if let Some(group) = group {
+        init.push(build_async_consts_run(state, &group));
+    }
+    body.splice(hoisted_len..hoisted_len, init);
+}
+
 fn build_async_consts_run<'a>(
     state: &ServerTransformState<'a>,
-    group: &crate::compiler::phases::phase3_transform::server::ast::AsyncConstsGroup<'a>,
+    group: &crate::compiler::phases::phase3_transform::server::ast::AsyncConstsGroup,
 ) -> Statement<'a> {
     let b = state.b;
     let elems: Vec<Option<OxcExpression<'a>>> = group

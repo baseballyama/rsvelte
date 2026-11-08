@@ -209,22 +209,16 @@ fn add_async_const<'a>(
         state.async_consts = Some(AsyncConstsGroup {
             name,
             thunks: Vec::new(),
-            let_decls: Vec::new(),
         });
     }
 
     let declared_names = extract_declared_names(lhs);
 
-    // Bare `let <name>;` for each declared binding (kept on the group so the
-    // fragment body can prepend them ahead of the `var promises = run([...])`).
+    // Bare `let <name>;` for each declared binding, in `init` at this hoisted
+    // node's position.
     for name in &declared_names {
         let let_stmt = state.b.let_id(name, None);
-        state
-            .async_consts
-            .as_mut()
-            .unwrap()
-            .let_decls
-            .push(let_stmt);
+        state.template.push(TemplateEntry::HoistableDecl(let_stmt));
     }
 
     // Leading blocker wait thunk(s) — a different-group dependency must resolve

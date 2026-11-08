@@ -25,9 +25,8 @@
 //! (`id = default_arg()`, `b = (1, 2)`) — because upstream spreads them directly
 //! into the parameter list. When `node.metadata.can_hoist` is true the
 //! declaration is lifted to module scope (`state.hoisted`); otherwise it goes into
-//! the SHARED component-level `state.init` (here `state.snippet_inits`), which the
-//! program assembly prepends to the component-function body ahead of the rendered
-//! template.
+//! the enclosing fragment's `state.init` (here a `TemplateEntry::HoistableDecl`,
+//! which `build_template` lifts to the front of the fragment body).
 //!
 //! The dev-mode `$.validate_snippet_args` prologue and
 

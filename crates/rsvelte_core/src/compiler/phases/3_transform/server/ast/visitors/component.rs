@@ -851,15 +851,11 @@ fn build_bind_accessors<'a>(
             (format!("bind_get_{suffix}"), format!("bind_set_{suffix}"))
         };
         let b = state.b;
-        // var bind_get = <get>;  /  var bind_set = <set>;  → current fragment init.
-        // `snippet_inits` is prepended to the head of the enclosing fragment body by
-        // `build_fragment_body`, matching upstream's `state.init` placement (ahead
-        // of the rendered template / the `Child(...)` call).
         state
-            .snippet_inits
+            .init
             .push(b.var_decl(b.id_pat(&get_id), Some(get_expr)));
         state
-            .snippet_inits
+            .init
             .push(b.var_decl(b.id_pat(&set_id), Some(set_expr)));
         // get name() { return bind_get(); } / set name($$value) { bind_set($$value); }
         // 写经 upstream lines 130-131: a get/set (SequenceExpression) bind is pushed
