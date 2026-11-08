@@ -7,6 +7,10 @@
 // left in it would count.) With --update the snapshot's baseline is copied back (stage it too).
 // The host's cargo registry is mounted (the build is --offline), and the Linux build has a target
 // directory of its own.
+//
+// The container copies the snapshot onto its own file system, at the paths CI uses, before it
+// measures: loading counted 0.26% more instructions there than over the bind mount, more than the
+// tolerance, and paths are embedded in the binary.
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -62,22 +66,39 @@ export async function main(args: string[]): Promise<void> {
 		process.env.CARGO_HOME ?? path.join(os.homedir(), '.cargo'),
 		'registry',
 	);
+	const checkout = '/home/runner/work/rsvelte/rsvelte';
+	const script = [
+		'set -e',
+		`mkdir -p ${checkout}`,
+		`cp -a /source/. ${checkout}/`,
+		`rm -rf ${checkout}/target`,
+		`ln -s /target ${checkout}/target`,
+		`cd ${checkout}`,
+		'node tools/performance/performance.ts ratchet --instructions "$@"',
+		'cp tools/performance/baseline.json /source/tools/performance/baseline.json',
+	].join('\n');
 	const run = spawnSync(
 		'docker',
 		[
 			'run',
 			'--rm',
+			'-e',
+			'HOME=/home/runner',
+			'-e',
+			'CARGO_HOME=/home/runner/.cargo',
+			'-e',
+			'RUSTUP_HOME=/root/.rustup',
 			'-v',
-			`${source}:/w`,
+			`${source}:/source`,
 			'-v',
-			`${target}:/w/target`,
+			`${target}:/target`,
 			'-v',
-			`${registry}:/root/.cargo/registry`,
+			`${registry}:/home/runner/.cargo/registry`,
 			'rsvelte-performance',
-			'node',
-			'tools/performance/performance.ts',
-			'ratchet',
-			'--instructions',
+			'sh',
+			'-c',
+			script,
+			'sh',
 			...args,
 		],
 		{ stdio: 'inherit' },
