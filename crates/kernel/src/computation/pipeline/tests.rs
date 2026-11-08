@@ -125,7 +125,7 @@ impl FinishTask for Total {
         "total"
     }
 
-    fn applies(&self, _: &Document) -> bool {
+    fn applies(&self, _: &Document, _: &ArtifactRegistry) -> bool {
         true
     }
 
@@ -174,7 +174,7 @@ impl FinishTask for Count {
         "count"
     }
 
-    fn applies(&self, document: &Document) -> bool {
+    fn applies(&self, document: &Document, _: &ArtifactRegistry) -> bool {
         document.path != "b.t"
     }
 
@@ -211,7 +211,7 @@ impl FinishTask for FinishPanics {
         "project-panics"
     }
 
-    fn applies(&self, _: &Document) -> bool {
+    fn applies(&self, _: &Document, _: &ArtifactRegistry) -> bool {
         true
     }
 
@@ -412,7 +412,7 @@ fn task_identifiers_are_unique_across_document_and_finish_tasks() {
             "panics"
         }
 
-        fn applies(&self, _: &Document) -> bool {
+        fn applies(&self, _: &Document, _: &ArtifactRegistry) -> bool {
             false
         }
 

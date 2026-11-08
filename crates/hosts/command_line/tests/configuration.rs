@@ -119,6 +119,32 @@ fn node_config_callbacks_reach_client_server_and_stylesheet_output() {
 }
 
 #[test]
+fn command_line_options_replace_a_plugins_options_from_the_file() {
+    let project = Project::new();
+    project.write(
+        "rsvelte.config.json",
+        r#"{"plugins": {"svelte.lint": {"rules": {"no-unused-vars": "off"}}}}"#,
+    );
+    let lint = |extra: &[&str]| {
+        let mut arguments = vec!["--task", "svelte.lint/default"];
+        arguments.extend(extra);
+        let output = project.run_without_runtime(&arguments);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).expect("UTF-8")
+    };
+    assert!(
+        !lint(&[]).contains("never used"),
+        "the file turns the rule off"
+    );
+    let replaced = lint(&["--options", "svelte.lint", "{}"]);
+    assert!(replaced.contains("never used"), "{replaced}");
+}
+
+#[test]
 fn invalid_configuration_fails_before_compilation() {
     let project = Project::new();
     for text in [

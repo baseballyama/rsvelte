@@ -24,7 +24,7 @@ impl FinishTask for FinishProbe {
         "finish-probe"
     }
 
-    fn applies(&self, _: &Document) -> bool {
+    fn applies(&self, _: &Document, _: &ArtifactRegistry) -> bool {
         panic!("invalid dependencies must fail before selecting documents");
     }
 

@@ -8,6 +8,7 @@ pub mod stylesheet;
 
 mod configuration;
 mod emit;
+mod extension;
 mod identity;
 mod markup;
 mod task;
@@ -15,6 +16,7 @@ mod task;
 pub use computation::{Identified, Planned, ScopedStylesheet};
 pub use configuration::{Configuration, CssHash, CssHashInput};
 pub use emit::LoweredModule;
+pub use extension::EXTENSION;
 pub use identity::OutputIdentity;
 pub use input::{CompileInput, Target};
 pub use render_plan::RenderPlan;

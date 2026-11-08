@@ -18,3 +18,12 @@ pub mod computation;
 use compilation::{R, unsupported};
 pub use compilation::{Translation, check, compile, helpers, script, template, translate};
 pub use computation::{Checked, Compile, PLUGIN, register};
+
+/// Takes no options.
+pub static EXTENSION: rsvelte_config::Extension = rsvelte_config::Extension {
+    identifier: "vuelte",
+    install: |registry, _| {
+        register(registry);
+        Ok(())
+    },
+};

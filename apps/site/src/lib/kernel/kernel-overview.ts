@@ -71,7 +71,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/database#facet',
 		source: {
 			path: 'crates/languages/svelte/typecheck/src/registration.rs',
-			line: 34,
+			line: 36,
 			text: 'reg.finish_task(Check {',
 		},
 		box: { x: 32, y: 362, w: 188, h: height },
@@ -85,7 +85,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#registry',
 		source: {
 			path: 'crates/kernel/src/computation/pipeline.rs',
-			line: 94,
+			line: 96,
 			text: 'pub struct Registry {',
 		},
 		box: { x: left, y: 60, w: width, h: height },
@@ -99,7 +99,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel#modules',
 		source: {
 			path: 'crates/kernel/src/computation/pipeline.rs',
-			line: 128,
+			line: 130,
 			text: 'pub fn validate_plugins(&self) -> Result<(), PluginError> {',
 		},
 		box: { x: right, y: 60, w: width, h: height },
@@ -113,7 +113,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#run-document',
 		source: {
 			path: 'crates/kernel/src/computation/pipeline.rs',
-			line: 316,
+			line: 318,
 			text: 'fn run_document(',
 		},
 		box: { x: left, y: 162, w: width, h: height },
@@ -125,7 +125,7 @@ export const overviewNodes: OverviewNode[] = [
 		code: 'run, run_each',
 		what: '文書を一つずつワーカーに渡して並列に処理します。',
 		href: '/learn/kernel/pipeline#run',
-		source: { path: 'crates/kernel/src/computation/pipeline.rs', line: 491, text: 'pub fn run(' },
+		source: { path: 'crates/kernel/src/computation/pipeline.rs', line: 493, text: 'pub fn run(' },
 		box: { x: right, y: 162, w: width, h: height },
 	},
 	{
@@ -165,7 +165,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#project',
 		source: {
 			path: 'crates/kernel/src/computation/pipeline.rs',
-			line: 386,
+			line: 388,
 			text: 'fn run_finish_tasks(',
 		},
 		box: { x: left, y: 362, w: width, h: height },
@@ -179,7 +179,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/pipeline#tasks',
 		source: {
 			path: 'crates/kernel/src/computation/pipeline.rs',
-			line: 72,
+			line: 74,
 			text: 'pub struct TaskOutput {',
 		},
 		box: { x: right, y: 362, w: width, h: height },
@@ -320,7 +320,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [480, 52],
 		source: {
 			path: pipeline,
-			line: 496,
+			line: 498,
 			text: 'reg.validate_plugins().map_err(RunError::Plugins)?;',
 		},
 	},
@@ -331,7 +331,7 @@ export const overviewEdges: OverviewEdge[] = [
 		sentence: 'ホストは、文書と選んだタスクを実行に渡します。',
 		path: 'M790 192 H714',
 		at: [720, 184],
-		source: { path: pipeline, line: 289, text: "pub struct RunOptions<'a> {" },
+		source: { path: pipeline, line: 291, text: "pub struct RunOptions<'a> {" },
 	},
 	{
 		from: 'run',
@@ -340,7 +340,7 @@ export const overviewEdges: OverviewEdge[] = [
 		sentence: '文書ごとに、別々のワーカーで一つの文書の処理を呼びます。',
 		path: 'M534 192 H486',
 		at: [498, 184],
-		source: { path: pipeline, line: 509, text: 'docs.par_iter().map(compile).collect()' },
+		source: { path: pipeline, line: 511, text: 'docs.par_iter().map(compile).collect()' },
 	},
 	{
 		from: 'run-document',
@@ -351,7 +351,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [230, 178],
 		source: {
 			path: pipeline,
-			line: 329,
+			line: 331,
 			text: 'for task in tasks.iter().filter(|t| t.applies(document)) {',
 		},
 	},
@@ -403,7 +403,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [512, 352],
 		source: {
 			path: pipeline,
-			line: 85,
+			line: 87,
 			text: 'pub fn file(&mut self, name: impl Into<String>, text: String) {',
 		},
 	},
@@ -423,7 +423,7 @@ export const overviewEdges: OverviewEdge[] = [
 		sentence: '全文書の処理が終わってから、型検査のようなまとめる処理を一度だけ呼びます。',
 		path: 'M306 392 H220',
 		at: [232, 384],
-		source: { path: pipeline, line: 516, text: 'run_finish_tasks(&finish_tasks, &mut results);' },
+		source: { path: pipeline, line: 518, text: 'run_finish_tasks(&finish_tasks, &mut results);' },
 	},
 	{
 		from: 'output',
@@ -432,7 +432,7 @@ export const overviewEdges: OverviewEdge[] = [
 		sentence: '出力は文書ごとの結果としてホストに返ります。',
 		path: 'M714 392 H878 V222',
 		at: [740, 384],
-		source: { path: pipeline, line: 298, text: 'pub struct DocumentResult {' },
+		source: { path: pipeline, line: 300, text: 'pub struct DocumentResult {' },
 	},
 ];
 

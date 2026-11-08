@@ -25,7 +25,7 @@ use rsvelte_kernel::performance::measurement;
 pub(crate) struct Options {
     rounds: usize,
     json: Option<PathBuf>,
-    pub(crate) type_checker: Option<crate::Identity>,
+    pub(crate) tools: Vec<rsvelte_config::Tool>,
 }
 
 impl Options {
@@ -33,7 +33,7 @@ impl Options {
         let mut o = Self {
             rounds: 2,
             json: None,
-            type_checker: None,
+            tools: Vec::new(),
         };
         let mut roots = Vec::new();
         for a in arguments {
@@ -166,7 +166,7 @@ fn report(
     w.begin_object()
         .key("rev")
         .write_string(env!("RSV_BUILD_REV"));
-    crate::Identity::write(options.type_checker.as_ref(), &mut w);
+    crate::write_tools(&options.tools, &mut w);
     w.key("metrics")
         .write_boolean(measurement::ENABLED)
         .key("rounds")

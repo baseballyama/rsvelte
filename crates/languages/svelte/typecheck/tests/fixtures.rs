@@ -11,11 +11,13 @@ fn main() -> ExitCode {
     let packages = NodePackages::locate();
     let configuration = Configuration {
         check: Some(TypeCheckConfiguration {
-            checker: checker(&packages),
+            tsc: rsvelte_typescript_check::Tsc {
+                checker: checker(&packages),
+                tsconfig: Some(
+                    concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
+                ),
+            },
             content_mapper: rsvelte_test_harness::content_mapper(),
-            tsconfig: Some(
-                concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
-            ),
             svelte: packages.package("svelte"),
         }),
     };

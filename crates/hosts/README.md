@@ -34,22 +34,26 @@ diagnostics to standard output, with task labels. It does not edit the input fil
 | `benchmark <dir> --task <identifier>`      | Measure pipeline time                                           |
 | `performance <dir>... --task <identifier>` | Measure performance counters                                    |
 
-Svelte type checking needs a type checker and the precomputed content mapper executable. The type
-checker is TypeScript 7.1's `tsc` or any product with its command line, such as `tsrs`: rsvelte
-adds `-p <dir> --pretty true --runExternalCode` and reads its report. Name it with
-`--type-checker <program>` (or `--tsc`) and a repeatable `--type-checker-arg <argument>`, or with
-`typeChecker.command` in [the configuration file](config/README.md); the command line wins. A bare
-name such as `tsrs` is looked for in the project's `node_modules/.bin`, then in `PATH`. Before any
-file is read, the CLI runs `<checker> --version`: a checker that is missing, fails or is a `tsc`
-older than 7.1, and a check task without what it needs, stop the run with exit code 2. `benchmark`
-and `performance` record the checker and its version in `type_checker`. The CLI finds the mapper
-on `PATH`; `RSVELTE_TYPESCRIPT_CONTENT_MAPPER` can set its path.
+The CLI knows no language: it installs every plugin's `EXTENSION`, and each plugin reads its own
+options, the configuration file's `plugins.<plugin>` (see [the configuration file](config/README.md)).
+`--options <plugin> <json>` replaces them, with paths relative to the current directory. Options
+no installed plugin reads, and a task that will run without what it needs, stop the run with exit
+code 2 before any file is read. Without `--task`, `corpus` and `run` run every task, the checks
+included.
+
+The check tasks share the type checker that `typescript.check` names: TypeScript 7.1's `tsc` or
+any product with its command line, such as `tsrs`. rsvelte adds
+`-p <dir> --pretty true --runExternalCode` and reads its report. A bare name such as `tsrs` is
+looked for in the project's `node_modules/.bin`, then in `PATH`. Before any file is read, the CLI
+runs `<checker> --version`; `benchmark` and `performance` record each program and its version in
+`tools`. `svelte.check` also needs the svelte package and the content mapper, `vue.check` the vue
+package.
 
 ```sh
 cargo install --path crates/languages/typescript/content_mapper
-cargo run -p rsvelte_command_line -- run App.svelte \
-  --task svelte.check/default --type-checker tsrs --type-checker-arg --fast \
-  --svelte /path/to/node_modules/svelte --tsconfig /path/to/tsconfig.json
+cargo run -p rsvelte_command_line -- run App.svelte --task svelte.check/default \
+  --options typescript.check '{"command": ["tsrs", "--fast"], "tsconfig": "tsconfig.json"}' \
+  --options svelte.typecheck '{"svelte": "node_modules/svelte"}'
 ```
 
 The CLI argument handling and registered tools are in

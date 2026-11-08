@@ -2,87 +2,20 @@ use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing};
 
 use super::*;
 
-fn configuration(
-    directory: &str,
-    text: &str,
-) -> (std::path::PathBuf, rsvelte_config::LoadedConfiguration) {
-    let dir = std::env::temp_dir().join(format!("rsvelte-cli-{directory}-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("rsvelte.config.json");
-    std::fs::write(&path, text).unwrap();
-    let loaded = rsvelte_config::Loader::load(&rsvelte_config::JsonLoader, &path).unwrap();
-    (path, loaded)
-}
-
-#[test]
-fn the_command_line_type_checker_wins_over_the_configuration_file() {
-    let file = configuration(
-        "type-checker",
-        r#"{ "typeChecker": { "command": ["node_modules/.bin/tsrs", "--fast"] } }"#,
+/// Every plugin, installed without options for a run of the document tasks.
+fn installed() -> Registry {
+    let mut settings = rsvelte_config::Settings::new(
+        rsvelte_config::Selection::DocumentTasks,
+        std::sync::Arc::new(rsvelte_config::NoFunctions),
     );
-    let from_file = type_checker(None, Vec::new(), Some(&file))
-        .unwrap()
-        .unwrap();
-    assert_eq!(
-        from_file.program,
-        file.0.with_file_name("node_modules/.bin/tsrs"),
-        "a relative program is relative to the configuration file"
-    );
-    assert_eq!(from_file.arguments, ["--fast"]);
-    let given = type_checker(
-        Some("tsc".into()),
-        vec!["--singleThreaded".into()],
-        Some(&file),
-    )
-    .unwrap()
-    .unwrap();
-    assert_eq!(
-        given,
-        rsvelte_typescript_check::TypeChecker {
-            program: "tsc".into(),
-            arguments: vec!["--singleThreaded".into()],
-        }
-    );
-    type_checker(None, vec!["--fast".into()], Some(&file)).unwrap_err();
-    assert_eq!(type_checker(None, Vec::new(), None), Ok(None));
-    std::fs::remove_dir_all(file.0.parent().unwrap()).unwrap();
-}
-
-#[test]
-fn a_type_checker_command_needs_a_program_and_a_bare_name_is_looked_up() {
-    let bare = configuration("bare", r#"{ "typeChecker": { "command": ["tsrs"] } }"#);
-    let checker = type_checker(None, Vec::new(), Some(&bare))
-        .unwrap()
-        .unwrap();
-    assert_eq!(
-        checker.program,
-        Path::new("tsrs"),
-        "not installed: looked up in PATH"
-    );
-    let bin = bare.0.with_file_name("node_modules/.bin");
-    std::fs::create_dir_all(&bin).unwrap();
-    std::fs::write(bin.join("tsrs"), "").unwrap();
-    let checker = type_checker(None, Vec::new(), Some(&bare))
-        .unwrap()
-        .unwrap();
-    assert_eq!(
-        checker.program,
-        std::path::absolute(bin.join("tsrs")).unwrap(),
-        "the project's own copy comes first"
-    );
-    let empty = configuration("empty", r#"{ "typeChecker": { "command": [] } }"#);
-    type_checker(None, Vec::new(), Some(&empty)).unwrap_err();
-    for f in [bare, empty] {
-        std::fs::remove_dir_all(f.0.parent().unwrap()).unwrap();
-    }
+    let mut reg = Registry::new();
+    rsvelte_config::extension::install(&mut reg, EXTENSIONS, &mut settings).unwrap();
+    reg
 }
 
 #[test]
 fn plugin_declarations_cover_the_registered_languages_and_tasks() {
-    let reg = registry(
-        &rsvelte_svelte_typecheck::Configuration::default(),
-        &rsvelte_vue_check::Configuration::default(),
-    );
+    let reg = installed();
     assert_eq!(reg.validate_plugins(), Ok(()));
     let plugins: Vec<_> = reg.plugins().map(|plugin| plugin.identifier).collect();
     let mut expected = vec![
@@ -115,10 +48,7 @@ fn plugin_declarations_cover_the_registered_languages_and_tasks() {
 
 #[test]
 fn plugin_tasks_and_type_views_select_their_own_documents() {
-    let reg = registry(
-        &rsvelte_svelte_typecheck::Configuration::default(),
-        &rsvelte_vue_check::Configuration::default(),
-    );
+    let reg = installed();
     for (path, task_identifiers, has_typescript_view) in [
         (
             "a.svelte",

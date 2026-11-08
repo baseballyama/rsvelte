@@ -6,7 +6,9 @@ use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_check::{Check, Tsc, TypeScriptDocument, TypeScriptEnv, TypeScriptView};
+use rsvelte_typescript_check::{
+    Check, Documents, TypeScriptDocument, TypeScriptEnv, TypeScriptView,
+};
 use rsvelte_vue::{Parsed, Resolved};
 
 use crate::Configuration;
@@ -33,11 +35,8 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
     rsvelte_vue::register(reg);
     reg.finish_task(Check {
         identifier: "vue.check/default",
-        matches: rsvelte_vue::matches,
-        tsc: config.check.as_ref().map(|c| Tsc {
-            checker: c.checker.clone(),
-            tsconfig: c.tsconfig.clone(),
-        }),
+        documents: Documents::Matching(rsvelte_vue::matches),
+        tsc: config.check.as_ref().map(|c| c.tsc.clone()),
     });
     let env = config
         .check

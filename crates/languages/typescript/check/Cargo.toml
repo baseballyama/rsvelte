@@ -10,9 +10,14 @@ publish.workspace = true
 doctest = false
 
 [dependencies]
+rsvelte_config.workspace = true
+serde.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript.workspace = true
 rsvelte_typescript_content_mapper.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
 
 [lints]
 workspace = true

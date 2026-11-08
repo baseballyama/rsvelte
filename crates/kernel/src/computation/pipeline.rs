@@ -60,7 +60,9 @@ pub type Part = Box<dyn Any + Send>;
 
 pub trait FinishTask: Send + Sync {
     fn identifier(&self) -> &'static str;
-    fn applies(&self, document: &Document) -> bool;
+    /// `artifacts` lets a task select the documents a facet is provided for, whichever plugin
+    /// provides it.
+    fn applies(&self, document: &Document, artifacts: &ArtifactRegistry) -> bool;
     /// On the document's worker. Returns `None` when the document is finished here (its output
     /// is already in `out`).
     fn prepare(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) -> Option<Part>;
@@ -343,7 +345,7 @@ fn run_document(
             outputs.push((task.identifier(), out));
         }
         for (k, task) in finish_tasks.iter().enumerate() {
-            if !task.applies(document) {
+            if !task.applies(document, &reg.artifacts) {
                 continue;
             }
             let own;

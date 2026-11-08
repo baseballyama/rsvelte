@@ -1,6 +1,11 @@
-//! Configuration evaluation belongs to hosts, not the kernel.
+//! Configuration evaluation belongs to hosts, not the kernel; each plugin decodes its own
+//! options ([`extension`]).
 
+pub mod extension;
+// Loading native libraries and running processes need an operating system.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod native;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod process;
 pub mod text;
 mod wire;
@@ -9,6 +14,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
+pub use extension::{Extension, Options, Selection, Settings, TaskKind, Tool};
 use rsvelte_kernel::computation::functions::CallError;
 use serde::Deserialize;
 use serde_json::value::RawValue;
@@ -17,19 +23,9 @@ pub use text::{TextContract, TextFunction};
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Configuration {
+    /// Each plugin's options, by plugin identifier; the plugin decodes them.
     #[serde(default)]
     pub plugins: BTreeMap<String, Box<RawValue>>,
-    #[serde(default, rename = "typeChecker")]
-    pub type_checker: Option<TypeCheckerOptions>,
-}
-
-/// `typeChecker`: the type checker the check tasks run.
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct TypeCheckerOptions {
-    /// The program, then its own arguments, such as `["tsrs", "--fast"]`. A relative program path
-    /// is relative to the configuration file.
-    pub command: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -47,6 +43,23 @@ pub trait FunctionResolver: std::fmt::Debug + Send + Sync {
         reference: &FunctionReference,
         contract: &'static TextContract,
     ) -> Result<TextFunction, CallError>;
+}
+
+/// Resolves no function: for a host with no configuration file.
+#[derive(Debug)]
+pub struct NoFunctions;
+
+impl FunctionResolver for NoFunctions {
+    fn resolve(
+        &self,
+        _: &FunctionReference,
+        contract: &'static TextContract,
+    ) -> Result<TextFunction, CallError> {
+        Err(CallError(format!(
+            "`{}` needs a configuration file to resolve its function",
+            contract.identifier
+        )))
+    }
 }
 
 #[derive(Debug)]
@@ -70,11 +83,15 @@ impl Loader for JsonLoader {
         let text = wire::read(&path)?;
         let configuration = serde_json::from_str(&text)
             .map_err(|error| CallError(format!("{}: {error}", path.display())))?;
+        #[cfg(not(target_arch = "wasm32"))]
+        let functions: Arc<dyn FunctionResolver> = Arc::new(native::Resolver::new(
+            path.parent().expect("canonical file has a parent"),
+        ));
+        #[cfg(target_arch = "wasm32")]
+        let functions: Arc<dyn FunctionResolver> = Arc::new(NoFunctions);
         Ok(LoadedConfiguration {
             configuration,
-            functions: Arc::new(native::Resolver::new(
-                path.parent().expect("canonical file has a parent"),
-            )),
+            functions,
         })
     }
 }

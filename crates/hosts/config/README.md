@@ -31,15 +31,27 @@ Built-in Node type stripping supports erasable TypeScript syntax. Full TypeScrip
 features need a runtime loader such as `tsx`; rsvelte does not install it.
 See [Node's TypeScript documentation](https://nodejs.org/api/typescript.html).
 
-## Type checker
+## Plugin options
+
+Each key of `plugins` is a plugin identifier, and the plugin decodes its value; paths in it are
+relative to the configuration file.
+
+| Plugin              | Options                                                                 |
+| ------------------- | ----------------------------------------------------------------------- |
+| `svelte.compile`    | `cssHash`: a function                                                   |
+| `svelte.lint`       | `rules`: ESLint levels by rule name                                     |
+| `svelte.lint.typed` | `rules`: ESLint levels by rule name                                     |
+| `typescript.check`  | `command`: the type checker and its own arguments; `tsconfig`           |
+| `svelte.typecheck`  | `svelte`: the package directory; `contentMapper`: the mapper executable |
+| `vue.check`         | `vue`: the package directory                                            |
 
 ```json
-{ "typeChecker": { "command": ["tsrs", "--fast"] } }
+{ "plugins": { "typescript.check": { "command": ["tsrs", "--fast"] } } }
 ```
 
-`command` is the program and its own arguments. A program with a `/` is relative to the
-configuration file. A bare name is looked for in `node_modules/.bin` next to the file and in its
-parents, then in `PATH`. `--type-checker` on the command line replaces it.
+A program with a `/` is relative to the configuration file. A bare name is looked for in
+`node_modules/.bin` next to the file and in its parents, then in `PATH`. `tsconfig` defaults to the
+`tsconfig.json` next to the file, if there is one.
 
 ## Settings and functions
 

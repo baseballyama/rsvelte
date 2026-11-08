@@ -12,7 +12,7 @@ use std::process::Command;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use rsvelte_kernel::computation::database::{DocumentContext, Facet};
+use rsvelte_kernel::computation::database::{ArtifactRegistry, DocumentContext, Facet};
 use rsvelte_kernel::computation::pipeline::{Document, FinishTask, Part, TaskOutput};
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::output::emitter::{Emitter, Mapping};
@@ -82,7 +82,7 @@ impl TypeChecker {
         match e.kind() {
             std::io::ErrorKind::NotFound if bare => format!(
                 "type checker `{}` is not in node_modules/.bin or on PATH: install it in the \
-                 project, or give its path with --type-checker or typeChecker.command",
+                 project, or give its path in `command` of the `typescript.check` options",
                 self.program.display()
             ),
             std::io::ErrorKind::NotFound => {
@@ -118,7 +118,7 @@ impl std::fmt::Display for TypeChecker {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Tsc {
     pub checker: TypeChecker,
     /// The project's tsconfig.json; the check extends it.
@@ -243,9 +243,18 @@ pub type MapBack = fn(&Emitter, Span) -> Option<Span>;
 #[derive(Debug)]
 pub struct Check {
     pub identifier: &'static str,
-    pub matches: fn(&Document) -> bool,
+    pub documents: Documents,
     /// `None`: a document that needs checking reports that the task is not configured.
     pub tsc: Option<Tsc>,
+}
+
+/// Which documents a [`Check`] checks.
+#[derive(Debug, Clone, Copy)]
+pub enum Documents {
+    /// The documents of one language.
+    Matching(fn(&Document) -> bool),
+    /// Every document some plugin provides a [`TypeScriptView`] for, in one project.
+    WithTypeScriptView,
 }
 
 struct Prepared {
@@ -260,8 +269,11 @@ impl FinishTask for Check {
         self.identifier
     }
 
-    fn applies(&self, document: &Document) -> bool {
-        (self.matches)(document)
+    fn applies(&self, document: &Document, artifacts: &ArtifactRegistry) -> bool {
+        match self.documents {
+            Documents::Matching(matches) => matches(document),
+            Documents::WithTypeScriptView => artifacts.provides::<TypeScriptView>(document),
+        }
     }
 
     fn prepare(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) -> Option<Part> {

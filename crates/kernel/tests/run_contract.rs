@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
+use rsvelte_kernel::computation::database::{Artifact, ArtifactRegistry, DocumentContext};
 use rsvelte_kernel::computation::pipeline::{
     Document, DocumentResult, FinishTask, Part, Registry, RunOptions, Sharing, Task, TaskOutput,
     run, run_each,
@@ -62,7 +62,7 @@ impl FinishTask for Total {
         "total"
     }
 
-    fn applies(&self, _: &Document) -> bool {
+    fn applies(&self, _: &Document, _: &ArtifactRegistry) -> bool {
         true
     }
 

@@ -13,6 +13,8 @@ doctest = false
 rsvelte_kernel.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 libloading.workspace = true
 
 [lints]

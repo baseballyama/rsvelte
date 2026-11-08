@@ -10,6 +10,7 @@ publish.workspace = true
 doctest = false
 
 [dependencies]
+rsvelte_config.workspace = true
 rustc-hash.workspace = true
 rsvelte_typescript_compile.workspace = true
 rsvelte_typescript.workspace = true

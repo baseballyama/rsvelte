@@ -115,30 +115,80 @@ fn component(name: &str) -> Scratch {
 #[test]
 fn every_task_includes_the_checks_so_they_must_be_configured() {
     let scratch = component("every-task");
-    let refused = [
-        (
-            &["run", "App.svelte/input.svelte"][..],
-            "svelte.check/default needs a type checker",
-        ),
-        (
-            &["corpus", "."],
-            "svelte.check/default needs a type checker",
-        ),
-        (
-            &["corpus", ".", "--type-checker", "tsc"],
-            "svelte.check/default needs --svelte <svelte package dir>",
-        ),
-    ];
-    for (arguments, message) in refused {
+    for arguments in [&["run", "App.svelte/input.svelte"][..], &["corpus", "."]] {
         let output = rsvelte_in(&scratch, arguments);
         assert_eq!(output.status.code(), Some(2), "{arguments:?}");
         let stderr = stderr(&output);
-        assert!(stderr.contains(message), "{arguments:?}: {stderr}");
-        assert!(stderr.contains("--task"), "{arguments:?}: {stderr}");
+        assert!(
+            stderr.contains("ts.check/default needs a type checker"),
+            "{arguments:?}: {stderr}"
+        );
+        assert!(
+            stderr.contains("no task was named"),
+            "{arguments:?}: {stderr}"
+        );
     }
     assert!(
         !scratch.0.join("App.svelte/actual").exists(),
         "a refused run writes nothing"
+    );
+}
+
+/// A plugin that needs more than the shared type checker says so, after the checker is found.
+#[cfg(unix)]
+#[test]
+fn a_check_names_the_option_it_lacks() {
+    use std::os::unix::fs::PermissionsExt;
+    let scratch = component("check-option");
+    let checker = scratch.0.join("tsc");
+    std::fs::write(&checker, "#!/bin/sh\necho 'Version 7.1.0'\n").expect("checker");
+    std::fs::set_permissions(&checker, std::fs::Permissions::from_mode(0o755)).expect("mode");
+    let options = format!(r#"{{"command":["{}"]}}"#, checker.display());
+    let output = rsvelte_in(
+        &scratch,
+        &["corpus", ".", "--options", "typescript.check", &options],
+    );
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains("svelte.check/default needs the svelte package"),
+        "{stderr}"
+    );
+    let output = rsvelte_in(
+        &scratch,
+        &[
+            "corpus",
+            ".",
+            "--task",
+            "svelte.compile/client",
+            "--options",
+            "typescript.check",
+            &options,
+        ],
+    );
+    assert!(output.status.success(), "{}", self::stderr(&output));
+}
+
+#[test]
+fn options_for_no_installed_plugin_are_refused() {
+    let scratch = component("unknown-plugin");
+    let output = rsvelte_in(
+        &scratch,
+        &[
+            "corpus",
+            ".",
+            "--task",
+            "svelte.compile/client",
+            "--options",
+            "svelte.compiler",
+            "{}",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = stderr(&output);
+    assert!(
+        stderr.contains("no installed plugin reads the options of `svelte.compiler`"),
+        "{stderr}"
     );
 }
 

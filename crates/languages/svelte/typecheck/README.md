@@ -4,15 +4,15 @@
 runs native TypeScript 7.1 through its content mapper. Projection and type checking share one implementation.
 The task name stays `svelte.check/default` to match the existing oracle identifier.
 
-Configure `tsc`, `content_mapper`, the Svelte package types, and an optional tsconfig through
-`TypeCheckConfiguration`. As before, JavaScript components are unchecked.
+Configure the type checker, `content_mapper` and the Svelte package types through
+`TypeCheckConfiguration`, or through the options `EXTENSION` reads. As before, JavaScript components are unchecked.
 Projection consumers can use the separate crate without any of these dependencies.
 
 The checker supplies original Svelte inputs and cached AST projections to
 `rsvelte-typescript-content-mapper`. Native TypeScript consumes the projection and span map,
 then reports diagnostics in original coordinates. Svelte is not parsed again. The shared
-protocol crate also serves other languages. The CLI finds this executable on `PATH`, or
-uses `RSVELTE_TYPESCRIPT_CONTENT_MAPPER` as its path.
+protocol crate also serves other languages. The `contentMapper` option names this
+executable; by default it is `rsvelte-typescript-content-mapper` in `node_modules/.bin` or on `PATH`.
 
 ```sh
 cargo install --path crates/languages/typescript/content_mapper

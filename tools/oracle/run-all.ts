@@ -9,6 +9,7 @@ import { parseArgs } from 'node:util';
 import getExePath from './node_modules/typescript-7/lib/getExePath.js';
 import { CORPUS, ROOT } from './paths.ts';
 
+const options = (plugin: string, value: object) => ['--options', plugin, JSON.stringify(value)];
 const pkg = (name: string) => fs.realpathSync(path.join(import.meta.dirname, 'node_modules', name));
 
 export async function main(args: string[]): Promise<void> {
@@ -22,12 +23,9 @@ export async function main(args: string[]): Promise<void> {
 	const command = [
 		'corpus',
 		...families.map((f) => path.join(CORPUS, f)),
-		'--tsc',
-		getExePath({ fs, module, path, url }),
-		'--svelte',
-		pkg('svelte'),
-		'--vue',
-		pkg('vue'),
+		...options('typescript.check', { command: [getExePath({ fs, module, path, url })] }),
+		...options('svelte.typecheck', { svelte: pkg('svelte') }),
+		...options('vue.check', { vue: pkg('vue') }),
 	];
 	const r = spawnSync(values.binary, command, { stdio: 'inherit' });
 	process.exit(r.status ?? 1);

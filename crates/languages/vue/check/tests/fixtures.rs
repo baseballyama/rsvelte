@@ -8,10 +8,12 @@ fn main() -> ExitCode {
     let packages = NodePackages::locate();
     let configuration = Configuration {
         check: Some(TypeCheckConfiguration {
-            checker: checker(&packages),
-            tsconfig: Some(
-                concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
-            ),
+            tsc: rsvelte_typescript_check::Tsc {
+                checker: checker(&packages),
+                tsconfig: Some(
+                    concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
+                ),
+            },
             vue: packages.package("vue"),
         }),
     };

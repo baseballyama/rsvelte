@@ -108,3 +108,12 @@ pub(crate) use compilation::{context, script, template};
 pub use computation::{
     Analyzed, Client, Compile, PLUGIN, Resolved, Server, Side, Translated, register,
 };
+
+/// Takes no options.
+pub static EXTENSION: rsvelte_config::Extension = rsvelte_config::Extension {
+    identifier: "svue",
+    install: |registry, _| {
+        register(registry);
+        Ok(())
+    },
+};

@@ -735,7 +735,6 @@ dependencies = [
  "rayon",
  "rsvelte_config",
  "rsvelte_kernel",
- "rsvelte_markup",
  "rsvelte_stylesheet",
  "rsvelte_svelte",
  "rsvelte_svelte_compile",
@@ -758,7 +757,6 @@ dependencies = [
  "rsvelte_vue_compile",
  "rsvelte_vue_format",
  "rsvelte_vue_lint",
- "serde",
  "serde_json",
 ]
 
@@ -808,6 +806,7 @@ name = "rsvelte_lint"
 version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
+ "serde",
 ]
 
 [[package]]
@@ -846,6 +845,7 @@ dependencies = [
 name = "rsvelte_svelte_compile"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_markup",
  "rsvelte_stylesheet",
@@ -854,12 +854,14 @@ dependencies = [
  "rsvelte_typescript",
  "rsvelte_typescript_compile",
  "rustc-hash",
+ "serde",
 ]
 
 [[package]]
 name = "rsvelte_svelte_compile_vapor"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_svelte",
  "rsvelte_svelte_compile",
@@ -884,6 +886,7 @@ dependencies = [
 name = "rsvelte_svelte_format"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_stylesheet_format",
  "rsvelte_svelte",
@@ -896,6 +899,7 @@ dependencies = [
 name = "rsvelte_svelte_lint"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_lint",
  "rsvelte_markup",
@@ -913,6 +917,7 @@ dependencies = [
 name = "rsvelte_svelte_lint_typed"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_lint",
  "rsvelte_markup",
@@ -921,6 +926,7 @@ dependencies = [
  "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_check",
+ "serde",
 ]
 
 [[package]]
@@ -963,11 +969,13 @@ dependencies = [
 name = "rsvelte_svelte_typecheck"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_svelte_parser",
  "rsvelte_svelte_typescript_projection",
  "rsvelte_test_harness",
  "rsvelte_typescript_check",
+ "serde",
 ]
 
 [[package]]
@@ -977,6 +985,7 @@ dependencies = [
  "oxc_allocator",
  "oxc_parser",
  "oxc_span",
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_svelte_parser",
  "rsvelte_svelte_syntax",
@@ -989,6 +998,7 @@ dependencies = [
 name = "rsvelte_svue"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_svelte",
  "rsvelte_svelte_compile",
@@ -1027,15 +1037,19 @@ dependencies = [
 name = "rsvelte_typescript_check"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_typescript",
  "rsvelte_typescript_content_mapper",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
 name = "rsvelte_typescript_compile"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_typescript",
 ]
@@ -1053,6 +1067,7 @@ dependencies = [
 name = "rsvelte_typescript_format"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_typescript",
 ]
@@ -1061,6 +1076,7 @@ dependencies = [
 name = "rsvelte_typescript_lint"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_lint",
  "rsvelte_typescript",
@@ -1081,18 +1097,21 @@ dependencies = [
 name = "rsvelte_vue_check"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_check",
  "rsvelte_vue",
  "rustc-hash",
+ "serde",
 ]
 
 [[package]]
 name = "rsvelte_vue_compile"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_stylesheet",
  "rsvelte_test_harness",
@@ -1106,6 +1125,7 @@ dependencies = [
 name = "rsvelte_vue_format"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_stylesheet_format",
  "rsvelte_test_harness",
@@ -1118,6 +1138,7 @@ dependencies = [
 name = "rsvelte_vue_lint"
 version = "0.0.0"
 dependencies = [
+ "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_lint",
  "rsvelte_markup",

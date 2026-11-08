@@ -2,11 +2,6 @@ use std::path::{Path, PathBuf};
 
 use rsvelte_config::{JsonLoader, LoadedConfiguration, Loader};
 use rsvelte_kernel::computation::functions::CallError;
-use rsvelte_kernel::computation::pipeline::Registry;
-use rsvelte_kernel::diagnostics::diagnostic::Severity;
-use serde::Deserialize;
-
-mod svelte;
 
 #[derive(Debug, Default)]
 pub(crate) struct Options {
@@ -108,26 +103,6 @@ impl Options {
     }
 }
 
-/// The configuration file's `typeChecker`, with a relative program resolved against the file.
-pub(crate) fn type_checker(
-    path: &Path,
-    loaded: &LoadedConfiguration,
-) -> Result<Option<rsvelte_typescript_check::TypeChecker>, CallError> {
-    let Some(options) = &loaded.configuration.type_checker else {
-        return Ok(None);
-    };
-    let Some((program, arguments)) = options.command.split_first() else {
-        return Err(CallError("typeChecker.command needs a program".into()));
-    };
-    let base = path.parent().unwrap_or_else(|| Path::new("."));
-    let program = program_path(program, base)
-        .map_err(|e| CallError(format!("typeChecker.command {program}: {e}")))?;
-    Ok(Some(rsvelte_typescript_check::TypeChecker {
-        program,
-        arguments: arguments.to_vec(),
-    }))
-}
-
 fn discover(directory: &Path) -> Result<Option<PathBuf>, CallError> {
     const NAMES: &[&str] = &[
         "rsvelte.config.json",
@@ -159,76 +134,4 @@ fn discover(directory: &Path) -> Result<Option<PathBuf>, CallError> {
         }
     }
     Ok(None)
-}
-
-pub(crate) fn apply(
-    registry: &mut Registry,
-    loaded: &LoadedConfiguration,
-) -> Result<(), CallError> {
-    let plugins: std::collections::BTreeSet<_> =
-        registry.plugins().map(|plugin| plugin.identifier).collect();
-    for (identifier, options) in &loaded.configuration.plugins {
-        if !plugins.contains(identifier.as_str()) {
-            return Err(CallError(format!(
-                "configuration requires unavailable plugin `{identifier}`"
-            )));
-        }
-        match identifier.as_str() {
-            "svelte.compile" => svelte::compile(registry, loaded, options)?,
-            "svelte.lint" => svelte::lint(registry, options)?,
-            #[cfg(feature = "lint-typed")]
-            "svelte.lint.typed" => svelte::lint_typed(registry, options)?,
-            _ => {
-                return Err(CallError(format!(
-                    "plugin `{identifier}` has no configuration adapter"
-                )));
-            }
-        }
-    }
-    Ok(())
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-enum Level {
-    Name(String),
-    Number(u8),
-}
-
-impl Level {
-    fn severity(&self) -> Result<Option<Severity>, CallError> {
-        match self {
-            Self::Name(name) if name == "off" => Ok(None),
-            Self::Name(name) if name == "warn" => Ok(Some(Severity::Warning)),
-            Self::Name(name) if name == "error" => Ok(Some(Severity::Error)),
-            Self::Number(0) => Ok(None),
-            Self::Number(1) => Ok(Some(Severity::Warning)),
-            Self::Number(2) => Ok(Some(Severity::Error)),
-            _ => Err(CallError(
-                "rule severity must be off, warn, error, 0, 1 or 2".into(),
-            )),
-        }
-    }
-}
-
-fn decode<T: serde::de::DeserializeOwned>(
-    raw: &serde_json::value::RawValue,
-) -> Result<T, CallError> {
-    serde_json::from_str(raw.get()).map_err(|error| CallError(error.to_string()))
-}
-
-/// Where the type checker's program is. A path is relative to `base`, and made absolute since the
-/// checker runs in a temporary directory. A bare name is looked for in `node_modules/.bin` of
-/// `base` and its parents first, as package managers run a project's tools, then in `PATH`.
-pub(crate) fn program_path(value: &str, base: &Path) -> std::io::Result<PathBuf> {
-    let path = Path::new(value);
-    if path.components().count() > 1 {
-        return std::path::absolute(base.join(path));
-    }
-    let base = std::path::absolute(base)?;
-    let installed = base
-        .ancestors()
-        .map(|d| d.join("node_modules/.bin").join(path))
-        .find(|candidate| candidate.is_file());
-    Ok(installed.unwrap_or_else(|| path.to_owned()))
 }

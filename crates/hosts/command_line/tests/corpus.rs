@@ -15,7 +15,7 @@ use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput
 use rsvelte_svelte_parser::Parsed;
 use rsvelte_svelte_typescript_projection::Printed;
 use rsvelte_test_harness::NodePackages;
-use rsvelte_typescript_check::{TypeChecker, TypeScriptDocument, TypeScriptView};
+use rsvelte_typescript_check::{Tsc, TypeChecker, TypeScriptDocument, TypeScriptView};
 
 #[derive(Debug, Default)]
 struct Coverage {
@@ -81,11 +81,13 @@ fn main() -> ExitCode {
     let (program, arguments) = packages.type_checker();
     let typecheck = rsvelte_svelte_typecheck::Configuration {
         check: Some(rsvelte_svelte_typecheck::TypeCheckConfiguration {
-            checker: TypeChecker { program, arguments },
+            tsc: Tsc {
+                checker: TypeChecker { program, arguments },
+                tsconfig: Some(
+                    concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
+                ),
+            },
             content_mapper: rsvelte_test_harness::content_mapper(),
-            tsconfig: Some(
-                concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
-            ),
             svelte: packages.package("svelte"),
         }),
     };

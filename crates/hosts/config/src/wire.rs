@@ -1,12 +1,17 @@
-use std::io::{Read, Write};
+use std::io::Read;
+#[cfg(not(target_arch = "wasm32"))]
+use std::io::Write;
 use std::path::Path;
 
 use rsvelte_kernel::computation::functions::CallError;
 
 pub(crate) const MAX_MESSAGE_BYTES: usize = 16 * 1024 * 1024;
 
+// Requests go only to a configuration process.
+#[cfg(not(target_arch = "wasm32"))]
 struct Buffer(Vec<u8>);
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Write for Buffer {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         if buf.len() >= MAX_MESSAGE_BYTES - self.0.len() {
@@ -21,6 +26,7 @@ impl Write for Buffer {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn encode(request: &impl serde::Serialize) -> Result<Vec<u8>, CallError> {
     let mut buffer = Buffer(Vec::new());
     serde_json::to_writer(&mut buffer, request).map_err(|error| CallError(error.to_string()))?;

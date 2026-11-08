@@ -33,7 +33,7 @@ use rsvelte_kernel::performance::measurement;
 pub(crate) struct Options {
     rounds: usize,
     json: Option<PathBuf>,
-    pub(crate) type_checker: Option<crate::Identity>,
+    pub(crate) tools: Vec<rsvelte_config::Tool>,
 }
 
 impl Options {
@@ -41,7 +41,7 @@ impl Options {
         let mut o = Self {
             rounds: 5,
             json: None,
-            type_checker: None,
+            tools: Vec::new(),
         };
         for a in arguments {
             match a.split_once('=') {
@@ -255,7 +255,7 @@ pub(crate) fn benchmark(
         .key("metrics")
         .write_boolean(measurement::ENABLED)
         .end_object();
-    crate::Identity::write(options.type_checker.as_ref(), &mut w);
+    crate::write_tools(&options.tools, &mut w);
     w.key("threads")
         .write_number(rayon::current_num_threads())
         .key("population")

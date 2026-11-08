@@ -24,8 +24,6 @@ metrics = ["rsvelte_kernel/metrics"]
 
 [dependencies]
 rsvelte_config.workspace = true
-rsvelte_markup.workspace = true
-serde.workspace = true
 serde_json.workspace = true
 rsvelte_vue_lint.workspace = true
 rsvelte_vue_format.workspace = true
@@ -42,15 +40,15 @@ rsvelte_typescript_format.workspace = true
 rsvelte_typescript_compile.workspace = true
 rsvelte_typescript_check.workspace = true
 rsvelte_kernel.workspace = true
-rsvelte_typescript.workspace = true
-rsvelte_svelte.workspace = true
-rsvelte_vue.workspace = true
 rsvelte_svue.workspace = true
 rsvelte_svelte_compile_vapor.workspace = true
 rayon.workspace = true
 libc.workspace = true
 
 [dev-dependencies]
+rsvelte_svelte.workspace = true
+rsvelte_typescript.workspace = true
+rsvelte_vue.workspace = true
 oxc_allocator.workspace = true
 oxc_parser.workspace = true
 oxc_span.workspace = true

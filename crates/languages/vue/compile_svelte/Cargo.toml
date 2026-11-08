@@ -9,6 +9,7 @@ publish = false
 doctest = false
 
 [dependencies]
+rsvelte_config.workspace = true
 rsvelte_svelte_compile.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript.workspace = true

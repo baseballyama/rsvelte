@@ -8,7 +8,9 @@ use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_parser::Parsed;
 use rsvelte_svelte_typescript_projection::Printed;
-use rsvelte_typescript_check::{Check, Tsc, TypeScriptDocument, TypeScriptEnv, TypeScriptView};
+use rsvelte_typescript_check::{
+    Check, Documents, TypeScriptDocument, TypeScriptEnv, TypeScriptView,
+};
 
 use crate::Configuration;
 
@@ -33,11 +35,8 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
     rsvelte_svelte_typescript_projection::register_artifacts(reg);
     reg.finish_task(Check {
         identifier: "svelte.check/default",
-        matches: rsvelte_svelte_parser::matches,
-        tsc: config.check.as_ref().map(|c| Tsc {
-            checker: c.checker.clone(),
-            tsconfig: c.tsconfig.clone(),
-        }),
+        documents: Documents::Matching(rsvelte_svelte_parser::matches),
+        tsc: config.check.as_ref().map(|c| c.tsc.clone()),
     });
     let env = config
         .check

@@ -12,13 +12,14 @@ declaration files. The extension selects JavaScript or TypeScript syntax in the 
 | `ts.compile/default` | JavaScript               | Erases types in the parser's supported subset; refuses enums and namespaces with values |
 | `ts.format/default`  | JavaScript or TypeScript | The shared formatter's supported subset; refuses unsupported types and layouts          |
 | `ts.lint/default`    | JSON                     | The shared unused-variable rule on supported syntax                                     |
-| `ts.check/default`   | JSON                     | The CLI's shared type checker, set with `--type-checker` and optionally `--tsconfig`    |
+| `ts.check/default`   | JSON                     | Every document with a TypeScript view, by the type checker `typescript.check` names     |
 
 ```sh
 cargo run -p rsvelte_command_line -- run input.ts --task ts.compile/default
 cargo run -p rsvelte_command_line -- run input.ts --task ts.format/default
 cargo run -p rsvelte_command_line -- run input.ts --task ts.lint/default
-cargo run -p rsvelte_command_line -- run input.ts --task ts.check/default --type-checker /path/to/tsc
+cargo run -p rsvelte_command_line -- run input.ts --task ts.check/default \
+  --options typescript.check '{"command": ["/path/to/tsc"]}'
 ```
 
 This is partial TypeScript support. The parser does not yet support full JavaScript

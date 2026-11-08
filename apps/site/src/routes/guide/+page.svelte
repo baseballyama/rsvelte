@@ -158,8 +158,8 @@
 					の位置対応の実行ファイル（<code>rsvelte-typescript-content-mapper</code>）です。TypeScript
 					は、Node.js で動く従来の TypeScript
 					コマンドとは別に用意してください。位置対応の実行ファイルは <code>PATH</code>
-					から探します。別の場所に置く場合は、環境変数
-					<code>RSVELTE_TYPESCRIPT_CONTENT_MAPPER</code> にパスを指定します。
+					から探します。別の場所に置く場合は、<code>svelte.typecheck</code> のオプション
+					<code>contentMapper</code> にパスを指定します。
 				</p>
 				<p>
 					まだ用意していない場合は、rsvelte
@@ -182,19 +182,21 @@
 				</p>
 				<GuideCode code={guideExamples.check} label="型チェックの設定と実行" />
 				<p>
-					<code>--type-checker</code> は型チェッカーです。TypeScript 7.1 の <code>tsc</code>
+					<code>--options</code>
+					は、プラグイン名と、そのプラグインのオプションを受け取ります。設定ファイルの
+					<code>plugins</code> に同じ内容を書くこともできます。<code>typescript.check</code> の
+					<code>command</code> は型チェッカーとその引数です。TypeScript 7.1 の <code>tsc</code>
 					のほか、同じコマンドラインを持つ製品（<code>tsrs</code> など）も使えます。<code>tsrs</code
 					>
 					のように名前だけを書くと、プロジェクトの <code>node_modules/.bin</code>、次に
-					<code>PATH</code> から探します。型チェッカー自身の引数は <code>--type-checker-arg</code>
-					で 1 つずつ渡します。設定ファイルの <code>typeChecker.command</code>
-					でも指定できます。型チェッカーが見つからない、古い、といった問題は、ファイルを読む前にまとめて報告されます。<code
-						>--svelte</code
+					<code>PATH</code>
+					から探します。型チェッカーが見つからない、古い、といった問題は、ファイルを読む前にまとめて報告されます。<code
+						>svelte.typecheck</code
 					>
-					は Svelte パッケージのディレクトリです。<code>--tsconfig</code>
+					の <code>svelte</code> は Svelte パッケージのディレクトリです。<code>tsconfig</code>
 					で指定した設定を引き継いで検査します。
 				</p>
-				<p>プロジェクト設定がない場合は、<code>--tsconfig</code> とそのパスを省略できます。</p>
+				<p>プロジェクト設定がない場合は、<code>tsconfig</code> を省略できます。</p>
 				<p>
 					型の指摘は <code>// svelte.check/default json</code> の後に表示されます。設定が不足した場合や、変換できない構文がある場合は、別の診断として表示されます。
 				</p>

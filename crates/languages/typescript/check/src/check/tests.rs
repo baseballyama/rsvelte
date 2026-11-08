@@ -131,7 +131,7 @@ fn identify_says_what_to_change() {
         .identify()
         .unwrap_err();
     assert!(
-        missing.contains("on PATH") && missing.contains("--type-checker"),
+        missing.contains("on PATH") && missing.contains("typescript.check"),
         "{missing}"
     );
     let path = TypeChecker::new("/rsvelte/no/such/tsc")

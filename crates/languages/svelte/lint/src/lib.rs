@@ -5,6 +5,8 @@ pub use lint::*;
 
 pub mod computation;
 mod configuration;
+mod extension;
+pub use extension::EXTENSION;
 mod rules;
 pub use configuration::{Configuration, RuleConfiguration};
 mod task;

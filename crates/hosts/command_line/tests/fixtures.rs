@@ -1,4 +1,5 @@
-//! `ts.check` belongs to no language plugin, so its cases live with the host that registers it.
+//! `ts.check` checks the documents of every language plugin in one project, so its cases need
+//! several plugins and live with the host.
 
 use std::process::ExitCode;
 
@@ -8,21 +9,20 @@ use rsvelte_test_harness::NodePackages;
 fn main() -> ExitCode {
     let packages = NodePackages::locate();
     let (program, arguments) = packages.type_checker();
-    let tsc = rsvelte_typescript_check::TypeChecker { program, arguments };
-    let tsconfig: std::path::PathBuf =
-        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into();
+    let tsc = rsvelte_typescript_check::Tsc {
+        checker: rsvelte_typescript_check::TypeChecker { program, arguments },
+        tsconfig: Some(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into()),
+    };
     let svelte = rsvelte_svelte_typecheck::Configuration {
         check: Some(rsvelte_svelte_typecheck::TypeCheckConfiguration {
-            checker: tsc.clone(),
+            tsc: tsc.clone(),
             content_mapper: rsvelte_test_harness::content_mapper(),
-            tsconfig: Some(tsconfig.clone()),
             svelte: packages.package("svelte"),
         }),
     };
     let vue = rsvelte_vue_check::Configuration {
         check: Some(rsvelte_vue_check::TypeCheckConfiguration {
-            checker: tsc.clone(),
-            tsconfig: Some(tsconfig.clone()),
+            tsc: tsc.clone(),
             vue: packages.package("vue"),
         }),
     };
@@ -31,15 +31,8 @@ fn main() -> ExitCode {
     rsvelte_vue_check::register(&mut registry, &vue);
     registry.finish_task(rsvelte_typescript_check::Check {
         identifier: "ts.check/default",
-        matches: |document| {
-            rsvelte_typescript::matches(document)
-                || rsvelte_svelte::matches(document)
-                || rsvelte_vue::matches(document)
-        },
-        tsc: Some(rsvelte_typescript_check::Tsc {
-            checker: tsc,
-            tsconfig: Some(tsconfig),
-        }),
+        documents: rsvelte_typescript_check::Documents::WithTypeScriptView,
+        tsc: Some(tsc),
     });
     rsvelte_test_harness::Fixtures::new(env!("CARGO_MANIFEST_DIR"), registry)
         .snapshot("ts.check/default", "ts-check")

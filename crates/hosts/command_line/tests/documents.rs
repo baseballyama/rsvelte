@@ -234,7 +234,7 @@ fn the_shared_checker_selects_standalone_typescript() {
     let mut registry = registry();
     registry.finish_task(rsvelte_typescript_check::Check {
         identifier: "ts.check/default",
-        matches: rsvelte_typescript::matches,
+        documents: rsvelte_typescript_check::Documents::WithTypeScriptView,
         tsc: None,
     });
     let document = registry
@@ -320,7 +320,7 @@ fn javascript_type_checking_is_explicitly_unchecked() {
     let mut registry = registry();
     registry.finish_task(rsvelte_typescript_check::Check {
         identifier: "ts.check/default",
-        matches: rsvelte_typescript::matches,
+        documents: rsvelte_typescript_check::Documents::WithTypeScriptView,
         tsc: None,
     });
     for path in ["input.js", "input.mjs", "input.cjs"] {

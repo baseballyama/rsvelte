@@ -7,11 +7,8 @@ pub struct Configuration {
 
 #[derive(Clone, Debug)]
 pub struct TypeCheckConfiguration {
-    /// `tsc` of TypeScript 7.1, or another type checker with its command line.
-    pub checker: rsvelte_typescript_check::TypeChecker,
+    pub tsc: rsvelte_typescript_check::Tsc,
     pub content_mapper: std::path::PathBuf,
-    /// The project's tsconfig.json.
-    pub tsconfig: Option<std::path::PathBuf>,
     /// The installed `svelte` package: its types declare the runes and `svelte/elements`.
     pub svelte: std::path::PathBuf,
 }
