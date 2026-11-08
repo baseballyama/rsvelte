@@ -8,6 +8,7 @@
 //!
 //! Instructions are counted outside, by cachegrind, as the difference between a run with
 //! `rounds=2` and one with `rounds=1`: exactly one warm round, whatever loading and warming cost.
+//! `rounds=0` only loads, so cachegrind counts loading with it; its counters are `UNMEASURED`.
 //! That needs no `metrics` feature, so the instructions are the shipped build's; without the
 //! feature the allocation fields are `UNMEASURED`.
 //!
@@ -40,9 +41,7 @@ impl Options {
                 Some(("rounds", n)) => {
                     o.rounds = n
                         .parse()
-                        .ok()
-                        .filter(|&n| n > 0)
-                        .ok_or_else(|| format!("rounds={n}: expected a positive integer"))?;
+                        .map_err(|e| format!("rounds={n}: expected a whole number: {e}"))?;
                 }
                 Some(("json", f)) => o.json = Some(PathBuf::from(f)),
                 Some(_) => return Err(format!("unknown performance option {a}")),
@@ -271,8 +270,15 @@ mod tests {
     }
 
     #[test]
-    fn rounds_are_positive() {
-        assert!(Options::parse(&["dir", "rounds=0"]).is_err());
+    fn rounds_are_whole_numbers() {
+        assert!(Options::parse(&["dir", "rounds=-1"]).is_err());
+        assert_eq!(
+            Options::parse(&["dir", "rounds=0"])
+                .expect("valid")
+                .1
+                .rounds,
+            0
+        );
         assert_eq!(
             Options::parse(&["dir", "rounds=3"])
                 .expect("valid")

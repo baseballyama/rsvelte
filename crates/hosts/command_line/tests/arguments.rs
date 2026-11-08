@@ -69,12 +69,12 @@ fn a_mistyped_option_is_not_a_directory() {
 }
 
 #[test]
-fn performance_needs_at_least_one_round() {
+fn performance_rounds_are_a_whole_number() {
     let scratch = Scratch::new("rounds");
-    let output = rsvelte(&["performance", scratch.path(), "rounds=0"]);
+    let output = rsvelte(&["performance", scratch.path(), "rounds=two"]);
     assert_eq!(output.status.code(), Some(2));
     assert!(
-        stderr(&output).contains("expected a positive integer"),
+        stderr(&output).contains("expected a whole number"),
         "{}",
         stderr(&output)
     );
