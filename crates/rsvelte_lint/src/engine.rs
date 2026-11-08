@@ -87,7 +87,7 @@ pub(crate) fn run_native_rules_on_root(
     scope_resolver: Option<&ScopeResolver>,
 ) -> Vec<LintDiagnostic> {
     let rules = all_rules();
-    let sveltekit = crate::sveltekit::available(path);
+    let sveltekit = crate::sveltekit::KitContext::for_path(path);
     let runes = Some(crate::runes_mode::component_runes_mode(
         config.svelte_features_runes(),
         root,
@@ -104,7 +104,7 @@ pub(crate) fn run_native_rules_on_root(
             if !crate::svelte_version::supports_svelte5(meta.name) {
                 return None;
             }
-            if !sveltekit && crate::sveltekit::is_sveltekit_only(meta.name) {
+            if !sveltekit.allows(meta.name) {
                 return None;
             }
             if runes_gate_excludes(meta, runes) {
@@ -198,7 +198,7 @@ fn enabled_script_rules<'a>(
     path: Option<&Path>,
     runes: Option<bool>,
 ) -> Vec<EnabledScriptRule<'a>> {
-    let sveltekit = crate::sveltekit::available(path);
+    let sveltekit = crate::sveltekit::KitContext::for_path(path);
     rules
         .iter()
         .filter_map(|r| {
@@ -206,7 +206,7 @@ fn enabled_script_rules<'a>(
             let severity = config.severity_for(meta);
             if severity == Severity::Off
                 || !crate::svelte_version::supports_svelte5(meta.name)
-                || (!sveltekit && crate::sveltekit::is_sveltekit_only(meta.name))
+                || !sveltekit.allows(meta.name)
                 || runes_gate_excludes(meta, runes)
             {
                 return None;
