@@ -122,9 +122,11 @@
 		rsvelte はこれらを一つの Rust ライブラリにまとめました。それがカーネルです。
 	</p>
 	<p>
-		分け方の基準は一つだけです。<strong>扱う言語が変わると、処理の規則も変わるか。</strong
-		>書き直さないもの、つまりスケジューラ、計算結果のキャッシュ、元のソース位置を求める処理、文書プリンタはカーネルに置きます。lint
-		ルールの走らせ方と並び順は、カーネルではなく rsvelte_lint_runner に置きます。
+		分け方の基準は二つです。<strong>言語を知っているか。どの処理でも使うか。</strong
+		>言語を知らず、どの処理でも使うもの、つまりスケジューラ、計算結果のキャッシュ、元のソース位置を求める処理、エラーや警告の型はカーネルに置きます。言語は知らないが一つの処理だけが使うものは、カーネルの隣の
+		crate に置きます。lint ルールの走らせ方と並び順は rsvelte_lint_runner に、整形の文書プリンタは
+		rsvelte_document_printer にあります。ホストがプラグインを組み込む口も、rsvelte_plugin_interface
+		としてカーネルの隣にあります。どの処理も、カーネルとこの口だけで書けます。
 	</p>
 	<p>
 		この基準は、実際に二つ目の言語を足して試されています（<a href="#languages">二つ目の言語</a>）。
@@ -153,7 +155,7 @@
 <Figure label="図 1.2 · crate の役割と依存の向き">
 	<div class="overflow-x-auto px-4 py-5">
 		<ol class="flex min-w-[640px] items-stretch gap-2 font-mono text-[12.5px] tracking-normal">
-			{#each [['rsvelte_command_line · rsvelte_kernel_browser', 'ホスト：コマンドラインとブラウザ'], ['rsvelte_svelte_compile · rsvelte_vue_lint · rsvelte_svue など', '言語の機能：コンパイル、整形、コード検査、型検査、言語間の変換'], ['rsvelte_svelte · rsvelte_vue · rsvelte_typescript など／rsvelte_lint_runner など', '言語の中核と、共有の部品'], ['rsvelte_kernel', '言語を知らない']] as [name, role], i (name)}
+			{#each [['rsvelte_command_line · rsvelte_kernel_browser', 'ホスト：コマンドラインとブラウザ'], ['rsvelte_svelte_compile · rsvelte_vue_lint · rsvelte_svue など', '言語の機能：コンパイル、整形、コード検査、型検査、言語間の変換'], ['rsvelte_svelte · rsvelte_vue など／rsvelte_plugin_interface など', '言語の中核と、言語を知らない部品'], ['rsvelte_kernel', '言語を知らない']] as [name, role], i (name)}
 				<li class="flex flex-1 items-center gap-2">
 					<div
 						class={[
@@ -169,9 +171,10 @@
 			{/each}
 		</ol>
 	</div>
-	{#snippet caption()}矢印は依存の向き。役割は crate のパスで決まり、<code>tools/structure</code> のテストが依存の向きを確かめる。言語の中核はカーネルと他の言語の中核だけに、共有の部品はカーネルだけに依存する。rsvelte_svue
-		と rsvelte_svelte_compile_vapor は Svelte と Vue の両方の中核に依存する。カーネルが依存する外部の
-		crate は rayon、semver、rustc-hash、sha2、unicode-width の五つ。{/snippet}
+	{#snippet caption()}矢印は依存の向き。役割は crate のパスで決まり、<code>tools/structure</code> のテストが依存の向きを確かめる。言語の中核はカーネルと他の言語の中核だけに、言語を知らない部品はカーネルだけに依存する。設定ファイルを読む
+		rsvelte_configuration_loading には、ホストだけが依存できる。rsvelte_svue と rsvelte_svelte_compile_vapor
+		は Svelte と Vue の両方の中核に依存する。カーネルが依存する外部の crate は rayon、semver、rustc-hash、sha2
+		の四つ。{/snippet}
 </Figure>
 
 <div class="prose-learn">
@@ -233,9 +236,9 @@
 <div class="prose-learn">
 	<p>
 		カーネルの「処理の登録と実行」が、選んだ処理を文書ごとに順に呼び出します。
-		「計算結果の保存と再利用」は、言語プラグインが作る構文木や名前解決の表を保持します。
-		整形は文書プリンタを使い、コード検査は rsvelte_lint_runner
-		のルールの実行と指摘の書き出しを使い、カーネルからはエラーや警告の型と位置の変換を使います。
+		「計算結果の保存と再利用」は、言語プラグインが作る構文木や名前解決の表を保持します。 整形は
+		rsvelte_document_printer の文書プリンタを使います。コード検査は rsvelte_lint_runner
+		のルールの実行と指摘の書き出しを使います。どちらも、カーネルからはエラーや警告の型と位置の変換を使います。
 		コンパイルと型検査用コードの生成では、文字列の出力と位置の対応付けを使います。
 	</p>
 	<p>

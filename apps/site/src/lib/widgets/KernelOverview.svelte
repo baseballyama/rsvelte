@@ -86,7 +86,7 @@
 					<text class="node-code" x={node.box.x + 12} y={node.box.y + 45}>{node.code}</text>
 				</a>
 			{/each}
-			<text class="group-label" x="306" y="454">どの処理も使う共通部品</text>
+			<text class="group-label" x="306" y="454">言語を知らない部品</text>
 			{#each sharedParts as part, index (part.id)}
 				{@const p = partPosition(index)}
 				<a
@@ -112,7 +112,7 @@
 				</li>
 			{/each}
 			<li>
-				<strong>どの処理も使う共通部品</strong>
+				<strong>言語を知らない部品</strong>
 				<p>
 					{#each sharedParts as part, index (part.id)}{#if index > 0}、{/if}<a
 							href={part.href}

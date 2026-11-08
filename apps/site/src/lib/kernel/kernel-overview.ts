@@ -473,6 +473,6 @@ export const chapterPositions: Record<string, string[]> = {
 
 export function positionLabel(id: string): string {
 	if (id.startsWith('part:'))
-		return `共通部品：${sharedParts.find((part) => `part:${part.id}` === id)!.label}`;
+		return `言語を知らない部品：${sharedParts.find((part) => `part:${part.id}` === id)!.label}`;
 	return overviewNodes.find((node) => node.id === id)!.label;
 }

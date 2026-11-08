@@ -19,7 +19,7 @@
 
 <ChapterHeader
 	chapter={c}
-	lead="整形器は、コードを直接文字列にしません。「ここは収まれば 1 行、収まらなければ改行してインデント」という指示の木を作り、プリンタがそれを幅に合わせて文字列にします。カーネルのプリンタは Prettier のものを移植したもので、同じ木からは同じ文字列が出ます。"
+	lead="整形器は、コードを直接文字列にしません。「ここは収まれば 1 行、収まらなければ改行してインデント」という指示の木を作り、プリンタがそれを幅に合わせて文字列にします。rsvelte のプリンタ（rsvelte_document_printer）は Prettier のものを移植したもので、同じ木からは同じ文字列が出ます。"
 />
 
 <div class="prose-learn">
@@ -137,7 +137,7 @@
 	<p>
 		Prettier はこの判断のために、出力の前に <code>propagateBreaks</code> で木を一度なめ、group の
 		<code>break</code>
-		を書き換えます。カーネルでは、これをノードを作る時点で済ませます。ノードは自分より前に作られたノードしか参照できないので、子の答えは親を作るときにはすでに出ています。<code
+		を書き換えます。rsvelte のプリンタでは、これをノードを作る時点で済ませます。ノードは自分より前に作られたノードしか参照できないので、子の答えは親を作るときにはすでに出ています。<code
 			>push</code
 		>
 		はノードと一緒に、<code>breaks_of</code> の答えを <code>breaks</code> に一つ積みます。
@@ -153,7 +153,8 @@
 		以前は出力の前に構文木全体を調べる <code>propagate_breaks</code> があり、hardline と breakParent
 		だけを数えていました。そのため
 		<code>group(["x", line, group(["y"], {'{'} shouldBreak: true {'}'})])</code>
-		という入力で違いが出ました。 Prettier 3.9.9 は <code>x\ny</code> と改行します。カーネルは
+		という入力で違いが出ました。 Prettier 3.9.9 は <code>x\ny</code> と改行します。rsvelte
+		のプリンタは
 		<code>x y</code>
 		と出力していました。 作る時点で数える形に変えたときに、<code>breaks_line</code> の立った group も数えるようにしました。Svelte
 		の検証用のソースファイル集では整形の出力が 37 ファイルで変わり、そのうち 35 ファイルが比較元の公式ツールと一致するようになりました。一致していたファイルが外れた例はありません（708a4403d5）。
@@ -251,7 +252,7 @@
 
 	<H2 id="flat-only" />
 	<p>
-		カーネルのプリンタには、Prettier にない要素が一つだけあります。<dfn>flat_only</dfn> です。
+		rsvelte のプリンタには、Prettier にない要素が一つだけあります。<dfn>flat_only</dfn> です。
 	</p>
 </div>
 

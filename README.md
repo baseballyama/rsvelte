@@ -18,6 +18,8 @@ only a diff oracle and a performance baseline.
 
 - The **kernel** knows no language. It holds sources and spans, a database of derived
   artifacts (computed once per document and shared), and the scheduler that runs tasks.
+- Next to it, the **plugin interface** is how a host installs a plugin. The lint runner and the
+  document printer are parts that lint and format tasks may use; any other task needs neither.
 - A language's **core** crate parses and analyses, and registers that work as artifacts.
 - Each **tool** (compile, lint, format, check) is its own crate. It registers one task, which
   reads the artifacts it needs. Core never depends on a tool, so tools share one parse.

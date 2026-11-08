@@ -42,7 +42,7 @@
 					>
 				</li>{/each}
 		</ol>
-		<ol class="parts" aria-label="どの処理も使う共通部品">
+		<ol class="parts" aria-label="言語を知らない部品">
 			{#each sharedParts as part (part.id)}<li>
 					<a
 						href={part.href}
