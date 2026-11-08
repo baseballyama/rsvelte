@@ -44,10 +44,6 @@ run = "node tools/performance/performance.ts ratchet --update"
 description = "Profile cache locality and check a recorded baseline: <config.json> <report.json>"
 run = "node tools/performance/performance.ts cache-profile"
 
-[tasks."performance:layout"]
-description = "Report kernel, JS/TS, Svelte, Vue and CSS type sizes, alignment and field offsets"
-run = "cargo run --offline -p rsvelte_command_line --example repo_layout"
-
 [tasks."performance:hardware"]
 description = "Measure Linux hardware CPU and cache counters: <config.json> <report.json>"
 run = "node tools/performance/performance.ts linux-counters"

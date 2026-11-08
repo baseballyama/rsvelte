@@ -3,15 +3,14 @@
 Every command is `node tools/performance/performance.ts <command>`; the header of
 `performance.ts` lists them with their options.
 
-| Command                                                     | Measures                                                                   |
-| ----------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `mise run performance` (`ratchet`)                          | Allocation ratchet over the corpus                                         |
-| `performance.ts linux`                                      | Allocation and instruction ratchets in Linux (`linux.Dockerfile`)          |
-| `mise run performance:cache <config.json> <report.json>`    | Cachegrind cache simulation and an optional baseline gate                  |
-| `mise run performance:hardware <config.json> <report.json>` | Linux `perf` CPU and cache hardware events                                 |
-| `performance.ts macos-cycles <config.json> <report.json>`   | macOS hardware CPU cycles and instructions, P-core share, peak footprint   |
-| `mise run performance:layout`                               | Kernel, JS/TS, Svelte, Vue and CSS type sizes, alignment and field offsets |
-| `mise run performance:test`                                 | Measurement tests and defect controls                                      |
+| Command                                                     | Measures                                                                 |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `mise run performance` (`ratchet`)                          | Allocation ratchet over the corpus                                       |
+| `performance.ts linux`                                      | Allocation and instruction ratchets in Linux (`linux.Dockerfile`)        |
+| `mise run performance:cache <config.json> <report.json>`    | Cachegrind cache simulation and an optional baseline gate                |
+| `mise run performance:hardware <config.json> <report.json>` | Linux `perf` CPU and cache hardware events                               |
+| `performance.ts macos-cycles <config.json> <report.json>`   | macOS hardware CPU cycles and instructions, P-core share, peak footprint |
+| `mise run performance:test`                                 | Measurement tests and defect controls                                    |
 
 ## Cache profiles
 
@@ -101,11 +100,6 @@ All three counter backends accept `expect_stdout` and `minimum_output_bytes`.
 Use them for compiler workloads to reject skipped units or empty output before a
 sample is accepted. Commands without these fields may produce plain text.
 
-Type layout reports measure Rust payload sizes and field offsets, not the live heap or
-cache residency. Borrowed references, owned buffers and allocator metadata have
-different costs. Inspect the hot access paths and allocation metrics with the layout.
-
 CI runs a real sequential/strided memory control and verifies that the baseline gate
-rejects the deliberate miss increase. It also saves a type layout artifact. The cache
-gate is available for pinned workload configs; it is separate from the whole-corpus
-allocation/instruction baseline.
+rejects the deliberate miss increase. The cache gate is available for pinned workload
+configs; it is separate from the whole-corpus allocation/instruction baseline.
