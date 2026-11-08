@@ -169,7 +169,7 @@
 		</div>
 	{/if}
 	{#snippet caption()}
-		Rust の <code>rsvelte_kernel::output::document</code> を WebAssembly
+		Rust の <code>rsvelte_document_printer</code> を WebAssembly
 		としてそのまま動かしています。下の表は、プリンタが group と fill
 		でした判断を順に並べたものです。幅を動かすと、どこで
 		<code>fits</code> の答えが変わるかが分かります。
