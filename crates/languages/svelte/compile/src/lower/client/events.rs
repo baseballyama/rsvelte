@@ -112,7 +112,7 @@ impl ClientCompilationContext<'_> {
         global: bool,
         lists: &mut Lists,
     ) {
-        use rsvelte_svelte::compilation::compiler_syntax_tree::Modifiers;
+        use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
         let super::AttributeValue::On { handler, modifiers } = attribute.value else {
             unreachable!("an event directive")
         };

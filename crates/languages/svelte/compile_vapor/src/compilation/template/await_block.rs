@@ -1,4 +1,4 @@
-use rsvelte_svelte::compilation::compiler_syntax_tree::Await;
+use rsvelte_svelte_semantic::compiler_syntax_tree::Await;
 
 use super::{
     BinaryOperator, Builder, DirectiveExpression, DirectiveName, Helper, LoopExpression,

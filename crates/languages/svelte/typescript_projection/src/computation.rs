@@ -5,7 +5,7 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_svelte_parser::Parsed;
+use rsvelte_svelte_syntax::Parsed;
 
 use crate::syntax_tree::SyntaxTree;
 
@@ -50,7 +50,7 @@ pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.typescript_projection",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "svelte.parser",
+        identifier: "svelte.syntax",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
@@ -62,7 +62,7 @@ pub fn register(registry: &mut Registry) {
 
 pub fn register_artifacts(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_svelte_parser::register(registry);
+    rsvelte_svelte_syntax::register(registry);
     registry.artifact::<Projected>().artifact::<Printed>();
 }
 
@@ -75,7 +75,7 @@ impl Task for Project {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_svelte_parser::matches(document)
+        rsvelte_svelte_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {

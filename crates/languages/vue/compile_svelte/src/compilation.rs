@@ -12,7 +12,7 @@ use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 pub struct Translation {
     pub javascript: SyntaxTree,
     pub program: NodeIdentifier,
-    pub compiler_syntax_tree: rsvelte_svelte::compilation::compiler_syntax_tree::CompilerSyntaxTree,
+    pub compiler_syntax_tree: rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree,
     /// Every template expression, in document order.
     pub template_expressions: Vec<NodeIdentifier>,
 }
@@ -25,7 +25,7 @@ impl Translation {
         filename: &'a str,
     ) -> CompileInput<'a> {
         CompileInput {
-            component: rsvelte_svelte::semantic::input::ComponentInput {
+            component: rsvelte_svelte_semantic::input::ComponentInput {
                 javascript: &self.javascript,
                 program: self.program,
                 module: None,

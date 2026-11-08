@@ -25,10 +25,7 @@ rsvelte_typescript_semantic = { path = "crates/languages/typescript/semantic" }
 rsvelte_css_syntax = { path = "crates/languages/css/syntax" }
 rsvelte_css_semantic = { path = "crates/languages/css/semantic" }
 rsvelte_css_compile = { path = "crates/languages/css/compile" }
-rsvelte_svelte = { path = "crates/languages/svelte/core" }
 rsvelte_svelte_syntax = { path = "crates/languages/svelte/syntax" }
-rsvelte_svelte_parser = { path = "crates/languages/svelte/parser" }
-rsvelte_svelte_compiler_syntax_tree = { path = "crates/languages/svelte/compiler_syntax_tree" }
 rsvelte_svelte_semantic = { path = "crates/languages/svelte/semantic" }
 rsvelte_html_syntax = { path = "crates/languages/html/syntax" }
 rsvelte_html_lint = { path = "crates/languages/html/lint" }
@@ -44,7 +41,7 @@ rsvelte_svelte_format = { path = "crates/languages/svelte/format" }
 rsvelte_svelte_lint = { path = "crates/languages/svelte/lint" }
 rsvelte_svelte_lint_typed = { path = "crates/languages/svelte/lint_typed" }
 rsvelte_svelte_typescript_projection = { path = "crates/languages/svelte/typescript_projection" }
-rsvelte_svelte_typecheck = { path = "crates/languages/svelte/typecheck" }
+rsvelte_svelte_check = { path = "crates/languages/svelte/check" }
 rsvelte_vue_format = { path = "crates/languages/vue/format" }
 rsvelte_vue_lint = { path = "crates/languages/vue/lint" }
 rsvelte_vue_check = { path = "crates/languages/vue/check" }

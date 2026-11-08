@@ -17,10 +17,10 @@ use std::process::ExitCode;
 use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-use rsvelte_svelte::compilation::compiler_syntax_tree::{
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
     self, AttributeValue, Children, CompilerSyntaxTree, ElementKind, NodeKind,
 };
-use rsvelte_svelte::syntax::syntax_tree::{Component, TemplateNode, TemplateNodeIdentifier};
+use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode, TemplateNodeIdentifier};
 
 #[expect(
     clippy::too_many_lines,
@@ -54,7 +54,7 @@ fn main() -> ExitCode {
         &document,
         registry.artifacts(),
     );
-    let c = match context.get::<rsvelte_svelte::Parsed>() {
+    let c = match context.get::<rsvelte_svelte_syntax::Parsed>() {
         Ok(c) => c,
         Err(d) => {
             eprintln!("{path}: {}", d.message);
@@ -62,11 +62,11 @@ fn main() -> ExitCode {
         }
     };
     let h = context
-        .get::<rsvelte_svelte::Normalized>()
+        .get::<rsvelte_svelte_semantic::Lowered>()
         .as_ref()
         .expect("parsed component lowers");
     let res = context
-        .get::<rsvelte_svelte::Resolved>()
+        .get::<rsvelte_svelte_semantic::Resolved>()
         .as_ref()
         .expect("parsed component resolves");
 
@@ -267,7 +267,7 @@ fn surface(
             } => {
                 for children in [pending, then, catch]
                     .into_iter()
-                    .filter_map(rsvelte_svelte::syntax::syntax_tree::Range::present)
+                    .filter_map(rsvelte_svelte_syntax::syntax_tree::Range::present)
                 {
                     surface(w, c, at, c.children(children), depth + 1);
                 }

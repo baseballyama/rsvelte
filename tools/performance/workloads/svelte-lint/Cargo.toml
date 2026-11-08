@@ -7,7 +7,8 @@ edition = "2024"
 allocations = []
 [dependencies]
 rsvelte_svelte_lint = { path = "../../../../crates/languages/svelte/lint" }
-rsvelte_svelte = { path = "../../../../crates/languages/svelte/core" }
+rsvelte_svelte_syntax = { path = "../../../../crates/languages/svelte/syntax" }
+rsvelte_svelte_semantic = { path = "../../../../crates/languages/svelte/semantic" }
 rsvelte_kernel = { path = "../../../../crates/language_independent/kernel" }
 rsvelte_lint_runner = { path = "../../../../crates/language_independent/lint_runner" }
 rsvelte_html_lint = { path = "../../../../crates/languages/html/lint" }

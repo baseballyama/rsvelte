@@ -1,6 +1,7 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte::{Parsed, Resolved};
+use rsvelte_svelte_semantic::Resolved;
+use rsvelte_svelte_syntax::Parsed;
 
 use crate::computation::Parents;
 

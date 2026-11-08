@@ -53,7 +53,7 @@ static EXTENSIONS: &[&rsvelte_plugin_interface::Extension] = &[
     #[cfg(feature = "lint-typed")]
     &rsvelte_svelte_lint_typed::EXTENSION,
     &rsvelte_svelte_typescript_projection::EXTENSION,
-    &rsvelte_svelte_typecheck::EXTENSION,
+    &rsvelte_svelte_check::EXTENSION,
     &rsvelte_vue_compile::EXTENSION,
     &rsvelte_vue_format::EXTENSION,
     &rsvelte_vue_lint::EXTENSION,

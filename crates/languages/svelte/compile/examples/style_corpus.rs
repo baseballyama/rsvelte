@@ -1,9 +1,8 @@
 use std::fmt::Write;
 use std::path::Path;
 
-use rsvelte_svelte::compilation::compiler_syntax_tree;
-use rsvelte_svelte::semantic::{analyze, resolve};
 use rsvelte_svelte_compile::{OutputIdentity, stylesheet};
+use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 
 #[expect(
     clippy::unwrap_in_result,
@@ -33,10 +32,11 @@ fn visit(
             .display()
             .to_string();
         counts[0] += 1;
-        match rsvelte_svelte::syntax::parse::parse(&source) {
+        match rsvelte_svelte_syntax::parse::parse(&source) {
             Ok(component) => {
                 let tree = compiler_syntax_tree::lower(&component, &source);
-                let input = rsvelte_svelte::svelte_input(&component, &tree, &source, &filename);
+                let input =
+                    rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, &filename);
                 let resolution = resolve::resolve_with_module(
                     &component.javascript,
                     component.program,

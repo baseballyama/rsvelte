@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use rsvelte_html_lint::button_type::{Allowed, Problem, check_static};
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode,
 };
 

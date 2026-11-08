@@ -79,7 +79,7 @@ impl Builder<'_, '_> {
         for p in parts {
             match *p {
                 Part::Text(span) => {
-                    text.push_str(&rsvelte_svelte::syntax::syntax_tree::decode_attribute(
+                    text.push_str(&rsvelte_svelte_syntax::syntax_tree::decode_attribute(
                         span.text(source_text),
                     ));
                 }

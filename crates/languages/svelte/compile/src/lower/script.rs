@@ -7,7 +7,7 @@ pub(super) use declarators::check_destructured_rune;
 use declarators::lower_value_declarator;
 use props::{lower_client_props, server_props_pattern};
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution, rune_call};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution, rune_call};
 use rsvelte_typescript_compile::copy::{Rewrite, copy, copy_node};
 use rsvelte_typescript_semantic::scope::BindingIdentifier;
 use rsvelte_typescript_syntax::operators::{

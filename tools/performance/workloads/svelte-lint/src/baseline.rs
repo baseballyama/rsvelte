@@ -7,9 +7,9 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_html_lint::button_type::{Allowed, Problem, check_static};
-use rsvelte_svelte::compilation::compiler_syntax_tree::{AttributeValue, CompilerSyntaxTree};
-use rsvelte_svelte::semantic::resolve::Resolution;
-use rsvelte_svelte::syntax::syntax_tree::Component;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, CompilerSyntaxTree};
+use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_lint::JavaScriptFacts;
 
 /// What early rules read: the surface tree as written, and the JavaScript facts over it.

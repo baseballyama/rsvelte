@@ -21,13 +21,13 @@ mod title;
 use rsvelte_html_syntax::decode_text;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_svelte::compilation::compiler_syntax_tree::{
+use rsvelte_svelte_semantic::analyze::{Analysis, ExpressionMetadata};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
     NodeKind, Part,
 };
-use rsvelte_svelte::semantic::analyze::{Analysis, ExpressionMetadata};
-use rsvelte_svelte::semantic::resolve::Resolution;
-use rsvelte_svelte::syntax::parse::is_void;
+use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_syntax::parse::is_void;
 use rsvelte_typescript_compile::copy::copy;
 use rsvelte_typescript_semantic::scope::{BindingIdentifier, ScopeIdentifier};
 use rsvelte_typescript_syntax::operators::{AssignmentOperator, BinaryOperator, LogicalOperator};

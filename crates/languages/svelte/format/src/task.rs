@@ -4,20 +4,20 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_svelte::Parsed;
+use rsvelte_svelte_syntax::Parsed;
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.format",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "svelte",
+        identifier: "svelte.syntax",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
 
 pub fn register(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_svelte::register(registry);
+    rsvelte_svelte_syntax::register(registry);
     registry.task(Format);
 }
 
@@ -30,7 +30,7 @@ impl Task for Format {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_svelte::matches(document)
+        rsvelte_svelte_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {

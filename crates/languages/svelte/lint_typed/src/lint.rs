@@ -1,6 +1,6 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_svelte::Parsed;
+use rsvelte_svelte_syntax::Parsed;
 
 use crate::Configuration;
 

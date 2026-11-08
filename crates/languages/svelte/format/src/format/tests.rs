@@ -1,7 +1,7 @@
 use super::*;
 
 fn refusal(source_text: &str) -> (&'static str, Option<&str>) {
-    let c = rsvelte_svelte::syntax::parse::parse(source_text).expect("parses");
+    let c = rsvelte_svelte_syntax::parse::parse(source_text).expect("parses");
     let u = format(&c, source_text, &LineIndex::new(source_text)).expect_err("refused");
     (
         u.what,

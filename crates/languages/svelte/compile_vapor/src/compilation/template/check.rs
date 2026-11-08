@@ -100,7 +100,7 @@ pub fn check(
     for &expression in expressions {
         walk(javascript, expression, &mut |identifier| {
             if let Kind::Call { callee, .. } = javascript.kind(identifier)
-                && rsvelte_svelte::semantic::resolve::rune_call(javascript, identifier).is_some_and(
+                && rsvelte_svelte_semantic::resolve::rune_call(javascript, identifier).is_some_and(
                     |(name, _)| {
                         crate::script::runes::local(name).is_some()
                             || crate::script::runes::eager(name)

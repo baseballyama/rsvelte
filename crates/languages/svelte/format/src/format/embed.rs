@@ -163,7 +163,7 @@ impl Printer<'_, '_> {
 
     pub(super) fn style_body(
         &mut self,
-        style: &rsvelte_svelte::syntax::syntax_tree::Style,
+        style: &rsvelte_svelte_syntax::syntax_tree::Style,
     ) -> R<LayoutInstructionIdentifier> {
         if let Some((n, _)) = style.attributes.iter().find(|(n, v)| {
             matches!(n.text(self.source_text), "lang" | "type")

@@ -2,7 +2,7 @@ use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::Span;
 
 pub fn write_transform(source: &str, output: &mut StructuredDataWriter) {
-    let result = rsvelte_svelte_parser::parse::parse(source)
+    let result = rsvelte_svelte_syntax::parse::parse(source)
         .map_err(|error| (1, error.message, error.span))
         .and_then(|component| {
             crate::lower(&component, source)

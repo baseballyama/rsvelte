@@ -1,4 +1,4 @@
-use rsvelte_svelte::semantic::resolve::RUNES;
+use rsvelte_svelte_semantic::resolve::RUNES;
 use rsvelte_typescript_semantic::scope::{DeclarationKind, ScopeIdentifier};
 use rsvelte_typescript_syntax::syntax_tree::{TypeScriptFeature, TypeScriptRuntime};
 

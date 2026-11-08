@@ -3,7 +3,8 @@ use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::performance::measurement;
-use rsvelte_svelte::{Normalized, Parsed, Resolved};
+use rsvelte_svelte_semantic::{Lowered, Resolved};
+use rsvelte_svelte_syntax::Parsed;
 #[allow(dead_code)]
 mod baseline;
 #[cfg(feature = "allocations")]
@@ -14,7 +15,7 @@ fn baseline(mode: &str, context: &DocumentContext<'_>, out: &mut TaskOutput) {
         .get::<Parsed>()
         .as_ref()
         .expect("benchmark input parses");
-    let tree = context.get::<Normalized>().as_ref().expect("lowered");
+    let tree = context.get::<Lowered>().as_ref().expect("lowered");
     let res = context.get::<Resolved>().as_ref().expect("resolved");
     let parents = c.javascript.parents();
     let early = baseline::SyntaxTreeContext {

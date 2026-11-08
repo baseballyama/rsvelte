@@ -11,7 +11,7 @@ doctest = false
 
 [dependencies]
 rsvelte_plugin_interface.workspace = true
-rsvelte_svelte.workspace = true
+rsvelte_svelte_syntax.workspace = true
 rsvelte_css_format.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_document_printer.workspace = true

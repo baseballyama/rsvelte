@@ -5,8 +5,8 @@
 //! same in both runtimes is refused in [`plan`], before anything is built.
 
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution, rune_call};
-use rsvelte_svelte::syntax::syntax_tree::Component;
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution, rune_call};
+use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_compile::copy::{Rewrite, Verbatim, copy};
 use rsvelte_typescript_semantic::scope::BindingIdentifier;
 use rsvelte_typescript_syntax::syntax_tree::flag;

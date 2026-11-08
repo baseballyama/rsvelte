@@ -1,7 +1,7 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
-use rsvelte_svelte::Parsed;
+use rsvelte_svelte_syntax::Parsed;
 use rsvelte_typescript_syntax::operators::{LogicalOperator, UnaryOperator};
 use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier};

@@ -36,13 +36,17 @@ pub(super) fn registry() -> Registry {
         .collect();
     let mut registry = Registry::new();
     rsvelte_svelte_lint_typed::register(&mut registry);
-    registry.provide::<LintConfiguration>("fixtures", rsvelte_svelte::matches, move |context| {
-        std::sync::Arc::clone(
-            configurations
-                .get(context.document.path.as_str())
-                .expect("every rule fixture has a configuration"),
-        )
-    });
+    registry.provide::<LintConfiguration>(
+        "fixtures",
+        rsvelte_svelte_syntax::matches,
+        move |context| {
+            std::sync::Arc::clone(
+                configurations
+                    .get(context.document.path.as_str())
+                    .expect("every rule fixture has a configuration"),
+            )
+        },
+    );
     registry
 }
 

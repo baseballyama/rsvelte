@@ -53,7 +53,7 @@ version in `tools`. `svelte.check` also needs the svelte package and the content
 cargo install --path crates/languages/typescript/content_mapper
 cargo run -p rsvelte_command_line -- run App.svelte --task svelte.check/default \
   --options typescript.check '{"command": ["tsrs", "--fast"], "tsconfig": "tsconfig.json"}' \
-  --options svelte.typecheck '{"svelte": "node_modules/svelte"}'
+  --options svelte.check '{"svelte": "node_modules/svelte"}'
 ```
 
 The optional `lint-typed` Cargo feature, off by default, adds Svelte type-aware lint to the CLI:

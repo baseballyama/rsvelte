@@ -136,7 +136,7 @@ impl Builder<'_, '_> {
                         .write_boolean(*outro, super::SourceLocation::SYNTHETIC);
                     let global = self.to.write_boolean(
                         modifiers.contains(
-                            rsvelte_svelte::compilation::compiler_syntax_tree::Modifiers::GLOBAL,
+                            rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers::GLOBAL,
                         ),
                         super::SourceLocation::SYNTHETIC,
                     );
@@ -177,7 +177,7 @@ impl Builder<'_, '_> {
                 Ok(())
             }
             AttributeValue::Style { value, modifiers } => {
-                use rsvelte_svelte::compilation::compiler_syntax_tree::Modifiers;
+                use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
                 let mut value = self.style_value(value)?;
                 let important = modifiers.contains(Modifiers::IMPORTANT);
                 let property = self.to.write_string(name);

@@ -20,13 +20,13 @@ use std::borrow::Cow;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte::compilation::compiler_syntax_tree::{
+use rsvelte_svelte_semantic::analyze::Analysis;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
     NodeKind,
 };
-use rsvelte_svelte::semantic::analyze::Analysis;
-use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution};
-pub use rsvelte_svelte::semantic::template::{cannot_be_set_statically, needs_clsx};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+pub use rsvelte_svelte_semantic::template::{cannot_be_set_statically, needs_clsx};
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 

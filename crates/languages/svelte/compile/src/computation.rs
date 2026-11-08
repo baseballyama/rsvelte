@@ -1,7 +1,7 @@
 //! Compile artifacts cached within a document.
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
-use rsvelte_svelte::{Analyzed, component_input};
+use rsvelte_svelte_semantic::{Analyzed, component_input};
 
 #[derive(Debug)]
 pub struct Planned;
@@ -58,7 +58,7 @@ impl Artifact for Identified {
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let input = component_input(context).ok_or_else(|| {
             context
-                .get::<rsvelte_svelte::Parsed>()
+                .get::<rsvelte_svelte_syntax::Parsed>()
                 .as_ref()
                 .expect_err("missing input follows a parse error")
                 .clone()
@@ -97,7 +97,7 @@ impl Artifact for Validated {
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let input = component_input(context).expect("a parsed component is lowered to HIR");
         let res = context
-            .get::<rsvelte_svelte::Resolved>()
+            .get::<rsvelte_svelte_semantic::Resolved>()
             .as_ref()
             .expect("a parsed component is resolved");
         crate::lower::validate(&input.into(), res)

@@ -18,10 +18,11 @@ rsvelte_vue_check.workspace = true
 rsvelte_svelte_lint.workspace = true
 rsvelte_svelte_format.workspace = true
 rsvelte_svelte_compile.workspace = true
-rsvelte_svelte_typecheck.workspace = true
+rsvelte_svelte_check.workspace = true
 rsvelte_kernel = { workspace = true, features = ["trace-artifacts"] }
 rsvelte_document_printer.workspace = true
-rsvelte_svelte.workspace = true
+rsvelte_svelte_syntax.workspace = true
+rsvelte_svelte_semantic.workspace = true
 rsvelte_vue_syntax.workspace = true
 rsvelte_vue_semantic.workspace = true
 rsvelte_vue_compile_svelte.workspace = true

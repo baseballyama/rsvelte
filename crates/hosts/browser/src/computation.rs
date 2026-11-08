@@ -73,10 +73,12 @@ impl Task for ObservedTask {
 fn snapshot(context: &DocumentContext<'_>, name: &str) -> Option<String> {
     use rsvelte_vue_compile_svelte::{Client, Server};
     Some(match name {
-        "svelte.parse" => bounded_debug(context.get::<rsvelte_svelte::Parsed>()),
-        "svelte.resolve" => bounded_debug(context.get::<rsvelte_svelte::Resolved>()),
-        "svelte.compiler_syntax_tree" => bounded_debug(context.get::<rsvelte_svelte::Normalized>()),
-        "svelte.analyze" => bounded_debug(context.get::<rsvelte_svelte::Analyzed>()),
+        "svelte.parse" => bounded_debug(context.get::<rsvelte_svelte_syntax::Parsed>()),
+        "svelte.resolve" => bounded_debug(context.get::<rsvelte_svelte_semantic::Resolved>()),
+        "svelte.compiler_syntax_tree" => {
+            bounded_debug(context.get::<rsvelte_svelte_semantic::Lowered>())
+        }
+        "svelte.analyze" => bounded_debug(context.get::<rsvelte_svelte_semantic::Analyzed>()),
         "svelte.css" => bounded_debug(context.get::<rsvelte_svelte_compile::ScopedStylesheet>()),
         "vue.parse" => bounded_debug(context.get::<rsvelte_vue_syntax::Parsed>()),
         "vue.compiler_syntax_tree" => bounded_debug(context.get::<rsvelte_vue_semantic::Lowered>()),
@@ -145,9 +147,9 @@ fn registry(plugins: &[&str]) -> Registry {
                 rsvelte_svelte_compile::register(&mut reg);
                 rsvelte_svelte_format::register(&mut reg);
                 rsvelte_svelte_lint::register(&mut reg);
-                rsvelte_svelte_typecheck::register(
+                rsvelte_svelte_check::register(
                     &mut reg,
-                    &rsvelte_svelte_typecheck::Configuration::default(),
+                    &rsvelte_svelte_check::Configuration::default(),
                 );
             }
             "vue" => {

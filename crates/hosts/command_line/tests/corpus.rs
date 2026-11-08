@@ -14,7 +14,7 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
-use rsvelte_svelte_parser::Parsed;
+use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_typescript_projection::Printed;
 use rsvelte_test_harness::NodePackages;
 use rsvelte_typescript_check::{Tsc, TypeChecker, TypeScriptDocument, TypeScriptView};
@@ -42,7 +42,7 @@ impl Task for CountCoverage {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_svelte_parser::matches(document)
+        rsvelte_svelte_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, _: &mut TaskOutput) {
@@ -81,8 +81,8 @@ impl Task for CountCoverage {
 fn main() -> ExitCode {
     let packages = NodePackages::locate();
     let (program, arguments) = packages.type_checker();
-    let typecheck = rsvelte_svelte_typecheck::Configuration {
-        check: Some(rsvelte_svelte_typecheck::TypeCheckConfiguration {
+    let typecheck = rsvelte_svelte_check::Configuration {
+        check: Some(rsvelte_svelte_check::TypeCheckConfiguration {
             tsc: Tsc {
                 checker: TypeChecker { program, arguments },
                 tsconfig: Some(
@@ -98,7 +98,7 @@ fn main() -> ExitCode {
     rsvelte_svelte_compile::register(&mut registry);
     rsvelte_svelte_lint::register(&mut registry);
     rsvelte_svelte_typescript_projection::register(&mut registry);
-    rsvelte_svelte_typecheck::register(&mut registry, &typecheck);
+    rsvelte_svelte_check::register(&mut registry, &typecheck);
     registry.task(CountCoverage(Arc::clone(&coverage)));
     let result = rsvelte_test_harness::Fixtures::corpus_only("svelte", registry)
         // Unrelated repositories can declare conflicting global types.

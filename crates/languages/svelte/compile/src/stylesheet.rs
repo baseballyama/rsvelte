@@ -1,10 +1,10 @@
-use rsvelte_svelte::semantic::input;
+use rsvelte_svelte_semantic::input;
 
 /// The style sheet scoped and pruned, from any frontend's [`input::ComponentInput`].
 #[must_use]
 pub fn scoped_stylesheet(
     input: &input::ComponentInput<'_>,
-    an: &rsvelte_svelte::semantic::analyze::Analysis,
+    an: &rsvelte_svelte_semantic::analyze::Analysis,
     identity: &crate::OutputIdentity,
 ) -> Option<String> {
     scoped_stylesheet_with_mode(
@@ -18,7 +18,7 @@ pub fn scoped_stylesheet(
 #[must_use]
 pub(crate) fn scoped_stylesheet_with_mode(
     input: &input::ComponentInput<'_>,
-    an: &rsvelte_svelte::semantic::analyze::Analysis,
+    an: &rsvelte_svelte_semantic::analyze::Analysis,
     identity: &crate::OutputIdentity,
     mode: rsvelte_css_compile::scope::RenderMode,
 ) -> Option<String> {

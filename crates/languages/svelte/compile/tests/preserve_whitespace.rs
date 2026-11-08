@@ -7,22 +7,23 @@ use rsvelte_svelte_compile::Target;
 const SOURCE: &str = include_str!("preserve_whitespace/App.svelte");
 
 fn compile(target: Target, preserve_whitespace: bool) -> String {
-    let component = rsvelte_svelte::syntax::parse::parse(SOURCE).expect("parses");
+    let component = rsvelte_svelte_syntax::parse::parse(SOURCE).expect("parses");
     let compiler_syntax_tree =
-        rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, SOURCE);
-    let mut input = rsvelte_svelte_compile::CompileInput::from(rsvelte_svelte::svelte_input(
-        &component,
-        &compiler_syntax_tree,
-        SOURCE,
-        "App.svelte",
-    ));
+        rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, SOURCE);
+    let mut input =
+        rsvelte_svelte_compile::CompileInput::from(rsvelte_svelte_semantic::svelte_input(
+            &component,
+            &compiler_syntax_tree,
+            SOURCE,
+            "App.svelte",
+        ));
     input.preserve_whitespace = preserve_whitespace;
-    let resolution = rsvelte_svelte::semantic::resolve::resolve(
+    let resolution = rsvelte_svelte_semantic::resolve::resolve(
         &component.javascript,
         component.program,
         &compiler_syntax_tree,
     );
-    let analysis = rsvelte_svelte::semantic::analyze::analyze(&input.component, &resolution);
+    let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
     rsvelte_svelte_compile::compile(&input, &resolution, &analysis, target).expect("compiles")
 }
 

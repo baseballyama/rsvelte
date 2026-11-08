@@ -127,9 +127,9 @@ fn normal_lint_does_not_register_type_services_or_typed_lint() {
             .map(|plugin| plugin.identifier)
             .collect::<Vec<_>>(),
         [
-            "svelte",
             "svelte.lint",
-            "svelte.parser",
+            "svelte.semantic",
+            "svelte.syntax",
             "typescript.syntax"
         ]
     );

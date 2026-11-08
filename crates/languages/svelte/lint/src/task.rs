@@ -11,7 +11,7 @@ pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.lint",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "svelte",
+        identifier: "svelte.semantic",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
@@ -23,7 +23,7 @@ pub fn register(registry: &mut Registry) {
 
 pub fn register_artifacts(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_svelte::register(registry);
+    rsvelte_svelte_semantic::register(registry);
     registry.artifact::<Parents>();
 }
 
@@ -36,7 +36,7 @@ impl Task for Lint {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_svelte::matches(document)
+        rsvelte_svelte_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
@@ -66,7 +66,7 @@ impl Task for Lint {
 pub fn register_with_configuration(registry: &mut Registry, configuration: Configuration) {
     register(registry);
     let configuration = std::sync::Arc::new(configuration);
-    registry.provide::<LintConfiguration>("svelte", rsvelte_svelte::matches, move |_| {
+    registry.provide::<LintConfiguration>("svelte", rsvelte_svelte_syntax::matches, move |_| {
         std::sync::Arc::clone(&configuration)
     });
 }

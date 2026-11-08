@@ -7,10 +7,10 @@ mod vapor;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte::compilation::compiler_syntax_tree::CompilerSyntaxTree;
-use rsvelte_svelte::semantic::analyze::Analysis;
-use rsvelte_svelte::semantic::resolve::Resolution;
-use rsvelte_svelte::syntax::syntax_tree::Component;
+use rsvelte_svelte_semantic::analyze::Analysis;
+use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
+use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 /// The translated component: one JavaScript tree holding the `<script setup>` program and every
@@ -66,7 +66,7 @@ pub fn check(
     if let Some(t) = c.javascript.typescript_runtime.first() {
         return Err(unsupported("TypeScript with runtime semantics", t.span));
     }
-    let input = rsvelte_svelte::svelte_input(c, compiler_syntax_tree, source_text, "");
+    let input = rsvelte_svelte_semantic::svelte_input(c, compiler_syntax_tree, source_text, "");
     let namespaces = rsvelte_svelte_compile::render_plan::NamespacePlan::build(&input.into());
     let options = template::check(
         compiler_syntax_tree,
@@ -113,7 +113,7 @@ pub fn translate(
 ) -> R<Translation> {
     let mut to = SyntaxTree::new();
     let component_input =
-        rsvelte_svelte::svelte_input(c, compiler_syntax_tree, source_text, filename);
+        rsvelte_svelte_semantic::svelte_input(c, compiler_syntax_tree, source_text, filename);
     let identity = rsvelte_svelte_compile::OutputIdentity::build(&component_input);
     let stylesheet = rsvelte_svelte_compile::stylesheet::scoped_stylesheet(
         &component_input,

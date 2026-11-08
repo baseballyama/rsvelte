@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
-use rsvelte_svelte::compilation::compiler_syntax_tree::{ElementKind, MetadataTag};
-use rsvelte_svelte::semantic::input::ComponentInput;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
+use rsvelte_svelte_semantic::input::ComponentInput;
 
 #[derive(Debug)]
 pub struct OutputIdentity {

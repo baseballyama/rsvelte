@@ -1,4 +1,4 @@
-use rsvelte_svelte::compilation::compiler_syntax_tree::Snippet;
+use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
 
 use super::{
     Builder, CompilerNodeIdentifier, DirectiveExpression, DirectiveName, Kind, LoopExpression,

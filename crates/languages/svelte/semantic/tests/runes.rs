@@ -1,5 +1,5 @@
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_svelte_semantic::semantic::resolve::{RUNES, rune_call};
+use rsvelte_svelte_semantic::resolve::{RUNES, rune_call};
 use rsvelte_typescript_syntax::SyntaxTree;
 
 #[test]
@@ -42,10 +42,8 @@ fn ordinary_computed_and_nested_calls_are_not_runes() {
 #[test]
 fn destructured_runes_classify_every_leaf_without_classifying_keys() {
     use rsvelte_kernel::source::positions::Span;
-    use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
-        Children, CompilerSyntaxTreeBuilder,
-    };
-    use rsvelte_svelte_semantic::semantic::resolve::{self, BindingKind};
+    use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
+    use rsvelte_svelte_semantic::resolve::{self, BindingKind};
     use rsvelte_typescript_syntax::parser;
 
     let source = concat!(
@@ -83,10 +81,8 @@ fn destructured_runes_classify_every_leaf_without_classifying_keys() {
 #[test]
 fn nested_runes_classify_bindings_in_their_own_scope() {
     use rsvelte_kernel::source::positions::Span;
-    use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
-        Children, CompilerSyntaxTreeBuilder,
-    };
-    use rsvelte_svelte_semantic::semantic::resolve::{self, BindingKind};
+    use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
+    use rsvelte_svelte_semantic::resolve::{self, BindingKind};
     use rsvelte_typescript_syntax::parser;
 
     let source = concat!(

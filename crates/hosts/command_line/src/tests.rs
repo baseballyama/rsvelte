@@ -19,12 +19,12 @@ fn plugin_declarations_cover_the_registered_languages_and_tasks() {
     assert_eq!(reg.validate_plugins(), Ok(()));
     let plugins: Vec<_> = reg.plugins().map(|plugin| plugin.identifier).collect();
     let mut expected = vec![
-        "svelte",
+        "svelte.semantic",
         "svelte.compile",
         "svelte.format",
         "svelte.lint",
-        "svelte.parser",
-        "svelte.typecheck",
+        "svelte.syntax",
+        "svelte.check",
         "svelte.typescript_projection",
         "svue",
         "typescript.semantic",

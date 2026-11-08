@@ -19,13 +19,13 @@ use events::{capture_event, push_captured_events};
 use rsvelte_html_syntax::decode_text;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_svelte::compilation::compiler_syntax_tree::{
+use rsvelte_svelte_semantic::analyze::Analysis;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
     NodeKind, Part,
 };
-use rsvelte_svelte::semantic::analyze::Analysis;
-use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution};
-use rsvelte_svelte::syntax::parse::is_void;
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+use rsvelte_svelte_syntax::parse::is_void;
 use rsvelte_typescript_compile::copy::copy;
 use rsvelte_typescript_semantic::scope::ScopeIdentifier;
 use rsvelte_typescript_syntax::operators::{BinaryOperator, UpdateOperator};
@@ -62,10 +62,10 @@ enum Piece {
 }
 
 /// `String(value ?? '')` for a known value.
-fn known_string(v: &rsvelte_svelte::semantic::evaluate::Value) -> String {
+fn known_string(v: &rsvelte_svelte_semantic::evaluate::Value) -> String {
     match v {
-        rsvelte_svelte::semantic::evaluate::Value::Null
-        | rsvelte_svelte::semantic::evaluate::Value::Undefined => String::new(),
+        rsvelte_svelte_semantic::evaluate::Value::Null
+        | rsvelte_svelte_semantic::evaluate::Value::Undefined => String::new(),
         v => v.to_javascript_string(),
     }
 }

@@ -1,4 +1,4 @@
-use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript_compile::copy::{Verbatim, copy};
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::{FxHashMap, FxHashSet};

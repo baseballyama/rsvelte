@@ -5,13 +5,13 @@ use crate::helpers;
 
 /// The module for one target, or the refusal's message.
 fn run(source_text: &str, server: bool) -> Result<String, String> {
-    let c = rsvelte_svelte::syntax::parse::parse(source_text).map_err(|d| d.message)?;
+    let c = rsvelte_svelte_syntax::parse::parse(source_text).map_err(|d| d.message)?;
     let compiler_syntax_tree =
-        rsvelte_svelte::compilation::compiler_syntax_tree::lower(&c, source_text);
+        rsvelte_svelte_semantic::compiler_syntax_tree::lower(&c, source_text);
     let resolution =
-        rsvelte_svelte::semantic::resolve::resolve(&c.javascript, c.program, &compiler_syntax_tree);
-    let analysis = rsvelte_svelte::semantic::analyze::analyze(
-        &rsvelte_svelte::svelte_input(&c, &compiler_syntax_tree, source_text, "A.svelte"),
+        rsvelte_svelte_semantic::resolve::resolve(&c.javascript, c.program, &compiler_syntax_tree);
+    let analysis = rsvelte_svelte_semantic::analyze::analyze(
+        &rsvelte_svelte_semantic::svelte_input(&c, &compiler_syntax_tree, source_text, "A.svelte"),
         &resolution,
     );
     let plan = check(&c, &compiler_syntax_tree, &resolution, source_text).map_err(|d| d.message)?;

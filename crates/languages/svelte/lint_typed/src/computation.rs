@@ -1,5 +1,6 @@
 use rsvelte_kernel::computation::database::{DocumentContext, Facet};
-use rsvelte_svelte::{Parsed, Resolved};
+use rsvelte_svelte_semantic::Resolved;
+use rsvelte_svelte_syntax::Parsed;
 
 use crate::Configuration;
 use crate::types::TypeFacts;

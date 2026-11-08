@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut report = String::new();
     for file in &files {
         let source = std::fs::read_to_string(file)?;
-        let Ok(component) = rsvelte_svelte_parser::parse::parse(&source) else {
+        let Ok(component) = rsvelte_svelte_syntax::parse::parse(&source) else {
             continue;
         };
         parsed += 1;

@@ -1,6 +1,5 @@
-use rsvelte_svelte::compilation::compiler_syntax_tree;
-use rsvelte_svelte::semantic::{analyze, resolve};
 use rsvelte_svelte_compile::{CompileInput, Target, compile};
+use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 
 #[test]
 fn invalid_special_attributes_are_refused_on_both_targets() {
@@ -43,9 +42,9 @@ fn invalid_special_attributes_are_refused_on_both_targets() {
             "svelte_boundary_invalid_attribute_value",
         ),
     ] {
-        let component = rsvelte_svelte::syntax::parse::parse(source).expect("valid syntax");
+        let component = rsvelte_svelte_syntax::parse::parse(source).expect("valid syntax");
         let tree = compiler_syntax_tree::lower(&component, source);
-        let input = rsvelte_svelte::svelte_input(&component, &tree, source, "test.svelte");
+        let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "test.svelte");
         let resolution = resolve::resolve(&component.javascript, component.program, &tree);
         let analysis = analyze::analyze(&input, &resolution);
         for target in [Target::Client, Target::Server] {

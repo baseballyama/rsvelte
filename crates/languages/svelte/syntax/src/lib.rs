@@ -1,8 +1,9 @@
-//! Svelte source trees.
+//! Svelte source trees and their parser.
 
-pub mod syntax {
-    mod character_references;
-    pub mod names;
-    pub mod syntax_tree;
-}
-pub use syntax::{names, syntax_tree};
+mod character_references;
+pub mod names;
+pub mod parse;
+pub mod syntax_tree;
+
+mod computation;
+pub use computation::{PLUGIN, Parsed, matches, register};

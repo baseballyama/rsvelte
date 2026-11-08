@@ -24,7 +24,7 @@ export async function main(args: string[]): Promise<void> {
 		'corpus',
 		...families.map((f) => path.join(CORPUS, f)),
 		...options('typescript.check', { command: [getExePath({ fs, module, path, url })] }),
-		...options('svelte.typecheck', { svelte: pkg('svelte') }),
+		...options('svelte.check', { svelte: pkg('svelte') }),
 		...options('vue.check', { vue: pkg('vue') }),
 	];
 	const r = spawnSync(values.binary, command, { stdio: 'inherit' });

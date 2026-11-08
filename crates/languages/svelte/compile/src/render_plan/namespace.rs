@@ -1,5 +1,5 @@
 use rsvelte_kernel::index::IndexVector;
-use rsvelte_svelte::compilation::compiler_syntax_tree::{
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, Children, CompilerNodeIdentifier, ElementKind, MetadataTag, NodeKind,
 };
 

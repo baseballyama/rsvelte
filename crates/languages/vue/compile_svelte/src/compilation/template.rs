@@ -1,12 +1,12 @@
 //! The template: Vue's HIR to Svelte's.
 
 use rsvelte_kernel::source::positions::{SourceLocation, Span};
-use rsvelte_svelte::compilation::compiler_syntax_tree::{
+use rsvelte_svelte_compile::Target;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
     self as svelte, Attribute, AttributeValue, Branch,
     CompilerNodeIdentifier as SvelteNodeIdentifier, CompilerSyntaxTreeBuilder, Each,
     Element as SvelteElement, NodeKind as SvelteNodeKind,
 };
-use rsvelte_svelte_compile::Target;
 use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind};
 use rsvelte_typescript_syntax::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator,

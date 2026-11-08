@@ -5,7 +5,8 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_svelte::{Analyzed, Parsed, Resolved};
+use rsvelte_svelte_semantic::{Analyzed, Resolved};
+use rsvelte_svelte_syntax::Parsed;
 
 use crate::computation::Validated;
 use crate::lower::{self, Target};
@@ -15,14 +16,14 @@ pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.compile",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "svelte",
+        identifier: "svelte.semantic",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
 
 pub fn register(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_svelte::register(registry);
+    rsvelte_svelte_semantic::register(registry);
     registry
         .artifact::<Identified>()
         .artifact::<Planned>()
@@ -41,7 +42,7 @@ pub fn register_with_configuration(registry: &mut Registry, configuration: crate
     let configuration = std::sync::Arc::new(configuration);
     registry.provide::<crate::computation::CompileConfiguration>(
         "svelte",
-        rsvelte_svelte::matches,
+        rsvelte_svelte_syntax::matches,
         move |_| std::sync::Arc::clone(&configuration),
     );
 }
@@ -60,7 +61,7 @@ impl Task for Compile {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_svelte::matches(document)
+        rsvelte_svelte_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
@@ -109,7 +110,8 @@ pub fn lower_document<'a>(
         return Err(e.clone());
     }
     let input = crate::CompileInput::from(
-        rsvelte_svelte::component_input(context).expect("a parsed component is lowered to HIR"),
+        rsvelte_svelte_semantic::component_input(context)
+            .expect("a parsed component is lowered to HIR"),
     );
     let res = context
         .get::<Resolved>()
@@ -147,8 +149,8 @@ pub fn lower_document<'a>(
 /// A [`Diagnostic`] for what the compiler rejects or the port does not handle yet.
 pub fn compile(
     input: &lower::CompileInput<'_>,
-    res: &rsvelte_svelte::semantic::resolve::Resolution,
-    an: &rsvelte_svelte::semantic::analyze::Analysis,
+    res: &rsvelte_svelte_semantic::resolve::Resolution,
+    an: &rsvelte_svelte_semantic::analyze::Analysis,
     target: Target,
 ) -> Result<String, Diagnostic> {
     compile_with_configuration(input, res, an, target, &crate::Configuration::default())
@@ -158,8 +160,8 @@ pub fn compile(
 /// Compilation or the configured CSS hash function failed.
 pub fn compile_with_configuration(
     input: &lower::CompileInput<'_>,
-    res: &rsvelte_svelte::semantic::resolve::Resolution,
-    an: &rsvelte_svelte::semantic::analyze::Analysis,
+    res: &rsvelte_svelte_semantic::resolve::Resolution,
+    an: &rsvelte_svelte_semantic::analyze::Analysis,
     target: Target,
     configuration: &crate::Configuration,
 ) -> Result<String, Diagnostic> {

@@ -736,14 +736,14 @@ dependencies = [
  "rsvelte_configuration_loading",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
- "rsvelte_svelte",
+ "rsvelte_svelte_check",
  "rsvelte_svelte_compile",
  "rsvelte_svelte_compile_vapor",
  "rsvelte_svelte_format",
  "rsvelte_svelte_lint",
  "rsvelte_svelte_lint_typed",
- "rsvelte_svelte_parser",
- "rsvelte_svelte_typecheck",
+ "rsvelte_svelte_semantic",
+ "rsvelte_svelte_syntax",
  "rsvelte_svelte_typescript_projection",
  "rsvelte_test_harness",
  "rsvelte_typescript_check",
@@ -820,8 +820,8 @@ version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
- "rsvelte_svelte",
  "rsvelte_svelte_format",
+ "rsvelte_svelte_syntax",
 ]
 
 [[package]]
@@ -847,12 +847,13 @@ version = "0.0.0"
 dependencies = [
  "rsvelte_document_printer",
  "rsvelte_kernel",
- "rsvelte_svelte",
+ "rsvelte_svelte_check",
  "rsvelte_svelte_compile",
  "rsvelte_svelte_compile_vapor",
  "rsvelte_svelte_format",
  "rsvelte_svelte_lint",
- "rsvelte_svelte_typecheck",
+ "rsvelte_svelte_semantic",
+ "rsvelte_svelte_syntax",
  "rsvelte_vue_check",
  "rsvelte_vue_compile",
  "rsvelte_vue_compile_svelte",
@@ -885,21 +886,23 @@ name = "rsvelte_site"
 version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
- "rsvelte_svelte",
  "rsvelte_svelte_compile",
  "rsvelte_svelte_lint",
+ "rsvelte_svelte_semantic",
+ "rsvelte_svelte_syntax",
 ]
 
 [[package]]
-name = "rsvelte_svelte"
+name = "rsvelte_svelte_check"
 version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
- "rsvelte_svelte_compiler_syntax_tree",
- "rsvelte_svelte_parser",
- "rsvelte_svelte_semantic",
+ "rsvelte_plugin_interface",
  "rsvelte_svelte_syntax",
- "rsvelte_typescript_syntax",
+ "rsvelte_svelte_typescript_projection",
+ "rsvelte_test_harness",
+ "rsvelte_typescript_check",
+ "serde",
 ]
 
 [[package]]
@@ -910,7 +913,8 @@ dependencies = [
  "rsvelte_html_syntax",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
- "rsvelte_svelte",
+ "rsvelte_svelte_semantic",
+ "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
  "rsvelte_typescript_compile",
  "rsvelte_typescript_semantic",
@@ -925,8 +929,9 @@ version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
- "rsvelte_svelte",
  "rsvelte_svelte_compile",
+ "rsvelte_svelte_semantic",
+ "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
  "rsvelte_typescript_compile",
  "rsvelte_typescript_semantic",
@@ -937,16 +942,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsvelte_svelte_compiler_syntax_tree"
-version = "0.0.0"
-dependencies = [
- "rsvelte_kernel",
- "rsvelte_svelte_syntax",
- "rsvelte_typescript_syntax",
- "unicode-id-start",
-]
-
-[[package]]
 name = "rsvelte_svelte_format"
 version = "0.0.0"
 dependencies = [
@@ -954,7 +949,7 @@ dependencies = [
  "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
- "rsvelte_svelte",
+ "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
  "rsvelte_typescript_format",
  "rsvelte_typescript_syntax",
@@ -969,7 +964,8 @@ dependencies = [
  "rsvelte_kernel",
  "rsvelte_lint_runner",
  "rsvelte_plugin_interface",
- "rsvelte_svelte",
+ "rsvelte_svelte_semantic",
+ "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
  "rsvelte_typescript_lint",
  "rsvelte_typescript_syntax",
@@ -987,25 +983,14 @@ dependencies = [
  "rsvelte_kernel",
  "rsvelte_lint_runner",
  "rsvelte_plugin_interface",
- "rsvelte_svelte",
  "rsvelte_svelte_lint",
+ "rsvelte_svelte_semantic",
+ "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
  "rsvelte_typescript_check",
  "rsvelte_typescript_semantic",
  "rsvelte_typescript_syntax",
  "serde",
-]
-
-[[package]]
-name = "rsvelte_svelte_parser"
-version = "0.0.0"
-dependencies = [
- "memchr",
- "rsvelte_css_syntax",
- "rsvelte_kernel",
- "rsvelte_svelte_syntax",
- "rsvelte_typescript_syntax",
- "unicode-id-start",
 ]
 
 [[package]]
@@ -1017,7 +1002,7 @@ dependencies = [
  "rsvelte_css_semantic",
  "rsvelte_css_syntax",
  "rsvelte_kernel",
- "rsvelte_svelte_compiler_syntax_tree",
+ "rsvelte_svelte_syntax",
  "rsvelte_typescript_semantic",
  "rsvelte_typescript_syntax",
  "rustc-hash",
@@ -1027,23 +1012,11 @@ dependencies = [
 name = "rsvelte_svelte_syntax"
 version = "0.0.0"
 dependencies = [
+ "memchr",
  "rsvelte_css_syntax",
  "rsvelte_kernel",
  "rsvelte_typescript_syntax",
  "unicode-id-start",
-]
-
-[[package]]
-name = "rsvelte_svelte_typecheck"
-version = "0.0.0"
-dependencies = [
- "rsvelte_kernel",
- "rsvelte_plugin_interface",
- "rsvelte_svelte_parser",
- "rsvelte_svelte_typescript_projection",
- "rsvelte_test_harness",
- "rsvelte_typescript_check",
- "serde",
 ]
 
 [[package]]
@@ -1055,7 +1028,6 @@ dependencies = [
  "oxc_span",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
- "rsvelte_svelte_parser",
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
  "rsvelte_typescript_content_mapper",
@@ -1186,8 +1158,8 @@ version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
- "rsvelte_svelte",
  "rsvelte_svelte_compile",
+ "rsvelte_svelte_semantic",
  "rsvelte_test_harness",
  "rsvelte_typescript_compile",
  "rsvelte_typescript_semantic",

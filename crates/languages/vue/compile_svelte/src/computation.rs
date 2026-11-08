@@ -68,13 +68,13 @@ impl<S: Side> Artifact for Translated<S> {
 pub struct Resolved<S>(PhantomData<S>);
 
 impl<S: Side> Artifact for Resolved<S> {
-    type Output = Option<rsvelte_svelte::semantic::resolve::Resolution>;
+    type Output = Option<rsvelte_svelte_semantic::resolve::Resolution>;
 
     const NAME: &'static str = S::RESOLVED;
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let t = context.get::<Translated<S>>().as_ref()?.as_ref().ok()?;
-        Some(rsvelte_svelte::semantic::resolve::resolve(
+        Some(rsvelte_svelte_semantic::resolve::resolve(
             &t.javascript,
             t.program,
             &t.compiler_syntax_tree,
@@ -87,14 +87,14 @@ impl<S: Side> Artifact for Resolved<S> {
 pub struct Analyzed<S>(PhantomData<S>);
 
 impl<S: Side> Artifact for Analyzed<S> {
-    type Output = Option<rsvelte_svelte::semantic::analyze::Analysis>;
+    type Output = Option<rsvelte_svelte_semantic::analyze::Analysis>;
 
     const NAME: &'static str = S::ANALYZED;
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let t = context.get::<Translated<S>>().as_ref()?.as_ref().ok()?;
         let resolution = context.get::<Resolved<S>>().as_ref()?;
-        Some(rsvelte_svelte::semantic::analyze::analyze(
+        Some(rsvelte_svelte_semantic::analyze::analyze(
             &t.compile_input(context.source_text(), &context.document.path)
                 .component,
             resolution,

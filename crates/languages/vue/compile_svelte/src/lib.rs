@@ -28,7 +28,7 @@
 //!   is `false`; `''` and the hyphenated name are `true`).
 //!
 //! The template (text nodes carry Vue's condensed text, as
-//! [`rsvelte_svelte::compilation::compiler_syntax_tree::spelled_text`], and the Svelte compiler
+//! [`rsvelte_svelte_semantic::compiler_syntax_tree::spelled_text`], and the Svelte compiler
 //! runs with `preserveWhitespace` so that it does not condense it again):
 //! - `{{ e }}`: `{toDisplayString(e)}`, Vue's display rules, from `vue`.
 //! - `v-if` / `v-else-if` / `v-else`: `{#if}` / `{:else if}` / `{:else}`; a `<template>` carrying

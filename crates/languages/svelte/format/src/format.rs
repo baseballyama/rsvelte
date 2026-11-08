@@ -19,7 +19,7 @@ use rsvelte_document_printer::{
     LayoutInstructionIdentifier, LayoutInstructions, PrintOptions, Refused,
 };
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TagAttributes, TemplateNode,
     TemplateNodeIdentifier,
 };

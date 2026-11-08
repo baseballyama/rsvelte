@@ -1,4 +1,4 @@
-use rsvelte_svelte::compilation::compiler_syntax_tree::AttributeValue;
+use rsvelte_svelte_semantic::compiler_syntax_tree::AttributeValue;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::template::single_expression;

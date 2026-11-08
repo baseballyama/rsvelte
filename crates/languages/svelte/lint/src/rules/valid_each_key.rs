@@ -1,7 +1,8 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte::compilation::compiler_syntax_tree::NodeKind;
-use rsvelte_svelte::{Normalized, Parsed, Resolved};
+use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
+use rsvelte_svelte_semantic::{Lowered, Resolved};
+use rsvelte_svelte_syntax::Parsed;
 
 pub(super) fn check(context: &DocumentContext<'_>, reporter: &mut Reporter<'_>) {
     let component = context
@@ -9,7 +10,7 @@ pub(super) fn check(context: &DocumentContext<'_>, reporter: &mut Reporter<'_>) 
         .as_ref()
         .expect("lint checks parsing first");
     let tree = context
-        .get::<Normalized>()
+        .get::<Lowered>()
         .as_ref()
         .expect("a parsed component lowers");
     let resolution = context

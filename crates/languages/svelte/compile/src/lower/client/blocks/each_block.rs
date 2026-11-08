@@ -1,4 +1,4 @@
-use rsvelte_svelte::compilation::compiler_syntax_tree::Each;
+use rsvelte_svelte_semantic::compiler_syntax_tree::Each;
 
 use crate::lower::client::{
     BindingIdentifier, ClientCompilationContext, CompilerNodeIdentifier, EACH_INDEX_REACTIVE,

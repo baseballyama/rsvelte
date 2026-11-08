@@ -8,14 +8,14 @@ impl ClientCompilationContext<'_> {
     /// Upstream `Fragment` visitor: the statements of one block.
     pub(super) fn fragment(
         &mut self,
-        children: rsvelte_svelte::compilation::compiler_syntax_tree::Children,
+        children: rsvelte_svelte_semantic::compiler_syntax_tree::Children,
     ) -> R<Vec<NodeIdentifier>> {
         self.fragment_with_snippets(children, true)
     }
 
     pub(super) fn fragment_with_snippets(
         &mut self,
-        children: rsvelte_svelte::compilation::compiler_syntax_tree::Children,
+        children: rsvelte_svelte_semantic::compiler_syntax_tree::Children,
         include_snippets: bool,
     ) -> R<Vec<NodeIdentifier>> {
         let cleaned = self.plan.fragment(children);

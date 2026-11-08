@@ -1,5 +1,5 @@
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
-use rsvelte_svelte::Parsed;
+use rsvelte_svelte_syntax::Parsed;
 use rsvelte_typescript_syntax::NodeIdentifier;
 
 use crate::Configuration;

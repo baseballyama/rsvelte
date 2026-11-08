@@ -228,7 +228,7 @@ impl Rewrite for ExpressionRewrite<'_> {
                     return Some(to.identifier(from.name(arguments[0])));
                 }
                 let (name, argument) =
-                    rsvelte_svelte::semantic::resolve::rune_call(from, identifier)?;
+                    rsvelte_svelte_semantic::resolve::rune_call(from, identifier)?;
                 if !crate::script::runes::value(name) {
                     return None;
                 }

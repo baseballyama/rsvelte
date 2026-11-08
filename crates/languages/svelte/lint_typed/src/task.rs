@@ -33,14 +33,14 @@ pub fn register_with_type_provider(
     registry.plugin(&PLUGIN);
     rsvelte_svelte_lint::register_artifacts(registry);
     rsvelte_typescript_check::register_service(registry);
-    registry.provide::<ConditionTypes>("svelte", rsvelte_svelte::matches, provider);
+    registry.provide::<ConditionTypes>("svelte", rsvelte_svelte_syntax::matches, provider);
     registry.task(Lint);
 }
 
 pub fn register_with_configuration(registry: &mut Registry, configuration: Configuration) {
     register(registry);
     let configuration = std::sync::Arc::new(configuration);
-    registry.provide::<LintConfiguration>("svelte", rsvelte_svelte::matches, move |_| {
+    registry.provide::<LintConfiguration>("svelte", rsvelte_svelte_syntax::matches, move |_| {
         std::sync::Arc::clone(&configuration)
     });
 }
@@ -54,7 +54,7 @@ impl Task for Lint {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_svelte::matches(document)
+        rsvelte_svelte_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {

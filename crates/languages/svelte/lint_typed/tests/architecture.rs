@@ -19,7 +19,7 @@ fn type_providers_are_lazy_cached_and_replaceable() {
     rsvelte_svelte_lint_typed::register_with_type_provider(&mut registry, move |context| {
         provider_calls.fetch_add(1, Ordering::Relaxed);
         let component = context
-            .get::<rsvelte_svelte::Parsed>()
+            .get::<rsvelte_svelte_syntax::Parsed>()
             .as_ref()
             .expect("source parses");
         TypeFacts::new(vec![ConditionType::Truthy; component.javascript.len()])
@@ -67,7 +67,7 @@ fn type_providers_are_lazy_cached_and_replaceable() {
 #[test]
 fn a_missing_type_provider_reports_the_requirement() {
     let mut registry = Registry::new();
-    rsvelte_svelte::register(&mut registry);
+    rsvelte_svelte_semantic::register(&mut registry);
     let document = Document::new(
         "test.svelte".to_owned(),
         "<script>if (true) console.log(1);</script>".to_owned(),
@@ -96,10 +96,10 @@ fn typed_lint_registers_dependencies_without_enabling_their_tasks() {
             .map(|plugin| plugin.identifier)
             .collect::<Vec<_>>(),
         [
-            "svelte",
             "svelte.lint",
             "svelte.lint.typed",
-            "svelte.parser",
+            "svelte.semantic",
+            "svelte.syntax",
             "typescript.check",
             "typescript.syntax"
         ]
