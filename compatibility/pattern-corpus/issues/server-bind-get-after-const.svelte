@@ -35,3 +35,18 @@
 	{const doubled = items.length * 2}
 	<Child bind:value={() => doubled, (v) => (items[0] = v)} />
 </div>
+
+<svelte:head>
+	<title>{open}</title>
+	<Child bind:open={() => open, (v) => (open = v)} />
+</svelte:head>
+
+<section>
+	{#snippet cell()}<p>{open}</p>{/snippet}
+	{@render cell()}
+</section>
+
+<div contenteditable bind:innerHTML={tag}>
+	{#snippet raw()}<p>{open}</p>{/snippet}
+	{@render raw()}
+</div>

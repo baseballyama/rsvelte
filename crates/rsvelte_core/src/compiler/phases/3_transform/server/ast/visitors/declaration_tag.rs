@@ -468,18 +468,12 @@ fn emit_async_decl_tag<'a>(
         state.async_consts = Some(AsyncConstsGroup {
             name,
             thunks: Vec::new(),
-            let_decls: Vec::new(),
         });
     }
 
     for name in declared_names {
         let let_stmt = state.b.let_id(name, None);
-        state
-            .async_consts
-            .as_mut()
-            .unwrap()
-            .let_decls
-            .push(let_stmt);
+        state.template.push(TemplateEntry::HoistableDecl(let_stmt));
     }
 
     if blockers.len() == 1 {

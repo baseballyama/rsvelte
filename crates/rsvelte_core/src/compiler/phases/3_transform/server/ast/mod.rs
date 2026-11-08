@@ -128,11 +128,11 @@ pub struct ServerTransformState<'a> {
     /// `DeclarationTag.js::add_async_declaration`). When a `{@const}` in a block
     /// has an awaited / blocker-dependent initializer, its assignment becomes a
     /// thunk in this group's `$$renderer.run([...])` declaration, and the bare
-    /// `let <name>;` for each declared binding is collected into `let_decls`. The
+    /// `let <name>;` for each declared binding is a hoisted template entry. The
     /// group is created lazily by the const visitor, prepended to the fragment
     /// body by [`visitors::shared::build_fragment_body`], and reset (save/restore)
     /// around each fragment so blocks don't leak consts to siblings.
-    pub async_consts: Option<AsyncConstsGroup<'a>>,
+    pub async_consts: Option<AsyncConstsGroup>,
     /// Per-fragment-scope const blocker map (binding name → blocker expression
     /// source, e.g. `"promises[1]"`). Mirrors the text oracle's
     /// `const_blocker_map` / upstream `Binding.blocker`: a template read of a
@@ -257,15 +257,12 @@ pub struct SavedScope {
 /// One per-fragment async `{@const}` group — the AST mirror of upstream's
 /// `state.async_consts` (`DeclarationTag.js`). `name` is the `$$renderer.run`
 /// result variable (`promises`); `thunks` are the (source, has_await) thunk
-/// entries fed to `$$renderer.run([...])`; `let_decls` are the bare `let <name>;`
-/// declarations that precede the run call.
-pub struct AsyncConstsGroup<'a> {
+/// entries fed to `$$renderer.run([...])`. The bare `let <name>;` declarations
+/// are hoisted template entries, so they keep their source position.
+pub struct AsyncConstsGroup {
     pub name: String,
     /// (thunk source text, is_async) — reparsed into the run array on flush.
     pub thunks: Vec<(String, bool)>,
-    /// Bare `let <name>;` statements (one per declared binding) emitted before
-    /// the `var promises = $$renderer.run([...])` declaration.
-    pub let_decls: Vec<Statement<'a>>,
 }
 
 pub struct PendingTailComment {
@@ -1565,7 +1562,6 @@ pub fn server_component_ast<'a>(
     // and keep them ahead of `$$render_inner` rather than inside it.
     let template_body = if analysis.uses_component_bindings {
         let mut snippets: Vec<Statement<'a>> = Vec::new();
-        let mut inner_prefix: Vec<Statement<'a>> = Vec::new();
         let mut rest: Vec<Statement<'a>> = Vec::new();
         for stmt in template_body {
             let is_snippet = matches!(
@@ -1575,8 +1571,6 @@ pub fn server_component_ast<'a>(
             );
             if is_snippet {
                 snippets.push(stmt);
-            } else if is_prevent_snippet_stringification(&stmt) {
-                inner_prefix.push(stmt);
             } else {
                 rest.push(stmt);
             }
@@ -1584,8 +1578,7 @@ pub fn server_component_ast<'a>(
 
         // function $$render_inner($$renderer) { <rest> }
         let inner_params = b.params(vec![b.id_pat("$$renderer")], None);
-        inner_prefix.extend(rest);
-        let inner_fn_body = b.body(inner_prefix);
+        let inner_fn_body = b.body(rest);
         let render_inner_fn =
             b.function_declaration("$$render_inner", inner_params, inner_fn_body, false);
 
@@ -2043,22 +2036,6 @@ fn holds_a_body(stmt: &Statement<'_>) -> bool {
     let mut search = Search(false);
     oxc_ast_visit::Visit::visit_statement(&mut search, stmt);
     search.0
-}
-
-fn is_prevent_snippet_stringification(stmt: &Statement<'_>) -> bool {
-    matches!(
-        stmt,
-        Statement::ExpressionStatement(expr)
-            if matches!(
-                &expr.expression,
-                OxcExpression::CallExpression(call)
-                    if matches!(
-                        &call.callee,
-                        OxcExpression::Identifier(id)
-                            if id.name.as_str() == "$.prevent_snippet_stringification"
-                    )
-            )
-    )
 }
 
 fn rehome_derived_jsdoc(code: &str) -> String {
