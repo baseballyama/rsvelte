@@ -19,5 +19,6 @@ Shared parser state stays in `parse.rs`. Implementation modules are private.
 Text searches stop at ASCII delimiters, which are UTF-8 boundaries. Expressions
 still end where the JavaScript parser ends them.
 
-Run the boundary tests with `cargo test -p rsvelte_svelte_syntax` and the corpus
-lossless check with `cargo test -p rsvelte_svelte_syntax --test lossless`.
+Run the boundary tests with `cargo test -p rsvelte_svelte_syntax`. The corpus test
+(`cargo test -p rsvelte_command_line --test corpus`) checks that every token table it parses is
+the source byte for byte.

@@ -1,1 +1,0 @@
-<Foo bind:this={foo} />

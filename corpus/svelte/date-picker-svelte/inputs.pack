@@ -1,0 +1,382 @@
+# rsvelte pack 1
+=== 3112 src/routes/+page.svelte	svelte	runes	runes
+<script lang="ts">
+	import DemoDatePicker from './DemoDatePicker.svelte'
+	import DemoDateInput from './DemoDateInput.svelte'
+	import { Color } from 'color-picker-svelte'
+	import Prop from './prop.svelte'
+
+	function readCssVar(name: string) {
+		const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+		return new Color(value)
+	}
+
+	function getCssVars(): Record<string, Color | null> {
+		if (typeof document === 'undefined') {
+			return {}
+		}
+		return {
+			'--date-picker-foreground': readCssVar('--date-picker-foreground'),
+			'--date-picker-background': readCssVar('--date-picker-background'),
+			'--date-picker-highlight-border': readCssVar('--date-picker-highlight-border'),
+			'--date-picker-highlight-shadow': readCssVar('--date-picker-highlight-shadow'),
+			'--date-picker-today-border': readCssVar('--date-picker-today-border'),
+			'--date-picker-selected-color': readCssVar('--date-picker-selected-color'),
+			'--date-picker-selected-background': readCssVar('--date-picker-selected-background'),
+		}
+	}
+
+	let cssVars = $state(getCssVars())
+
+	$effect(() => {
+		const observer = new MutationObserver(async () => {
+			cssVars = getCssVars()
+		})
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ['data-theme'],
+		})
+		return () => observer.disconnect()
+	})
+</script>
+
+<svelte:head>
+	<title>Date Picker Svelte</title>
+</svelte:head>
+
+<p>Date and time picker for Svelte</p>
+
+<p>Features:</p>
+<ul>
+	<li>Theming</li>
+	<li>Custom formats</li>
+	<li>Internationalization (i18n)</li>
+	<li>
+		Autopunctuation (e.g typing "20201111111111" gives you "2020-11-11 11:11:11" with the default
+		format)
+	</li>
+	<li>Keyboard shortcuts</li>
+</ul>
+
+<h2 id="install">Install</h2>
+<pre class="language-">npm install -D date-picker-svelte</pre>
+
+<div
+	style={Object.entries(cssVars)
+		.map(([key, value]) => {
+			if (value === null) {
+				return null
+			}
+			return `${key}: ${value.toHex8String()};`
+		})
+		.join('')}
+>
+	<h2 id="dateinput">DateInput</h2>
+	<DemoDateInput />
+
+	<h2 id="datepicker">DatePicker</h2>
+	<DemoDatePicker />
+</div>
+
+<h2>Theming</h2>
+
+<div class="theming">
+	<Prop
+		label="--date-picker-foreground"
+		labelWide
+		bind:value={cssVars['--date-picker-foreground']}
+	/>
+	<Prop
+		label="--date-picker-background"
+		labelWide
+		bind:value={cssVars['--date-picker-background']}
+	/>
+	<Prop
+		label="--date-picker-highlight-border"
+		labelWide
+		bind:value={cssVars['--date-picker-highlight-border']}
+	/>
+	<Prop
+		label="--date-picker-highlight-shadow"
+		labelWide
+		bind:value={cssVars['--date-picker-highlight-shadow']}
+	/>
+	<Prop
+		label="--date-picker-today-border"
+		labelWide
+		bind:value={cssVars['--date-picker-today-border']}
+	/>
+	<Prop
+		label="--date-picker-selected-color"
+		labelWide
+		bind:value={cssVars['--date-picker-selected-color']}
+	/>
+	<Prop
+		label="--date-picker-selected-background"
+		labelWide
+		bind:value={cssVars['--date-picker-selected-background']}
+	/>
+</div>
+
+<style>
+	.theming {
+		display: grid;
+		gap: 10px;
+		column-gap: 20px;
+		@media (min-width: 800px) {
+			grid-template-columns: 1fr 1fr;
+		}
+	}
+</style>
+
+=== 183 src/routes/404/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { onMount } from 'svelte'
+	import { goto } from '$app/navigation'
+	import { resolve } from '$app/paths'
+	onMount(() => {
+		goto(resolve('/'))
+	})
+</script>
+
+=== 3256 src/routes/DemoDateInput.svelte	svelte	runes	runes
+<script lang="ts">
+	import DateInput from '$lib/DateInput.svelte'
+	import Prop from './prop.svelte'
+	import Split from './split.svelte'
+	import { localeFromDateFnsLocale } from '$lib'
+	import { hy, de, nb } from 'date-fns/locale'
+	import { toText, toValidDate } from '$lib/date-utils'
+	import { createFormat } from '$lib/parse'
+
+	let locales = [
+		{ key: 'default', value: localeFromDateFnsLocale({}) },
+		{ key: 'nb (date-fns)', value: localeFromDateFnsLocale(nb) },
+		{ key: 'de (date-fns)', value: localeFromDateFnsLocale(de) },
+		{ key: 'hy (date-fns)', value: localeFromDateFnsLocale(hy) },
+	]
+	let localeEntry = $state(locales[0])
+
+	let value: Date | null = $state(null)
+	const now = new Date()
+	let initialBrowseDate = $state(now)
+	let min = $state(new Date(now.getFullYear() - 20, 0, 1))
+	let max = $state(new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999))
+	let id: string | null = $state(null)
+	let placeholder = $state('2020-12-31 23:00:00')
+	let valid = $state(true)
+	let disabled = $state(false)
+	let required = $state(false)
+	let format = $state('yyyy-MM-dd HH:mm:ss')
+	let isDisabledDate = null
+	// svelte-ignore state_referenced_locally
+	let text = $state(
+		toText(
+			value ? toValidDate(initialBrowseDate, value, min, max, isDisabledDate) : value,
+			createFormat(format, localeEntry.value),
+		),
+	)
+	let visible = $state(false)
+	let closeOnSelection = $state(false)
+	let browseWithoutSelecting = $state(false)
+	let timePrecision: 'second' | 'minute' | 'millisecond' | null = $state(null)
+	let dynamicPositioning = $state(true)
+</script>
+
+<Split>
+	<DateInput
+		slot="left"
+		{id}
+		bind:value
+		{initialBrowseDate}
+		{min}
+		{max}
+		{placeholder}
+		bind:valid
+		{format}
+		bind:visible
+		{disabled}
+		{required}
+		{closeOnSelection}
+		{browseWithoutSelecting}
+		{dynamicPositioning}
+		{timePrecision}
+		locale={localeEntry.value}
+		bind:text
+	/>
+
+	<svelte:fragment slot="right">
+		<h3 class="no-top">Props</h3>
+		<Prop label="value">{value}</Prop>
+		<Prop label="initialBrowseDate" bind:value={initialBrowseDate} />
+		<Prop label="min" bind:value={min} />
+		<Prop label="max" bind:value={max} />
+		<Prop label="id" bind:value={id} />
+		<Prop label="placeholder" bind:value={placeholder} />
+		<Prop label="valid" bind:value={valid} />
+		<Prop label="format" bind:value={format} />
+		<Prop label="visible" bind:value={visible} />
+		<Prop label="disabled" bind:value={disabled} />
+		<Prop label="required" bind:value={required} />
+		<Prop label="closeOnSelection" bind:value={closeOnSelection} />
+		<Prop label="browseWithoutSelecting" bind:value={browseWithoutSelecting} />
+		<Prop label="dynamicPositioning" bind:value={dynamicPositioning} />
+		<Prop label="locale" bind:value={localeEntry} values={locales} />
+		<Prop label="text" bind:value={text} />
+		<Prop
+			label="timePrecision"
+			bind:value={timePrecision}
+			values={[null, 'minute', 'second', 'millisecond']}>{timePrecision}</Prop
+		>
+		<Prop label="class">
+			<span style="font-family:monospace">ClassValue</span>
+		</Prop>
+		<Prop label="isDisabledDate">
+			<span style="font-family:monospace">(date: Date) =&gt; boolean</span>
+		</Prop>
+		<Prop label="onselect">
+			<span style="font-family:monospace">(date: Date) =&gt; void</span>
+		</Prop>
+	</svelte:fragment>
+</Split>
+
+=== 1871 src/routes/DemoDatePicker.svelte	svelte	runes	runes
+<script lang="ts">
+	import DatePicker from '$lib/DatePicker.svelte'
+	import { localeFromDateFnsLocale } from '$lib/locale.js'
+	import Prop from './prop.svelte'
+	import Split from './split.svelte'
+	import { hy, de, nb } from 'date-fns/locale'
+
+	let value: Date | null = $state(null)
+	const now = new Date()
+	let initialBrowseDate = $state(now)
+	let min = $state(new Date(now.getFullYear() - 20, 0, 1))
+	let max = $state(new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999))
+	let locales = [
+		{ key: 'default', value: localeFromDateFnsLocale({}) },
+		{ key: 'nb (date-fns)', value: localeFromDateFnsLocale(nb) },
+		{ key: 'de (date-fns)', value: localeFromDateFnsLocale(de) },
+		{ key: 'hy (date-fns)', value: localeFromDateFnsLocale(hy) },
+	]
+	let locale = $state(locales[3])
+	let browseWithoutSelecting = $state(false)
+	let timePrecision: 'minute' | 'second' | 'millisecond' | null = $state('millisecond')
+</script>
+
+<Split>
+	<div class="left" slot="left">
+		<DatePicker
+			bind:value
+			{initialBrowseDate}
+			{min}
+			{max}
+			locale={locale.value}
+			{browseWithoutSelecting}
+			{timePrecision}
+		/>
+	</div>
+	<div slot="right">
+		<h3 class="no-top">Props</h3>
+		<Prop label="value">{value}</Prop>
+		<Prop label="initialBrowseDate" bind:value={initialBrowseDate} />
+		<Prop label="min" bind:value={min} />
+		<Prop label="max" bind:value={max} />
+		<Prop label="locale" bind:value={locale} values={locales} />
+		<Prop label="browseWithoutSelecting" bind:value={browseWithoutSelecting} />
+		<Prop
+			label="timePrecision"
+			bind:value={timePrecision}
+			values={[null, 'minute', 'second', 'millisecond']}>{timePrecision}</Prop
+		>
+		<Prop label="isDisabledDate">
+			<span style="font-family:monospace">(date: Date) =&gt; boolean</span>
+		</Prop>
+		<Prop label="onselect">
+			<span style="font-family:monospace">(date: Date) =&gt; void</span>
+		</Prop>
+	</div>
+</Split>
+
+=== 314 src/routes/bug/+page.svelte	svelte	runes	runes
+<script lang="ts">
+	import DatePicker from '$lib/DatePicker.svelte'
+
+	let value: Date | undefined = $state()
+</script>
+
+<button
+	onclick={() => {
+		value = new Date(2025, 3, 19, 11, 11, 11, 111)
+	}}>Set to precise value</button
+>
+
+<DatePicker timePrecision="minute" bind:value />
+
+{value?.toISOString() ?? 'null'}
+
+=== 413 src/routes/bug/isdisableddate/+page.svelte	svelte	runes	runes
+<script lang="ts">
+	import DateInput from '$lib/DateInput.svelte'
+
+	let min = $state(new Date(2024, 1, 26, 17, 30))
+	let value: Date | undefined = $state()
+</script>
+
+<DateInput
+	timePrecision="minute"
+	{min}
+	bind:value
+	isDisabledDate={(date) => {
+		return date.getDate() === 15 || date.getDate() === 16
+	}}
+/>
+<button
+	onclick={() => {
+		value = new Date(2024, 10, 15)
+	}}>Set to 2024-10-15</button
+>
+
+{value}
+
+=== 288 src/routes/bug/timeprecision/+page.svelte	svelte	runes	runes
+<script lang="ts">
+	import DatePicker from '$lib/DatePicker.svelte'
+
+	let value: Date | undefined = $state()
+</script>
+
+<button
+	onclick={() => {
+		value = new Date(2025, 3, 19, 11, 11, 11, 111)
+	}}>chhh</button
+>
+
+<DatePicker timePrecision="minute" bind:value />
+
+{value?.toISOString()}
+
+=== 525 src/routes/demo/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+	import DemoDatePicker from '../DemoDatePicker.svelte'
+	import DemoDateInput from '../DemoDateInput.svelte'
+</script>
+
+<svelte:head>
+	<title>Demo • Date Picker Svelte</title>
+</svelte:head>
+
+<!-- svelte-ignore a11y_consider_explicit_label -->
+<a id="Demo"></a>
+<h1>Demo</h1>
+
+<!-- svelte-ignore a11y_consider_explicit_label -->
+<a id="DateInput"></a>
+<h2>DateInput</h2>
+<DemoDateInput />
+
+<!-- svelte-ignore a11y_consider_explicit_label -->
+<a id="DatePicker"></a>
+<h2>DatePicker</h2>
+<DemoDatePicker />
+

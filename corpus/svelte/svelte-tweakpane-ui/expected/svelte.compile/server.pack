@@ -1,0 +1,7768 @@
+# rsvelte pack 1
+=== 1639 src/examples/docs/SvelteTweakpaneEventExample.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Button, Monitor, Slider } from '$lib';
+
+export default function SvelteTweakpaneEventExample($$renderer) {
+	let speed = 50;
+
+	// Keep track of how many Slider change events originated from direct
+	// interaction with the slider (internal) vs. programmatic changes set
+	// when the button's clicked (external)
+	let internalChangeCount = 0;
+
+	let externalChangeCount = 0;
+
+	// Change event handler
+	// The SliderChangeEvent type is a convenient alias
+	// to ValueChangeEvent<number>
+	function onChange(event) {
+		// Identify where the event came from, 'internal' or 'external'
+		event.detail.origin === 'internal' ? internalChangeCount++ : externalChangeCount++;
+	}
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Slider($$renderer, {
+			label: 'Set Speed Limit:',
+			max: 100,
+			min: 0,
+			get value() {
+				return speed;
+			},
+
+			set value($$value) {
+				speed = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Monitor($$renderer, {
+			format: (v) => v.toFixed(0),
+			label: 'Internal change events:',
+			value: internalChangeCount
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Monitor($$renderer, {
+			format: (v) => v.toFixed(0),
+			label: 'External change events:',
+			value: externalChangeCount
+		});
+
+		$$renderer.push(`<!----> `);
+		Button($$renderer, { label: 'Change limit externally:', title: 'Limit: 55' });
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1070 src/examples/docs/SvelteTweakpaneEventExample.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`speed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 97
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 102
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`internalChangeCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 298
+		},
+		"end": {
+			"line": 9,
+			"column": 24,
+			"character": 317
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`externalChangeCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 327
+		},
+		"end": {
+			"line": 10,
+			"column": 24,
+			"character": 346
+		}
+	}
+]
+
+=== 639 src/examples/docs/SvelteTweakpaneRange.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Slider } from '$lib';
+
+export default function SvelteTweakpaneRange($$renderer) {
+	let speed = 50;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Slider($$renderer, {
+			max: 100,
+			min: 0,
+			get value() {
+				return speed;
+			},
+
+			set value($$value) {
+				speed = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>${$.escape(speed)}
+</pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 347 src/examples/docs/SvelteTweakpaneRange.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`speed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 56
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 61
+		}
+	}
+]
+
+=== 305 src/examples/docs/SvelteTweakpaneThemeBasic.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Button, ThemeUtils } from '$lib';
+
+export default function SvelteTweakpaneThemeBasic($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		Button($$renderer, {
+			label: 'Jet Black Button',
+			theme: ThemeUtils.presets.jetblack
+		});
+	});
+}
+=== 1643 src/examples/docs/SvelteTweakpaneThemeCustom.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Button } from '$lib';
+
+export default function SvelteTweakpaneThemeCustom($$renderer) {
+	const customTheme = {
+		baseBackgroundColor: 'hsl(230, 70%, 27%)',
+		baseBorderRadius: '6px',
+		baseFontFamily: 'sans-serif',
+		baseShadowColor: 'rgba(0, 0, 0, 0.2)',
+		bladeBorderRadius: '2px',
+		bladeHorizontalPadding: '4px',
+		bladeValueWidth: '180px',
+		buttonBackgroundColor: 'hsl(230, 7%, 70%)',
+		buttonBackgroundColorActive: '#d6d7db',
+		buttonBackgroundColorFocus: '#c8cad0',
+		buttonBackgroundColorHover: '#bbbcc4',
+		buttonForegroundColor: 'hsl(230, 7%, 17%)',
+		containerBackgroundColor: 'rgba(187, 188, 196, 0.1)',
+		containerBackgroundColorActive: 'rgba(187, 188, 196, 0.25)',
+		containerBackgroundColorFocus: 'rgba(187, 188, 196, 0.2)',
+		containerBackgroundColorHover: 'rgba(187, 188, 196, 0.15)',
+		containerForegroundColor: 'hsl(230, 7%, 75%)',
+		containerHorizontalPadding: '4px',
+		containerUnitSize: '20px',
+		containerUnitSpacing: '4px',
+		containerVerticalPadding: '4px',
+		grooveForegroundColor: 'rgba(187, 188, 196, 0.1)',
+		inputBackgroundColor: 'rgba(187, 188, 196, 0.1)',
+		inputBackgroundColorActive: 'rgba(187, 188, 196, 0.25)',
+		inputBackgroundColorFocus: 'rgba(187, 188, 196, 0.2)',
+		inputBackgroundColorHover: 'rgba(187, 188, 196, 0.15)',
+		inputForegroundColor: 'hsl(230, 7%, 75%)',
+		labelForegroundColor: 'rgba(187, 188, 196, 0.7)',
+		monitorBackgroundColor: 'rgba(0, 0, 0, 0.2)',
+		monitorForegroundColor: 'rgba(187, 188, 196, 0.7)',
+		pluginImageDraggingColor: 'hsla(230, 100%, 66%, 1)'
+	};
+
+	Button($$renderer, { label: 'I\'m custom', theme: customTheme });
+}
+=== 458 src/examples/docs/SvelteTweakpaneThemeExtend.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Button, ThemeUtils } from '$lib';
+
+export default function SvelteTweakpaneThemeExtend($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const customizedTheme = {
+			...ThemeUtils.presets.iceberg,
+			baseBackgroundColor: 'hsla(230, 20%, 11%, 0.5)',
+			labelForegroundColor: 'hsla(230, 12%, 88%, 1.00)'
+		};
+
+		Button($$renderer, { label: 'I\'m customized', theme: customizedTheme });
+	});
+}
+=== 243 src/examples/docs/SvelteTweakpaneThemeOverride.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Button } from '$lib';
+
+export default function SvelteTweakpaneThemeOverride($$renderer) {
+	Button($$renderer, {
+		label: 'Rounded Parent Button',
+		theme: { baseBorderRadius: '6px' }
+	});
+}
+=== 943 src/examples/docs/SvelteTweakpaneThemePicker.svelte	js
+import * as $ from 'svelte/internal/server';
+import { List, Pane, ThemeUtils } from '$lib';
+
+export default function SvelteTweakpaneThemePicker($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let themeKey = 'standard';
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Pane($$renderer, {
+				position: 'inline',
+				theme: ThemeUtils.presets[themeKey],
+				title: 'Theme Picker',
+				children: ($$renderer) => {
+					List($$renderer, {
+						label: 'Theme',
+						options: Object.keys(ThemeUtils.presets),
+						get value() {
+							return themeKey;
+						},
+
+						set value($$value) {
+							themeKey = $$value;
+							$$settled = false;
+						}
+					});
+				},
+				$$slots: { default: true }
+			});
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 351 src/examples/docs/SvelteTweakpaneThemePicker.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`themeKey` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 72
+		},
+		"end": {
+			"line": 4,
+			"column": 46,
+			"character": 113
+		}
+	}
+]
+
+=== 1957 src/examples/docs/SvelteTweakpaneWideSlideExample.svelte	js
+import * as $ from 'svelte/internal/server';
+
+import {
+	Checkbox,
+	IntervalSlider,
+	Ring,
+	Separator,
+	Slider,
+	Stepper,
+	Wheel
+} from '$lib';
+
+export default function SvelteTweakpaneWideSlideExample($$renderer) {
+	const min = 0;
+	const max = 100;
+	let value = 50;
+	let wide = true;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Checkbox($$renderer, {
+			label: 'Wide',
+			get value() {
+				return wide;
+			},
+
+			set value($$value) {
+				wide = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+		Separator($$renderer, {});
+		$$renderer.push(`<!----> `);
+
+		Slider($$renderer, {
+			label: 'Slider',
+			max,
+			min,
+			wide,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Stepper($$renderer, {
+			label: 'Stepper',
+			max,
+			min,
+			step: 10,
+			wide,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		IntervalSlider($$renderer, {
+			label: 'IntervalSlider',
+			max,
+			min,
+			value: [min, max],
+			wide,
+			get meanValue() {
+				return value;
+			},
+
+			set meanValue($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Wheel($$renderer, {
+			label: 'Wheel',
+			max,
+			min,
+			wide,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Ring($$renderer, {
+			label: 'Ring',
+			max,
+			min,
+			wide,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 693 src/examples/docs/SvelteTweakpaneWideSlideExample.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 147
+		},
+		"end": {
+			"line": 6,
+			"column": 10,
+			"character": 152
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`wide` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 163
+		},
+		"end": {
+			"line": 7,
+			"column": 9,
+			"character": 167
+		}
+	}
+]
+
+=== 611 src/examples/docs/VanillaTweakpaneRange.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+import { Pane } from 'tweakpane';
+
+export default function VanillaTweakpaneRange($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let params = { speed: 50 };
+		let container;
+
+		onMount(() => {
+			const pane = new Pane({ container });
+
+			pane.addBinding(params, 'speed', { min: 0, max: 100 });
+
+			pane.on('change', () => {
+				// Trigger Svelte reactivity
+				params = params;
+			});
+
+			return () => {
+				pane.dispose();
+			};
+		});
+
+		$$renderer.push(`<div></div> <pre>${$.escape(params.speed)}
+</pre>`);
+	});
+}
+=== 348 src/examples/docs/VanillaTweakpaneRange.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`params` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 93
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"character": 99
+		}
+	}
+]
+
+=== 1759 src/examples/tests/TestAutoObject.svelte	js
+import * as $ from 'svelte/internal/server';
+import { AutoObject } from '$lib';
+
+export default function TestAutoObject($$renderer) {
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+
+	let object = {
+		// Creates a <Checkbox>
+		someBoolean: true,
+
+		// Creates a <Color> picker
+		someColor: { r: 255, g: 0, b: 55 },
+		// Wraps children in a <Folder>
+		someFolder: { a: 1, b: 2, c: 3 },
+
+		// Creates a <Slider>
+		someNumber: 1,
+
+		// Creates a <Point>
+		somePoint: { x: 1, y: 2 },
+
+		// Creates a <Text>
+		someString: 'test'
+
+		// TODO maybe
+		// Creates a <Button>
+		// someButton: () => {
+		// 	alert('🎛️');
+		// }
+	};
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		AutoObject($$renderer, {
+			get object() {
+				return object;
+			},
+
+			set object($$value) {
+				object = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		AutoObject($$renderer, {
+			get object() {
+				return object;
+			},
+
+			set object($$value) {
+				object = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <hr/> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre> <pre>Value: <span>${$.escape(JSON.stringify(object))}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1815 src/examples/tests/TestAutoObject.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 60
+		},
+		"end": {
+			"line": 4,
+			"column": 31,
+			"character": 86
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 96
+		},
+		"end": {
+			"line": 5,
+			"column": 31,
+			"character": 122
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 132
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 158
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 168
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 194
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`object` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 205
+		},
+		"end": {
+			"line": 9,
+			"column": 11,
+			"character": 211
+		}
+	}
+]
+
+=== 821 src/examples/tests/TestAutoObjectNesting.svelte	js
+import * as $ from 'svelte/internal/server';
+import { AutoObject } from '$lib';
+
+export default function TestAutoObjectNesting($$renderer) {
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/10
+	let object = {
+		aFolder: {
+			aSetting: 0,
+			bFolder: { bSetting: 0, cFolder: { cSetting: 0 } }
+		}
+	};
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		AutoObject($$renderer, {
+			get object() {
+				return object;
+			},
+
+			set object($$value) {
+				object = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: <span>${$.escape(JSON.stringify(object))}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 350 src/examples/tests/TestAutoObjectNesting.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`object` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 126
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"character": 132
+		}
+	}
+]
+
+=== 4422 src/examples/tests/TestAutoValue.svelte	js
+import * as $ from 'svelte/internal/server';
+import { AutoValue } from '$lib';
+
+export default function TestAutoValue($$renderer) {
+	let number = 0;
+	let color = '#ff00ff';
+	let colorArray = { r: 0, g: 0, b: 255 };
+	let point = { x: 0, y: 0 };
+	let text = 'Cosmic manifold';
+	let number1InternalEventCount = 0;
+	let number1ExternalEventCount = 0;
+	let number2InternalEventCount = 0;
+	let number2ExternalEventCount = 0;
+	let color1InternalEventCount = 0;
+	let color1ExternalEventCount = 0;
+	let color2InternalEventCount = 0;
+	let color2ExternalEventCount = 0;
+	let point1InternalEventCount = 0;
+	let point1ExternalEventCount = 0;
+	let point2InternalEventCount = 0;
+	let point2ExternalEventCount = 0;
+	let text1InternalEventCount = 0;
+	let text1ExternalEventCount = 0;
+	let text2InternalEventCount = 0;
+	let text2ExternalEventCount = 0;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		AutoValue($$renderer, {
+			label: 'Number 1',
+			get value() {
+				return number;
+			},
+
+			set value($$value) {
+				number = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		AutoValue($$renderer, {
+			label: 'Number 2',
+			get value() {
+				return number;
+			},
+
+			set value($$value) {
+				number = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		AutoValue($$renderer, {
+			label: 'Color 1',
+			get value() {
+				return color;
+			},
+
+			set value($$value) {
+				color = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		AutoValue($$renderer, {
+			label: 'Color 2',
+			get value() {
+				return color;
+			},
+
+			set value($$value) {
+				color = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		AutoValue($$renderer, {
+			label: 'Point 1',
+			get value() {
+				return point;
+			},
+
+			set value($$value) {
+				point = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		AutoValue($$renderer, {
+			label: 'Point 2',
+			get value() {
+				return point;
+			},
+
+			set value($$value) {
+				point = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		AutoValue($$renderer, {
+			label: 'Text 1',
+			get value() {
+				return text;
+			},
+
+			set value($$value) {
+				text = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		AutoValue($$renderer, {
+			label: 'Text 2',
+			get value() {
+				return text;
+			},
+
+			set value($$value) {
+				text = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <hr/> `);
+
+		AutoValue($$renderer, {
+			label: 'Color Array',
+			get value() {
+				return colorArray;
+			},
+
+			set value($$value) {
+				colorArray = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Number Value: <span>${$.escape(number)}</span></pre> <pre>Number 1 Internal: <span>${$.escape(number1InternalEventCount)}</span></pre> <pre>Number 1 External: <span>${$.escape(number1ExternalEventCount)}</span></pre> <pre>Number 2 Internal: <span>${$.escape(number2InternalEventCount)}</span></pre> <pre>Number 2 External: <span>${$.escape(number2ExternalEventCount)}</span></pre> <pre>Color Value: <span>${$.escape(color)}</span></pre> <pre>Color 1 Internal: <span>${$.escape(color1InternalEventCount)}</span></pre> <pre>Color 1 External: <span>${$.escape(color1ExternalEventCount)}</span></pre> <pre>Color 2 Internal: <span>${$.escape(color2InternalEventCount)}</span></pre> <pre>Color 2 External: <span>${$.escape(color2ExternalEventCount)}</span></pre> <pre>Point Value: <span>${$.escape(point)}</span></pre> <pre>Point 1 Internal: <span>${$.escape(point1InternalEventCount)}</span></pre> <pre>Point 1 External: <span>${$.escape(point1ExternalEventCount)}</span></pre> <pre>Point 2 Internal: <span>${$.escape(point2InternalEventCount)}</span></pre> <pre>Point 2 External: <span>${$.escape(point2ExternalEventCount)}</span></pre> <pre>Text Value: <span>${$.escape(text)}</span></pre> <pre>Text 1 Internal: <span>${$.escape(text1InternalEventCount)}</span></pre> <pre>Text 1 External: <span>${$.escape(text1ExternalEventCount)}</span></pre> <pre>Text 2 Internal: <span>${$.escape(text2InternalEventCount)}</span></pre> <pre>Text 2 External: <span>${$.escape(text2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 7604 src/examples/tests/TestAutoValue.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`number` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 59
+		},
+		"end": {
+			"line": 4,
+			"column": 11,
+			"character": 65
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`color` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 75
+		},
+		"end": {
+			"line": 5,
+			"column": 10,
+			"character": 80
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`colorArray` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 98
+		},
+		"end": {
+			"line": 6,
+			"column": 15,
+			"character": 108
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`point` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 139
+		},
+		"end": {
+			"line": 7,
+			"column": 10,
+			"character": 144
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`text` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 167
+		},
+		"end": {
+			"line": 8,
+			"column": 9,
+			"character": 171
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`number1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 198
+		},
+		"end": {
+			"line": 10,
+			"column": 30,
+			"character": 223
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`number1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 5,
+			"character": 233
+		},
+		"end": {
+			"line": 11,
+			"column": 30,
+			"character": 258
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`number2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 5,
+			"character": 268
+		},
+		"end": {
+			"line": 12,
+			"column": 30,
+			"character": 293
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`number2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 5,
+			"character": 303
+		},
+		"end": {
+			"line": 13,
+			"column": 30,
+			"character": 328
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`color1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 14,
+			"column": 5,
+			"character": 338
+		},
+		"end": {
+			"line": 14,
+			"column": 29,
+			"character": 362
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`color1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 5,
+			"character": 372
+		},
+		"end": {
+			"line": 15,
+			"column": 29,
+			"character": 396
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`color2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 16,
+			"column": 5,
+			"character": 406
+		},
+		"end": {
+			"line": 16,
+			"column": 29,
+			"character": 430
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`color2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 17,
+			"column": 5,
+			"character": 440
+		},
+		"end": {
+			"line": 17,
+			"column": 29,
+			"character": 464
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`point1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 18,
+			"column": 5,
+			"character": 474
+		},
+		"end": {
+			"line": 18,
+			"column": 29,
+			"character": 498
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`point1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 19,
+			"column": 5,
+			"character": 508
+		},
+		"end": {
+			"line": 19,
+			"column": 29,
+			"character": 532
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`point2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 20,
+			"column": 5,
+			"character": 542
+		},
+		"end": {
+			"line": 20,
+			"column": 29,
+			"character": 566
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`point2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 21,
+			"column": 5,
+			"character": 576
+		},
+		"end": {
+			"line": 21,
+			"column": 29,
+			"character": 600
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`text1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 22,
+			"column": 5,
+			"character": 610
+		},
+		"end": {
+			"line": 22,
+			"column": 28,
+			"character": 633
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`text1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 23,
+			"column": 5,
+			"character": 643
+		},
+		"end": {
+			"line": 23,
+			"column": 28,
+			"character": 666
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`text2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 24,
+			"column": 5,
+			"character": 676
+		},
+		"end": {
+			"line": 24,
+			"column": 28,
+			"character": 699
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`text2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 25,
+			"column": 5,
+			"character": 709
+		},
+		"end": {
+			"line": 25,
+			"column": 28,
+			"character": 732
+		}
+	}
+]
+
+=== 1385 src/examples/tests/TestBinding.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Binding } from '$lib';
+
+export default function TestBinding($$renderer) {
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let object = { v: 0 };
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Binding($$renderer, {
+			key: 'v',
+			label: 'Binding 1',
+			get object() {
+				return object;
+			},
+
+			set object($$value) {
+				object = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Binding($$renderer, {
+			key: 'v',
+			label: 'Binding 2',
+			get object() {
+				return object;
+			},
+
+			set object($$value) {
+				object = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <hr/> <pre>Value: <span>${$.escape(object.v)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1820 src/examples/tests/TestBinding.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 100
+		},
+		"end": {
+			"line": 5,
+			"column": 31,
+			"character": 126
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 136
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 162
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 172
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 198
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 208
+		},
+		"end": {
+			"line": 8,
+			"column": 31,
+			"character": 234
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`object` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 245
+		},
+		"end": {
+			"line": 10,
+			"column": 26,
+			"character": 266
+		}
+	}
+]
+
+=== 1403 src/examples/tests/TestCheckbox.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Checkbox } from '$lib';
+
+export default function TestCheckbox($$renderer) {
+	let value = false;
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+
+	function listener(event) {
+		console.log(event);
+	}
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Checkbox($$renderer, {
+			label: 'Binding 1',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Checkbox($$renderer, {
+			label: 'Binding 2',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <hr/> <pre>Value: <span>${$.escape(value)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1815 src/examples/tests/TestCheckbox.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 81
+		},
+		"end": {
+			"line": 4,
+			"column": 19,
+			"character": 95
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 110
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 136
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 146
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 172
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 182
+		},
+		"end": {
+			"line": 8,
+			"column": 31,
+			"character": 208
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 218
+		},
+		"end": {
+			"line": 9,
+			"column": 31,
+			"character": 244
+		}
+	}
+]
+
+=== 21524 src/examples/tests/TestCls.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+
+import {
+	AutoObject,
+	Binding,
+	Blade,
+	Button,
+	ButtonGrid,
+	Color,
+	CubicBezier,
+	Element,
+	Folder,
+	FpsGraph,
+	List,
+	Monitor,
+	Pane,
+	Point,
+	Profiler,
+	RadioGrid,
+	Ring,
+	RotationEuler,
+	RotationQuaternion,
+	Separator,
+	Slider,
+	TabGroup,
+	TabPage,
+	Text,
+	Textarea,
+	ThemeUtils,
+	WaveformMonitor,
+	Wheel
+} from '$lib';
+
+export default function TestCls($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let text = 'Cosmic Manifold';
+		let waveData = [5, 6, 7, 8, 9, 3, 9, 8, 7, 6, 5];
+
+		setInterval(
+			() => {
+				waveData = waveData.map((v) => Math.max(0, Math.min(10, v + (Math.random() * 2 - 1) * 0.5)));
+			},
+			10
+		);
+
+		let selection = 1;
+		const options = { a: 1, b: 2, c: 3 };
+		let booleanToMonitor = false;
+		let stringToMonitor = 'Reticulating';
+		let numberToMonitor = 85;
+
+		setInterval(
+			() => {
+				numberToMonitor = Math.random() * 100;
+			},
+			50
+		);
+
+		setInterval(
+			() => {
+				booleanToMonitor = !booleanToMonitor;
+
+				// eslint-disable-next-line ts/no-misused-spread, unicorn/no-array-reverse
+				stringToMonitor = [...stringToMonitor].reverse().join('');
+			},
+			1000
+		);
+
+		let rev = { x: 0, y: 0, z: 0 };
+		let rev2 = { x: 0, y: 0, z: 0, w: 0 };
+		let text2 = '';
+
+		let object = {
+			someBoolean: true, // Creates a <Checkbox>
+			someColor: {
+				r: 255,
+				g: 0,
+				// Creates a <Color> picker
+				b: 55
+			},
+			someFolder: {
+				// Wraps children in a <Folder>
+				a: 1,
+				b: 2,
+				c: 3
+			},
+			someNumber: 1, // Creates a <Slider>
+			somePoint: {
+				// Creates a <Point>
+				x: 1,
+				y: 2
+			},
+			someString: 'test' // Creates a <Text>
+		};
+
+		let startColor = '#fff000';
+		let startColorA = { r: 255, g: 0, b: 55, a: 50 };
+		let bindingObject = { r: 0 };
+		let expanded = false;
+		let point2d = { x: 0, y: 0 };
+
+		// Tuples are also fine
+		let point3d = [0, 0, 0];
+
+		// Dimension-specific option type needs to know the type of the point value
+		const point3dxOptions = { min: -100, max: 100 };
+
+		const theme = {
+			...ThemeUtils.presets.standard,
+			bladeHorizontalPadding: '20px',
+			containerUnitSize: '130px'
+		};
+
+		let callback = [0, 0, 0, 0];
+
+		const keyboard = [
+			...Array.from({ length: 26 }, (_, index) => String.fromCodePoint(65 + index)),
+			',',
+			'.',
+			'!',
+			'⌫'
+		];
+
+		let rv = 1;
+
+		// Const radioValues = [ ['magenta', 'orange'], ['yellow', 'red'], ['violet', 'gold'], ['red',
+		//  'rebeccapurple']
+		// ];
+		// let src = 'placeholder';
+		let point4d = { x: 0, y: 0, z: 0, w: 0 };
+
+		// This is a readonly function handle assigned by Profiler component first used in onMount since
+		// it is not bound until then
+		let measure;
+
+		const loopExponent = 1;
+
+		// Helper to test Math functions
+		function hardWork(functionToMeasure, exponent) {
+			measure(functionToMeasure.name, () => {
+				for (let sum = 0; sum < Number('1e' + exponent); sum++) {
+					functionToMeasure(sum);
+				}
+			});
+		}
+
+		onMount(() => {
+			let animationFrameHandle;
+
+			(function tick() {
+				// Nesting measurements creates a hierarchy in the Profile visualization
+				measure('Tick', () => {
+					measure('Trigonometry', () => {
+						hardWork(Math.sin, loopExponent);
+						hardWork(Math.cos, loopExponent);
+						hardWork(Math.tan, loopExponent);
+						hardWork(Math.atan, loopExponent);
+						hardWork(Math.acos, loopExponent);
+						hardWork(Math.acosh, loopExponent);
+					});
+
+					measure('Logarithms', () => {
+						hardWork(Math.log, loopExponent);
+						hardWork(Math.log10, loopExponent);
+						hardWork(Math.log1p, loopExponent);
+						hardWork(Math.log2, loopExponent);
+					});
+
+					measure('Rounding', () => {
+						hardWork(Math.round, loopExponent);
+						hardWork(Math.floor, loopExponent);
+						hardWork(Math.ceil, loopExponent);
+						hardWork(Math.fround, loopExponent);
+					});
+				});
+
+				animationFrameHandle = requestAnimationFrame(tick);
+			})();
+
+			return () => {
+				cancelAnimationFrame(animationFrameHandle);
+			};
+		});
+
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					Button($$renderer, {});
+					$$renderer.push(`<!----> `);
+					Button($$renderer, {});
+					$$renderer.push(`<!----> `);
+					Button($$renderer, {});
+					$$renderer.push(`<!---->`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				position: 'fixed',
+				children: ($$renderer) => {
+					Button($$renderer, {});
+					$$renderer.push(`<!----> `);
+					Button($$renderer, {});
+					$$renderer.push(`<!----> `);
+					Button($$renderer, {});
+					$$renderer.push(`<!---->`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <h1>Textarea</h1> `);
+
+			Textarea($$renderer, {
+				placeholder: 'The void',
+				get value() {
+					return text2;
+				},
+
+				set value($$value) {
+					text2 = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Textarea</h1> `);
+
+			Textarea($$renderer, {
+				placeholder: 'The void',
+				rows: 8,
+				get value() {
+					return text2;
+				},
+
+				set value($$value) {
+					text2 = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Rotation</h1> `);
+
+			RotationQuaternion($$renderer, {
+				expanded: true,
+				label: 'CSS Rotation',
+				picker: 'inline',
+				get value() {
+					return rev2;
+				},
+
+				set value($$value) {
+					rev2 = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Rotation</h1> `);
+
+			RotationQuaternion($$renderer, {
+				expanded: true,
+				picker: 'inline',
+				get value() {
+					return rev2;
+				},
+
+				set value($$value) {
+					rev2 = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Rotation</h1> `);
+
+			RotationEuler($$renderer, {
+				expanded: true,
+				label: 'CSS Rotation',
+				picker: 'inline',
+				get value() {
+					return rev;
+				},
+
+				set value($$value) {
+					rev = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Rotation</h1> `);
+
+			RotationEuler($$renderer, {
+				expanded: true,
+				picker: 'inline',
+				get value() {
+					return rev;
+				},
+
+				set value($$value) {
+					rev = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Profiler</h1> `);
+
+			Profiler($$renderer, {
+				label: 'Profiler',
+				get measure() {
+					return measure;
+				},
+
+				set measure($$value) {
+					measure = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>RG</h1> `);
+
+			RadioGrid($$renderer, {
+				prefix: 'Color Scheme ',
+				values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+				get value() {
+					return rv;
+				},
+
+				set value($$value) {
+					rv = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>FPS</h1> `);
+			FpsGraph($$renderer, { rows: 1 });
+			$$renderer.push(`<!----> <h1>FPS</h1> `);
+			FpsGraph($$renderer, { rows: 5 });
+			$$renderer.push(`<!----> <h1>FPS</h1> `);
+			FpsGraph($$renderer, {});
+			$$renderer.push(`<!----> <h1>CB</h1> `);
+
+			CubicBezier($$renderer, {
+				expanded: true,
+				picker: 'inline',
+				get value() {
+					return callback;
+				},
+
+				set value($$value) {
+					callback = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>CB</h1> `);
+
+			CubicBezier($$renderer, {
+				expanded: true,
+				label: 'bla',
+				picker: 'inline',
+				get value() {
+					return callback;
+				},
+
+				set value($$value) {
+					callback = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>CB</h1> `);
+
+			CubicBezier($$renderer, {
+				expanded: true,
+				label: 'bla',
+				get value() {
+					return callback;
+				},
+
+				set value($$value) {
+					callback = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>CB</h1> `);
+
+			CubicBezier($$renderer, {
+				label: 'bla',
+				get value() {
+					return callback;
+				},
+
+				set value($$value) {
+					callback = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Button Grid</h1> `);
+			ButtonGrid($$renderer, { buttons: keyboard });
+			$$renderer.push(`<!----> <h1>Ring</h1> `);
+			Ring($$renderer, { label: 'Scale', value: 1 });
+			$$renderer.push(`<!----> <h1>Wheel</h1> `);
+			Wheel($$renderer, { label: 'Scale', value: 1 });
+			$$renderer.push(`<!----> <h1>Color</h1> `);
+
+			Color($$renderer, {
+				label: 'Start Color',
+				get value() {
+					return startColor;
+				},
+
+				set value($$value) {
+					startColor = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Color</h1> `);
+
+			Color($$renderer, {
+				expanded: true,
+				label: 'Start Color',
+				picker: 'inline',
+				get value() {
+					return startColor;
+				},
+
+				set value($$value) {
+					startColor = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Color</h1> `);
+
+			Color($$renderer, {
+				expanded: true,
+				picker: 'inline',
+				get value() {
+					return startColor;
+				},
+
+				set value($$value) {
+					startColor = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Color</h1> `);
+
+			Color($$renderer, {
+				expanded: true,
+				label: 'Start Color',
+				picker: 'inline',
+				get value() {
+					return startColorA;
+				},
+
+				set value($$value) {
+					startColorA = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Color</h1> `);
+
+			Color($$renderer, {
+				expanded: true,
+				picker: 'inline',
+				get value() {
+					return startColorA;
+				},
+
+				set value($$value) {
+					startColorA = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Text</h1> `);
+
+			Text($$renderer, {
+				label: 'The Message',
+				get value() {
+					return text;
+				},
+
+				set value($$value) {
+					text = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Slider</h1> `);
+			Slider($$renderer, { label: 'Scale', value: 1 });
+			$$renderer.push(`<!----> <h1>Separator</h1> `);
+			Separator($$renderer, {});
+			$$renderer.push(`<!----> <h1>Point 2D</h1> `);
+
+			Point($$renderer, {
+				expanded: false,
+				label: '2D Point Picker',
+				picker: 'inline',
+				get value() {
+					return point2d;
+				},
+
+				set value($$value) {
+					point2d = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Point 3D</h1> `);
+
+			Point($$renderer, {
+				label: '3D Point Picker',
+				optionsX: point3dxOptions,
+				get value() {
+					return point3d;
+				},
+
+				set value($$value) {
+					point3d = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Point 4D</h1> `);
+
+			Point($$renderer, {
+				label: '4D Point Picker',
+				max: 100,
+				min: 0,
+				get value() {
+					return point4d;
+				},
+
+				set value($$value) {
+					point4d = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Point 2D</h1> `);
+
+			Point($$renderer, {
+				expanded: true,
+				label: '2D Point Picker',
+				picker: 'inline',
+				get value() {
+					return point2d;
+				},
+
+				set value($$value) {
+					point2d = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Point 2D No Label</h1> `);
+
+			Pane($$renderer, {
+				position: 'inline',
+				theme,
+				width: 300,
+				children: ($$renderer) => {
+					Point($$renderer, {
+						expanded: true,
+						picker: 'inline',
+						get value() {
+							return point2d;
+						},
+
+						set value($$value) {
+							point2d = $$value;
+							$$settled = false;
+						}
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <h1>wave Monitor</h1> `);
+			WaveformMonitor($$renderer, { lineStyle: 'bezier', max: 11, min: -1, value: waveData });
+			$$renderer.push(`<!----> `);
+
+			WaveformMonitor($$renderer, {
+				bufferSize: 500,
+				lineStyle: 'bezier',
+				max: 11,
+				min: -1,
+				rows: 10,
+				value: waveData
+			});
+
+			$$renderer.push(`<!----> <h1>Monitor String Rows without Multiline</h1> `);
+
+			Monitor($$renderer, {
+				label: 'String Monitor',
+				multiline: true,
+				value: stringToMonitor
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Monitor($$renderer, {
+				bufferSize: 2,
+				label: 'String Monitor',
+				value: stringToMonitor
+			});
+
+			$$renderer.push(`<!----> `);
+			Monitor($$renderer, { label: 'String Monitor', value: stringToMonitor });
+			$$renderer.push(`<!----> <h1>Monitor String Multiline</h1> `);
+
+			Monitor($$renderer, {
+				bufferSize: 10,
+				label: 'String Monitor',
+				multiline: true,
+				rows: 10,
+				value: stringToMonitor
+			});
+
+			$$renderer.push(`<!----> <h1>Monitor String Multiline With Rows</h1> `);
+
+			Monitor($$renderer, {
+				bufferSize: 50,
+				label: 'String Monitor',
+				multiline: true,
+				rows: 10,
+				value: stringToMonitor
+			});
+
+			$$renderer.push(`<!----> <h1>Monitor Boolean test</h1> `);
+
+			Monitor($$renderer, {
+				bufferSize: 3,
+				label: 'Boolean Monitor',
+				rows: 2,
+				value: booleanToMonitor
+			});
+
+			$$renderer.push(`<!----> <h1>Monitor Boolean Basic</h1> `);
+
+			Monitor($$renderer, {
+				graph: true,
+				label: 'Boolean Monitor',
+				value: numberToMonitor
+			});
+
+			$$renderer.push(`<!----> <h1>Monitor Boolean Basic</h1> `);
+
+			Monitor($$renderer, {
+				graph: true,
+				label: 'Boolean Monitor',
+				rows: 20,
+				value: numberToMonitor
+			});
+
+			$$renderer.push(`<!----> <h1>Monitor Boolean Basic</h1> `);
+			Monitor($$renderer, { label: 'Boolean Monitor', value: numberToMonitor });
+			$$renderer.push(`<!----> <h1>Monitor Boolean Big Buffer Big Rows</h1> `);
+
+			Monitor($$renderer, {
+				bufferSize: 20,
+				label: 'Boolean Monitor',
+				rows: 10,
+				value: numberToMonitor
+			});
+
+			$$renderer.push(`<!----> <h1>Monitor Boolean Small Buffer Big Rows</h1> `);
+
+			Monitor($$renderer, {
+				bufferSize: 2,
+				label: 'Boolean Monitor',
+				rows: 10,
+				value: numberToMonitor
+			});
+
+			$$renderer.push(`<!----> <h1>Monitor Boolean Big Buffer Small Rows</h1> `);
+
+			Monitor($$renderer, {
+				bufferSize: 10,
+				label: 'Boolean Monitor',
+				rows: 1,
+				value: numberToMonitor
+			});
+
+			$$renderer.push(`<!----> <h1>Monitor Boolean Big Buffer No Rows</h1> `);
+
+			Monitor($$renderer, {
+				bufferSize: 2,
+				label: 'Boolean Monitor',
+				value: numberToMonitor
+			});
+
+			$$renderer.push(`<!----> <h1>Monitor Boolean No Buffer Big Rows</h1> `);
+			Monitor($$renderer, { label: 'Boolean Monitor', rows: 10, value: numberToMonitor });
+			$$renderer.push(`<!----> <h1>Monitor Number</h1> `);
+			Monitor($$renderer, { bufferSize: 50, rows: 10, value: numberToMonitor });
+			$$renderer.push(`<!----> <h1>Monitor Number Graph</h1> `);
+			Monitor($$renderer, { graph: true, rows: 10, value: numberToMonitor });
+			$$renderer.push(`<!----> <h1>List</h1> `);
+
+			List($$renderer, {
+				label: 'Alphanumerics',
+				options,
+				get value() {
+					return selection;
+				},
+
+				set value($$value) {
+					selection = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Element Standalone</h1> `);
+
+			Element($$renderer, {
+				children: ($$renderer) => {
+					$$renderer.push(`<p><code>&lt;Pane></code><br/> <code>&lt;Element></code><br/> Whatever you want. <code>&lt;/Element></code><br/> <code>&lt;/Pane></code></p>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <h1>Binding</h1> `);
+
+			Binding($$renderer, {
+				key: 'r',
+				label: 'Reticulation',
+				get object() {
+					return bindingObject;
+				},
+
+				set object($$value) {
+					bindingObject = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Auto object</h1> `);
+
+			AutoObject($$renderer, {
+				get object() {
+					return object;
+				},
+
+				set object($$value) {
+					object = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>single tab</h1> `);
+
+			TabGroup($$renderer, {
+				children: ($$renderer) => {
+					TabPage($$renderer, {
+						title: 'B!!!!',
+						children: ($$renderer) => {
+							Button($$renderer, {});
+						},
+						$$slots: { default: true }
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <h1>Tabs Short first</h1> `);
+
+			TabGroup($$renderer, {
+				children: ($$renderer) => {
+					TabPage($$renderer, {
+						title: 'A',
+						children: ($$renderer) => {
+							Button($$renderer, {});
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----> `);
+
+					TabPage($$renderer, {
+						title: 'B',
+						children: ($$renderer) => {
+							Button($$renderer, {});
+							$$renderer.push(`<!----> `);
+							Button($$renderer, {});
+							$$renderer.push(`<!----> `);
+							Button($$renderer, {});
+							$$renderer.push(`<!---->`);
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!---->`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <h1>Tabs tall first</h1> `);
+
+			TabGroup($$renderer, {
+				children: ($$renderer) => {
+					TabPage($$renderer, {
+						title: 'A',
+						children: ($$renderer) => {
+							Button($$renderer, {});
+							$$renderer.push(`<!----> `);
+							Button($$renderer, {});
+							$$renderer.push(`<!----> `);
+							Button($$renderer, {});
+							$$renderer.push(`<!---->`);
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----> `);
+
+					TabPage($$renderer, {
+						title: 'B',
+						children: ($$renderer) => {
+							Button($$renderer, {});
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!---->`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <h1>Tab page no group</h1> `);
+
+			TabPage($$renderer, {
+				title: 'A',
+				children: ($$renderer) => {
+					Button($$renderer, {});
+					$$renderer.push(`<!----> `);
+					Button($$renderer, {});
+					$$renderer.push(`<!----> `);
+					Button($$renderer, {});
+					$$renderer.push(`<!---->`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <h1>Tab group no pages</h1> `);
+			TabGroup($$renderer, {});
+			$$renderer.push(`<!----> <h1>Pane</h1> `);
+
+			Pane($$renderer, {
+				position: 'inline',
+				children: ($$renderer) => {
+					Slider($$renderer, { label: 'Scale', value: 1 });
+					$$renderer.push(`<!----> `);
+					Slider($$renderer, { label: 'Scale', value: 1 });
+					$$renderer.push(`<!----> `);
+					Slider($$renderer, { label: 'Scale', value: 1 });
+					$$renderer.push(`<!----> `);
+					Slider($$renderer, { label: 'Scale', value: 1 });
+					$$renderer.push(`<!----> `);
+					Slider($$renderer, { label: 'Scale', value: 1 });
+					$$renderer.push(`<!----> `);
+					Slider($$renderer, { label: 'Scale', value: 1 });
+					$$renderer.push(`<!----> `);
+					Slider($$renderer, { label: 'Scale', value: 1 });
+					$$renderer.push(`<!----> `);
+					Slider($$renderer, { label: 'Scale', value: 1 });
+					$$renderer.push(`<!----> `);
+					Slider($$renderer, { label: 'Scale', value: 1 });
+					$$renderer.push(`<!----> `);
+					Slider($$renderer, { label: 'Scale', value: 1 });
+					$$renderer.push(`<!----> `);
+					Slider($$renderer, { label: 'Scale', value: 1 });
+					$$renderer.push(`<!---->`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <h1>Slider</h1> `);
+			Slider($$renderer, { label: 'Scale', value: 1 });
+			$$renderer.push(`<!----> <h1>Pane Title</h1> `);
+
+			Pane($$renderer, {
+				position: 'inline',
+				title: 'Bla',
+				children: ($$renderer) => {
+					Slider($$renderer, { label: 'Scale', value: 1 });
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <h1>Pane Folded</h1> `);
+
+			Pane($$renderer, {
+				position: 'inline',
+				get expanded() {
+					return expanded;
+				},
+
+				set expanded($$value) {
+					expanded = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					Slider($$renderer, { label: 'Scale', value: 1 });
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <h1>Pane Title Folded</h1> `);
+
+			Pane($$renderer, {
+				position: 'inline',
+				title: 'Bla',
+				get expanded() {
+					return expanded;
+				},
+
+				set expanded($$value) {
+					expanded = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					Slider($$renderer, { label: 'Scale', value: 1 });
+					$$renderer.push(`<!----> `);
+					Slider($$renderer, { label: 'Scale', value: 1 });
+					$$renderer.push(`<!---->`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <h1>Blade</h1> `);
+			Blade($$renderer, { options: { view: 'separator' } });
+			$$renderer.push(`<!----> <h1>Button</h1> `);
+			Button($$renderer, {});
+			$$renderer.push(`<!----> <h1>Folder expanded</h1> `);
+
+			Folder($$renderer, {
+				title: 'Reticulation Manager',
+				children: ($$renderer) => {
+					Button($$renderer, {});
+					$$renderer.push(`<!----> `);
+					Button($$renderer, {});
+					$$renderer.push(`<!---->`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <h1>Folder collapsed</h1> `);
+
+			Folder($$renderer, {
+				title: 'Reticulation Manager',
+				get expanded() {
+					return expanded;
+				},
+
+				set expanded($$value) {
+					expanded = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					Button($$renderer, {});
+					$$renderer.push(`<!----> `);
+					Button($$renderer, {});
+					$$renderer.push(`<!---->`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <hr/>`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 7070 src/examples/tests/TestCls.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`text` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 44,
+			"column": 5,
+			"character": 679
+		},
+		"end": {
+			"line": 44,
+			"column": 9,
+			"character": 683
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`waveData` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 45,
+			"column": 5,
+			"character": 709
+		},
+		"end": {
+			"line": 45,
+			"column": 13,
+			"character": 717
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selection` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 51,
+			"column": 5,
+			"character": 885
+		},
+		"end": {
+			"line": 51,
+			"column": 22,
+			"character": 902
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`booleanToMonitor` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 54,
+			"column": 5,
+			"character": 972
+		},
+		"end": {
+			"line": 54,
+			"column": 21,
+			"character": 988
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`stringToMonitor` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 55,
+			"column": 5,
+			"character": 1002
+		},
+		"end": {
+			"line": 55,
+			"column": 20,
+			"character": 1017
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`numberToMonitor` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 56,
+			"column": 5,
+			"character": 1040
+		},
+		"end": {
+			"line": 56,
+			"column": 20,
+			"character": 1055
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`rev` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 68,
+			"column": 5,
+			"character": 1345
+		},
+		"end": {
+			"line": 68,
+			"column": 34,
+			"character": 1374
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`rev2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 69,
+			"column": 5,
+			"character": 1403
+		},
+		"end": {
+			"line": 69,
+			"column": 40,
+			"character": 1438
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`text2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 70,
+			"column": 5,
+			"character": 1473
+		},
+		"end": {
+			"line": 70,
+			"column": 10,
+			"character": 1478
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`object` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 71,
+			"column": 5,
+			"character": 1489
+		},
+		"end": {
+			"line": 71,
+			"column": 11,
+			"character": 1495
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`startColor` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 93,
+			"column": 5,
+			"character": 1860
+		},
+		"end": {
+			"line": 93,
+			"column": 15,
+			"character": 1870
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`startColorA` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 94,
+			"column": 5,
+			"character": 1888
+		},
+		"end": {
+			"line": 94,
+			"column": 16,
+			"character": 1899
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`bindingObject` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 96,
+			"column": 5,
+			"character": 1939
+		},
+		"end": {
+			"line": 96,
+			"column": 33,
+			"character": 1967
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`expanded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 98,
+			"column": 5,
+			"character": 1985
+		},
+		"end": {
+			"line": 98,
+			"column": 13,
+			"character": 1993
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`point2d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 100,
+			"column": 5,
+			"character": 2008
+		},
+		"end": {
+			"line": 100,
+			"column": 26,
+			"character": 2029
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`point3d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 103,
+			"column": 5,
+			"character": 2078
+		},
+		"end": {
+			"line": 103,
+			"column": 26,
+			"character": 2099
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`callback` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 115,
+			"column": 5,
+			"character": 2396
+		},
+		"end": {
+			"line": 115,
+			"column": 36,
+			"character": 2427
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`rv` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 125,
+			"column": 5,
+			"character": 2582
+		},
+		"end": {
+			"line": 125,
+			"column": 7,
+			"character": 2584
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`point4d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 132,
+			"column": 5,
+			"character": 2750
+		},
+		"end": {
+			"line": 132,
+			"column": 26,
+			"character": 2771
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`measure` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 136,
+			"column": 5,
+			"character": 2936
+		},
+		"end": {
+			"line": 136,
+			"column": 29,
+			"character": 2960
+		}
+	}
+]
+
+=== 4822 src/examples/tests/TestCollapseExpand.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Checkbox, Element, Pane, ThemeUtils } from '$lib';
+
+export default function TestCollapseExpand($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let expanded = false;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			$$renderer.push(`<!---->${$.escape(expanded)} `);
+
+			Pane($$renderer, {
+				expanded: false,
+				position: 'draggable',
+				storePositionLocally: false,
+				title: 'Draggable Pane Unbound Literal',
+				x: 8,
+				y: 300,
+				children: ($$renderer) => {
+					Element($$renderer, {
+						children: ($$renderer) => {
+							$$renderer.push(`<br/>`);
+						},
+						$$slots: { default: true }
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				expanded: false,
+				position: 'fixed',
+				title: 'Fixed Pane Unbound Literal',
+				x: 8,
+				y: 400,
+				children: ($$renderer) => {
+					Element($$renderer, {
+						children: ($$renderer) => {
+							$$renderer.push(`<br/>`);
+						},
+						$$slots: { default: true }
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <hr/> `);
+
+			Pane($$renderer, {
+				expanded: false,
+				position: 'inline',
+				title: 'Inline Pane Unbound Literal',
+				children: ($$renderer) => {
+					Element($$renderer, {
+						children: ($$renderer) => {
+							$$renderer.push(`<br/>`);
+						},
+						$$slots: { default: true }
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				expanded,
+				position: 'draggable',
+				storePositionLocally: false,
+				title: 'Draggable Pane Unbound Variable',
+				x: 300,
+				y: 300,
+				children: ($$renderer) => {
+					Element($$renderer, {
+						children: ($$renderer) => {
+							$$renderer.push(`<br/>`);
+						},
+						$$slots: { default: true }
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				expanded,
+				position: 'fixed',
+				title: 'Fixed Pane Unbound Variable',
+				x: 300,
+				y: 400,
+				children: ($$renderer) => {
+					Element($$renderer, {
+						children: ($$renderer) => {
+							$$renderer.push(`<br/>`);
+						},
+						$$slots: { default: true }
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <hr/> `);
+
+			Pane($$renderer, {
+				expanded,
+				position: 'inline',
+				theme: ThemeUtils.presets.light,
+				title: 'Inline Pane Unbound Variable',
+				children: ($$renderer) => {
+					Checkbox($$renderer, {
+						label: 'Expanded',
+						get value() {
+							return expanded;
+						},
+
+						set value($$value) {
+							expanded = $$value;
+							$$settled = false;
+						}
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!---->  `);
+
+			Pane($$renderer, {
+				position: 'draggable',
+				storePositionLocally: false,
+				theme: ThemeUtils.presets.light,
+				title: 'Draggable Pane Bound Variable',
+				x: 600,
+				y: 300,
+				get expanded() {
+					return expanded;
+				},
+
+				set expanded($$value) {
+					expanded = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					Checkbox($$renderer, {
+						label: 'Expanded',
+						get value() {
+							return expanded;
+						},
+
+						set value($$value) {
+							expanded = $$value;
+							$$settled = false;
+						}
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				position: 'fixed',
+				theme: ThemeUtils.presets.light,
+				title: 'Fixed Pane Bound Variable',
+				x: 600,
+				y: 400,
+				get expanded() {
+					return expanded;
+				},
+
+				set expanded($$value) {
+					expanded = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					Checkbox($$renderer, {
+						label: 'Expanded',
+						get value() {
+							return expanded;
+						},
+
+						set value($$value) {
+							expanded = $$value;
+							$$settled = false;
+						}
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> <hr/> `);
+
+			Pane($$renderer, {
+				position: 'inline',
+				theme: ThemeUtils.presets.light,
+				title: 'Inline Pane Bound Variable',
+				get expanded() {
+					return expanded;
+				},
+
+				set expanded($$value) {
+					expanded = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					Checkbox($$renderer, {
+						label: 'Expanded',
+						get value() {
+							return expanded;
+						},
+
+						set value($$value) {
+							expanded = $$value;
+							$$settled = false;
+						}
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!---->`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 350 src/examples/tests/TestCollapseExpand.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`expanded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 84
+		},
+		"end": {
+			"line": 3,
+			"column": 13,
+			"character": 92
+		}
+	}
+]
+
+=== 2389 src/examples/tests/TestColor.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Color } from '$lib';
+
+export default function TestColor($$renderer) {
+	let value = { r: 0, g: 0, b: 0 };
+	let value2 = [0, 0, 0, 0];
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let binding3InternalEventCount = 0;
+	let binding3ExternalEventCount = 0;
+	let binding4InternalEventCount = 0;
+	let binding4ExternalEventCount = 0;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Color($$renderer, {
+			label: 'Binding 1',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Color($$renderer, {
+			label: 'Binding 2',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Color($$renderer, {
+			label: 'Binding 3',
+			get value() {
+				return value2;
+			},
+
+			set value($$value) {
+				value2 = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Color($$renderer, {
+			label: 'Binding 4',
+			get value() {
+				return value2;
+			},
+
+			set value($$value) {
+				value2 = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <hr/> <pre>Value Object: <span>${$.escape(JSON.stringify(value, undefined, 2))}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre> <pre>Value Tuple: <span>${$.escape(JSON.stringify(value2, undefined, 2))}</span></pre> <pre>Binding 3 Internal: <span>${$.escape(binding3InternalEventCount)}</span></pre> <pre>Binding 3 External: <span>${$.escape(binding3ExternalEventCount)}</span></pre> <pre>Binding 4 Internal: <span>${$.escape(binding4InternalEventCount)}</span></pre> <pre>Binding 5 External: <span>${$.escape(binding4ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 3642 src/examples/tests/TestColor.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 107
+		},
+		"end": {
+			"line": 4,
+			"column": 31,
+			"character": 133
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`value2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 162
+		},
+		"end": {
+			"line": 5,
+			"column": 32,
+			"character": 189
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 211
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 237
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 247
+		},
+		"end": {
+			"line": 8,
+			"column": 31,
+			"character": 273
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 283
+		},
+		"end": {
+			"line": 9,
+			"column": 31,
+			"character": 309
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 319
+		},
+		"end": {
+			"line": 10,
+			"column": 31,
+			"character": 345
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding3InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 5,
+			"character": 355
+		},
+		"end": {
+			"line": 11,
+			"column": 31,
+			"character": 381
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding3ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 5,
+			"character": 391
+		},
+		"end": {
+			"line": 12,
+			"column": 31,
+			"character": 417
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding4InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 5,
+			"character": 427
+		},
+		"end": {
+			"line": 13,
+			"column": 31,
+			"character": 453
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding4ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 14,
+			"column": 5,
+			"character": 463
+		},
+		"end": {
+			"line": 14,
+			"column": 31,
+			"character": 489
+		}
+	}
+]
+
+=== 1415 src/examples/tests/TestCubicBezier.svelte	js
+import * as $ from 'svelte/internal/server';
+import { CubicBezier } from '$lib';
+
+export default function TestCubicBezier($$renderer) {
+	let value = { x1: 0, y1: 0, x2: 0, y2: 0 };
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		CubicBezier($$renderer, {
+			label: 'Binding 1',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		CubicBezier($$renderer, {
+			label: 'Binding 2',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <hr/> <pre>Value: <span>${$.escape(JSON.stringify(value, undefined, 2))}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1816 src/examples/tests/TestCubicBezier.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 90
+		},
+		"end": {
+			"line": 4,
+			"column": 34,
+			"character": 119
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 159
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 185
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 195
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 221
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 231
+		},
+		"end": {
+			"line": 8,
+			"column": 31,
+			"character": 257
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 267
+		},
+		"end": {
+			"line": 9,
+			"column": 31,
+			"character": 293
+		}
+	}
+]
+
+=== 1938 src/examples/tests/TestElementIfStatement.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Checkbox, Element, TabGroup, TabPage, Text } from '$lib';
+
+export default function TestElementIfStatement($$renderer) {
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/18
+	// https://svelte.dev/repl/3cc711caf304411dbf2d6fc8d2493219?version=4.2.19
+	let text = '#1234';
+
+	let text2 = '#1235';
+	let check = false;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		TabGroup($$renderer, {
+			children: ($$renderer) => {
+				TabPage($$renderer, {
+					title: 'A',
+					children: ($$renderer) => {
+						Checkbox($$renderer, {
+							label: 'Visibility',
+							get value() {
+								return check;
+							},
+
+							set value($$value) {
+								check = $$value;
+								$$settled = false;
+							}
+						});
+
+						$$renderer.push(`<!----> `);
+
+						if (check) {
+							$$renderer.push('<!--[0-->');
+
+							Element($$renderer, {
+								children: ($$renderer) => {
+									$$renderer.push(`<!---->🅱️`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Text($$renderer, {
+								label: 'C',
+								get value() {
+									return text;
+								},
+
+								set value($$value) {
+									text = $$value;
+									$$settled = false;
+								}
+							});
+
+							$$renderer.push(`<!---->`);
+						} else {
+							$$renderer.push('<!--[-1-->');
+						}
+
+						$$renderer.push(`<!--]--> `);
+
+						Text($$renderer, {
+							label: 'D',
+							get value() {
+								return text2;
+							},
+
+							set value($$value) {
+								text2 = $$value;
+								$$settled = false;
+							}
+						});
+
+						$$renderer.push(`<!---->`);
+					},
+					$$slots: { default: true }
+				});
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1039 src/examples/tests/TestElementIfStatement.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`text` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 233
+		},
+		"end": {
+			"line": 5,
+			"column": 9,
+			"character": 237
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`text2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 253
+		},
+		"end": {
+			"line": 6,
+			"column": 10,
+			"character": 258
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`check` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 274
+		},
+		"end": {
+			"line": 7,
+			"column": 10,
+			"character": 279
+		}
+	}
+]
+
+=== 1306 src/examples/tests/TestFile.svelte	js
+import * as $ from 'svelte/internal/server';
+import { File } from '$lib';
+
+export default function TestFile($$renderer) {
+	let file;
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		File($$renderer, {
+			label: 'File 1',
+			get value() {
+				return file;
+			},
+
+			set value($$value) {
+				file = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		File($$renderer, {
+			label: 'File 2',
+			get value() {
+				return file;
+			},
+
+			set value($$value) {
+				file = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: <span>${$.escape(file)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1813 src/examples/tests/TestFile.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`file` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 70
+		},
+		"end": {
+			"line": 4,
+			"column": 20,
+			"character": 85
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 92
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 118
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 128
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 154
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 164
+		},
+		"end": {
+			"line": 8,
+			"column": 31,
+			"character": 190
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 200
+		},
+		"end": {
+			"line": 9,
+			"column": 31,
+			"character": 226
+		}
+	}
+]
+
+=== 601 src/examples/tests/TestFormat.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Slider } from '$lib';
+
+export default function TestFormat($$renderer) {
+	let value = 0;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Slider($$renderer, {
+			format: (v) => `${v}px`,
+			label: 'Width',
+			step: 1,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 347 src/examples/tests/TestFormat.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 55
+		},
+		"end": {
+			"line": 3,
+			"column": 18,
+			"character": 68
+		}
+	}
+]
+
+=== 213 src/examples/tests/TestFpsEvent.svelte	js
+import * as $ from 'svelte/internal/server';
+import { FpsGraph } from '$lib';
+
+export default function TestFpsEvent($$renderer) {
+	FpsGraph($$renderer, { interval: 50, label: 'FPS', max: 240, min: 0, rows: 5 });
+}
+=== 363 src/examples/tests/TestGridLayoutPane.svelte	css
+
+	div.layout-wrapper.svelte-yzcc6p > div.tp-rotv_c {
+		display: flex;
+		flex-wrap: wrap;
+	}
+
+	div.layout-wrapper.svelte-yzcc6p > div.tp-lblv {
+		flex-grow: 1;
+	}
+
+	div.layout-wrapper.svelte-yzcc6p > .tp-lblv:has(.tp-ckbv) {
+		flex-direction: row-reverse;
+		flex-grow: 0;
+	}
+
+	div.layout-wrapper.svelte-yzcc6p > .tp-lblv_v:has(.tp-ckbv) {
+		width: fit-content;
+	}
+
+=== 1694 src/examples/tests/TestGridLayoutPane.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Checkbox, Pane, Slider } from '$lib';
+
+export default function TestGridLayoutPane($$renderer) {
+	let colors = 0.95;
+	let darkMode = true;
+	let numbers = true;
+	let oneMore = true;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		$$renderer.push(`<div class="layout-wrapper svelte-yzcc6p"></div> `);
+
+		Pane($$renderer, {
+			position: 'inline',
+			theme: { bladeValueWidth: '244px' },
+			width: 337,
+			children: ($$renderer) => {
+				Slider($$renderer, {
+					label: 'Colors',
+					max: 1,
+					min: 0,
+					get value() {
+						return colors;
+					},
+
+					set value($$value) {
+						colors = $$value;
+						$$settled = false;
+					}
+				});
+
+				$$renderer.push(`<!----> `);
+
+				Checkbox($$renderer, {
+					label: 'Dark Mode',
+					get value() {
+						return darkMode;
+					},
+
+					set value($$value) {
+						darkMode = $$value;
+						$$settled = false;
+					}
+				});
+
+				$$renderer.push(`<!----> `);
+
+				Checkbox($$renderer, {
+					label: 'Numbers',
+					get value() {
+						return numbers;
+					},
+
+					set value($$value) {
+						numbers = $$value;
+						$$settled = false;
+					}
+				});
+
+				$$renderer.push(`<!----> `);
+
+				Checkbox($$renderer, {
+					label: 'One More',
+					get value() {
+						return oneMore;
+					},
+
+					set value($$value) {
+						oneMore = $$value;
+						$$settled = false;
+					}
+				});
+
+				$$renderer.push(`<!---->`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1391 src/examples/tests/TestGridLayoutPane.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`colors` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 71
+		},
+		"end": {
+			"line": 3,
+			"column": 11,
+			"character": 77
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`darkMode` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 90
+		},
+		"end": {
+			"line": 4,
+			"column": 13,
+			"character": 98
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`numbers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 111
+		},
+		"end": {
+			"line": 5,
+			"column": 12,
+			"character": 118
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`oneMore` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 131
+		},
+		"end": {
+			"line": 6,
+			"column": 12,
+			"character": 138
+		}
+	}
+]
+
+=== 206 src/examples/tests/TestGridLayoutWrapper.svelte	css
+
+	div.grid-wrapper.svelte-2vxm84 {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		max-width: 337px;
+	}
+
+	div.grid-wrapper.svelte-2vxm84 > div:first-child {
+		grid-column: span 2;
+	}
+
+=== 1356 src/examples/tests/TestGridLayoutWrapper.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Checkbox, Slider } from '$lib';
+
+export default function TestGridLayoutWrapper($$renderer) {
+	let colors = 0.95;
+	let darkMode = true;
+	let numbers = true;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		$$renderer.push(`<div class="grid-wrapper svelte-2vxm84">`);
+
+		Slider($$renderer, {
+			label: 'Colors',
+			max: 1,
+			min: 0,
+			theme: { baseBorderRadius: '0', bladeValueWidth: '244px' },
+			get value() {
+				return colors;
+			},
+
+			set value($$value) {
+				colors = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Checkbox($$renderer, {
+			label: 'Dark Mode',
+			theme: { baseBorderRadius: '0', bladeValueWidth: '75.5px' },
+			get value() {
+				return darkMode;
+			},
+
+			set value($$value) {
+				darkMode = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Checkbox($$renderer, {
+			label: 'Numbers',
+			theme: { baseBorderRadius: '0', bladeValueWidth: '80px' },
+			get value() {
+				return numbers;
+			},
+
+			set value($$value) {
+				numbers = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----></div>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1043 src/examples/tests/TestGridLayoutWrapper.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`colors` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 65
+		},
+		"end": {
+			"line": 3,
+			"column": 11,
+			"character": 71
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`darkMode` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 84
+		},
+		"end": {
+			"line": 4,
+			"column": 13,
+			"character": 92
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`numbers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 105
+		},
+		"end": {
+			"line": 5,
+			"column": 12,
+			"character": 112
+		}
+	}
+]
+
+=== 1644 src/examples/tests/TestImage.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Button, Image } from '$lib';
+
+export default function TestImage($$renderer) {
+	let source = 'placeholder';
+
+	async function getRandomKittenUrl() {
+		const { url } = await fetch('https://loremflickr.com/800/800/kitten', { method: 'HEAD' });
+
+		return url;
+	}
+
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Button($$renderer, { label: 'Random Placeholder', title: 'Load Cat' });
+		$$renderer.push(`<!----> `);
+
+		Image($$renderer, {
+			fit: 'contain',
+			label: 'Image 1',
+			get value() {
+				return source;
+			},
+
+			set value($$value) {
+				source = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Image($$renderer, {
+			fit: 'contain',
+			label: 'Image 2',
+			get value() {
+				return source;
+			},
+
+			set value($$value) {
+				source = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: <span>${$.escape(source)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1824 src/examples/tests/TestImage.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`source` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 63
+		},
+		"end": {
+			"line": 4,
+			"column": 11,
+			"character": 69
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 5,
+			"character": 246
+		},
+		"end": {
+			"line": 13,
+			"column": 31,
+			"character": 272
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 14,
+			"column": 5,
+			"character": 282
+		},
+		"end": {
+			"line": 14,
+			"column": 31,
+			"character": 308
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 5,
+			"character": 318
+		},
+		"end": {
+			"line": 15,
+			"column": 31,
+			"character": 344
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 16,
+			"column": 5,
+			"character": 354
+		},
+		"end": {
+			"line": 16,
+			"column": 31,
+			"character": 380
+		}
+	}
+]
+
+=== 1392 src/examples/tests/TestIntervalSlider.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Slider } from '$lib';
+
+export default function TestIntervalSlider($$renderer) {
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let value = 0;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Slider($$renderer, {
+			label: 'Binding 1',
+			max: 100,
+			min: 0,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Slider($$renderer, {
+			label: 'Binding 2',
+			max: 100,
+			min: 0,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <hr/> <pre>Value: <span>${$.escape(value)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1814 src/examples/tests/TestIntervalSlider.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 56
+		},
+		"end": {
+			"line": 4,
+			"column": 31,
+			"character": 82
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 92
+		},
+		"end": {
+			"line": 5,
+			"column": 31,
+			"character": 118
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 128
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 154
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 164
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 190
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 201
+		},
+		"end": {
+			"line": 9,
+			"column": 18,
+			"character": 214
+		}
+	}
+]
+
+=== 940 src/examples/tests/TestIntervalSliderWide.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Checkbox, IntervalSlider } from '$lib';
+
+export default function TestIntervalSliderWide($$renderer) {
+	let value = [25, 75];
+	let wide = false;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		IntervalSlider($$renderer, {
+			format: (v) => `${v.toFixed(0)}%`,
+			max: 100,
+			min: 0,
+			wide,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Checkbox($$renderer, {
+			label: 'Wide',
+			get value() {
+				return wide;
+			},
+
+			set value($$value) {
+				wide = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: ${$.escape(value)}</pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 691 src/examples/tests/TestIntervalSliderWide.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 74
+		},
+		"end": {
+			"line": 4,
+			"column": 28,
+			"character": 97
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`wide` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 114
+		},
+		"end": {
+			"line": 5,
+			"column": 9,
+			"character": 118
+		}
+	}
+]
+
+=== 1487 src/examples/tests/TestInvisibleFolder.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Checkbox, Folder, Pane } from '$lib';
+
+export default function TestInvisibleFolder($$renderer) {
+	let expanded = true;
+	let darkMode = true;
+	let numbers = true;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Pane($$renderer, {
+			title: '',
+			userExpandable: false,
+			children: ($$renderer) => {
+				Checkbox($$renderer, {
+					label: 'Expanded',
+					get value() {
+						return expanded;
+					},
+
+					set value($$value) {
+						expanded = $$value;
+						$$settled = false;
+					}
+				});
+
+				$$renderer.push(`<!----> `);
+
+				Folder($$renderer, {
+					expanded,
+					children: ($$renderer) => {
+						Checkbox($$renderer, {
+							label: 'Dark Mode',
+							get value() {
+								return darkMode;
+							},
+
+							set value($$value) {
+								darkMode = $$value;
+								$$settled = false;
+							}
+						});
+
+						$$renderer.push(`<!----> `);
+
+						Checkbox($$renderer, {
+							label: 'Numbers',
+							get value() {
+								return numbers;
+							},
+
+							set value($$value) {
+								numbers = $$value;
+								$$settled = false;
+							}
+						});
+
+						$$renderer.push(`<!---->`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!---->`);
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1046 src/examples/tests/TestInvisibleFolder.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`expanded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 71
+		},
+		"end": {
+			"line": 3,
+			"column": 13,
+			"character": 79
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`darkMode` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 92
+		},
+		"end": {
+			"line": 4,
+			"column": 13,
+			"character": 100
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`numbers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 113
+		},
+		"end": {
+			"line": 5,
+			"column": 12,
+			"character": 120
+		}
+	}
+]
+
+=== 1421 src/examples/tests/TestList.svelte	js
+import * as $ from 'svelte/internal/server';
+import { List } from '$lib';
+
+export default function TestList($$renderer) {
+	const options = { a: 1, b: 2, c: 3 };
+	let selection = 1;
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		List($$renderer, {
+			label: 'Alphanumerics 1',
+			options,
+			get value() {
+				return selection;
+			},
+
+			set value($$value) {
+				selection = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		List($$renderer, {
+			label: 'Alphanumerics 2',
+			options,
+			get value() {
+				return selection;
+			},
+
+			set value($$value) {
+				selection = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: <span>${$.escape(selection)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1823 src/examples/tests/TestList.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`selection` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 131
+		},
+		"end": {
+			"line": 5,
+			"column": 22,
+			"character": 148
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 159
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 185
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 195
+		},
+		"end": {
+			"line": 8,
+			"column": 31,
+			"character": 221
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 231
+		},
+		"end": {
+			"line": 9,
+			"column": 31,
+			"character": 257
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 267
+		},
+		"end": {
+			"line": 10,
+			"column": 31,
+			"character": 293
+		}
+	}
+]
+
+=== 3961 src/examples/tests/TestOrder.svelte	js
+import * as $ from 'svelte/internal/server';
+import { AutoValue, ButtonGrid, Checkbox, Pane, Separator, Slider } from '$lib';
+import Button from '$lib/control/Button.svelte';
+import Folder from '$lib/core/Folder.svelte';
+
+export default function TestOrder($$renderer) {
+	const testObject = {
+		someColor: { r: 255, g: 0, b: 55 },
+		someOtherColor: { r: 0, g: 255, b: 55 }
+	};
+
+	let showNumbers = true;
+	let folderWrap = false;
+	let someNumber = 1;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Pane($$renderer, {
+			children: ($$renderer) => {
+				if (folderWrap) {
+					$$renderer.push('<!--[0-->');
+
+					Folder($$renderer, {
+						children: ($$renderer) => {
+							$$renderer.push(`<!--[-->`);
+
+							const each_array = $.ensure_array_like(Object.keys(testObject));
+
+							for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+								let key = each_array[$$index];
+
+								if (typeof testObject[key] !== 'number' || showNumbers) {
+									$$renderer.push('<!--[0-->');
+
+									AutoValue($$renderer, {
+										label: key,
+										get value() {
+											return testObject[key];
+										},
+
+										set value($$value) {
+											testObject[key] = $$value;
+											$$settled = false;
+										}
+									});
+								} else {
+									$$renderer.push('<!--[-1-->');
+								}
+
+								$$renderer.push(`<!--]-->`);
+							}
+
+							$$renderer.push(`<!--]-->`);
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----> `);
+
+					Slider($$renderer, {
+						label: 'Some Number',
+						get value() {
+							return someNumber;
+						},
+
+						set value($$value) {
+							someNumber = $$value;
+							$$settled = false;
+						}
+					});
+
+					$$renderer.push(`<!---->`);
+				} else {
+					$$renderer.push(`<!--[-1--><!--[-->`);
+
+					const each_array_1 = $.ensure_array_like(Object.keys(testObject));
+
+					for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+						let key = each_array_1[$$index_1];
+
+						if (typeof testObject[key] !== 'number' || showNumbers) {
+							$$renderer.push('<!--[0-->');
+
+							AutoValue($$renderer, {
+								label: key,
+								get value() {
+									return testObject[key];
+								},
+
+								set value($$value) {
+									testObject[key] = $$value;
+									$$settled = false;
+								}
+							});
+						} else {
+							$$renderer.push('<!--[-1-->');
+						}
+
+						$$renderer.push(`<!--]-->`);
+					}
+
+					$$renderer.push(`<!--]--> `);
+
+					Slider($$renderer, {
+						label: 'Some Number',
+						get value() {
+							return someNumber;
+						},
+
+						set value($$value) {
+							someNumber = $$value;
+							$$settled = false;
+						}
+					});
+
+					$$renderer.push(`<!---->`);
+				}
+
+				$$renderer.push(`<!--]--> `);
+				Separator($$renderer, {});
+				$$renderer.push(`<!----> `);
+				ButtonGrid($$renderer, { buttons: ['Copy', 'Reset'] });
+				$$renderer.push(`<!----> `);
+
+				Folder($$renderer, {
+					expanded: false,
+					title: 'Tweakpane CSS Options',
+					children: ($$renderer) => {
+						Checkbox($$renderer, {
+							label: 'Show Numbers',
+							get value() {
+								return showNumbers;
+							},
+
+							set value($$value) {
+								showNumbers = $$value;
+								$$settled = false;
+							}
+						});
+
+						$$renderer.push(`<!----> `);
+
+						Checkbox($$renderer, {
+							label: 'Folder Wrap',
+							get value() {
+								return folderWrap;
+							},
+
+							set value($$value) {
+								folderWrap = $$value;
+								$$settled = false;
+							}
+						});
+
+						$$renderer.push(`<!---->`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----> `);
+				Button($$renderer, {});
+				$$renderer.push(`<!---->`);
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1063 src/examples/tests/TestOrder.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`showNumbers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 27,
+			"column": 5,
+			"character": 385
+		},
+		"end": {
+			"line": 27,
+			"column": 16,
+			"character": 396
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`folderWrap` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 28,
+			"column": 5,
+			"character": 409
+		},
+		"end": {
+			"line": 28,
+			"column": 15,
+			"character": 419
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`someNumber` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 29,
+			"column": 5,
+			"character": 433
+		},
+		"end": {
+			"line": 29,
+			"column": 15,
+			"character": 443
+		}
+	}
+]
+
+=== 1074 src/examples/tests/TestPane.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+import { Pane, Slider } from '$lib';
+
+export default function TestPane($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let tpPane;
+
+		onMount(() => {
+			// Have your way with the pane...
+			tpPane.on('change', (event) => {
+				console.log(event);
+			});
+		});
+
+		let speed = 50;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Pane($$renderer, {
+				get tpPane() {
+					return tpPane;
+				},
+
+				set tpPane($$value) {
+					tpPane = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					Slider($$renderer, {
+						max: 100,
+						min: 0,
+						get value() {
+							return speed;
+						},
+
+						set value($$value) {
+							speed = $$value;
+							$$settled = false;
+						}
+					});
+				},
+				$$slots: { default: true }
+			});
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 698 src/examples/tests/TestPane.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`tpPane` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 145
+		},
+		"end": {
+			"line": 6,
+			"column": 19,
+			"character": 159
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`speed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 5,
+			"character": 286
+		},
+		"end": {
+			"line": 15,
+			"column": 10,
+			"character": 291
+		}
+	}
+]
+
+=== 3592 src/examples/tests/TestPaneAdvanced.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+import { Pane, Slider } from '$lib';
+import Checkbox from '$lib/control/Checkbox.svelte';
+
+export default function TestPaneAdvanced($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let tpPane1;
+		let tpPane2;
+		let tpPane3;
+		let expanded = true;
+		let userExpandable = true;
+
+		onMount(() => {
+			// Have your way with the pane...
+			console.log('tpPane1:', tpPane1);
+
+			tpPane1.on('change', (event) => {
+				console.log('tpPane1');
+				console.log(event);
+			});
+
+			console.log('tpPane2:', tpPane2);
+
+			tpPane2.on('change', (event) => {
+				console.log('tpPane2');
+				console.log(event);
+			});
+
+			console.log('tpPane3:', tpPane3);
+
+			tpPane3.on('change', (event) => {
+				console.log('tpPane3');
+				console.log(event);
+			});
+		});
+
+		let speed = 50;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Pane($$renderer, {
+				position: 'draggable',
+				userExpandable,
+				get expanded() {
+					return expanded;
+				},
+
+				set expanded($$value) {
+					expanded = $$value;
+					$$settled = false;
+				},
+
+				get tpPane() {
+					return tpPane1;
+				},
+
+				set tpPane($$value) {
+					tpPane1 = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					Checkbox($$renderer, {
+						label: 'expanded',
+						get value() {
+							return expanded;
+						},
+
+						set value($$value) {
+							expanded = $$value;
+							$$settled = false;
+						}
+					});
+
+					$$renderer.push(`<!----> `);
+
+					Checkbox($$renderer, {
+						label: 'user expandable',
+						get value() {
+							return userExpandable;
+						},
+
+						set value($$value) {
+							userExpandable = $$value;
+							$$settled = false;
+						}
+					});
+
+					$$renderer.push(`<!----> `);
+
+					Slider($$renderer, {
+						max: 100,
+						min: 0,
+						get value() {
+							return speed;
+						},
+
+						set value($$value) {
+							speed = $$value;
+							$$settled = false;
+						}
+					});
+
+					$$renderer.push(`<!---->`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				position: 'inline',
+				userExpandable,
+				get expanded() {
+					return expanded;
+				},
+
+				set expanded($$value) {
+					expanded = $$value;
+					$$settled = false;
+				},
+
+				get tpPane() {
+					return tpPane2;
+				},
+
+				set tpPane($$value) {
+					tpPane2 = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					Slider($$renderer, {
+						max: 100,
+						min: 0,
+						get value() {
+							return speed;
+						},
+
+						set value($$value) {
+							speed = $$value;
+							$$settled = false;
+						}
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				position: 'fixed',
+				userExpandable,
+				get expanded() {
+					return expanded;
+				},
+
+				set expanded($$value) {
+					expanded = $$value;
+					$$settled = false;
+				},
+
+				get tpPane() {
+					return tpPane3;
+				},
+
+				set tpPane($$value) {
+					tpPane3 = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					Slider($$renderer, {
+						max: 100,
+						min: 0,
+						get value() {
+							return speed;
+						},
+
+						set value($$value) {
+							speed = $$value;
+							$$settled = false;
+						}
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!---->`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 2103 src/examples/tests/TestPaneAdvanced.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`tpPane1` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 198
+		},
+		"end": {
+			"line": 7,
+			"column": 20,
+			"character": 213
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`tpPane2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 219
+		},
+		"end": {
+			"line": 8,
+			"column": 20,
+			"character": 234
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`tpPane3` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 240
+		},
+		"end": {
+			"line": 9,
+			"column": 20,
+			"character": 255
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`expanded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 5,
+			"character": 262
+		},
+		"end": {
+			"line": 11,
+			"column": 13,
+			"character": 270
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`userExpandable` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 5,
+			"character": 283
+		},
+		"end": {
+			"line": 12,
+			"column": 19,
+			"character": 297
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`speed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 33,
+			"column": 5,
+			"character": 741
+		},
+		"end": {
+			"line": 33,
+			"column": 10,
+			"character": 746
+		}
+	}
+]
+
+=== 1579 src/examples/tests/TestPoint.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Point } from '$lib';
+
+export default function TestPoint($$renderer) {
+	let point2d = { x: 0, y: 0 };
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+
+	function listener(event) {
+		console.log(event);
+	}
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Point($$renderer, {
+			expanded: true,
+			label: '2D Point Picker 1',
+			picker: 'inline',
+			userExpandable: false,
+			get value() {
+				return point2d;
+			},
+
+			set value($$value) {
+				point2d = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Point($$renderer, {
+			expanded: true,
+			label: '2D Point Picker 2',
+			picker: 'inline',
+			userExpandable: false,
+			get value() {
+				return point2d;
+			},
+
+			set value($$value) {
+				point2d = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: <span>${$.escape(JSON.stringify(point2d, null, 2))}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1818 src/examples/tests/TestPoint.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`point2d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 97
+		},
+		"end": {
+			"line": 4,
+			"column": 26,
+			"character": 118
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 142
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 168
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 178
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 204
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 214
+		},
+		"end": {
+			"line": 8,
+			"column": 31,
+			"character": 240
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 250
+		},
+		"end": {
+			"line": 9,
+			"column": 31,
+			"character": 276
+		}
+	}
+]
+
+=== 1402 src/examples/tests/TestRadioGrid.svelte	js
+import * as $ from 'svelte/internal/server';
+import { RadioGrid } from '$lib';
+
+export default function TestRadioGrid($$renderer) {
+	let value = 1;
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		RadioGrid($$renderer, {
+			prefix: 'Color Scheme ',
+			values: [1, 2, 3, 4],
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		RadioGrid($$renderer, {
+			prefix: 'Color Scheme ',
+			values: [1, 2, 3, 4],
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: <span>${$.escape(value)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1814 src/examples/tests/TestRadioGrid.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 59
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 64
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 75
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 101
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 111
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 137
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 147
+		},
+		"end": {
+			"line": 8,
+			"column": 31,
+			"character": 173
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 183
+		},
+		"end": {
+			"line": 9,
+			"column": 31,
+			"character": 209
+		}
+	}
+]
+
+=== 1706 src/examples/tests/TestRing.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Ring } from '$lib';
+
+export default function TestRing($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const unitConfig = { value: 20, pixels: 40, ticks: 5 };
+		let angle = 45;
+		let binding1InternalEventCount = 0;
+		let binding1ExternalEventCount = 0;
+		let binding2InternalEventCount = 0;
+		let binding2ExternalEventCount = 0;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Ring($$renderer, {
+				format: (v) => `${(Math.abs(v) % 360).toFixed(0)}°`,
+				label: 'Ring 1',
+				pointerScale: -2.5,
+				unit: unitConfig,
+				wide: true,
+				get value() {
+					return angle;
+				},
+
+				set value($$value) {
+					angle = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Ring($$renderer, {
+				format: (v) => `${(Math.abs(v) % 360).toFixed(0)}°`,
+				label: 'Ring 2',
+				pointerScale: -2.5,
+				unit: unitConfig,
+				wide: true,
+				get value() {
+					return angle;
+				},
+
+				set value($$value) {
+					angle = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <pre>Value: <span>${$.escape(angle)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 1827 src/examples/tests/TestRing.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`angle` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 144
+		},
+		"end": {
+			"line": 10,
+			"column": 10,
+			"character": 149
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 5,
+			"character": 161
+		},
+		"end": {
+			"line": 12,
+			"column": 31,
+			"character": 187
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 5,
+			"character": 197
+		},
+		"end": {
+			"line": 13,
+			"column": 31,
+			"character": 223
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 14,
+			"column": 5,
+			"character": 233
+		},
+		"end": {
+			"line": 14,
+			"column": 31,
+			"character": 259
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 5,
+			"character": 269
+		},
+		"end": {
+			"line": 15,
+			"column": 31,
+			"character": 295
+		}
+	}
+]
+
+=== 861 src/examples/tests/TestRingWide.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Checkbox, Ring } from '$lib';
+
+export default function TestRingWide($$renderer) {
+	let value = 0;
+	let wide = false;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Ring($$renderer, {
+			label: 'Ring 1',
+			wide,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Checkbox($$renderer, {
+			label: 'Wide',
+			get value() {
+				return wide;
+			},
+
+			set value($$value) {
+				wide = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: ${$.escape(value)}</pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 689 src/examples/tests/TestRingWide.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 64
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 69
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`wide` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 79
+		},
+		"end": {
+			"line": 5,
+			"column": 9,
+			"character": 83
+		}
+	}
+]
+
+=== 1467 src/examples/tests/TestRotationEuler.svelte	js
+import * as $ from 'svelte/internal/server';
+import { RotationEuler } from '$lib';
+
+export default function TestRotationEuler($$renderer) {
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let value = { x: 0, y: 0, z: 0 };
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		RotationEuler($$renderer, {
+			expanded: true,
+			label: 'CSS Rotation 1',
+			picker: 'inline',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		RotationEuler($$renderer, {
+			expanded: true,
+			label: 'CSS Rotation 2',
+			picker: 'inline',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: <span>${$.escape(value)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1816 src/examples/tests/TestRotationEuler.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 94
+		},
+		"end": {
+			"line": 4,
+			"column": 31,
+			"character": 120
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 130
+		},
+		"end": {
+			"line": 5,
+			"column": 31,
+			"character": 156
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 166
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 192
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 202
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 228
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 239
+		},
+		"end": {
+			"line": 9,
+			"column": 36,
+			"character": 270
+		}
+	}
+]
+
+=== 1479 src/examples/tests/TestRotationQuaternion.svelte	js
+import * as $ from 'svelte/internal/server';
+import { RotationQuaternion } from '$lib';
+
+export default function TestRotationQuaternion($$renderer) {
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let value = [0, 0, 0, 0];
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		RotationQuaternion($$renderer, {
+			expanded: true,
+			label: 'CSS Rotation 1',
+			picker: 'inline',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		RotationQuaternion($$renderer, {
+			expanded: true,
+			label: 'CSS Rotation 2',
+			picker: 'inline',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: <span>${$.escape(value)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1817 src/examples/tests/TestRotationQuaternion.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 103
+		},
+		"end": {
+			"line": 4,
+			"column": 31,
+			"character": 129
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 139
+		},
+		"end": {
+			"line": 5,
+			"column": 31,
+			"character": 165
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 175
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 201
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 211
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 237
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 248
+		},
+		"end": {
+			"line": 9,
+			"column": 40,
+			"character": 283
+		}
+	}
+]
+
+=== 1336 src/examples/tests/TestSlider.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Slider } from '$lib';
+
+export default function TestSlider($$renderer) {
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let value = 0;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Slider($$renderer, {
+			label: 'Binding 1',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Slider($$renderer, {
+			label: 'Binding 2',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <hr/> <pre>Value: <span>${$.escape(value)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1814 src/examples/tests/TestSlider.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 56
+		},
+		"end": {
+			"line": 4,
+			"column": 31,
+			"character": 82
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 92
+		},
+		"end": {
+			"line": 5,
+			"column": 31,
+			"character": 118
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 128
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 154
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 164
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 190
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 201
+		},
+		"end": {
+			"line": 9,
+			"column": 18,
+			"character": 214
+		}
+	}
+]
+
+=== 1496 src/examples/tests/TestSliderWide.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Checkbox, Slider } from '$lib';
+
+export default function TestSliderWide($$renderer) {
+	let value = 0;
+	let wide = false;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Slider($$renderer, {
+			format: (v) => v.toFixed(2),
+			label: 'Let it Slide Wide',
+			max: 1,
+			min: -1,
+			wide: true,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Slider($$renderer, {
+			format: (v) => v.toFixed(2),
+			label: 'Let it Slide',
+			max: 1,
+			min: -1,
+			wide: false,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Slider($$renderer, {
+			format: (v) => v.toFixed(2),
+			label: 'Let it Slide Wide if Checked',
+			max: 1,
+			min: -1,
+			wide,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Checkbox($$renderer, {
+			label: 'Wide',
+			get value() {
+				return wide;
+			},
+
+			set value($$value) {
+				wide = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: ${$.escape(value)}</pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 689 src/examples/tests/TestSliderWide.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 66
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 71
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`wide` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 81
+		},
+		"end": {
+			"line": 5,
+			"column": 9,
+			"character": 85
+		}
+	}
+]
+
+=== 1340 src/examples/tests/TestStepper.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Stepper } from '$lib';
+
+export default function TestStepper($$renderer) {
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let value = 0;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Stepper($$renderer, {
+			label: 'Binding 1',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Stepper($$renderer, {
+			label: 'Binding 2',
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <hr/> <pre>Value: <span>${$.escape(value)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1814 src/examples/tests/TestStepper.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 57
+		},
+		"end": {
+			"line": 4,
+			"column": 31,
+			"character": 83
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 93
+		},
+		"end": {
+			"line": 5,
+			"column": 31,
+			"character": 119
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 129
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 155
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 165
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 191
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 202
+		},
+		"end": {
+			"line": 9,
+			"column": 18,
+			"character": 215
+		}
+	}
+]
+
+=== 749 src/examples/tests/TestStepperValue.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Stepper } from '$lib';
+
+export default function TestStepperValue($$renderer) {
+	// See https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/24
+	let linearValue = 1;
+
+	function format(v) {
+		return `${v} $`;
+	}
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Stepper($$renderer, {
+			format,
+			label: 'Bla',
+			max: 10,
+			min: 0,
+			step: 0.5,
+			get value() {
+				return linearValue;
+			},
+
+			set value($$value) {
+				linearValue = $$value;
+				$$settled = false;
+			}
+		});
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 355 src/examples/tests/TestStepperValue.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`linearValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 128
+		},
+		"end": {
+			"line": 6,
+			"column": 16,
+			"character": 139
+		}
+	}
+]
+
+=== 2394 src/examples/tests/TestStoreInitialization.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount, tick } from 'svelte';
+import { writable } from 'svelte/store';
+import { Slider } from '$lib';
+
+export default function TestStoreInitialization($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+
+		// Via https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/15
+		const bear = writable({ apples: 100, name: 'Someone' });
+
+		const bear2 = writable({ apples: 100, name: 'Someone' });
+
+		onMount(async () => {
+			// No tick
+			$.store_mutate($$store_subs ??= {}, '$bear2', bear2, $.store_get($$store_subs ??= {}, '$bear2', bear2).apples = 60);
+
+			// With Tick
+			await tick();
+
+			$.store_mutate($$store_subs ??= {}, '$bear', bear, $.store_get($$store_subs ??= {}, '$bear', bear).apples = 60);
+		});
+
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			$$renderer.push(`<h1>With tick, works in Svelte 4</h1> <p>Native input</p> <input${$.attr('max', 100)}${$.attr('min', 0)}${$.attr('step', 1)} type="range"${$.attr('value', $.store_get($$store_subs ??= {}, '$bear', bear).apples)}/> <p>Svelte Tweakpane UI</p> `);
+
+			Slider($$renderer, {
+				max: 100,
+				min: 0,
+				step: 1,
+				get value() {
+					return $.store_get($$store_subs ??= {}, '$bear', bear).apples;
+				},
+
+				set value($$value) {
+					$.store_mutate($$store_subs ??= {}, '$bear', bear, $.store_get($$store_subs ??= {}, '$bear', bear).apples = $$value);
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <h1>Without tick, works in Svelte 5</h1> <p>Native input</p> <input${$.attr('max', 100)}${$.attr('min', 0)}${$.attr('step', 1)} type="range"${$.attr('value', $.store_get($$store_subs ??= {}, '$bear2', bear2).apples)}/> <p>Svelte Tweakpane UI</p> `);
+
+			Slider($$renderer, {
+				max: 100,
+				min: 0,
+				step: 1,
+				get value() {
+					return $.store_get($$store_subs ??= {}, '$bear2', bear2).apples;
+				},
+
+				set value($$value) {
+					$.store_mutate($$store_subs ??= {}, '$bear2', bear2, $.store_get($$store_subs ??= {}, '$bear2', bear2).apples = $$value);
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!---->`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 2681 src/examples/tests/TestTabIndexBinding.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Button, Pane, TabGroup, TabPage } from '$lib';
+
+export default function TestTabIndexBinding($$renderer) {
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/31
+	let mode = 0;
+
+	let tabIndex = 1;
+
+	function cycleMode() {
+		mode = (mode + 1) % 3;
+	}
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		$$renderer.push(`<p>Mode: ${$.escape(mode)}</p> <p>TabIndex: ${$.escape(tabIndex)}</p> `);
+
+		if (mode === 0) {
+			$$renderer.push('<!--[0-->');
+
+			Pane($$renderer, {
+				position: 'draggable',
+				storePositionLocally: false,
+				title: 'Controls',
+				children: ($$renderer) => {
+					TabGroup($$renderer, {
+						get selectedIndex() {
+							return tabIndex;
+						},
+
+						set selectedIndex($$value) {
+							tabIndex = $$value;
+							$$settled = false;
+						},
+
+						children: ($$renderer) => {
+							TabPage($$renderer, {
+								title: 'A',
+								children: ($$renderer) => {
+									Button($$renderer, { title: 'Cycle Mode' });
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							TabPage($$renderer, {
+								title: 'B',
+								children: ($$renderer) => {
+									Button($$renderer, { title: 'Cycle Mode' });
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!---->`);
+						},
+						$$slots: { default: true }
+					});
+				},
+				$$slots: { default: true }
+			});
+		} else if (mode === 1) {
+			$$renderer.push('<!--[1-->');
+
+			Pane($$renderer, {
+				position: 'inline',
+				title: 'Controls',
+				children: ($$renderer) => {
+					TabGroup($$renderer, {
+						get selectedIndex() {
+							return tabIndex;
+						},
+
+						set selectedIndex($$value) {
+							tabIndex = $$value;
+							$$settled = false;
+						},
+
+						children: ($$renderer) => {
+							TabPage($$renderer, {
+								title: 'A',
+								children: ($$renderer) => {
+									Button($$renderer, { title: 'Cycle Mode' });
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							TabPage($$renderer, {
+								title: 'B',
+								children: ($$renderer) => {
+									Button($$renderer, { title: 'Cycle Mode' });
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!---->`);
+						},
+						$$slots: { default: true }
+					});
+				},
+				$$slots: { default: true }
+			});
+		} else {
+			$$renderer.push(`<!--[-1--><p>No pane</p>`);
+		}
+
+		$$renderer.push(`<!--]-->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 696 src/examples/tests/TestTabIndexBinding.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`mode` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 147
+		},
+		"end": {
+			"line": 5,
+			"column": 9,
+			"character": 151
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`tabIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 161
+		},
+		"end": {
+			"line": 6,
+			"column": 21,
+			"character": 177
+		}
+	}
+]
+
+=== 1607 src/examples/tests/TestTabIndexBindingAlt.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Button, Pane, TabGroup, TabPage } from '$lib';
+
+export default function TestTabIndexBindingAlt($$renderer) {
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/31
+	let draggable = true;
+
+	let tabIndex;
+
+	function toggleDraggable() {
+		draggable = !draggable;
+	}
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		$$renderer.push(`<p>Draggable: ${$.escape(draggable)}</p> <p>TabIndex: ${$.escape(tabIndex)}</p> `);
+
+		Pane($$renderer, {
+			position: draggable ? 'draggable' : 'fixed',
+			title: 'Controls',
+			children: ($$renderer) => {
+				TabGroup($$renderer, {
+					get selectedIndex() {
+						return tabIndex;
+					},
+
+					set selectedIndex($$value) {
+						tabIndex = $$value;
+						$$settled = false;
+					},
+
+					children: ($$renderer) => {
+						TabPage($$renderer, {
+							title: 'A',
+							children: ($$renderer) => {
+								Button($$renderer, { title: 'Toggle Draggable' });
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push(`<!----> `);
+
+						TabPage($$renderer, {
+							title: 'B',
+							children: ($$renderer) => {
+								Button($$renderer, { title: 'Toggle Draggable' });
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push(`<!---->`);
+					},
+					$$slots: { default: true }
+				});
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 702 src/examples/tests/TestTabIndexBindingAlt.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`draggable` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 147
+		},
+		"end": {
+			"line": 5,
+			"column": 14,
+			"character": 156
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`tabIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 169
+		},
+		"end": {
+			"line": 6,
+			"column": 21,
+			"character": 185
+		}
+	}
+]
+
+=== 4342 src/examples/tests/TestTabsNested.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Button, Pane, TabGroup, TabPage } from '$lib';
+
+export default function TestTabsNested($$renderer) {
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/31
+	let mode = 0;
+
+	let tabIndexA = 0;
+	let tabIndexB = 1;
+
+	function cycleMode() {
+		mode = (mode + 1) % 3;
+	}
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		$$renderer.push(`<p>Mode: ${$.escape(mode)}</p> <p>TabIndexA: ${$.escape(tabIndexA)}</p> <p>TabIndexB: ${$.escape(tabIndexB)}</p> `);
+
+		if (mode === 0) {
+			$$renderer.push('<!--[0-->');
+
+			Pane($$renderer, {
+				position: 'draggable',
+				storePositionLocally: false,
+				title: 'Controls',
+				children: ($$renderer) => {
+					TabGroup($$renderer, {
+						get selectedIndex() {
+							return tabIndexA;
+						},
+
+						set selectedIndex($$value) {
+							tabIndexA = $$value;
+							$$settled = false;
+						},
+
+						children: ($$renderer) => {
+							TabPage($$renderer, {
+								title: 'A',
+								children: ($$renderer) => {
+									TabGroup($$renderer, {
+										get selectedIndex() {
+											return tabIndexB;
+										},
+
+										set selectedIndex($$value) {
+											tabIndexB = $$value;
+											$$settled = false;
+										},
+
+										children: ($$renderer) => {
+											TabPage($$renderer, {
+												title: 'A',
+												children: ($$renderer) => {
+													Button($$renderer, { title: 'Cycle Mode' });
+												},
+												$$slots: { default: true }
+											});
+
+											$$renderer.push(`<!----> `);
+
+											TabPage($$renderer, {
+												title: 'B',
+												children: ($$renderer) => {
+													Button($$renderer, { title: 'Cycle Mode' });
+												},
+												$$slots: { default: true }
+											});
+
+											$$renderer.push(`<!---->`);
+										},
+										$$slots: { default: true }
+									});
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							TabPage($$renderer, {
+								title: 'B',
+								children: ($$renderer) => {
+									Button($$renderer, { title: 'Cycle Mode' });
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!---->`);
+						},
+						$$slots: { default: true }
+					});
+				},
+				$$slots: { default: true }
+			});
+		} else if (mode === 1) {
+			$$renderer.push('<!--[1-->');
+
+			Pane($$renderer, {
+				position: 'inline',
+				title: 'Controls',
+				children: ($$renderer) => {
+					TabGroup($$renderer, {
+						get selectedIndex() {
+							return tabIndexA;
+						},
+
+						set selectedIndex($$value) {
+							tabIndexA = $$value;
+							$$settled = false;
+						},
+
+						children: ($$renderer) => {
+							TabPage($$renderer, {
+								title: 'A',
+								children: ($$renderer) => {
+									TabGroup($$renderer, {
+										get selectedIndex() {
+											return tabIndexB;
+										},
+
+										set selectedIndex($$value) {
+											tabIndexB = $$value;
+											$$settled = false;
+										},
+
+										children: ($$renderer) => {
+											TabPage($$renderer, {
+												title: 'A',
+												children: ($$renderer) => {
+													Button($$renderer, { title: 'Cycle Mode' });
+												},
+												$$slots: { default: true }
+											});
+
+											$$renderer.push(`<!----> `);
+
+											TabPage($$renderer, {
+												title: 'B',
+												children: ($$renderer) => {
+													Button($$renderer, { title: 'Cycle Mode' });
+												},
+												$$slots: { default: true }
+											});
+
+											$$renderer.push(`<!---->`);
+										},
+										$$slots: { default: true }
+									});
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							TabPage($$renderer, {
+								title: 'B',
+								children: ($$renderer) => {
+									Button($$renderer, { title: 'Cycle Mode' });
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!---->`);
+						},
+						$$slots: { default: true }
+					});
+				},
+				$$slots: { default: true }
+			});
+		} else {
+			$$renderer.push(`<!--[-1--><p>No pane</p>`);
+		}
+
+		$$renderer.push(`<!--]-->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1047 src/examples/tests/TestTabsNested.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`mode` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 147
+		},
+		"end": {
+			"line": 5,
+			"column": 9,
+			"character": 151
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`tabIndexA` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 161
+		},
+		"end": {
+			"line": 6,
+			"column": 22,
+			"character": 178
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`tabIndexB` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 188
+		},
+		"end": {
+			"line": 7,
+			"column": 22,
+			"character": 205
+		}
+	}
+]
+
+=== 1543 src/examples/tests/TestTabsSort.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Button, Pane, TabGroup, TabPage } from '$lib';
+
+export default function TestTabsSort($$renderer) {
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/31
+	let tabIndex = 0;
+
+	let tabPages = ['A', 'B', 'C', 'D'];
+
+	function sortTabs() {
+		tabPages = tabPages.toReversed();
+	}
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		$$renderer.push(`<p>TabIndex: ${$.escape(tabIndex)}</p> `);
+
+		Pane($$renderer, {
+			position: 'inline',
+			children: ($$renderer) => {
+				TabGroup($$renderer, {
+					get selectedIndex() {
+						return tabIndex;
+					},
+
+					set selectedIndex($$value) {
+						tabIndex = $$value;
+						$$settled = false;
+					},
+
+					children: ($$renderer) => {
+						$$renderer.push(`<!--[-->`);
+
+						const each_array = $.ensure_array_like(tabPages);
+
+						for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+							let pageTitle = each_array[$$index];
+
+							TabPage($$renderer, {
+								title: pageTitle,
+								children: ($$renderer) => {
+									Button($$renderer, { title: 'Sort Tabs' });
+								},
+								$$slots: { default: true }
+							});
+						}
+
+						$$renderer.push(`<!--]-->`);
+					},
+					$$slots: { default: true }
+				});
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 701 src/examples/tests/TestTabsSort.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`tabIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 147
+		},
+		"end": {
+			"line": 5,
+			"column": 21,
+			"character": 163
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`tabPages` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 173
+		},
+		"end": {
+			"line": 6,
+			"column": 13,
+			"character": 181
+		}
+	}
+]
+
+=== 1625 src/examples/tests/TestText.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Checkbox, Text } from '$lib';
+
+export default function TestText($$renderer) {
+	let text = 'Cosmic Manifold';
+	let live = true;
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Checkbox($$renderer, {
+			label: 'Live',
+			get value() {
+				return live;
+			},
+
+			set value($$value) {
+				live = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Text($$renderer, {
+			label: 'The Message',
+			live,
+			get value() {
+				return text;
+			},
+
+			set value($$value) {
+				text = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Text($$renderer, {
+			label: 'The Message',
+			live,
+			get value() {
+				return text;
+			},
+
+			set value($$value) {
+				text = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: <span>${$.escape(text)}</span></pre> <pre>Live: <span>${$.escape(live)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 2157 src/examples/tests/TestText.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`text` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 64
+		},
+		"end": {
+			"line": 4,
+			"column": 9,
+			"character": 68
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`live` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 94
+		},
+		"end": {
+			"line": 5,
+			"column": 9,
+			"character": 98
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 112
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 138
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 148
+		},
+		"end": {
+			"line": 8,
+			"column": 31,
+			"character": 174
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 184
+		},
+		"end": {
+			"line": 9,
+			"column": 31,
+			"character": 210
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 220
+		},
+		"end": {
+			"line": 10,
+			"column": 31,
+			"character": 246
+		}
+	}
+]
+
+=== 2889 src/examples/tests/TestTextStringDetection.svelte	js
+import * as $ from 'svelte/internal/server';
+import { AutoObject, AutoValue, Color, Text } from '$lib';
+
+export default function TestTextStringDetection($$renderer) {
+	// Svelte Tweakpane UI's Text component should NOT give color-like string
+	// special treatment, use the Color component instead.
+	//
+	// Related:
+	// https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/17
+	let strings = {
+		sample01: 'Hi',
+		sample02: '1',
+		sample03: '0x13',
+		sample04: '0x1337',
+		sample05: '0xEE1337',
+		sample06: '0x1337AA',
+		sample07: '0x1337AA13',
+		sample08: '#13',
+		sample09: '#1337',
+		sample10: '#EE1337',
+		sample11: '#1337AA',
+		sample12: '#1337AA13',
+		sample13: '238, 19, 55',
+		sample14: '238, 19, 55, 0.5',
+		sample15: 'rgb(238, 19, 55)',
+		sample16: 'rgba(238, 19, 55, 0.5)',
+		sample17: 'hsl(238, 19, 55)',
+		sample18: 'hsla(238, 19, 55, 0.5)',
+		sample19: 'hsv(238, 19, 55)',
+		sample20: 'hsva(238, 19, 55, 0.5)',
+		sample21: 'True',
+		sample22: 'true',
+		sample23: 'False',
+		sample24: 'false',
+		sample25: 'red'
+	};
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		$$renderer.push(`<hr/> <h1>Text Component</h1> <!--[-->`);
+
+		const each_array = $.ensure_array_like(Object.keys(strings));
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let key = each_array[$$index];
+
+			Text($$renderer, {
+				label: key,
+				get value() {
+					return strings[key];
+				},
+
+				set value($$value) {
+					strings[key] = $$value;
+					$$settled = false;
+				}
+			});
+		}
+
+		$$renderer.push(`<!--]--> <hr/> <h1>Auto Value</h1> <!--[-->`);
+
+		const each_array_1 = $.ensure_array_like(Object.keys(strings));
+
+		for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+			let key = each_array_1[$$index_1];
+
+			AutoValue($$renderer, {
+				label: key,
+				get value() {
+					return strings[key];
+				},
+
+				set value($$value) {
+					strings[key] = $$value;
+					$$settled = false;
+				}
+			});
+		}
+
+		$$renderer.push(`<!--]--> <hr/> <h1>Auto Object</h1> `);
+
+		AutoObject($$renderer, {
+			get object() {
+				return strings;
+			},
+
+			set object($$value) {
+				strings = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <hr/> <h1>Color Component</h1> <!--[-->`);
+
+		const each_array_2 = $.ensure_array_like(Object.keys(strings));
+
+		for (let $$index_2 = 0, $$length = each_array_2.length; $$index_2 < $$length; $$index_2++) {
+			let key = each_array_2[$$index_2];
+
+			Color($$renderer, {
+				label: key,
+				get value() {
+					return strings[key];
+				},
+
+				set value($$value) {
+					strings[key] = $$value;
+					$$settled = false;
+				}
+			});
+		}
+
+		$$renderer.push(`<!--]-->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 353 src/examples/tests/TestTextStringDetection.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`strings` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 299
+		},
+		"end": {
+			"line": 10,
+			"column": 36,
+			"character": 330
+		}
+	}
+]
+
+=== 1665 src/examples/tests/TestTextarea.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Checkbox, Textarea } from '$lib';
+
+export default function TestTextarea($$renderer) {
+	let text = 'Cosmic Manifold';
+	let live = true;
+	let binding1InternalEventCount = 0;
+	let binding1ExternalEventCount = 0;
+	let binding2InternalEventCount = 0;
+	let binding2ExternalEventCount = 0;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Checkbox($$renderer, {
+			label: 'Live',
+			get value() {
+				return live;
+			},
+
+			set value($$value) {
+				live = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Textarea($$renderer, {
+			label: 'The Message',
+			live,
+			rows: 8,
+			get value() {
+				return text;
+			},
+
+			set value($$value) {
+				text = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Textarea($$renderer, {
+			label: 'The Message',
+			live,
+			rows: 8,
+			get value() {
+				return text;
+			},
+
+			set value($$value) {
+				text = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: <span>${$.escape(text)}</span></pre> <pre>Live: <span>${$.escape(live)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 2158 src/examples/tests/TestTextarea.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`text` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 68
+		},
+		"end": {
+			"line": 4,
+			"column": 9,
+			"character": 72
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`live` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 98
+		},
+		"end": {
+			"line": 5,
+			"column": 9,
+			"character": 102
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 116
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 142
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 152
+		},
+		"end": {
+			"line": 8,
+			"column": 31,
+			"character": 178
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 188
+		},
+		"end": {
+			"line": 9,
+			"column": 31,
+			"character": 214
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 224
+		},
+		"end": {
+			"line": 10,
+			"column": 31,
+			"character": 250
+		}
+	}
+]
+
+=== 1316 src/examples/tests/TestTitlelessDraggable.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Text } from '$lib';
+
+export default function TestTitlelessDraggable($$renderer) {
+	let title = '';
+	let title2 = 'Title';
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		$$renderer.push(`<a href="https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/1">Issue #1</a> `);
+
+		Pane($$renderer, {
+			position: 'draggable',
+			title,
+			x: 10,
+			y: 150,
+			children: ($$renderer) => {
+				Text($$renderer, {
+					label: 'Pane Title',
+					get value() {
+						return title;
+					},
+
+					set value($$value) {
+						title = $$value;
+						$$settled = false;
+					}
+				});
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Pane($$renderer, {
+			localStoreId: 'B',
+			position: 'draggable',
+			title: title2,
+			x: 10,
+			y: 220,
+			children: ($$renderer) => {
+				Text($$renderer, {
+					label: 'Pane Title',
+					get value() {
+						return title2;
+					},
+
+					set value($$value) {
+						title2 = $$value;
+						$$settled = false;
+					}
+				});
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 692 src/examples/tests/TestTitlelessDraggable.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`title` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 3,
+			"column": 5,
+			"character": 59
+		},
+		"end": {
+			"line": 3,
+			"column": 10,
+			"character": 64
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`title2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 75
+		},
+		"end": {
+			"line": 4,
+			"column": 11,
+			"character": 81
+		}
+	}
+]
+
+=== 1610 src/examples/tests/TestWheel.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Wheel } from '$lib';
+
+export default function TestWheel($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let angle = 45;
+		let binding1InternalEventCount = 0;
+		let binding1ExternalEventCount = 0;
+		let binding2InternalEventCount = 0;
+		let binding2ExternalEventCount = 0;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Wheel($$renderer, {
+				format: (v) => `${(Math.abs(v) % 360).toFixed(0)}°`,
+				label: 'Wheel 1',
+				pointerScale: -2.5,
+				wide: true,
+				get value() {
+					return angle;
+				},
+
+				set value($$value) {
+					angle = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Wheel($$renderer, {
+				format: (v) => `${(Math.abs(v) % 360).toFixed(0)}°`,
+				label: 'Wheel 2',
+				pointerScale: -2.5,
+				wide: true,
+				get value() {
+					return angle;
+				},
+
+				set value($$value) {
+					angle = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <pre>Value: <span>${$.escape(angle)}</span></pre> <pre>Binding 1 Internal: <span>${$.escape(binding1InternalEventCount)}</span></pre> <pre>Binding 1 External: <span>${$.escape(binding1ExternalEventCount)}</span></pre> <pre>Binding 2 Internal: <span>${$.escape(binding2InternalEventCount)}</span></pre> <pre>Binding 2 External: <span>${$.escape(binding2ExternalEventCount)}</span></pre>`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 1813 src/examples/tests/TestWheel.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`angle` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 55
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 60
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 72
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 98
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 5,
+			"character": 108
+		},
+		"end": {
+			"line": 7,
+			"column": 31,
+			"character": 134
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 144
+		},
+		"end": {
+			"line": 8,
+			"column": 31,
+			"character": 170
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 180
+		},
+		"end": {
+			"line": 9,
+			"column": 31,
+			"character": 206
+		}
+	}
+]
+
+=== 865 src/examples/tests/TestWheelWide.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Checkbox, Wheel } from '$lib';
+
+export default function TestWheelWide($$renderer) {
+	let value = 0;
+	let wide = false;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Wheel($$renderer, {
+			label: 'Wheel 1',
+			wide,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Checkbox($$renderer, {
+			label: 'Wide',
+			get value() {
+				return wide;
+			},
+
+			set value($$value) {
+				wide = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <pre>Value: ${$.escape(value)}</pre>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 689 src/examples/tests/TestWheelWide.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 65
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 70
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`wide` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 80
+		},
+		"end": {
+			"line": 5,
+			"column": 9,
+			"character": 84
+		}
+	}
+]
+

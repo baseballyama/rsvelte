@@ -734,6 +734,7 @@ dependencies = [
  "oxc_span",
  "rayon",
  "rsvelte_configuration_loading",
+ "rsvelte_corpus",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
  "rsvelte_svelte_check",
@@ -770,6 +771,22 @@ dependencies = [
  "rsvelte_plugin_interface",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "rsvelte_corpus"
+version = "0.0.0"
+dependencies = [
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_visit",
+ "oxc_parser",
+ "oxc_span",
+ "oxc_syntax",
+ "rsvelte_kernel",
+ "serde",
+ "serde_json",
+ "toml",
 ]
 
 [[package]]
@@ -1038,17 +1055,8 @@ dependencies = [
 name = "rsvelte_test_harness"
 version = "0.0.0"
 dependencies = [
- "oxc_allocator",
- "oxc_ast",
- "oxc_ast_visit",
- "oxc_parser",
- "oxc_span",
- "oxc_syntax",
  "rsvelte_kernel",
  "rustc-hash",
- "serde",
- "serde_json",
- "toml",
 ]
 
 [[package]]

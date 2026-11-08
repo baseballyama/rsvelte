@@ -1,0 +1,3364 @@
+# rsvelte pack 1
+=== 3470 packages/runed/src/routes/(test)/test-search/[mode]/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { page } from "$app/state";
+import { createSearchParamsSchema, useSearchParams } from "$lib/utilities/use-search-params/use-search-params.svelte";
+
+var root = $.from_html(`<input data-testid="filter-input"/> <button data-testid="inc">Inc</button> <button data-testid="reset">Reset</button> <button data-testid="setBoth">Set both</button> <button data-testid="setCreatedAt">Set createdAt</button> <button data-testid="setUpdatedAt">Set updatedAt</button> <span data-testid="page"> </span> <span data-testid="filter"> </span> <span data-testid="createdAt"> </span> <span data-testid="updatedAt"> </span>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	const mode = page.params.mode;
+
+	const schema = createSearchParamsSchema({
+		page: { type: "number", default: 1 },
+		filter: { type: "string", default: "" },
+		createdAt: {
+			type: "date",
+			default: new Date("2023-01-01T00:00:00Z"),
+			dateFormat: "date"
+		},
+		updatedAt: { type: "date", default: new Date("2023-12-31T23:59:59Z") }
+	});
+
+	const options = {
+		...mode === "default" && {},
+		...mode === "show-default" && { showDefaults: true },
+		...mode === "nopush" && { pushHistory: false },
+		...mode === "debounce" && { debounce: 200 },
+		...mode === "compress" && { compress: true },
+		...mode === "memory" && { updateURL: false },
+		...mode === "no-scroll" && { noScroll: true },
+		...mode === "date-format-options" && { dateFormats: { createdAt: "date", updatedAt: "datetime" } }
+	};
+
+	const paramsObj = useSearchParams(schema, options);
+
+	function inc() {
+		paramsObj.page += 1;
+	}
+
+	function resetParams() {
+		paramsObj.reset();
+	}
+
+	function setBoth() {
+		paramsObj.update({ page: 5, filter: "bar" });
+	}
+
+	function setCreatedAt() {
+		paramsObj.createdAt = new Date("2023-06-15T10:30:00Z");
+	}
+
+	function setUpdatedAt() {
+		paramsObj.updatedAt = new Date("2023-06-20T18:00:00Z");
+	}
+
+	// Create a derived value to avoid potential infinite loops
+	let createdAtString = $.derived(() => paramsObj.createdAt instanceof Date ? paramsObj.createdAt.toISOString() : "Invalid Date");
+
+	let updatedAtString = $.derived(() => paramsObj.updatedAt instanceof Date ? paramsObj.updatedAt.toISOString() : "Invalid Date");
+	var fragment = root();
+	var input = $.first_child(fragment);
+
+	$.remove_input_defaults(input);
+
+	var button = $.sibling(input, 2);
+	var button_1 = $.sibling(button, 2);
+	var button_2 = $.sibling(button_1, 2);
+	var button_3 = $.sibling(button_2, 2);
+	var button_4 = $.sibling(button_3, 2);
+	var span = $.sibling(button_4, 2);
+	var text = $.only_child(span, true);
+	var span_1 = $.sibling(span, 2);
+	var text_1 = $.only_child(span_1, true);
+	var span_2 = $.sibling(span_1, 2);
+	var text_2 = $.only_child(span_2, true);
+	var span_3 = $.sibling(span_2, 2);
+	var text_3 = $.only_child(span_3, true);
+
+	$.template_effect(() => {
+		$.set_text(text, paramsObj.page);
+		$.set_text(text_1, paramsObj.filter);
+		$.set_text(text_2, $.get(createdAtString));
+		$.set_text(text_3, $.get(updatedAtString));
+	});
+
+	$.bind_value(input, () => paramsObj.filter, ($$value) => paramsObj.filter = $$value);
+	$.delegated('click', button, inc);
+	$.delegated('click', button_1, resetParams);
+	$.delegated('click', button_2, setBoth);
+	$.delegated('click', button_3, setCreatedAt);
+	$.delegated('click', button_4, setUpdatedAt);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 186 packages/runed/src/routes/(test)/test-zod-codec/+page.svelte	css
+
+	.controls.svelte-nopl95 {
+		display: flex;
+		gap: 0.5rem;
+		margin: 1rem 0;
+	}
+
+	.output.svelte-nopl95 {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin: 1rem 0;
+	}
+
+=== 3600 packages/runed/src/routes/(test)/test-zod-codec/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { useSearchParams } from "$lib/utilities/use-search-params/use-search-params.svelte";
+import { z } from "zod";
+
+var root = $.from_html(`<div><h1>Zod Codec Test Page</h1> <div class="controls svelte-nopl95"><input data-testid="filter-input" placeholder="Filter..."/> <button data-testid="setCreatedAt">Set createdAt</button> <button data-testid="setUpdatedAt">Set updatedAt</button> <button data-testid="reset">Reset</button></div> <div class="output svelte-nopl95"><div><strong>Filter:</strong> <span data-testid="filter"> </span></div> <div><strong>CreatedAt (date-only format):</strong> <span data-testid="createdAt"> </span></div> <div><strong>UpdatedAt (datetime format):</strong> <span data-testid="updatedAt"> </span></div></div></div>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	// Create a codec that converts between ISO date string (YYYY-MM-DD) and Date object
+	const stringToDate = z.codec(
+		z.iso.date(), // input schema: ISO date string (YYYY-MM-DD only)
+		z.date(), // output schema: Date object
+		{
+			decode: (isoString) => new Date(isoString), // ISO string → Date
+			encode: (date) => date.toISOString().split("T")[0] // Date → YYYY-MM-DD
+		}
+	);
+
+	// Create a codec for full datetime
+	const stringToDatetime = z.codec(
+		z.iso.datetime(), // input schema: full ISO datetime string
+		z.date(), // output schema: Date object
+		{
+			decode: (isoString) => new Date(isoString), // ISO string → Date
+			encode: (date) => date.toISOString() // Date → Full ISO string
+		}
+	);
+
+	const schema = z.object({
+		createdAt: stringToDate.default(() => new Date("2023-01-01T00:00:00Z")),
+		updatedAt: stringToDatetime.default(() => new Date("2023-12-31T23:59:59Z")),
+		filter: z.string().default("")
+	});
+
+	const paramsObj = useSearchParams(schema);
+
+	function setCreatedAt() {
+		paramsObj.createdAt = new Date("2024-06-15T10:30:00Z");
+	}
+
+	function setUpdatedAt() {
+		paramsObj.updatedAt = new Date("2024-06-20T18:00:00Z");
+	}
+
+	function resetParams() {
+		paramsObj.reset();
+	}
+
+	// Create derived values for display
+	let createdAtString = $.derived(() => paramsObj.createdAt instanceof Date ? paramsObj.createdAt.toISOString() : "Invalid Date");
+
+	let updatedAtString = $.derived(() => paramsObj.updatedAt instanceof Date ? paramsObj.updatedAt.toISOString() : "Invalid Date");
+	var div = root();
+	var div_1 = $.sibling($.child(div), 2);
+	var input = $.child(div_1);
+
+	$.remove_input_defaults(input);
+
+	var button = $.sibling(input, 2);
+	var button_1 = $.sibling(button, 2);
+	var button_2 = $.sibling(button_1, 2);
+
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 2);
+	var div_3 = $.child(div_2);
+	var span = $.sibling($.child(div_3), 2);
+	var text = $.only_child(span, true);
+
+	$.reset(div_3);
+
+	var div_4 = $.sibling(div_3, 2);
+	var span_1 = $.sibling($.child(div_4), 2);
+	var text_1 = $.only_child(span_1, true);
+
+	$.reset(div_4);
+
+	var div_5 = $.sibling(div_4, 2);
+	var span_2 = $.sibling($.child(div_5), 2);
+	var text_2 = $.only_child(span_2, true);
+
+	$.reset(div_5);
+	$.reset(div_2);
+	$.reset(div);
+
+	$.template_effect(() => {
+		$.set_text(text, paramsObj.filter);
+		$.set_text(text_1, $.get(createdAtString));
+		$.set_text(text_2, $.get(updatedAtString));
+	});
+
+	$.bind_value(input, () => paramsObj.filter, ($$value) => paramsObj.filter = $$value);
+	$.delegated('click', button, setCreatedAt);
+	$.delegated('click', button_1, setUpdatedAt);
+	$.delegated('click', button_2, resetParams);
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 442 sites/docs/src/lib/components/blueprint.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export {
+	a,
+	blockquote,
+	code,
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6,
+	hr,
+	img,
+	li,
+	ol,
+	p,
+	pre,
+	table,
+	td,
+	th,
+	tr,
+	ul
+} from '@svecodocs/kit';
+
+export default function Blueprint($$anchor, $$props) {
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children ?? $.noop);
+	$.append($$anchor, fragment);
+}
+=== 413 sites/docs/src/lib/components/demo-note.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div class="text-muted-foreground flex flex-col gap-1.5 text-center text-xs md:text-right"><!></div>`);
+
+export default function Demo_note($$anchor, $$props) {
+	var div = root();
+	var node = $.child(div);
+
+	$.snippet(node, () => $$props.children ?? $.noop);
+	$.reset(div);
+	$.append($$anchor, div);
+}
+=== 721 sites/docs/src/lib/components/demos/active-element.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { activeElement } from "runed";
+import { DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`<p>Currently active element: <code class="font-bold"> </code></p>`);
+
+export default function Active_element($$anchor, $$props) {
+	$.push($$props, true);
+
+	DemoContainer($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var p = root();
+			var code = $.sibling($.child(p));
+			var text = $.only_child(code, true);
+
+			$.reset(p);
+			$.template_effect(() => $.set_text(text, activeElement.current?.localName ?? "No active element found"));
+			$.append($$anchor, p);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 3975 sites/docs/src/lib/components/demos/animation-frames.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { AnimationFrames } from "runed";
+import { DemoContainer, Slider, Button } from "@svecodocs/kit";
+import Pause from "phosphor-svelte/lib/Pause";
+import Play from "phosphor-svelte/lib/Play";
+import DemoNote from "../demo-note.svelte";
+
+var root = $.from_html(`<!> `, 1);
+var root_1 = $.from_html(`<pre class="text-mono absolute left-2 top-2 m-0 p-2 text-xs"> </pre> <div aria-label="spinning ghost mouse"></div> <!> <p class="m-0 text-center text-sm">FPS limit: <b> </b><i> </i></p> <!>`, 1);
+var root_2 = $.from_html(`<p>Mouse sprite extracted from <a class="hover:text-foreground" target="_blank" href="https://www.animalwell.net/">Animal Well</a></p>`);
+var root_3 = $.from_html(`<!> <!>`, 1);
+
+export default function Animation_frames($$anchor, $$props) {
+	$.push($$props, true);
+
+	let frames = $.state(0);
+	let fpsLimit = $.state(10);
+	let delta = $.state(0);
+
+	const animation = new AnimationFrames(
+		(args) => {
+			$.update(frames);
+			$.set(delta, args.delta, true);
+		},
+		{ fpsLimit: () => $.get(fpsLimit) }
+	);
+
+	const sprites = 10;
+	const sheetCols = 3;
+	const sheetRows = Math.ceil(sprites / sheetCols);
+	const currentSprite = $.derived(() => sprites - 1 - $.get(frames) % sprites);
+	const currentCol = $.derived(() => $.get(currentSprite) % sheetCols);
+	const currentRow = $.derived(() => Math.floor($.get(currentSprite) / sheetCols));
+	const spriteSize = 64;
+	const stats = $.derived(() => `Frames: ${$.get(frames)}\nFPS: ${animation.fps.toFixed(0)}\nDelta: ${$.get(delta).toFixed(0)}ms`);
+	var fragment = root_3();
+	var node = $.first_child(fragment);
+
+	DemoContainer(node, {
+		class: 'relative flex flex-col items-center gap-4',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_1();
+			var pre = $.first_child(fragment_1);
+			var text = $.only_child(pre, true);
+			var div = $.sibling(pre, 2);
+			var node_1 = $.sibling(div, 2);
+
+			Button(node_1, {
+				variant: 'brand',
+				class: 'gap-2',
+				get onclick() {
+					return animation.toggle;
+				},
+
+				children: ($$anchor, $$slotProps) => {
+					var fragment_2 = root();
+					var node_2 = $.first_child(fragment_2);
+
+					{
+						var consequent = ($$anchor) => {
+							Pause($$anchor, { size: 16, weight: 'fill' });
+						};
+
+						var alternate = ($$anchor) => {
+							Play($$anchor, { size: 16, weight: 'fill' });
+						};
+
+						$.if(node_2, ($$render) => {
+							if (animation.running) $$render(consequent); else $$render(alternate, -1);
+						});
+					}
+
+					var text_1 = $.sibling(node_2);
+
+					$.template_effect(() => $.set_text(text_1, ` ${animation.running ? "Stop" : "Start"}`));
+					$.append($$anchor, fragment_2);
+				},
+				$$slots: { default: true }
+			});
+
+			var p = $.sibling(node_1, 2);
+			var b = $.sibling($.child(p));
+			var text_2 = $.only_child(b, true);
+			var i = $.sibling(b);
+			var text_3 = $.only_child(i, true);
+
+			$.reset(p);
+
+			var node_3 = $.sibling(p, 2);
+
+			{
+				let $0 = $.derived(() => [$.get(fpsLimit)]);
+
+				Slider(node_3, {
+					class: 'w-[300px]',
+					get value() {
+						return $.get($0);
+					},
+					onValueChange: (value) => $.set(fpsLimit, value[0] ?? 0, true),
+					min: 0,
+					max: 144
+				});
+			}
+
+			$.template_effect(() => {
+				$.set_text(text, $.get(stats));
+
+				$.set_style(div, `
+		width: 64px;
+		height: 64px;
+		background: url('/mouse_sprite.png');
+		background-size: 192px 256px;
+		background-position-x: ${-$.get(currentCol) * 64}px;
+		background-position-y: ${-$.get(currentRow) * 64}px;
+	`);
+
+				$.set_text(text_2, $.get(fpsLimit));
+				$.set_text(text_3, $.get(fpsLimit) === 0 ? " (not limited)" : "");
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	var node_4 = $.sibling(node, 2);
+
+	DemoNote(node_4, {
+		children: ($$anchor, $$slotProps) => {
+			var p_1 = root_2();
+
+			$.append($$anchor, p_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1527 sites/docs/src/lib/components/demos/debounced.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Debounced } from "runed";
+import { DemoContainer, Input } from "@svecodocs/kit";
+
+var root = $.from_html(`You searched for: <b> </b>`, 1);
+var root_1 = $.from_html(`<!> <p><!></p>`, 1);
+
+export default function Debounced_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	let search = $.state("");
+	const debounced = new Debounced(() => $.get(search), 500);
+
+	DemoContainer($$anchor, {
+		class: 'flex flex-col gap-4',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_1();
+			var node = $.first_child(fragment_1);
+
+			Input(node, {
+				placeholder: 'Search the best utilities for Svelte 5',
+				get value() {
+					return $.get(search);
+				},
+
+				set value($$value) {
+					$.set(search, $$value, true);
+				}
+			});
+
+			var p = $.sibling(node, 2);
+			var node_1 = $.child(p);
+
+			{
+				var consequent = ($$anchor) => {
+					var fragment_2 = root();
+					var b = $.sibling($.first_child(fragment_2));
+					var text = $.only_child(b, true);
+
+					$.template_effect(() => $.set_text(text, debounced.current));
+					$.append($$anchor, fragment_2);
+				};
+
+				var alternate = ($$anchor) => {
+					var text_1 = $.text('Search for something above!');
+
+					$.append($$anchor, text_1);
+				};
+
+				$.if(node_1, ($$render) => {
+					if (debounced.current) $$render(consequent); else $$render(alternate, -1);
+				});
+			}
+
+			$.reset(p);
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 851 sites/docs/src/lib/components/demos/element-rect.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { ElementRect } from "runed";
+import { DemoContainer, Textarea } from "@svecodocs/kit";
+
+export default function Element_rect($$anchor, $$props) {
+	$.push($$props, true);
+
+	let ref = $.state(null);
+	const rect = new ElementRect(() => $.get(ref));
+	const text = $.derived(() => Object.entries(rect.current).map(([key, value]) => `${key}: ${value}`).join("\n"));
+
+	DemoContainer($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			Textarea($$anchor, {
+				class: 'h-[330px] min-h-[300px] w-[300px] resize text-base',
+				get value() {
+					return $.get(text);
+				},
+				readonly: true,
+				get ref() {
+					return $.get(ref);
+				},
+
+				set ref($$value) {
+					$.set(ref, $$value, true);
+				}
+			});
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 816 sites/docs/src/lib/components/demos/element-size.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { ElementSize } from "runed";
+import { DemoContainer, Textarea } from "@svecodocs/kit";
+
+export default function Element_size($$anchor, $$props) {
+	$.push($$props, true);
+
+	let ref = $.state(null);
+	const size = new ElementSize(() => $.get(ref));
+	const text = $.derived(() => `Width: ${size.width}\nHeight: ${size.height}`);
+
+	DemoContainer($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			Textarea($$anchor, {
+				class: 'h-[200px] min-h-[100px] w-[300px] resize text-base',
+				get value() {
+					return $.get(text);
+				},
+				readonly: true,
+				get ref() {
+					return $.get(ref);
+				},
+
+				set ref($$value) {
+					$.set(ref, $$value, true);
+				}
+			});
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 192 sites/docs/src/lib/components/demos/finite-state-machine.svelte	css
+
+	.progress.svelte-1c8hzjv {
+		animation: 2s linear svelte-1c8hzjv-progressAnimation;
+	}
+	@keyframes svelte-1c8hzjv-progressAnimation {
+		0% {
+			right: 100%;
+		}
+		100% {
+			right: 0;
+		}
+	}
+
+=== 3731 sites/docs/src/lib/components/demos/finite-state-machine.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { FiniteStateMachine } from "runed";
+import { DemoContainer, Button, Switch } from "@svecodocs/kit";
+import Play from "phosphor-svelte/lib/Play";
+import Pause from "phosphor-svelte/lib/Pause";
+
+var root = $.from_html(`<!> Stop`, 1);
+var root_1 = $.from_html(`<!> Run`, 1);
+var root_2 = $.from_html(`<div class="bg-muted relative h-6 w-40 overflow-clip rounded-md svelte-1c8hzjv"><div class="progress bg-brand absolute h-full w-full svelte-1c8hzjv"></div></div>`);
+var root_3 = $.from_html(`<h1 class="text-xl font-bold svelte-1c8hzjv">Now: <code class="svelte-1c8hzjv"> </code></h1> <p class="svelte-1c8hzjv"> </p> <div class="flex items-center gap-4 svelte-1c8hzjv"><!> <!> <!></div>`, 1);
+
+export default function Finite_state_machine($$anchor, $$props) {
+	$.push($$props, true);
+
+	const f = new FiniteStateMachine("disabled", {
+		disabled: { toggleEnabled: "idle" },
+		idle: { toggleEnabled: "disabled", start: "running" },
+		running: {
+			_enter: () => {
+				f.debounce(2000, "stop");
+			},
+			stop: "idle",
+			toggleEnabled: "disabled"
+		}
+	});
+
+	const descriptionText = $.derived(() => {
+		switch (f.current) {
+			case "disabled":
+				return "Toggle the switch to enable.";
+
+			case "idle":
+				return "Click the Run button to run for two seconds.";
+
+			case "running":
+				return "Running for two seconds. Click the Stop button or toggle the switch.";
+		}
+	});
+
+	DemoContainer($$anchor, {
+		class: 'flex flex-col gap-4',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_3();
+			var h1 = $.first_child(fragment_1);
+			var code = $.sibling($.child(h1));
+			var text = $.only_child(code, true);
+
+			$.reset(h1);
+
+			var p = $.sibling(h1, 2);
+			var text_1 = $.only_child(p, true);
+			var div = $.sibling(p, 2);
+			var node = $.child(div);
+
+			{
+				let $0 = $.derived(() => f.current !== "disabled");
+
+				Switch(node, {
+					class: 'mt-0.5',
+					get checked() {
+						return $.get($0);
+					},
+					onCheckedChange: () => f.send("toggleEnabled")
+				});
+			}
+
+			var node_1 = $.sibling(node, 2);
+
+			{
+				let $0 = $.derived(() => f.current === "disabled");
+
+				Button(node_1, {
+					variant: 'brand',
+					size: 'sm',
+					get disabled() {
+						return $.get($0);
+					},
+					onclick: () => f.current === "running" ? f.send("stop") : f.send("start"),
+					class: 'gap-2',
+					children: ($$anchor, $$slotProps) => {
+						var fragment_2 = $.comment();
+						var node_2 = $.first_child(fragment_2);
+
+						{
+							var consequent = ($$anchor) => {
+								var fragment_3 = root();
+								var node_3 = $.first_child(fragment_3);
+
+								Pause(node_3, { size: 16, weight: 'fill' });
+								$.next();
+								$.append($$anchor, fragment_3);
+							};
+
+							var alternate = ($$anchor) => {
+								var fragment_4 = root_1();
+								var node_4 = $.first_child(fragment_4);
+
+								Play(node_4, { size: 16, weight: 'fill' });
+								$.next();
+								$.append($$anchor, fragment_4);
+							};
+
+							$.if(node_2, ($$render) => {
+								if (f.current === "running") $$render(consequent); else $$render(alternate, -1);
+							});
+						}
+
+						$.append($$anchor, fragment_2);
+					},
+					$$slots: { default: true }
+				});
+			}
+
+			var node_5 = $.sibling(node_1, 2);
+
+			{
+				var consequent_1 = ($$anchor) => {
+					var div_1 = root_2();
+
+					$.append($$anchor, div_1);
+				};
+
+				$.if(node_5, ($$render) => {
+					if (f.current === "running") $$render(consequent_1);
+				});
+			}
+
+			$.reset(div);
+
+			$.template_effect(() => {
+				$.set_text(text, f.current);
+				$.set_text(text_1, $.get(descriptionText));
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 1355 sites/docs/src/lib/components/demos/is-document-visible.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { IsDocumentVisible } from "runed";
+import { DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`<p>Document visible: <b> </b></p> <p>Became visible count: <b> </b></p>`, 1);
+
+export default function Is_document_visible($$anchor, $$props) {
+	$.push($$props, true);
+
+	const visible = new IsDocumentVisible();
+
+	// Count how many times visibility transitioned from hidden -> visible
+	let becameVisibleCount = $.state(0);
+
+	let last = $.state(undefined);
+
+	$.user_effect(() => {
+		const current = visible.current;
+
+		if ($.get(last) !== undefined && $.get(last) === false && current === true) {
+			$.update(becameVisibleCount);
+		}
+
+		$.set(last, current, true);
+	});
+
+	DemoContainer($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var p = $.first_child(fragment_1);
+			var b = $.sibling($.child(p));
+			var text = $.only_child(b, true);
+
+			$.reset(p);
+
+			var p_1 = $.sibling(p, 2);
+			var b_1 = $.sibling($.child(p_1));
+			var text_1 = $.only_child(b_1, true);
+
+			$.reset(p_1);
+
+			$.template_effect(() => {
+				$.set_text(text, visible.current ? "true" : "false");
+				$.set_text(text_1, $.get(becameVisibleCount));
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 2828 sites/docs/src/lib/components/demos/is-focus-within.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { IsFocusWithin } from "runed";
+import { Input, Label, Button, DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`<form class="mx-auto flex max-w-[340px] flex-col gap-4 p-4"><div class="flex flex-col gap-3"><!> <!></div> <div class="flex flex-col gap-3"><!> <!></div> <div class="flex flex-col gap-3"><!> <!></div> <!></form> <p class="mx-auto mt-6 text-center">Focus is within form: <b> </b></p>`, 1);
+
+export default function Is_focus_within($$anchor, $$props) {
+	$.push($$props, true);
+
+	let formElement = $.state(void 0);
+	const formFocused = new IsFocusWithin(() => $.get(formElement));
+
+	DemoContainer($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var form = $.first_child(fragment_1);
+			var div = $.child(form);
+			var node = $.child(div);
+
+			Label(node, {
+				for: 'fname',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text = $.text('First name');
+
+					$.append($$anchor, text);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_1 = $.sibling(node, 2);
+
+			Input(node_1, { id: 'fname' });
+			$.reset(div);
+
+			var div_1 = $.sibling(div, 2);
+			var node_2 = $.child(div_1);
+
+			Label(node_2, {
+				for: 'lname',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_1 = $.text('Last name');
+
+					$.append($$anchor, text_1);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_3 = $.sibling(node_2, 2);
+
+			Input(node_3, { id: 'lname' });
+			$.reset(div_1);
+
+			var div_2 = $.sibling(div_1, 2);
+			var node_4 = $.child(div_2);
+
+			Label(node_4, {
+				for: 'email',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_2 = $.text('Email');
+
+					$.append($$anchor, text_2);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_5 = $.sibling(node_4, 2);
+
+			Input(node_5, { id: 'email', type: 'email' });
+			$.reset(div_2);
+
+			var node_6 = $.sibling(div_2, 2);
+
+			Button(node_6, {
+				type: 'submit',
+				variant: 'brand',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_3 = $.text('Submit');
+
+					$.append($$anchor, text_3);
+				},
+				$$slots: { default: true }
+			});
+
+			$.reset(form);
+			$.bind_this(form, ($$value) => $.set(formElement, $$value), () => $.get(formElement));
+
+			var p = $.sibling(form, 2);
+			var b = $.sibling($.child(p));
+			var text_4 = $.only_child(b, true);
+
+			$.reset(p);
+
+			$.template_effect(() => {
+				$.set_class(b, 1, $.clsx(formFocused.current ? "text-emerald-500" : "text-destructive"));
+				$.set_text(text_4, formFocused.current);
+			});
+
+			$.event('submit', form, (e) => {
+				e.preventDefault();
+				$.get(formElement)?.reset();
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 1908 sites/docs/src/lib/components/demos/is-idle.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { AnimationFrames, IsIdle } from "runed";
+import { DemoContainer } from "@svecodocs/kit";
+import DemoNote from "../demo-note.svelte";
+
+var root = $.from_html(`<p>Idle: <span> </span></p> <p>Last active: <span class="font-medium"> </span></p>`, 1);
+var root_1 = $.from_html(`<p>By default, the time of inactivity before marking the user as idle is 1 minute.</p> <p>In this demo, it's 1 second.</p>`, 1);
+var root_2 = $.from_html(`<!> <!>`, 1);
+
+export default function Is_idle($$anchor, $$props) {
+	$.push($$props, true);
+
+	const idle = new IsIdle({ timeout: 1000 });
+	let now = $.state($.proxy(Date.now()));
+
+	new AnimationFrames(() => {
+		$.set(now, Date.now(), true);
+	});
+
+	const secondsElapsed = $.derived(() => Math.floor(($.get(now) - idle.lastActive) / 1000));
+	var fragment = root_2();
+	var node = $.first_child(fragment);
+
+	DemoContainer(node, {
+		class: 'flex flex-col gap-3',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var p = $.first_child(fragment_1);
+			var span = $.sibling($.child(p));
+			var text = $.only_child(span, true);
+
+			$.reset(p);
+
+			var p_1 = $.sibling(p, 2);
+			var span_1 = $.sibling($.child(p_1));
+			var text_1 = $.only_child(span_1);
+
+			$.reset(p_1);
+
+			$.template_effect(() => {
+				$.set_class(span, 1, `font-medium ${idle.current
+					? 'text-green-600 dark:text-green-500'
+					: 'text-destructive'}`);
+
+				$.set_text(text, idle.current);
+				$.set_text(text_1, `${$.get(secondsElapsed) ?? ''}s ago`);
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	DemoNote(node_1, {
+		children: ($$anchor, $$slotProps) => {
+			var fragment_2 = root_1();
+
+			$.next(2);
+			$.append($$anchor, fragment_2);
+		},
+		$$slots: { default: true }
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1516 sites/docs/src/lib/components/demos/is-in-viewport.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { IsInViewport } from "runed";
+import { DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`<p>Target node</p> <p class="text-muted-foreground text-sm italic">Scroll down to observe the behavior</p>`, 1);
+var root_1 = $.from_html(`<!> <div class="bg-background fixed bottom-8 right-8 z-20 flex items-center rounded-lg border p-4 text-sm"><p>Target node is <span class="font-medium text-red-500 data-[in-viewport]:text-green-500"> </span> viewport</p></div>`, 1);
+
+export default function Is_in_viewport($$anchor, $$props) {
+	$.push($$props, true);
+
+	let targetNode = $.state(void 0);
+	const inViewport = new IsInViewport(() => $.get(targetNode));
+	var fragment = root_1();
+	var node = $.first_child(fragment);
+
+	DemoContainer(node, {
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var p = $.first_child(fragment_1);
+
+			$.bind_this(p, ($$value) => $.set(targetNode, $$value), () => $.get(targetNode));
+			$.next(2);
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	var div = $.sibling(node, 2);
+	var p_1 = $.child(div);
+	var span = $.sibling($.child(p_1));
+	var text = $.only_child(span, true);
+
+	$.next();
+	$.reset(p_1);
+	$.reset(div);
+
+	$.template_effect(() => {
+		$.set_attribute(span, 'data-in-viewport', inViewport.current ? "" : undefined);
+		$.set_text(text, inViewport.current ? " in " : " out of ");
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 678 sites/docs/src/lib/components/demos/is-mounted.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { IsMounted } from "runed";
+import { DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`<p>Mounted: <b> </b></p>`);
+
+export default function Is_mounted($$anchor, $$props) {
+	$.push($$props, true);
+
+	const isMounted = new IsMounted();
+
+	DemoContainer($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var p = root();
+			var b = $.sibling($.child(p));
+			var text = $.only_child(b, true);
+
+			$.reset(p);
+			$.template_effect(() => $.set_text(text, isMounted.current ? "true" : "false"));
+			$.append($$anchor, p);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 2156 sites/docs/src/lib/components/demos/on-click-outside-dialog.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Button, DemoContainer } from "@svecodocs/kit";
+import { onClickOutside } from "runed";
+
+var root = $.from_html(
+	`<!> <dialog class="bg-background fixed left-1/2 top-1/2 m-0 -translate-x-1/2 -translate-y-1/2 transform rounded-xl border-none p-0 shadow-lg backdrop:bg-black/50"><div class="min-w-[360px] max-w-[400px] rounded-xl p-8"><p class="mb-4">This is a dialog.</p> <p class="mb-4">Lorem, ipsum dolor sit amet consectetur adipisicing elit. Neque sunt aut sit exercitationem
+				deleniti doloremque quo quasi, expedita omnis dicta eaque, eveniet nesciunt nobis sint
+				atque? Praesentium facilis officiis perferendis.</p> <!></div></dialog>`,
+	1
+);
+
+export default function On_click_outside_dialog($$anchor, $$props) {
+	$.push($$props, true);
+
+	let dialog = $.state(void 0);
+
+	const clickOutside = onClickOutside(
+		() => $.get(dialog),
+		() => {
+			$.get(dialog).close();
+			clickOutside.stop();
+		},
+		{ immediate: false }
+	);
+
+	function openDialog() {
+		$.get(dialog).showModal();
+		clickOutside.start();
+	}
+
+	function closeDialog() {
+		$.get(dialog).close();
+		clickOutside.stop();
+	}
+
+	DemoContainer($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var node = $.first_child(fragment_1);
+
+			Button(node, {
+				size: 'sm',
+				onclick: openDialog,
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text = $.text('Open Dialog');
+
+					$.append($$anchor, text);
+				},
+				$$slots: { default: true }
+			});
+
+			var dialog_1 = $.sibling(node, 2);
+			var div = $.child(dialog_1);
+			var node_1 = $.sibling($.child(div), 4);
+
+			Button(node_1, {
+				size: 'sm',
+				variant: 'outline',
+				onclick: closeDialog,
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_1 = $.text('Close Dialog');
+
+					$.append($$anchor, text_1);
+				},
+				$$slots: { default: true }
+			});
+
+			$.reset(div);
+			$.reset(dialog_1);
+			$.bind_this(dialog_1, ($$value) => $.set(dialog, $$value), () => $.get(dialog));
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 2772 sites/docs/src/lib/components/demos/on-click-outside.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Button, DemoContainer } from "@svecodocs/kit";
+import { onClickOutside } from "runed";
+
+var root = $.from_html(`<div class="border-foreground relative mb-4 rounded-lg border p-4"><span class="bg-foreground text-background absolute right-0 top-0 select-none rounded-bl-md rounded-tr-md px-2.5 py-1 font-mono text-xs">container</span> <p class="select-none pb-4"> </p> <p class="mb-3 font-mono">Status: <span> </span></p> <div class="flex items-center gap-3"><!> <!> <!></div></div>`);
+
+export default function On_click_outside($$anchor, $$props) {
+	$.push($$props, true);
+
+	let containerText = $.state("Has not clicked outside yet.");
+	let container = $.state(void 0);
+	const clickOutside = onClickOutside(() => $.get(container), () => $.set(containerText, "Clicked outside!"));
+
+	DemoContainer($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var div = root();
+			var p = $.sibling($.child(div), 2);
+			var text = $.only_child(p, true);
+			var p_1 = $.sibling(p, 2);
+			var span = $.sibling($.child(p_1));
+			var text_1 = $.only_child(span, true);
+
+			$.reset(p_1);
+
+			var div_1 = $.sibling(p_1, 2);
+			var node = $.child(div_1);
+
+			Button(node, {
+				get disabled() {
+					return clickOutside.enabled;
+				},
+				size: 'sm',
+				get onclick() {
+					return clickOutside.start;
+				},
+
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_2 = $.text('Start');
+
+					$.append($$anchor, text_2);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_1 = $.sibling(node, 2);
+
+			{
+				let $0 = $.derived(() => !clickOutside.enabled);
+
+				Button(node_1, {
+					get disabled() {
+						return $.get($0);
+					},
+					size: 'sm',
+					get onclick() {
+						return clickOutside.stop;
+					},
+
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_3 = $.text('Stop');
+
+						$.append($$anchor, text_3);
+					},
+					$$slots: { default: true }
+				});
+			}
+
+			var node_2 = $.sibling(node_1, 2);
+
+			Button(node_2, {
+				size: 'sm',
+				onclick: () => $.set(containerText, "Has not clicked outside yet."),
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_4 = $.text('Reset');
+
+					$.append($$anchor, text_4);
+				},
+				$$slots: { default: true }
+			});
+
+			$.reset(div_1);
+			$.reset(div);
+			$.bind_this(div, ($$value) => $.set(container, $$value), () => $.get(container));
+
+			$.template_effect(() => {
+				$.set_text(text, $.get(containerText));
+				$.set_class(span, 1, $.clsx(clickOutside.enabled ? "text-green-500" : "text-destructive"));
+				$.set_text(text_1, clickOutside.enabled ? "Enabled" : "Disabled");
+			});
+
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 1809 sites/docs/src/lib/components/demos/persisted-state.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { PersistedState } from "runed";
+import { Button, DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`<div class="flex items-center gap-3"><!> <!> <!></div> <pre class="bg-transparent p-0 font-mono"> </pre>`, 1);
+
+export default function Persisted_state($$anchor, $$props) {
+	$.push($$props, true);
+
+	const count = new PersistedState("persisted-state-demo-count", 0);
+
+	DemoContainer($$anchor, {
+		class: 'flex flex-col gap-4',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var div = $.first_child(fragment_1);
+			var node = $.child(div);
+
+			Button(node, {
+				variant: 'brand',
+				size: 'sm',
+				onclick: () => count.current++,
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text = $.text('Increment');
+
+					$.append($$anchor, text);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_1 = $.sibling(node, 2);
+
+			Button(node_1, {
+				variant: 'brand',
+				size: 'sm',
+				onclick: () => count.current--,
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_1 = $.text('Decrement');
+
+					$.append($$anchor, text_1);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_2 = $.sibling(node_1, 2);
+
+			Button(node_2, {
+				variant: 'ghost',
+				size: 'sm',
+				onclick: () => count.current = 0,
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_2 = $.text('Reset');
+
+					$.append($$anchor, text_2);
+				},
+				$$slots: { default: true }
+			});
+
+			$.reset(div);
+
+			var pre = $.sibling(div, 2);
+			var text_3 = $.only_child(pre);
+
+			$.template_effect(() => $.set_text(text_3, `Count: ${`${count.current}`}`));
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 4125 sites/docs/src/lib/components/demos/pressed-keys.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { PressedKeys, watch } from "runed";
+import { fade, scale } from "svelte/transition";
+import { cn, DemoContainer } from "@svecodocs/kit";
+import RunedIcon from "$lib/components/logos/runed-icon.svelte";
+
+var root = $.from_html(`<div class="bg-background dark:bg-muted absolute left-0 top-1/2 -translate-y-1/2 translate-x-[calc(-100%-0.5rem)]"><!></div>`);
+var root_1 = $.from_html(`<span class="text-foreground duration-250 text-xl font-bold transition-all"> </span>`);
+var root_2 = $.from_html(`<div><!></div>`);
+var root_3 = $.from_html(`<p class="text-muted-foreground absolute bottom-2 right-2 mb-0 text-center text-sm">Press any key to start, no need to select anything</p>`);
+var root_4 = $.from_html(`<div><!> <!></div> <p class="text-center"> </p> <!>`, 1);
+
+export default function Pressed_keys($$anchor, $$props) {
+	$.push($$props, true);
+
+	const keys = new PressedKeys();
+	const toPress = ("Runed").split("");
+	const allPressed = $.derived(() => keys.has(...toPress));
+	let guessedCorrectly = $.state(false);
+
+	$.user_effect(() => {
+		if ($.get(allPressed)) {
+			$.set(guessedCorrectly, true);
+		}
+	});
+
+	let triedInputting = $.state(false);
+
+	watch(() => keys.all, () => {
+		$.set(triedInputting, false);
+	});
+
+	// eslint-disable-next-line svelte/no-inspect
+	;;
+
+	DemoContainer($$anchor, {
+		class: 'flex flex-col gap-4',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_4();
+			var div = $.first_child(fragment_1);
+			var node = $.child(div);
+
+			{
+				var consequent = ($$anchor) => {
+					var div_1 = root();
+					var node_1 = $.child(div_1);
+
+					RunedIcon(node_1, { class: 'size-12' });
+					$.reset(div_1);
+					$.transition(3, div_1, () => scale, () => ({ start: 0.75, duration: 300 }));
+					$.append($$anchor, div_1);
+				};
+
+				$.if(node, ($$render) => {
+					if ($.get(allPressed)) $$render(consequent);
+				});
+			}
+
+			var node_2 = $.sibling(node, 2);
+
+			$.each(node_2, 19, () => toPress, (key, i) => `key-${i}`, ($$anchor, key) => {
+				var div_2 = root_2();
+				var node_3 = $.child(div_2);
+
+				{
+					var consequent_1 = ($$anchor) => {
+						var span = root_1();
+						var text = $.only_child(span, true);
+
+						$.template_effect(() => $.set_text(text, $.get(key)));
+						$.transition(3, span, () => fade, () => ({ duration: 100 }));
+						$.append($$anchor, span);
+					};
+
+					var d = $.derived(() => keys.has($.get(key)));
+
+					$.if(node_3, ($$render) => {
+						if ($.get(d)) $$render(consequent_1);
+					});
+				}
+
+				$.reset(div_2);
+
+				$.template_effect(($0) => $.set_class(div_2, 1, $0), [
+					() => $.clsx(cn("border-input bg-background dark:bg-muted ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50", "grid size-12 place-items-center rounded-lg border-2 transition-all duration-200", $.get(allPressed) && "border-brand"))
+				]);
+
+				$.delegated('click', div_2, () => $.set(triedInputting, true));
+				$.append($$anchor, div_2);
+			});
+
+			$.reset(div);
+
+			var p = $.sibling(div, 2);
+			var text_1 = $.only_child(p, true);
+			var node_4 = $.sibling(p, 2);
+
+			{
+				var consequent_2 = ($$anchor) => {
+					var p_1 = root_3();
+
+					$.transition(3, p_1, () => fade, () => ({ duration: 300 }));
+					$.append($$anchor, p_1);
+				};
+
+				$.if(node_4, ($$render) => {
+					if (!$.get(guessedCorrectly) && $.get(triedInputting)) $$render(consequent_2);
+				});
+			}
+
+			$.template_effect(() => {
+				$.set_class(div, 1, `relative mx-auto flex w-min items-center justify-center gap-2 transition-all duration-300
+		${$.get(allPressed) ? 'translate-x-[1.625rem]' : ''}`);
+
+				$.set_text(text_1, $.get(guessedCorrectly) ? "You did it! 🎉" : "Try and guess the password 👀");
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 1130 sites/docs/src/lib/components/demos/previous.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Previous } from "runed";
+import { Button, DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`<!> <pre class="m-0 mt-4 bg-transparent p-0 font-mono"> </pre>`, 1);
+
+export default function Previous_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	let count = $.state(0);
+	const previous = new Previous(() => $.get(count));
+
+	DemoContainer($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var node = $.first_child(fragment_1);
+
+			Button(node, {
+				variant: 'brand',
+				onclick: () => $.update(count),
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text = $.text();
+
+					$.template_effect(() => $.set_text(text, `Count: ${$.get(count) ?? ''}`));
+					$.append($$anchor, text);
+				},
+				$$slots: { default: true }
+			});
+
+			var pre = $.sibling(node, 2);
+			var text_1 = $.only_child(pre);
+
+			$.template_effect(() => $.set_text(text_1, `Previous: ${`${previous.current}`}`));
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 2896 sites/docs/src/lib/components/demos/resource.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { resource } from "runed";
+import { DemoContainer, Button, Input } from "@svecodocs/kit";
+
+var root = $.from_html(`<div class="text-destructive text-sm"> </div>`);
+var root_1 = $.from_html(`<pre> </pre>`);
+var root_2 = $.from_html(`<div class="flex items-center gap-2 text-nowrap">Post id: <!></div> <div class="bg-card text-card-foreground rounded-md border p-4"><div class="flex w-full flex-col gap-2 overflow-hidden"><div class="text-muted-foreground text-sm"> </div> <!> <div class="flex w-[400px] flex-col gap-1 overflow-scroll"></div></div></div> <!>`, 1);
+
+export default function Resource($$anchor, $$props) {
+	$.push($$props, true);
+
+	let id = $.state(1);
+
+	const searchResource = resource(
+		() => $.get(id),
+		async (id) => {
+			const response = await fetch(`https://jsonplaceholder.typicode.com/posts?id=${id}`);
+
+			return response.json();
+		},
+		{ debounce: 1000 }
+	);
+
+	DemoContainer($$anchor, {
+		class: 'flex flex-col gap-4',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_2();
+			var div = $.first_child(fragment_1);
+			var node = $.sibling($.child(div));
+
+			Input(node, {
+				type: 'number',
+				placeholder: 'Type to search...',
+				class: 'w-full',
+				get value() {
+					return $.get(id);
+				},
+
+				set value($$value) {
+					$.set(id, $$value, true);
+				}
+			});
+
+			$.reset(div);
+
+			var div_1 = $.sibling(div, 2);
+			var div_2 = $.child(div_1);
+			var div_3 = $.child(div_2);
+			var text = $.only_child(div_3);
+			var node_1 = $.sibling(div_3, 2);
+
+			{
+				var consequent = ($$anchor) => {
+					var div_4 = root();
+					var text_1 = $.only_child(div_4);
+
+					$.template_effect(() => $.set_text(text_1, `Error: ${searchResource.error.message ?? ''}`));
+					$.append($$anchor, div_4);
+				};
+
+				$.if(node_1, ($$render) => {
+					if (searchResource.error) $$render(consequent);
+				});
+			}
+
+			var div_5 = $.sibling(node_1, 2);
+
+			$.each(div_5, 23, () => searchResource.current ?? [], (result, i) => `result-${i}`, ($$anchor, result) => {
+				var pre = root_1();
+				var text_2 = $.only_child(pre, true);
+
+				$.template_effect(($0) => $.set_text(text_2, $0), [() => JSON.stringify($.get(result), null, 2)]);
+				$.append($$anchor, pre);
+			});
+
+			$.reset(div_5);
+			$.reset(div_2);
+			$.reset(div_1);
+
+			var node_2 = $.sibling(div_1, 2);
+
+			Button(node_2, {
+				onclick: () => searchResource.refetch(),
+				get disabled() {
+					return searchResource.loading;
+				},
+
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_3 = $.text('Refetch Results');
+
+					$.append($$anchor, text_3);
+				},
+				$$slots: { default: true }
+			});
+
+			$.template_effect(() => $.set_text(text, `Status: ${searchResource.loading ? "Loading..." : "Ready"}`));
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 430 sites/docs/src/lib/components/demos/scroll-state.svelte	css
+
+	.pattern.svelte-1qb8zdd {
+		--bg: transparent;
+		--fg: #00000010;
+		--size: 1.5px;
+
+		background-color: var(--bg);
+		background-image:
+			radial-gradient(var(--fg) var(--size), transparent var(--size)),
+			radial-gradient(var(--fg) var(--size), var(--bg) var(--size));
+		background-size: 20px 20px;
+		background-position:
+			0 0,
+			10px 10px;
+	}
+
+	html.dark .pattern.svelte-1qb8zdd {
+		--bg: transparent;
+		--fg: #ffffff20;
+	}
+
+=== 8539 sites/docs/src/lib/components/demos/scroll-state.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Button, Input, Label } from "@svecodocs/kit";
+import { ScrollState } from "runed";
+import { preventDefault } from "svelte/legacy";
+
+var root = $.from_html(`<div class="flex items-baseline gap-2"><span class="text-sm font-medium leading-none"> </span> <span> </span></div>`);
+var root_1 = $.from_html(`<span>Smooth Scroll</span> <input type="checkbox"/>`, 1);
+var root_2 = $.from_html(`<div class=" dark:bg-primary bg-background dark:ring-primary-hover dark:inset-shadow-muted/20 dark:inset-ring-muted/10 inset-ring-muted/20 ring-muted inset-shadow-muted/20 inset-ring inset-shadow-sm relative mb-4 mt-6 max-w-[760px] overflow-hidden rounded-xl ring"><div class="bg-background border-border absolute left-0 top-0 h-4 w-full border-b"><div class="relative w-full"><div class="h-4 bg-[#F64A00]"></div></div></div> <div class="bg-background border-border absolute left-0 top-0 h-full w-4 border-b"><div class="relative h-full"><div class="w-4 bg-[#F64A00]"></div></div></div> <div class="h-[800px] overflow-scroll"><div class="pattern size-[1200px] svelte-1qb8zdd"></div></div> <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-lg font-semibold">Scroll me</div> <div class="bg-muted absolute inset-4 !top-[unset] rounded-lg p-4"><h2 class="font-bold">Controls & State</h2> <div class="mt-2 flex items-center gap-2"><form class="flex flex-col gap-2"><!> <div class="flex items-center gap-2"><!> <!></div></form> <form class="flex flex-col gap-2"><!> <div class="flex items-center gap-2"><!> <!></div></form></div> <div class="mt-4 grid grid-cols-5 items-center gap-4"><!> <!></div> <hr class="border-foreground/10 mt-2 h-px border"/> <h3 class="mt-2 text-sm font-semibold">Progress</h3> <div class="mt-2 grid grid-cols-5 items-center gap-4"><div class="flex place-items-center gap-2"><span class="text-sm font-medium leading-none">x</span> <span class="text-xs text-white"> </span></div> <div class="flex place-items-center gap-2"><span class="text-sm font-medium leading-none">y</span> <span class="text-xs text-white"> </span></div></div> <hr class="border-foreground/10 mt-2 h-px border"/> <h3 class="mt-2 text-sm font-semibold">Arrived</h3> <div class="mt-2 grid grid-cols-5 items-center gap-4"><!> <!> <!> <!></div> <hr class="border-foreground/10 mt-2 h-px border"/> <h3 class="mt-2 text-sm font-semibold">Directions</h3> <div class="mt-2 grid grid-cols-5 items-center gap-4"><!> <!> <!> <!></div></div></div>`);
+
+export default function Scroll_state($$anchor, $$props) {
+	$.push($$props, true);
+
+	let el = $.state(void 0);
+	let behavior = $.state("smooth");
+
+	const scroll = new ScrollState({
+		element: () => $.get(el),
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- for some reason ScrollBehavior is not defined
+		behavior: () => $.get(behavior)
+	});
+
+	let x = $.derived(() => scroll.x);
+	let y = $.derived(() => scroll.y);
+	var div = root_2();
+	var div_1 = $.child(div);
+	var div_2 = $.child(div_1);
+	var div_3 = $.only_child(div_2);
+
+	$.reset(div_1);
+
+	var div_4 = $.sibling(div_1, 2);
+	var div_5 = $.child(div_4);
+	var div_6 = $.only_child(div_5);
+
+	$.reset(div_4);
+
+	var div_7 = $.sibling(div_4, 2);
+
+	$.bind_this(div_7, ($$value) => $.set(el, $$value), () => $.get(el));
+
+	var div_8 = $.sibling(div_7, 4);
+
+	{
+		const info = ($$anchor, label = $.noop, condition = $.noop) => {
+			var div_9 = root();
+			var span = $.child(div_9);
+			var text = $.only_child(span, true);
+			var span_1 = $.sibling(span, 2);
+			var text_1 = $.only_child(span_1, true);
+
+			$.reset(div_9);
+
+			$.template_effect(() => {
+				$.set_text(text, label());
+
+				$.set_class(span_1, 1, $.clsx([
+					"rounded-lg px-1.5 py-0.5  text-xs text-white ",
+					condition() ? "bg-emerald-700" : "bg-red-900"
+				]));
+
+				$.set_text(text_1, condition() ? "Yes" : "No");
+			});
+
+			$.append($$anchor, div_9);
+		};
+
+		var div_10 = $.sibling($.child(div_8), 2);
+		var form = $.child(div_10);
+		var event_handler = $.derived(() => preventDefault(() => scroll.x = $.get(x)));
+		var node = $.child(form);
+
+		Label(node, {
+			for: 'x',
+			children: ($$anchor, $$slotProps) => {
+				$.next();
+
+				var text_2 = $.text('X Position');
+
+				$.append($$anchor, text_2);
+			},
+			$$slots: { default: true }
+		});
+
+		var div_11 = $.sibling(node, 2);
+		var node_1 = $.child(div_11);
+
+		Input(node_1, {
+			type: 'number',
+			id: 'x',
+			get value() {
+				return $.get(x);
+			},
+
+			set value($$value) {
+				$.set(x, $$value);
+			}
+		});
+
+		var node_2 = $.sibling(node_1, 2);
+
+		{
+			let $0 = $.derived(() => $.get(x) === scroll.x);
+
+			Button(node_2, {
+				get disabled() {
+					return $.get($0);
+				},
+				type: 'submit',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_3 = $.text('Set');
+
+					$.append($$anchor, text_3);
+				},
+				$$slots: { default: true }
+			});
+		}
+
+		$.reset(div_11);
+		$.reset(form);
+
+		var form_1 = $.sibling(form, 2);
+		var event_handler_1 = $.derived(() => preventDefault(() => scroll.y = $.get(y)));
+		var node_3 = $.child(form_1);
+
+		Label(node_3, {
+			for: 'x',
+			children: ($$anchor, $$slotProps) => {
+				$.next();
+
+				var text_4 = $.text('Y Position');
+
+				$.append($$anchor, text_4);
+			},
+			$$slots: { default: true }
+		});
+
+		var div_12 = $.sibling(node_3, 2);
+		var node_4 = $.child(div_12);
+
+		Input(node_4, {
+			type: 'number',
+			id: 'y',
+			get value() {
+				return $.get(y);
+			},
+
+			set value($$value) {
+				$.set(y, $$value);
+			}
+		});
+
+		var node_5 = $.sibling(node_4, 2);
+
+		{
+			let $0 = $.derived(() => $.get(y) === scroll.y);
+
+			Button(node_5, {
+				get disabled() {
+					return $.get($0);
+				},
+				type: 'submit',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_5 = $.text('Set');
+
+					$.append($$anchor, text_5);
+				},
+				$$slots: { default: true }
+			});
+		}
+
+		$.reset(div_12);
+		$.reset(form_1);
+		$.reset(div_10);
+
+		var div_13 = $.sibling(div_10, 2);
+		var node_6 = $.child(div_13);
+
+		Label(node_6, {
+			class: 'flex items-center gap-2',
+			children: ($$anchor, $$slotProps) => {
+				var fragment = root_1();
+				var input = $.sibling($.first_child(fragment), 2);
+
+				$.remove_input_defaults(input);
+				$.bind_checked(input, () => $.get(behavior) === "smooth", (c) => $.set(behavior, c ? "smooth" : "instant", true));
+				$.append($$anchor, fragment);
+			},
+			$$slots: { default: true }
+		});
+
+		var node_7 = $.sibling(node_6, 2);
+
+		info(node_7, () => "isScrolling", () => scroll.isScrolling);
+		$.reset(div_13);
+
+		var div_14 = $.sibling(div_13, 6);
+		var div_15 = $.child(div_14);
+		var span_2 = $.sibling($.child(div_15), 2);
+		var text_6 = $.only_child(span_2);
+
+		$.reset(div_15);
+
+		var div_16 = $.sibling(div_15, 2);
+		var span_3 = $.sibling($.child(div_16), 2);
+		var text_7 = $.only_child(span_3);
+
+		$.reset(div_16);
+		$.reset(div_14);
+
+		var div_17 = $.sibling(div_14, 6);
+		var node_8 = $.child(div_17);
+
+		info(node_8, () => "top", () => scroll.arrived.top);
+
+		var node_9 = $.sibling(node_8, 2);
+
+		info(node_9, () => "right", () => scroll.arrived.right);
+
+		var node_10 = $.sibling(node_9, 2);
+
+		info(node_10, () => "bottom", () => scroll.arrived.bottom);
+
+		var node_11 = $.sibling(node_10, 2);
+
+		info(node_11, () => "left", () => scroll.arrived.left);
+		$.reset(div_17);
+
+		var div_18 = $.sibling(div_17, 6);
+		var node_12 = $.child(div_18);
+
+		info(node_12, () => "top", () => scroll.directions.top);
+
+		var node_13 = $.sibling(node_12, 2);
+
+		info(node_13, () => "right", () => scroll.directions.right);
+
+		var node_14 = $.sibling(node_13, 2);
+
+		info(node_14, () => "bottom", () => scroll.directions.bottom);
+
+		var node_15 = $.sibling(node_14, 2);
+
+		info(node_15, () => "left", () => scroll.directions.left);
+		$.reset(div_18);
+		$.reset(div_8);
+
+		$.template_effect(
+			($0, $1) => {
+				$.set_text(text_6, `${$0 ?? ''}%`);
+				$.set_text(text_7, `${$1 ?? ''}%`);
+			},
+			[
+				() => scroll.progress.x.toFixed(0),
+				() => scroll.progress.y.toFixed(0)
+			]
+		);
+
+		$.event('submit', form, function (...$$args) {
+			$.get(event_handler)?.apply(this, $$args);
+		});
+
+		$.event('submit', form_1, function (...$$args) {
+			$.get(event_handler_1)?.apply(this, $$args);
+		});
+	}
+
+	$.reset(div);
+
+	$.template_effect(
+		($0, $1) => {
+			$.set_style(div_3, `width: ${scroll.progress.y ?? ''}%;`);
+			$.set_style(div_6, `height: ${scroll.progress.x ?? ''}%;`);
+		},
+		[
+			() => scroll.progress.x.toFixed(0),
+			() => scroll.progress.y.toFixed(0)
+		]
+	);
+
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 3527 sites/docs/src/lib/components/demos/state-history.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { StateHistory } from "runed";
+import { Button, DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`<div class="flex items-center gap-4 font-mono"><span class="text-muted-foreground/75"> </span> <span> </span></div>`);
+var root_1 = $.from_html(`<p class="mt-0"> </p> <div class="flex items-center gap-2"><!> <!> <span class="px-2">/</span> <!> <!></div> <div class="mt-4"><p class="text-muted-foreground m-0 select-none">History (limited to 10 records for demo)</p> <div class="bg-background-secondary mt-2 rounded-md border px-3 py-2"></div></div>`, 1);
+
+export default function State_history($$anchor, $$props) {
+	$.push($$props, true);
+
+	let count = $.state(0);
+	const history = new StateHistory(() => $.get(count), (c) => $.set(count, c, true), { capacity: 10 });
+
+	function format(ts) {
+		return new Date(ts).toLocaleString();
+	}
+
+	DemoContainer($$anchor, {
+		class: 'flex flex-col gap-4',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_1();
+			var p = $.first_child(fragment_1);
+			var text = $.only_child(p);
+			var div = $.sibling(p, 2);
+			var node = $.child(div);
+
+			Button(node, {
+				size: 'sm',
+				variant: 'brand',
+				onclick: () => $.update(count),
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_1 = $.text('Increment');
+
+					$.append($$anchor, text_1);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_1 = $.sibling(node, 2);
+
+			Button(node_1, {
+				size: 'sm',
+				variant: 'brand',
+				onclick: () => $.update(count, -1),
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_2 = $.text('Decrement');
+
+					$.append($$anchor, text_2);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_2 = $.sibling(node_1, 4);
+
+			{
+				let $0 = $.derived(() => !history.canUndo);
+
+				Button(node_2, {
+					size: 'sm',
+					variant: 'ghost',
+					get disabled() {
+						return $.get($0);
+					},
+
+					get onclick() {
+						return history.undo;
+					},
+
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_3 = $.text('Undo');
+
+						$.append($$anchor, text_3);
+					},
+					$$slots: { default: true }
+				});
+			}
+
+			var node_3 = $.sibling(node_2, 2);
+
+			{
+				let $0 = $.derived(() => !history.canRedo);
+
+				Button(node_3, {
+					size: 'sm',
+					variant: 'ghost',
+					get disabled() {
+						return $.get($0);
+					},
+
+					get onclick() {
+						return history.redo;
+					},
+
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_4 = $.text('Redo');
+
+						$.append($$anchor, text_4);
+					},
+					$$slots: { default: true }
+				});
+			}
+
+			$.reset(div);
+
+			var div_1 = $.sibling(div, 2);
+			var div_2 = $.sibling($.child(div_1), 2);
+
+			$.each(div_2, 23, () => history.log.toReversed(), (event, i) => `${event}-${i}`, ($$anchor, event) => {
+				var div_3 = root();
+				var span = $.child(div_3);
+				var text_5 = $.only_child(span, true);
+				var span_1 = $.sibling(span, 2);
+				var text_6 = $.only_child(span_1, true);
+
+				$.reset(div_3);
+
+				$.template_effect(
+					($0) => {
+						$.set_text(text_5, $0);
+						$.set_text(text_6, `{ value: ${$.get(event).snapshot} }`);
+					},
+					[() => format($.get(event).timestamp)]
+				);
+
+				$.append($$anchor, div_3);
+			});
+
+			$.reset(div_2);
+			$.reset(div_1);
+			$.template_effect(() => $.set_text(text, `Count: ${$.get(count) ?? ''}`));
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 1156 sites/docs/src/lib/components/demos/textarea-autosize.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { TextareaAutosize } from "runed";
+import { DemoContainer, Textarea } from "@svecodocs/kit";
+
+var root = $.from_html(`<label class="block" for="textarea-auto">Behold, the growing textarea!</label> <!>`, 1);
+
+export default function Textarea_autosize($$anchor, $$props) {
+	$.push($$props, true);
+
+	let element = $.state(null);
+	let input = $.state("");
+
+	new TextareaAutosize({ element: () => $.get(element), input: () => $.get(input) });
+
+	DemoContainer($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var node = $.sibling($.first_child(fragment_1), 2);
+
+			Textarea(node, {
+				class: 'mt-2 min-h-2 resize-none',
+				id: 'textarea-auto',
+				placeholder: 'Type a lot, and you\'ll see me grow',
+				get value() {
+					return $.get(input);
+				},
+
+				set value($$value) {
+					$.set(input, $$value, true);
+				},
+
+				get ref() {
+					return $.get(element);
+				},
+
+				set ref($$value) {
+					$.set(element, $$value, true);
+				}
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 2546 sites/docs/src/lib/components/demos/throttled.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Throttled } from "runed";
+import { Label, Input, DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`You searched for: <b> </b>`, 1);
+var root_1 = $.from_html(`<div class="flex flex-col gap-1.5"><!> <!></div> <div class="flex flex-col gap-1.5"><!> <!></div> <p><!></p>`, 1);
+
+export default function Throttled_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	let search = $.state("");
+	let durationMs = $.state(1000);
+	const throttledSearch = new Throttled(() => $.get(search), () => $.get(durationMs));
+
+	DemoContainer($$anchor, {
+		class: 'flex flex-col gap-4',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_1();
+			var div = $.first_child(fragment_1);
+			var node = $.child(div);
+
+			Label(node, {
+				for: 'duration',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text = $.text('Throttle duration (ms)');
+
+					$.append($$anchor, text);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_1 = $.sibling(node, 2);
+
+			Input(node_1, {
+				id: 'duration',
+				type: 'number',
+				get value() {
+					return $.get(durationMs);
+				},
+
+				set value($$value) {
+					$.set(durationMs, $$value, true);
+				}
+			});
+
+			$.reset(div);
+
+			var div_1 = $.sibling(div, 2);
+			var node_2 = $.child(div_1);
+
+			Label(node_2, {
+				for: 'search',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_1 = $.text('Search');
+
+					$.append($$anchor, text_1);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_3 = $.sibling(node_2, 2);
+
+			Input(node_3, {
+				placeholder: 'Search the best utilities for Svelte 5',
+				get value() {
+					return $.get(search);
+				},
+
+				set value($$value) {
+					$.set(search, $$value, true);
+				}
+			});
+
+			$.reset(div_1);
+
+			var p = $.sibling(div_1, 2);
+			var node_4 = $.child(p);
+
+			{
+				var consequent = ($$anchor) => {
+					var fragment_2 = root();
+					var b = $.sibling($.first_child(fragment_2));
+					var text_2 = $.only_child(b, true);
+
+					$.template_effect(() => $.set_text(text_2, throttledSearch.current));
+					$.append($$anchor, fragment_2);
+				};
+
+				var alternate = ($$anchor) => {
+					var text_3 = $.text('Search for something above!');
+
+					$.append($$anchor, text_3);
+				};
+
+				$.if(node_4, ($$render) => {
+					if (throttledSearch.current) $$render(consequent); else $$render(alternate, -1);
+				});
+			}
+
+			$.reset(p);
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 3133 sites/docs/src/lib/components/demos/use-debounce.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { useDebounce } from "runed";
+import { Input, Label, Button, DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`<div class="flex flex-col gap-2.5"><!> <!></div> <div class="flex items-center gap-4"><!> <!> <!></div> <p class="mt-2"> </p>`, 1);
+
+export default function Use_debounce($$anchor, $$props) {
+	$.push($$props, true);
+
+	let count = $.state(0);
+	let logged = $.state("");
+	let isFirstTime = $.state(true);
+	let durationMs = $.state(1000);
+
+	const logCount = useDebounce(
+		() => {
+			if ($.get(isFirstTime)) {
+				$.set(isFirstTime, false);
+				$.set(logged, `You pressed the button ${$.get(count)} times!`);
+			} else {
+				$.set(logged, `You pressed the button ${$.get(count)} times since last time!`);
+			}
+
+			$.set(count, 0);
+		},
+		() => $.get(durationMs)
+	);
+
+	function ding() {
+		$.update(count);
+		logCount();
+	}
+
+	DemoContainer($$anchor, {
+		class: 'flex flex-col gap-6',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var div = $.first_child(fragment_1);
+			var node = $.child(div);
+
+			Label(node, {
+				for: 'duration',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text = $.text('Debounce duration (ms)');
+
+					$.append($$anchor, text);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_1 = $.sibling(node, 2);
+
+			Input(node_1, {
+				id: 'duration',
+				type: 'number',
+				get value() {
+					return $.get(durationMs);
+				},
+
+				set value($$value) {
+					$.set(durationMs, $$value, true);
+				}
+			});
+
+			$.reset(div);
+
+			var div_1 = $.sibling(div, 2);
+			var node_2 = $.child(div_1);
+
+			Button(node_2, {
+				variant: 'brand',
+				size: 'sm',
+				onclick: ding,
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_1 = $.text('DING DING DING');
+
+					$.append($$anchor, text_1);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_3 = $.sibling(node_2, 2);
+
+			{
+				let $0 = $.derived(() => !logCount.pending);
+
+				Button(node_3, {
+					variant: 'ghost',
+					size: 'sm',
+					get onclick() {
+						return logCount.runScheduledNow;
+					},
+
+					get disabled() {
+						return $.get($0);
+					},
+
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_2 = $.text('Run now');
+
+						$.append($$anchor, text_2);
+					},
+					$$slots: { default: true }
+				});
+			}
+
+			var node_4 = $.sibling(node_3, 2);
+
+			{
+				let $0 = $.derived(() => !logCount.pending);
+
+				Button(node_4, {
+					variant: 'ghost',
+					size: 'sm',
+					get onclick() {
+						return logCount.cancel;
+					},
+
+					get disabled() {
+						return $.get($0);
+					},
+
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_3 = $.text('Cancel message');
+
+						$.append($$anchor, text_3);
+					},
+					$$slots: { default: true }
+				});
+			}
+
+			$.reset(div_1);
+
+			var p = $.sibling(div_1, 2);
+			var text_4 = $.only_child(p, true);
+
+			$.template_effect(() => $.set_text(text_4, $.get(logged) || "Press the button!"));
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 764 sites/docs/src/lib/components/demos/use-event-listener.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { useEventListener } from "runed";
+import { DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`<p> </p>`);
+
+export default function Use_event_listener($$anchor, $$props) {
+	$.push($$props, true);
+
+	let count = $.state(0);
+
+	useEventListener(() => document.body, "click", () => $.update(count));
+
+	DemoContainer($$anchor, {
+		class: 'select-none',
+		children: ($$anchor, $$slotProps) => {
+			var p = root();
+			var text = $.only_child(p);
+
+			$.template_effect(() => $.set_text(text, `You've clicked the document ${$.get(count) ?? ''} ${$.get(count) === 1 ? "time" : "times"}`));
+			$.append($$anchor, p);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 2210 sites/docs/src/lib/components/demos/use-geolocation.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { useGeolocation } from "runed";
+import { DemoContainer, Button } from "@svecodocs/kit";
+
+var root = $.from_html(`<pre> </pre> <pre> </pre> <pre> </pre> <pre> </pre> <div class="mt-4 flex items-center gap-2"><!> <!></div>`, 1);
+
+export default function Use_geolocation($$anchor, $$props) {
+	$.push($$props, true);
+
+	const location = useGeolocation();
+
+	DemoContainer($$anchor, {
+		class: 'flex flex-col gap-1',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var pre = $.first_child(fragment_1);
+			var text = $.only_child(pre);
+			var pre_1 = $.sibling(pre, 2);
+			var text_1 = $.only_child(pre_1);
+			var pre_2 = $.sibling(pre_1, 2);
+			var text_2 = $.only_child(pre_2);
+			var pre_3 = $.sibling(pre_2, 2);
+			var text_3 = $.only_child(pre_3);
+			var div = $.sibling(pre_3, 2);
+			var node = $.child(div);
+
+			Button(node, {
+				size: 'sm',
+				get onclick() {
+					return location.pause;
+				},
+
+				get disabled() {
+					return location.isPaused;
+				},
+
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_4 = $.text('Pause');
+
+					$.append($$anchor, text_4);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_1 = $.sibling(node, 2);
+
+			{
+				let $0 = $.derived(() => !location.isPaused);
+
+				Button(node_1, {
+					size: 'sm',
+					get onclick() {
+						return location.resume;
+					},
+
+					get disabled() {
+						return $.get($0);
+					},
+
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_5 = $.text('Resume');
+
+						$.append($$anchor, text_5);
+					},
+					$$slots: { default: true }
+				});
+			}
+
+			$.reset(div);
+
+			$.template_effect(
+				($0, $1) => {
+					$.set_text(text, `Coords: ${$0 ?? ''}`);
+					$.set_text(text_1, `Located at: ${location.position.timestamp ?? ''}`);
+					$.set_text(text_2, `Error: ${$1 ?? ''}`);
+					$.set_text(text_3, `Is Supported: ${location.isSupported ?? ''}`);
+				},
+				[
+					() => JSON.stringify(location.position.coords, null, 2),
+					() => JSON.stringify(location.error, null, 2)
+				]
+			);
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 2475 sites/docs/src/lib/components/demos/use-intersection-observer.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { useIntersectionObserver } from "runed";
+import { Checkbox, Label, DemoContainer } from "@svecodocs/kit";
+
+var root_1 = $.from_html(`<div class="flex items-center justify-center"><!> <!></div> <div class="border-border m-2 h-[200px] overflow-y-scroll border-2 border-dashed pt-4"><p class="text-lg italic">Scroll down 👇</p> <div class="border-brand m-6 mt-96 max-h-[150px] border-2 p-2.5"><p>I'm the target! 🎯</p></div></div> <div class="text-center">Element <span> </span> the viewport</div>`, 1);
+
+export default function Use_intersection_observer($$anchor, $$props) {
+	$.push($$props, true);
+
+	let root = $.state(null);
+	let target = $.state(null);
+	let isVisible = $.state(false);
+
+	const observer = useIntersectionObserver(
+		() => $.get(target),
+		([entry]) => {
+			if (entry) {
+				$.set(isVisible, entry.isIntersecting, true);
+			} else {
+				$.set(isVisible, false);
+			}
+		},
+		{ root: () => $.get(root) }
+	);
+
+	DemoContainer($$anchor, {
+		class: 'flex flex-col gap-4 text-center',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_1();
+			var div = $.first_child(fragment_1);
+			var node = $.child(div);
+
+			Checkbox(node, {
+				id: 'enabled',
+				get checked() {
+					return observer.isActive;
+				},
+
+				onCheckedChange: (v) => {
+					if (v) {
+						observer.resume();
+					} else {
+						observer.pause();
+					}
+				}
+			});
+
+			var node_1 = $.sibling(node, 2);
+
+			Label(node_1, {
+				for: 'enabled',
+				class: 'pl-2',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text = $.text('Enable');
+
+					$.append($$anchor, text);
+				},
+				$$slots: { default: true }
+			});
+
+			$.reset(div);
+
+			var div_1 = $.sibling(div, 2);
+			var div_2 = $.sibling($.child(div_1), 2);
+
+			$.bind_this(div_2, ($$value) => $.set(target, $$value), () => $.get(target));
+			$.reset(div_1);
+			$.bind_this(div_1, ($$value) => $.set(root, $$value), () => $.get(root));
+
+			var div_3 = $.sibling(div_1, 2);
+			var span = $.sibling($.child(div_3));
+			var text_1 = $.only_child(span, true);
+
+			$.next();
+			$.reset(div_3);
+
+			$.template_effect(() => {
+				$.set_class(span, 1, `font-medium ${$.get(isVisible)
+					? 'text-green-600 dark:text-green-500'
+					: 'text-destructive'}`);
+
+				$.set_text(text_1, $.get(isVisible) ? "inside" : "outside");
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 3018 sites/docs/src/lib/components/demos/use-interval.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { useInterval } from "runed";
+import { Input, Label, Button, DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`<div class="flex flex-col gap-2.5"><!> <!></div> <div class="flex items-center gap-4"><!> <!> <!></div> <div class="flex flex-col gap-2"><p><strong>Counter:</strong> </p> <p><strong>Status:</strong> </p></div>`, 1);
+
+export default function Use_interval($$anchor, $$props) {
+	$.push($$props, true);
+
+	let intervalMs = $.state(500);
+	const interval = useInterval(() => $.get(intervalMs));
+
+	DemoContainer($$anchor, {
+		class: 'flex flex-col gap-6',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var div = $.first_child(fragment_1);
+			var node = $.child(div);
+
+			Label(node, {
+				for: 'interval',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text = $.text('Interval duration (ms)');
+
+					$.append($$anchor, text);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_1 = $.sibling(node, 2);
+
+			Input(node_1, {
+				id: 'interval',
+				type: 'number',
+				min: '100',
+				step: '100',
+				get value() {
+					return $.get(intervalMs);
+				},
+
+				set value($$value) {
+					$.set(intervalMs, $$value, true);
+				}
+			});
+
+			$.reset(div);
+
+			var div_1 = $.sibling(div, 2);
+			var node_2 = $.child(div_1);
+
+			{
+				let $0 = $.derived(() => !interval.isActive);
+
+				Button(node_2, {
+					variant: 'brand',
+					size: 'sm',
+					get onclick() {
+						return interval.pause;
+					},
+
+					get disabled() {
+						return $.get($0);
+					},
+
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_1 = $.text('Pause');
+
+						$.append($$anchor, text_1);
+					},
+					$$slots: { default: true }
+				});
+			}
+
+			var node_3 = $.sibling(node_2, 2);
+
+			Button(node_3, {
+				variant: 'brand',
+				size: 'sm',
+				get onclick() {
+					return interval.resume;
+				},
+
+				get disabled() {
+					return interval.isActive;
+				},
+
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_2 = $.text('Resume');
+
+					$.append($$anchor, text_2);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_4 = $.sibling(node_3, 2);
+
+			Button(node_4, {
+				variant: 'ghost',
+				size: 'sm',
+				get onclick() {
+					return interval.reset;
+				},
+
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_3 = $.text('Reset Counter');
+
+					$.append($$anchor, text_3);
+				},
+				$$slots: { default: true }
+			});
+
+			$.reset(div_1);
+
+			var div_2 = $.sibling(div_1, 2);
+			var p = $.child(div_2);
+			var text_4 = $.sibling($.child(p));
+
+			$.reset(p);
+
+			var p_1 = $.sibling(p, 2);
+			var text_5 = $.sibling($.child(p_1));
+
+			$.reset(p_1);
+			$.reset(div_2);
+
+			$.template_effect(() => {
+				$.set_text(text_4, ` ${interval.counter ?? ''}`);
+				$.set_text(text_5, ` ${interval.isActive ? "Running" : "Paused"}`);
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 1660 sites/docs/src/lib/components/demos/use-mutation-observer.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { useMutationObserver } from "runed";
+import { DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`<div> </div>`);
+var root_1 = $.from_html(`<div>No mutations yet</div>`);
+var root_2 = $.from_html(`<div></div>`);
+
+export default function Use_mutation_observer($$anchor, $$props) {
+	$.push($$props, true);
+
+	let el = $.state(null);
+	const messages = $.proxy([]);
+	let className = $.state("");
+	let style = $.state("");
+
+	useMutationObserver(
+		() => $.get(el),
+		(mutations) => {
+			const mutation = mutations[0];
+
+			if (!mutation) return;
+
+			messages.push(mutation.attributeName);
+		},
+		{ attributes: true }
+	);
+
+	setTimeout(
+		() => {
+			$.set(className, "text-brand");
+		},
+		1000
+	);
+
+	setTimeout(
+		() => {
+			$.set(style, "font-style: italic;");
+		},
+		1500
+	);
+
+	DemoContainer($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var div = root_2();
+
+			$.each(
+				div,
+				23,
+				() => messages,
+				(text, i) => `${text}-${i}`,
+				($$anchor, text) => {
+					var div_1 = root();
+					var text_1 = $.only_child(div_1);
+
+					$.template_effect(() => $.set_text(text_1, `Mutation Attribute: ${$.get(text) ?? ''}`));
+					$.append($$anchor, div_1);
+				},
+				($$anchor) => {
+					var div_2 = root_1();
+
+					$.append($$anchor, div_2);
+				}
+			);
+
+			$.reset(div);
+			$.bind_this(div, ($$value) => $.set(el, $$value), () => $.get(el));
+
+			$.template_effect(() => {
+				$.set_class(div, 1, $.clsx($.get(className)));
+				$.set_style(div, $.get(style));
+			});
+
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 938 sites/docs/src/lib/components/demos/use-resize-observer.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { useResizeObserver } from "runed";
+import { Textarea, DemoContainer } from "@svecodocs/kit";
+
+export default function Use_resize_observer($$anchor, $$props) {
+	$.push($$props, true);
+
+	let ref = $.state(null);
+	let text = $.state("");
+
+	useResizeObserver(() => $.get(ref), (entries) => {
+		const entry = entries[0];
+
+		if (!entry) return;
+
+		const { width, height } = entry.contentRect;
+
+		$.set(text, `width: ${width}\nheight: ${height}`);
+	});
+
+	DemoContainer($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			Textarea($$anchor, {
+				readonly: true,
+				get value() {
+					return $.get(text);
+				},
+				class: 'h-[200px] min-h-[100px] w-[300px]  resize text-base',
+				get ref() {
+					return $.get(ref);
+				},
+
+				set ref($$value) {
+					$.set(ref, $$value, true);
+				}
+			});
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 3216 sites/docs/src/lib/components/demos/use-search-params.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { useSearchParams, createSearchParamsSchema } from "runed/kit";
+import { Button, DemoContainer, Input } from "@svecodocs/kit";
+
+var root = $.from_html(`<div class="flex items-center gap-3"><!> <!> <!></div>`);
+var root_1 = $.from_html(`<!> <form class="flex items-center gap-3"><!> <!> <!></form>`, 1);
+
+export default function Use_search_params($$anchor, $$props) {
+	$.push($$props, true);
+
+	const params = useSearchParams(createSearchParamsSchema({ fields: { type: "object", default: {}, objectType: {} } }));
+	const newField = $.proxy({ key: "", value: "" });
+
+	function addField() {
+		if (newField.key.trim() && newField.value.trim()) {
+			params.fields = { ...params.fields, [newField.key]: newField.value };
+			newField.key = "";
+			newField.value = "";
+		}
+	}
+
+	function removeField(key) {
+		const newFields = { ...params.fields };
+
+		delete newFields[key];
+		params.fields = newFields;
+	}
+
+	DemoContainer($$anchor, {
+		class: 'flex flex-col gap-4',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_1();
+			var node = $.first_child(fragment_1);
+
+			$.each(node, 17, () => Object.entries(params.fields), ([key, _value]) => key, ($$anchor, $$item) => {
+				var $$array = $.derived(() => $.to_array($.get($$item), 2));
+				let key = () => $.get($$array)[0];
+				let _value = () => $.get($$array)[1];
+				var div = root();
+				var node_1 = $.child(div);
+
+				Input(node_1, {
+					class: 'flex-1',
+					get value() {
+						return key();
+					},
+					placeholder: 'Key',
+					readonly: true
+				});
+
+				var node_2 = $.sibling(node_1, 2);
+
+				Input(node_2, {
+					class: 'flex-1',
+					placeholder: 'Value',
+					get value() {
+						return params.fields[key()];
+					},
+
+					set value($$value) {
+						params.fields[key()] = $$value;
+					}
+				});
+
+				var node_3 = $.sibling(node_2, 2);
+
+				Button(node_3, {
+					class: 'shrink-0',
+					variant: 'brand',
+					onclick: () => removeField(key()),
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text = $.text('Remove');
+
+						$.append($$anchor, text);
+					},
+					$$slots: { default: true }
+				});
+
+				$.reset(div);
+				$.append($$anchor, div);
+			});
+
+			var form = $.sibling(node, 2);
+			var node_4 = $.child(form);
+
+			Input(node_4, {
+				class: 'flex-1',
+				placeholder: 'Key',
+				get value() {
+					return newField.key;
+				},
+
+				set value($$value) {
+					newField.key = $$value;
+				}
+			});
+
+			var node_5 = $.sibling(node_4, 2);
+
+			Input(node_5, {
+				class: 'flex-1',
+				placeholder: 'Value',
+				get value() {
+					return newField.value;
+				},
+
+				set value($$value) {
+					newField.value = $$value;
+				}
+			});
+
+			var node_6 = $.sibling(node_5, 2);
+
+			Button(node_6, {
+				variant: 'brand',
+				class: 'shrink-0',
+				type: 'submit',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_1 = $.text('Add Field');
+
+					$.append($$anchor, text_1);
+				},
+				$$slots: { default: true }
+			});
+
+			$.reset(form);
+
+			$.event('submit', form, (e) => {
+				e.preventDefault();
+				addField();
+			});
+
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 2904 sites/docs/src/lib/components/demos/use-throttle.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { useThrottle } from "runed";
+import { Label, Input, DemoContainer } from "@svecodocs/kit";
+
+var root = $.from_html(`You searched for: <b> </b>`, 1);
+var root_1 = $.from_html(`<div class="flex flex-col gap-1.5"><!> <!></div> <div class="flex flex-col gap-1.5"><!> <!></div> <p><!></p>`, 1);
+var root_2 = $.from_html(`<!> <div class="h-1 w-screen"></div>`, 1);
+
+export default function Use_throttle($$anchor, $$props) {
+	$.push($$props, true);
+
+	let search = $.state("");
+	let throttledSearch = $.state("");
+	let durationMs = $.state(1000);
+	const setThrottledSearch = useThrottle(() => $.set(throttledSearch, $.get(search), true), () => $.get(durationMs));
+	var fragment = root_2();
+	var node = $.first_child(fragment);
+
+	DemoContainer(node, {
+		class: 'flex flex-col gap-4',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_1();
+			var div = $.first_child(fragment_1);
+			var node_1 = $.child(div);
+
+			Label(node_1, {
+				for: 'duration',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text = $.text('Throttle duration (ms)');
+
+					$.append($$anchor, text);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_2 = $.sibling(node_1, 2);
+
+			Input(node_2, {
+				id: 'duration',
+				type: 'number',
+				get value() {
+					return $.get(durationMs);
+				},
+
+				set value($$value) {
+					$.set(durationMs, $$value, true);
+				}
+			});
+
+			$.reset(div);
+
+			var div_1 = $.sibling(div, 2);
+			var node_3 = $.child(div_1);
+
+			Label(node_3, {
+				for: 'search',
+				children: ($$anchor, $$slotProps) => {
+					$.next();
+
+					var text_1 = $.text('Search');
+
+					$.append($$anchor, text_1);
+				},
+				$$slots: { default: true }
+			});
+
+			var node_4 = $.sibling(node_3, 2);
+			var bind_get = () => $.get(search);
+
+			var bind_set = (v) => {
+				$.set(search, v, true);
+				setThrottledSearch();
+			};
+
+			Input(node_4, {
+				get value() {
+					return bind_get();
+				},
+
+				set value($$value) {
+					bind_set($$value);
+				},
+				placeholder: 'Search the best utilities for Svelte 5'
+			});
+
+			$.reset(div_1);
+
+			var p = $.sibling(div_1, 2);
+			var node_5 = $.child(p);
+
+			{
+				var consequent = ($$anchor) => {
+					var fragment_2 = root();
+					var b = $.sibling($.first_child(fragment_2));
+					var text_2 = $.only_child(b, true);
+
+					$.template_effect(() => $.set_text(text_2, $.get(throttledSearch)));
+					$.append($$anchor, fragment_2);
+				};
+
+				var alternate = ($$anchor) => {
+					var text_3 = $.text('Search for something above!');
+
+					$.append($$anchor, text_3);
+				};
+
+				$.if(node_5, ($$render) => {
+					if ($.get(throttledSearch)) $$render(consequent); else $$render(alternate, -1);
+				});
+			}
+
+			$.reset(p);
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.next(2);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 6155 sites/docs/src/lib/components/logos/runed-dark.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy']);
+var root = $.from_svg(`<svg><path d="M413.234 95.1171C409.427 95.1171 405.979 94.1381 402.89 92.1803C399.822 90.2007 397.386 87.2966 395.581 83.4679C393.797 79.6175 392.905 74.8969 392.905 69.3062C392.905 63.5632 393.829 58.7882 395.678 54.9813C397.527 51.1526 399.986 48.292 403.053 46.3994C406.142 44.4851 409.525 43.5279 413.201 43.5279C416.007 43.5279 418.346 44.0065 420.217 44.9637C422.109 45.8991 423.632 47.0738 424.785 48.4878C425.96 49.88 426.852 51.2505 427.461 52.5993H427.885V27.4736H441.753V94.3013H428.048V86.2741H427.461C426.808 87.6664 425.884 89.0478 424.687 90.4182C423.512 91.767 421.979 92.8873 420.086 93.7792C418.215 94.6711 415.931 95.1171 413.234 95.1171ZM417.639 84.0553C419.879 84.0553 421.772 83.4461 423.317 82.2279C424.883 80.988 426.079 79.2585 426.906 77.0397C427.754 74.8208 428.179 72.2212 428.179 69.2409C428.179 66.2607 427.765 63.672 426.939 61.4748C426.112 59.2777 424.915 57.5809 423.349 56.3844C421.783 55.188 419.879 54.5897 417.639 54.5897C415.355 54.5897 413.429 55.2097 411.863 56.4497C410.297 57.6897 409.111 59.4082 408.306 61.6053C407.502 63.8025 407.099 66.3477 407.099 69.2409C407.099 72.1559 407.502 74.7338 408.306 76.9744C409.133 79.1933 410.319 80.9336 411.863 82.1953C413.429 83.4353 415.355 84.0553 417.639 84.0553Z" fill="white"></path><path d="M366.364 95.2806C361.208 95.2806 356.771 94.2364 353.051 92.1481C349.353 90.0379 346.503 87.0577 344.502 83.2072C342.5 79.3351 341.5 74.7559 341.5 69.4697C341.5 64.3141 342.5 59.7893 344.502 55.8954C346.503 52.0014 349.32 48.9668 352.953 46.7914C356.608 44.616 360.893 43.5283 365.809 43.5283C369.116 43.5283 372.194 44.0613 375.044 45.1272C377.915 46.1714 380.417 47.7486 382.549 49.8587C384.703 51.9688 386.378 54.6228 387.574 57.8206C388.771 60.9966 389.369 64.7165 389.369 68.9803V72.7981H347.047V64.1835H376.284C376.284 62.1822 375.849 60.4093 374.979 58.8647C374.108 57.3202 372.901 56.1129 371.357 55.2427C369.834 54.3508 368.061 53.9049 366.038 53.9049C363.928 53.9049 362.057 54.3943 360.425 55.3733C358.816 56.3304 357.554 57.6248 356.64 59.2563C355.726 60.8661 355.259 62.6608 355.237 64.6404V72.8307C355.237 75.3106 355.694 77.4534 356.608 79.2589C357.543 81.0645 358.859 82.4567 360.556 83.4357C362.253 84.4146 364.265 84.904 366.593 84.904C368.137 84.904 369.551 84.6865 370.835 84.2514C372.118 83.8163 373.217 83.1637 374.13 82.2936C375.044 81.4234 375.74 80.3575 376.219 79.0958L389.075 79.9442C388.422 83.0332 387.085 85.7307 385.061 88.0366C383.06 90.3207 380.471 92.1045 377.295 93.388C374.141 94.6497 370.497 95.2806 366.364 95.2806Z" fill="white"></path><path d="M303.938 65.3256V94.3017H290.037V44.1809H303.285V53.0238H303.873C304.982 50.1088 306.842 47.8029 309.452 46.1061C312.063 44.3876 315.228 43.5283 318.948 43.5283C322.429 43.5283 325.463 44.2897 328.052 45.8125C330.641 47.3352 332.653 49.5106 334.089 52.3386C335.524 55.1448 336.242 58.4949 336.242 62.3889V94.3017H322.341V64.8688C322.363 61.8015 321.58 59.4086 319.992 57.69C318.404 55.9497 316.218 55.0796 313.433 55.0796C311.562 55.0796 309.909 55.482 308.473 56.2869C307.059 57.0918 305.95 58.2665 305.145 59.811C304.362 61.3338 303.96 63.172 303.938 65.3256Z" fill="white"></path><path d="M268.693 72.9609V44.1807H282.594V94.3014H269.248V85.1974H268.726C267.594 88.1342 265.713 90.4945 263.081 92.2783C260.47 94.0621 257.283 94.954 253.52 94.954C250.17 94.954 247.222 94.1926 244.677 92.6699C242.132 91.1471 240.141 88.9826 238.705 86.1764C237.291 83.3701 236.574 80.0092 236.552 76.0935V44.1807H250.452V73.6136C250.474 76.5721 251.268 78.9106 252.834 80.6291C254.401 82.3477 256.5 83.207 259.132 83.207C260.807 83.207 262.374 82.8263 263.831 82.0649C265.289 81.2818 266.463 80.1288 267.355 78.606C268.269 77.0833 268.715 75.2016 268.693 72.9609Z" fill="white"></path><path d="M180.187 94.3013V27.4736H206.553C211.599 27.4736 215.907 28.3764 219.474 30.182C223.064 31.9658 225.794 34.5001 227.665 37.7849C229.557 41.048 230.504 44.8875 230.504 49.3036C230.504 53.7413 229.546 57.5591 227.632 60.7569C225.718 63.933 222.944 66.3694 219.311 68.0662C215.7 69.763 211.328 70.6114 206.194 70.6114H188.54V59.2559H203.91C206.607 59.2559 208.848 58.8861 210.631 58.1465C212.415 57.4069 213.742 56.2974 214.612 54.8182C215.504 53.3389 215.95 51.5007 215.95 49.3036C215.95 47.0847 215.504 45.2139 214.612 43.6911C213.742 42.1683 212.404 41.0154 210.599 40.2322C208.815 39.4273 206.563 39.0249 203.844 39.0249H194.316V94.3013H180.187ZM216.277 63.8895L232.886 94.3013H217.288L201.038 63.8895H216.277Z" fill="white"></path><g clip-path="url(#clip0_1126_241)"><path fill-rule="evenodd" clip-rule="evenodd" d="M22.9283 0.0488281C10.3824 0.0488281 0.211914 10.2193 0.211914 22.7652V98.8388C0.211914 111.385 10.3824 121.555 22.9283 121.555H99.0019C111.548 121.555 121.718 111.385 121.718 98.8388V22.7652C121.718 10.2193 111.548 0.0488281 99.0019 0.0488281H22.9283ZM48.8503 19.8848L78.112 36.4804L78.1128 36.4809C79.653 37.354 80.6271 38.9615 80.6955 40.7229L80.6955 40.7238C80.7635 42.4915 79.924 44.1603 78.4518 45.1532L53.7673 61.7974L79.5959 94.1047L79.5999 94.1097C81.3324 96.3008 81.004 99.5008 78.7906 101.27C77.8445 102.027 76.7107 102.385 75.6057 102.385C74.111 102.385 72.6281 101.733 71.6176 100.466L51.4347 75.2146V97.1469C51.4347 99.9677 49.1549 102.248 46.3341 102.248C43.5132 102.248 41.2334 99.9677 41.2334 97.1469V24.3196C41.2334 22.5131 42.1878 20.8302 43.7682 19.9158C45.3488 18.9921 47.2818 18.9982 48.8472 19.8831L48.8503 19.8848ZM51.4347 51.0765V33.0722L65.9324 41.2999L51.4347 51.0765Z" fill="#F64A00"></path></g><defs><clipPath id="clip0_1126_241"><rect width="121.506" height="121.506" fill="white" transform="translate(0.211914 0.0488281)"></rect></clipPath></defs></svg>`);
+
+export default function Runed_dark($$anchor, $$props) {
+	let restProps = $.rest_props($$props, rest_excludes);
+	var svg = root();
+
+	$.attribute_effect(svg, () => ({
+		width: '442',
+		height: '122',
+		viewBox: '0 0 442 122',
+		fill: 'none',
+		xmlns: 'http://www.w3.org/2000/svg',
+		...restProps
+	}));
+
+	$.append($$anchor, svg);
+}
+=== 1609 sites/docs/src/lib/components/logos/runed-icon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy']);
+var root = $.from_svg(`<svg><mask id="mask0_1_13" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="122" height="122"><path d="M121.506 0H0V121.506H121.506V0Z" fill="white"></path></mask><g mask="url(#mask0_1_13)"><path fill-rule="evenodd" clip-rule="evenodd" d="M22.7164 0C10.1705 0 0 10.1705 0 22.7164V98.79C0 111.335 10.1705 121.506 22.7164 121.506H98.79C111.336 121.506 121.506 111.335 121.506 98.79V22.7164C121.506 10.1705 111.336 0 98.79 0H22.7164ZM48.6384 19.836L77.9001 36.4316C79.4403 37.3047 80.4152 38.9127 80.4836 40.6741C80.5516 42.4418 79.7121 44.1115 78.2399 45.1044L53.5554 61.7486L79.384 94.0559L79.388 94.0609C81.1205 96.252 80.7921 99.452 78.5787 101.22C77.6326 101.977 76.4988 102.335 75.3938 102.335C73.8991 102.335 72.4162 101.684 71.4057 100.417L51.2228 75.1658V97.0981C51.2228 99.9185 48.943 102.198 46.1222 102.198C43.3013 102.198 41.0215 99.9185 41.0215 97.0981V24.2708C41.0215 22.4643 41.9759 20.7814 43.5563 19.867C45.1369 18.9433 47.0699 18.9494 48.6353 19.8343L48.6384 19.836ZM51.2228 51.0277V33.0234L65.7205 41.2511L51.2228 51.0277Z" fill="#EC4F27"></path></g></svg>`);
+
+export default function Runed_icon($$anchor, $$props) {
+	let restProps = $.rest_props($$props, rest_excludes);
+	var svg = root();
+
+	$.attribute_effect(svg, () => ({
+		width: '122',
+		height: '122',
+		viewBox: '0 0 122 122',
+		fill: 'none',
+		xmlns: 'http://www.w3.org/2000/svg',
+		...restProps
+	}));
+
+	$.append($$anchor, svg);
+}
+=== 6160 sites/docs/src/lib/components/logos/runed-light.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy']);
+var root = $.from_svg(`<svg><path d="M413.234 95.8866C409.427 95.8866 405.979 94.9077 402.89 92.9498C399.822 90.9702 397.386 88.0661 395.581 84.2374C393.797 80.387 392.905 75.6664 392.905 70.0757C392.905 64.3327 393.829 59.5578 395.678 55.7508C397.527 51.9222 399.986 49.0615 403.053 47.169C406.142 45.2546 409.525 44.2975 413.201 44.2975C416.007 44.2975 418.346 44.7761 420.217 45.7332C422.109 46.6686 423.632 47.8433 424.785 49.2573C425.96 50.6496 426.852 52.0201 427.461 53.3688H427.885V28.2432H441.753V95.0708H428.048V87.0437H427.461C426.808 88.4359 425.884 89.8173 424.687 91.1878C423.512 92.5365 421.979 93.6568 420.086 94.5487C418.215 95.4406 415.931 95.8866 413.234 95.8866ZM417.639 84.8248C419.879 84.8248 421.772 84.2157 423.317 82.9975C424.883 81.7575 426.079 80.0281 426.906 77.8092C427.754 75.5903 428.179 72.9907 428.179 70.0105C428.179 67.0302 427.765 64.4415 426.939 62.2443C426.112 60.0472 424.915 58.3504 423.349 57.154C421.783 55.9575 419.879 55.3593 417.639 55.3593C415.355 55.3593 413.429 55.9793 411.863 57.2192C410.297 58.4592 409.111 60.1777 408.306 62.3749C407.502 64.572 407.099 67.1172 407.099 70.0105C407.099 72.9255 407.502 75.5033 408.306 77.7439C409.133 79.9628 410.319 81.7031 411.863 82.9648C413.429 84.2048 415.355 84.8248 417.639 84.8248Z" fill="#0F0F11"></path><path d="M366.364 96.0501C361.208 96.0501 356.771 95.0059 353.051 92.9176C349.353 90.8075 346.503 87.8272 344.502 83.9768C342.5 80.1046 341.5 75.5254 341.5 70.2392C341.5 65.0836 342.5 60.5588 344.502 56.6649C346.503 52.771 349.32 49.7363 352.953 47.5609C356.608 45.3855 360.893 44.2979 365.809 44.2979C369.116 44.2979 372.194 44.8308 375.044 45.8968C377.915 46.9409 380.417 48.5181 382.549 50.6282C384.703 52.7383 386.378 55.3923 387.574 58.5901C388.771 61.7661 389.369 65.486 389.369 69.7498V73.5676H347.047V64.9531H376.284C376.284 62.9517 375.849 61.1788 374.979 59.6343C374.108 58.0898 372.901 56.8824 371.357 56.0123C369.834 55.1204 368.061 54.6744 366.038 54.6744C363.928 54.6744 362.057 55.1639 360.425 56.1428C358.816 57.1 357.554 58.3943 356.64 60.0258C355.726 61.6356 355.259 63.4303 355.237 65.4099V73.6002C355.237 76.0801 355.694 78.2229 356.608 80.0285C357.543 81.834 358.859 83.2263 360.556 84.2052C362.253 85.1841 364.265 85.6736 366.593 85.6736C368.137 85.6736 369.551 85.456 370.835 85.021C372.118 84.5859 373.217 83.9333 374.13 83.0631C375.044 82.193 375.74 81.127 376.219 79.8653L389.075 80.7137C388.422 83.8027 387.085 86.5002 385.061 88.8061C383.06 91.0903 380.471 92.8741 377.295 94.1576C374.141 95.4193 370.497 96.0501 366.364 96.0501Z" fill="#0F0F11"></path><path d="M303.938 66.0952V95.0712H290.037V44.9505H303.285V53.7934H303.873C304.982 50.8784 306.842 48.5725 309.452 46.8757C312.063 45.1571 315.228 44.2979 318.948 44.2979C322.429 44.2979 325.463 45.0592 328.052 46.582C330.641 48.1048 332.653 50.2801 334.089 53.1081C335.524 55.9144 336.242 59.2645 336.242 63.1584V95.0712H322.341V65.6383C322.363 62.571 321.58 60.1781 319.992 58.4596C318.404 56.7193 316.218 55.8491 313.433 55.8491C311.562 55.8491 309.909 56.2516 308.473 57.0564C307.059 57.8613 305.95 59.036 305.145 60.5806C304.362 62.1033 303.96 63.9415 303.938 66.0952Z" fill="#0F0F11"></path><path d="M268.693 73.7305V44.9502H282.594V95.0709H269.248V85.967H268.726C267.594 88.9037 265.713 91.264 263.081 93.0478C260.47 94.8317 257.283 95.7236 253.52 95.7236C250.17 95.7236 247.222 94.9622 244.677 93.4394C242.132 91.9166 240.141 89.7521 238.705 86.9459C237.291 84.1397 236.574 80.7787 236.552 76.863V44.9502H250.452V74.3831C250.474 77.3416 251.268 79.6801 252.834 81.3987C254.401 83.1172 256.5 83.9765 259.132 83.9765C260.807 83.9765 262.374 83.5958 263.831 82.8344C265.289 82.0513 266.463 80.8983 267.355 79.3756C268.269 77.8528 268.715 75.9711 268.693 73.7305Z" fill="#0F0F11"></path><path d="M180.187 95.0708V28.2432H206.553C211.599 28.2432 215.907 29.1459 219.474 30.9515C223.064 32.7353 225.794 35.2696 227.665 38.5545C229.557 41.8175 230.504 45.6571 230.504 50.0731C230.504 54.5109 229.546 58.3287 227.632 61.5265C225.718 64.7025 222.944 67.139 219.311 68.8357C215.7 70.5325 211.328 71.3809 206.194 71.3809H188.54V60.0255H203.91C206.607 60.0255 208.848 59.6556 210.631 58.916C212.415 58.1764 213.742 57.0669 214.612 55.5877C215.504 54.1084 215.95 52.2702 215.95 50.0731C215.95 47.8542 215.504 45.9834 214.612 44.4606C213.742 42.9379 212.404 41.7849 210.599 41.0018C208.815 40.1969 206.563 39.7944 203.844 39.7944H194.316V95.0708H180.187ZM216.277 64.659L232.886 95.0708H217.288L201.038 64.659H216.277Z" fill="#0F0F11"></path><g clip-path="url(#clip0_1126_249)"><path fill-rule="evenodd" clip-rule="evenodd" d="M22.9283 0.818359C10.3824 0.818359 0.211914 10.9888 0.211914 23.5348V99.6083C0.211914 112.154 10.3824 122.325 22.9283 122.325H99.0019C111.548 122.325 121.718 112.154 121.718 99.6083V23.5348C121.718 10.9888 111.548 0.818359 99.0019 0.818359H22.9283ZM48.8503 20.6543L78.112 37.25L78.1128 37.2504C79.653 38.1236 80.6271 39.731 80.6955 41.4925L80.6955 41.4933C80.7635 43.261 79.924 44.9299 78.4518 45.9227L53.7673 62.5669L79.5959 94.8742L79.5999 94.8792C81.3324 97.0704 81.004 100.27 78.7906 102.039C77.8445 102.796 76.7107 103.154 75.6057 103.154C74.111 103.154 72.6281 102.503 71.6176 101.235L51.4347 75.9841V97.9164C51.4347 100.737 49.1549 103.017 46.3341 103.017C43.5132 103.017 41.2334 100.737 41.2334 97.9164V25.0891C41.2334 23.2827 42.1878 21.5998 43.7682 20.6854C45.3488 19.7616 47.2818 19.7678 48.8472 20.6526L48.8503 20.6543ZM51.4347 51.846V33.8417L65.9324 42.0694L51.4347 51.846Z" fill="#F64A00"></path></g><defs><clipPath id="clip0_1126_249"><rect width="121.506" height="121.506" fill="white" transform="translate(0.211914 0.818359)"></rect></clipPath></defs></svg>`);
+
+export default function Runed_light($$anchor, $$props) {
+	let restProps = $.rest_props($$props, rest_excludes);
+	var svg = root();
+
+	$.attribute_effect(svg, () => ({
+		width: '442',
+		height: '123',
+		viewBox: '0 0 442 123',
+		fill: 'none',
+		xmlns: 'http://www.w3.org/2000/svg',
+		...restProps
+	}));
+
+	$.append($$anchor, svg);
+}
+=== 1119 sites/docs/src/routes/(docs)/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import RunedDark from "$lib/components/logos/runed-dark.svelte";
+import RunedLight from "$lib/components/logos/runed-light.svelte";
+import { DocsLayout } from "@svecodocs/kit";
+import { navigation } from "$lib/config/navigation";
+
+var root = $.from_html(`<!> <!> <span class="sr-only">Svecodocs</span>`, 1);
+
+export default function _layout($$anchor, $$props) {
+	{
+		const logo = ($$anchor) => {
+			var fragment_1 = root();
+			var node = $.first_child(fragment_1);
+
+			RunedDark(node, { class: 'hidden w-7 dark:block' });
+
+			var node_1 = $.sibling(node, 2);
+
+			RunedLight(node_1, { class: 'block w-7 dark:hidden' });
+			$.next(2);
+			$.append($$anchor, fragment_1);
+		};
+
+		DocsLayout($$anchor, {
+			get navigation() {
+				return navigation;
+			},
+			logo,
+			children: ($$anchor, $$slotProps) => {
+				var fragment_2 = $.comment();
+				var node_2 = $.first_child(fragment_2);
+
+				$.snippet(node_2, () => $$props.children ?? $.noop);
+				$.append($$anchor, fragment_2);
+			},
+			$$slots: { logo: true, default: true }
+		});
+	}
+}
+=== 1057 sites/docs/src/routes/(docs)/docs/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { DocPage } from "@svecodocs/kit";
+
+var root = $.from_html(`<meta name="description"/>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	const ogUrl = $.derived(() => `https://runed.dev/og?title=${encodeURIComponent($$props.data.metadata.title)}&description=${encodeURIComponent($$props.data.metadata.description)}`);
+
+	$.head('5dqvvw', ($$anchor) => {
+		var meta = root();
+
+		$.template_effect(() => $.set_attribute(meta, 'content', $$props.data.metadata.description));
+
+		$.deferred_template_effect(() => {
+			$.document.title = $$props.data.metadata.title ?? '';
+		});
+
+		$.append($$anchor, meta);
+	});
+
+	{
+		let $0 = $.derived(() => ({ ogImage: { url: $.get(ogUrl), width: "1200", height: "630" } }));
+
+		DocPage($$anchor, $.spread_props(
+			{
+				get component() {
+					return $$props.data.component;
+				}
+			},
+			() => $$props.data.metadata,
+			{
+				get metadata() {
+					return $.get($0);
+				}
+			}
+		));
+	}
+
+	$.pop();
+}
+=== 1129 sites/docs/src/routes/(docs)/docs/[...slug]/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { DocPage } from "@svecodocs/kit";
+
+var root = $.from_html(`<meta name="description"/>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	const ogUrl = $.derived(() => `https://runed.dev/og?title=${encodeURIComponent($$props.data.metadata.title)}&description=${encodeURIComponent($$props.data.metadata.description)}`);
+
+	$.head('80dzim', ($$anchor) => {
+		var meta = root();
+
+		$.template_effect(() => $.set_attribute(meta, 'content', $$props.data.metadata.description));
+
+		$.deferred_template_effect(() => {
+			$.document.title = $$props.data.metadata.title ?? '';
+		});
+
+		$.append($$anchor, meta);
+	});
+
+	{
+		let $0 = $.derived(() => ({ ogImage: { url: $.get(ogUrl), width: "1200", height: "630" } }));
+
+		DocPage($$anchor, $.spread_props(
+			{
+				get component() {
+					return $$props.data.component;
+				}
+			},
+			() => $$props.data.metadata,
+			{
+				get contributors() {
+					return $$props.data.contributors;
+				},
+
+				get metadata() {
+					return $.get($0);
+				}
+			}
+		));
+	}
+
+	$.pop();
+}
+=== 1058 sites/docs/src/routes/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import "../app.css";
+import { siteConfig } from "$lib/config/site";
+import { useSiteConfig } from "@svecodocs/kit";
+import { dev } from "$app/environment";
+
+var root = $.with_script($.from_html(`<script defer="" data-domain="runed.dev" src="https://server.hj.run/js/script.js"></script><!>`, 1));
+
+export default function _layout($$anchor, $$props) {
+	$.push($$props, true);
+	useSiteConfig(() => siteConfig);
+
+	var fragment_2 = $.comment();
+
+	$.head('12evr8a', ($$anchor) => {
+		var fragment = $.comment();
+		var node = $.first_child(fragment);
+
+		{
+			var consequent = ($$anchor) => {
+				var fragment_1 = root();
+				var node_1 = $.sibling($.first_child(fragment_1));
+
+				$.append($$anchor, fragment_1);
+			};
+
+			$.if(node, ($$render) => {
+				if (!dev) $$render(consequent);
+			});
+		}
+
+		$.append($$anchor, fragment);
+	});
+
+	var node_2 = $.first_child(fragment_2);
+
+	$.snippet(node_2, () => $$props.children ?? $.noop);
+	$.append($$anchor, fragment_2);
+	$.pop();
+}

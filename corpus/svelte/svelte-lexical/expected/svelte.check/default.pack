@@ -1,0 +1,9987 @@
+# rsvelte pack 1
+=== 3 demos/plaintext-editor/src/App.svelte	json
+[]
+
+=== 3 demos/plaintext-editor/src/PlainTextComposer.svelte	json
+[]
+
+=== 473 demos/playground-lite/src/App.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './settings/settingsStore' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 36
+		},
+		"end": {
+			"line": 4,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical/dist/themes/system-light-dark/ui' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 9
+		},
+		"end": {
+			"line": 8,
+			"character": 58
+		}
+	}
+]
+
+=== 670 demos/playground-lite/src/InsertImageDialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 9
+		},
+		"end": {
+			"line": 21,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './images/landscape.jpg' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 29
+		},
+		"end": {
+			"line": 23,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './images/yellow-flower.jpg' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 32
+		},
+		"end": {
+			"line": 24,
+			"character": 60
+		}
+	}
+]
+
+=== 1117 demos/playground-lite/src/RichTextComposer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 60,
+			"character": 9
+		},
+		"end": {
+			"line": 60,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './prepopulatedRichText' or its corresponding type declarations.",
+		"start": {
+			"line": 61,
+			"character": 37
+		},
+		"end": {
+			"line": 61,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './settings/settingsStore' or its corresponding type declarations.",
+		"start": {
+			"line": 62,
+			"character": 35
+		},
+		"end": {
+			"line": 62,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './themes/PlaygroundEditorTheme' or its corresponding type declarations.",
+		"start": {
+			"line": 63,
+			"character": 36
+		},
+		"end": {
+			"line": 63,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './collaboration' or its corresponding type declarations.",
+		"start": {
+			"line": 65,
+			"character": 40
+		},
+		"end": {
+			"line": 65,
+			"character": 57
+		}
+	}
+]
+
+=== 1038 demos/playground-lite/src/ToolbarPlayground.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 47,
+			"character": 9
+		},
+		"end": {
+			"line": 47,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './settings/settingsStore' or its corresponding type declarations.",
+		"start": {
+			"line": 50,
+			"character": 35
+		},
+		"end": {
+			"line": 50,
+			"character": 61
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editor' implicitly has an 'any' type.",
+		"start": {
+			"line": 56,
+			"character": 22
+		},
+		"end": {
+			"line": 56,
+			"character": 28
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'activeEditor' implicitly has an 'any' type.",
+		"start": {
+			"line": 56,
+			"character": 30
+		},
+		"end": {
+			"line": 56,
+			"character": 42
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'blockType' implicitly has an 'any' type.",
+		"start": {
+			"line": 56,
+			"character": 44
+		},
+		"end": {
+			"line": 56,
+			"character": 53
+		}
+	}
+]
+
+=== 431 demos/playground-lite/src/settings/Settings.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './settingsStore' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './appSettings' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	}
+]
+
+=== 3 demos/playground-lite/src/ui/Switch.svelte	json
+[]
+
+=== 473 demos/playground/src/App.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './settings/settingsStore' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 36
+		},
+		"end": {
+			"line": 4,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical/dist/themes/system-light-dark/ui' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 9
+		},
+		"end": {
+			"line": 8,
+			"character": 58
+		}
+	}
+]
+
+=== 1339 demos/playground/src/RichTextComposer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 60,
+			"character": 9
+		},
+		"end": {
+			"line": 60,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical/shiki' or its corresponding type declarations.",
+		"start": {
+			"line": 61,
+			"character": 41
+		},
+		"end": {
+			"line": 61,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './prepopulatedRichText' or its corresponding type declarations.",
+		"start": {
+			"line": 62,
+			"character": 37
+		},
+		"end": {
+			"line": 62,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './settings/settingsStore' or its corresponding type declarations.",
+		"start": {
+			"line": 63,
+			"character": 35
+		},
+		"end": {
+			"line": 63,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './themes/PlaygroundEditorTheme' or its corresponding type declarations.",
+		"start": {
+			"line": 64,
+			"character": 36
+		},
+		"end": {
+			"line": 64,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './collaboration' or its corresponding type declarations.",
+		"start": {
+			"line": 66,
+			"character": 40
+		},
+		"end": {
+			"line": 66,
+			"character": 57
+		}
+	}
+]
+
+=== 1488 demos/playground/src/ToolbarPlayground.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 47,
+			"character": 9
+		},
+		"end": {
+			"line": 47,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical/shiki' or its corresponding type declarations.",
+		"start": {
+			"line": 48,
+			"character": 39
+		},
+		"end": {
+			"line": 48,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './InsertImageDialog.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 49,
+			"character": 32
+		},
+		"end": {
+			"line": 49,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './settings/settingsStore' or its corresponding type declarations.",
+		"start": {
+			"line": 51,
+			"character": 35
+		},
+		"end": {
+			"line": 51,
+			"character": 61
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editor' implicitly has an 'any' type.",
+		"start": {
+			"line": 57,
+			"character": 22
+		},
+		"end": {
+			"line": 57,
+			"character": 28
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'activeEditor' implicitly has an 'any' type.",
+		"start": {
+			"line": 57,
+			"character": 30
+		},
+		"end": {
+			"line": 57,
+			"character": 42
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'blockType' implicitly has an 'any' type.",
+		"start": {
+			"line": 57,
+			"character": 44
+		},
+		"end": {
+			"line": 57,
+			"character": 53
+		}
+	}
+]
+
+=== 650 demos/playground/src/settings/Settings.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './settingsStore' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './appSettings' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../ui/Switch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 42
+		}
+	}
+]
+
+=== 3 demos/qalam/src/App.svelte	json
+[]
+
+=== 892 demos/qalam/src/lib/Editor.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 53,
+			"character": 9
+		},
+		"end": {
+			"line": 53,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical/shiki' or its corresponding type declarations.",
+		"start": {
+			"line": 54,
+			"character": 41
+		},
+		"end": {
+			"line": 54,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical/dist/themes/default' or its corresponding type declarations.",
+		"start": {
+			"line": 55,
+			"character": 37
+		},
+		"end": {
+			"line": 55,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 56,
+			"character": 47
+		},
+		"end": {
+			"line": 56,
+			"character": 63
+		}
+	}
+]
+
+=== 218 demos/qalam/src/lib/InsertImageDialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 9
+		},
+		"end": {
+			"line": 17,
+			"character": 25
+		}
+	}
+]
+
+=== 3 demos/qalam/src/lib/Settings.svelte	json
+[]
+
+=== 448 demos/qalam/src/lib/Sidebar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/api/core' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tauri-apps/plugin-dialog' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 40
+		},
+		"end": {
+			"line": 2,
+			"character": 67
+		}
+	}
+]
+
+=== 1034 demos/qalam/src/lib/Toolbar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 47,
+			"character": 9
+		},
+		"end": {
+			"line": 47,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-lexical/shiki' or its corresponding type declarations.",
+		"start": {
+			"line": 48,
+			"character": 39
+		},
+		"end": {
+			"line": 48,
+			"character": 61
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editor' implicitly has an 'any' type.",
+		"start": {
+			"line": 53,
+			"character": 22
+		},
+		"end": {
+			"line": 53,
+			"character": 28
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'activeEditor' implicitly has an 'any' type.",
+		"start": {
+			"line": 53,
+			"character": 30
+		},
+		"end": {
+			"line": 53,
+			"character": 42
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'blockType' implicitly has an 'any' type.",
+		"start": {
+			"line": 53,
+			"character": 44
+		},
+		"end": {
+			"line": 53,
+			"character": 53
+		}
+	}
+]
+
+=== 3 demos/richtext-editor/src/App.svelte	json
+[]
+
+=== 3 demos/sveltekit/src/RichTextComposer.svelte	json
+[]
+
+=== 3 demos/sveltekit/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/svelte-lexical/src/lib/components/actionbar/ActionBar.svelte	json
+[]
+
+=== 651 packages/svelte-lexical/src/lib/components/actionbar/ExportButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/file' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	}
+]
+
+=== 651 packages/svelte-lexical/src/lib/components/actionbar/ImportButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/file' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	}
+]
+
+=== 438 packages/svelte-lexical/src/lib/components/actionbar/ReadonlyButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 71
+		}
+	}
+]
+
+=== 3 packages/svelte-lexical/src/lib/components/generic/button/CloseCircleButton.svelte	json
+[]
+
+=== 214 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPicker.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './helpers.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 9
+		},
+		"end": {
+			"line": 8,
+			"character": 23
+		}
+	}
+]
+
+=== 461 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 56
+		}
+	}
+]
+
+=== 231 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDropDown.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 60
+		}
+	}
+]
+
+=== 429 packages/svelte-lexical/src/lib/components/generic/colorpicker/MoveWrapper.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './helpers.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	}
+]
+
+=== 1839 packages/svelte-lexical/src/lib/components/generic/contextmenu/ContextMenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 9
+		},
+		"end": {
+			"line": 11,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './contextMenuHelpers.js' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 9
+		},
+		"end": {
+			"line": 18,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 30
+		},
+		"end": {
+			"line": 19,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './typeAheadMenuHelpers.js' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 58
+		},
+		"end": {
+			"line": 20,
+			"character": 85
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'option' implicitly has an 'any' type.",
+		"start": {
+			"line": 112,
+			"character": 12
+		},
+		"end": {
+			"line": 112,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 125,
+			"character": 9
+		},
+		"end": {
+			"line": 125,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 154,
+			"character": 9
+		},
+		"end": {
+			"line": 154,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 177,
+			"character": 9
+		},
+		"end": {
+			"line": 177,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 188,
+			"character": 9
+		},
+		"end": {
+			"line": 188,
+			"character": 16
+		}
+	}
+]
+
+=== 1299 packages/svelte-lexical/src/lib/components/generic/contextmenu/TypeAheadMenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 9
+		},
+		"end": {
+			"line": 7,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './contextMenuHelpers.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 48
+		},
+		"end": {
+			"line": 8,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './typeAheadMenuHelpers.js' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 9
+		},
+		"end": {
+			"line": 18,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 26
+		},
+		"end": {
+			"line": 19,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 28
+		},
+		"end": {
+			"line": 20,
+			"character": 44
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'isEditable' implicitly has an 'any' type.",
+		"start": {
+			"line": 283,
+			"character": 37
+		},
+		"end": {
+			"line": 283,
+			"character": 47
+		}
+	}
+]
+
+=== 3 packages/svelte-lexical/src/lib/components/generic/dialog/ModalDialog.svelte	json
+[]
+
+=== 1158 packages/svelte-lexical/src/lib/components/generic/dropdown/DropDown.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'EventTarget | null' is not assignable to parameter of type 'Node | null'.\n  Type 'EventTarget' is missing the following properties from type 'Node': baseURI, childNodes, firstChild, isConnected, and 43 more.",
+		"start": {
+			"line": 60,
+			"character": 46
+		},
+		"end": {
+			"line": 60,
+			"character": 52
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'EventTarget | null' is not assignable to parameter of type 'Node | null'.\n  Type 'EventTarget' is missing the following properties from type 'Node': baseURI, childNodes, firstChild, isConnected, and 43 more.",
+		"start": {
+			"line": 62,
+			"character": 41
+		},
+		"end": {
+			"line": 62,
+			"character": 47
+		}
+	}
+]
+
+=== 213 packages/svelte-lexical/src/lib/components/generic/dropdown/DropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	}
+]
+
+=== 213 packages/svelte-lexical/src/lib/components/generic/dropdown/DropDownItems.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	}
+]
+
+=== 3 packages/svelte-lexical/src/lib/components/generic/input/FileInput.svelte	json
+[]
+
+=== 3 packages/svelte-lexical/src/lib/components/generic/input/NumberInput.svelte	json
+[]
+
+=== 3 packages/svelte-lexical/src/lib/components/generic/input/TextInput.svelte	json
+[]
+
+=== 3 packages/svelte-lexical/src/lib/components/generic/portal/Portal.svelte	json
+[]
+
+=== 3 packages/svelte-lexical/src/lib/components/generic/theme/ThemeImage.svelte	json
+[]
+
+=== 217 packages/svelte-lexical/src/lib/components/generic/theme/ThemeSelector.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	}
+]
+
+=== 3772 packages/svelte-lexical/src/lib/components/richtext/RichTextComposer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/list' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 39
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/rich-text' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 39
+		},
+		"end": {
+			"line": 4,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 55
+		},
+		"end": {
+			"line": 5,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/Composer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 23
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/ContentEditable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 30
+		},
+		"end": {
+			"line": 8,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/SharedHistoryPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 34
+		},
+		"end": {
+			"line": 9,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/HorizontalRuleNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 35
+		},
+		"end": {
+			"line": 10,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/Image/ImageNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 26
+		},
+		"end": {
+			"line": 11,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/Image/ImagePlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 26
+		},
+		"end": {
+			"line": 12,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/ListPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 25
+		},
+		"end": {
+			"line": 13,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/CheckListPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 30
+		},
+		"end": {
+			"line": 14,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/HorizontalRulePlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 35
+		},
+		"end": {
+			"line": 15,
+			"character": 82
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/RichTextPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 29
+		},
+		"end": {
+			"line": 16,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/PlaceHolder.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 26
+		},
+		"end": {
+			"line": 19,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/AutoFocusPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 30
+		},
+		"end": {
+			"line": 20,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/Image/CaptionEditorHistoryPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 41
+		},
+		"end": {
+			"line": 21,
+			"character": 100
+		}
+	}
+]
+
+=== 390 packages/svelte-lexical/src/lib/components/richtext/ToolbarRichText.svelte	json
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module '../toolbar/Divider.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-u7HUeN/packages/svelte-lexical/src/lib/components/toolbar/Divider.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	}
+]
+
+=== 641 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/BlockFormatDropDown.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../ToolbarData.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 37
+		},
+		"end": {
+			"line": 5,
+			"character": 56
+		}
+	},
+	{
+		"code": 2469,
+		"message": "The '+' operator cannot be applied to type 'symbol'.",
+		"start": {
+			"line": 20,
+			"character": 44
+		},
+		"end": {
+			"line": 20,
+			"character": 54
+		}
+	}
+]
+
+=== 893 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/BulletDropDrownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../ToolbarData.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 42
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 33
+		},
+		"end": {
+			"line": 6,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	}
+]
+
+=== 893 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/CheckDropDrownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../ToolbarData.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 42
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 32
+		},
+		"end": {
+			"line": 6,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	}
+]
+
+=== 893 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/CodeDropDrownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../ToolbarData.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 42
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	}
+]
+
+=== 1111 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/HeadingDropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/rich-text' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../ToolbarData.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 42
+		},
+		"end": {
+			"line": 4,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 26
+		},
+		"end": {
+			"line": 6,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 30
+		},
+		"end": {
+			"line": 7,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 43
+		}
+	}
+]
+
+=== 893 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/NumberDropDrownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../ToolbarData.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 42
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 35
+		},
+		"end": {
+			"line": 6,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	}
+]
+
+=== 893 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/ParagraphDropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../ToolbarData.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 42
+		},
+		"end": {
+			"line": 4,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 32
+		},
+		"end": {
+			"line": 6,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	}
+]
+
+=== 893 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/QuoteDropDrownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../ToolbarData.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 42
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 28
+		},
+		"end": {
+			"line": 6,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	}
+]
+
+=== 674 packages/svelte-lexical/src/lib/components/toolbar/BoldButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 9
+		},
+		"end": {
+			"line": 5,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 42
+		}
+	}
+]
+
+=== 841 packages/svelte-lexical/src/lib/components/toolbar/CodeLanguageDropDown.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/code' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 9
+		},
+		"end": {
+			"line": 5,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 60
+		},
+		"end": {
+			"line": 6,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 47
+		},
+		"end": {
+			"line": 9,
+			"character": 77
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'unknown' is not assignable to type 'string'.",
+		"start": {
+			"line": 28,
+			"character": 26
+		},
+		"end": {
+			"line": 28,
+			"character": 38
+		}
+	}
+]
+
+=== 1059 packages/svelte-lexical/src/lib/components/toolbar/CodeThemeShikiDropDown.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/code' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 42
+		},
+		"end": {
+			"line": 1,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/code-shiki' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 60
+		},
+		"end": {
+			"line": 3,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 47
+		},
+		"end": {
+			"line": 6,
+			"character": 77
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'option' implicitly has an 'any' type.",
+		"start": {
+			"line": 18,
+			"character": 34
+		},
+		"end": {
+			"line": 18,
+			"character": 40
+		}
+	}
+]
+
+=== 3 packages/svelte-lexical/src/lib/components/toolbar/Divider.svelte	json
+[]
+
+=== 1031 packages/svelte-lexical/src/lib/components/toolbar/DropDownAlign.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 9
+		},
+		"end": {
+			"line": 5,
+			"character": 18
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './Divider.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-u7HUeN/packages/svelte-lexical/src/lib/components/toolbar/Divider.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 8,
+			"character": 22
+		},
+		"end": {
+			"line": 8,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 47
+		},
+		"end": {
+			"line": 9,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 26
+		},
+		"end": {
+			"line": 12,
+			"character": 42
+		}
+	}
+]
+
+=== 656 packages/svelte-lexical/src/lib/components/toolbar/DropDownBackColorPicker.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/selection' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 50
+		},
+		"end": {
+			"line": 5,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 60
+		},
+		"end": {
+			"line": 6,
+			"character": 69
+		}
+	}
+]
+
+=== 656 packages/svelte-lexical/src/lib/components/toolbar/DropDownTextColorPicker.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/selection' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 50
+		},
+		"end": {
+			"line": 5,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 60
+		},
+		"end": {
+			"line": 6,
+			"character": 69
+		}
+	}
+]
+
+=== 656 packages/svelte-lexical/src/lib/components/toolbar/FontFamilyDropDown.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/selection' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 50
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 46
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 47
+		},
+		"end": {
+			"line": 5,
+			"character": 77
+		}
+	}
+]
+
+=== 655 packages/svelte-lexical/src/lib/components/toolbar/FontSizeDropDown.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/selection' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 50
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 9
+		},
+		"end": {
+			"line": 5,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 41
+		},
+		"end": {
+			"line": 8,
+			"character": 71
+		}
+	}
+]
+
+=== 684 packages/svelte-lexical/src/lib/components/toolbar/FontSizeEntry.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 47
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/updateFontSize.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 26
+		},
+		"end": {
+			"line": 11,
+			"character": 42
+		}
+	}
+]
+
+=== 652 packages/svelte-lexical/src/lib/components/toolbar/FormatCodeButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 47
+		},
+		"end": {
+			"line": 4,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 42
+		}
+	}
+]
+
+=== 231 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertBlueskyDropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 231 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertColumnLayoutDropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 231 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertDropDown.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	}
+]
+
+=== 470 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertHRDropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/HorizontalRuleNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 47
+		},
+		"end": {
+			"line": 2,
+			"character": 88
+		}
+	}
+]
+
+=== 231 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertImageDropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 56
+		}
+	}
+]
+
+=== 231 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertTableDropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 231 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertTweetDropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 231 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertYoutubeDropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 675 packages/svelte-lexical/src/lib/components/toolbar/InsertLink.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 47
+		},
+		"end": {
+			"line": 3,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 59
+		}
+	}
+]
+
+=== 675 packages/svelte-lexical/src/lib/components/toolbar/ItalicButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 47
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	}
+]
+
+=== 928 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/ClearFormattingDropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/dropdown/DropDownItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	}
+]
+
+=== 479 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/MoreStylesDropDown.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/dropdown/DropDown.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 73
+		}
+	}
+]
+
+=== 905 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/StrikethroughDropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/dropdown/DropDownItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 36
+		},
+		"end": {
+			"line": 4,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	}
+]
+
+=== 928 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/SubscriptDropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/dropdown/DropDownItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 32
+		},
+		"end": {
+			"line": 6,
+			"character": 64
+		}
+	}
+]
+
+=== 928 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/SuperscriptDropDownItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/dropdown/DropDownItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 34
+		},
+		"end": {
+			"line": 6,
+			"character": 66
+		}
+	}
+]
+
+=== 1070 packages/svelte-lexical/src/lib/components/toolbar/RedoButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 60
+		},
+		"end": {
+			"line": 1,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 9
+		},
+		"end": {
+			"line": 7,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 25
+		},
+		"end": {
+			"line": 8,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 21
+		},
+		"end": {
+			"line": 9,
+			"character": 53
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 21,
+			"character": 7
+		},
+		"end": {
+			"line": 21,
+			"character": 14
+		}
+	}
+]
+
+=== 1339 packages/svelte-lexical/src/lib/components/toolbar/ShortcutsPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 9
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/rich-text' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 36
+		},
+		"end": {
+			"line": 7,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 9
+		},
+		"end": {
+			"line": 16,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 9
+		},
+		"end": {
+			"line": 31,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 54,
+			"character": 9
+		},
+		"end": {
+			"line": 54,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/updateFontSize.js' or its corresponding type declarations.",
+		"start": {
+			"line": 58,
+			"character": 9
+		},
+		"end": {
+			"line": 58,
+			"character": 47
+		}
+	}
+]
+
+=== 3427 packages/svelte-lexical/src/lib/components/toolbar/StateStoreRichTextUpdator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 9
+		},
+		"end": {
+			"line": 9,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/selection' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 9
+		},
+		"end": {
+			"line": 13,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/rich-text' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 48
+		},
+		"end": {
+			"line": 14,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/list' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 52
+		},
+		"end": {
+			"line": 15,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 9
+		},
+		"end": {
+			"line": 21,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/code' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 61
+		},
+		"end": {
+			"line": 23,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 43
+		},
+		"end": {
+			"line": 25,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './getSelectionInfo.js' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 30
+		},
+		"end": {
+			"line": 27,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/link' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 42
+		},
+		"end": {
+			"line": 28,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ToolbarData.js' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 37
+		},
+		"end": {
+			"line": 29,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/table' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 54
+		},
+		"end": {
+			"line": 30,
+			"character": 70
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 59,
+			"character": 36
+		},
+		"end": {
+			"line": 59,
+			"character": 37
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'string | number | symbol' is not assignable to type 'string'.\n  Type 'number' is not assignable to type 'string'.",
+		"start": {
+			"line": 75,
+			"character": 6
+		},
+		"end": {
+			"line": 75,
+			"character": 16
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editorState' implicitly has an 'any' type.",
+		"start": {
+			"line": 192,
+			"character": 38
+		},
+		"end": {
+			"line": 192,
+			"character": 49
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter '_payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 202,
+			"character": 9
+		},
+		"end": {
+			"line": 202,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'newEditor' implicitly has an 'any' type.",
+		"start": {
+			"line": 202,
+			"character": 19
+		},
+		"end": {
+			"line": 202,
+			"character": 28
+		}
+	}
+]
+
+=== 675 packages/svelte-lexical/src/lib/components/toolbar/StrikethroughButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 47
+		},
+		"end": {
+			"line": 3,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 36
+		},
+		"end": {
+			"line": 5,
+			"character": 68
+		}
+	}
+]
+
+=== 438 packages/svelte-lexical/src/lib/components/toolbar/Toolbar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 44
+		},
+		"end": {
+			"line": 6,
+			"character": 53
+		}
+	}
+]
+
+=== 675 packages/svelte-lexical/src/lib/components/toolbar/UnderlineButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 47
+		},
+		"end": {
+			"line": 3,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './shortcuts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 32
+		},
+		"end": {
+			"line": 5,
+			"character": 64
+		}
+	}
+]
+
+=== 1070 packages/svelte-lexical/src/lib/components/toolbar/UndoButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 60
+		},
+		"end": {
+			"line": 1,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 9
+		},
+		"end": {
+			"line": 7,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 25
+		},
+		"end": {
+			"line": 8,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 21
+		},
+		"end": {
+			"line": 9,
+			"character": 53
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 21,
+			"character": 7
+		},
+		"end": {
+			"line": 21,
+			"character": 14
+		}
+	}
+]
+
+=== 1219 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertBlueskyDialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/button/CloseCircleButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 32
+		},
+		"end": {
+			"line": 9,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/dialog/ModalDialog.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 26
+		},
+		"end": {
+			"line": 10,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/input/TextInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 24
+		},
+		"end": {
+			"line": 11,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 47
+		},
+		"end": {
+			"line": 12,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 26
+		},
+		"end": {
+			"line": 13,
+			"character": 56
+		}
+	}
+]
+
+=== 692 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertColumnsDialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 32
+		},
+		"end": {
+			"line": 9,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 9
+		},
+		"end": {
+			"line": 13,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 26
+		},
+		"end": {
+			"line": 14,
+			"character": 56
+		}
+	}
+]
+
+=== 465 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageDialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 28
+		},
+		"end": {
+			"line": 10,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 26
+		},
+		"end": {
+			"line": 11,
+			"character": 56
+		}
+	}
+]
+
+=== 473 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageUploadedDialogBody.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/Image/ImagePlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 81
+		}
+	}
+]
+
+=== 473 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageUriDialogBody.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/Image/ImagePlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 37
+		},
+		"end": {
+			"line": 2,
+			"character": 81
+		}
+	}
+]
+
+=== 970 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertTableDialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 32
+		},
+		"end": {
+			"line": 9,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 41
+		},
+		"end": {
+			"line": 11,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/input/NumberInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 26
+		},
+		"end": {
+			"line": 12,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/button/CloseCircleButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 32
+		},
+		"end": {
+			"line": 13,
+			"character": 89
+		}
+	}
+]
+
+=== 1219 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertTweetDialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/button/CloseCircleButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 32
+		},
+		"end": {
+			"line": 9,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/dialog/ModalDialog.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 26
+		},
+		"end": {
+			"line": 10,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/input/TextInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 24
+		},
+		"end": {
+			"line": 11,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 41
+		},
+		"end": {
+			"line": 12,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 26
+		},
+		"end": {
+			"line": 13,
+			"character": 56
+		}
+	}
+]
+
+=== 1219 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertYoutubeDialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/button/CloseCircleButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 32
+		},
+		"end": {
+			"line": 9,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/dialog/ModalDialog.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 26
+		},
+		"end": {
+			"line": 10,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/input/TextInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 24
+		},
+		"end": {
+			"line": 11,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 43
+		},
+		"end": {
+			"line": 12,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 26
+		},
+		"end": {
+			"line": 13,
+			"character": 56
+		}
+	}
+]
+
+=== 1475 packages/svelte-lexical/src/lib/core/Composer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/history' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 40
+		},
+		"end": {
+			"line": 21,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 9
+		},
+		"end": {
+			"line": 31,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './initializeEditor.js' or its corresponding type declarations.",
+		"start": {
+			"line": 33,
+			"character": 33
+		},
+		"end": {
+			"line": 33,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 38,
+			"character": 9
+		},
+		"end": {
+			"line": 38,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './editorExtensions.js' or its corresponding type declarations.",
+		"start": {
+			"line": 40,
+			"character": 37
+		},
+		"end": {
+			"line": 40,
+			"character": 60
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'error' implicitly has an 'any' type.",
+		"start": {
+			"line": 64,
+			"character": 14
+		},
+		"end": {
+			"line": 64,
+			"character": 19
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'editable' implicitly has an 'any' type.",
+		"start": {
+			"line": 76,
+			"character": 44
+		},
+		"end": {
+			"line": 76,
+			"character": 52
+		}
+	}
+]
+
+=== 858 packages/svelte-lexical/src/lib/core/ContentEditable.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of './ContentEditable.css'.",
+		"start": {
+			"line": 1,
+			"character": 9
+		},
+		"end": {
+			"line": 1,
+			"character": 32
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 35
+		},
+		"end": {
+			"line": 2,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 48
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'currentIsEditable' implicitly has an 'any' type.",
+		"start": {
+			"line": 72,
+			"character": 44
+		},
+		"end": {
+			"line": 72,
+			"character": 61
+		}
+	}
+]
+
+=== 1400 packages/svelte-lexical/src/lib/core/Decorator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 9
+		},
+		"end": {
+			"line": 8,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 26
+		},
+		"end": {
+			"line": 10,
+			"character": 48
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'n' implicitly has an 'any' type.",
+		"start": {
+			"line": 29,
+			"character": 27
+		},
+		"end": {
+			"line": 29,
+			"character": 28
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'nodes' implicitly has an 'any' type.",
+		"start": {
+			"line": 36,
+			"character": 11
+		},
+		"end": {
+			"line": 36,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 36,
+			"character": 18
+		},
+		"end": {
+			"line": 36,
+			"character": 25
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'decorators' implicitly has an 'any' type.",
+		"start": {
+			"line": 59,
+			"character": 10
+		},
+		"end": {
+			"line": 59,
+			"character": 20
+		}
+	}
+]
+
+=== 1428 packages/svelte-lexical/src/lib/core/NestedComposer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 18
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'entry' is of type 'unknown'.",
+		"start": {
+			"line": 49,
+			"character": 17
+		},
+		"end": {
+			"line": 49,
+			"character": 22
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'entry' is of type 'unknown'.",
+		"start": {
+			"line": 50,
+			"character": 13
+		},
+		"end": {
+			"line": 50,
+			"character": 18
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'entry' is of type 'unknown'.",
+		"start": {
+			"line": 51,
+			"character": 15
+		},
+		"end": {
+			"line": 51,
+			"character": 20
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'entry' is of type 'unknown'.",
+		"start": {
+			"line": 52,
+			"character": 24
+		},
+		"end": {
+			"line": 52,
+			"character": 29
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'entry' is of type 'unknown'.",
+		"start": {
+			"line": 53,
+			"character": 45
+		},
+		"end": {
+			"line": 53,
+			"character": 50
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'entry' is of type 'unknown'.",
+		"start": {
+			"line": 54,
+			"character": 43
+		},
+		"end": {
+			"line": 54,
+			"character": 48
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'editable' implicitly has an 'any' type.",
+		"start": {
+			"line": 63,
+			"character": 50
+		},
+		"end": {
+			"line": 63,
+			"character": 58
+		}
+	}
+]
+
+=== 447 packages/svelte-lexical/src/lib/core/plugins/AutoFocusPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../commands/commands.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 53
+		}
+	}
+]
+
+=== 216 packages/svelte-lexical/src/lib/core/plugins/AutoLink/AutoLinkPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/link' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 1857 packages/svelte-lexical/src/lib/core/plugins/AutoLink/AutoLinkPluginCore.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/link' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 46
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/link' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 30
+		},
+		"end": {
+			"line": 11,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 9
+		},
+		"end": {
+			"line": 22,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 26
+		},
+		"end": {
+			"line": 23,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'child' implicitly has an 'any' type.",
+		"start": {
+			"line": 401,
+			"character": 25
+		},
+		"end": {
+			"line": 401,
+			"character": 30
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 462,
+			"character": 9
+		},
+		"end": {
+			"line": 462,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 468,
+			"character": 25
+		},
+		"end": {
+			"line": 468,
+			"character": 29
+		}
+	}
+]
+
+=== 1681 packages/svelte-lexical/src/lib/core/plugins/BlockWithAlignableContents.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 48
+		},
+		"end": {
+			"line": 3,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './DecoratorBlockNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 62
+		},
+		"end": {
+			"line": 5,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 9
+		},
+		"end": {
+			"line": 9,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 9
+		},
+		"end": {
+			"line": 18,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 26
+		},
+		"end": {
+			"line": 20,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../nodeSelectionStore.js' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 9
+		},
+		"end": {
+			"line": 24,
+			"character": 35
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'formatType' implicitly has an 'any' type.",
+		"start": {
+			"line": 46,
+			"character": 9
+		},
+		"end": {
+			"line": 46,
+			"character": 19
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 78,
+			"character": 9
+		},
+		"end": {
+			"line": 78,
+			"character": 14
+		}
+	}
+]
+
+=== 644 packages/svelte-lexical/src/lib/core/plugins/CheckListPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/list' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 34
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 49
+		}
+	}
+]
+
+=== 2033 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/CodeActionMenuPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/code' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 9
+		},
+		"end": {
+			"line": 6,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 26
+		},
+		"end": {
+			"line": 12,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './components/PrettierLangOptions.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 30
+		},
+		"end": {
+			"line": 16,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 28
+		},
+		"end": {
+			"line": 17,
+			"character": 40
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'mutations' implicitly has an 'any' type.",
+		"start": {
+			"line": 95,
+			"character": 7
+		},
+		"end": {
+			"line": 95,
+			"character": 16
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'target' is possibly 'null'.",
+		"start": {
+			"line": 141,
+			"character": 26
+		},
+		"end": {
+			"line": 141,
+			"character": 32
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'closest' does not exist on type 'EventTarget'.",
+		"start": {
+			"line": 141,
+			"character": 33
+		},
+		"end": {
+			"line": 141,
+			"character": 40
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'target' is possibly 'null'.",
+		"start": {
+			"line": 144,
+			"character": 8
+		},
+		"end": {
+			"line": 144,
+			"character": 14
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'closest' does not exist on type 'EventTarget'.",
+		"start": {
+			"line": 144,
+			"character": 15
+		},
+		"end": {
+			"line": 144,
+			"character": 22
+		}
+	}
+]
+
+=== 863 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/components/CopyButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/code' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 42
+		},
+		"end": {
+			"line": 1,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 9
+		},
+		"end": {
+			"line": 6,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 28
+		},
+		"end": {
+			"line": 9,
+			"character": 41
+		}
+	}
+]
+
+=== 1086 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/components/PrettierButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/code' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 52
+		},
+		"end": {
+			"line": 3,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 72
+		},
+		"end": {
+			"line": 4,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'prettier' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './PrettierLangOptions.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 35
+		}
+	}
+]
+
+=== 440 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeHighlightPrismPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/code' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	}
+]
+
+=== 450 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeHighlightShikiPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/code-shiki' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	}
+]
+
+=== 2271 packages/svelte-lexical/src/lib/core/plugins/ColumnsLayout/ColumnLayoutPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 46
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 9
+		},
+		"end": {
+			"line": 9,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 9
+		},
+		"end": {
+			"line": 21,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './LayoutContainerNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 9
+		},
+		"end": {
+			"line": 28,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './LayoutItemNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 9
+		},
+		"end": {
+			"line": 35,
+			"character": 30
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'template' implicitly has an 'any' type.",
+		"start": {
+			"line": 157,
+			"character": 10
+		},
+		"end": {
+			"line": 157,
+			"character": 18
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'nodeKey' implicitly has an 'any' type.",
+		"start": {
+			"line": 157,
+			"character": 20
+		},
+		"end": {
+			"line": 157,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 195,
+			"character": 52
+		},
+		"end": {
+			"line": 195,
+			"character": 56
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 207,
+			"character": 57
+		},
+		"end": {
+			"line": 207,
+			"character": 61
+		}
+	},
+	{
+		"code": 2347,
+		"message": "Untyped function calls may not accept type arguments.",
+		"start": {
+			"line": 208,
+			"character": 25
+		},
+		"end": {
+			"line": 208,
+			"character": 56
+		}
+	}
+]
+
+=== 229 packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './ComponentPickerOption.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 2221 packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/contextmenu/TypeAheadMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 28
+		},
+		"end": {
+			"line": 22,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/portal/Portal.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 21
+		},
+		"end": {
+			"line": 23,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 30
+		},
+		"end": {
+			"line": 24,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ComponentPickerOption.js' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 43
+		},
+		"end": {
+			"line": 26,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './getOptions.js' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 50
+		},
+		"end": {
+			"line": 27,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/contextmenu/typeAheadMenuHelpers.js' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 46
+		},
+		"end": {
+			"line": 28,
+			"character": 107
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 26
+		},
+		"end": {
+			"line": 29,
+			"character": 56
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'option' implicitly has an 'any' type.",
+		"start": {
+			"line": 53,
+			"character": 9
+		},
+		"end": {
+			"line": 53,
+			"character": 15
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'keyword' implicitly has an 'any' type.",
+		"start": {
+			"line": 55,
+			"character": 32
+		},
+		"end": {
+			"line": 55,
+			"character": 39
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 109,
+			"character": 18
+		},
+		"end": {
+			"line": 109,
+			"character": 23
+		}
+	}
+]
+
+=== 1073 packages/svelte-lexical/src/lib/core/plugins/HashtagPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './HashtagNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 9
+		},
+		"end": {
+			"line": 5,
+			"character": 27
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/text' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 42
+		},
+		"end": {
+			"line": 6,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 30
+		},
+		"end": {
+			"line": 8,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 26
+		},
+		"end": {
+			"line": 9,
+			"character": 49
+		}
+	}
+]
+
+=== 646 packages/svelte-lexical/src/lib/core/plugins/HistoryPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/history' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 9
+		},
+		"end": {
+			"line": 6,
+			"character": 27
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 35
+		},
+		"end": {
+			"line": 7,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 49
+		}
+	}
+]
+
+=== 649 packages/svelte-lexical/src/lib/core/plugins/HorizontalRuleComponent.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 9
+		},
+		"end": {
+			"line": 7,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 9
+		},
+		"end": {
+			"line": 12,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../nodeSelectionStore.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 9
+		},
+		"end": {
+			"line": 17,
+			"character": 35
+		}
+	}
+]
+
+=== 1056 packages/svelte-lexical/src/lib/core/plugins/HorizontalRulePlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 9
+		},
+		"end": {
+			"line": 5,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 68
+		},
+		"end": {
+			"line": 6,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './HorizontalRuleNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 9
+		},
+		"end": {
+			"line": 11,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 26
+		},
+		"end": {
+			"line": 12,
+			"character": 49
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'type' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 7
+		},
+		"end": {
+			"line": 19,
+			"character": 11
+		}
+	}
+]
+
+=== 642 packages/svelte-lexical/src/lib/core/plugins/Image/CaptionEditorCollaborationPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 42
+		},
+		"end": {
+			"line": 4,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/yjs' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'yjs' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 30
+		}
+	}
+]
+
+=== 227 packages/svelte-lexical/src/lib/core/plugins/Image/CaptionEditorHistoryPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 42
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	}
+]
+
+=== 2099 packages/svelte-lexical/src/lib/core/plugins/Image/ImageComponent.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of './ImageNodeStyles.css'.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 32
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 9
+		},
+		"end": {
+			"line": 26,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 30
+		},
+		"end": {
+			"line": 28,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ImageNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 44
+		},
+		"end": {
+			"line": 30,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../nodeSelectionStore.js' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 9
+		},
+		"end": {
+			"line": 34,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 43,
+			"character": 9
+		},
+		"end": {
+			"line": 43,
+			"character": 35
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editorState' implicitly has an 'any' type.",
+		"start": {
+			"line": 178,
+			"character": 38
+		},
+		"end": {
+			"line": 178,
+			"character": 49
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter '_' implicitly has an 'any' type.",
+		"start": {
+			"line": 188,
+			"character": 9
+		},
+		"end": {
+			"line": 188,
+			"character": 10
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'activeEditor' implicitly has an 'any' type.",
+		"start": {
+			"line": 188,
+			"character": 12
+		},
+		"end": {
+			"line": 188,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 206,
+			"character": 9
+		},
+		"end": {
+			"line": 206,
+			"character": 14
+		}
+	}
+]
+
+=== 2742 packages/svelte-lexical/src/lib/core/plugins/Image/ImagePlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 9
+		},
+		"end": {
+			"line": 32,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 9
+		},
+		"end": {
+			"line": 37,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ImageNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 45,
+			"character": 9
+		},
+		"end": {
+			"line": 45,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 46,
+			"character": 26
+		},
+		"end": {
+			"line": 46,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 72,
+			"character": 9
+		},
+		"end": {
+			"line": 72,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 86,
+			"character": 9
+		},
+		"end": {
+			"line": 86,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 93,
+			"character": 9
+		},
+		"end": {
+			"line": 93,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 100,
+			"character": 9
+		},
+		"end": {
+			"line": 100,
+			"character": 14
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'target' is possibly 'null'.",
+		"start": {
+			"line": 200,
+			"character": 7
+		},
+		"end": {
+			"line": 200,
+			"character": 13
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'closest' does not exist on type 'EventTarget'.",
+		"start": {
+			"line": 200,
+			"character": 14
+		},
+		"end": {
+			"line": 200,
+			"character": 21
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'target' is possibly 'null'.",
+		"start": {
+			"line": 201,
+			"character": 20
+		},
+		"end": {
+			"line": 201,
+			"character": 26
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'parentElement' does not exist on type 'EventTarget'.",
+		"start": {
+			"line": 201,
+			"character": 27
+		},
+		"end": {
+			"line": 201,
+			"character": 40
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'target' is possibly 'null'.",
+		"start": {
+			"line": 202,
+			"character": 6
+		},
+		"end": {
+			"line": 202,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'parentElement' does not exist on type 'EventTarget'.",
+		"start": {
+			"line": 202,
+			"character": 13
+		},
+		"end": {
+			"line": 202,
+			"character": 26
+		}
+	}
+]
+
+=== 424 packages/svelte-lexical/src/lib/core/plugins/Image/ImageResizer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 35
+		},
+		"end": {
+			"line": 4,
+			"character": 51
+		}
+	}
+]
+
+=== 1073 packages/svelte-lexical/src/lib/core/plugins/KeywordPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './KeywordNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 9
+		},
+		"end": {
+			"line": 6,
+			"character": 27
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 30
+		},
+		"end": {
+			"line": 8,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/text' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 42
+		},
+		"end": {
+			"line": 9,
+			"character": 57
+		}
+	}
+]
+
+=== 437 packages/svelte-lexical/src/lib/core/plugins/ListPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/list' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	}
+]
+
+=== 665 packages/svelte-lexical/src/lib/core/plugins/MarkdownShortcut/MarkdownShortcutPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/markdown' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 42
+		},
+		"end": {
+			"line": 2,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/markdown' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 56
+		}
+	}
+]
+
+=== 1637 packages/svelte-lexical/src/lib/core/plugins/OnChangePlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 48
+		},
+		"end": {
+			"line": 1,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 49
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editorState' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 10
+		},
+		"end": {
+			"line": 25,
+			"character": 21
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'dirtyElements' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 23
+		},
+		"end": {
+			"line": 25,
+			"character": 36
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'dirtyLeaves' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 38
+		},
+		"end": {
+			"line": 25,
+			"character": 49
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'prevEditorState' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 51
+		},
+		"end": {
+			"line": 25,
+			"character": 66
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'tags' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 68
+		},
+		"end": {
+			"line": 25,
+			"character": 72
+		}
+	}
+]
+
+=== 858 packages/svelte-lexical/src/lib/core/plugins/PlaceHolder.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/text' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 68
+		},
+		"end": {
+			"line": 2,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 46
+		}
+	}
+]
+
+=== 443 packages/svelte-lexical/src/lib/core/plugins/PlainTextPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/plain-text' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	}
+]
+
+=== 442 packages/svelte-lexical/src/lib/core/plugins/RichTextPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/rich-text' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 33
+		},
+		"end": {
+			"line": 2,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 49
+		}
+	}
+]
+
+=== 224 packages/svelte-lexical/src/lib/core/plugins/SharedHistoryPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	}
+]
+
+=== 1417 packages/svelte-lexical/src/lib/core/plugins/TabIndentationPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 67
+		},
+		"end": {
+			"line": 7,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 9
+		},
+		"end": {
+			"line": 13,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 9
+		},
+		"end": {
+			"line": 26,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 26
+		},
+		"end": {
+			"line": 27,
+			"character": 49
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 33,
+			"character": 47
+		},
+		"end": {
+			"line": 33,
+			"character": 51
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 67,
+			"character": 9
+		},
+		"end": {
+			"line": 67,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 97,
+			"character": 18
+		},
+		"end": {
+			"line": 97,
+			"character": 22
+		}
+	}
+]
+
+=== 3032 packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/table' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 9
+		},
+		"end": {
+			"line": 17,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 9
+		},
+		"end": {
+			"line": 27,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/table' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 9
+		},
+		"end": {
+			"line": 35,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 30
+		},
+		"end": {
+			"line": 37,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/portal/Portal.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 39,
+			"character": 21
+		},
+		"end": {
+			"line": 39,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/dropdown/DropDown.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 40,
+			"character": 23
+		},
+		"end": {
+			"line": 40,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/dropdown/DropDownItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 41,
+			"character": 27
+		},
+		"end": {
+			"line": 41,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/colorpicker/ColorPickerDialog.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 42,
+			"character": 32
+		},
+		"end": {
+			"line": 42,
+			"character": 94
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'nodeMutations' implicitly has an 'any' type.",
+		"start": {
+			"line": 138,
+			"character": 9
+		},
+		"end": {
+			"line": 138,
+			"character": 22
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'EventTarget | null' is not assignable to parameter of type 'Node | null'.\n  Type 'EventTarget' is missing the following properties from type 'Node': baseURI, childNodes, firstChild, isConnected, and 43 more.",
+		"start": {
+			"line": 194,
+			"character": 28
+		},
+		"end": {
+			"line": 194,
+			"character": 40
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'EventTarget | null' is not assignable to parameter of type 'Node | null'.\n  Type 'EventTarget' is missing the following properties from type 'Node': baseURI, childNodes, firstChild, isConnected, and 43 more.",
+		"start": {
+			"line": 195,
+			"character": 27
+		},
+		"end": {
+			"line": 195,
+			"character": 39
+		}
+	}
+]
+
+=== 1746 packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenuPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/table' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 9
+		},
+		"end": {
+			"line": 12,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 9
+		},
+		"end": {
+			"line": 18,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 41
+		},
+		"end": {
+			"line": 22,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 30
+		},
+		"end": {
+			"line": 23,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/colorpicker/ColorPickerDialog.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 32
+		},
+		"end": {
+			"line": 24,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 28
+		},
+		"end": {
+			"line": 25,
+			"character": 44
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'rootElement' implicitly has an 'any' type.",
+		"start": {
+			"line": 205,
+			"character": 35
+		},
+		"end": {
+			"line": 205,
+			"character": 46
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'prevRootElement' implicitly has an 'any' type.",
+		"start": {
+			"line": 205,
+			"character": 48
+		},
+		"end": {
+			"line": 205,
+			"character": 63
+		}
+	}
+]
+
+=== 3689 packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/table' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 63
+		},
+		"end": {
+			"line": 1,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 44
+		},
+		"end": {
+			"line": 2,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/table' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 9
+		},
+		"end": {
+			"line": 13,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 50
+		},
+		"end": {
+			"line": 14,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 9
+		},
+		"end": {
+			"line": 19,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 35
+		},
+		"end": {
+			"line": 21,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 26
+		},
+		"end": {
+			"line": 22,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/generic/portal/Portal.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 21
+		},
+		"end": {
+			"line": 23,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util/cssStylesUtil.js' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 34
+		},
+		"end": {
+			"line": 24,
+			"character": 60
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'nodeMutations' implicitly has an 'any' type.",
+		"start": {
+			"line": 60,
+			"character": 50
+		},
+		"end": {
+			"line": 60,
+			"character": 63
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'tableNode' implicitly has an 'any' type.",
+		"start": {
+			"line": 70,
+			"character": 47
+		},
+		"end": {
+			"line": 70,
+			"character": 56
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'EventTarget | null' is not assignable to parameter of type 'Node | null'.\n  Type 'EventTarget' is missing the following properties from type 'Node': baseURI, childNodes, firstChild, isConnected, and 43 more.",
+		"start": {
+			"line": 104,
+			"character": 44
+		},
+		"end": {
+			"line": 104,
+			"character": 50
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'EventTarget | null' is not assignable to type 'HTMLElement | null'.\n  Type 'EventTarget' is missing the following properties from type 'HTMLElement': accessKey, accessKeyLabel, autocapitalize, autocorrect, and 315 more.",
+		"start": {
+			"line": 109,
+			"character": 8
+		},
+		"end": {
+			"line": 109,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'rootElement' implicitly has an 'any' type.",
+		"start": {
+			"line": 156,
+			"character": 7
+		},
+		"end": {
+			"line": 156,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'prevRootElement' implicitly has an 'any' type.",
+		"start": {
+			"line": 156,
+			"character": 20
+		},
+		"end": {
+			"line": 156,
+			"character": 35
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'cell' implicitly has an 'any' type.",
+		"start": {
+			"line": 216,
+			"character": 15
+		},
+		"end": {
+			"line": 216,
+			"character": 19
+		}
+	}
+]
+
+=== 3407 packages/svelte-lexical/src/lib/core/plugins/Table/TableHoverActionPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/table' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 9
+		},
+		"end": {
+			"line": 13,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 9
+		},
+		"end": {
+			"line": 18,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 9
+		},
+		"end": {
+			"line": 22,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../CodeBlock/CodeActionMenuPlugin/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 28
+		},
+		"end": {
+			"line": 23,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 41
+		},
+		"end": {
+			"line": 24,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 28
+		},
+		"end": {
+			"line": 27,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util/getThemeSelector.js' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 33
+		},
+		"end": {
+			"line": 28,
+			"character": 62
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'target' is possibly 'null'.",
+		"start": {
+			"line": 55,
+			"character": 27
+		},
+		"end": {
+			"line": 55,
+			"character": 33
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'closest' does not exist on type 'EventTarget'.",
+		"start": {
+			"line": 55,
+			"character": 34
+		},
+		"end": {
+			"line": 55,
+			"character": 41
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'target' is possibly 'null'.",
+		"start": {
+			"line": 61,
+			"character": 8
+		},
+		"end": {
+			"line": 61,
+			"character": 14
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'closest' does not exist on type 'EventTarget'.",
+		"start": {
+			"line": 61,
+			"character": 15
+		},
+		"end": {
+			"line": 61,
+			"character": 22
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'target' is possibly 'null'.",
+		"start": {
+			"line": 64,
+			"character": 8
+		},
+		"end": {
+			"line": 64,
+			"character": 14
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'closest' does not exist on type 'EventTarget'.",
+		"start": {
+			"line": 64,
+			"character": 15
+		},
+		"end": {
+			"line": 64,
+			"character": 22
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'target' is possibly 'null'.",
+		"start": {
+			"line": 67,
+			"character": 8
+		},
+		"end": {
+			"line": 67,
+			"character": 14
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'closest' does not exist on type 'EventTarget'.",
+		"start": {
+			"line": 67,
+			"character": 15
+		},
+		"end": {
+			"line": 67,
+			"character": 22
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 101,
+			"character": 62
+		},
+		"end": {
+			"line": 101,
+			"character": 66
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'mutations' implicitly has an 'any' type.",
+		"start": {
+			"line": 221,
+			"character": 9
+		},
+		"end": {
+			"line": 221,
+			"character": 18
+		}
+	}
+]
+
+=== 631 packages/svelte-lexical/src/lib/core/plugins/Table/TablePlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/table' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 9
+		},
+		"end": {
+			"line": 8,
+			"character": 25
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 65,
+			"character": 56
+		},
+		"end": {
+			"line": 65,
+			"character": 60
+		}
+	}
+]
+
+=== 624 packages/svelte-lexical/src/lib/core/plugins/TreeView/CommandsLog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 59
+		},
+		"end": {
+			"line": 3,
+			"character": 68
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 23,
+			"character": 11
+		},
+		"end": {
+			"line": 23,
+			"character": 18
+		}
+	}
+]
+
+=== 2303 packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 9
+		},
+		"end": {
+			"line": 11,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/html' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 64
+		},
+		"end": {
+			"line": 13,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/link' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 52
+		},
+		"end": {
+			"line": 14,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/mark' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 42
+		},
+		"end": {
+			"line": 15,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 30
+		},
+		"end": {
+			"line": 16,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 9
+		},
+		"end": {
+			"line": 25,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/table' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 9
+		},
+		"end": {
+			"line": 29,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 26
+		},
+		"end": {
+			"line": 31,
+			"character": 52
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editorState' implicitly has an 'any' type.",
+		"start": {
+			"line": 138,
+			"character": 38
+		},
+		"end": {
+			"line": 138,
+			"character": 49
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'childNode' implicitly has an 'any' type.",
+		"start": {
+			"line": 274,
+			"character": 24
+		},
+		"end": {
+			"line": 274,
+			"character": 33
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'i' implicitly has an 'any' type.",
+		"start": {
+			"line": 274,
+			"character": 35
+		},
+		"end": {
+			"line": 274,
+			"character": 36
+		}
+	}
+]
+
+=== 224 packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeViewPlugin.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of './TreeView.css'.",
+		"start": {
+			"line": 1,
+			"character": 9
+		},
+		"end": {
+			"line": 1,
+			"character": 25
+		}
+	}
+]
+
+=== 1265 packages/svelte-lexical/src/lib/core/plugins/bluesky/BlueskyPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 68
+		},
+		"end": {
+			"line": 11,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 9
+		},
+		"end": {
+			"line": 16,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './BlueskyNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 9
+		},
+		"end": {
+			"line": 21,
+			"character": 27
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 26
+		},
+		"end": {
+			"line": 22,
+			"character": 56
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'profile' implicitly has an 'any' type.",
+		"start": {
+			"line": 33,
+			"character": 8
+		},
+		"end": {
+			"line": 33,
+			"character": 15
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'postKey' implicitly has an 'any' type.",
+		"start": {
+			"line": 33,
+			"character": 17
+		},
+		"end": {
+			"line": 33,
+			"character": 24
+		}
+	}
+]
+
+=== 433 packages/svelte-lexical/src/lib/core/plugins/bluesky/BlueskyPostComponent.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bluesky-post-embed/core' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 38
+		},
+		"end": {
+			"line": 1,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 48
+		},
+		"end": {
+			"line": 3,
+			"character": 57
+		}
+	}
+]
+
+=== 1093 packages/svelte-lexical/src/lib/core/plugins/collaboration/CollaborationPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'yjs' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 30
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './CollaborationContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 40
+		},
+		"end": {
+			"line": 5,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../initializeEditor.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 44
+		},
+		"end": {
+			"line": 6,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/yjs' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 9
+		},
+		"end": {
+			"line": 13,
+			"character": 23
+		}
+	}
+]
+
+=== 3063 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsCollaboration.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/yjs' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 62
+		},
+		"end": {
+			"line": 3,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 35
+		},
+		"end": {
+			"line": 4,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 30
+		},
+		"end": {
+			"line": 6,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/yjs' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 9
+		},
+		"end": {
+			"line": 14,
+			"character": 23
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 9
+		},
+		"end": {
+			"line": 22,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'yjs' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 69
+		},
+		"end": {
+			"line": 23,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../initializeEditor.js' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 44
+		},
+		"end": {
+			"line": 25,
+			"character": 71
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'prevEditorState' implicitly has an 'any' type.",
+		"start": {
+			"line": 144,
+			"character": 8
+		},
+		"end": {
+			"line": 144,
+			"character": 23
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editorState' implicitly has an 'any' type.",
+		"start": {
+			"line": 145,
+			"character": 8
+		},
+		"end": {
+			"line": 145,
+			"character": 19
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'dirtyLeaves' implicitly has an 'any' type.",
+		"start": {
+			"line": 146,
+			"character": 8
+		},
+		"end": {
+			"line": 146,
+			"character": 19
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'dirtyElements' implicitly has an 'any' type.",
+		"start": {
+			"line": 147,
+			"character": 8
+		},
+		"end": {
+			"line": 147,
+			"character": 21
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'normalizedNodes' implicitly has an 'any' type.",
+		"start": {
+			"line": 148,
+			"character": 8
+		},
+		"end": {
+			"line": 148,
+			"character": 23
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'tags' implicitly has an 'any' type.",
+		"start": {
+			"line": 149,
+			"character": 8
+		},
+		"end": {
+			"line": 149,
+			"character": 12
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 212,
+			"character": 9
+		},
+		"end": {
+			"line": 212,
+			"character": 16
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'cursor' is of type 'unknown'.",
+		"start": {
+			"line": 324,
+			"character": 24
+		},
+		"end": {
+			"line": 324,
+			"character": 30
+		}
+	}
+]
+
+=== 635 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsFocusTracking.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/yjs' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 50
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 9
+		},
+		"end": {
+			"line": 8,
+			"character": 18
+		}
+	}
+]
+
+=== 846 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsHistory.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/yjs' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 48
+		},
+		"end": {
+			"line": 4,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 51
+		},
+		"end": {
+			"line": 12,
+			"character": 60
+		}
+	}
+]
+
+=== 1771 packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditor.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of './FloatingLinkEditor.css'.",
+		"start": {
+			"line": 1,
+			"character": 9
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/link' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 9
+		},
+		"end": {
+			"line": 7,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 9
+		},
+		"end": {
+			"line": 11,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 9
+		},
+		"end": {
+			"line": 23,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../../components/toolbar/getSelectionInfo.js' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 30
+		},
+		"end": {
+			"line": 25,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './setFloatingElemPositionForLinkEditor.js' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 53
+		},
+		"end": {
+			"line": 26,
+			"character": 96
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './url.js' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 28
+		},
+		"end": {
+			"line": 27,
+			"character": 38
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editorState' implicitly has an 'any' type.",
+		"start": {
+			"line": 88,
+			"character": 38
+		},
+		"end": {
+			"line": 88,
+			"character": 49
+		}
+	}
+]
+
+=== 2447 packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditorPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/link' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 9
+		},
+		"end": {
+			"line": 5,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 9
+		},
+		"end": {
+			"line": 9,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 9
+		},
+		"end": {
+			"line": 19,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../../components/toolbar/getSelectionInfo.js' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 30
+		},
+		"end": {
+			"line": 21,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 26
+		},
+		"end": {
+			"line": 22,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 44,
+			"character": 17
+		},
+		"end": {
+			"line": 44,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 45,
+			"character": 15
+		},
+		"end": {
+			"line": 45,
+			"character": 19
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editorState' implicitly has an 'any' type.",
+		"start": {
+			"line": 80,
+			"character": 38
+		},
+		"end": {
+			"line": 80,
+			"character": 49
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter '_payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 87,
+			"character": 9
+		},
+		"end": {
+			"line": 87,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'newEditor' implicitly has an 'any' type.",
+		"start": {
+			"line": 87,
+			"character": 19
+		},
+		"end": {
+			"line": 87,
+			"character": 28
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 96,
+			"character": 9
+		},
+		"end": {
+			"line": 96,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 112,
+			"character": 9
+		},
+		"end": {
+			"line": 112,
+			"character": 16
+		}
+	}
+]
+
+=== 1427 packages/svelte-lexical/src/lib/core/plugins/link/LinkPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/link' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 9
+		},
+		"end": {
+			"line": 6,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 49
+		},
+		"end": {
+			"line": 7,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 9
+		},
+		"end": {
+			"line": 14,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 26
+		},
+		"end": {
+			"line": 16,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 34,
+			"character": 9
+		},
+		"end": {
+			"line": 34,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 55,
+			"character": 13
+		},
+		"end": {
+			"line": 55,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 73,
+			"character": 46
+		},
+		"end": {
+			"line": 73,
+			"character": 50
+		}
+	}
+]
+
+=== 210 packages/svelte-lexical/src/lib/core/plugins/twitter/TweetComponent.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 48
+		},
+		"end": {
+			"line": 1,
+			"character": 57
+		}
+	}
+]
+
+=== 1060 packages/svelte-lexical/src/lib/core/plugins/twitter/TwitterPlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 68
+		},
+		"end": {
+			"line": 7,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 9
+		},
+		"end": {
+			"line": 12,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './TweetNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 63
+		},
+		"end": {
+			"line": 14,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 26
+		},
+		"end": {
+			"line": 15,
+			"character": 56
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 26,
+			"character": 7
+		},
+		"end": {
+			"line": 26,
+			"character": 14
+		}
+	}
+]
+
+=== 210 packages/svelte-lexical/src/lib/core/plugins/youtube/YouTubeComponent.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 48
+		},
+		"end": {
+			"line": 1,
+			"character": 57
+		}
+	}
+]
+
+=== 1061 packages/svelte-lexical/src/lib/core/plugins/youtube/YoutubePlugin.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 68
+		},
+		"end": {
+			"line": 7,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lexical' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 9
+		},
+		"end": {
+			"line": 12,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './YouTubeNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 9
+		},
+		"end": {
+			"line": 17,
+			"character": 27
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/composerContext.js' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 26
+		},
+		"end": {
+			"line": 18,
+			"character": 56
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'payload' implicitly has an 'any' type.",
+		"start": {
+			"line": 29,
+			"character": 7
+		},
+		"end": {
+			"line": 29,
+			"character": 14
+		}
+	}
+]
+
+=== 463 packages/svelte-lexical/src/routes/+page.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../global.css'.",
+		"start": {
+			"line": 2,
+			"character": 9
+		},
+		"end": {
+			"line": 2,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/themes/system-light-dark/ui/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 9
+		},
+		"end": {
+			"line": 8,
+			"character": 52
+		}
+	}
+]
+
+=== 222 packages/svelte-lexical/src/routes/GitHubButton.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of './button.css'.",
+		"start": {
+			"line": 1,
+			"character": 9
+		},
+		"end": {
+			"line": 1,
+			"character": 23
+		}
+	}
+]
+
+=== 222 packages/svelte-lexical/src/routes/PlaygroundButton.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of './button.css'.",
+		"start": {
+			"line": 1,
+			"character": 9
+		},
+		"end": {
+			"line": 1,
+			"character": 23
+		}
+	}
+]
+
+=== 3611 packages/svelte-lexical/src/routes/RichTextComposer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 33,
+			"character": 9
+		},
+		"end": {
+			"line": 33,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 43,
+			"character": 9
+		},
+		"end": {
+			"line": 43,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/themes/system-light-dark/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 44,
+			"character": 22
+		},
+		"end": {
+			"line": 44,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 49,
+			"character": 9
+		},
+		"end": {
+			"line": 49,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/Table/TablePlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 52,
+			"character": 26
+		},
+		"end": {
+			"line": 52,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/table' or its corresponding type declarations.",
+		"start": {
+			"line": 53,
+			"character": 55
+		},
+		"end": {
+			"line": 53,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/Table/TableHoverActionPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 54,
+			"character": 37
+		},
+		"end": {
+			"line": 54,
+			"character": 92
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/Table/TableActionMenuPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 55,
+			"character": 36
+		},
+		"end": {
+			"line": 55,
+			"character": 90
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/Table/TableCellResizerPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 56,
+			"character": 37
+		},
+		"end": {
+			"line": 56,
+			"character": 92
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/youtube/YoutubePlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 57,
+			"character": 28
+		},
+		"end": {
+			"line": 57,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/twitter/TwitterPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 58,
+			"character": 28
+		},
+		"end": {
+			"line": 58,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/bluesky/BlueskyPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 59,
+			"character": 28
+		},
+		"end": {
+			"line": 59,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/bluesky/BlueskyNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 60,
+			"character": 28
+		},
+		"end": {
+			"line": 60,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/TabIndentationPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 61,
+			"character": 35
+		},
+		"end": {
+			"line": 61,
+			"character": 82
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/ComponentPicker/ComponentPickerMenuPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 62,
+			"character": 40
+		},
+		"end": {
+			"line": 62,
+			"character": 108
+		}
+	}
+]
+
+=== 8684 packages/svelte-lexical/src/routes/RichTextToolbar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/dialogs/InsertTableDialog.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 90
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/DropDownBackColorPicker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 38
+		},
+		"end": {
+			"line": 4,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/DropDownTextColorPicker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 38
+		},
+		"end": {
+			"line": 5,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/InsertDropDown/InsertTableDropDownItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 38
+		},
+		"end": {
+			"line": 6,
+			"character": 109
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 9
+		},
+		"end": {
+			"line": 18,
+			"character": 26
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 27
+		},
+		"end": {
+			"line": 19,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 24
+		},
+		"end": {
+			"line": 20,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 27
+		},
+		"end": {
+			"line": 21,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 27
+		},
+		"end": {
+			"line": 22,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 29
+		},
+		"end": {
+			"line": 23,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 32
+		},
+		"end": {
+			"line": 24,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 36
+		},
+		"end": {
+			"line": 25,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 33
+		},
+		"end": {
+			"line": 26,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 30
+		},
+		"end": {
+			"line": 27,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 31
+		},
+		"end": {
+			"line": 28,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 35
+		},
+		"end": {
+			"line": 29,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 38
+		},
+		"end": {
+			"line": 30,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 36
+		},
+		"end": {
+			"line": 31,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 36
+		},
+		"end": {
+			"line": 32,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 33,
+			"character": 36
+		},
+		"end": {
+			"line": 33,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 35
+		},
+		"end": {
+			"line": 34,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 35
+		},
+		"end": {
+			"line": 35,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 24
+		},
+		"end": {
+			"line": 36,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 34
+		},
+		"end": {
+			"line": 37,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 38,
+			"character": 37
+		},
+		"end": {
+			"line": 38,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 39,
+			"character": 40
+		},
+		"end": {
+			"line": 39,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 40,
+			"character": 47
+		},
+		"end": {
+			"line": 40,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 41,
+			"character": 36
+		},
+		"end": {
+			"line": 41,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/ShortcutsPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 42,
+			"character": 30
+		},
+		"end": {
+			"line": 42,
+			"character": 78
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/dialogs/InsertYoutubeDialog.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 43,
+			"character": 34
+		},
+		"end": {
+			"line": 43,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/InsertDropDown/InsertYoutubeDropDownItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 44,
+			"character": 40
+		},
+		"end": {
+			"line": 44,
+			"character": 113
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/dialogs/InsertTweetDialog.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 45,
+			"character": 32
+		},
+		"end": {
+			"line": 45,
+			"character": 90
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/InsertDropDown/InsertTweetDropDownItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 46,
+			"character": 38
+		},
+		"end": {
+			"line": 46,
+			"character": 109
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/dialogs/InsertBlueskyDialog.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 47,
+			"character": 34
+		},
+		"end": {
+			"line": 47,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/InsertDropDown/InsertBlueskyDropDownItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 48,
+			"character": 40
+		},
+		"end": {
+			"line": 48,
+			"character": 113
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editor' implicitly has an 'any' type.",
+		"start": {
+			"line": 52,
+			"character": 22
+		},
+		"end": {
+			"line": 52,
+			"character": 28
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'activeEditor' implicitly has an 'any' type.",
+		"start": {
+			"line": 52,
+			"character": 30
+		},
+		"end": {
+			"line": 52,
+			"character": 42
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'blockType' implicitly has an 'any' type.",
+		"start": {
+			"line": 52,
+			"character": 44
+		},
+		"end": {
+			"line": 52,
+			"character": 53
+		}
+	}
+]
+
+=== 3 packages/svelte-lexical/src/routes/examples/+page.svelte	json
+[]
+
+=== 453 packages/svelte-lexical/src/routes/examples/Composer1PlainText.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 9
+		},
+		"end": {
+			"line": 7,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/themes/system-light-dark/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 37
+		},
+		"end": {
+			"line": 8,
+			"character": 77
+		}
+	}
+]
+
+=== 804 packages/svelte-lexical/src/routes/examples/Composer1Toolbar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 48
+		},
+		"end": {
+			"line": 3,
+			"character": 63
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editor' implicitly has an 'any' type.",
+		"start": {
+			"line": 7,
+			"character": 22
+		},
+		"end": {
+			"line": 7,
+			"character": 28
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'activeEditor' implicitly has an 'any' type.",
+		"start": {
+			"line": 7,
+			"character": 30
+		},
+		"end": {
+			"line": 7,
+			"character": 42
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'blockType' implicitly has an 'any' type.",
+		"start": {
+			"line": 7,
+			"character": 44
+		},
+		"end": {
+			"line": 7,
+			"character": 53
+		}
+	}
+]
+
+=== 667 packages/svelte-lexical/src/routes/examples/Composer2RichTextBasic.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 9
+		},
+		"end": {
+			"line": 6,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/themes/system-light-dark/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 37
+		},
+		"end": {
+			"line": 7,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 9
+		},
+		"end": {
+			"line": 12,
+			"character": 24
+		}
+	}
+]
+
+=== 2733 packages/svelte-lexical/src/routes/examples/Composer2Toolbar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 32
+		},
+		"end": {
+			"line": 6,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 36
+		},
+		"end": {
+			"line": 7,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 33
+		},
+		"end": {
+			"line": 8,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 30
+		},
+		"end": {
+			"line": 9,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 35
+		},
+		"end": {
+			"line": 10,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 33
+		},
+		"end": {
+			"line": 11,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 24
+		},
+		"end": {
+			"line": 12,
+			"character": 39
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editor' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 22
+		},
+		"end": {
+			"line": 16,
+			"character": 28
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'activeEditor' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 30
+		},
+		"end": {
+			"line": 16,
+			"character": 42
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'blockType' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 44
+		},
+		"end": {
+			"line": 16,
+			"character": 53
+		}
+	}
+]
+
+=== 1152 packages/svelte-lexical/src/routes/examples/Composer3RichTextAdv.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 9
+		},
+		"end": {
+			"line": 16,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 9
+		},
+		"end": {
+			"line": 24,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/themes/system-light-dark/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 37
+		},
+		"end": {
+			"line": 25,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 9
+		},
+		"end": {
+			"line": 30,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/MarkdownShortcut/MarkdownShortcutPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 37
+		},
+		"end": {
+			"line": 31,
+			"character": 103
+		}
+	}
+]
+
+=== 6040 packages/svelte-lexical/src/routes/examples/Composer3Toolbar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/DropDownBackColorPicker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 38
+		},
+		"end": {
+			"line": 3,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/DropDownTextColorPicker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 38
+		},
+		"end": {
+			"line": 4,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 36
+		},
+		"end": {
+			"line": 5,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 27
+		},
+		"end": {
+			"line": 8,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 27
+		},
+		"end": {
+			"line": 9,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 29
+		},
+		"end": {
+			"line": 10,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 32
+		},
+		"end": {
+			"line": 11,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 36
+		},
+		"end": {
+			"line": 12,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 33
+		},
+		"end": {
+			"line": 13,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 30
+		},
+		"end": {
+			"line": 14,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 31
+		},
+		"end": {
+			"line": 15,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 35
+		},
+		"end": {
+			"line": 16,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 33
+		},
+		"end": {
+			"line": 17,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 38
+		},
+		"end": {
+			"line": 18,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 36
+		},
+		"end": {
+			"line": 19,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 36
+		},
+		"end": {
+			"line": 20,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 36
+		},
+		"end": {
+			"line": 21,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 35
+		},
+		"end": {
+			"line": 22,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 35
+		},
+		"end": {
+			"line": 23,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 24
+		},
+		"end": {
+			"line": 24,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 34
+		},
+		"end": {
+			"line": 25,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 37
+		},
+		"end": {
+			"line": 26,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 40
+		},
+		"end": {
+			"line": 27,
+			"character": 55
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editor' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 22
+		},
+		"end": {
+			"line": 31,
+			"character": 28
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'activeEditor' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 30
+		},
+		"end": {
+			"line": 31,
+			"character": 42
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'blockType' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 44
+		},
+		"end": {
+			"line": 31,
+			"character": 53
+		}
+	}
+]
+
+=== 885 packages/svelte-lexical/src/routes/examples/Composer4RTLinks.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 9
+		},
+		"end": {
+			"line": 25,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 33,
+			"character": 9
+		},
+		"end": {
+			"line": 33,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/themes/system-light-dark/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 37
+		},
+		"end": {
+			"line": 34,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 39,
+			"character": 9
+		},
+		"end": {
+			"line": 39,
+			"character": 24
+		}
+	}
+]
+
+=== 6040 packages/svelte-lexical/src/routes/examples/Composer4Toolbar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/DropDownBackColorPicker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 38
+		},
+		"end": {
+			"line": 3,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/DropDownTextColorPicker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 38
+		},
+		"end": {
+			"line": 4,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 48
+		},
+		"end": {
+			"line": 5,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 27
+		},
+		"end": {
+			"line": 8,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 27
+		},
+		"end": {
+			"line": 9,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 29
+		},
+		"end": {
+			"line": 10,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 32
+		},
+		"end": {
+			"line": 11,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 36
+		},
+		"end": {
+			"line": 12,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 33
+		},
+		"end": {
+			"line": 13,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 30
+		},
+		"end": {
+			"line": 14,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 31
+		},
+		"end": {
+			"line": 15,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 35
+		},
+		"end": {
+			"line": 16,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 33
+		},
+		"end": {
+			"line": 17,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 38
+		},
+		"end": {
+			"line": 18,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 36
+		},
+		"end": {
+			"line": 19,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 36
+		},
+		"end": {
+			"line": 20,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 36
+		},
+		"end": {
+			"line": 21,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 35
+		},
+		"end": {
+			"line": 22,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 35
+		},
+		"end": {
+			"line": 23,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 24
+		},
+		"end": {
+			"line": 24,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 34
+		},
+		"end": {
+			"line": 25,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 37
+		},
+		"end": {
+			"line": 26,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 40
+		},
+		"end": {
+			"line": 27,
+			"character": 55
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editor' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 22
+		},
+		"end": {
+			"line": 31,
+			"character": 28
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'activeEditor' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 30
+		},
+		"end": {
+			"line": 31,
+			"character": 42
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'blockType' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 44
+		},
+		"end": {
+			"line": 31,
+			"character": 53
+		}
+	}
+]
+
+=== 885 packages/svelte-lexical/src/routes/examples/Composer5Code.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 9
+		},
+		"end": {
+			"line": 29,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 9
+		},
+		"end": {
+			"line": 37,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/themes/system-light-dark/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 38,
+			"character": 37
+		},
+		"end": {
+			"line": 38,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 43,
+			"character": 9
+		},
+		"end": {
+			"line": 43,
+			"character": 24
+		}
+	}
+]
+
+=== 6085 packages/svelte-lexical/src/routes/examples/Composer5Toolbar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/CodeLanguageDropDown.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 88
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/DropDownBackColorPicker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 38
+		},
+		"end": {
+			"line": 4,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/toolbar/DropDownTextColorPicker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 38
+		},
+		"end": {
+			"line": 5,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 9
+		},
+		"end": {
+			"line": 11,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 27
+		},
+		"end": {
+			"line": 12,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 24
+		},
+		"end": {
+			"line": 13,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 27
+		},
+		"end": {
+			"line": 14,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 27
+		},
+		"end": {
+			"line": 15,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 29
+		},
+		"end": {
+			"line": 16,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 32
+		},
+		"end": {
+			"line": 17,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 36
+		},
+		"end": {
+			"line": 18,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 33
+		},
+		"end": {
+			"line": 19,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 30
+		},
+		"end": {
+			"line": 20,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 31
+		},
+		"end": {
+			"line": 21,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 35
+		},
+		"end": {
+			"line": 22,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 38
+		},
+		"end": {
+			"line": 23,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 36
+		},
+		"end": {
+			"line": 24,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 36
+		},
+		"end": {
+			"line": 25,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 36
+		},
+		"end": {
+			"line": 26,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 35
+		},
+		"end": {
+			"line": 27,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 35
+		},
+		"end": {
+			"line": 28,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 24
+		},
+		"end": {
+			"line": 29,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 34
+		},
+		"end": {
+			"line": 30,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 37
+		},
+		"end": {
+			"line": 31,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 40
+		},
+		"end": {
+			"line": 32,
+			"character": 55
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'editor' implicitly has an 'any' type.",
+		"start": {
+			"line": 36,
+			"character": 22
+		},
+		"end": {
+			"line": 36,
+			"character": 28
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'activeEditor' implicitly has an 'any' type.",
+		"start": {
+			"line": 36,
+			"character": 30
+		},
+		"end": {
+			"line": 36,
+			"character": 42
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'blockType' implicitly has an 'any' type.",
+		"start": {
+			"line": 36,
+			"character": 44
+		},
+		"end": {
+			"line": 36,
+			"character": 53
+		}
+	}
+]
+
+=== 441 packages/svelte-lexical/src/routes/examples/html/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 38
+		},
+		"end": {
+			"line": 3,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/Composer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	}
+]
+
+=== 3342 packages/svelte-lexical/src/routes/examples/html/RichTextComposer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 9
+		},
+		"end": {
+			"line": 32,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 42,
+			"character": 9
+		},
+		"end": {
+			"line": 42,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/themes/system-light-dark/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 43,
+			"character": 22
+		},
+		"end": {
+			"line": 43,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 48,
+			"character": 9
+		},
+		"end": {
+			"line": 48,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/Table/TablePlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 51,
+			"character": 26
+		},
+		"end": {
+			"line": 51,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lexical/table' or its corresponding type declarations.",
+		"start": {
+			"line": 52,
+			"character": 55
+		},
+		"end": {
+			"line": 52,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/Table/TableHoverActionPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 53,
+			"character": 37
+		},
+		"end": {
+			"line": 53,
+			"character": 92
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/Table/TableActionMenuPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 54,
+			"character": 36
+		},
+		"end": {
+			"line": 54,
+			"character": 90
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/Table/TableCellResizerPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 55,
+			"character": 37
+		},
+		"end": {
+			"line": 55,
+			"character": 92
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/youtube/YoutubePlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 56,
+			"character": 28
+		},
+		"end": {
+			"line": 56,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/twitter/TwitterPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 57,
+			"character": 28
+		},
+		"end": {
+			"line": 57,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/bluesky/BlueskyPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 58,
+			"character": 28
+		},
+		"end": {
+			"line": 58,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/bluesky/BlueskyNode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 59,
+			"character": 28
+		},
+		"end": {
+			"line": 59,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/core/plugins/TabIndentationPlugin.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 60,
+			"character": 35
+		},
+		"end": {
+			"line": 60,
+			"character": 82
+		}
+	}
+]
+

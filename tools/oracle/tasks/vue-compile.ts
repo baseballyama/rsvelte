@@ -14,7 +14,6 @@ export const scopeId = (path: string): string =>
 // keeping every import as written (`verbatimModuleSyntax`, as Vite's esbuild transform does).
 const task: Task = {
 	id: 'vue.compile',
-	storage: 'committed',
 	oracles: ['@vue/compiler-sfc', 'typescript'],
 	variants: [{ id: 'default', options: {} }],
 	appliesTo: (unit) => unit.lang === 'vue',

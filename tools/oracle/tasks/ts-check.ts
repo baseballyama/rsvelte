@@ -4,13 +4,14 @@ import type { Task } from '../types.ts';
 
 // rsvelte's language-neutral type check: one tsc over the documents of every language. Its oracle is
 // each language's own checker on the unit (svelte-check for a component, vue-tsc for an SFC), so
-// checking the languages together must change nothing.
+// checking the languages together must change nothing. Over the corpus that is svelte.check's
+// expected output again, so only a source named `rsvelte` would get its own.
 const task: Task = {
 	id: 'ts.check',
-	storage: 'committed',
 	oracles: [...new Set([...svelteCheck.oracles, ...vueCheck.oracles])],
 	variants: [{ id: 'default', options: {} }],
-	appliesTo: (unit) => svelteCheck.appliesTo(unit) || vueCheck.appliesTo(unit),
+	appliesTo: (unit) =>
+		unit.source === 'rsvelte' && (svelteCheck.appliesTo(unit) || vueCheck.appliesTo(unit)),
 	run: (unit, src, variant) =>
 		(unit.lang === 'svelte' ? svelteCheck : vueCheck).run(unit, src, variant),
 };

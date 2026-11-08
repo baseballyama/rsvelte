@@ -1,5 +1,5 @@
-//! Every Svelte task over `corpus/svelte`, in one run: each unit is found, read and parsed once,
-//! then compared with the official output and the parity ratchet.
+//! Every Svelte task over `corpus/svelte`, in one run: each unit is read and parsed once, then
+//! compared with the official output and the parity ledger (`rsvelte_corpus::Conformance`).
 
 #![expect(clippy::print_stderr, reason = "reports coverage")]
 
@@ -22,6 +22,9 @@ use rsvelte_typescript_check::{Tsc, TypeChecker, TypeScriptDocument, TypeScriptV
 #[derive(Debug, Default)]
 struct Coverage {
     parse_errors: AtomicUsize,
+    /// Invariants that do not need an oracle and failed: a projection that is not valid
+    /// TypeScript, or a token table that is not the source byte for byte.
+    invalid: std::sync::Mutex<Vec<String>>,
     /// The projection: valid TypeScript, or not produced.
     projected: AtomicUsize,
     not_projected: AtomicUsize,
@@ -31,8 +34,8 @@ struct Coverage {
     unsupported: AtomicUsize,
 }
 
-/// Counts what the projection and the type check cover, and fails on a projection that is not
-/// valid TypeScript.
+/// Counts what the projection and the type check cover, and keeps every projection that is not
+/// valid TypeScript, which fails the test.
 #[derive(Debug)]
 struct CountCoverage(Arc<Coverage>);
 
@@ -47,21 +50,33 @@ impl Task for CountCoverage {
 
     fn run(&self, context: &DocumentContext<'_>, _: &mut TaskOutput) {
         let count = |counter: &AtomicUsize| counter.fetch_add(1, Ordering::Relaxed);
-        if context.get::<Parsed>().is_err() {
+        let Ok(component) = context.get::<Parsed>() else {
             count(&self.0.parse_errors);
             return;
+        };
+        if let Some(wrong) = lossless(component, &context.document.text) {
+            self.0
+                .invalid
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(format!("{}: {wrong}", context.document.path));
         }
         match context.get::<Printed>() {
             Ok(projection) => {
                 let allocator = Allocator::default();
                 let result = Parser::new(&allocator, &projection.out, SourceType::ts()).parse();
-                assert!(
-                    result.diagnostics.is_empty(),
-                    "{}: invalid generated TypeScript: {:?}",
-                    context.document.path,
-                    result.diagnostics,
-                );
-                count(&self.0.projected);
+                if result.diagnostics.is_empty() {
+                    count(&self.0.projected);
+                } else {
+                    self.0
+                        .invalid
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .push(format!(
+                            "{}: {:?}",
+                            context.document.path, result.diagnostics
+                        ));
+                }
             }
             Err(_) => {
                 count(&self.0.not_projected);
@@ -78,6 +93,28 @@ impl Task for CountCoverage {
     }
 }
 
+/// Why the token table is not the source byte for byte, or a trivia token holds what its kind
+/// does not say.
+fn lossless(
+    component: &rsvelte_svelte_syntax::syntax_tree::Component,
+    source: &str,
+) -> Option<String> {
+    use rsvelte_svelte_syntax::syntax_tree::TokenType;
+    if let Err(gap) = component.tokens.check_lossless(source) {
+        return Some(format!("untokenized {gap:?} {:?}", gap.text(source)));
+    }
+    component.tokens.iter().find_map(|t| {
+        let text = t.span.text(source);
+        let ok = match t.kind {
+            TokenType::Whitespace => text.bytes().all(|b| b.is_ascii_whitespace()),
+            TokenType::JavaScriptComment => text.starts_with("//") || text.starts_with("/*"),
+            TokenType::MarkupComment => text.starts_with("<!--") && text.ends_with("-->"),
+            _ => true,
+        };
+        (!ok).then(|| format!("{:?} at {:?} is {text:?}", t.kind, t.span))
+    })
+}
+
 fn main() -> ExitCode {
     let packages = NodePackages::locate();
     let (program, arguments) = packages.type_checker();
@@ -85,8 +122,13 @@ fn main() -> ExitCode {
         check: Some(rsvelte_svelte_check::TypeCheckConfiguration {
             tsc: Tsc {
                 checker: TypeChecker { program, arguments },
+                // The configuration svelte-check had for the expected output.
                 tsconfig: Some(
-                    concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
+                    concat!(
+                        env!("CARGO_MANIFEST_DIR"),
+                        "/../../../corpus/_registry/tsconfig.json"
+                    )
+                    .into(),
                 ),
             },
             content_mapper: rsvelte_test_harness::content_mapper(),
@@ -96,34 +138,44 @@ fn main() -> ExitCode {
     let coverage = Arc::new(Coverage::default());
     let mut registry = Registry::new();
     rsvelte_svelte_compile::register(&mut registry);
+    rsvelte_svelte_format::register(&mut registry);
     rsvelte_svelte_lint::register(&mut registry);
     rsvelte_svelte_typescript_projection::register(&mut registry);
     rsvelte_svelte_check::register(&mut registry, &typecheck);
     registry.task(CountCoverage(Arc::clone(&coverage)));
-    let result = rsvelte_test_harness::Fixtures::corpus_only("svelte", registry)
-        // Unrelated repositories can declare conflicting global types.
-        .per_project()
-        .snapshot("svelte.compile/client", "client")
-        .snapshot("svelte.compile/server", "server")
+    let result = rsvelte_corpus::Conformance::new("svelte", registry)
+        .compare("svelte.compile/client")
+        .compare("svelte.compile/server")
         .not_implemented("svelte.compileModule/client")
         .not_implemented("svelte.compileModule/server")
-        .snapshot("svelte.lint/default", "findings")
-        .snapshot("svelte.typescript_projection/default", "projection")
-        .snapshot("svelte.check/default", "check")
-        .snapshot("test.svelte.coverage", "coverage")
+        .compare("svelte.format/default")
+        .compare("svelte.lint/default")
+        .compare("svelte.check/default")
+        .also_run("test.svelte.coverage")
         .run();
     let c = &coverage;
     let n = |counter: &AtomicUsize| counter.load(Ordering::Relaxed);
+    let invalid = c
+        .invalid
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     eprintln!(
-        "coverage: {} parse errors; projection: {} valid TypeScript, {} not produced; type \
-         check: {} prepared, {} unchecked, {} unsupported; type equivalence with svelte2tsx and \
-         svelte-check: UNMEASURED",
+        "coverage: {} parse errors, {} invariants broken; projection: {} valid TypeScript, {} not \
+         produced; type check: {} prepared, {} unchecked, {} unsupported",
         n(&c.parse_errors),
+        invalid.len(),
         n(&c.projected),
         n(&c.not_projected),
         n(&c.prepared),
         n(&c.unchecked),
         n(&c.unsupported),
     );
-    result
+    for i in invalid.iter() {
+        eprintln!("broken invariant: {i}");
+    }
+    if invalid.is_empty() {
+        result
+    } else {
+        ExitCode::FAILURE
+    }
 }

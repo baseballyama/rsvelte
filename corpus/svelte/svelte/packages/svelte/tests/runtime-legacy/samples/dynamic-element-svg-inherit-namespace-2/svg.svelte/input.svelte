@@ -1,1 +1,0 @@
-<svg><slot></slot></svg>

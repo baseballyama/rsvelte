@@ -1,0 +1,2216 @@
+# rsvelte pack 1
+=== 655 src/lib/PivotTable.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import TableRenderers from "./TableRenderers";
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'renderer']);
+
+export default function PivotTable($$anchor, $$props) {
+	$.push($$props, true);
+
+	let Renderer = $.prop($$props, 'renderer', 19, () => TableRenderers.Table),
+		restProps = $.rest_props($$props, rest_excludes);
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.component(node, Renderer, ($$anchor, Renderer_1) => {
+		Renderer_1($$anchor, $.spread_props(() => restProps));
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 6834 src/lib/PivotTableUI.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { setContext } from "svelte";
+import PivotData from "./PivotData";
+import PivotTable from "./PivotTable.svelte";
+import TableRenderers from "./TableRenderers";
+import Aggregators from "./UI/Aggregators.svelte";
+import DnDCell from "./UI/DnDCell.svelte";
+import Dropdown from "./UI/Dropdown.svelte";
+import MainTable from "./UI/MainTable.svelte";
+import { aggregators as defaultAggregators, sortAs } from "./Utilities";
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'rendererName',
+	'renderers',
+	'aggregatorName',
+	'aggregators',
+	'hiddenAttributes',
+	'hiddenFromAggregators',
+	'hiddenFromDragDrop',
+	'unusedOrientationCutoff',
+	'menuLimit',
+	'derivedAttributes',
+	'cols',
+	'rows',
+	'vals',
+	'sorters',
+	'compactRows',
+	'data'
+]);
+
+export default function PivotTableUI($$anchor, $$props) {
+	$.push($$props, true);
+
+	let rendererName = $.prop($$props, 'rendererName', 7, "Table"),
+		renderers = $.prop($$props, 'renderers', 3, TableRenderers),
+		aggregatorName = $.prop($$props, 'aggregatorName', 7, "Count"),
+		aggregators = $.prop($$props, 'aggregators', 3, defaultAggregators),
+		hiddenAttributes = $.prop($$props, 'hiddenAttributes', 19, () => []),
+		hiddenFromAggregators = $.prop($$props, 'hiddenFromAggregators', 19, () => []),
+		hiddenFromDragDrop = $.prop($$props, 'hiddenFromDragDrop', 19, () => []),
+		unusedOrientationCutoff = $.prop($$props, 'unusedOrientationCutoff', 3, 85),
+		menuLimit = $.prop($$props, 'menuLimit', 3, 500),
+		// pivotData props managed by PivotTableUI
+		derivedAttributes = $.prop($$props, 'derivedAttributes', 19, () => PivotData.defaultProps.derivedAttributes),
+		cols = $.prop($$props, 'cols', 23, () => PivotData.defaultProps.cols),
+		rows = $.prop($$props, 'rows', 23, () => PivotData.defaultProps.rows),
+		vals = $.prop($$props, 'vals', 23, () => PivotData.defaultProps.vals),
+		sorters = $.prop($$props, 'sorters', 19, () => PivotData.defaultProps.sorters),
+		compactRows = $.prop($$props, 'compactRows', 3, true),
+		// pivot data
+		restProps = $.rest_props($$props, rest_excludes);
+
+	let valueFilter = $.proxy({});
+
+	setContext("valueFilter", valueFilter);
+
+	let unusedOrder = $.state([]);
+	const notHidden = (e) => !hiddenAttributes().includes(e) && !hiddenFromDragDrop().includes(e);
+	let colAttrs = $.derived(() => cols().filter(notHidden));
+	let rowAttrs = $.derived(() => rows().filter(notHidden));
+
+	let attrValues = $.derived(() => {
+		let attrValues = {};
+		let recordsProcessed = 0;
+
+		PivotData.forEachRecord($$props.data ?? [], derivedAttributes(), function (record) {
+			for (const attr of Object.keys(record)) {
+				if (!(attr in attrValues)) {
+					attrValues[attr] = {};
+
+					if (recordsProcessed > 0) {
+						attrValues[attr].null = recordsProcessed;
+					}
+				}
+			}
+
+			for (const attr in attrValues) {
+				const value = attr in record ? record[attr] : "null";
+
+				if (!(value in attrValues[attr])) {
+					attrValues[attr][value] = 0;
+				}
+
+				attrValues[attr][value]++;
+			}
+
+			recordsProcessed++;
+		});
+
+		return attrValues;
+	});
+
+	let unusedAttrs = $.derived(() => Object.keys($.get(attrValues)).filter((e) => !$.get(colAttrs).includes(e) && !$.get(rowAttrs).includes(e) && notHidden(e)).sort(sortAs($.get(unusedOrder))));
+
+	let horizUnused = $.derived(() => {
+		const unusedLength = $.get(unusedAttrs).reduce((r, e) => r + e.length, 0);
+
+		return unusedLength < unusedOrientationCutoff();
+	});
+
+	let valAttrs = $.derived(() => Object.keys($.get(attrValues)).filter((e) => !hiddenAttributes().includes(e) && !hiddenFromAggregators().includes(e)));
+	const firstKey = (x) => Object.keys(x)[0];
+	let renderer = $.derived(() => renderers()[rendererName() in renderers() ? rendererName() : firstKey(renderers())]);
+	let aggregator = $.derived(() => aggregators()[aggregatorName() in aggregators() ? aggregatorName() : firstKey(aggregators())]);
+
+	{
+		const rendererCell = ($$anchor) => {
+			{
+				let $0 = $.derived(() => Object.keys(renderers()));
+
+				Dropdown($$anchor, {
+					get values() {
+						return $.get($0);
+					},
+
+					get current() {
+						return rendererName();
+					},
+
+					set current($$value) {
+						rendererName($$value);
+					}
+				});
+			}
+		};
+
+		const aggregatorCell = ($$anchor) => {
+			Aggregators($$anchor, {
+				get aggregatorName() {
+					return aggregatorName();
+				},
+
+				get aggregators() {
+					return aggregators();
+				},
+
+				get valAttrs() {
+					return $.get(valAttrs);
+				},
+				onChange: (v) => aggregatorName(v),
+				onUpdate: (v) => vals(v),
+				get vals() {
+					return vals();
+				}
+			});
+		};
+
+		const unusedAttrsCell = ($$anchor) => {
+			DnDCell($$anchor, {
+				get sorters() {
+					return sorters();
+				},
+
+				get attrValues() {
+					return $.get(attrValues);
+				},
+
+				get items() {
+					return $.get(unusedAttrs);
+				},
+				onChange: (v) => $.set(unusedOrder, v),
+				get menuLimit() {
+					return menuLimit();
+				}
+			});
+		};
+
+		const colAttrsCell = ($$anchor) => {
+			DnDCell($$anchor, {
+				get sorters() {
+					return sorters();
+				},
+
+				get attrValues() {
+					return $.get(attrValues);
+				},
+
+				get items() {
+					return $.get(colAttrs);
+				},
+				onChange: (v) => cols(v),
+				get menuLimit() {
+					return menuLimit();
+				}
+			});
+		};
+
+		const rowAttrsCell = ($$anchor) => {
+			DnDCell($$anchor, {
+				get sorters() {
+					return sorters();
+				},
+
+				get attrValues() {
+					return $.get(attrValues);
+				},
+
+				get items() {
+					return $.get(rowAttrs);
+				},
+				onChange: (v) => rows(v),
+				get menuLimit() {
+					return menuLimit();
+				}
+			});
+		};
+
+		const outputCell = ($$anchor) => {
+			PivotTable($$anchor, $.spread_props(
+				{
+					get renderer() {
+						return $.get(renderer);
+					}
+				},
+				() => restProps,
+				{
+					get cols() {
+						return cols();
+					},
+
+					get rows() {
+						return rows();
+					},
+
+					get vals() {
+						return vals();
+					},
+
+					get derivedAttributes() {
+						return derivedAttributes();
+					},
+
+					get aggregator() {
+						return $.get(aggregator);
+					},
+
+					get data() {
+						return $$props.data;
+					},
+
+					get sorters() {
+						return sorters();
+					},
+
+					get compactRows() {
+						return compactRows();
+					},
+
+					get valueFilter() {
+						return valueFilter;
+					},
+
+					get aggregatorName() {
+						return aggregatorName();
+					},
+
+					get aggregators() {
+						return aggregators();
+					}
+				}
+			));
+		};
+
+		MainTable($$anchor, {
+			get horizUnused() {
+				return $.get(horizUnused);
+			},
+			rendererCell,
+			aggregatorCell,
+			unusedAttrsCell,
+			colAttrsCell,
+			rowAttrsCell,
+			outputCell,
+			$$slots: {
+				rendererCell: true,
+				aggregatorCell: true,
+				unusedAttrsCell: true,
+				colAttrsCell: true,
+				rowAttrsCell: true,
+				outputCell: true
+			}
+		});
+	}
+
+	$.pop();
+}
+=== 4146 src/lib/PlotlyRenderer.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import PivotData from "./PivotData";
+import Plotly from "./UI/Plotly.svelte";
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'plotlyOptions',
+	'plotlyConfig',
+	'onRendererUpdate',
+	'traceOptions',
+	'layoutOptions',
+	'transpose',
+	'aggregatorName',
+	'aggregators'
+]);
+
+export default function PlotlyRenderer($$anchor, $$props) {
+	$.push($$props, true);
+
+	let plotlyOptions = $.prop($$props, 'plotlyOptions', 19, () => ({})),
+		plotlyConfig = $.prop($$props, 'plotlyConfig', 19, () => ({})),
+		traceOptions = $.prop($$props, 'traceOptions', 19, () => ({})),
+		layoutOptions = $.prop($$props, 'layoutOptions', 19, () => ({})),
+		transpose = $.prop($$props, 'transpose', 3, false),
+		restProps = $.rest_props($$props, rest_excludes);
+
+	let pivotData;
+	let rowKeys;
+	let colKeys;
+	let traceKeys;
+	let datumKeys;
+	let numInputs;
+	let data = $.state([]);
+	let hAxisTitle;
+	let groupByTitle;
+	let layout = $.state({});
+
+	$.user_effect(() => {
+		pivotData = new PivotData(restProps);
+		rowKeys = pivotData.getRowKeys();
+		colKeys = pivotData.getColKeys();
+		traceKeys = transpose() ? colKeys : rowKeys;
+
+		if (traceKeys.length === 0) {
+			traceKeys.push([]);
+		}
+
+		datumKeys = transpose() ? rowKeys : colKeys;
+
+		if (datumKeys.length === 0) {
+			datumKeys.push([]);
+		}
+
+		let fullAggregatorName = $$props.aggregatorName;
+
+		numInputs = $$props.aggregators[$$props.aggregatorName]([])().numInputs || 0;
+
+		if (numInputs !== 0) {
+			fullAggregatorName += ` of ${pivotData.props.vals.slice(0, numInputs).join(", ")}`;
+		}
+
+		const dataTemp = traceKeys.map((traceKey) => {
+			const values = [];
+			const labels = [];
+
+			for (const datumKey of datumKeys) {
+				const val = parseFloat(pivotData.getAggregator(transpose() ? datumKey : traceKey, transpose() ? traceKey : datumKey).value());
+
+				values.push(isFinite(val) ? val : null);
+				labels.push(datumKey.join("-") || " ");
+			}
+
+			const trace = { name: traceKey.join("-") || fullAggregatorName };
+
+			if (traceOptions().type === "pie") {
+				trace.values = values;
+				trace.labels = labels.length > 1 ? labels : [fullAggregatorName];
+			} else {
+				trace.x = transpose() ? values : labels;
+				trace.y = transpose() ? labels : values;
+			}
+
+			return Object.assign(trace, traceOptions());
+		});
+
+		let titleText = fullAggregatorName;
+
+		hAxisTitle = transpose()
+			? pivotData.props.rows.join("-")
+			: pivotData.props.cols.join("-");
+
+		groupByTitle = transpose()
+			? pivotData.props.cols.join("-")
+			: pivotData.props.rows.join("-");
+
+		if (hAxisTitle !== "") {
+			titleText += ` vs ${hAxisTitle}`;
+		}
+
+		if (groupByTitle !== "") {
+			titleText += ` by ${groupByTitle}`;
+		}
+
+		const layoutTemp = {
+			title: { text: titleText },
+			hovermode: "closest",
+			/* eslint-disable no-magic-numbers */
+			width: window.innerWidth / 1.5,
+			height: window.innerHeight / 1.4 - 50
+
+			/* eslint-enable no-magic-numbers */
+		};
+
+		if (traceOptions().type === "pie") {
+			const columns = Math.ceil(Math.sqrt(dataTemp.length));
+			const rows = Math.ceil(dataTemp.length / columns);
+
+			layoutTemp.grid = { columns, rows };
+
+			dataTemp.forEach((d, i) => {
+				d.domain = {
+					row: Math.floor(i / columns),
+					column: i - columns * Math.floor(i / columns)
+				};
+
+				if (dataTemp.length > 1) {
+					d.title = { text: d.name };
+				}
+			});
+
+			if (dataTemp[0].labels?.length === 1) {
+				layoutTemp.showlegend = false;
+			}
+		} else {
+			layoutTemp.xaxis = {
+				title: transpose() ? { text: $$props.aggregatorName } : undefined,
+				automargin: true
+			};
+
+			layoutTemp.yaxis = {
+				title: transpose() ? undefined : { text: $$props.aggregatorName },
+				automargin: true
+			};
+		}
+
+		$.set(data, dataTemp);
+		$.set(layout, layoutTemp);
+	});
+
+	{
+		let $0 = $.derived(() => ({ ...$.get(layout), ...layoutOptions(), ...plotlyOptions() }));
+
+		Plotly($$anchor, {
+			get layout() {
+				return $.get($0);
+			},
+
+			get data() {
+				return $.get(data);
+			},
+
+			get config() {
+				return plotlyConfig();
+			},
+
+			get onUpdate() {
+				return $$props.onRendererUpdate;
+			}
+		});
+	}
+
+	$.pop();
+}
+=== 2133 src/lib/ScatterRenderer.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import PivotData from "./PivotData";
+import Plotly from "./UI/Plotly.svelte";
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'plotlyOptions',
+	'plotlyConfig',
+	'onRendererUpdate'
+]);
+
+export default function ScatterRenderer($$anchor, $$props) {
+	$.push($$props, true);
+
+	let plotlyOptions = $.prop($$props, 'plotlyOptions', 19, () => ({})),
+		plotlyConfig = $.prop($$props, 'plotlyConfig', 19, () => ({})),
+		restProps = $.rest_props($$props, rest_excludes);
+
+	let pivotData;
+	let rowKeys;
+	let colKeys;
+	let layout = $.state({});
+	let data = { type: "scatter", mode: "markers" };
+
+	$.user_effect(() => {
+		pivotData = new PivotData(restProps);
+		rowKeys = pivotData.getRowKeys();
+		colKeys = pivotData.getColKeys();
+
+		if (rowKeys.length === 0) {
+			rowKeys.push([]);
+		}
+
+		if (colKeys.length === 0) {
+			colKeys.push([]);
+		}
+
+		data.x = [];
+		data.y = [];
+		data.text = [];
+
+		for (const rowKey of rowKeys) {
+			for (const colKey of colKeys) {
+				const v = pivotData.getAggregator(rowKey, colKey).value();
+
+				if (v !== null) {
+					data.x.push(colKey.join("-"));
+					data.y.push(rowKey.join("-"));
+					data.text.push(String(v));
+				}
+			}
+		}
+
+		$.set(layout, {
+			title: {
+				text: pivotData.props.rows.join("-") + " vs " + pivotData.props.cols.join("-")
+			},
+			hovermode: "closest",
+			xaxis: {
+				title: { text: pivotData.props.cols.join("-") },
+				automargin: true
+			},
+			yaxis: {
+				title: { text: pivotData.props.rows.join("-") },
+				automargin: true
+			},
+
+			/* eslint-disable no-magic-numbers */
+			width: window.innerWidth / 1.5,
+			height: window.innerHeight / 1.4 - 50
+
+			/* eslint-enable no-magic-numbers */
+		});
+	});
+
+	{
+		let $0 = $.derived(() => [data]);
+		let $1 = $.derived(() => Object.assign($.get(layout) ?? {}, plotlyOptions()));
+
+		Plotly($$anchor, {
+			get data() {
+				return $.get($0);
+			},
+
+			get layout() {
+				return $.get($1);
+			},
+
+			get config() {
+				return plotlyConfig();
+			},
+
+			get onUpdate() {
+				return $$props.onRendererUpdate;
+			}
+		});
+	}
+
+	$.pop();
+}
+=== 1715 src/lib/TSVExportRenderer.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import PivotData from "./PivotData";
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy']);
+var root = $.from_html(`<textarea></textarea>`);
+
+export default function TSVExportRenderer($$anchor, $$props) {
+	$.push($$props, true);
+
+	let pivotData;
+	let rowKeys;
+	let colKeys;
+	let headerRow;
+	let value = $.state("");
+	let options = $.rest_props($$props, rest_excludes);
+
+	$.user_effect(() => {
+		pivotData = new PivotData(options);
+		rowKeys = pivotData.getRowKeys();
+		colKeys = pivotData.getColKeys();
+
+		if (rowKeys.length === 0) {
+			rowKeys.push([]);
+		}
+
+		if (colKeys.length === 0) {
+			colKeys.push([]);
+		}
+
+		headerRow = pivotData.props.rows.map((r) => r);
+
+		if (colKeys.length === 1 && colKeys[0].length === 0) {
+			headerRow.push($$props.aggregatorName);
+		} else {
+			colKeys.map((c) => headerRow.push(c.join("-")));
+		}
+
+		const result = rowKeys.map((r) => {
+			const row = r.map((x) => x);
+
+			colKeys.map((c) => {
+				const v = pivotData.getAggregator(r, c).value();
+
+				row.push(v ? v : "");
+			});
+
+			return row;
+		});
+
+		result.unshift(headerRow);
+		$.set(value, result.map((r) => r.join("\t")).join("\n"), true);
+	});
+
+	// style={{ width: window.innerWidth / 2, height: window.innerHeight / 2 }}
+	function resize(node) {
+		node.style.width = node.parentElement?.clientWidth + "px";
+		node.style.height = node.parentElement?.clientHeight + "px";
+	}
+
+	var textarea = root();
+
+	$.remove_textarea_child(textarea);
+	textarea.readOnly = true;
+	$.action(textarea, ($$node) => resize?.($$node));
+	$.template_effect(() => $.set_value(textarea, $.get(value)));
+	$.append($$anchor, textarea);
+	$.pop();
+}
+=== 17371 src/lib/TableRenderer.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import "./grouping.css";
+import PivotData from "./PivotData";
+import "./pivottable.css";
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'tableColorScaleGenerator',
+	'tableOptions',
+	'compactRows',
+	'opts'
+]);
+
+var root = $.from_html(`<th></th>`);
+var root_1 = $.from_html(`<th> </th>`);
+var root_2 = $.from_html(`<th class="pvtTotalLabel">Totals</th>`);
+var root_3 = $.from_html(`<tr><!><th> </th><!><!></tr>`);
+var root_4 = $.from_html(`<tr><!><th class="pvtTotalLabel"> </th></tr>`);
+var root_5 = $.from_html(`<th class="pvtRowLabel"> </th>`);
+var root_6 = $.from_html(`<td> </td>`);
+var root_7 = $.from_html(`<tr><!><!><!><td class="pvtTotal"> </td></tr>`);
+var root_8 = $.from_html(`<table><thead><!><!></thead><tbody><!><tr><th class="pvtTotalLabel">Totals</th><!><td class="pvtGrandTotal"> </td></tr></tbody></table>`);
+
+export default function TableRenderer($$anchor, $$props) {
+	$.push($$props, true);
+
+	let tableColorScaleGenerator = $.prop($$props, 'tableColorScaleGenerator', 3, redColorScaleGenerator),
+		tableOptions = $.prop($$props, 'tableOptions', 19, () => ({})),
+		compactRows = $.prop($$props, 'compactRows', 3, true),
+		opts = $.prop($$props, 'opts', 19, () => ({})),
+		restProps = $.rest_props($$props, rest_excludes);
+
+	let pivotData = $.state(new PivotData(restProps));
+
+	$.user_effect(() => {
+		// When this is $derived we experience issues
+		$.set(pivotData, new PivotData(restProps));
+	});
+
+	// helper function for setting row/col-span in pivotTableRenderer
+	const spanSize = function (arr, i, j, no_loop = false) {
+		let x;
+
+		if (i !== 0) {
+			let asc, end;
+			let noDraw = true;
+
+			for ((x = 0, end = j, asc = end >= 0); asc ? x <= end : x >= end; asc ? x++ : x--) {
+				if (arr[i - 1][x] !== arr[i][x]) {
+					noDraw = false;
+				}
+			}
+
+			if (noDraw) {
+				return -1;
+			}
+		}
+
+		let len = 0;
+
+		while (i + len < arr.length) {
+			let asc1, end1;
+			let stop = false;
+
+			for ((x = no_loop ? j : 0, end1 = j, asc1 = end1 >= 0); asc1 ? x <= end1 : x >= end1; asc1 ? x++ : x--) {
+				if (arr[i][x] !== arr[i + len][x]) {
+					stop = true;
+				}
+			}
+
+			if (stop) {
+				break;
+			}
+
+			len++;
+		}
+
+		return len;
+	};
+
+	function redColorScaleGenerator(values) {
+		const min = Math.min(...values.map(Number).filter((x) => x));
+		const max = Math.max(...values.map(Number).filter((x) => x));
+
+		return (x) => {
+			// eslint-disable-next-line no-magic-numbers
+			const nonRed = 255 - Math.round(255 * (Number(x) - min) / (max - min));
+
+			return `background-color: rgb(255,${nonRed},${nonRed})`;
+		};
+	}
+
+	const flatKey = (arr) => arr.join(String.fromCharCode(0));
+	const has = (set, arr) => arr.every(set.has, set);
+	const add = (set, arr) => (arr.forEach(set.add, set), set);
+	const remove = (set, arr) => (arr.forEach(set.delete, set), set);
+	const toggle = (set, arr) => (has(set, arr) ? remove : add)(set, arr);
+	let grandTotalAggregator = $.derived(() => $.get(pivotData).getAggregator([], []));
+	let grouping = $.derived(() => $.get(pivotData).props.grouping);
+	let folded = $.state(new Set());
+	const isFolded = (keys) => has($.get(folded), keys.map(flatKey));
+	const fold = (keys) => $.set(folded, toggle(new Set($.get(folded)), keys.map(flatKey)));
+	let valueCellColors = $.state((r, c, v) => "");
+	let rowTotalColors = $.state((v) => "");
+	let colTotalColors = $.state((v) => "");
+
+	let $$d = $.derived(() => {
+			let rowKeys = $.get(pivotData).getRowKeys(true);
+			let colKeys = $.get(pivotData).getColKeys(true);
+
+			if ($.get(grouping)) {
+				for (const key of $.get(folded)) {
+					const keyEx = key + String.fromCharCode(0);
+
+					colKeys = colKeys.filter((colKey) => !flatKey(colKey).startsWith(keyEx));
+					rowKeys = rowKeys.filter((rowKey) => !flatKey(rowKey).startsWith(keyEx));
+				}
+			}
+
+			return [rowKeys, colKeys];
+		}),
+		$$array = $.derived(() => $.to_array($.get($$d), 2)),
+		rowKeys = $.derived(() => $.get($$array)[0]),
+		colKeys = $.derived(() => $.get($$array)[1]);
+
+	$.user_effect(() => {
+		if (opts().heatmapMode) {
+			const dataRowKeys = $.get(pivotData).getRowKeys(false);
+			const dataColKeys = $.get(pivotData).getColKeys(false);
+			const colorScaleGenerator = tableColorScaleGenerator();
+			const rowTotalValues = dataColKeys.map((x) => $.get(pivotData).getAggregator([], x).value());
+
+			$.set(rowTotalColors, colorScaleGenerator(rowTotalValues), true);
+
+			const colTotalValues = dataRowKeys.map((x) => $.get(pivotData).getAggregator(x, []).value());
+
+			$.set(colTotalColors, colorScaleGenerator(colTotalValues), true);
+
+			if (opts().heatmapMode === "full") {
+				const allValues = [];
+
+				dataRowKeys.forEach((r) => dataColKeys.forEach((c) => allValues.push($.get(pivotData).getAggregator(r, c).value())));
+
+				const colorScale = colorScaleGenerator(allValues);
+
+				$.set(valueCellColors, (r, c, v) => colorScale(v));
+			} else if (opts().heatmapMode === "row") {
+				const rowColorScales = {};
+
+				dataRowKeys.forEach((r) => {
+					const rowValues = dataColKeys.map((x) => $.get(pivotData).getAggregator(r, x).value());
+
+					rowColorScales[flatKey(r)] = colorScaleGenerator(rowValues);
+				});
+
+				$.set(valueCellColors, (r, c, v) => rowColorScales[flatKey(r)](v));
+			} else if (opts().heatmapMode === "col") {
+				const colColorScales = {};
+
+				dataColKeys.forEach((c) => {
+					const colValues = dataRowKeys.map((x) => $.get(pivotData).getAggregator(x, c).value());
+
+					colColorScales[flatKey(c)] = colorScaleGenerator(colValues);
+				});
+
+				$.set(valueCellColors, (r, c, v) => colColorScales[flatKey(c)](v));
+			}
+		}
+	});
+
+	const clickClass = (pred, closed) => pred ? " pvtClickable" + (closed ? " closed" : "") : "";
+
+	let getClickHandler = $.derived(() => {
+		if (tableOptions() && tableOptions().clickCallback) {
+			return (value, rowValues, colValues) => {
+				const filters = {};
+
+				for (const i in $.get(pivotData).props.cols || []) {
+					const attr = $.get(pivotData).props.cols[i];
+
+					if (colValues[i] !== null) {
+						filters[attr] = colValues[i];
+					}
+				}
+
+				for (const i in $.get(pivotData).props.rows || []) {
+					const attr = $.get(pivotData).props.rows[i];
+
+					if (rowValues[i] !== null) {
+						filters[attr] = rowValues[i];
+					}
+				}
+
+				return (e) => tableOptions().clickCallback?.(e, value, filters, $.get(pivotData));
+			};
+		}
+	});
+
+	var table = root_8();
+	var thead = $.child(table);
+	var node = $.child(thead);
+
+	$.each(node, 19, () => $.get(pivotData).props.cols, (c, j) => `col-Attr${j}`, ($$anchor, c, j) => {
+		const clickable = $.derived(() => $.get(grouping) && $.get(pivotData).props.cols.length > $.get(j) + 1);
+		const levelKeys = $.derived(() => $.get(colKeys).filter((x) => x.length === $.get(j) + 1));
+		var tr = root_3();
+		var node_1 = $.child(tr);
+
+		{
+			var consequent = ($$anchor) => {
+				var th = root();
+
+				$.template_effect(() => {
+					$.set_attribute(th, 'colspan', $.get(pivotData).props.rows.length);
+					$.set_attribute(th, 'rowspan', $.get(pivotData).props.cols.length);
+				});
+
+				$.append($$anchor, th);
+			};
+
+			$.if(node_1, ($$render) => {
+				if ($.get(j) === 0 && $.get(pivotData).props.rows.length !== 0) $$render(consequent);
+			});
+		}
+
+		var th_1 = $.sibling(node_1);
+		var text = $.only_child(th_1, true);
+		var node_2 = $.sibling(th_1);
+
+		$.each(node_2, 19, () => $.get(colKeys), (colKey, i) => `colKey${i}`, ($$anchor, colKey, i) => {
+			const xx = $.derived(() => spanSize($.get(colKeys), $.get(i), $.get(j)));
+			var fragment = $.comment();
+			var node_3 = $.first_child(fragment);
+
+			{
+				var consequent_1 = ($$anchor) => {
+					var th_2 = root_1();
+					var text_1 = $.only_child(th_2, true);
+
+					$.template_effect(
+						($0) => {
+							$.set_class(th_2, 1, $0);
+							$.set_attribute(th_2, 'colspan', $.get(xx));
+							$.set_attribute(th_2, 'rowspan', $.get(j) === $.get(pivotData).props.cols.length - 1 && $.get(pivotData).props.rows.length !== 0 ? 2 : 1);
+							$.set_text(text_1, $.get(colKey)[$.get(j)] ?? "");
+						},
+						[
+							() => "pvtColLabel" + clickClass($.get(clickable) && !!$.get(colKey)[$.get(j)], isFolded([$.get(colKey).slice(0, $.get(j) + 1)]))
+						]
+					);
+
+					$.delegated('click', th_2, function (...$$args) {
+						($.get(clickable) && $.get(colKey)[$.get(j)]
+							? (_) => fold([$.get(colKey).slice(0, $.get(j) + 1)])
+							: null)?.apply(this, $$args);
+					});
+
+					$.append($$anchor, th_2);
+				};
+
+				$.if(node_3, ($$render) => {
+					if ($.get(xx) !== -1) $$render(consequent_1);
+				});
+			}
+
+			$.append($$anchor, fragment);
+		});
+
+		var node_4 = $.sibling(node_2);
+
+		{
+			var consequent_2 = ($$anchor) => {
+				var th_3 = root_2();
+
+				$.template_effect(() => $.set_attribute(th_3, 'rowspan', $.get(pivotData).props.cols.length + ($.get(pivotData).props.rows.length === 0 ? 0 : 1)));
+				$.append($$anchor, th_3);
+			};
+
+			$.if(node_4, ($$render) => {
+				if ($.get(j) === 0) $$render(consequent_2);
+			});
+		}
+
+		$.reset(tr);
+
+		$.template_effect(
+			($0) => {
+				$.set_class(th_1, 1, $0);
+				$.set_text(text, $.get(c));
+			},
+			[
+				() => "pvtAxisLabel" + clickClass($.get(clickable), isFolded($.get(levelKeys)))
+			]
+		);
+
+		$.delegated('click', th_1, function (...$$args) {
+			($.get(clickable) ? (_) => fold($.get(levelKeys)) : null)?.apply(this, $$args);
+		});
+
+		$.append($$anchor, tr);
+	});
+
+	var node_5 = $.sibling(node);
+
+	{
+		var consequent_3 = ($$anchor) => {
+			var tr_1 = root_4();
+			var node_6 = $.child(tr_1);
+
+			$.each(node_6, 19, () => $.get(pivotData).props.rows, (r, i) => `row-Attr${i}`, ($$anchor, r, i) => {
+				const clickable = $.derived(() => $.get(grouping) && $.get(pivotData).props.rows.length > $.get(i) + 1);
+				const levelKeys = $.derived(() => $.get(rowKeys).filter((x) => x.length === $.get(i) + 1));
+				var th_4 = root_1();
+				var text_2 = $.only_child(th_4, true);
+
+				$.template_effect(
+					($0) => {
+						$.set_class(th_4, 1, $0);
+						$.set_text(text_2, $.get(r));
+					},
+					[
+						() => "pvtAxisLabel" + clickClass($.get(clickable), isFolded($.get(levelKeys)))
+					]
+				);
+
+				$.delegated('click', th_4, function (...$$args) {
+					($.get(clickable) ? (_) => fold($.get(levelKeys)) : null)?.apply(this, $$args);
+				});
+
+				$.append($$anchor, th_4);
+			});
+
+			var th_5 = $.sibling(node_6);
+			var text_3 = $.only_child(th_5, true);
+
+			$.reset(tr_1);
+			$.template_effect(() => $.set_text(text_3, $.get(pivotData).props.cols.length === 0 ? "Totals" : ""));
+			$.append($$anchor, tr_1);
+		};
+
+		$.if(node_5, ($$render) => {
+			if ($.get(pivotData).props.rows.length !== 0) $$render(consequent_3);
+		});
+	}
+
+	$.reset(thead);
+
+	var tbody = $.sibling(thead);
+	var node_7 = $.child(tbody);
+
+	$.each(node_7, 19, () => $.get(rowKeys), (rowKey, i) => `rowKeyRow${i}`, ($$anchor, rowKey, i) => {
+		const totalAggregator = $.derived(() => $.get(pivotData).getAggregator($.get(rowKey), []));
+		const rowGap = $.derived(() => $.get(pivotData).props.rows.length - $.get(rowKey).length);
+		const useCompactRows = $.derived(() => $.get(grouping) && compactRows());
+		var tr_2 = root_7();
+		var node_8 = $.child(tr_2);
+
+		$.each(node_8, 19, () => $.get(rowKey), (txt, j) => `rowKeyLabel${$.get(i)}-${j}`, ($$anchor, txt, j) => {
+			const clickable = $.derived(() => $.get(grouping) && $.get(pivotData).props.rows.length > $.get(j) + 1);
+			const specialCase = $.derived(() => $.get(grouping) && !$.get(pivotData).props.rowGroupBefore);
+
+			const xx = $.derived(() => $.get(useCompactRows)
+				? 1
+				: spanSize($.get(rowKeys), $.get(i), $.get(j), $.get(specialCase)));
+
+			var fragment_1 = $.comment();
+			var node_9 = $.first_child(fragment_1);
+
+			{
+				var consequent_4 = ($$anchor) => {
+					var th_6 = root_1();
+					let styles;
+					var text_4 = $.only_child(th_6, true);
+
+					$.template_effect(
+						($0) => {
+							$.set_class(th_6, 1, $0);
+							$.set_attribute(th_6, 'rowspan', $.get(xx));
+
+							$.set_attribute(th_6, 'colspan', $.get(useCompactRows)
+								? $.get(pivotData).props.rows.length + 1
+								: $.get(j) === $.get(pivotData).props.rows.length - 1 && $.get(pivotData).props.cols.length !== 0 ? 2 : 1);
+
+							styles = $.set_style(th_6, '', styles, {
+								'padding-left': $.get(useCompactRows)
+									? `calc(var(--pvt-row-padding, 5px) + ${$.get(j)} * var(--pvt-row-indent, 20px))`
+									: null
+							});
+
+							$.set_text(text_4, $.get(txt));
+						},
+						[
+							() => "pvtRowLabel" + clickClass($.get(clickable) && !!$.get(rowKey)[$.get(j)], isFolded([$.get(rowKey).slice(0, $.get(j) + 1)]))
+						]
+					);
+
+					$.delegated('click', th_6, function (...$$args) {
+						($.get(clickable) && $.get(rowKey)[$.get(j)]
+							? (_) => fold([$.get(rowKey).slice(0, $.get(j) + 1)])
+							: null)?.apply(this, $$args);
+					});
+
+					$.append($$anchor, th_6);
+				};
+
+				$.if(node_9, ($$render) => {
+					if (!($.get(useCompactRows) && $.get(j) < $.get(rowKey).length - 1 || $.get(xx) === -1)) $$render(consequent_4);
+				});
+			}
+
+			$.append($$anchor, fragment_1);
+		});
+
+		var node_10 = $.sibling(node_8);
+
+		{
+			var consequent_5 = ($$anchor) => {
+				var th_7 = root_5();
+				var text_5 = $.only_child(th_7, true);
+
+				$.template_effect(() => {
+					$.set_attribute(th_7, 'colspan', $.get(rowGap) + 1);
+					$.set_text(text_5, "Total (" + $.get(rowKey)[$.get(rowKey).length - 1] + ")");
+				});
+
+				$.append($$anchor, th_7);
+			};
+
+			$.if(node_10, ($$render) => {
+				if (!$.get(useCompactRows) && $.get(rowGap)) $$render(consequent_5);
+			});
+		}
+
+		var node_11 = $.sibling(node_10);
+
+		$.each(node_11, 19, () => $.get(colKeys), (colKey, j) => `pvtVal${$.get(i)}-${j}`, ($$anchor, colKey) => {
+			const aggregator = $.derived(() => $.get(pivotData).getAggregator($.get(rowKey), $.get(colKey)));
+			const colGap = $.derived(() => $.get(pivotData).props.cols.length - $.get(colKey).length);
+			var td = root_6();
+			var event_handler = $.derived(() => $.get(getClickHandler) && $.get(getClickHandler)($.get(aggregator).value(), $.get(rowKey), $.get(colKey)));
+			var text_6 = $.only_child(td, true);
+
+			$.template_effect(
+				($0, $1) => {
+					$.set_class(td, 1, "pvtVal" + ($.get(colGap) ? " pvtLevel" + $.get(colGap) : ""));
+					$.set_style(td, $0);
+					$.set_text(text_6, $1);
+				},
+				[
+					() => $.get(colGap) || $.get(rowGap)
+						? ""
+						: $.get(valueCellColors)($.get(rowKey), $.get(colKey), $.get(aggregator).value()),
+					() => $.get(aggregator).format($.get(aggregator).value())
+				]
+			);
+
+			$.delegated('click', td, function (...$$args) {
+				$.get(event_handler)?.apply(this, $$args);
+			});
+
+			$.append($$anchor, td);
+		});
+
+		var td_1 = $.sibling(node_11);
+		var event_handler_1 = $.derived(() => $.get(getClickHandler) && $.get(getClickHandler)($.get(totalAggregator).value(), $.get(rowKey), [null]));
+		var text_7 = $.only_child(td_1, true);
+
+		$.reset(tr_2);
+
+		$.template_effect(
+			($0, $1) => {
+				$.set_class(tr_2, 1, $.clsx($.get(rowGap) ? "pvtLevel" + $.get(rowGap) : "pvtData"));
+				$.set_style(td_1, $0);
+				$.set_text(text_7, $1);
+			},
+			[
+				() => $.get(colTotalColors)($.get(totalAggregator).value()),
+				() => $.get(totalAggregator).format($.get(totalAggregator).value())
+			]
+		);
+
+		$.delegated('click', td_1, function (...$$args) {
+			$.get(event_handler_1)?.apply(this, $$args);
+		});
+
+		$.append($$anchor, tr_2);
+	});
+
+	var tr_3 = $.sibling(node_7);
+	var th_8 = $.child(tr_3);
+	var node_12 = $.sibling(th_8);
+
+	$.each(node_12, 19, () => $.get(colKeys), (colKey, i) => `total${i}`, ($$anchor, colKey) => {
+		const totalAggregator = $.derived(() => $.get(pivotData).getAggregator([], $.get(colKey)));
+		const colGap = $.derived(() => $.get(pivotData).props.cols.length - $.get(colKey).length);
+		var td_2 = root_6();
+		var event_handler_2 = $.derived(() => $.get(getClickHandler) && $.get(getClickHandler)($.get(totalAggregator).value(), [null], $.get(colKey)));
+		var text_8 = $.only_child(td_2, true);
+
+		$.template_effect(
+			($0, $1) => {
+				$.set_class(td_2, 1, "pvtTotal" + ($.get(colGap) ? " pvtLevel" + $.get(colGap) : ""));
+				$.set_style(td_2, $0);
+				$.set_text(text_8, $1);
+			},
+			[
+				() => $.get(rowTotalColors)($.get(totalAggregator).value()),
+				() => $.get(totalAggregator).format($.get(totalAggregator).value())
+			]
+		);
+
+		$.delegated('click', td_2, function (...$$args) {
+			$.get(event_handler_2)?.apply(this, $$args);
+		});
+
+		$.append($$anchor, td_2);
+	});
+
+	var td_3 = $.sibling(node_12);
+	var event_handler_3 = $.derived(() => $.get(getClickHandler) && $.get(getClickHandler)($.get(grandTotalAggregator).value(), [null], [null]));
+	var text_9 = $.only_child(td_3, true);
+
+	$.reset(tr_3);
+	$.reset(tbody);
+	$.reset(table);
+
+	$.template_effect(
+		($0) => {
+			$.set_class(table, 1, $.clsx([
+				"pvtTable",
+				$.get(grouping) && ($.get(pivotData).props.rowGroupBefore ? "rowGroupBefore" : "rowGroupAfter"),
+				$.get(grouping) && ($.get(pivotData).props.colGroupBefore ? "colGroupBefore" : "colGroupAfter")
+			]));
+
+			$.set_attribute(th_8, 'colspan', $.get(pivotData).props.rows.length + ($.get(pivotData).props.cols.length === 0 ? 0 : 1));
+			$.set_text(text_9, $0);
+		},
+		[
+			() => $.get(grandTotalAggregator).format($.get(grandTotalAggregator).value())
+		]
+	);
+
+	$.delegated('click', td_3, function (...$$args) {
+		$.get(event_handler_3)?.apply(this, $$args);
+	});
+
+	$.append($$anchor, table);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 366 src/lib/TableRenderer.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `restProps`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 45,
+			"character": 438
+		},
+		"end": {
+			"line": 16,
+			"column": 54,
+			"character": 447
+		}
+	}
+]
+
+=== 2117 src/lib/UI/Aggregators.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Dropdown from "./Dropdown.svelte";
+
+var root = $.from_html(`<br/>`);
+var root_1 = $.from_html(`<!> <!>`, 1);
+var root_2 = $.from_html(`<!>   <!> <!>`, 1);
+
+export default function Aggregators($$anchor, $$props) {
+	$.push($$props, true);
+
+	let numValsAllowed = $.derived(() => $$props.aggregators[$$props.aggregatorName]([])().numInputs || 0);
+
+	const sortIcons = {
+		key_a_to_z: { rowSymbol: "↕", colSymbol: "↔", next: "value_a_to_z" },
+		value_a_to_z: { rowSymbol: "↓", colSymbol: "→", next: "value_z_to_a" },
+		value_z_to_a: { rowSymbol: "↑", colSymbol: "←", next: "key_a_to_z" }
+	};
+
+	// is it a time to use array.toSpliced(index, 1, value); ?
+	const setAt = (array, index, value) => Object.assign([], array, { [index]: value });
+
+	var fragment = root_2();
+	var node = $.first_child(fragment);
+
+	{
+		let $0 = $.derived(() => Object.keys($$props.aggregators));
+
+		Dropdown(node, {
+			get current() {
+				return $$props.aggregatorName;
+			},
+
+			get values() {
+				return $.get($0);
+			},
+
+			get onchange() {
+				return $$props.onChange;
+			}
+		});
+	}
+
+	var node_1 = $.sibling(node, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			var br = root();
+
+			$.append($$anchor, br);
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($.get(numValsAllowed) > 0) $$render(consequent);
+		});
+	}
+
+	var node_2 = $.sibling(node_1, 2);
+
+	$.each(node_2, 17, () => new Array($.get(numValsAllowed)), $.index, ($$anchor, n, i) => {
+		var fragment_1 = root_1();
+		var node_3 = $.first_child(fragment_1);
+
+		Dropdown(node_3, {
+			get current() {
+				return $$props.vals[i];
+			},
+
+			get values() {
+				return $$props.valAttrs;
+			},
+			onchange: (v) => $$props.onUpdate(setAt($$props.vals, i, v))
+		});
+
+		var node_4 = $.sibling(node_3, 2);
+
+		{
+			var consequent_1 = ($$anchor) => {
+				var br_1 = root();
+
+				$.append($$anchor, br_1);
+			};
+
+			$.if(node_4, ($$render) => {
+				if (i + 1 !== $.get(numValsAllowed)) $$render(consequent_1);
+			});
+		}
+
+		$.append($$anchor, fragment_1);
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1678 src/lib/UI/DnDCell.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onMount } from "svelte";
+import { getSort } from "../Utilities";
+import DraggableAttribute from "./DraggableAttribute.svelte";
+import sortableAttachment from "./SortableAttachment";
+
+var root = $.from_html(`<div></div>`);
+var root_1 = $.from_html(`<!> <!>`, 1);
+
+export default function DnDCell($$anchor, $$props) {
+	$.push($$props, true);
+
+	const options = {
+		group: "shared",
+		ghostClass: "pvtPlaceholder",
+		filter: ".pvtFilterBox",
+		preventOnFilter: false,
+		revertOnSpill: true, // Enable plugin
+		removeOnSpill: false // Disable plugin
+	};
+
+	function getAttrValues(x) {
+		const values = $$props.attrValues[x] ?? {},
+			sorter = getSort($$props.sorters, x);
+
+		return Object.keys(values).sort(sorter);
+	}
+
+	let initialized = $.state(false);
+
+	onMount(() => {
+		// onMount is afer the attachments
+		$.set(initialized, true);
+	});
+
+	var fragment = root_1();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			var div = root();
+
+			$.attach(div, () => sortableAttachment(options, $$props.onChange));
+			$.append($$anchor, div);
+		};
+
+		$.if(node, ($$render) => {
+			if (!$.get(initialized)) $$render(consequent);
+		});
+	}
+
+	var node_1 = $.sibling(node, 2);
+
+	$.each(node_1, 17, () => $$props.items, $.index, ($$anchor, name) => {
+		{
+			let $0 = $.derived(() => getAttrValues($.get(name)));
+
+			DraggableAttribute($$anchor, {
+				get attrValues() {
+					return $.get($0);
+				},
+
+				get name() {
+					return $.get(name);
+				},
+
+				get menuLimit() {
+					return $$props.menuLimit;
+				}
+			});
+		}
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 115 src/lib/UI/Draggable.svelte	css
+
+    .draggable.svelte-4amd0x {
+        user-select: none;
+        cursor: auto;
+        position: relative;
+    }
+
+=== 1390 src/lib/UI/Draggable.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<section role="presentation"><!></section>`);
+
+export default function Draggable($$anchor, $$props) {
+	// query
+	let left = $.state(0);
+
+	let top = $.state(0);
+	let moving = false;
+
+	function onMouseDown() {
+		moving = true;
+	}
+
+	function onMouseMove(e) {
+		if (moving) {
+			$.set(left, $.get(left) + e.movementX);
+			$.set(top, $.get(top) + e.movementY);
+		}
+	}
+
+	function onMouseUp() {
+		moving = false;
+	}
+
+	function init(node) {
+		const handleElem = node.querySelector($$props.handle) ?? node;
+
+		handleElem.addEventListener("mousedown", onMouseDown, true);
+
+		const closeElem = node.querySelector($$props.close);
+
+		closeElem?.addEventListener("click", $$props.onclose, true);
+
+		return () => {
+			handleElem.removeEventListener("mousedown", onMouseDown, true);
+			closeElem?.removeEventListener("click", $$props.onclose, true);
+		};
+	}
+
+	var section = root();
+
+	$.event('mouseup', $.window, onMouseUp);
+	$.event('mousemove', $.window, onMouseMove);
+	$.set_class(section, 1, 'draggable svelte-4amd0x');
+
+	var node_1 = $.child(section);
+
+	$.snippet(node_1, () => $$props.children);
+	$.reset(section);
+	$.attach(section, () => init);
+	$.template_effect(() => $.set_style(section, `left: ${$.get(left) ?? ''}px; top: ${$.get(top) ?? ''}px;`));
+	$.append($$anchor, section);
+}
+=== 1789 src/lib/UI/DraggableAttribute.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getContext } from "svelte";
+import Draggable from "./Draggable.svelte";
+import FilterBox from "./FilterBox.svelte";
+
+var root = $.from_html(`<li class="handle"><span> <span class="pvtTriangle" role="presentation"></span></span> <!></li>`);
+
+export default function DraggableAttribute($$anchor, $$props) {
+	$.push($$props, true);
+
+	let open = $.state(false);
+	let valueFilter = getContext("valueFilter");
+
+	let is_empty = $.derived(() => valueFilter[$$props.name]
+		? Object.keys(valueFilter[$$props.name]).length === 0
+		: true);
+
+	const toggleOpen = () => $.set(open, !$.get(open));
+	var li = root();
+	var span = $.child(li);
+	var text = $.child(span);
+	var span_1 = $.sibling(text);
+
+	span_1.textContent = ' \n            ▾';
+	$.reset(span);
+
+	var node = $.sibling(span, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			Draggable($$anchor, {
+				handle: '.pvtDragHandle',
+				close: '.pvtCloseX',
+				onclose: toggleOpen,
+				children: ($$anchor, $$slotProps) => {
+					FilterBox($$anchor, {
+						get name() {
+							return $$props.name;
+						},
+
+						get values() {
+							return $$props.attrValues;
+						},
+
+						get menuLimit() {
+							return $$props.menuLimit;
+						}
+					});
+				},
+				$$slots: { default: true }
+			});
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(open)) $$render(consequent);
+		});
+	}
+
+	$.reset(li);
+
+	$.template_effect(() => {
+		$.set_attribute(li, 'data-id', $$props.name);
+		$.set_class(span, 1, `pvtAttr ${$.get(is_empty) ? "" : "pvtFilteredAttribute"}`);
+		$.set_text(text, `${$$props.name ?? ''} `);
+	});
+
+	$.delegated('click', span_1, toggleOpen);
+	$.event('keypress', span_1, toggleOpen);
+	$.append($$anchor, li);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 2477 src/lib/UI/Dropdown.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { clickOutside } from "./utils";
+
+var root = $.from_html(`<span>&nbsp;</span>`);
+var root_1 = $.from_html(`<div role="button" tabindex="0"> </div>`);
+var root_2 = $.from_html(`<div class="pvtDropdownMenu" style="z-index: 100;"></div>`);
+var root_3 = $.from_html(`<div class="pvtDropdown"><button><div class="pvtDropdownIcon"> </div> <!></button> <!></div>`);
+
+export default function Dropdown($$anchor, $$props) {
+	$.push($$props, true);
+
+	let current = $.prop($$props, 'current', 15),
+		values = $.prop($$props, 'values', 19, () => []),
+		onchange = $.prop($$props, 'onchange', 3, undefined);
+
+	let open = $.state(false);
+	const toggle = () => $.set(open, !$.get(open));
+	var div = root_3();
+	var button = $.child(div);
+	var div_1 = $.child(button);
+	var text = $.only_child(div_1, true);
+	var node = $.sibling(div_1, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			var text_1 = $.text();
+
+			$.template_effect(() => $.set_text(text_1, current()));
+			$.append($$anchor, text_1);
+		};
+
+		var alternate = ($$anchor) => {
+			var span = root();
+
+			$.append($$anchor, span);
+		};
+
+		$.if(node, ($$render) => {
+			if (current()) $$render(consequent); else $$render(alternate, -1);
+		});
+	}
+
+	$.reset(button);
+
+	var node_1 = $.sibling(button, 2);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var div_2 = root_2();
+
+			$.each(div_2, 20, values, (r) => r, ($$anchor, r) => {
+				var div_3 = root_1();
+				let classes;
+				var text_2 = $.only_child(div_3, true);
+
+				$.template_effect(() => {
+					classes = $.set_class(div_3, 1, 'pvtDropdownValue', null, classes, { pvtDropdownActiveValue: r === current() });
+					$.set_text(text_2, r);
+				});
+
+				$.delegated('click', div_3, () => {
+					if (current() !== r) {
+						current(r);
+						onchange()?.(current());
+					}
+
+					toggle();
+				});
+
+				$.append($$anchor, div_3);
+			});
+
+			$.reset(div_2);
+			$.append($$anchor, div_2);
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($.get(open)) $$render(consequent_1);
+		});
+	}
+
+	$.reset(div);
+	$.action(div, ($$node) => clickOutside?.($$node));
+
+	$.template_effect(() => {
+		$.set_class(button, 1, "pvtDropdownValue pvtDropdownCurrent " + ($.get(open) ? "pvtDropdownCurrentOpen" : ""));
+		$.set_text(text, $.get(open) ? "×" : "▾");
+	});
+
+	$.event('outside', div, () => $.set(open, false));
+	$.delegated('click', button, toggle);
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 4914 src/lib/UI/FilterBox.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getContext } from "svelte";
+
+let zIndexGlobal = 1000;
+var root = $.from_html(`<em>null</em>`);
+var root_1 = $.from_html(`<p><a class="pvtOnly" role="presentation">only</a> <span class="pvtOnlySpacer">&nbsp;</span> <!></p>`);
+var root_2 = $.from_html(`<p><input type="text" placeholder="Filter values" class="pvtSearch"/> <br/> <button class="pvtButton"> </button> <button class="pvtButton"> </button></p> <div class="pvtCheckContainer"></div>`, 1);
+var root_3 = $.from_html(`<p>(too many values to show)</p>`);
+var root_4 = $.from_html(`<div class="pvtFilterBox"><span class="pvtCloseX">×</span> <span class="pvtDragHandle">☰</span> <h4> </h4> <!></div>`);
+
+export default function FilterBox($$anchor, $$props) {
+	$.push($$props, true);
+
+	let menuLimit = $.prop($$props, 'menuLimit', 3, 500);
+	let globalFilter = getContext("valueFilter");
+	let valueFilter = $.proxy(globalFilter[$$props.name] ?? {});
+	let filterText = $.state("");
+
+	let shown = $.derived(() => $$props.values.filter(
+		matchesFilter, // filterText only to trigger reactivity
+		$.get(filterText)
+	));
+
+	function toggleValue(value) {
+		value in valueFilter
+			? removeValuesFromFilter([value])
+			: addValuesToFilter([value]);
+	}
+
+	function setValuesInFilter(values) {
+		Object.keys(valueFilter).forEach((key) => delete valueFilter[key]);
+		addValuesToFilter(values);
+
+		// values.forEach((v) => (valueFilter[v] = true));
+	}
+
+	function addValuesToFilter(values) {
+		values.forEach((v) => valueFilter[v] = true);
+		globalFilter[$$props.name] = valueFilter;
+	}
+
+	function removeValuesFromFilter(values) {
+		values.forEach((v) => delete valueFilter[v]);
+		globalFilter[$$props.name] = valueFilter;
+	}
+
+	function matchesFilter(x) {
+		return x.toLowerCase().trim().includes($.get(filterText).toLowerCase().trim());
+	}
+
+	function selectOnly(ev, value) {
+		ev.preventDefault();
+		ev.stopPropagation();
+		setValuesInFilter($$props.values.filter((y) => y !== value));
+	}
+
+	function select(all) {
+		const func = all ? removeValuesFromFilter : addValuesToFilter;
+
+		return function (ev) {
+			ev.stopPropagation();
+			func($$props.values.filter(matchesFilter));
+		};
+	}
+
+	function init(node) {
+		node.style.zIndex = "" + zIndexGlobal++;
+	}
+
+	var div = root_4();
+
+	$.set_style(div, '', {}, { display: 'block', cursor: 'initial' });
+
+	var h4 = $.sibling($.child(div), 4);
+	var text = $.only_child(h4, true);
+	var node_1 = $.sibling(h4, 2);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var fragment = root_2();
+			var p = $.first_child(fragment);
+			var input = $.child(p);
+
+			$.remove_input_defaults(input);
+
+			var button = $.sibling(input, 4);
+			var event_handler = $.derived(() => select(true));
+			var text_1 = $.only_child(button);
+			var text_2 = $.sibling(button);
+
+			text_2.nodeValue = '  ';
+
+			var button_1 = $.sibling(text_2);
+			var event_handler_1 = $.derived(() => select(false));
+			var text_3 = $.only_child(button_1);
+
+			$.reset(p);
+
+			var div_1 = $.sibling(p, 2);
+
+			$.each(div_1, 20, () => $.get(shown), (x) => x, ($$anchor, x) => {
+				var p_1 = root_1();
+				var a = $.child(p_1);
+				var node_2 = $.sibling(a, 4);
+
+				{
+					var consequent = ($$anchor) => {
+						var em = root();
+
+						$.append($$anchor, em);
+					};
+
+					var alternate = ($$anchor) => {
+						var text_4 = $.text();
+
+						$.template_effect(() => $.set_text(text_4, x));
+						$.append($$anchor, text_4);
+					};
+
+					$.if(node_2, ($$render) => {
+						if (x === "") $$render(consequent); else $$render(alternate, -1);
+					});
+				}
+
+				$.reset(p_1);
+				$.template_effect(() => $.set_class(p_1, 1, $.clsx(x in valueFilter ? "" : "selected")));
+				$.delegated('click', p_1, () => toggleValue(x));
+				$.delegated('click', a, (ev) => selectOnly(ev, x));
+				$.append($$anchor, p_1);
+			});
+
+			$.reset(div_1);
+
+			$.template_effect(() => {
+				$.set_text(text_1, `Select ${($$props.values.length === $.get(shown).length ? "All" : $.get(shown).length) ?? ''}`);
+				$.set_text(text_3, `Deselect ${($$props.values.length === $.get(shown).length ? "All" : $.get(shown).length) ?? ''}`);
+			});
+
+			$.bind_value(input, () => $.get(filterText), ($$value) => $.set(filterText, $$value));
+
+			$.delegated('click', button, function (...$$args) {
+				$.get(event_handler)?.apply(this, $$args);
+			});
+
+			$.delegated('click', button_1, function (...$$args) {
+				$.get(event_handler_1)?.apply(this, $$args);
+			});
+
+			$.append($$anchor, fragment);
+		};
+
+		var alternate_1 = ($$anchor) => {
+			var p_2 = root_3();
+
+			$.append($$anchor, p_2);
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($$props.values.length < menuLimit()) $$render(consequent_1); else $$render(alternate_1, -1);
+		});
+	}
+
+	$.reset(div);
+	$.action(div, ($$node) => init?.($$node));
+	$.template_effect(() => $.set_text(text, $$props.name));
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 361 src/lib/UI/FilterBox.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `name`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 13,
+			"column": 42,
+			"character": 325
+		},
+		"end": {
+			"line": 13,
+			"column": 46,
+			"character": 329
+		}
+	}
+]
+
+=== 3247 src/lib/UI/MainTable.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<table class="pvtUi"><tbody><tr><td class="pvtRenderers"><!></td><td class="pvtAxisContainer pvtUnused pvtHorizList"><!></td></tr><tr><td class="pvtVals"><!></td><td class="pvtAxisContainer pvtHorizList pvtCols"><!></td></tr><tr><td class="pvtAxisContainer pvtVertList pvtRows"><!></td><td class="pvtOutput"><!></td></tr></tbody></table>`);
+var root_1 = $.from_html(`<table class="pvtUi"><tbody><tr><td class="pvtRenderers"><!></td><td class="pvtVals"><!></td><td class="pvtAxisContainer pvtHorizList pvtCols"><!></td></tr><tr><td class="pvtAxisContainer pvtUnused pvtVertList"><!></td><td class="pvtAxisContainer pvtVertList pvtRows"><!></td><td class="pvtOutput"><!></td></tr></tbody></table>`);
+
+export default function MainTable($$anchor, $$props) {
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			var table = root();
+			var tbody = $.child(table);
+			var tr = $.child(tbody);
+			var td = $.child(tr);
+			var node_1 = $.child(td);
+
+			$.snippet(node_1, () => $$props.rendererCell);
+			$.reset(td);
+
+			var td_1 = $.sibling(td);
+			var node_2 = $.child(td_1);
+
+			$.snippet(node_2, () => $$props.unusedAttrsCell);
+			$.reset(td_1);
+			$.reset(tr);
+
+			var tr_1 = $.sibling(tr);
+			var td_2 = $.child(tr_1);
+			var node_3 = $.child(td_2);
+
+			$.snippet(node_3, () => $$props.aggregatorCell);
+			$.reset(td_2);
+
+			var td_3 = $.sibling(td_2);
+			var node_4 = $.child(td_3);
+
+			$.snippet(node_4, () => $$props.colAttrsCell);
+			$.reset(td_3);
+			$.reset(tr_1);
+
+			var tr_2 = $.sibling(tr_1);
+			var td_4 = $.child(tr_2);
+			var node_5 = $.child(td_4);
+
+			$.snippet(node_5, () => $$props.rowAttrsCell);
+			$.reset(td_4);
+
+			var td_5 = $.sibling(td_4);
+			var node_6 = $.child(td_5);
+
+			$.snippet(node_6, () => $$props.outputCell);
+			$.reset(td_5);
+			$.reset(tr_2);
+			$.reset(tbody);
+			$.reset(table);
+			$.append($$anchor, table);
+		};
+
+		var alternate = ($$anchor) => {
+			var table_1 = root_1();
+			var tbody_1 = $.child(table_1);
+			var tr_3 = $.child(tbody_1);
+			var td_6 = $.child(tr_3);
+			var node_7 = $.child(td_6);
+
+			$.snippet(node_7, () => $$props.rendererCell);
+			$.reset(td_6);
+
+			var td_7 = $.sibling(td_6);
+			var node_8 = $.child(td_7);
+
+			$.snippet(node_8, () => $$props.aggregatorCell);
+			$.reset(td_7);
+
+			var td_8 = $.sibling(td_7);
+			var node_9 = $.child(td_8);
+
+			$.snippet(node_9, () => $$props.colAttrsCell);
+			$.reset(td_8);
+			$.reset(tr_3);
+
+			var tr_4 = $.sibling(tr_3);
+			var td_9 = $.child(tr_4);
+			var node_10 = $.child(td_9);
+
+			$.snippet(node_10, () => $$props.unusedAttrsCell);
+			$.reset(td_9);
+
+			var td_10 = $.sibling(td_9);
+			var node_11 = $.child(td_10);
+
+			$.snippet(node_11, () => $$props.rowAttrsCell);
+			$.reset(td_10);
+
+			var td_11 = $.sibling(td_10);
+			var node_12 = $.child(td_11);
+
+			$.snippet(node_12, () => $$props.outputCell);
+			$.reset(td_11);
+			$.reset(tr_4);
+			$.reset(tbody_1);
+			$.reset(table_1);
+			$.append($$anchor, table_1);
+		};
+
+		$.if(node, ($$render) => {
+			if ($$props.horizUnused) $$render(consequent); else $$render(alternate, -1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+}
+=== 1092 src/lib/UI/Plotly.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+let Plotly = $.state(void 0);
+
+export function initPlotly(module) {
+	$.set(Plotly, module, true);
+}
+
+var root = $.from_html(`<div></div>`);
+var root_1 = $.from_html(`Add commentMore actions <p>Error! Plotly.js not initialized.</p>`, 1);
+
+export default function Plotly_1($$anchor, $$props) {
+	// export const onUpdate = () => {}; // TODO: connect to plotly events
+	function create(node) {
+		if ($.get(Plotly)) {
+			$.get(Plotly).newPlot(node, $$props.data, $$props.layout, $$props.config);
+
+			return () => $.get(Plotly).purge(node);
+		}
+	}
+
+	var fragment = $.comment();
+	var node_1 = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			var div = root();
+
+			$.attach(div, () => create);
+			$.append($$anchor, div);
+		};
+
+		var alternate = ($$anchor) => {
+			var fragment_1 = root_1();
+
+			$.next();
+			$.append($$anchor, fragment_1);
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($.get(Plotly)) $$render(consequent); else $$render(alternate, -1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+}
+=== 1508 src/routes/+page.svelte	css
+
+    body {
+        min-height: 1400px;
+        padding-bottom: 20px;
+    }
+    .pvtUi {
+        width: 100%;
+    }
+    p.svelte-1uha8ag,
+    .navbar.svelte-1uha8ag {
+        font-family: "Open Sans", sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+    }
+
+    .navbar.svelte-1uha8ag {
+        margin-bottom: 0;
+    }
+    .jumbotron.svelte-1uha8ag {
+        color: white;
+        background: linear-gradient(27deg, #1e427d 0%, #1d9cfc 100%);
+        text-align: center;
+    }
+
+    .jumbotron.svelte-1uha8ag h1:where(.svelte-1uha8ag) {
+        font-size: 58px;
+        line-height: 60px;
+        font-family: "Dosis", sans-serif;
+    }
+
+    .jumbotron.svelte-1uha8ag p:where(.svelte-1uha8ag) {
+        font-size: 22px;
+        line-height: 36px;
+    }
+
+    /* h2 {
+        font-size: 34px;
+        line-height: 44px;
+        font-family: "Dosis", sans-serif;
+    } */
+
+    .btn-primary.svelte-1uha8ag {
+        background: #119dff;
+        border: 1px solid #119dff;
+    }
+    /* .btn-default {
+        background: #f2f5fa;
+        border: 1px solid #c8d4e3;
+    }
+    .pvtUi {
+        width: 100%;
+    }
+    .pvtVertList {
+        width: 15%;
+    }
+
+    textarea {
+        width: 100%;
+        height: 100px;
+    }
+
+    .dropzone {
+        width: 100%;
+        height: 100px;
+        padding: 10px;
+        border: 2px dashed lightgrey;
+        cursor: pointer;
+    }
+    .dropzoneActive {
+        border: 2px dashed green;
+    }
+    .dropzoneReject {
+        border: 2px dashed red;
+    } */
+
+=== 5287 src/routes/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import PivotTableUI from "$lib/PivotTableUI.svelte";
+import PlotlyRenderers from "$lib/PlotlyRenderers";
+import TableRenderers from "$lib/TableRenderers";
+import { derivers } from "$lib/Utilities";
+import { onMount } from "svelte";
+import data from "./_montreal.json";
+
+var root = $.with_script($.from_html(`<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet"/> <link href="https://fonts.googleapis.com/css?family=Dosis|Open+Sans" rel="stylesheet"/> <script src="https://cdn.plot.ly/plotly-basic-latest.min.js"></script>`, 1));
+var root_1 = $.from_html(`<nav class="navbar navbar-inverse navbar-static-top svelte-1uha8ag"><div class="container"><div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><span class="sr-only">Toggle navigation</span> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span></button> <a class="navbar-brand" href="#">svelte-pivottable</a></div> <div id="navbar" class="navbar-collapse collapse"></div></div></nav> <div class="jumbotron svelte-1uha8ag"><div class="container"><h1 class="svelte-1uha8ag">svelte-pivottable</h1> <p class="svelte-1uha8ag">Svelte-based drag'n'drop pivot table with grouping and Plotly.js charts.</p> <p class="svelte-1uha8ag"><a class="btn btn-primary btn-lg svelte-1uha8ag" href="https://github.com/plotly/svelte-pivottable#readme" role="button">Get started &raquo;</a></p></div></div> <div class="container"><div class="row text-center"><div class="col-md-2 col-md-offset-3"><label class=" checkbox-inline" style="text-transform: capitalize;"><input type="checkbox"/> Grouping</label></div> <fieldset class="col-md-6"><label class=" checkbox-inline" style="text-transform: capitalize;"><input type="checkbox"/> Compact Rows</label> <label class=" checkbox-inline" style="text-transform: capitalize;"><input type="checkbox"/> Rows totals above</label> <label class=" checkbox-inline" style="text-transform: capitalize;"><input type="checkbox"/> Cols totals before</label></fieldset> <br/><br/></div> <!> <hr/> <footer style="text-align: center"><p class="svelte-1uha8ag">&copy; 2022 Jakub Jagielka</p></footer></div>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let plotlyRenderers = {};
+	let renderers = $.state($.proxy({}));
+
+	onMount(async () => {
+		// plotly.js requires an access to window object
+		// static import in sveltekit causes a problem
+		// const Plotly = await import("plotly.js/dist/plotly");
+		const Plotly = window.Plotly;
+
+		// create Plotly renderers via dependency injection
+		plotlyRenderers = PlotlyRenderers(Plotly);
+
+		// plotlyRenderers = {};
+		$.set(renderers, { ...TableRenderers, ...plotlyRenderers }, true);
+	});
+
+	let grouping = $.state(true);
+	let compactRows = $.state(true);
+	let rowGroupBefore = $.state(true);
+	let colGroupBefore = $.state(false);
+
+	const derivedAttributes = {
+		"Age Bin": derivers.bin("Age", 10),
+		"Gender Imbalance": function (mp) {
+			return mp["Gender"] == "Male" ? 1 : -1;
+		}
+	};
+
+	let options = {
+		rows: ["Province", "Party"],
+		cols: ["Gender", "Age Bin"],
+		data,
+		derivedAttributes,
+		hiddenFromAggregators: ["Province", "Party"]
+	};
+
+	var fragment_1 = root_1();
+
+	$.head('1uha8ag', ($$anchor) => {
+		var fragment = root();
+
+		$.next(4);
+
+		$.effect(() => {
+			$.document.title = 'Svelte pivottable';
+		});
+
+		$.append($$anchor, fragment);
+	});
+
+	var div = $.sibling($.first_child(fragment_1), 4);
+	var div_1 = $.child(div);
+	var div_2 = $.child(div_1);
+	var label = $.child(div_2);
+	var input = $.child(label);
+
+	$.remove_input_defaults(input);
+	$.next();
+	$.reset(label);
+	$.reset(div_2);
+
+	var fieldset = $.sibling(div_2, 2);
+	var label_1 = $.child(fieldset);
+	var input_1 = $.child(label_1);
+
+	$.remove_input_defaults(input_1);
+	$.next();
+	$.reset(label_1);
+
+	var label_2 = $.sibling(label_1, 2);
+	var input_2 = $.child(label_2);
+
+	$.remove_input_defaults(input_2);
+	$.next();
+	$.reset(label_2);
+
+	var label_3 = $.sibling(label_2, 2);
+	var input_3 = $.child(label_3);
+
+	$.remove_input_defaults(input_3);
+	$.next();
+	$.reset(label_3);
+	$.reset(fieldset);
+	$.next(3);
+	$.reset(div_1);
+
+	var node = $.sibling(div_1, 2);
+
+	PivotTableUI(node, $.spread_props(() => options, {
+		get renderers() {
+			return $.get(renderers);
+		},
+
+		get grouping() {
+			return $.get(grouping);
+		},
+
+		get compactRows() {
+			return $.get(compactRows);
+		},
+
+		get rowGroupBefore() {
+			return $.get(rowGroupBefore);
+		},
+
+		get colGroupBefore() {
+			return $.get(colGroupBefore);
+		},
+		tableOptions: { clickCallback: console.log }
+	}));
+
+	$.next(4);
+	$.reset(div);
+	$.template_effect(() => fieldset.disabled = !$.get(grouping));
+	$.bind_checked(input, () => $.get(grouping), ($$value) => $.set(grouping, $$value));
+	$.bind_checked(input_1, () => $.get(compactRows), ($$value) => $.set(compactRows, $$value));
+	$.bind_checked(input_2, () => $.get(rowGroupBefore), ($$value) => $.set(rowGroupBefore, $$value));
+	$.bind_checked(input_3, () => $.get(colGroupBefore), ($$value) => $.set(colGroupBefore, $$value));
+	$.append($$anchor, fragment_1);
+	$.pop();
+}

@@ -1,0 +1,1259 @@
+# rsvelte pack 1
+=== 221 src/lib/VirtualList.svelte	css
+
+	.virtual-list-wrapper.svelte-16nckvm {
+		overflow: auto;
+		will-change: transform;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.virtual-list-inner.svelte-16nckvm {
+		position: relative;
+		display: flex;
+		width: 100%;
+	}
+
+=== 9696 src/lib/VirtualList.svelte	js
+import * as $ from 'svelte/internal/server';
+import { untrack } from 'svelte';
+import SizeAndPositionManager from './SizeAndPositionManager.js';
+
+import {
+	ALIGNMENT,
+	DIRECTION,
+	SCROLL_CHANGE_REASON,
+	SCROLL_PROP,
+	SCROLL_PROP_LEGACY
+} from './constants.js';
+
+export default function VirtualList($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		/** @import { VirtualListProps, VirtualListEvents, VirtualListSnippets } from './types.js'; */
+		/** @type {VirtualListProps & VirtualListEvents & VirtualListSnippets} */
+		let {
+			/* Props: */
+			height = '100%',
+			width = '100%',
+			itemCount,
+			itemSize,
+			estimatedItemSize: optEstimatedItemSize,
+			stickyIndices = [],
+			getKey,
+			scrollDirection = DIRECTION.VERTICAL,
+			scrollOffset,
+			scrollToIndex,
+			scrollToAlignment = ALIGNMENT.START,
+			scrollToBehaviour = 'instant',
+			overscanCount = 3,
+			/* Events: */
+			onItemsUpdated: handleItemsUpdated,
+			onListItemsUpdate: handleListItemsUpdate, // DEPRECATED
+			onAfterScroll: handleAfterScroll,
+			/* Snippets: */
+			item: itemSnippet,
+			children: childrenSnippet, // DEPRECATED
+			header: headerSnippet,
+			footer: footerSnippet
+		} = $$props;
+
+		let estimatedItemSize = $.derived(() => optEstimatedItemSize || typeof itemSize === 'number' && itemSize || 50);
+		const sizeAndPositionManager = new SizeAndPositionManager(itemSize, itemCount, estimatedItemSize());
+
+		/** @type {HTMLDivElement} */
+		let wrapper;
+
+		let wrapperHeight = 400;
+		let wrapperWidth = 400;
+
+		/** @type {{ index: number, style: string }[]} */
+		let items = [];
+
+		/** @type {{ offset: number, changeReason: number }} */
+		let scroll = {
+			offset: scrollOffset || scrollToIndex !== undefined && getOffsetForIndex(scrollToIndex) || 0,
+			changeReason: SCROLL_CHANGE_REASON.REQUESTED
+		};
+
+		let prevScroll = scroll;
+		let heightNumber = $.derived(() => Number.isFinite(height) ? Number(height) : wrapperHeight);
+		let widthNumber = $.derived(() => Number.isFinite(width) ? Number(width) : wrapperWidth);
+
+		let prevProps = {
+			scrollToIndex: $.snapshot(scrollToIndex),
+			scrollToAlignment: $.snapshot(scrollToAlignment),
+			scrollOffset: $.snapshot(scrollOffset),
+			itemCount: $.snapshot(itemCount),
+			itemSize: typeof itemSize === 'function' ? itemSize : $.snapshot(itemSize),
+			estimatedItemSize: $.snapshot(estimatedItemSize()),
+			heightNumber: $.snapshot(heightNumber()),
+			widthNumber: $.snapshot(widthNumber()),
+			stickyIndices: $.snapshot(stickyIndices)
+		};
+
+		/** @type {Record<number, string>} */
+		let styleCache = {};
+
+		let wrapperStyle = '';
+		let innerStyle = '';
+
+		// Effect 0: Event listener
+		/** @type {number | undefined} */
+		/** @param {Event} event */
+		// @ts-expect-error because options is not really needed, but maybe in the future
+		// Effect 1: Update props from user provided props
+		// Effect 2: Update scroll
+		function propsUpdated() {
+			const scrollPropsHaveChanged = prevProps.scrollToIndex !== scrollToIndex || prevProps.scrollToAlignment !== scrollToAlignment;
+			const itemPropsHaveChanged = prevProps.itemCount !== itemCount || prevProps.itemSize !== itemSize || prevProps.estimatedItemSize !== estimatedItemSize();
+			let forceRecomputeSizes = false;
+
+			if (itemPropsHaveChanged) {
+				sizeAndPositionManager.updateConfig(itemSize, itemCount, estimatedItemSize());
+				forceRecomputeSizes = true;
+			}
+
+			if (prevProps.scrollOffset !== scrollOffset) {
+				scroll = {
+					offset: scrollOffset || 0,
+					changeReason: SCROLL_CHANGE_REASON.REQUESTED
+				};
+			} else if (typeof scrollToIndex === 'number' && (scrollPropsHaveChanged || itemPropsHaveChanged)) {
+				scroll = {
+					offset: getOffsetForIndex(scrollToIndex),
+					changeReason: SCROLL_CHANGE_REASON.REQUESTED
+				};
+			}
+
+			if (forceRecomputeSizes || prevProps.heightNumber !== heightNumber() || prevProps.widthNumber !== widthNumber() || prevProps.stickyIndices.toString() !== $.snapshot(stickyIndices).toString()) {
+				recomputeSizes();
+			}
+
+			prevProps = {
+				scrollToIndex: $.snapshot(scrollToIndex),
+				scrollToAlignment: $.snapshot(scrollToAlignment),
+				scrollOffset: $.snapshot(scrollOffset),
+				itemCount: $.snapshot(itemCount),
+				itemSize: typeof itemSize === 'function' ? itemSize : $.snapshot(itemSize),
+				estimatedItemSize: $.snapshot(estimatedItemSize()),
+				heightNumber: $.snapshot(heightNumber()),
+				widthNumber: $.snapshot(widthNumber()),
+				stickyIndices: $.snapshot(stickyIndices)
+			};
+		}
+
+		function scrollUpdated() {
+			if (prevScroll.offset !== scroll.offset || prevScroll.changeReason !== scroll.changeReason) {
+				refresh();
+			}
+
+			if (prevScroll.offset !== scroll.offset && scroll.changeReason === SCROLL_CHANGE_REASON.REQUESTED) {
+				wrapper.scroll({
+					[SCROLL_PROP[scrollDirection]]: scroll.offset,
+					behavior: scrollToBehaviour
+				});
+			}
+
+			prevScroll = $.snapshot(scroll);
+		}
+
+		/**
+		 * Recomputes the sizes of the items and updates the visible items.
+		 */
+		function refresh() {
+			const containerSize = scrollDirection === DIRECTION.VERTICAL ? heightNumber() : widthNumber();
+			const totalSize = sizeAndPositionManager.getTotalSize();
+			const maxOffset = Math.max(0, totalSize - containerSize);
+			const clampedOffset = Math.min(scroll.offset, maxOffset);
+			const { start, end } = sizeAndPositionManager.getVisibleRange(containerSize, clampedOffset, overscanCount);
+
+			/** @type {{ index: number, style: string }[]} */
+			const visibleItems = [];
+
+			const heightUnit = typeof height === 'number' ? 'px' : '';
+			const widthUnit = typeof width === 'number' ? 'px' : '';
+
+			wrapperStyle = `height:${height}${heightUnit};width:${width}${widthUnit};`;
+
+			if (scrollDirection === DIRECTION.VERTICAL) {
+				innerStyle = `flex-direction:column;height:${totalSize}px;`;
+			} else {
+				innerStyle = `min-height:100%;width:${totalSize}px;`;
+			}
+
+			const hasStickyIndices = stickyIndices.length > 0;
+
+			if (hasStickyIndices) {
+				for (const index of stickyIndices) {
+					visibleItems.push({ index, style: getStyle(index, true) });
+				}
+			}
+
+			if (start !== undefined && end !== undefined) {
+				for (let index = start; index <= end; index++) {
+					if (hasStickyIndices && stickyIndices.includes(index)) continue;
+
+					visibleItems.push({ index, style: getStyle(index, false) });
+				}
+
+				if (handleItemsUpdated) handleItemsUpdated({ start, end });
+				if (handleListItemsUpdate) handleListItemsUpdate({ start, end }); // DEPRECATED
+			}
+
+			items = visibleItems;
+		}
+
+		/**
+		 * Recomputes the sizes of the items in the list.
+		 */
+		function recomputeSizes(startIndex = scrollToIndex) {
+			styleCache = {};
+
+			if (startIndex !== undefined && startIndex >= 0) {
+				sizeAndPositionManager.resetItem(startIndex);
+			}
+
+			refresh();
+		}
+
+		/**
+		 * Calculates the offset for a given index based on the scroll direction and alignment.
+		 * @param {number} index
+		 */
+		function getOffsetForIndex(index) {
+			if (index < 0 || index >= itemCount) index = 0;
+
+			return sizeAndPositionManager.getUpdatedOffsetForIndex(scrollToAlignment, scrollDirection === DIRECTION.VERTICAL ? heightNumber() : widthNumber(), scroll.offset || 0, index);
+		}
+
+		/**
+		 * Handles the scroll event on the wrapper element.
+		 * @param {Event} event
+		 */
+		function handleScroll(event) {
+			const offset = wrapper[SCROLL_PROP_LEGACY[scrollDirection]];
+
+			if (offset < 0 || scroll.offset === offset || event.target !== wrapper) return;
+
+			scroll = { offset, changeReason: SCROLL_CHANGE_REASON.OBSERVED };
+
+			if (handleAfterScroll) handleAfterScroll({ offset, event });
+		}
+
+		/**
+		 * Returns the style for a given item index.
+		 * @param {number} index The index of the item
+		 * @param {boolean} sticky Whether the item should be sticky or not
+		 */
+		function getStyle(index, sticky) {
+			if (styleCache[index]) return styleCache[index];
+
+			const { size, offset } = sizeAndPositionManager.getSizeAndPositionForIndex(index);
+			let style;
+
+			if (scrollDirection === DIRECTION.VERTICAL) {
+				style = `left:0;width:100%;height:${size}px;`;
+
+				if (sticky) {
+					style += `position:sticky;flex-grow:0;z-index:1;top:0;margin-top:${offset}px;margin-bottom:${-(offset + size)}px;`;
+				} else {
+					style += `position:absolute;top:${offset}px;`;
+				}
+			} else {
+				style = `top:0;width:${size}px;`;
+
+				if (sticky) {
+					style += `position:sticky;z-index:1;left:0;margin-left:${offset}px;margin-right:${-(offset + size)}px;`;
+				} else {
+					style += `position:absolute;height:100%;left:${offset}px;`;
+				}
+			}
+
+			styleCache[index] = style;
+
+			return styleCache[index];
+		}
+
+		$$renderer.push(`<div class="virtual-list-wrapper svelte-16nckvm"${$.attr_style(wrapperStyle)}>`);
+
+		if (headerSnippet) {
+			$$renderer.push('<!--[0-->');
+			headerSnippet($$renderer);
+			$$renderer.push(`<!---->`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> <div class="virtual-list-inner svelte-16nckvm"${$.attr_style(innerStyle)}><!--[-->`);
+
+		const each_array = $.ensure_array_like(items);
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let item = each_array[$$index];
+
+			if (item.index < itemCount) {
+				$$renderer.push('<!--[0-->');
+				(itemSnippet || childrenSnippet)($$renderer, { style: item.style, index: item.index });
+				$$renderer.push(`<!---->`);
+			} else {
+				$$renderer.push('<!--[-1-->');
+			}
+
+			$$renderer.push(`<!--]-->`);
+		}
+
+		$$renderer.push(`<!--]--></div> `);
+
+		if (footerSnippet) {
+			$$renderer.push('<!--[0-->');
+			footerSnippet($$renderer);
+			$$renderer.push(`<!---->`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+		$.bind_props($$props, { recomputeSizes });
+	});
+}
+=== 6617 src/lib/VirtualList.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 53,
+			"column": 59,
+			"character": 1208
+		},
+		"end": {
+			"line": 53,
+			"column": 67,
+			"character": 1216
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemCount`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 53,
+			"column": 69,
+			"character": 1218
+		},
+		"end": {
+			"line": 53,
+			"column": 78,
+			"character": 1227
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `estimatedItemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 53,
+			"column": 80,
+			"character": 1229
+		},
+		"end": {
+			"line": 53,
+			"column": 97,
+			"character": 1246
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollOffset`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 64,
+			"column": 10,
+			"character": 1537
+		},
+		"end": {
+			"line": 64,
+			"column": 22,
+			"character": 1549
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollToIndex`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 64,
+			"column": 27,
+			"character": 1554
+		},
+		"end": {
+			"line": 64,
+			"column": 40,
+			"character": 1567
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollToIndex`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 64,
+			"column": 76,
+			"character": 1603
+		},
+		"end": {
+			"line": 64,
+			"column": 89,
+			"character": 1616
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scroll`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 67,
+			"column": 34,
+			"character": 1711
+		},
+		"end": {
+			"line": 67,
+			"column": 40,
+			"character": 1717
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollToIndex`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 72,
+			"column": 33,
+			"character": 1945
+		},
+		"end": {
+			"line": 72,
+			"column": 46,
+			"character": 1958
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollToAlignment`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 73,
+			"column": 37,
+			"character": 1998
+		},
+		"end": {
+			"line": 73,
+			"column": 54,
+			"character": 2015
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollOffset`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 74,
+			"column": 32,
+			"character": 2050
+		},
+		"end": {
+			"line": 74,
+			"column": 44,
+			"character": 2062
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemCount`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 75,
+			"column": 29,
+			"character": 2094
+		},
+		"end": {
+			"line": 75,
+			"column": 38,
+			"character": 2103
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 76,
+			"column": 19,
+			"character": 2125
+		},
+		"end": {
+			"line": 76,
+			"column": 27,
+			"character": 2133
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 76,
+			"column": 45,
+			"character": 2151
+		},
+		"end": {
+			"line": 76,
+			"column": 53,
+			"character": 2159
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 76,
+			"column": 72,
+			"character": 2178
+		},
+		"end": {
+			"line": 76,
+			"column": 80,
+			"character": 2186
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `estimatedItemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 77,
+			"column": 37,
+			"character": 2226
+		},
+		"end": {
+			"line": 77,
+			"column": 54,
+			"character": 2243
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `heightNumber`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 78,
+			"column": 32,
+			"character": 2278
+		},
+		"end": {
+			"line": 78,
+			"column": 44,
+			"character": 2290
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `widthNumber`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 79,
+			"column": 31,
+			"character": 2324
+		},
+		"end": {
+			"line": 79,
+			"column": 42,
+			"character": 2335
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `stickyIndices`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 80,
+			"column": 33,
+			"character": 2371
+		},
+		"end": {
+			"line": 80,
+			"column": 46,
+			"character": 2384
+		}
+	}
+]
+
+=== 906 src/lib/VirtualList.test.svelte	js
+import * as $ from 'svelte/internal/server';
+import VirtualList from './VirtualList.svelte';
+
+export default function VirtualList_test($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		/** @type {{ data: { id: number, label: string }[], scrollOffset: number, onItemRender: (index: number) => void }} */
+		let { data = [], scrollOffset, onItemRender = () => {} } = $$props;
+
+		$$renderer.push(`<div style="height: 400px; width: 400px;">`);
+
+		{
+			function item($$renderer, { index, style }) {
+				$$renderer.push(`<!---->${$.escape((onItemRender(index), ''))} <div${$.attr_style(style)}>${$.escape(data[index]?.label)}</div>`);
+			}
+
+			VirtualList($$renderer, {
+				height: '200px',
+				width: 300,
+				scrollDirection: 'horizontal',
+				itemCount: data.length,
+				itemSize: 50,
+				scrollOffset,
+				item,
+				$$slots: { item: true }
+			});
+		}
+
+		$$renderer.push(`<!----></div>`);
+	});
+}
+=== 24 src/routes/+layout.svelte	css
+
+	@import '../app.css';
+
+=== 8477 src/routes/+layout.svelte	js
+import * as $ from 'svelte/internal/server';
+import { asset, resolve } from '$app/paths';
+import { page } from '$app/state';
+import { browser } from '$app/environment';
+
+export default function _layout($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		if (browser) import('beercss');
+
+		let { children } = $$props;
+		let darkMode = true;
+		let mobileMenuOpen = false;
+
+		function handleSwitchDarkMode() {
+			darkMode = !darkMode;
+			localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+
+			darkMode
+				? document.body.classList.add('dark')
+				: document.body.classList.remove('dark');
+		}
+
+		if (browser) {
+			if (localStorage.theme === 'dark' || !('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+				document.body.classList.add('dark');
+				darkMode = true;
+			} else {
+				document.body.classList.remove('dark');
+				darkMode = false;
+			}
+		}
+
+		$$renderer.push(`<nav class="left drawer l"><header class="fixed"><nav><i aria-hidden="true"><img${$.attr('src', asset('/logo.svg'))}${$.attr('srcset', `${$.stringify(asset('/logo.svg'))} 2x`)} alt="Logo"/></i> <h6>svelte-tiny-virtual-list</h6></nav></header> <a${$.attr('href', resolve('/'))}${$.attr_class('', void 0, { 'active': page.route.id === '/' })}><i aria-hidden="true">description</i> <div>README</div></a> <a href="https://github.com/jonasgeiler/svelte-tiny-virtual-list" target="_blank"><i aria-hidden="true"><svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg></i> <div>GitHub <i aria-hidden="true" class="tiny">launch</i></div></a> <a href="https://npmjs.com/package/svelte-tiny-virtual-list" target="_blank"><i aria-hidden="true"><svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474c.977 0 1.763-.786 1.763-1.763V1.763C24 .786 23.214 0 22.237 0zM5.13 5.323l13.837.019-.009 13.836h-3.464l.01-10.382h-3.456L12.04 19.17H5.113z"></path></svg></i> <div>npm <i aria-hidden="true" class="tiny">launch</i></div></a> <div class="small-divider"></div> <label for="">Examples</label> <a${$.attr('href', resolve('/examples/elements-of-equal-height'))}${$.attr_class('', void 0, {
+			'active': page.route.id === '/examples/elements-of-equal-height'
+		})}><i aria-hidden="true">view_headline</i> <div>Elements of equal height</div></a> <a${$.attr('href', resolve('/examples/variable-heights'))}${$.attr_class('', void 0, { 'active': page.route.id === '/examples/variable-heights' })}><i aria-hidden="true">view_day</i> <div>Variable heights</div></a> <a${$.attr('href', resolve('/examples/horizontal-list'))}${$.attr_class('', void 0, { 'active': page.route.id === '/examples/horizontal-list' })}><i aria-hidden="true">view_week</i> <div>Horizontal list</div></a> <a${$.attr('href', resolve('/examples/scroll-to-index'))}${$.attr_class('', void 0, { 'active': page.route.id === '/examples/scroll-to-index' })}><i aria-hidden="true">pin</i> <div>Scroll to index</div></a> <a${$.attr('href', resolve('/examples/controlled-scroll-offset'))}${$.attr_class('', void 0, {
+			'active': page.route.id === '/examples/controlled-scroll-offset'
+		})}><i aria-hidden="true">unfold_more</i> <div>Controlled scroll offset</div></a> <div class="small-divider"></div> <label for="">Demos</label> <a${$.attr('href', resolve('/demos/hacker-news'))}${$.attr_class('', void 0, { 'active': page.route.id === '/demos/hacker-news' })}><i aria-hidden="true">newspaper</i> <div>Hacker News</div></a> <div class="max"></div> <button class="circle border"><i aria-hidden="true">${$.escape(darkMode ? 'light_mode' : 'dark_mode')}</i></button></nav> <nav class="top s m left-align"><button class="circle transparent"><i aria-hidden="true">menu</i></button> <i aria-hidden="true"><img${$.attr('src', asset('/logo.svg'))}${$.attr('srcset', `${$.stringify(asset('/logo.svg'))} 2x`)} alt="Logo"/></i> <h6 class="m">svelte-tiny-virtual-list</h6> <div class="max"></div> <button class="circle border"><i aria-hidden="true">${$.escape(darkMode ? 'light_mode' : 'dark_mode')}</i></button></nav> <dialog${$.attr_class('left s m', void 0, { 'active': mobileMenuOpen })}><header class="fixed"><nav><i aria-hidden="true"><img${$.attr('src', asset('/logo.svg'))}${$.attr('srcset', `${$.stringify(asset('/logo.svg'))} 2x`)} alt="Logo"/></i> <h6 class="m">svelte-tiny-virtual-list</h6> <div class="max"></div> <button class="transparent circle"><i aria-hidden="true">close</i></button></nav></header> <nav class="drawer no-padding no-margin"><a${$.attr('href', resolve('/'))}${$.attr_class('', void 0, { 'active': page.route.id === '/' })}><i aria-hidden="true">description</i> <div>README</div></a> <a href="https://github.com/jonasgeiler/svelte-tiny-virtual-list" target="_blank"><i aria-hidden="true"><svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg></i> <div>GitHub <i aria-hidden="true" class="tiny">launch</i></div></a> <a href="https://npmjs.com/package/svelte-tiny-virtual-list" target="_blank"><i aria-hidden="true"><svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474c.977 0 1.763-.786 1.763-1.763V1.763C24 .786 23.214 0 22.237 0zM5.13 5.323l13.837.019-.009 13.836h-3.464l.01-10.382h-3.456L12.04 19.17H5.113z"></path></svg></i> <div>npm <i aria-hidden="true" class="tiny">launch</i></div></a> <div class="small-divider"></div> <label for="">Examples</label> <a${$.attr('href', resolve('/examples/elements-of-equal-height'))}${$.attr_class('', void 0, {
+			'active': page.route.id === '/examples/elements-of-equal-height'
+		})}><i aria-hidden="true">view_headline</i> <div>Elements of equal height</div></a> <a${$.attr('href', resolve('/examples/variable-heights'))}${$.attr_class('', void 0, { 'active': page.route.id === '/examples/variable-heights' })}><i aria-hidden="true">view_day</i> <div>Variable heights</div></a> <a${$.attr('href', resolve('/examples/horizontal-list'))}${$.attr_class('', void 0, { 'active': page.route.id === '/examples/horizontal-list' })}><i aria-hidden="true">view_week</i> <div>Horizontal list</div></a> <a${$.attr('href', resolve('/examples/scroll-to-index'))}${$.attr_class('', void 0, { 'active': page.route.id === '/examples/scroll-to-index' })}><i aria-hidden="true">pin</i> <div>Scroll to index</div></a> <a${$.attr('href', resolve('/examples/controlled-scroll-offset'))}${$.attr_class('', void 0, {
+			'active': page.route.id === '/examples/controlled-scroll-offset'
+		})}><i aria-hidden="true">unfold_more</i> <div>Controlled scroll offset</div></a> <div class="small-divider"></div> <label for="">Demos</label> <a${$.attr('href', resolve('/demos/hacker-news'))}${$.attr_class('', void 0, { 'active': page.route.id === '/demos/hacker-news' })}><i aria-hidden="true">newspaper</i> <div>Hacker News</div></a></nav></dialog> <main id="content" class="responsive flex flex-column">`);
+
+		children($$renderer);
+		$$renderer.push(`<!----></main>`);
+	});
+}
+=== 2060 src/routes/+page.svelte	css
+
+	.markdown-body.svelte-1uha8ag {
+		overflow: auto;
+		font-size: 1rem;
+		line-height: 1.5;
+		word-wrap: break-word;
+	}
+
+	/* Text */
+	.markdown-body p,
+	.markdown-body blockquote,
+	.markdown-body ul,
+	.markdown-body ol,
+	.markdown-body dl,
+	.markdown-body table,
+	.markdown-body pre,
+	.markdown-body details {
+		margin-top: 0;
+		margin-bottom: 16px;
+	}
+
+	/* Lists */
+	.markdown-body ul,
+	.markdown-body ol {
+		padding-left: 2em;
+	}
+	.markdown-body ul ul,
+	.markdown-body ul ol,
+	.markdown-body ol ol,
+	.markdown-body ol ul {
+		margin-top: 0;
+		margin-bottom: 0;
+	}
+
+	/* Headings */
+	.markdown-body h1,
+	.markdown-body h2,
+	.markdown-body h3,
+	.markdown-body h4,
+	.markdown-body h5,
+	.markdown-body h6 {
+		margin-top: 24px;
+		margin-bottom: 16px;
+		font-weight: 600;
+		line-height: 1.25;
+	}
+
+	/* Links */
+	.markdown-body a {
+		text-decoration: underline;
+		text-underline-offset: 0.2rem;
+		color: var(--primary);
+	}
+
+	/* Code blocks */
+	.markdown-body pre {
+		padding: 16px;
+		overflow: auto;
+		font-size: 85%;
+		line-height: 1.45;
+		color: var(--on-surface-variant);
+		background-color: var(--surface-variant);
+		border-radius: 6px;
+		display: flex;
+		justify-content: space-between;
+	}
+	.markdown-body code,
+	.markdown-body tt {
+		padding: 0.2em 0.4em;
+		margin: 0;
+		font-size: 85%;
+		white-space: break-spaces;
+		color: var(--on-surface-variant);
+		background-color: var(--surface-variant);
+		border-radius: 6px;
+	}
+	.markdown-body pre code {
+		padding: 0;
+		font-size: inherit;
+	}
+
+	/* Blockquotes */
+	.markdown-body blockquote {
+		padding: 0 1em;
+		border-left: 0.25em solid var(--primary);
+	}
+	.markdown-body blockquote > :first-child {
+		margin-top: 0;
+	}
+	.markdown-body blockquote > :last-child {
+		margin-bottom: 0;
+	}
+
+	/* Tables */
+	.markdown-body table > tbody > tr:nth-child(2n + 1) {
+		background-color: var(---stripes);
+	}
+	.markdown-body table > tbody > tr:not(:last-child) > td {
+		border-block-end: 0.0625rem solid var(--outline);
+	}
+
+	/* Fix title alignment */
+	.markdown-body h2[align='center'] {
+		display: block;
+		text-align: center;
+	}
+
+=== 881 src/routes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import readme from '../../README.md?raw';
+import { marked } from 'marked';
+import { baseUrl } from 'marked-base-url';
+import { base } from '$app/paths';
+import { gfmHeadingId } from 'marked-gfm-heading-id';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		marked.use(baseUrl(base));
+		marked.use(gfmHeadingId());
+
+		const readmeHtml = marked.parse(readme.// eslint-disable-next-line no-misleading-character-class
+		replace(/^[\u200B\u200C\u200D\u200E\u200F\uFEFF]/, '').replace(/.\/static\//g, './'));
+
+		$.head('1uha8ag', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>svelte-tiny-virtual-list</title>`);
+			});
+		});
+
+		$$renderer.push(`<div id="readme" class="docs-page markdown-body svelte-1uha8ag">${$.html(readmeHtml)}</div>`);
+	});
+}
+=== 2672 src/routes/demos/hacker-news/+page.svelte	css
+
+	body #hacker-news-demo.svelte-1i8y5ma {
+		--primary: #a33e00;
+		--on-primary: #ffffff;
+		--primary-container: #ffdbcd;
+		--on-primary-container: #360f00;
+		--secondary: #77574a;
+		--on-secondary: #ffffff;
+		--secondary-container: #ffdbcd;
+		--on-secondary-container: #2c160c;
+		--tertiary: #675f30;
+		--on-tertiary: #ffffff;
+		--tertiary-container: #efe3a9;
+		--on-tertiary-container: #201c00;
+		--error: #ba1a1a;
+		--on-error: #ffffff;
+		--error-container: #ffdad6;
+		--on-error-container: #410002;
+		--background: #fffbff;
+		--on-background: #201a18;
+		--surface: #fff8f6;
+		--on-surface: #201a18;
+		--surface-variant: #f5ded5;
+		--on-surface-variant: #53443d;
+		--outline: #85736c;
+		--outline-variant: #d8c2ba;
+		--shadow: #000000;
+		--scrim: #000000;
+		--inverse-surface: #362f2c;
+		--inverse-on-surface: #fbeeea;
+		--inverse-primary: #ffb596;
+		--surface-dim: #e4d7d3;
+		--surface-bright: #fff8f6;
+		--surface-container-lowest: #ffffff;
+		--surface-container-low: #fef1ec;
+		--surface-container: #f8ebe7;
+		--surface-container-high: #f2e5e1;
+		--surface-container-highest: #ede0db;
+	}
+
+	body.dark #hacker-news-demo.svelte-1i8y5ma {
+		--primary: #ffb596;
+		--on-primary: #581e00;
+		--primary-container: #7c2e00;
+		--on-primary-container: #ffdbcd;
+		--secondary: #e6bead;
+		--on-secondary: #442a1f;
+		--secondary-container: #5d4034;
+		--on-secondary-container: #ffdbcd;
+		--tertiary: #d2c78f;
+		--on-tertiary: #373106;
+		--tertiary-container: #4e471b;
+		--on-tertiary-container: #efe3a9;
+		--error: #ffb4ab;
+		--on-error: #690005;
+		--error-container: #93000a;
+		--on-error-container: #ffb4ab;
+		--background: #201a18;
+		--on-background: #ede0db;
+		--surface: #181210;
+		--on-surface: #ede0db;
+		--surface-variant: #53443d;
+		--on-surface-variant: #d8c2ba;
+		--outline: #a08d85;
+		--outline-variant: #53443d;
+		--shadow: #000000;
+		--scrim: #000000;
+		--inverse-surface: #ede0db;
+		--inverse-on-surface: #362f2c;
+		--inverse-primary: #a33e00;
+		--surface-dim: #181210;
+		--surface-bright: #3f3835;
+		--surface-container-lowest: #120d0b;
+		--surface-container-low: #201a18;
+		--surface-container: #251e1c;
+		--surface-container-high: #2f2926;
+		--surface-container-highest: #3a3330;
+	}
+
+	.hacker-news-item.svelte-1i8y5ma {
+		---padding: 0.5rem;
+		--number-width: 2.5rem;
+		padding-left: calc(var(---padding) + var(--number-width)) !important;
+	}
+
+	.hacker-news-item.svelte-1i8y5ma::before {
+		content: attr(data-num) '. ';
+		margin-left: calc(-1 * var(--number-width));
+		width: calc(var(--number-width) - var(---padding));
+		color: var(--on-surface);
+		float: left;
+		text-align: right;
+	}
+
+	.hacker-news-link.svelte-1i8y5ma:hover {
+		text-decoration: underline;
+	}
+
+=== 4575 src/routes/demos/hacker-news/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import VirtualList from '$lib/VirtualList.svelte';
+import InfiniteLoading from 'svelte-infinite-loading';
+import { asset } from '$app/paths';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const api = 'https://hn.algolia.com/api/v1/search_by_date' + '?tags=story' + `&numericFilters=created_at_i<=${Math.floor(Date.now() / 1000)}`;
+		let page = 1;
+		let listHeight = 0;
+
+		/** @type {{story_id: string, created_at: string, title: string, author: string, url: string, points: number, num_comments: number}[]} */
+		let list = [];
+
+		/**
+		 * @param {CustomEvent<{ loaded: () => void; complete: () => void; error: () => void }>} event
+		 */
+		function infiniteHandler({ detail: { loaded, complete, error } }) {
+			fetch(`${api}&page=${page}`).then((response) => response.json()).then((data) => {
+				if (data.hits.length) {
+					page += 1;
+					list = [...list, ...data.hits];
+					loaded();
+				} else {
+					complete();
+				}
+			}).catch(() => error());
+		}
+
+		/**
+		 * @param {string} url
+		 */
+		function formatSite(url) {
+			const domain = new URL(url).hostname;
+
+			return domain.startsWith('www.') ? domain.slice(4) : domain;
+		}
+
+		const dateFormatter = new Intl.RelativeTimeFormat('en', { style: 'long' });
+
+		/**
+		 * @param {string} createdAt
+		 */
+		function formatCreatedAt(createdAt) {
+			const seconds = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
+
+			if (seconds <= 60) {
+				return dateFormatter.format(-seconds, 'second');
+			} else if (seconds <= 3600) {
+				return dateFormatter.format(-Math.floor(seconds / 60), 'minute');
+			} else if (seconds <= 86400) {
+				return dateFormatter.format(-Math.floor(seconds / 3600), 'hour');
+			} else if (seconds <= 604800) {
+				return dateFormatter.format(-Math.floor(seconds / 86400), 'day');
+			} else if (seconds <= 2592000) {
+				return dateFormatter.format(-Math.floor(seconds / 604800), 'week');
+			} else if (seconds <= 31536000) {
+				return dateFormatter.format(-Math.floor(seconds / 2592000), 'month');
+			} else {
+				return dateFormatter.format(-Math.floor(seconds / 31536000), 'year');
+			}
+		}
+
+		$.head('1i8y5ma', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>Hacker News | svelte-tiny-virtual-list</title>`);
+			});
+		});
+
+		$$renderer.push(`<div id="hacker-news-demo" class="demo-page flex-1 flex flex-column svelte-1i8y5ma"><header class="primary"><nav><i class="border white-border" aria-hidden="true"><img${$.attr('src', asset('/y18.svg'))} alt="Hacker News Logo"/></i> <h5>Hacker News</h5></nav></header> <div class="flex-1">`);
+
+		{
+			function item($$renderer, { style, index }) {
+				$$renderer.push(`<div${$.attr_style(style)}><article class="hacker-news-item margin svelte-1i8y5ma"${$.attr('data-num', index + 1)}><div class="truncate"><a class="inline link"${$.attr('href', list[index].url || `https://news.ycombinator.com/item?id=${list[index].story_id}`)} rel="external noopener noreferrer nofollow" target="_blank">${$.escape(list[index].title)}</a> `);
+
+				if (list[index].url) {
+					$$renderer.push(`<!--[0-->(<a class="hacker-news-link svelte-1i8y5ma"${$.attr('href', `https://news.ycombinator.com/from?site=${$.stringify(formatSite(list[index].url))}`)} target="_blank">${$.escape(formatSite(list[index].url))}</a>)`);
+				} else {
+					$$renderer.push('<!--[-1-->');
+				}
+
+				$$renderer.push(`<!--]--></div> <div class="truncate">${$.escape(list[index].points)} points by <a class="hacker-news-link svelte-1i8y5ma"${$.attr('href', `https://news.ycombinator.com/user?id=${$.stringify(list[index].author)}`)} target="_blank">${$.escape(list[index].author)}</a> <a class="hacker-news-link svelte-1i8y5ma"${$.attr('title', list[index].created_at)}${$.attr('href', `https://news.ycombinator.com/item?id=${$.stringify(list[index].story_id)}`)} target="_blank">${$.escape(formatCreatedAt(list[index].created_at))}</a> | <a class="hacker-news-link svelte-1i8y5ma" target="_blank"${$.attr('href', `https://news.ycombinator.com/item?id=${$.stringify(list[index].story_id)}`)}>${$.escape(list[index].num_comments)} comments</a></div></article></div>`);
+			}
+
+			function footer($$renderer) {
+				$$renderer.push(`<div>`);
+				InfiniteLoading($$renderer, {});
+				$$renderer.push(`<!----></div>`);
+			}
+
+			VirtualList($$renderer, {
+				height: listHeight,
+				itemSize: 90,
+				itemCount: list.length,
+				item,
+				footer,
+				$$slots: { item: true, footer: true }
+			});
+		}
+
+		$$renderer.push(`<!----></div></div>`);
+	});
+}
+=== 1297 src/routes/examples/controlled-scroll-offset/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import VirtualList from '$lib/VirtualList.svelte';
+
+export default function _page($$renderer) {
+	/** @type {number[]} */
+	let rowHeights = [];
+
+	let scrollOffset = void 0;
+
+	randomize();
+
+	function randomize() {
+		let newRowHeights = [];
+
+		for (let i = 0; i < 10000; i++) {
+			newRowHeights.push(Math.random() * (155 - 50) + 50);
+		}
+
+		rowHeights = newRowHeights;
+	}
+
+	$.head('1dy3z6r', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>Controlled scroll offset | svelte-tiny-virtual-list</title>`);
+		});
+	});
+
+	$$renderer.push(`<div id="controlled-scroll-offset-example" class="example-page"><h3>Controlled scroll offset</h3> <div class="field label border"><input id="scroll-offset" type="number"${$.attr('value', scrollOffset)}/> <label for="scroll-offset">Scroll to offset...</label></div> <article>`);
+
+	{
+		function item($$renderer, { style, index }) {
+			$$renderer.push(`<div${$.attr_style(style)} class="virtual-list-row">Item #${$.escape(index)}</div>`);
+		}
+
+		VirtualList($$renderer, {
+			height: 500,
+			width: 'auto',
+			itemCount: 10000,
+			itemSize: (index) => rowHeights[index],
+			scrollOffset,
+			item,
+			$$slots: { item: true }
+		});
+	}
+
+	$$renderer.push(`<!----></article></div>`);
+}
+=== 1036 src/routes/examples/elements-of-equal-height/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import VirtualList from '$lib/VirtualList.svelte';
+
+export default function _page($$renderer) {
+	let itemSize = 50;
+
+	$.head('1pqhz2b', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>Elements of equal height | svelte-tiny-virtual-list</title>`);
+		});
+	});
+
+	$$renderer.push(`<div id="elements-of-equal-height-example" class="example-page"><h3>Elements of equal height</h3> <div class="range-field"><label for="item-size">Item size</label> <div class="slider"><input id="item-size" type="range" step="5" min="50" max="155"${$.attr('value', itemSize)}/> <span></span></div></div> <article>`);
+
+	{
+		function item($$renderer, { style, index }) {
+			$$renderer.push(`<div${$.attr_style(style)} class="virtual-list-row">Item #${$.escape(index)}</div>`);
+		}
+
+		VirtualList($$renderer, {
+			height: 500,
+			width: 'auto',
+			itemCount: 100000,
+			itemSize,
+			item,
+			$$slots: { item: true }
+		});
+	}
+
+	$$renderer.push(`<!----></article></div>`);
+}
+=== 350 src/routes/examples/elements-of-equal-height/+page.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`itemSize` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 67
+		},
+		"end": {
+			"line": 4,
+			"column": 13,
+			"character": 75
+		}
+	}
+]
+
+=== 866 src/routes/examples/horizontal-list/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import VirtualList from '$lib/VirtualList.svelte';
+
+export default function _page($$renderer) {
+	let width = 500;
+
+	$.head('61hm4s', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>Horizontal list | svelte-tiny-virtual-list</title>`);
+		});
+	});
+
+	$$renderer.push(`<div id="horizontal-list-example" class="example-page"><h3>Horizontal list</h3> <article><div class="row scroll">`);
+
+	{
+		function item($$renderer, { style, index }) {
+			$$renderer.push(`<div${$.attr_style(style)} class="virtual-list-col">Item #${$.escape(index)}</div>`);
+		}
+
+		VirtualList($$renderer, {
+			height: '200px',
+			width,
+			scrollDirection: 'horizontal',
+			itemCount: 100000,
+			itemSize: 150,
+			item,
+			$$slots: { item: true }
+		});
+	}
+
+	$$renderer.push(`<!----></div></article></div>`);
+}
+=== 2675 src/routes/examples/scroll-to-index/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import VirtualList from '$lib/VirtualList.svelte';
+
+export default function _page($$renderer) {
+	/** @type {number[]} */
+	let rowHeights = [];
+
+	let scrollToIndex = void 0;
+
+	/** @type {'start' | 'center' | 'end' | 'auto'} */
+	let scrollToAlignment = 'start';
+
+	/** @type {'auto' | 'smooth' | 'instant'} */
+	let scrollToBehaviour = 'instant';
+
+	const NUM_ROWS = 10000;
+
+	function randomize() {
+		const newRowHeights = [];
+
+		for (let i = 0; i < NUM_ROWS; i++) newRowHeights.push(Math.random() * (155 - 50) + 50);
+
+		rowHeights = newRowHeights;
+	}
+
+	randomize();
+
+	$.head('dh3z01', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>Scroll to index | svelte-tiny-virtual-list</title>`);
+		});
+	});
+
+	$$renderer.push(`<div id="scroll-to-index-example" class="example-page"><h3>Scroll to index</h3> <div class="field label border"><input id="scroll-to-index" type="number"${$.attr('value', scrollToIndex)}/> <label for="scroll-to-index">Scroll to index...</label></div> <div class="field label suffix border">`);
+
+	$$renderer.select({ id: 'alignment', value: scrollToAlignment }, ($$renderer) => {
+		$$renderer.option({ value: 'start' }, ($$renderer) => {
+			$$renderer.push(`start`);
+		});
+
+		$$renderer.option({ value: 'center' }, ($$renderer) => {
+			$$renderer.push(`center`);
+		});
+
+		$$renderer.option({ value: 'end' }, ($$renderer) => {
+			$$renderer.push(`end`);
+		});
+
+		$$renderer.option({ value: 'auto' }, ($$renderer) => {
+			$$renderer.push(`auto`);
+		});
+	});
+
+	$$renderer.push(` <label for="alignment">Alignment</label> <i>arrow_drop_down</i></div> <div class="field label suffix border">`);
+
+	$$renderer.select({ id: 'behaviour', value: scrollToBehaviour }, ($$renderer) => {
+		$$renderer.option({ value: 'auto' }, ($$renderer) => {
+			$$renderer.push(`auto`);
+		});
+
+		$$renderer.option({ value: 'smooth' }, ($$renderer) => {
+			$$renderer.push(`smooth`);
+		});
+
+		$$renderer.option({ value: 'instant' }, ($$renderer) => {
+			$$renderer.push(`instant`);
+		});
+	});
+
+	$$renderer.push(` <label for="behaviour">Behaviour</label> <i>arrow_drop_down</i></div> <article>`);
+
+	{
+		function item($$renderer, { style, index }) {
+			$$renderer.push(`<div${$.attr_style(style)}${$.attr_class('virtual-list-row', void 0, { 'highlighted': index === scrollToIndex })}>Item #${$.escape(index)}</div>`);
+		}
+
+		VirtualList($$renderer, {
+			height: 500,
+			width: 'auto',
+			itemCount: 10000,
+			itemSize: (index) => rowHeights[index],
+			scrollToIndex,
+			scrollToAlignment,
+			scrollToBehaviour,
+			item,
+			$$slots: { item: true }
+		});
+	}
+
+	$$renderer.push(`<!----></article></div>`);
+}
+=== 1150 src/routes/examples/variable-heights/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import VirtualList from '$lib/VirtualList.svelte';
+
+export default function _page($$renderer) {
+	/** @type {number[]} */
+	let rowHeights = [];
+
+	randomize();
+
+	function randomize() {
+		let newRowHeights = [];
+
+		for (let i = 0; i < 10000; i++) {
+			newRowHeights.push(Math.random() * (155 - 50) + 50);
+		}
+
+		rowHeights = newRowHeights;
+	}
+
+	$.head('140sny6', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>Variable heights | svelte-tiny-virtual-list</title>`);
+		});
+	});
+
+	$$renderer.push(`<div id="variable-heights-example" class="example-page"><h3>Variable heights</h3> <button class="responsive margin"><i aria-hidden="true">shuffle</i> <span>Randomize heights</span></button> <article>`);
+
+	{
+		function item($$renderer, { style, index }) {
+			$$renderer.push(`<div${$.attr_style(style)} class="virtual-list-row">Item #${$.escape(index)}</div>`);
+		}
+
+		VirtualList($$renderer, {
+			height: 500,
+			width: 'auto',
+			itemCount: 10000,
+			itemSize: rowHeights,
+			item,
+			$$slots: { item: true }
+		});
+	}
+
+	$$renderer.push(`<!----></article></div>`);
+}

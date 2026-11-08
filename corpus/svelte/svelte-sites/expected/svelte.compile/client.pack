@@ -1,0 +1,1401 @@
+# rsvelte pack 1
+=== 1174 sites/hn.svelte.dev/src/lib/Nav.svelte	css
+
+	nav.svelte-1escm0m {
+		/* background-color: rgba(255, 102, 0, 0.05); */
+		border-bottom: 1px solid #ff6600;
+		color: var(--fg-light);
+		font-weight: 300;
+		padding: 0 1em;
+	}
+
+	.icon.svelte-1escm0m {
+		display: block;
+		width: 1em;
+		height: 1em;
+		float: left;
+		font-size: 2em;
+		position: relative;
+		top: 0.4em;
+		box-sizing: border-box;
+		margin: 0 0.5em 0 0;
+	}
+
+	ul.svelte-1escm0m {
+		margin: 0;
+		padding: 0;
+	}
+
+	ul.svelte-1escm0m::after {
+		content: '';
+		display: block;
+		clear: both;
+	}
+
+	li.svelte-1escm0m {
+		display: block;
+		float: left;
+	}
+
+	.about.svelte-1escm0m {
+		float: right;
+	}
+
+	.selected.svelte-1escm0m {
+		position: relative;
+		display: inline-block;
+		color: var(--fg);
+	}
+
+	.selected.svelte-1escm0m::after {
+		position: absolute;
+		content: '';
+		width: calc(100% - 1em);
+		height: 2px;
+		background-color: #ff6600;
+		display: block;
+		bottom: 0;
+	}
+
+	li.svelte-1escm0m a:where(.svelte-1escm0m) {
+		color: inherit;
+		text-decoration: none;
+		padding: 1em 0.5em;
+		display: block;
+		font-weight: 500;
+	}
+
+	@media (min-width: 400px) {
+		.icon.svelte-1escm0m {
+			margin: 0 0.5em 0 0;
+		}
+
+		li.svelte-1escm0m {
+			display: inline-block;
+		}
+	}
+
+=== 1627 sites/hn.svelte.dev/src/lib/Nav.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { resolve } from '$app/paths';
+
+var root = $.from_html(`<li class="svelte-1escm0m"><a> </a></li>`);
+var root_1 = $.from_html(`<nav class="svelte-1escm0m"><a><img alt="Svelte Hacker News logo" class="icon svelte-1escm0m" src="/favicon.png"/></a> <ul class="svelte-1escm0m"><!> <li class="about svelte-1escm0m"><a>about</a></li></ul></nav>`);
+
+export default function Nav($$anchor, $$props) {
+	$.push($$props, true);
+
+	const lists = ['top', 'new', 'best', 'show', 'ask', 'jobs'];
+	var nav = root_1();
+	var a = $.child(nav);
+	var ul = $.sibling(a, 2);
+	var node = $.child(ul);
+
+	$.each(node, 16, () => lists, (list) => list, ($$anchor, list) => {
+		var li = root();
+		var a_1 = $.child(li);
+		let classes;
+		var text = $.only_child(a_1, true);
+
+		$.reset(li);
+
+		$.template_effect(
+			($0) => {
+				$.set_attribute(a_1, 'href', $0);
+				classes = $.set_class(a_1, 1, 'svelte-1escm0m', null, classes, { selected: $$props.section === list });
+				$.set_text(text, list);
+			},
+			[
+				() => resolve('/[list=category]/[page=numeric]', { list, page: '1' })
+			]
+		);
+
+		$.append($$anchor, li);
+	});
+
+	var li_1 = $.sibling(node, 2);
+	var a_2 = $.child(li_1);
+	let classes_1;
+
+	$.reset(li_1);
+	$.reset(ul);
+	$.reset(nav);
+
+	$.template_effect(
+		($0, $1) => {
+			$.set_attribute(a, 'href', $0);
+			$.set_attribute(a_2, 'href', $1);
+			classes_1 = $.set_class(a_2, 1, 'svelte-1escm0m', null, classes_1, { selected: $$props.section === 'about' });
+		},
+		[() => resolve('/'), () => resolve('/about')]
+	);
+
+	$.append($$anchor, nav);
+	$.pop();
+}
+=== 650 sites/hn.svelte.dev/src/lib/PreloadingIndicator.svelte	css
+
+	.progress-container.svelte-1mgdynx {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 4px;
+		z-index: 999;
+	}
+
+	.progress.svelte-1mgdynx {
+		position: absolute;
+		left: 0;
+		top: 0;
+		height: 100%;
+		background-color: #ff6600;
+		transition: width 0.4s;
+	}
+
+	.fade.svelte-1mgdynx {
+		position: fixed;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(255, 255, 255, 0.3);
+		pointer-events: none;
+		z-index: 998;
+		animation: svelte-1mgdynx-fade 0.4s;
+	}
+
+	html.dark .fade.svelte-1mgdynx {
+		background-color: rgba(0, 0, 0, 0.3);
+	}
+
+	@keyframes svelte-1mgdynx-fade {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+=== 1345 sites/hn.svelte.dev/src/lib/PreloadingIndicator.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onMount } from 'svelte';
+
+var root = $.from_html(`<div class="progress-container svelte-1mgdynx"><div class="progress svelte-1mgdynx"></div></div>`);
+var root_1 = $.from_html(`<div class="fade svelte-1mgdynx"></div>`);
+var root_2 = $.from_html(`<!> <!>`, 1);
+
+export default function PreloadingIndicator($$anchor, $$props) {
+	$.push($$props, true);
+
+	let p = $.state(0);
+	let visible = $.state(false);
+
+	onMount(() => {
+		$.set(visible, true);
+
+		function next() {
+			$.set(p, $.get(p) + 0.1);
+
+			const remaining = 1 - $.get(p);
+
+			if (remaining > 0.15) setTimeout(next, 500 / remaining);
+		}
+
+		setTimeout(next, 250);
+	});
+
+	var fragment = root_2();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			var div = root();
+			var div_1 = $.only_child(div);
+
+			$.template_effect(() => $.set_style(div_1, `width: ${$.get(p) * 100}%`));
+			$.append($$anchor, div);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(visible)) $$render(consequent);
+		});
+	}
+
+	var node_1 = $.sibling(node, 2);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var div_2 = root_1();
+
+			$.append($$anchor, div_2);
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($.get(p) >= 0.4) $$render(consequent_1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 4255 sites/hn.svelte.dev/src/lib/SubsetHTML.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { parse } from './htmlSubsetParse';
+import { resolve } from '$app/paths';
+
+var root = $.from_html(`<a> </a>`);
+var root_1 = $.from_html(`<del> </del>`);
+var root_2 = $.from_html(`<p></p>`);
+var root_3 = $.from_html(`<pre><code> </code></pre>`);
+
+export default function SubsetHTML($$anchor, $$props) {
+	$.push($$props, true);
+
+	const // for the purposes of typescript control flow,
+	// .has() does not impact .get()
+	// only support rewriting /item?id= links
+	// which actually covers most legitimate uses
+	// otherwise spit back original
+	inline = ($$anchor, child = $.noop) => {
+		var fragment = $.comment();
+		var node = $.first_child(fragment);
+
+		{
+			var consequent = ($$anchor) => {
+				var text = $.text();
+
+				$.template_effect(() => $.set_text(text, child().text));
+				$.append($$anchor, text);
+			};
+
+			var consequent_2 = ($$anchor) => {
+				const originalUrl = $.derived(() => new URL(child().href));
+				var fragment_2 = $.comment();
+				var node_1 = $.first_child(fragment_2);
+
+				{
+					var consequent_1 = ($$anchor) => {
+						const computed_const = $.derived(() => {
+							return tryRewriteLink($.get(originalUrl));
+						});
+
+						var a = root();
+						var text_1 = $.only_child(a, true);
+
+						$.template_effect(() => {
+							$.set_attribute(a, 'href', $.get(computed_const).href);
+							$.set_attribute(a, 'rel', $.get(computed_const).rel);
+							$.set_text(text_1, child().text);
+						});
+
+						$.append($$anchor, a);
+					};
+
+					var d = $.derived(() => ['http:', 'https:'].includes($.get(originalUrl).protocol));
+
+					var alternate = ($$anchor) => {
+						var del = root_1();
+						var text_2 = $.only_child(del, true);
+
+						$.template_effect(() => $.set_text(text_2, child().text));
+						$.append($$anchor, del);
+					};
+
+					$.if(node_1, ($$render) => {
+						if ($.get(d)) $$render(consequent_1); else $$render(alternate, -1);
+					});
+				}
+
+				$.append($$anchor, fragment_2);
+			};
+
+			var consequent_3 = ($$anchor) => {
+				var fragment_3 = $.comment();
+				var node_2 = $.first_child(fragment_3);
+
+				$.each(node_2, 17, () => child().children, $.index, ($$anchor, subchild) => {
+					inline($$anchor, () => $.get(subchild));
+				});
+
+				$.append($$anchor, fragment_3);
+			};
+
+			$.if(node, ($$render) => {
+				if (child().type === 'text') $$render(consequent); else if (child().type === 'link') $$render(consequent_2, 1); else if (child().type === 'italic') $$render(consequent_3, 2);
+			});
+		}
+
+		$.append($$anchor, fragment);
+	};
+
+	const parsedContent = $.derived(() => parse($$props.content));
+	const HN_HOSTNAME = 'news.ycombinator.com';
+
+	function tryRewriteLink(originalUrl) {
+		const { hostname, pathname, searchParams, hash, href } = originalUrl;
+
+		if (hostname === HN_HOSTNAME && pathname === '/item') {
+			// for the purposes of typescript control flow,
+			// .has() does not impact .get()
+			const itemId = searchParams.get('id');
+
+			if (itemId) {
+				// only support rewriting /item?id= links
+				// which actually covers most legitimate uses
+				return {
+					href: `${resolve('/item/[id=numeric]', { id: itemId })}${hash}`,
+					rel: undefined
+				};
+			}
+		}
+
+		// otherwise spit back original
+		return { href, rel: 'external' };
+	}
+
+	var fragment_5 = $.comment();
+	var node_3 = $.first_child(fragment_5);
+
+	$.each(node_3, 17, () => $.get(parsedContent), $.index, ($$anchor, block) => {
+		var fragment_6 = $.comment();
+		var node_4 = $.first_child(fragment_6);
+
+		{
+			var consequent_4 = ($$anchor) => {
+				var p = root_2();
+
+				$.each(p, 21, () => $.get(block).children, $.index, ($$anchor, child) => {
+					inline($$anchor, () => $.get(child));
+				});
+
+				$.reset(p);
+				$.append($$anchor, p);
+			};
+
+			var alternate_1 = ($$anchor) => {
+				var pre = root_3();
+				var code = $.child(pre);
+				var text_3 = $.only_child(code, true);
+
+				$.reset(pre);
+				$.template_effect(() => $.set_text(text_3, $.get(block).text));
+				$.append($$anchor, pre);
+			};
+
+			$.if(node_4, ($$render) => {
+				if ($.get(block).type === 'paragraph') $$render(consequent_4); else $$render(alternate_1, -1);
+			});
+		}
+
+		$.append($$anchor, fragment_6);
+	});
+
+	$.append($$anchor, fragment_5);
+	$.pop();
+}
+=== 512 sites/hn.svelte.dev/src/lib/ThemeToggler.svelte	css
+
+	button.svelte-1hcnzc8 {
+		position: fixed;
+		right: 1em;
+		bottom: 1em;
+		width: 2em;
+		height: 2em;
+		text-indent: -9999px;
+		background-color: transparent;
+		border: none;
+		opacity: 0.4;
+	}
+
+	.nice.svelte-1hcnzc8 {
+		outline: none;
+	}
+
+	svg.svelte-1hcnzc8 {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		right: 0;
+		bottom: 0;
+	}
+
+	path.svelte-1hcnzc8 {
+		fill: var(--fg);
+		transition: opacity 0.6s;
+	}
+
+	.dark.svelte-1hcnzc8 {
+		opacity: 0;
+	}
+
+	html.dark .dark.svelte-1hcnzc8 {
+		opacity: 1;
+	}
+
+=== 1795 sites/hn.svelte.dev/src/lib/ThemeToggler.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button aria-label="Toggle theme" title="Toggle theme">toggle theme <svg viewBox="0 0 24 24" class="svelte-1hcnzc8"><path class="light svelte-1hcnzc8" d="M12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,15.31L23.31,12L20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31Z"></path><path class="dark svelte-1hcnzc8" d="M12,18C11.11,18 10.26,17.8 9.5,17.45C11.56,16.5 13,14.42 13,12C13,9.58 11.56,7.5 9.5,6.55C10.26,6.2 11.11,6 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31L23.31,12L20,8.69Z"></path></svg></button>`);
+
+export default function ThemeToggler($$anchor) {
+	// preserve the focus ring for keyboard users because a11y,
+	// but hide for mouse users because fugly
+	let nice = $.state(false);
+
+	let theme = 'light';
+
+	try {
+		theme = localStorage.theme;
+	} catch(e) {
+		// ignore — could be SSR, or e.g. Firefox with restrictive permissions
+	}
+
+	const toggle = () => {
+		const { classList } = document.documentElement;
+
+		if (classList.length === 0) {
+			theme = 'dark';
+		} else {
+			classList.remove(theme);
+			theme = theme === 'light' ? 'dark' : 'light';
+		}
+
+		classList.add(theme);
+
+		try {
+			localStorage.theme = theme;
+		} catch(e) {
+			// ignore
+		}
+	};
+
+	var button = root();
+	let classes;
+
+	$.template_effect(() => classes = $.set_class(button, 1, 'svelte-1hcnzc8', null, classes, { nice: $.get(nice) }));
+	$.delegated('mousedown', button, () => $.set(nice, true));
+	$.event('blur', button, () => $.set(nice, false));
+	$.delegated('click', button, toggle);
+	$.append($$anchor, button);
+}
+
+$.delegate(['mousedown', 'click']);
+=== 209 sites/hn.svelte.dev/src/routes/+error.svelte	css
+
+	h1.svelte-1oilzc3 {
+		margin: 0 auto;
+	}
+
+	h1.svelte-1oilzc3 {
+		font-size: 2.8em;
+		font-weight: 700;
+		margin: 0 0 0.5em 0;
+	}
+
+	@media (min-width: 480px) {
+		h1.svelte-1oilzc3 {
+			font-size: 4em;
+		}
+	}
+
+=== 917 sites/hn.svelte.dev/src/routes/+error.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { page } from '$app/state';
+
+var root = $.from_html(`<h1 class="svelte-1oilzc3"> </h1> <pre> </pre>`, 1);
+
+export default function _error($$anchor, $$props) {
+	$.push($$props, true);
+
+	const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+	const title = offline ? 'Offline' : page.status;
+
+	const message = offline
+		? 'Find the internet and try again'
+		: page.error?.message;
+
+	var fragment = root();
+
+	$.head('1oilzc3', ($$anchor) => {
+		$.deferred_template_effect(() => {
+			$.document.title = title ?? '';
+		});
+	});
+
+	var h1 = $.first_child(fragment);
+	var text = $.only_child(h1, true);
+	var pre = $.sibling(h1, 2);
+	var text_1 = $.only_child(pre, true);
+
+	$.template_effect(() => {
+		$.set_text(text, title);
+		$.set_text(text_1, message);
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 127 sites/hn.svelte.dev/src/routes/+layout.svelte	css
+
+	main.svelte-ugx4i7 {
+		position: relative;
+		max-width: 56em;
+		padding: 2em;
+		margin: 0 auto;
+		box-sizing: border-box;
+	}
+
+=== 1101 sites/hn.svelte.dev/src/routes/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { page, navigating } from '$app/state';
+import Nav from '$lib/Nav.svelte';
+import PreloadingIndicator from '$lib/PreloadingIndicator.svelte';
+import ThemeToggler from '$lib/ThemeToggler.svelte';
+import '../app.css';
+
+var root = $.from_html(`<!> <!> <main class="svelte-ugx4i7"><!></main> <!>`, 1);
+
+export default function _layout($$anchor, $$props) {
+	$.push($$props, true);
+
+	const section = $.derived(() => page.url.pathname.split('/')[1]);
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	Nav(node, {
+		get section() {
+			return $.get(section);
+		}
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			PreloadingIndicator($$anchor, {});
+		};
+
+		$.if(node_1, ($$render) => {
+			if (navigating.from) $$render(consequent);
+		});
+	}
+
+	var main = $.sibling(node_1, 2);
+	var node_2 = $.child(main);
+
+	$.snippet(node_2, () => $$props.children);
+	$.reset(main);
+
+	var node_3 = $.sibling(main, 2);
+
+	ThemeToggler(node_3, {});
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 2616 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { resolve } from '$app/paths';
+import ItemSummary from './ItemSummary.svelte';
+import NullItem from './NullItem.svelte';
+
+var root = $.from_html(`<meta name="description"/>`);
+var root_1 = $.from_html(`<a class="more">More...</a>`);
+var root_2 = $.from_html(`<p>That's all we can find...</p>`);
+var root_3 = $.from_html(`<!> <!>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	const PAGE_SIZE = 30;
+
+	const list = $.derived(() => $$props.data.list),
+		items = $.derived(() => $$props.data.items),
+		page = $.derived(() => $$props.data.page),
+		now = $.derived(() => $$props.data.now);
+
+	const start = $.derived(() => 1 + ($.get(page) - 1) * PAGE_SIZE);
+	var fragment = root_3();
+
+	$.head('1n9hwi2', ($$anchor) => {
+		var meta = root();
+
+		$.template_effect(() => $.set_attribute(meta, 'content', `Latest Hacker News stories in the ${$.get(list) ?? ''} category`));
+
+		$.effect(() => {
+			$.document.title = 'Svelte Hacker News';
+		});
+
+		$.append($$anchor, meta);
+	});
+
+	var node = $.first_child(fragment);
+
+	$.each(node, 19, () => $.get(items), (item) => item.id, ($$anchor, item, i) => {
+		var fragment_1 = $.comment();
+		var node_1 = $.first_child(fragment_1);
+
+		{
+			var consequent = ($$anchor) => {
+				{
+					let $0 = $.derived(() => $.get(start) + $.get(i));
+
+					ItemSummary($$anchor, {
+						get item() {
+							return $.get(item);
+						},
+
+						get index() {
+							return $.get($0);
+						},
+
+						get now() {
+							return $.get(now);
+						}
+					});
+				}
+			};
+
+			var alternate = ($$anchor) => {
+				{
+					let $0 = $.derived(() => $.get(start) + $.get(i));
+
+					NullItem($$anchor, {
+						get id() {
+							return $.get(item).id;
+						},
+
+						get index() {
+							return $.get($0);
+						}
+					});
+				}
+			};
+
+			$.if(node_1, ($$render) => {
+				if ($.get(item).type !== 'null') $$render(consequent); else $$render(alternate, -1);
+			});
+		}
+
+		$.append($$anchor, fragment_1);
+	});
+
+	var node_2 = $.sibling(node, 2);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var a = root_1();
+
+			$.template_effect(($0) => $.set_attribute(a, 'href', $0), [
+				() => resolve('/[list=category]/[page=numeric]', { list: $.get(list), page: `${$.get(page) + 1}` })
+			]);
+
+			$.append($$anchor, a);
+		};
+
+		var alternate_1 = ($$anchor) => {
+			var p = root_2();
+
+			$.append($$anchor, p);
+		};
+
+		$.if(node_2, ($$render) => {
+			if ($.get(items).length >= PAGE_SIZE) $$render(consequent_1); else $$render(alternate_1, -1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 646 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/ItemSummary.svelte	css
+
+	article.svelte-qvpc2r {
+		position: relative;
+		padding: 0 0 0 4em;
+		margin: 0 0 1.5em 0;
+	}
+
+	h2.svelte-qvpc2r {
+		font-size: 1em;
+		font-weight: 500;
+		margin: 0 0 0.5em 0;
+		color: var(--fg);
+	}
+
+	h2.svelte-qvpc2r a:where(.svelte-qvpc2r) {
+		text-decoration: none;
+	}
+
+	p.svelte-qvpc2r {
+		font-size: 0.8em;
+		color: var(--fg-light);
+		margin: 0;
+		font-weight: 300;
+	}
+
+	small.svelte-qvpc2r {
+		color: var(--fg-light);
+		font-weight: 300;
+	}
+
+	.index.svelte-qvpc2r {
+		position: absolute;
+		font-size: 1.6em;
+		font-weight: 200;
+		color: var(--fg-light);
+		left: 0.2em;
+		top: 0;
+		text-align: right;
+		width: 0.75em;
+		line-height: 1;
+	}
+
+=== 3005 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/ItemSummary.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { resolve } from '$app/paths';
+import { timeAgo } from '$lib/utils';
+
+var root = $.from_html(`<a rel="external" class="svelte-qvpc2r"> <small class="svelte-qvpc2r"> </small></a>`);
+var root_1 = $.from_html(`<a class="svelte-qvpc2r"> </a>`);
+var root_2 = $.from_html(`| <a> </a>`, 1);
+var root_3 = $.from_html(`<article class="svelte-qvpc2r"><h2 class="svelte-qvpc2r"><!></h2> <p class="svelte-qvpc2r"> <a> </a> <!></p> <span class="index svelte-qvpc2r"> </span></article>`);
+
+export default function ItemSummary($$anchor, $$props) {
+	$.push($$props, true);
+
+	var article = root_3();
+	var h2 = $.child(article);
+	var node = $.child(h2);
+
+	{
+		var consequent = ($$anchor) => {
+			var a = root();
+			var text = $.child(a);
+			var small = $.sibling(text);
+			var text_1 = $.only_child(small, true);
+
+			$.reset(a);
+
+			$.template_effect(() => {
+				$.set_attribute(a, 'href', $$props.item.url);
+				$.set_text(text, `${$$props.item.title ?? ''} `);
+				$.set_text(text_1, new URL($$props.item.url).hostname);
+			});
+
+			$.append($$anchor, a);
+		};
+
+		var alternate = ($$anchor) => {
+			var a_1 = root_1();
+			var text_2 = $.only_child(a_1, true);
+
+			$.template_effect(
+				($0) => {
+					$.set_attribute(a_1, 'href', $0);
+					$.set_text(text_2, $$props.item.title);
+				},
+				[
+					() => resolve('/item/[id=numeric]', { id: `${$$props.item.id}` })
+				]
+			);
+
+			$.append($$anchor, a_1);
+		};
+
+		$.if(node, ($$render) => {
+			if ($$props.item.type !== 'poll' && $$props.item.url) $$render(consequent); else $$render(alternate, -1);
+		});
+	}
+
+	$.reset(h2);
+
+	var p = $.sibling(h2, 2);
+	var text_3 = $.child(p);
+	var a_2 = $.sibling(text_3);
+	var text_4 = $.only_child(a_2, true);
+	var text_5 = $.sibling(a_2);
+	var node_1 = $.sibling(text_5);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var fragment = root_2();
+			var a_3 = $.sibling($.first_child(fragment));
+			var text_6 = $.only_child(a_3);
+
+			$.template_effect(
+				($0) => {
+					$.set_attribute(a_3, 'href', $0);
+
+					$.set_text(text_6, `${$$props.item.descendants ?? ''}
+				${$$props.item.descendants === 1 ? 'comment' : 'comments'}`);
+				},
+				[
+					() => resolve('/item/[id=numeric]', { id: `${$$props.item.id}` })
+				]
+			);
+
+			$.append($$anchor, fragment);
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($$props.item.type !== 'job') $$render(consequent_1);
+		});
+	}
+
+	$.reset(p);
+
+	var span = $.sibling(p, 2);
+	var text_7 = $.only_child(span, true);
+
+	$.reset(article);
+
+	$.template_effect(
+		($0, $1) => {
+			$.set_text(text_3, `${$$props.item.score ?? ''}
+		${$$props.item.score === 1 ? 'point' : 'points'} by `);
+
+			$.set_attribute(a_2, 'href', $0);
+			$.set_text(text_4, $$props.item.by);
+			$.set_text(text_5, ` ${$1 ?? ''} `);
+			$.set_text(text_7, $$props.index);
+		},
+		[
+			() => resolve('/user/[name]', { name: $$props.item.by }),
+			() => timeAgo($$props.now - $$props.item.time)
+		]
+	);
+
+	$.append($$anchor, article);
+	$.pop();
+}
+=== 521 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/NullItem.svelte	css
+
+	article.svelte-16n4ane {
+		position: relative;
+		padding: 0 0 0 4em;
+		margin: 0 0 1.5em 0;
+
+		opacity: 0.5;
+	}
+
+	h2.svelte-16n4ane {
+		font-size: 1em;
+		font-weight: 500;
+		margin: 0 0 0.5em 0;
+		color: var(--fg);
+	}
+
+	p.svelte-16n4ane {
+		font-size: 0.8em;
+		color: var(--fg-light);
+		margin: 0;
+		font-weight: 300;
+	}
+
+	.index.svelte-16n4ane {
+		position: absolute;
+		font-size: 1.6em;
+		font-weight: 200;
+		color: var(--fg-light);
+		left: 0.2em;
+		top: 0;
+		text-align: right;
+		width: 0.75em;
+		line-height: 1;
+	}
+
+=== 703 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/NullItem.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<article class="svelte-16n4ane"><h2 class="svelte-16n4ane"> </h2> <p class="svelte-16n4ane">API failed to return this item - maybe deleted?</p> <span class="index svelte-16n4ane"> </span></article>`);
+
+export default function NullItem($$anchor, $$props) {
+	var article = root();
+	var h2 = $.child(article);
+	var text = $.only_child(h2);
+	var span = $.sibling(h2, 4);
+	var text_1 = $.only_child(span, true);
+
+	$.reset(article);
+
+	$.template_effect(() => {
+		$.set_text(text, `Item #${$$props.id ?? ''} Unavailable`);
+		$.set_text(text_1, $$props.index);
+	});
+
+	$.append($$anchor, article);
+}
+=== 1164 sites/hn.svelte.dev/src/routes/about/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(
+	`<h1>About this site</h1> <p>This is a simple Hacker News clone, built with <a rel="external" href="https://kit.svelte.dev">SvelteKit</a>, an application framework for <a rel="external" href="https://svelte.dev">Svelte</a>.</p> <p>Svelte is a new kind of framework, one that compiles your component templates into fast, compact
+	JavaScript — either client-side or server-side. You can read more about the design and philosophy
+	in the <a rel="external" href="https://svelte.dev/tutorial">introductory tutorial</a>.</p> <p>We're using a combination of the <a rel="external" href="https://github.com/hackernews/api">Firebase HN API</a> and the <a rel="external" href="https://hn.algolia.com/api">Algolia HN API</a> as a backend. The app is hosted on <a rel="external" href="https://vercel.com">Vercel</a>.</p>`,
+	1
+);
+
+export default function _page($$anchor) {
+	var fragment = root();
+
+	$.head('1d5i9po', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'About • Svelte Hacker News';
+		});
+	});
+
+	$.next(6);
+	$.append($$anchor, fragment);
+}
+=== 574 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.svelte	css
+
+	h1.svelte-1d2597w {
+		font-weight: 500;
+	}
+
+	.item.svelte-1d2597w {
+		border-bottom: 1em solid rgba(0, 0, 0, 0.1);
+		margin: 0 -2em 2em -2em;
+		padding: 0 2em 2em 2em;
+	}
+
+	html.dark .item.svelte-1d2597w {
+		border-bottom: 1em solid rgba(255, 255, 255, 0.1);
+	}
+
+	.main-link.svelte-1d2597w {
+		display: block;
+		text-decoration: none;
+	}
+
+	small.svelte-1d2597w {
+		display: block;
+		font-size: 14px;
+	}
+
+	.meta.svelte-1d2597w {
+		font-size: 0.8em;
+		font-weight: 300;
+		color: var(--fg-light);
+	}
+
+	.comments.svelte-1d2597w > .comment:first-child {
+		border-top: none;
+	}
+
+=== 4077 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { resolve } from '$app/paths';
+import SubsetHTML from '$lib/SubsetHTML.svelte';
+import { timeAgo } from '$lib/utils';
+import CommentElement from './Comment.svelte';
+
+var root = $.from_html(`<small class="svelte-1d2597w"> </small>`);
+var root_1 = $.from_html(`<!> <small class="svelte-1d2597w"> </small>`, 1);
+var root_2 = $.from_html(`<div class="comments svelte-1d2597w"></div>`);
+var root_3 = $.from_html(`<div><article class="item svelte-1d2597w"><a class="main-link svelte-1d2597w" rel="external"><h1 class="svelte-1d2597w"> </h1> <!></a> <p class="meta svelte-1d2597w"> <a> </a> </p> <!> <!></article> <!></div>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	const algoliaItem = $.derived(() => $$props.data.algoliaItem),
+		pollOptions = $.derived(() => $$props.data.pollOptions),
+		now = $.derived(() => $$props.data.now);
+
+	var div = root_3();
+
+	$.head('1d2597w', ($$anchor) => {
+		$.deferred_template_effect(() => {
+			$.document.title = `${$.get(algoliaItem).title ?? ''} | Svelte Hacker News`;
+		});
+	});
+
+	var article = $.child(div);
+	var a = $.child(article);
+	var h1 = $.child(a);
+	var text = $.only_child(h1, true);
+	var node = $.sibling(h1, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			var small = root();
+			var text_1 = $.only_child(small, true);
+
+			$.template_effect(() => $.set_text(text_1, new URL($.get(algoliaItem).url).hostname));
+			$.append($$anchor, small);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(algoliaItem).url) $$render(consequent);
+		});
+	}
+
+	$.reset(a);
+
+	var p = $.sibling(a, 2);
+	var text_2 = $.child(p);
+	var a_1 = $.sibling(text_2);
+	var text_3 = $.only_child(a_1, true);
+	var text_4 = $.sibling(a_1);
+
+	$.reset(p);
+
+	var node_1 = $.sibling(p, 2);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			SubsetHTML($$anchor, {
+				get content() {
+					return $.get(algoliaItem).text;
+				}
+			});
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($.get(algoliaItem).text) $$render(consequent_1);
+		});
+	}
+
+	var node_2 = $.sibling(node_1, 2);
+
+	{
+		var consequent_2 = ($$anchor) => {
+			var fragment_1 = $.comment();
+			var node_3 = $.first_child(fragment_1);
+
+			$.each(node_3, 17, () => $.get(pollOptions), (pollOption) => pollOption.id, ($$anchor, pollOption) => {
+				var fragment_2 = root_1();
+				var node_4 = $.first_child(fragment_2);
+
+				SubsetHTML(node_4, {
+					get content() {
+						return $.get(pollOption).text;
+					}
+				});
+
+				var small_1 = $.sibling(node_4, 2);
+				var text_5 = $.only_child(small_1);
+
+				$.template_effect(() => $.set_text(text_5, `${$.get(pollOption).score ?? ''} points`));
+				$.append($$anchor, fragment_2);
+			});
+
+			$.append($$anchor, fragment_1);
+		};
+
+		$.if(node_2, ($$render) => {
+			if ($.get(algoliaItem).options && $.get(algoliaItem).options.length > 0) $$render(consequent_2);
+		});
+	}
+
+	$.reset(article);
+
+	var node_5 = $.sibling(article, 2);
+
+	{
+		var consequent_3 = ($$anchor) => {
+			var div_1 = root_2();
+
+			$.each(div_1, 21, () => $.get(algoliaItem).children, (comment) => comment.id, ($$anchor, comment) => {
+				CommentElement($$anchor, {
+					get comment() {
+						return $.get(comment);
+					},
+
+					get now() {
+						return $.get(now);
+					}
+				});
+			});
+
+			$.reset(div_1);
+			$.append($$anchor, div_1);
+		};
+
+		$.if(node_5, ($$render) => {
+			if ($.get(algoliaItem).children && $.get(algoliaItem).children.length > 0) $$render(consequent_3);
+		});
+	}
+
+	$.reset(div);
+
+	$.template_effect(
+		($0, $1) => {
+			$.set_attribute(a, 'href', $.get(algoliaItem).url);
+			$.set_text(text, $.get(algoliaItem).title);
+
+			$.set_text(text_2, `${$.get(algoliaItem).points ?? ''}
+			${$.get(algoliaItem).points === 1 ? 'point' : 'points'} by `);
+
+			$.set_attribute(a_1, 'href', $0);
+			$.set_text(text_3, $.get(algoliaItem).author);
+			$.set_text(text_4, ` ${$1 ?? ''}`);
+		},
+		[
+			() => resolve('/user/[name]', { name: $.get(algoliaItem).author }),
+			() => timeAgo($.get(now) - $.get(algoliaItem).created_at_i)
+		]
+	);
+
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 1388 sites/hn.svelte.dev/src/routes/item/[id=numeric]/Comment.svelte	css
+
+	.comment.svelte-bp2yyv {
+		border-top: 1px solid rgba(0, 0, 0, 0.1);
+	}
+
+	html.dark .comment.svelte-bp2yyv {
+		border-top: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.meta-bar.svelte-bp2yyv {
+		padding: 1em 0;
+		cursor: pointer;
+		background: 100% 50% no-repeat url(./unfold.svg);
+		background-size: 1em 1em;
+	}
+
+	.comment.svelte-bp2yyv details[open]:where(.svelte-bp2yyv) > summary:where(.svelte-bp2yyv) > .meta-bar:where(.svelte-bp2yyv) {
+		background-image: url(./fold.svg);
+	}
+
+	.comment.svelte-bp2yyv details:where(.svelte-bp2yyv) > summary:where(.svelte-bp2yyv) {
+		list-style-type: none;
+	}
+
+	.comment.svelte-bp2yyv details:where(.svelte-bp2yyv) > summary:where(.svelte-bp2yyv)::marker,
+	.comment.svelte-bp2yyv details:where(.svelte-bp2yyv) > summary:where(.svelte-bp2yyv)::-webkit-details-marker {
+		display: none;
+	}
+
+	.comment.svelte-bp2yyv .children:where(.svelte-bp2yyv) {
+		padding: 0 0 0 1em;
+		margin: 0;
+	}
+
+	@media (min-width: 720px) {
+		.comment.svelte-bp2yyv .children:where(.svelte-bp2yyv) {
+			padding: 0 0 0 2em;
+		}
+	}
+
+	li.svelte-bp2yyv {
+		list-style: none;
+	}
+
+	.meta.svelte-bp2yyv {
+		display: block;
+		font-size: 14px;
+		color: var(--fg-light);
+	}
+
+	a.svelte-bp2yyv {
+		color: var(--fg-light);
+	}
+
+	/* prevent crazy overflow layout bug on mobile */
+	.body.svelte-bp2yyv * {
+		overflow-wrap: break-word;
+	}
+
+	.comment.svelte-bp2yyv pre {
+		overflow-x: auto;
+	}
+
+=== 2711 sites/hn.svelte.dev/src/routes/item/[id=numeric]/Comment.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import SubsetHTML from '$lib/SubsetHTML.svelte';
+import CommentElement from './Comment.svelte';
+import { resolve } from '$app/paths';
+import { timeAgo } from '$lib/utils';
+
+var root = $.from_html(`<li class="svelte-bp2yyv"><!></li>`);
+var root_1 = $.from_html(`<ul class="children svelte-bp2yyv"></ul>`);
+var root_2 = $.from_html(`<article class="comment svelte-bp2yyv"><details open="" class="svelte-bp2yyv"><summary class="svelte-bp2yyv"><div class="meta-bar svelte-bp2yyv" role="button" tabindex="0"><span class="meta svelte-bp2yyv"><a class="svelte-bp2yyv"> </a> </span></div></summary> <div class="body svelte-bp2yyv"><!></div> <!></details></article>`);
+
+export default function Comment($$anchor, $$props) {
+	$.push($$props, true);
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var article = root_2();
+			var details = $.child(article);
+			var summary = $.child(details);
+			var div = $.child(summary);
+			var span = $.child(div);
+			var a = $.child(span);
+			var text = $.only_child(a, true);
+			var text_1 = $.sibling(a);
+
+			$.reset(span);
+			$.reset(div);
+			$.reset(summary);
+
+			var div_1 = $.sibling(summary, 2);
+			var node_1 = $.child(div_1);
+
+			SubsetHTML(node_1, {
+				get content() {
+					return $$props.comment.text;
+				}
+			});
+
+			$.reset(div_1);
+
+			var node_2 = $.sibling(div_1, 2);
+
+			{
+				var consequent = ($$anchor) => {
+					var ul = root_1();
+
+					$.each(ul, 21, () => $$props.comment.children, (child) => child.id, ($$anchor, child) => {
+						var li = root();
+						var node_3 = $.child(li);
+
+						CommentElement(node_3, {
+							get comment() {
+								return $.get(child);
+							},
+
+							get now() {
+								return $$props.now;
+							}
+						});
+
+						$.reset(li);
+						$.append($$anchor, li);
+					});
+
+					$.reset(ul);
+					$.append($$anchor, ul);
+				};
+
+				$.if(node_2, ($$render) => {
+					if ($$props.comment.children && $$props.comment.children.length > 0) $$render(consequent);
+				});
+			}
+
+			$.reset(details);
+			$.reset(article);
+
+			$.template_effect(
+				($0, $1) => {
+					$.set_attribute(article, 'id', `${$$props.comment.id}`);
+					$.set_attribute(a, 'href', $0);
+					$.set_text(text, $$props.comment.author);
+					$.set_text(text_1, ` ${$1 ?? ''}`);
+				},
+				[
+					() => resolve('/user/[name]', { name: $$props.comment.author }),
+					() => timeAgo($$props.now - $$props.comment.created_at_i)
+				]
+			);
+
+			$.append($$anchor, article);
+		};
+
+		$.if(node, ($$render) => {
+			if (typeof $$props.comment !== null) $$render(consequent_1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 2176 sites/hn.svelte.dev/src/routes/user/[name]/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import SubsetHTML from '$lib/SubsetHTML.svelte';
+import { timeAgo } from '$lib/utils';
+
+var root = $.from_html(`<div class="about"><!></div>`);
+var root_1 = $.from_html(`<h1> </h1> <div><p>...joined <strong> </strong>, and has <strong> </strong> karma</p> <p><a rel="external">submissions</a> / <a rel="external">comments</a> / <a rel="external">favourites</a></p> <!></div>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	const user = $.derived(() => $$props.data.user),
+		now = $.derived(() => $$props.data.now);
+
+	var fragment = root_1();
+
+	$.head('1qch8zw', ($$anchor) => {
+		$.deferred_template_effect(() => {
+			$.document.title = `${$.get(user).id ?? ''} • Svelte Hacker News`;
+		});
+	});
+
+	var h1 = $.first_child(fragment);
+	var text = $.only_child(h1, true);
+	var div = $.sibling(h1, 2);
+	var p = $.child(div);
+	var strong = $.sibling($.child(p));
+	var text_1 = $.only_child(strong, true);
+	var strong_1 = $.sibling(strong, 2);
+	var text_2 = $.only_child(strong_1, true);
+
+	$.next();
+	$.reset(p);
+
+	var p_1 = $.sibling(p, 2);
+	var a = $.child(p_1);
+	var a_1 = $.sibling(a, 2);
+	var a_2 = $.sibling(a_1, 2);
+
+	$.reset(p_1);
+
+	var node = $.sibling(p_1, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			var div_1 = root();
+			var node_1 = $.child(div_1);
+
+			SubsetHTML(node_1, {
+				get content() {
+					return $.get(user).about;
+				}
+			});
+
+			$.reset(div_1);
+			$.append($$anchor, div_1);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(user).about) $$render(consequent);
+		});
+	}
+
+	$.reset(div);
+
+	$.template_effect(
+		($0) => {
+			$.set_text(text, $.get(user).id);
+			$.set_text(text_1, $0);
+			$.set_text(text_2, $.get(user).karma);
+			$.set_attribute(a, 'href', `https://news.ycombinator.com/submitted?id=${$.get(user).id ?? ''}`);
+			$.set_attribute(a_1, 'href', `https://news.ycombinator.com/threads?id=${$.get(user).id ?? ''}`);
+			$.set_attribute(a_2, 'href', `https://news.ycombinator.com/favorites?id=${$.get(user).id ?? ''}`);
+		},
+		[() => timeAgo($.get(now) - $.get(user).created)]
+	);
+
+	$.append($$anchor, fragment);
+	$.pop();
+}

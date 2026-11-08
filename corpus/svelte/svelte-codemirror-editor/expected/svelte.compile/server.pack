@@ -1,0 +1,767 @@
+# rsvelte pack 1
+=== 1243 src/lib/CodeMirror.svelte	css
+
+    .codemirror-wrapper.svelte-11pi7t .cm-focused {
+        outline: none;
+    }
+
+    .scm-waiting.svelte-11pi7t {
+        position: relative;
+    }
+    .scm-waiting__loading.svelte-11pi7t {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        background-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .scm-loading.svelte-11pi7t {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .scm-loading__spinner.svelte-11pi7t {
+        width: 1rem;
+        height: 1rem;
+        border-radius: 100%;
+        border: solid 2px #000;
+        border-top-color: transparent;
+        margin-right: 0.75rem;
+        animation: svelte-11pi7t-spin 1s linear infinite;
+    }
+    .scm-loading__text.svelte-11pi7t {
+        font-family: sans-serif;
+    }
+    .scm-pre.svelte-11pi7t {
+        font-size: 0.85rem;
+        font-family: monospace;
+        tab-size: 2;
+        -moz-tab-size: 2;
+        resize: none;
+        pointer-events: none;
+        user-select: none;
+        overflow: auto;
+    }
+
+    @keyframes svelte-11pi7t-spin {
+        0% {
+            transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+=== 7388 src/lib/CodeMirror.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onDestroy, onMount, untrack } from "svelte";
+import { debounce } from "./util";
+
+import {
+	autocompletion as autocompletionExt,
+	closeBrackets as closeBracketsExt,
+	closeBracketsKeymap,
+	completionKeymap
+} from "@codemirror/autocomplete";
+
+import {
+	defaultKeymap,
+	history as historyExt,
+	historyKeymap,
+	indentWithTab
+} from "@codemirror/commands";
+
+import {
+	bracketMatching as bracketMatchingExt,
+	defaultHighlightStyle,
+	foldGutter as foldGutterExt,
+	foldKeymap,
+	indentOnInput as indentOnInputExt,
+	indentUnit,
+	syntaxHighlighting as syntaxHighlightingExt
+} from "@codemirror/language";
+
+import { lintKeymap } from "@codemirror/lint";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import { EditorState, StateEffect } from "@codemirror/state";
+
+import {
+	crosshairCursor as crosshairCursorExt,
+	drawSelection as drawSelectionExt,
+	dropCursor as dropCursorExt,
+	EditorView,
+	highlightActiveLine,
+	highlightActiveLineGutter,
+	highlightSpecialChars,
+	keymap,
+	lineNumbers as lineNumbersExt,
+	placeholder as placeholderExt,
+	rectangularSelection as rectangularSelectionExt
+} from "@codemirror/view";
+
+export default function CodeMirror($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let {
+			value = "",
+			lang,
+			theme,
+			extensions = [],
+			keybindings = [],
+			allowMultiSelect = true,
+			useTab = true,
+			tabSize = 2,
+			lineWrapping = false,
+			lineNumbers = true,
+			highlight = {
+				activeLine: true,
+				activeLineGutter: true,
+				specialChars: true,
+				selectionMatches: true
+			},
+			history = true,
+			foldGutter = true,
+			drawSelection = true,
+			dropCursor = true,
+			indentOnInput = true,
+			syntaxHighlighting = true,
+			bracketMatching = true,
+			closeBrackets = true,
+			autocompletion = true,
+			rectangularSelection = true,
+			crosshairCursor = true,
+			styles,
+			editable = true,
+			readonly = false,
+			placeholder,
+			nodebounce = false,
+			class: classes = "",
+			onchange,
+			onready,
+			onreconfigure
+		} = $$props;
+
+		const is_browser = typeof window !== "undefined";
+		let element = void 0;
+		let view = void 0;
+		let update_from_prop = false;
+		let update_from_state = false;
+		let first_config = true;
+		let first_update = true;
+		let state_extensions = $.derived(() => [...get_base_extensions(), ...get_theme(), ...extensions]);
+
+		//eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		let on_change = $.derived(() => nodebounce ? handle_change : debounce(handle_change, 300));
+
+		onMount(() => {
+			view = create_editor_view();
+			onready?.(view);
+		});
+
+		onDestroy(() => view?.destroy());
+
+		function create_editor_view() {
+			return new EditorView({
+				parent: element,
+				state: create_editor_state(value),
+				dispatch(transaction) {
+					if (!view) return;
+
+					view.update([transaction]);
+
+					if (!update_from_prop && transaction.docChanged) {
+						on_change()();
+					}
+				}
+			});
+		}
+
+		function reconfigure() {
+			if (first_config) {
+				first_config = false;
+
+				return;
+			}
+
+			if (view) {
+				view.dispatch({ effects: StateEffect.reconfigure.of(state_extensions()) });
+				onreconfigure?.(view);
+			}
+		}
+
+		function update(value) {
+			if (first_update) {
+				first_update = false;
+
+				return;
+			}
+
+			if (update_from_state) {
+				update_from_state = false;
+
+				return;
+			}
+
+			update_from_prop = true;
+			view.setState(create_editor_state(value));
+			update_from_prop = false;
+		}
+
+		function handle_change() {
+			if (view) {
+				const new_value = view.state.doc.toString();
+
+				if (new_value === value) return;
+
+				update_from_state = true;
+				value = new_value;
+				onchange?.(value);
+			}
+		}
+
+		function create_editor_state(value) {
+			return EditorState.create({ doc: value ?? undefined, extensions: state_extensions() });
+		}
+
+		function get_base_extensions() {
+			const extensions = [
+				indentUnit.of((" ").repeat(tabSize)),
+				EditorView.editable.of(editable),
+				EditorState.readOnly.of(readonly),
+				EditorState.allowMultipleSelections.of(allowMultiSelect)
+			];
+
+			const key_bindings = [
+				...keybindings,
+				...defaultKeymap,
+				...searchKeymap,
+				...lintKeymap
+			];
+
+			if (useTab) key_bindings.push(indentWithTab);
+			if (lineNumbers) extensions.push(lineNumbersExt(lineNumbers === true ? undefined : lineNumbers));
+			if (highlight.activeLine) extensions.push(highlightActiveLine());
+			if (highlight.activeLineGutter) extensions.push(highlightActiveLineGutter());
+			if (dropCursor) extensions.push(dropCursorExt());
+			if (indentOnInput) extensions.push(indentOnInputExt());
+			if (placeholder) extensions.push(placeholderExt(placeholder));
+			if (lang) extensions.push(lang);
+			if (lineWrapping) extensions.push(EditorView.lineWrapping);
+
+			if (highlight.specialChars) {
+				extensions.push(highlightSpecialChars(highlight.specialChars === true ? undefined : highlight.specialChars));
+			}
+
+			if (highlight.selectionMatches) {
+				extensions.push(highlightSelectionMatches(highlight.selectionMatches === true ? undefined : highlight.selectionMatches));
+			}
+
+			if (history) {
+				extensions.push(history === true ? historyExt() : historyExt(history));
+				key_bindings.push(...historyKeymap);
+			}
+
+			if (foldGutter) {
+				extensions.push(foldGutter === true ? foldGutterExt() : foldGutterExt(foldGutter));
+				key_bindings.push(...foldKeymap);
+			}
+
+			if (drawSelection) {
+				extensions.push(drawSelection === true ? drawSelectionExt() : drawSelectionExt(drawSelection));
+			}
+
+			if (syntaxHighlighting) {
+				if (syntaxHighlighting === true) {
+					extensions.push(syntaxHighlightingExt(defaultHighlightStyle, { fallback: true }));
+				} else {
+					const { highlighter = defaultHighlightStyle, fallback = true } = syntaxHighlighting;
+
+					extensions.push(syntaxHighlightingExt(highlighter, { fallback }));
+				}
+			}
+
+			if (bracketMatching) {
+				extensions.push(bracketMatchingExt(bracketMatching === true ? undefined : bracketMatching));
+			}
+
+			if (closeBrackets) {
+				extensions.push(closeBracketsExt());
+				key_bindings.push(...closeBracketsKeymap);
+			}
+
+			if (autocompletion) {
+				extensions.push(autocompletionExt(autocompletion === true ? undefined : autocompletion));
+				key_bindings.push(...completionKeymap);
+			}
+
+			if (rectangularSelection) {
+				extensions.push(rectangularSelectionExt(rectangularSelection === true ? undefined : rectangularSelection));
+			}
+
+			if (crosshairCursor) {
+				extensions.push(crosshairCursorExt(crosshairCursor === true ? undefined : crosshairCursor));
+			}
+
+			extensions.push(keymap.of(key_bindings));
+
+			return extensions;
+		}
+
+		function get_theme() {
+			const extensions = [];
+
+			if (styles) extensions.push(EditorView.theme(styles));
+			if (theme) extensions.push(theme);
+
+			return extensions;
+		}
+
+		if (is_browser) {
+			$$renderer.push(`<!--[0--><div${$.attr_class($.clsx(["codemirror-wrapper", classes]), 'svelte-11pi7t')}></div>`);
+		} else {
+			$$renderer.push(`<!--[-1--><div${$.attr_class($.clsx(["scm-waiting", classes]), 'svelte-11pi7t')}><div class="scm-waiting__loading scm-loading svelte-11pi7t"><div class="scm-loading__spinner svelte-11pi7t"></div> <p class="scm-loading__text svelte-11pi7t">Loading editor...</p></div> <pre class="scm-pre cm-editor svelte-11pi7t">${$.escape(value)}</pre></div>`);
+		}
+
+		$$renderer.push(`<!--]-->`);
+		$.bind_props($$props, { value });
+	});
+}
+=== 2618 src/routes/+layout.svelte	css
+
+    .layout.svelte-12qhfyh {
+        height: 100vh;
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-rows: 3rem auto 1fr;
+        grid-template-areas:
+            "header header"
+            "menu menu"
+            "main main";
+    }
+
+    .header.svelte-12qhfyh {
+        grid-area: header;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #1f1f23;
+    }
+    .header.svelte-12qhfyh > h1:where(.svelte-12qhfyh) {
+        font-size: 1.3rem;
+        font-weight: 700;
+    }
+    .header.svelte-12qhfyh > h1:where(.svelte-12qhfyh) > a:where(.svelte-12qhfyh) {
+        color: white;
+        text-decoration: none;
+    }
+
+    main.svelte-12qhfyh {
+        grid-area: main;
+        overflow: hidden;
+    }
+
+    .menu.svelte-12qhfyh {
+        grid-area: menu;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        background: #edf2ff;
+        overflow: hidden;
+        padding: 0.5rem 0;
+    }
+
+    .menu__item.svelte-12qhfyh {
+        padding: 0.5rem;
+        text-align: center;
+        font-size: 0.9rem;
+        transition: color 0.2s linear, background-color 0.2s linear;
+    }
+    .menu__item.svelte-12qhfyh:link,
+    .menu__item.svelte-12qhfyh:visited {
+        color: #333;
+        text-decoration: none;
+    }
+    .menu__item.svelte-12qhfyh:hover {
+        color: #99b4ff;
+    }
+    .menu__item.menu__item_active.svelte-12qhfyh {
+        color: #5236dd;
+    }
+
+    @media screen and (min-width: 640px) {
+        .layout.svelte-12qhfyh {
+            grid-template-areas:
+                "header header"
+                "menu main"
+                "menu main";
+        }
+
+        .header.svelte-12qhfyh {
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            z-index: 2;
+        }
+
+        .menu.svelte-12qhfyh {
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: start;
+            width: 10rem;
+            padding: 0;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            z-index: 1;
+        }
+
+        .menu__item.svelte-12qhfyh {
+            padding: 0.5rem;
+        }
+        .menu__item.svelte-12qhfyh:link,
+        .menu__item.svelte-12qhfyh:visited {
+            color: #333;
+            text-decoration: none;
+        }
+        .menu__item.svelte-12qhfyh:hover {
+            color: #fff;
+            background: #333;
+        }
+        .menu__item.menu__item_active.svelte-12qhfyh {
+            color: white;
+            background: #5236dd;
+        }
+    }
+
+=== 1465 src/routes/+layout.svelte	js
+import * as $ from 'svelte/internal/server';
+import "../styles.css";
+import { page } from "$app/state";
+import { resolve } from "$app/paths";
+
+export default function _layout($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const nav = [
+			{ path: "/", text: "Configurator" },
+			{ path: "/javascript", text: "Javascript" },
+			{ path: "/typescript", text: "Typescript" },
+			{ path: "/html", text: "HTML" },
+			{ path: "/css", text: "CSS" }
+		];
+
+		$.head('12qhfyh', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>svelte-codemirror-editor</title>`);
+			});
+		});
+
+		$$renderer.push(`<section class="layout svelte-12qhfyh"><header class="header svelte-12qhfyh"><h1 class="svelte-12qhfyh"><a${$.attr('href', resolve("/"))} class="svelte-12qhfyh">svelte-codemirror-editor</a></h1></header> <nav class="menu svelte-12qhfyh"><!--[-->`);
+
+		const each_array = $.ensure_array_like(nav);
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let item = each_array[$$index];
+
+			$$renderer.push(`<a${$.attr('href', resolve(item.path))}${$.attr_class(`menu__item ${page.url.pathname === resolve(item.path) ? 'menu__item_active' : ''}`, 'svelte-12qhfyh')}>${$.escape(item.text)}</a>`);
+		}
+
+		$$renderer.push(`<!--]--></nav> <main class="svelte-12qhfyh"><!--[-->`);
+		$.slot($$renderer, $$props, 'default', {}, null);
+		$$renderer.push(`<!--]--></main></section>`);
+	});
+}
+=== 333 src/routes/+layout.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 34,
+			"column": 8,
+			"character": 903
+		},
+		"end": {
+			"line": 34,
+			"column": 16,
+			"character": 911
+		}
+	}
+]
+
+=== 1198 src/routes/+page.svelte	css
+
+    .demo.svelte-1uha8ag {
+        position: relative;
+        height: 100%;
+        display: grid;
+        grid-template-rows: 1fr auto;
+        overflow: hidden;
+    }
+
+    .editor {
+        overflow: hidden;
+    }
+
+    .props.svelte-1uha8ag {
+        padding: 1rem;
+        background: #edf2ff;
+        border-top: solid 1px #ddd;
+    }
+
+    .props.svelte-1uha8ag > h5:where(.svelte-1uha8ag):not(:first-child) {
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .props-section.svelte-1uha8ag {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .toggle.svelte-1uha8ag {
+        display: flex;
+        align-items: center;
+        font-size: 0.85rem;
+        margin-right: 1rem;
+    }
+    .toggle.svelte-1uha8ag > label:where(.svelte-1uha8ag) {
+        margin-left: 0.5rem;
+        user-select: none;
+    }
+
+    .input.svelte-1uha8ag {
+        display: flex;
+        align-items: center;
+        font-size: 0.85rem;
+        margin-right: 1rem;
+    }
+    .input.svelte-1uha8ag > label:where(.svelte-1uha8ag) {
+        margin-right: 0.5rem;
+        user-select: none;
+    }
+
+    input[type="number"].svelte-1uha8ag {
+        width: 50px;
+        text-align: right;
+    }
+
+=== 7913 src/routes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import CodeMirror from "$lib";
+import { css } from "@codemirror/lang-css";
+import { html } from "@codemirror/lang-html";
+import { javascript } from "@codemirror/lang-javascript";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { cssValue, htmlValue, javascriptValue, typescriptValue } from "./_util/code";
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let value = "";
+
+		let props = {
+			allowMultiSelect: true,
+			useTab: true,
+			editable: true,
+			lineWrapping: false,
+			lineNumbers: true,
+			highlight: {
+				activeLine: true,
+				activeLineGutter: true,
+				specialChars: true,
+				selectionMatches: true
+			},
+			history: true,
+			foldGutter: true,
+			drawSelection: true,
+			dropCursor: true,
+			indentOnInput: true,
+			syntaxHighlighting: true,
+			bracketMatching: true,
+			closeBrackets: true,
+			autocompletion: true,
+			rectangularSelection: true,
+			crosshairCursor: true,
+			readonly: false,
+			tabSize: 2,
+			placeholder: null,
+			lang: null,
+			theme: null,
+			nodebounce: false
+		};
+
+		const languages = ["custom", "javascript", "typescript", "css", "html"];
+		let language = "custom";
+		const themes = ["default", "onedark"];
+		let theme = "default";
+
+		function on_language_change() {
+			switch (language) {
+				case "custom":
+					props.lang = null;
+					break;
+
+				case "javascript":
+					props.lang = javascript();
+					value = javascriptValue();
+					break;
+
+				case "typescript":
+					props.lang = javascript({ typescript: true });
+					value = typescriptValue();
+					break;
+
+				case "html":
+					props.lang = html({ matchClosingTags: true });
+					value = htmlValue();
+					break;
+
+				case "css":
+					props.lang = css();
+					value = cssValue();
+					break;
+			}
+		}
+
+		function on_theme_change() {
+			switch (theme) {
+				case "default":
+					props.theme = null;
+					break;
+
+				case "onedark":
+					props.theme = oneDark;
+					break;
+			}
+		}
+
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			$$renderer.push(`<div class="demo svelte-1uha8ag">`);
+
+			CodeMirror($$renderer, $.spread_props([
+				{ class: 'editor' },
+				props,
+				{
+					get value() {
+						return value;
+					},
+
+					set value($$value) {
+						value = $$value;
+						$$settled = false;
+					}
+				}
+			]));
+
+			$$renderer.push(`<!----> <div class="props svelte-1uha8ag"><h5 class="svelte-1uha8ag">Basic setup</h5> <div class="props-section svelte-1uha8ag"><div class="toggle svelte-1uha8ag"><input id="basic" type="checkbox"${$.attr('checked', props.allowMultiSelect, true)}/> <label for="basic" class="svelte-1uha8ag">Allow multi-select</label></div> <div class="toggle svelte-1uha8ag"><input id="editable" type="checkbox"${$.attr('checked', props.editable, true)}/> <label for="editable" class="svelte-1uha8ag">Editable</label></div> <div class="toggle svelte-1uha8ag"><input id="readonly" type="checkbox"${$.attr('checked', props.readonly, true)}/> <label for="readonly" class="svelte-1uha8ag">Read-only</label></div> <div class="toggle svelte-1uha8ag"><input id="lineWrapping" type="checkbox"${$.attr('checked', props.lineWrapping, true)}/> <label for="lineWrapping" class="svelte-1uha8ag">Line Wrapping</label></div> <div class="toggle svelte-1uha8ag"><input id="nodebounce" type="checkbox"${$.attr('checked', props.nodebounce, true)}/> <label for="nodebounce" class="svelte-1uha8ag">No debounce</label></div></div> <div class="props-section svelte-1uha8ag"><div class="toggle svelte-1uha8ag"><input id="basic" type="checkbox"${$.attr('checked', props.lineNumbers, true)}/> <label for="basic" class="svelte-1uha8ag">Show line numbers</label></div> <div class="toggle svelte-1uha8ag"><input id="editable" type="checkbox"${$.attr('checked', props.history, true)}/> <label for="editable" class="svelte-1uha8ag">History</label></div> <div class="toggle svelte-1uha8ag"><input id="readonly" type="checkbox"${$.attr('checked', props.foldGutter, true)}/> <label for="readonly" class="svelte-1uha8ag">Fold Gutter</label></div> <div class="toggle svelte-1uha8ag"><input id="lineWrapping" type="checkbox"${$.attr('checked', props.drawSelection, true)}/> <label for="lineWrapping" class="svelte-1uha8ag">Draw Selection</label></div> <div class="toggle svelte-1uha8ag"><input id="nodebounce" type="checkbox"${$.attr('checked', props.dropCursor, true)}/> <label for="nodebounce" class="svelte-1uha8ag">Drop Cursor</label></div></div> <div class="props-section svelte-1uha8ag"><div class="toggle svelte-1uha8ag"><input id="basic" type="checkbox"${$.attr('checked', props.indentOnInput, true)}/> <label for="basic" class="svelte-1uha8ag">Indent on Input</label></div> <div class="toggle svelte-1uha8ag"><input id="editable" type="checkbox"${$.attr('checked', props.syntaxHighlighting, true)}/> <label for="editable" class="svelte-1uha8ag">Syntax Highlighting</label></div> <div class="toggle svelte-1uha8ag"><input id="readonly" type="checkbox"${$.attr('checked', props.bracketMatching, true)}/> <label for="readonly" class="svelte-1uha8ag">Bracket Matching</label></div> <div class="toggle svelte-1uha8ag"><input id="lineWrapping" type="checkbox"${$.attr('checked', props.closeBrackets, true)}/> <label for="lineWrapping" class="svelte-1uha8ag">Close Brackets</label></div> <div class="toggle svelte-1uha8ag"><input id="nodebounce" type="checkbox"${$.attr('checked', props.autocompletion, true)}/> <label for="nodebounce" class="svelte-1uha8ag">Autocompletion</label></div></div> <div class="props-section svelte-1uha8ag"><div class="toggle svelte-1uha8ag"><input id="basic" type="checkbox"${$.attr('checked', props.rectangularSelection, true)}/> <label for="basic" class="svelte-1uha8ag">Rectangular Selection</label></div> <div class="toggle svelte-1uha8ag"><input id="editable" type="checkbox"${$.attr('checked', props.crosshairCursor, true)}/> <label for="editable" class="svelte-1uha8ag">Crosshair Cursor</label></div></div> <h5 class="svelte-1uha8ag">Tab</h5> <div class="props-section svelte-1uha8ag"><div class="toggle svelte-1uha8ag"><input id="useTab" type="checkbox"${$.attr('checked', props.useTab, true)}/> <label for="useTab" class="svelte-1uha8ag">Enable Tab</label></div> <div class="input svelte-1uha8ag"><label for="tabSize" class="svelte-1uha8ag">Tab size</label> <input id="tabSize" type="number"${$.attr('value', props.tabSize)} step="1" class="svelte-1uha8ag"/></div></div> <h5 class="svelte-1uha8ag">Language</h5> <div class="props-section svelte-1uha8ag"><div class="input svelte-1uha8ag"><label for="language" class="svelte-1uha8ag">Language</label> `);
+
+			$$renderer.select(
+				{
+					id: 'language',
+					value: language,
+					onchange: on_language_change
+				},
+				($$renderer) => {
+					$$renderer.push(`<!--[-->`);
+
+					const each_array = $.ensure_array_like(languages);
+
+					for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+						let lang = each_array[$$index];
+
+						$$renderer.option({}, lang);
+					}
+
+					$$renderer.push(`<!--]-->`);
+				}
+			);
+
+			$$renderer.push(`</div></div> <h5 class="svelte-1uha8ag">Theme</h5> <div class="props-section svelte-1uha8ag"><div class="input svelte-1uha8ag"><label for="theme" class="svelte-1uha8ag">Theme</label> `);
+
+			$$renderer.select({ id: 'theme', value: theme, onchange: on_theme_change }, ($$renderer) => {
+				$$renderer.push(`<!--[-->`);
+
+				const each_array_1 = $.ensure_array_like(themes);
+
+				for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+					let thm = each_array_1[$$index_1];
+
+					$$renderer.option({}, thm);
+				}
+
+				$$renderer.push(`<!--]-->`);
+			});
+
+			$$renderer.push(`</div></div></div></div>`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 363 src/routes/css/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import CodeMirror from "$lib";
+import { css } from "@codemirror/lang-css";
+import { cssValue } from "../_util/code";
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const code = cssValue();
+
+		CodeMirror($$renderer, { value: code, lang: css(), class: 'editor' });
+	});
+}
+=== 405 src/routes/html/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import CodeMirror from "$lib";
+import { html } from "@codemirror/lang-html";
+import { htmlValue } from "../_util/code";
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const code = htmlValue();
+
+		CodeMirror($$renderer, {
+			value: code,
+			lang: html({ matchClosingTags: true }),
+			class: 'editor'
+		});
+	});
+}
+=== 398 src/routes/javascript/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import CodeMirror from "$lib";
+import { javascript } from "@codemirror/lang-javascript";
+import { javascriptValue } from "../_util/code";
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const code = javascriptValue();
+
+		CodeMirror($$renderer, { value: code, lang: javascript(), class: 'editor' });
+	});
+}
+=== 429 src/routes/typescript/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import CodeMirror from "$lib";
+import { javascript } from "@codemirror/lang-javascript";
+import { typescriptValue } from "../_util/code";
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const code = typescriptValue();
+
+		CodeMirror($$renderer, {
+			value: code,
+			lang: javascript({ typescript: true }),
+			class: 'editor'
+		});
+	});
+}

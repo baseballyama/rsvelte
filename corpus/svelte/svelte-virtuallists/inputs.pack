@@ -1,0 +1,1450 @@
+# rsvelte pack 1
+=== 5409 src/comp/Button.svelte	svelte	runes	runes
+<script lang="ts">
+  // @ts-nocheck
+  import { onMount } from 'svelte';
+  import { writable } from 'svelte/store';
+  import Ripple from './Ripple.svelte';
+
+  let {
+    rippleBlur = 0,
+    speed = 900,
+    color = '#fff',
+    fontSize = '.875rem',
+    bgColor = '74, 64, 212',
+    bgHover = bgColor,
+    bgActive = bgColor,
+    rippleColor = '#838de7',
+    round = '0.2rem',
+    height = 36,
+    width = 140,
+    sizeIn = 20,
+    opacityIn = 0.5,
+    shadow = 5,
+    shadowHover = 5,
+    shadowActive = 2,
+    disabled = false,
+    children
+  } = $props();
+
+  const shadows = {
+    none: 'none',
+    1: '0 0 0 1px rgba(0, 0, 0, 0.05)',
+    2: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+    3: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+    4: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+    5: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+    6: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+    7: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+  };
+
+  function handleRipple() {
+    const ripples = writable([]);
+
+    return {
+      subscribe: ripples.subscribe,
+
+      add: (item: { x: number; y: number; size: number }) => {
+        ripples.update(items => {
+          return [...items, item];
+        });
+      },
+      clear: () => {
+        ripples.update(() => {
+          return [];
+        });
+      }
+    };
+  }
+
+  export const ripples = handleRipple();
+
+  let rect: DOMRect,
+    rippleBtn: HTMLButtonElement,
+    w: number,
+    h: number,
+    //	offsetX: number,
+    //	offsetY: number,
+    // deltaX: number,
+    // deltaY: number,
+    locationY: number,
+    locationX: number,
+    // scale_ratio: number,
+    timer: string | number | NodeJS.Timeout;
+
+  let coords = $state({ x: 50, y: 50 });
+  let offsetX: number = $derived(Math.abs(w / 2 - coords.x));
+  let offsetY = $derived(Math.abs(h / 2 - coords.y));
+  let deltaX = $derived(w / 2 + offsetX);
+  let deltaY = $derived(h / 2 + offsetY);
+  let scale_ratio = $derived(Math.sqrt(Math.pow(deltaX, 2.2) + Math.pow(deltaY, 2.2)));
+
+  const debounce = () => {
+    clearTimeout(timer);
+    timer = setTimeout(
+      () => {
+        ripples.clear();
+      },
+      speed + speed * 2
+    );
+  };
+
+  let touch: boolean;
+
+  function handleClick(e: MouseEvent | Touch, type: string) {
+    if (type === 'touch') {
+      touch = true;
+      ripples.add({ x: e.pageX - locationX, y: e.pageY - locationY, size: scale_ratio });
+    } else {
+      if (!touch) {
+        ripples.add({ x: e.clientX - locationX, y: e.clientY - locationY, size: scale_ratio });
+      }
+      touch = false;
+    }
+    debounce();
+  }
+
+  onMount(() => {
+    w = rippleBtn.offsetWidth;
+    h = rippleBtn.offsetHeight;
+    rect = rippleBtn.getBoundingClientRect();
+    locationY = rect.top;
+    locationX = rect.left;
+  });
+
+  function onTouchStart(e: TouchEvent) {
+    handleClick(e.touches[0], 'touch');
+  }
+
+  function onMouseDown(e: MouseEvent) {
+    handleClick(e, 'click');
+  }
+</script>
+
+<button
+  {disabled}
+  onclick={handleClick}
+  style="--color: {color};--font-size: {fontSize};--bg-color: {bgColor};--bg-hover: {bgHover};--bg-active: {bgActive};--radius: {round};--ripple: {rippleColor};--height: {height}px;--width: {width}px;--shadow: {shadows[
+    shadow
+  ]};--shadow-h: {shadows[shadowHover]};--shadow-a: {shadows[shadowActive]}"
+  bind:this={rippleBtn}
+  ontouchstart={onTouchStart}
+  onmousedown={onMouseDown}>
+  <span>
+    {@render children()}
+  </span>
+  <svg>
+    {#each $ripples as ripple (ripple)}
+      <Ripple
+        x={ripple.x}
+        y={ripple.y}
+        size={ripple.size}
+        {speed}
+        {sizeIn}
+        {opacityIn}
+        {rippleBlur} />
+    {/each}
+  </svg>
+</button>
+
+<style>
+  button {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    border: none;
+    font-weight: 500;
+    color: var(--color);
+    font-size: var(--font-size);
+    height: var(--height);
+    width: var(--width);
+    max-width: 100%;
+    margin: 0;
+    padding: 5px;
+    position: relative;
+    border-radius: var(--radius);
+    cursor: pointer;
+    -webkit-transition: 200ms all ease-out;
+    transition: 200ms all ease-out;
+    background-color: rgba(var(--bg-color), 1);
+    overflow: hidden;
+    font-family: Roboto, sans-serif;
+    box-shadow: var(--shadow);
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:hover,
+  button:focus {
+    outline: none;
+    background-color: rgba(var(--bg-hover), 0.8);
+    box-shadow: var(--shadow-h);
+  }
+  button:active {
+    outline: none;
+    background-color: rgba(var(--bg-active), 0.7);
+    box-shadow: var(--shadow-a);
+  }
+
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+
+    /* Reset these properties, since the button might be active/hovered */
+    outline: inherit;
+    background-color: rgba(var(--bg-color), 1);
+    box-shadow: var(--shadow);
+  }
+
+  span {
+    position: relative;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    z-index: 1;
+  }
+  svg {
+    height: 100%;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    width: 100%;
+  }
+</style>
+
+=== 3056 src/comp/Contents.svelte	svelte	runes	runes
+<script module lang="ts">
+  export interface Page {
+    title: string;
+    path: string;
+  }
+
+  export interface Section {
+    title: string;
+    pages: Page[];
+  }
+</script>
+
+<script lang="ts">
+  import { page } from '$app/stores';
+  import { base } from '$app/paths';
+  import { pathIsCurrent } from './pathUtils';
+
+  let { contents = [] }: { contents: Section[] } = $props();
+</script>
+
+<nav aria-label="Docs">
+  <ul class="sidebar">
+    {#each contents as section (section)}
+      <li>
+        <span class="section">
+          {section.title}
+        </span>
+
+        <ul>
+          {#each section.pages as { title, path } (path)}
+            <li>
+              <a
+                data-sveltekit-preload-data
+                class="page"
+                aria-current={pathIsCurrent(path, $page) ? 'page' : undefined}
+                href={base + path}>
+                {title}
+              </a>
+            </li>
+          {/each}
+        </ul>
+      </li>
+    {/each}
+  </ul>
+</nav>
+
+<style>
+  nav {
+    color: rgb(103, 103, 121);
+    padding: 0 10px;
+  }
+
+  .sidebar {
+    padding: 4px;
+    height: 100%;
+    bottom: auto;
+    width: 100%;
+    columns: 2;
+    margin: 0;
+  }
+
+  li {
+    display: block;
+    line-height: 1.2;
+    margin: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  li:last-child {
+    margin-bottom: 0;
+  }
+
+  a {
+    position: relative;
+    transition: color 0.2s;
+    border-bottom: none;
+    padding: 0;
+    color: rgb(94, 94, 94);
+    user-select: none;
+  }
+
+  a:not(:hover) {
+    text-decoration: none;
+  }
+
+  .section {
+    display: block;
+    padding-bottom: 0.8rem;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+  }
+
+  .page {
+    display: block;
+    font-size: 1.2rem;
+    padding-bottom: 0.6em;
+  }
+
+  [aria-current='page'] {
+    font-weight: 700;
+    color: rgb(75, 75, 75);
+  }
+
+  ul ul,
+  ul ul li {
+    margin: 0;
+    padding: 0.05rem 0.8rem;
+  }
+
+  @media (min-width: 600px) {
+    .sidebar {
+      columns: 2;
+    }
+  }
+
+  @media (min-width: 700px) {
+    .sidebar {
+      columns: 3;
+    }
+  }
+
+  @media (min-width: 832px) {
+    .sidebar {
+      columns: 1;
+      width: 28rem;
+      margin: 0 0 0 auto;
+    }
+
+    nav {
+      min-height: calc(100vh - 4.2rem);
+    }
+
+    /* nav::after {
+			content: '';
+			position: fixed;
+			left: 0;
+			bottom: 4.2rem;
+			width: calc(20rem - 1px);
+			height: 2em;
+			pointer-events: none;
+			background: linear-gradient(
+				to bottom,
+				rgba(247, 250, 253, 0) 0%,
+				rgba(247, 250, 253, 0.7) 50%,
+				rgb(247, 250, 253) 100%
+			);
+			background-repeat: no-repeat;
+			background-size: calc(100% - 2.5rem) 100%; */ /* cover text but not scrollbar */ /*
+		} */
+
+    /* [aria-current='page']::after {
+			content: '';
+			position: absolute;
+			width: 1rem;
+			height: 1rem;
+			top: -0.1rem;
+			right: calc(-0.5 * 1rem);
+			background-color: rgb(26, 26, 26);
+			border-left: 1px solid rgb(102, 102, 102);
+			border-bottom: 1px solid rgb(102, 102, 102);
+			transform: translateY(0.2rem) rotate(45deg);
+			z-index: 2;
+		} */
+  }
+</style>
+
+=== 394 src/comp/ExampleArea.svelte	svelte	runes	runes
+<script lang="ts">
+  import { type Component } from 'svelte';
+  import type { SvelteExample } from './example';
+  import Highlighted from './Highlighted.svelte';
+
+  let { example }: { example: SvelteExample } = $props();
+
+  //@ts-ignore
+  const Comp = example.component as Component;
+</script>
+
+<div>
+  <Comp></Comp>
+  <Highlighted lang="svelte" highlighted={example.highlightedHTML} />
+</div>
+
+=== 276 src/comp/Highlighted.svelte	svelte	runes	runes
+<script lang="ts">
+  // Based on https://github.com/metonym/svelte-highlight/blob/master/src/LangTag.svelte
+  let { lang, highlighted }: { lang: string; highlighted: string } = $props();
+</script>
+
+<pre data-language={lang}><code class="hljs">{@html highlighted}</code></pre>
+
+=== 1575 src/comp/PrerenderedArea.svelte	svelte	runes	runes
+<script lang="ts">
+  import { browser, dev } from '$app/environment';
+  import type { Snippet } from 'svelte';
+  import type { Action } from 'svelte/action';
+
+  let {
+    /** For dev mode, to work with hot reload, you want to see if the content has been changed. */
+    content,
+    /** ID of the area, so there will be no collision. */
+    id,
+    children
+  }: {
+    content?: string;
+    id: string;
+    children: Snippet;
+  } = $props();
+
+  const getIdFull = (id: string) => `prerendered_area_${id}`;
+
+  function getArea() {
+    if (!browser) {
+      return null;
+    }
+    // otherwise
+
+    const element = document.getElementById(getIdFull(id));
+
+    if (element) {
+      if (
+        !dev ||
+        (element.hasAttribute('data-content') && element.getAttribute('data-content') === content)
+      ) {
+        return element;
+      }
+    }
+  }
+
+  /** Capture area on initialization (only in browser), before mounting! */
+  const area = getArea();
+
+  let duplicatedChildren: Node[] | null = null;
+
+  if (area) {
+    const childs = area.childNodes;
+    duplicatedChildren = Array.from(childs).map(child => child.cloneNode(true));
+  }
+
+  const areaAction: Action = (node: HTMLElement) => {
+    // After mounting, we need to fill the new area with the prerendered one clones
+    if (area !== null) {
+      duplicatedChildren?.forEach(child => {
+        node.appendChild(child);
+      });
+    }
+  };
+</script>
+
+<div role="presentation" id={getIdFull(id)} data-content={dev ? content : undefined} use:areaAction>
+  {#if area === null}
+    {@render children()}
+  {/if}
+</div>
+
+=== 669 src/comp/RTLToggle.svelte	svelte	runes	runes
+<script lang="ts">
+  import ToggleButton from './ToggleButton.svelte';
+
+  let { isRTL = $bindable() }: { isRTL: boolean } = $props();
+
+  function clicked() {
+    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+  }
+</script>
+
+<div class="input-output-toggle">
+  Direction:
+  <span aria-hidden="true">LTR</span>
+  <ToggleButton bind:pressed={isRTL} label="RTL direction" onclick={clicked} />
+  <span aria-hidden="true">RTL</span>
+</div>
+
+<style>
+  .input-output-toggle {
+    position: relative;
+    display: flex;
+    gap: 0.5em;
+    user-select: none;
+    align-items: center;
+    width: 100%;
+    height: 20px;
+    margin: 0 auto;
+    padding: 10px;
+  }
+</style>
+
+=== 896 src/comp/Ripple.svelte	svelte	runes	runes
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { tweened } from 'svelte/motion';
+  import { backOut } from 'svelte/easing';
+
+  let {
+    x,
+    y,
+    sizeIn,
+    size,
+    speed,
+    rippleBlur,
+    opacityIn
+  }: {
+    x: number;
+    y: number;
+    sizeIn: number;
+    size: number;
+    speed: number;
+    rippleBlur: number;
+    opacityIn: number;
+  } = $props();
+
+  onMount(() => {
+    rippleOpacity.set(0);
+    rippleSize.set(size);
+  });
+
+  const rippleSize = tweened(sizeIn, { duration: speed });
+  const rippleOpacity = tweened(opacityIn, { duration: speed + speed * 2.5, easing: backOut });
+</script>
+
+<defs>
+  <filter id="f1" x="0" y="0">
+    <feGaussianBlur in="SourceGraphic" stdDeviation={rippleBlur} />
+  </filter>
+</defs>
+<circle cx={x} cy={y} r={$rippleSize} opacity={$rippleOpacity} filter="url(#f1)" />
+
+<style>
+  circle {
+    fill: var(--ripple);
+  }
+</style>
+
+=== 1169 src/comp/TextAreaAutosize.svelte	svelte	runes	runes
+<script lang="ts">
+  let { value = '', minRows = 1, maxRows = 40 } = $props();
+
+  const splitLines = (str: string) => str.split(/\r?\n/);
+
+  function stripLines(value: string, max: number) {
+    const array = splitLines(value);
+    array.length = max;
+    const text = array.reduce(function (previousValue: string, currentValue: string) {
+      return previousValue + '\n' + currentValue;
+    });
+    return text;
+  }
+
+  $effect(() => {
+    value = stripLines(value, maxRows);
+  });
+
+  let minHeight = $derived(`${1 + minRows * 1.2}em`);
+  let maxHeight = $derived(maxRows ? `${1 + maxRows * 1.2}em` : `auto`);
+</script>
+
+<div class="container">
+  <pre aria-hidden="true" style="min-height: {minHeight}; max-height: {maxHeight}">{value +
+      '\n'}</pre>
+  <textarea readonly bind:value style="outline: none;"></textarea>
+</div>
+
+<style>
+  .container {
+    position: relative;
+  }
+
+  pre,
+  textarea {
+    font-family: inherit;
+    padding: 0.5em;
+    box-sizing: border-box;
+    border: 1px solid #eee;
+    line-height: 1.2;
+    overflow: hidden;
+  }
+
+  textarea {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    resize: none;
+  }
+</style>
+
+=== 1464 src/comp/ToggleButton.svelte	svelte	runes	runes
+<script lang="ts">
+  let {
+    pressed = $bindable(),
+    label,
+    onclick
+  }: {
+    pressed: boolean;
+    label: string;
+    onclick?: () => void;
+  } = $props();
+
+  function clicked() {
+    pressed = !pressed;
+    onclick?.();
+  }
+</script>
+
+<button aria-pressed={pressed ? 'true' : 'false'} onclick={clicked}>
+  <span style="display: none;">{label}</span>
+</button>
+
+<style>
+  button {
+    position: relative;
+    height: 1em;
+    width: calc(100% - 0.6em);
+    max-width: calc(2em);
+    border-radius: 0.5em;
+    -webkit-appearance: none;
+    appearance: none;
+    outline-offset: 2px;
+    border: transparent;
+  }
+
+  button::before {
+    content: '';
+    position: absolute;
+    display: block;
+    height: 100%;
+    width: 100%;
+    padding: 2px;
+    border-radius: 1em;
+    top: 0;
+    left: 0;
+    background: rgb(103, 103, 121);
+    box-sizing: border-box;
+  }
+
+  button[aria-pressed='true']::before {
+    background: rgb(103, 103, 121);
+  }
+
+  button::after {
+    content: '';
+    position: absolute;
+    display: block;
+    width: calc(1em - 4px);
+    height: calc(1em - 4px);
+    aspect-ratio: 1;
+    top: 2px;
+    left: 2px;
+    border-radius: 50%;
+    background: white;
+    box-shadow:
+      0 0px 1px rgba(0, 0, 0, 0.4),
+      0 4px 2px rgba(0, 0, 0, 0.1);
+    transition:
+      background 0.2s ease-out,
+      left 0.2s ease-out;
+  }
+
+  button[aria-pressed='true']::after {
+    background: white;
+    left: calc(100% - 1em + 2px);
+  }
+</style>
+
+=== 4640 src/routes/+layout.svelte	svelte	runes	runes
+<script lang="ts">
+  import { base } from '$app/paths';
+  import { page } from '$app/stores';
+  import type { Snippet } from 'svelte';
+  import '../app.css';
+  import theme from 'svelte-highlight/styles/night-owl';
+  import Contents, { type Page, type Section } from '../comp/Contents.svelte';
+  import RTLToggle from '../comp/RTLToggle.svelte';
+  import { pathIsCurrent } from '../comp/pathUtils';
+
+  type Props = {
+    children: Snippet;
+  };
+
+  const { children }: Props = $props();
+
+  let isRTL: boolean = $state(false);
+
+  const sections: Section[] = [
+    {
+      title: 'Getting started',
+      pages: [{ title: 'Introduction', path: '/' }]
+    },
+    {
+      title: 'General Examples',
+      pages: [
+        { title: 'Vertical', path: '/examples/vertical' },
+        { title: 'Horizontal', path: '/examples/horizontal' },
+        { title: 'Table/Grid', path: '/examples/table' },
+        { title: 'Variable Sizing', path: '/examples/variablesizing' },
+        { title: 'Positioning', path: '/examples/positioning' },
+        { title: 'Events', path: '/examples/events' }
+      ]
+    }
+  ];
+
+  const pages: Page[] = $state(sections.map(section => section.pages).flat());
+  const pageIdx: number = $derived(pages.findIndex(({ path }) => pathIsCurrent(path, $page)));
+  const curPage: Page | undefined = $derived(pageIdx >= 0 ? pages[pageIdx] : undefined);
+  const prevPage: Page | undefined = $derived(pageIdx >= 1 ? pages[pageIdx - 1] : undefined);
+  const nextPage: Page | undefined = $derived(
+    pageIdx >= 0 && pageIdx < pages.length - 1 ? pages[pageIdx + 1] : undefined
+  );
+</script>
+
+<svelte:head>
+  <title>Svelte-Virtuallists{curPage ? ` - ${curPage.title}` : ''}</title>
+  <meta name="description" content="A Fantastic virtual list for Svelte 5 and above" />
+  {@html theme}
+</svelte:head>
+
+<div class="page-container">
+  <div role="presentation" class="toc-container-space"></div>
+
+  <main class:rtl-containers={isRTL}>
+    {@render children()}
+
+    <div class="controls">
+      <div>
+        <span class:faded={!prevPage}>previous</span>
+        {#if prevPage}
+          <a data-sveltekit-preload-data href={base + prevPage.path}>{prevPage.title}</a>
+        {/if}
+      </div>
+
+      <div>
+        <span class:faded={!nextPage}>next</span>
+        {#if nextPage}
+          <a data-sveltekit-preload-data href={base + nextPage.path}>{nextPage.title}</a>
+        {/if}
+      </div>
+    </div>
+  </main>
+
+  <div class="toc-container">
+    <div role="presentation" class="toc-contents-wrap">
+      <h1 class="toc-head">
+        <img src="{base}/favicon.svg" alt="Icon" width="30" height="30" />
+        Svelte-Virtuallists
+      </h1>
+      <Contents contents={sections} />
+    </div>
+
+    <RTLToggle bind:isRTL />
+  </div>
+</div>
+
+<style>
+  .page-container {
+    display: table;
+    font-size: 14px;
+    width: 100%;
+  }
+
+  main {
+    max-width: 1150px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 10px;
+    overflow-x: auto;
+  }
+
+  .controls {
+    border-top: 1.6px solid rgb(232, 228, 253);
+    padding: 12px 0 0 0;
+    display: flex;
+    justify-content: space-between;
+    margin: 40px 0;
+    gap: 15px;
+  }
+
+  .controls > :first-child {
+    text-align: left;
+  }
+
+  .controls > :last-child {
+    text-align: right;
+  }
+
+  .controls span {
+    display: block;
+    font-size: 14px;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: rgb(103, 103, 121);
+    margin-bottom: 4px;
+  }
+
+  .controls span.faded {
+    opacity: 0.4;
+  }
+
+  .controls a {
+    text-decoration: none;
+    font-size: 16px;
+    color: rgb(255, 64, 0);
+  }
+
+  .controls a:not(:hover) {
+    text-decoration: none;
+  }
+
+  .rtl-containers :global(.splitpanes) {
+    direction: rtl;
+  }
+
+  .toc-container-space {
+    display: none;
+  }
+
+  .toc-container {
+    display: flex;
+    flex-flow: column-reverse nowrap;
+    background: rgb(247, 250, 253);
+    color: rgb(65, 65, 72);
+  }
+
+  .toc-head {
+    display: flex;
+    flex-flow: row nowrap;
+    gap: 8px;
+    padding-left: 10px;
+  }
+
+  @media (min-width: 832px) {
+    .page-container {
+      display: flex;
+      flex-flow: row nowrap;
+    }
+
+    .toc-container-space {
+      display: block;
+      min-width: 300px;
+      width: 300px;
+      height: 100vh;
+      margin: auto 0;
+    }
+
+    main {
+      flex-grow: 1;
+    }
+
+    .toc-container {
+      flex-direction: column;
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 300px;
+      height: 100vh;
+    }
+
+    .toc-contents-wrap {
+      overflow-x: hidden;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+      padding: 10px;
+    }
+  }
+</style>
+
+=== 858 src/routes/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import { base } from '$app/paths';
+</script>
+
+<h1>Welcome to Svelte-VirtualLists</h1>
+
+<a href="{base}/minified-size"><img alt="Minified Size" src="{base}/minified-size-badge.svg" /></a>
+
+<p>Performant rendering of large lists and tables</p>
+
+<h2>Features</h2>
+
+<ul>
+  <li>Optimizes rendering by only displaying visible items</li>
+  <li>Supports Horizontal and vertical layouts</li>
+  <li>Supports Lists and Tables/Grids</li>
+  <li>Supports Variable row heights or widths</li>
+  <li>Supports Legacy browser such as IE 11</li>
+  <li>Supports Touch devices</li>
+  <li>Supports RTL rendering with auto-detection</li>
+  <li>Supports Rich programmatic API and events</li>
+  <li>Svelte, Sveltekit & Typescript friendly</li>
+</ul>
+
+<a href="https://github.com/orefalo/svelte-virtuallists">
+  https://github.com/orefalo/svelte-virtuallists
+</a>
+
+=== 256 src/routes/examples/events/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+  import example from './code.svelte?example';
+</script>
+
+<h2>Events</h2>
+<p>Try interacting with the list below and check the event log in the console.</p>
+<ExampleArea {example} />
+
+=== 4081 src/routes/examples/events/code.svelte	svelte	runes	runes
+<script lang="ts">
+  import { ALIGNMENT, SCROLL_BEHAVIOR, type VariantScrollConfig, type VLSlotSignature } from '$lib';
+  import { VirtualList } from 'svelte-virtuallists';
+
+  const myModel = $state(new Array(10000));
+
+  let scrollToAlignment: ALIGNMENT = $state(ALIGNMENT.AUTO);
+  let scrollToBehaviour: SCROLL_BEHAVIOR = $state(SCROLL_BEHAVIOR.SMOOTH);
+
+  let szCalculator: ((index: number, item: unknown) => number) | undefined = $state();
+
+  // holds randomized sizes
+  let randSizes: Array<number>;
+
+  function handleMessage(prefix: string, event: any) {
+    console.log(prefix + JSON.stringify(event));
+  }
+
+  let scrollToProps: VariantScrollConfig = $state({});
+
+  function updateScrollToProps(key: 'scrollToIndex' | 'scrollToOffset', value: number | undefined) {
+    if (key === 'scrollToIndex') {
+      scrollToProps.scrollToIndex = value;
+      scrollToProps.scrollToOffset = undefined;
+    } else if (key === 'scrollToOffset') {
+      scrollToProps.scrollToOffset = value;
+      scrollToProps.scrollToIndex = undefined;
+    }
+  }
+
+  function randomizeSize() {
+    randSizes = new Array(myModel.length);
+    for (let i = 0; i < randSizes.length; i++) {
+      randSizes[i] = Math.round(Math.random() * 65 + 30);
+    }
+
+    szCalculator = (_index: number, _item: any) => randSizes[_index];
+  }
+
+  function sameSize() {
+    szCalculator = () => 25;
+  }
+
+  function randomizeContent() {
+    for (let i = 0; i < myModel.length; i++) {
+      myModel[i] = { text: Math.floor(Math.random() * myModel.length) }; // Random number between 0 and 9999
+    }
+  }
+
+  function stripItemsBy10() {
+    for (let i = 0; i < 10; i++) myModel.pop();
+  }
+
+  randomizeContent();
+  randomizeSize();
+</script>
+
+<b>Please check the browser console to see event traces</b>
+<div class="actions">
+  <div class="select">
+    <span>
+      Scroll to row index
+      <input
+        id="index"
+        type="number"
+        placeholder="pick an index..."
+        class="input"
+        value={scrollToProps.scrollToIndex}
+        oninput={e => updateScrollToProps('scrollToIndex', Number(e.currentTarget.value))} />
+    </span>
+  </div>
+  <div class="select">
+    <span>
+      Scroll to pixel offset
+      <input
+        id="offset"
+        type="number"
+        placeholder="pick an offset..."
+        class="input"
+        value={scrollToProps.scrollToOffset}
+        oninput={e => updateScrollToProps('scrollToOffset', Number(e.currentTarget.value))} />
+    </span>
+  </div>
+  <div class="select">
+    <span>
+      Alignment
+      <select id="alignment" bind:value={scrollToAlignment}>
+        <option value="auto">auto</option>
+        <option value="start">start</option>
+        <option value="center">center</option>
+        <option value="end">end</option>
+      </select>
+    </span>
+  </div>
+  <div class="select">
+    <span>
+      Behaviour
+      <select id="behaviour" bind:value={scrollToBehaviour}>
+        <option value="auto">auto</option>
+        <option value="smooth">smooth</option>
+        <option value="instant">instant</option>
+      </select>
+    </span>
+  </div>
+</div>
+
+<VirtualList
+  items={myModel}
+  style="height:500px"
+  {...scrollToProps}
+  {scrollToAlignment}
+  {scrollToBehaviour}
+  sizingCalculator={szCalculator}
+  onAfterScroll={(...props) => handleMessage('onAfterScroll:', props)}
+  onVisibleRangeUpdate={(...props) => handleMessage('onVisibleRangeUpdate:', props)}>
+  {#snippet vl_slot({ index, item, size }: VLSlotSignature<(typeof myModel)[0]>)}
+    <div
+      style="border: 1px solid rgb(204, 204, 204); line-height: {size}px;"
+      class:highlighted={index === scrollToProps.scrollToIndex}>
+      #{index}
+      {item.text}
+    </div>
+  {/snippet}
+</VirtualList>
+
+<div class="actions">
+  <button onclick={randomizeSize} class="button">Randomize row heights</button>
+  <button onclick={sameSize} class="button">Same row heights</button>
+  <button onclick={randomizeContent} class="button">Randomize content</button>
+  <button onclick={stripItemsBy10} class="button">array size -10</button>
+</div>
+
+<style>
+  .highlighted {
+    background: #efefef;
+  }
+</style>
+
+=== 183 src/routes/examples/horizontal/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+  import example from './code.svelte?example';
+</script>
+
+<h2>Horizontal List</h2>
+
+<ExampleArea {example} />
+
+=== 521 src/routes/examples/horizontal/code.svelte	svelte	runes	neutral
+<script lang="ts">
+  import { VirtualList, type VLSlotSignature } from 'svelte-virtuallists';
+  import { getRandomSushi } from '../sushi';
+
+  const myModel = new Array(10000).fill(1).map((v, i) => {
+    return { text: '#' + i + ' ' + getRandomSushi() };
+  });
+</script>
+
+<VirtualList items={myModel} style="width:100%" isHorizontal={true}>
+  {#snippet vl_slot({ item }: VLSlotSignature<(typeof myModel)[0]>)}
+    <div style="border: 1px solid rgb(204, 204, 204)">
+      {item.text}
+    </div>
+  {/snippet}
+</VirtualList>
+
+=== 290 src/routes/examples/positioning/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+
+  import example from './code.svelte?example';
+</script>
+
+<h2>Positioning</h2>
+<p>
+  The component provides properties to position the list either on an element, or at a pixel offset.
+</p>
+
+<ExampleArea {example} />
+
+=== 4180 src/routes/examples/positioning/code.svelte	svelte	runes	runes
+<script lang="ts">
+  import {
+    ALIGNMENT,
+    SCROLL_BEHAVIOR,
+    type VariantScrollConfig,
+    type VLRangeEvent,
+    type VLSlotSignature
+  } from '$lib';
+  import { VirtualList } from 'svelte-virtuallists';
+
+  const myModel = $state(new Array(10000));
+
+  // used for the positioning pointers
+  let start = $state(0);
+  let end = $state(0);
+
+  let scrollToAlignment: ALIGNMENT = $state(ALIGNMENT.AUTO);
+  let scrollToBehaviour: SCROLL_BEHAVIOR = $state(SCROLL_BEHAVIOR.SMOOTH);
+
+  let szCalculator: ((index: number, item: unknown) => number) | undefined = $state();
+
+  // holds randomized sizes
+  let randSizes: Array<number>;
+
+  function handleVisualRangeChange(event: VLRangeEvent) {
+    start = event.start;
+    end = event.end;
+  }
+
+  let scrollToProps: VariantScrollConfig = $state({});
+
+  function updateScrollToProps(key: 'scrollToIndex' | 'scrollToOffset', value: number | undefined) {
+    if (key === 'scrollToIndex') {
+      scrollToProps.scrollToIndex = value;
+      scrollToProps.scrollToOffset = undefined;
+    } else if (key === 'scrollToOffset') {
+      scrollToProps.scrollToOffset = value;
+      scrollToProps.scrollToIndex = undefined;
+    }
+  }
+
+  function randomizeSize() {
+    randSizes = new Array(myModel.length);
+    for (let i = 0; i < randSizes.length; i++) {
+      randSizes[i] = Math.round(Math.random() * 65 + 30);
+    }
+
+    szCalculator = (_index: number, _item: any) => randSizes[_index];
+  }
+
+  function sameSize() {
+    szCalculator = () => 25;
+  }
+
+  function randomizeContent() {
+    for (let i = 0; i < myModel.length; i++) {
+      myModel[i] = { text: Math.floor(Math.random() * myModel.length) }; // Random number between 0 and 9999
+    }
+  }
+
+  function stripItemsBy10() {
+    for (let i = 0; i < 10; i++) myModel.pop();
+  }
+
+  randomizeContent();
+  sameSize();
+</script>
+
+<div class="actions">
+  <div class="select">
+    <span>
+      Scroll to row index
+      <input
+        id="index"
+        type="number"
+        placeholder="pick an index..."
+        class="input"
+        value={scrollToProps.scrollToIndex}
+        oninput={e => updateScrollToProps('scrollToIndex', Number(e.currentTarget.value))} />
+    </span>
+  </div>
+  <div class="select">
+    <span>
+      Scroll to pixel offset
+      <input
+        id="offset"
+        type="number"
+        placeholder="pick an offset..."
+        class="input"
+        value={scrollToProps.scrollToOffset}
+        oninput={e => updateScrollToProps('scrollToOffset', Number(e.currentTarget.value))} />
+    </span>
+  </div>
+  <div class="select">
+    <span>
+      Alignment
+      <select id="alignment" bind:value={scrollToAlignment}>
+        <option value="auto">auto</option>
+        <option value="start">start</option>
+        <option value="center">center</option>
+        <option value="end">end</option>
+      </select>
+    </span>
+  </div>
+  <div class="select">
+    <span>
+      Behaviour
+      <select id="behaviour" bind:value={scrollToBehaviour}>
+        <option value="auto">auto</option>
+        <option value="smooth">smooth</option>
+        <option value="instant">instant</option>
+      </select>
+    </span>
+  </div>
+</div>
+
+<div style="font-weight: bold">
+  <span>Visible Area: start</span>
+  <span>{start}</span>
+  -
+  <span>end</span>
+  <span>{end}</span>
+</div>
+
+<VirtualList
+  items={myModel}
+  style="height:500px"
+  {...scrollToProps}
+  {scrollToAlignment}
+  {scrollToBehaviour}
+  sizingCalculator={szCalculator}
+  onVisibleRangeUpdate={handleVisualRangeChange}>
+  {#snippet vl_slot({ index, item, size }: VLSlotSignature<(typeof myModel)[0]>)}
+    <div
+      style="border: 1px solid rgb(204, 204, 204); line-height: {size}px;"
+      class:highlighted={index === scrollToProps.scrollToIndex}>
+      #{index}
+      {item.text}
+    </div>
+  {/snippet}
+</VirtualList>
+
+<div class="actions">
+  <button onclick={randomizeSize} class="button">Randomize row heights</button>
+  <button onclick={sameSize} class="button">Same row heights</button>
+  <button onclick={randomizeContent} class="button">Randomize content</button>
+  <button onclick={stripItemsBy10} class="button">array size -10</button>
+</div>
+
+<style>
+  .highlighted {
+    background: #efefef;
+  }
+</style>
+
+=== 183 src/routes/examples/table/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+  import example from './code.svelte?example';
+</script>
+
+<h2>Table Rendering</h2>
+
+<ExampleArea {example} />
+
+=== 766 src/routes/examples/table/code.svelte	svelte	runes	neutral
+<script lang="ts">
+  import { VirtualList } from 'svelte-virtuallists';
+  import { getRandomSushi } from '../sushi';
+
+  const myModel = new Array(10000).fill(1).map(() => {
+    return { text: getRandomSushi() };
+  });
+</script>
+
+<VirtualList items={myModel} class="list-table" style="height:600px" isTable={true}>
+  {#snippet header()}
+    <thead>
+      <tr>
+        <th>Text</th>
+        <th>Index</th>
+      </tr>
+    </thead>
+  {/snippet}
+  {#snippet vl_slot({ item, index })}
+    <tr>
+      <td>{index}</td>
+      <td>{item.text}</td>
+    </tr>
+  {/snippet}
+</VirtualList>
+
+<style global>
+  .list-table table,
+  .list-table td,
+  .list-table th {
+    border: 1px solid #ccc;
+  }
+  .list-table table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+</style>
+
+=== 188 src/routes/examples/variablesizing/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+  import example from './code.svelte?example';
+</script>
+
+<h2>Variable item Sizing</h2>
+
+<ExampleArea {example} />
+
+=== 1385 src/routes/examples/variablesizing/code.svelte	svelte	runes	runes
+<script lang="ts">
+  import { VirtualList, type SizingCalculatorFn, type VLSlotSignature } from 'svelte-virtuallists';
+  import { getRandomSushi } from '../sushi';
+
+  const myModel = new Array(10000).fill(1).map(() => {
+    return { text: getRandomSushi() };
+  });
+
+  function randomize() {
+    calculator = () => Math.round(Math.random() * (155 - 30) + 30);
+  }
+
+  function sameSize() {
+    calculator = () => 25;
+  }
+
+  // @ts-expect-error undefined
+  let calculator: SizingCalculatorFn = $state();
+
+  randomize();
+</script>
+
+<h2>Horizontal</h2>
+
+<VirtualList items={myModel} style="width:100%" isHorizontal={true} sizingCalculator={calculator}>
+  {#snippet vl_slot({ index, item, size }: VLSlotSignature<(typeof myModel)[0]>)}
+    <div style="border: 1px solid rgb(204, 204, 204); width: {size}px;">
+      #{index}
+      {item.text}
+    </div>
+  {/snippet}
+</VirtualList>
+
+<h2>Vertical</h2>
+
+<VirtualList items={myModel} style="height:600px" sizingCalculator={calculator}>
+  {#snippet vl_slot({ index, item, size }: VLSlotSignature<(typeof myModel)[0]>)}
+    <div style="border: 1px solid rgb(204, 204, 204); line-height: {size}px;">
+      #{index}
+      {item.text}
+    </div>
+  {/snippet}
+</VirtualList>
+
+<div class="actions">
+  <button onclick={randomize} class="button">Randomize row heights</button>
+  <button onclick={sameSize} class="button">Same row heights</button>
+</div>
+
+=== 181 src/routes/examples/vertical/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import ExampleArea from '$comp/ExampleArea.svelte';
+  import example from './code.svelte?example';
+</script>
+
+<h2>Vertical List</h2>
+
+<ExampleArea {example} />
+
+=== 1064 src/routes/examples/vertical/code.svelte	svelte	runes	neutral
+<script lang="ts">
+  import { VirtualList, type VLSlotSignature } from 'svelte-virtuallists';
+  import { getRandomSushi } from '../sushi';
+
+  const myModel = new Array(10000).fill(1).map((v, i) => {
+    return { text: '#' + i + ' ' + getRandomSushi() };
+  });
+</script>
+
+<div class="gradient myStyle">
+  <VirtualList items={myModel} style="height:600px">
+    {#snippet vl_slot({ item }: VLSlotSignature<(typeof myModel)[0]>)}
+      <div class="slotStyle">
+        {item.text}
+      </div>
+    {/snippet}
+  </VirtualList>
+</div>
+
+<style>
+  .gradient {
+    background: rgb(100, 187, 243);
+    background: linear-gradient(90deg, rgba(100, 187, 243, 1) 0%, rgba(100, 102, 233, 1) 100%);
+  }
+
+  .myStyle {
+    border-radius: 1em;
+  }
+
+  .slotStyle {
+    background: #4f76be;
+    color: #fff;
+    font-weight: 500;
+    opacity: 0.8;
+    border-radius: 4px;
+    width: 400px;
+    height: 2em;
+    align-items: center;
+    padding: 10 50%;
+    margin: 0 auto;
+    margin-bottom: 0.5em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+</style>
+
+=== 311 src/routes/minified-size/+page.svelte	svelte	runes	neutral
+<script lang="ts">
+  import { base } from '$app/paths';
+</script>
+
+<img alt="Minified Size" src="{base}/minified-size-badge.svg" />
+
+<p>
+  The badge above shows the minimized size of the library when all features are used.
+  <br />
+  Please note, the size includes type definitions, styles and components.
+</p>
+

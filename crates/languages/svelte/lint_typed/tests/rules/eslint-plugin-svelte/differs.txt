@@ -1,0 +1,6 @@
+# rsvelte misses findings that the official rule reports in these cases.
+@typescript-eslint/no-unnecessary-condition/invalid/binary-expression01.svelte
+@typescript-eslint/no-unnecessary-condition/invalid/example.svelte
+@typescript-eslint/no-unnecessary-condition/invalid/nullish-coalescing01.svelte
+@typescript-eslint/no-unnecessary-condition/invalid/optional-chaining01.svelte
+@typescript-eslint/no-unnecessary-condition/invalid/test01.svelte

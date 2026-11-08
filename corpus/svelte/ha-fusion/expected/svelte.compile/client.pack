@@ -1,0 +1,1700 @@
+# rsvelte pack 1
+=== 830 src/lib/Components/CustomJs.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { base } from '$app/paths';
+import { onMount, onDestroy } from 'svelte';
+
+export default function CustomJs($$anchor, $$props) {
+	$.push($$props, true);
+
+	let script;
+
+	onMount(async () => {
+		try {
+			const response = await fetch(`${base}/_api/custom_js`);
+			const data = await response.json();
+
+			if (response.ok) {
+				script = document.createElement('script');
+
+				const blob = new Blob([data], { type: 'application/javascript' });
+
+				script.src = URL.createObjectURL(blob);
+				document.head.appendChild(script);
+			} else {
+				throw new Error(data);
+			}
+		} catch(error) {
+			console.error('Custom JavaScript', error);
+		}
+	});
+
+	onDestroy(() => {
+		if (script) {
+			document.head.removeChild(script);
+		}
+	});
+
+	$.pop();
+}
+=== 868 src/lib/Components/Loader.svelte	css
+
+	div.svelte-1e75gt5 {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 3;
+	}
+
+	svg.svelte-1e75gt5 {
+		-webkit-animation: svelte-1e75gt5-rotate 2s linear infinite;
+		animation: svelte-1e75gt5-rotate 2s linear infinite;
+		z-index: 2;
+		width: 8em;
+		height: 8em;
+		fill: none;
+		stroke-width: 3;
+	}
+
+	circle.svelte-1e75gt5 {
+		stroke: white;
+		stroke-linecap: round;
+		-webkit-animation: svelte-1e75gt5-dash 1.5s ease-in-out infinite;
+		animation: svelte-1e75gt5-dash 1.5s ease-in-out infinite;
+	}
+
+	@keyframes svelte-1e75gt5-rotate {
+		100% {
+			transform: rotate(360deg);
+		}
+	}
+
+	@keyframes svelte-1e75gt5-dash {
+		0% {
+			stroke-dasharray: 1, 150;
+			stroke-dashoffset: 0;
+		}
+		50% {
+			stroke-dasharray: 90, 150;
+			stroke-dashoffset: -35;
+		}
+		100% {
+			stroke-dasharray: 90, 150;
+			stroke-dashoffset: -124;
+		}
+	}
+
+=== 1020 src/lib/Components/Loader.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { motion } from '$lib/Stores';
+import { onMount } from 'svelte';
+import { fade } from 'svelte/transition';
+
+var root = $.from_html(`<div class="svelte-1e75gt5"><svg viewBox="0 0 50 50" class="svelte-1e75gt5"><circle cx="25" cy="25" r="20" class="svelte-1e75gt5"></circle></svg></div>`);
+
+export default function Loader($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $motion = () => $.store_get(motion, '$motion', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	let mounted = false;
+
+	onMount(() => {
+		mounted = true;
+	});
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			var div = root();
+
+			$.transition(1, div, () => fade, () => ({ duration: $motion(), delay: $motion() }));
+			$.append($$anchor, div);
+		};
+
+		$.if(node, ($$render) => {
+			if (mounted) $$render(consequent);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+	$$cleanup();
+}
+=== 351 src/lib/Components/Loader.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`mounted` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 5,
+			"character": 142
+		},
+		"end": {
+			"line": 6,
+			"column": 12,
+			"character": 149
+		}
+	}
+]
+
+=== 1929 src/lib/Drawer/AppearanceButton.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { lang, ripple } from '$lib/Stores';
+import { base } from '$app/paths';
+import { openModal } from 'svelte-modals';
+import Ripple from 'svelte-ripple';
+import Icon from '@iconify/svelte';
+
+var root = $.from_html(`<button class="button"><figure><!></figure> <span> </span></button>`);
+
+export default function AppearanceButton($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $ripple = () => $.store_get(ripple, '$ripple', $$stores);
+	const $lang = () => $.store_get(lang, '$lang', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	let themes;
+
+	/**
+	 * Opens modal
+	 */
+	function handleClick() {
+		openModal(() => import('$lib/Modal/AppearanceConfig.svelte'), { themes });
+	}
+
+	/**
+	 * Preloads module before click event
+	 */
+	async function handlePointer() {
+		await import('$lib/Modal/AppearanceConfig.svelte');
+
+		try {
+			const response = await fetch(`${base}/_api/get_all_themes`);
+			const data = await response.json();
+
+			if (response.ok) {
+				themes = data;
+			} else {
+				throw new Error(data.message);
+			}
+		} catch(error) {
+			console.error(error);
+		}
+	}
+
+	var button = root();
+	var figure = $.child(button);
+
+	$.set_style(figure, '', {}, { 'margin-right': '0.1rem' });
+
+	var node = $.child(figure);
+
+	Icon(node, {
+		icon: 'material-symbols:invert-colors-rounded',
+		height: 'none'
+	});
+
+	$.reset(figure);
+
+	var span = $.sibling(figure, 2);
+	var text = $.only_child(span, true);
+
+	$.reset(button);
+	$.effect(() => $.event('click', button, handleClick));
+	$.effect(() => $.event('pointerenter', button, handlePointer));
+	$.effect(() => $.event('pointerdown', button, handlePointer));
+	$.action(button, ($$node, $$action_arg) => Ripple?.($$node, $$action_arg), $ripple);
+	$.template_effect(($0) => $.set_text(text, $0), [() => $lang()('appearance')]);
+	$.append($$anchor, button);
+	$.pop();
+	$$cleanup();
+}
+=== 1095 src/lib/Drawer/AppearanceButton.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 40,
+			"column": 1,
+			"character": 810
+		},
+		"end": {
+			"line": 40,
+			"column": 23,
+			"character": 832
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:pointerenter` to listen to the pointerenter event is deprecated. Use the event attribute `onpointerenter` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 41,
+			"column": 1,
+			"character": 834
+		},
+		"end": {
+			"line": 41,
+			"column": 32,
+			"character": 865
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:pointerdown` to listen to the pointerdown event is deprecated. Use the event attribute `onpointerdown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 42,
+			"column": 1,
+			"character": 867
+		},
+		"end": {
+			"line": 42,
+			"column": 31,
+			"character": 897
+		}
+	}
+]
+
+=== 57 src/lib/Drawer/CodeButton.svelte	css
+
+	span.svelte-1lcp3iu {
+		text-transform: capitalize;
+	}
+
+=== 1520 src/lib/Drawer/CodeButton.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { lang, ripple } from '$lib/Stores';
+import { openModal } from 'svelte-modals';
+import Ripple from 'svelte-ripple';
+import Icon from '@iconify/svelte';
+
+var root = $.from_html(`<button class="button"><figure><!></figure> <span class="svelte-1lcp3iu"> </span></button>`);
+
+export default function CodeButton($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $ripple = () => $.store_get(ripple, '$ripple', $$stores);
+	const $lang = () => $.store_get(lang, '$lang', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	/**
+	 * Opens modal
+	 */
+	function handleClick() {
+		openModal(() => import('$lib/Modal/CodeConfig.svelte'));
+	}
+
+	/**
+	 * Preloads module before click event
+	 */
+	async function handlePointer() {
+		await import('$lib/Modal/CodeConfig.svelte');
+	}
+
+	var button = root();
+	var figure = $.child(button);
+	var node = $.child(figure);
+
+	Icon(node, { icon: 'ph:code-bold', height: 'none' });
+	$.reset(figure);
+
+	var span = $.sibling(figure, 2);
+	var text = $.only_child(span, true);
+
+	$.reset(button);
+	$.effect(() => $.event('click', button, handleClick));
+	$.effect(() => $.event('pointerenter', button, handlePointer));
+	$.effect(() => $.event('pointerdown', button, handlePointer));
+	$.action(button, ($$node, $$action_arg) => Ripple?.($$node, $$action_arg), $ripple);
+	$.template_effect(($0) => $.set_text(text, $0), [() => $lang()('code')]);
+	$.append($$anchor, button);
+	$.pop();
+	$$cleanup();
+}
+=== 1095 src/lib/Drawer/CodeButton.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 24,
+			"column": 1,
+			"character": 468
+		},
+		"end": {
+			"line": 24,
+			"column": 23,
+			"character": 490
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:pointerenter` to listen to the pointerenter event is deprecated. Use the event attribute `onpointerenter` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 25,
+			"column": 1,
+			"character": 492
+		},
+		"end": {
+			"line": 25,
+			"column": 32,
+			"character": 523
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:pointerdown` to listen to the pointerdown event is deprecated. Use the event attribute `onpointerdown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 26,
+			"column": 1,
+			"character": 525
+		},
+		"end": {
+			"line": 26,
+			"column": 31,
+			"character": 555
+		}
+	}
+]
+
+=== 78 src/lib/Drawer/SayButton.svelte	css
+
+	.response.svelte-10agxu6 {
+		padding-left: 0.4rem;
+		align-self: center;
+	}
+
+=== 4976 src/lib/Drawer/SayButton.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { connection, lang, motion, selectedLanguage, ripple } from '$lib/Stores';
+import { onMount } from 'svelte';
+import { fade } from 'svelte/transition';
+import Icon from '@iconify/svelte';
+import Ripple from 'svelte-ripple';
+
+var root = $.from_html(`<span>...</span>`);
+var root_1 = $.from_html(`<span> </span> <span> </span>`, 1);
+var root_2 = $.from_html(`<span> </span>`);
+var root_3 = $.from_html(`<button class="button"><figure><!></figure> </button> <div class="response svelte-10agxu6"><!></div>`, 1);
+
+export default function SayButton($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $selectedLanguage = () => $.store_get(selectedLanguage, '$selectedLanguage', $$stores);
+	const $ripple = () => $.store_get(ripple, '$ripple', $$stores);
+	const $lang = () => $.store_get(lang, '$lang', $$stores);
+	const $motion = () => $.store_get(motion, '$motion', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	/**
+	 * BETA: Rewrite component!
+	 */
+	let recognizing;
+
+	let speech;
+	let interim = '';
+	let final = '';
+	let response;
+
+	async function processConversation(input) {
+		connection.subscribe(async (conn) => {
+			try {
+				if (conn?.sendMessagePromise) {
+					const res = await conn.sendMessagePromise({
+						type: 'conversation/process',
+						text: input,
+						language: $selectedLanguage()
+					});
+
+					response = res?.response?.speech?.plain?.speech;
+
+					setTimeout(
+						() => {
+							final = '';
+							interim = '';
+							response = undefined;
+						},
+						2000
+					);
+				}
+			} catch(error) {
+				console.error('Error:', error);
+			}
+		});
+	}
+
+	onMount(() => {
+		const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+		if (SpeechRecognition) {
+			speech = new SpeechRecognition();
+			speech.continuous = true;
+			speech.interimResults = true;
+			speech.lang = $selectedLanguage();
+
+			speech.onstart = () => {
+				recognizing = true;
+			};
+
+			speech.onresult = (event) => {
+				interim = '';
+
+				for (let i = event.resultIndex; i < event.results.length; ++i) {
+					if (event.results[i].isFinal) {
+						final += event.results[i][0].transcript;
+					} else {
+						interim += event.results[i][0].transcript;
+					}
+				}
+			};
+
+			speech.onend = () => {
+				recognizing = false;
+			};
+
+			speech.onerror = (event) => {
+				console.error('Error in speech recognition:', event.error);
+			};
+		} else {
+			console.error('Speech recognition not supported in this browser.');
+		}
+	});
+
+	function startRecognition() {
+		// isPressed = true;
+		final = '';
+
+		interim = '';
+		response = undefined;
+
+		if (!recognizing) {
+			speech.start();
+		}
+	}
+
+	async function stopRecognition() {
+		// isPressed = false;
+		if (recognizing) {
+			setTimeout(
+				async () => {
+					speech.stop();
+
+					let iterations = 0;
+
+					while (final === '' && iterations < 10) {
+						await new Promise((resolve) => setTimeout(resolve, 100));
+						iterations++;
+					}
+
+					if (final !== '') {
+						processConversation(final);
+					}
+				},
+				1000
+			);
+		}
+	}
+
+	var fragment = root_3();
+	var button = $.first_child(fragment);
+	var figure = $.child(button);
+	var node = $.child(figure);
+
+	Icon(node, { icon: 'solar:user-speak-rounded-bold', height: 'none' });
+	$.reset(figure);
+
+	var text = $.sibling(figure);
+
+	$.reset(button);
+	$.effect(() => $.event('pointerdown', button, startRecognition));
+	$.effect(() => $.event('pointerup', button, stopRecognition));
+	$.effect(() => $.event('pointerleave', button, stopRecognition));
+	$.action(button, ($$node, $$action_arg) => Ripple?.($$node, $$action_arg), $ripple);
+
+	var div = $.sibling(button, 2);
+	var node_1 = $.child(div);
+
+	{
+		var consequent = ($$anchor) => {
+			var span = root();
+
+			$.transition(1, span, () => fade, () => ({ delay: $motion() / 2, duration: $motion() / 2 }));
+			$.append($$anchor, span);
+		};
+
+		var consequent_1 = ($$anchor) => {
+			var fragment_1 = root_1();
+			var span_1 = $.first_child(fragment_1);
+			var text_1 = $.only_child(span_1, true);
+			var span_2 = $.sibling(span_1, 2);
+			var text_2 = $.only_child(span_2, true);
+
+			$.template_effect(() => {
+				$.set_text(text_1, final);
+				$.set_text(text_2, interim);
+			});
+
+			$.append($$anchor, fragment_1);
+		};
+
+		var consequent_2 = ($$anchor) => {
+			var span_3 = root_2();
+			var text_3 = $.only_child(span_3, true);
+
+			$.template_effect(() => $.set_text(text_3, response));
+			$.transition(3, span_3, () => fade, () => ({ delay: $motion() / 2, duration: $motion() / 2 }));
+			$.append($$anchor, span_3);
+		};
+
+		$.if(node_1, ($$render) => {
+			if (recognizing && !(final || interim)) $$render(consequent); else if (recognizing && (final || interim)) $$render(consequent_1, 1); else if (response) $$render(consequent_2, 2);
+		});
+	}
+
+	$.reset(div);
+	$.template_effect(($0) => $.set_text(text, ` ${$0 ?? ''}`), [() => $lang()('say')]);
+	$.append($$anchor, fragment);
+	$.pop();
+	$$cleanup();
+}
+=== 2522 src/lib/Drawer/SayButton.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:pointerdown` to listen to the pointerdown event is deprecated. Use the event attribute `onpointerdown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 110,
+			"column": 1,
+			"character": 2420
+		},
+		"end": {
+			"line": 110,
+			"column": 34,
+			"character": 2453
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:pointerup` to listen to the pointerup event is deprecated. Use the event attribute `onpointerup` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 111,
+			"column": 1,
+			"character": 2455
+		},
+		"end": {
+			"line": 111,
+			"column": 31,
+			"character": 2485
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:pointerleave` to listen to the pointerleave event is deprecated. Use the event attribute `onpointerleave` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 112,
+			"column": 1,
+			"character": 2487
+		},
+		"end": {
+			"line": 112,
+			"column": 34,
+			"character": 2520
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`recognizing` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 5,
+			"character": 300
+		},
+		"end": {
+			"line": 12,
+			"column": 25,
+			"character": 320
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`interim` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 5,
+			"character": 346
+		},
+		"end": {
+			"line": 15,
+			"column": 12,
+			"character": 353
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`final` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 16,
+			"column": 5,
+			"character": 365
+		},
+		"end": {
+			"line": 16,
+			"column": 10,
+			"character": 370
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`response` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 17,
+			"column": 5,
+			"character": 382
+		},
+		"end": {
+			"line": 17,
+			"column": 33,
+			"character": 410
+		}
+	}
+]
+
+=== 281 src/lib/Drawer/Separator.svelte	css
+
+	hr.svelte-kl1ok6 {
+		border-top: none;
+		border-right: var(--theme-colors-sidebar-border);
+		border-bottom: none;
+		border-left: 1px solid rgba(0, 0, 0, 0.1);
+		margin: 0 0.4rem;
+	}
+
+	/* Phone */
+	@media all and (max-width: 768px) {
+		hr.svelte-kl1ok6 {
+			display: none;
+		}
+	}
+
+=== 236 src/lib/Drawer/Separator.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<hr class="svelte-kl1ok6"/>`);
+
+export default function Separator($$anchor) {
+	var hr = root();
+
+	$.append($$anchor, hr);
+}
+=== 71 src/lib/Drawer/SidebarButton.svelte	css
+
+	figure.svelte-sruxp5 {
+		/* flip icon */
+		transform: scaleX(-1);
+	}
+
+=== 1711 src/lib/Drawer/SidebarButton.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { dashboard, lang, ripple, record } from '$lib/Stores';
+import Ripple from 'svelte-ripple';
+import Icon from '@iconify/svelte';
+import { generateId } from '$lib/Utils';
+import { createEventDispatcher } from 'svelte';
+
+var root = $.from_html(`<button class="button dropdown"><figure class="svelte-sruxp5"><!></figure> </button>`);
+
+export default function SidebarButton($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $dashboard = () => $.store_get(dashboard, '$dashboard', $$stores);
+	const $record = () => $.store_get(record, '$record', $$stores);
+	const $ripple = () => $.store_get(ripple, '$ripple', $$stores);
+	const $lang = () => $.store_get(lang, '$lang', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	const dispatch = createEventDispatcher();
+
+	/**
+	 * Creates a new sidebar object in sidebar items
+	 */
+	function handleClick() {
+		$.store_mutate(
+			dashboard,
+			$.untrack($dashboard).sidebar = [
+				{ type: 'configure', id: generateId($dashboard()) },
+				...$dashboard().sidebar
+			],
+			$.untrack($dashboard)
+		);
+
+		$record()();
+		dispatch('clicked');
+	}
+
+	var button = root();
+	var figure = $.child(button);
+	var node = $.child(figure);
+
+	Icon(node, {
+		icon: 'solar:sidebar-minimalistic-bold-duotone',
+		height: 'none'
+	});
+
+	$.reset(figure);
+
+	var text = $.sibling(figure);
+
+	$.reset(button);
+	$.effect(() => $.event('click', button, handleClick));
+	$.action(button, ($$node, $$action_arg) => Ripple?.($$node, $$action_arg), $ripple);
+	$.template_effect(($0) => $.set_text(text, ` ${$0 ?? ''}`), [() => $lang()('sidebar')]);
+	$.append($$anchor, button);
+	$.pop();
+	$$cleanup();
+}
+=== 355 src/lib/Drawer/SidebarButton.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 28,
+			"column": 32,
+			"character": 583
+		},
+		"end": {
+			"line": 28,
+			"column": 54,
+			"character": 605
+		}
+	}
+]
+
+=== 2287 src/lib/Drawer/ViewButton.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { dashboard, lang, ripple, record } from '$lib/Stores';
+import { createEventDispatcher, tick } from 'svelte';
+import Ripple from 'svelte-ripple';
+import Icon from '@iconify/svelte';
+import { generateId } from '$lib/Utils';
+
+var root = $.from_html(`<button class="button dropdown"><figure><!></figure> </button>`);
+
+export default function ViewButton($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $lang = () => $.store_get(lang, '$lang', $$stores);
+	const $dashboard = () => $.store_get(dashboard, '$dashboard', $$stores);
+	const $record = () => $.store_get(record, '$record', $$stores);
+	const $ripple = () => $.store_get(ripple, '$ripple', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	const dispatch = createEventDispatcher();
+
+	/**
+	 * Adds a new view to `$dashboard`
+	 */
+	async function handleClick() {
+		// if a view with the default name "Overview" already exists
+		// append an increasing number to the name e.g. "Overview 2"
+		const placeholder = $lang()('overview');
+
+		const id = generateId($dashboard());
+		let count = 1;
+		let name = placeholder;
+
+		while ($dashboard().views.find((view) => view.name === name)) {
+			count += 1;
+			name = `${placeholder} ${count}`;
+		}
+
+		// prepend view
+		$.store_mutate(dashboard, $.untrack($dashboard).views = [{ name, id, sections: [] }, ...$dashboard().views], $.untrack($dashboard));
+
+		$record()();
+
+		// click new view
+		await tick();
+
+		const button = document.getElementById(String(id));
+
+		if (button) {
+			button.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+			button.click();
+		}
+
+		dispatch('clicked');
+	}
+
+	var button_1 = root();
+	var figure = $.child(button_1);
+
+	$.set_style(figure, '', {}, { width: '1.35rem' });
+
+	var node = $.child(figure);
+
+	Icon(node, { icon: 'fluent:tab-add-24-filled', height: 'none' });
+	$.reset(figure);
+
+	var text = $.sibling(figure);
+
+	$.reset(button_1);
+	$.effect(() => $.event('click', button_1, handleClick));
+	$.action(button_1, ($$node, $$action_arg) => Ripple?.($$node, $$action_arg), $ripple);
+	$.template_effect(($0) => $.set_text(text, ` ${$0 ?? ''}`), [() => $lang()('add_view')]);
+	$.append($$anchor, button_1);
+	$.pop();
+	$$cleanup();
+}
+=== 357 src/lib/Drawer/ViewButton.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 55,
+			"column": 32,
+			"character": 1182
+		},
+		"end": {
+			"line": 55,
+			"column": 54,
+			"character": 1204
+		}
+	}
+]
+
+=== 132 src/lib/Main/Camera/Broken.svelte	css
+
+	div.svelte-1b4pumk {
+		opacity: 0.75;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		aspect-ratio: 16/9;
+	}
+
+=== 389 src/lib/Main/Camera/Broken.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Icon from '@iconify/svelte';
+
+var root = $.from_html(`<div class="svelte-1b4pumk"><!></div>`);
+
+export default function Broken($$anchor) {
+	var div = root();
+	var node = $.child(div);
+
+	Icon(node, { icon: 'ph:image-broken-duotone', width: '2.5rem' });
+	$.reset(div);
+	$.append($$anchor, div);
+}
+=== 300 src/lib/Main/DragIndicator.svelte	css
+
+	.icon.svelte-4zcatm {
+		width: 1.5rem;
+		background: none;
+		transform: rotate(90deg);
+	}
+
+	div.svelte-4zcatm {
+		cursor: move;
+		margin: 0 0.4rem;
+		background-color: var(--theme-button-background-color-off);
+		align-items: center;
+		border-radius: 0.4rem;
+		display: grid;
+		overflow: hidden;
+	}
+
+=== 959 src/lib/Main/DragIndicator.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { lang, motion } from '$lib/Stores';
+import { scale } from 'svelte/transition';
+import Icon from '@iconify/svelte';
+
+var root = $.from_html(`<div class="svelte-4zcatm"><div class="icon svelte-4zcatm"><!></div></div>`);
+
+export default function DragIndicator($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $motion = () => $.store_get(motion, '$motion', $$stores);
+	const $lang = () => $.store_get(lang, '$lang', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	var div = root();
+	var div_1 = $.child(div);
+	var node = $.child(div_1);
+
+	Icon(node, { icon: 'mdi:drag', height: 'none' });
+	$.reset(div_1);
+	$.reset(div);
+	$.template_effect(($0) => $.set_attribute(div, 'title', $0), [() => $lang()('drag_and_drop')]);
+	$.transition(3, div, () => scale, () => ({ start: 0.9, duration: $motion() }));
+	$.append($$anchor, div);
+	$.pop();
+	$$cleanup();
+}
+=== 386 src/lib/Settings/CustomJs.svelte	css
+
+	.container.svelte-17atuhh {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		align-items: center;
+	}
+
+	p.svelte-17atuhh {
+		margin-block-end: 0.6rem;
+		font-size: 0.9rem;
+		opacity: 0.75;
+	}
+
+	p.svelte-17atuhh:hover {
+		cursor: default;
+	}
+
+	code.svelte-17atuhh {
+		font-size: 0.9rem;
+		background-color: rgba(0, 0, 0, 0.2);
+		padding: 0.2rem 0.4rem;
+		border-radius: 0.4rem;
+	}
+
+=== 1427 src/lib/Settings/CustomJs.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { customJs, lang } from '$lib/Stores';
+import Toggle from '$lib/Components/Toggle.svelte';
+
+var root = $.from_html(`<div class="container svelte-17atuhh"><div><h2> </h2> <p class="svelte-17atuhh"><code class="svelte-17atuhh">/data/custom_javascript.js</code></p></div> <div><!></div> <input type="hidden" name="custom_js"/></div>`);
+
+export default function CustomJs($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $lang = () => $.store_get(lang, '$lang', $$stores);
+	const $customJs = () => $.store_get(customJs, '$customJs', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	var div = root();
+	var div_1 = $.child(div);
+	var h2 = $.child(div_1);
+	var text = $.only_child(h2, true);
+
+	$.next(2);
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 2);
+
+	$.set_style(div_2, '', {}, { 'margin-top': '1.3rem' });
+
+	var node = $.child(div_2);
+
+	Toggle(node, {
+		get checked() {
+			$.mark_store_binding();
+
+			return $customJs();
+		},
+
+		set checked($$value) {
+			$.store_set(customJs, $$value);
+		}
+	});
+
+	$.reset(div_2);
+
+	var input = $.sibling(div_2, 2);
+
+	$.remove_input_defaults(input);
+	$.reset(div);
+	$.template_effect(($0) => $.set_text(text, $0), [() => $lang()('javascript_module')]);
+	$.bind_value(input, $customJs, ($$value) => $.store_set(customJs, $$value));
+	$.append($$anchor, div);
+	$.pop();
+	$$cleanup();
+}
+=== 319 src/lib/Settings/Logout.svelte	css
+
+	div.svelte-panqhr {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 10px;
+		align-items: center;
+	}
+
+	p.svelte-panqhr {
+		margin-block-end: 0.6rem;
+		font-size: 0.9rem;
+		opacity: 0.75;
+	}
+
+	p.svelte-panqhr:hover {
+		cursor: default;
+	}
+
+	button.svelte-panqhr {
+		font-size: 1rem;
+		margin-top: 1.3rem;
+	}
+
+=== 1713 src/lib/Settings/Logout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { openModal, closeModal } from 'svelte-modals';
+import Ripple from 'svelte-ripple';
+import { lang, ripple } from '$lib/Stores';
+
+var root = $.from_html(`<div class="svelte-panqhr"><span><h2> </h2> <p class="svelte-panqhr"> </p></span> <button class="action remove svelte-panqhr"> </button></div>`);
+
+export default function Logout($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $lang = () => $.store_get(lang, '$lang', $$stores);
+	const $ripple = () => $.store_get(ripple, '$ripple', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	function handleClick() {
+		openModal(() => import('$lib/Modal/ConfirmAlert.svelte'), {
+			title: $lang()('log_out'),
+			message: $lang()('confirm_log_out'),
+			confirm: async () => {
+				localStorage.removeItem('hassTokens');
+				location.reload();
+			},
+
+			cancel: () => {
+				closeModal();
+			}
+		});
+	}
+
+	var div = root();
+	var span = $.child(div);
+	var h2 = $.child(span);
+	var text = $.only_child(h2, true);
+	var p = $.sibling(h2, 2);
+	var text_1 = $.only_child(p, true);
+
+	$.reset(span);
+
+	var button = $.sibling(span, 2);
+	var text_2 = $.only_child(button, true);
+
+	$.effect(() => $.event('click', button, $.preventDefault(handleClick)));
+	$.action(button, ($$node, $$action_arg) => Ripple?.($$node, $$action_arg), () => ({ ...$ripple(), color: 'rgba(0, 0, 0, 0.35)' }));
+	$.reset(div);
+
+	$.template_effect(
+		($0, $1, $2) => {
+			$.set_text(text, $0);
+			$.set_text(text_1, $1);
+			$.set_text(text_2, $2);
+		},
+		[
+			() => $lang()('log_out'),
+			() => $lang()('auth'),
+			() => $lang()('remove')
+		]
+	);
+
+	$.append($$anchor, div);
+	$.pop();
+	$$cleanup();
+}
+=== 354 src/lib/Settings/Logout.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 29,
+			"column": 2,
+			"character": 586
+		},
+		"end": {
+			"line": 29,
+			"column": 39,
+			"character": 623
+		}
+	}
+]
+
+=== 181 src/lib/Settings/Token.svelte	css
+
+	a.svelte-10okbuk {
+		color: #fa8f92;
+	}
+
+	p.svelte-10okbuk {
+		margin-block-end: 0.6rem;
+		font-size: 0.9rem;
+		opacity: 0.75;
+	}
+
+	p.svelte-10okbuk:hover {
+		cursor: default;
+	}
+
+=== 1677 src/lib/Settings/Token.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { configuration, lang } from '$lib/Stores';
+
+var root = $.from_html(`<h2> </h2> <p class="overflow svelte-10okbuk"> <a target="blank" class="svelte-10okbuk"></a></p> <input class="input" type="password" name="token"/>`, 1);
+
+export default function Token($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $configuration = () => $.store_get(configuration, '$configuration', $$stores);
+	const $lang = () => $.store_get(lang, '$lang', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	let token = $configuration()?.token;
+
+	function handleFocus(event) {
+		const target = event.target;
+
+		target.type = event.type === 'focus' ? 'text' : 'password';
+	}
+
+	const href = 'https://www.home-assistant.io/docs/authentication/#your-account-profile';
+	var fragment = root();
+	var h2 = $.first_child(fragment);
+	var text = $.only_child(h2, true);
+	var p = $.sibling(h2, 2);
+	var text_1 = $.child(p);
+	var a = $.sibling(text_1);
+
+	$.set_attribute(a, 'href', href);
+	a.textContent = 'https://www.home-assistant.io/docs/authentication/#your-account-profile';
+	$.reset(p);
+
+	var input = $.sibling(p, 2);
+
+	$.remove_input_defaults(input);
+
+	$.template_effect(
+		($0, $1, $2) => {
+			$.set_text(text, $0);
+			$.set_text(text_1, `${$1 ?? ''} - `);
+			$.set_attribute(input, 'placeholder', $2);
+		},
+		[
+			() => $lang()('token'),
+			() => $lang()('docs'),
+			() => $lang()('token')
+		]
+	);
+
+	$.bind_value(input, () => token, ($$value) => token = $$value);
+	$.event('focus', input, handleFocus);
+	$.event('blur', input, handleFocus);
+	$.append($$anchor, fragment);
+	$.pop();
+	$$cleanup();
+}
+=== 1046 src/lib/Settings/Token.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:focus` to listen to the focus event is deprecated. Use the event attribute `onfocus` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 27,
+			"column": 1,
+			"character": 583
+		},
+		"end": {
+			"line": 27,
+			"column": 23,
+			"character": 605
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:blur` to listen to the blur event is deprecated. Use the event attribute `onblur` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 28,
+			"column": 1,
+			"character": 607
+		},
+		"end": {
+			"line": 28,
+			"column": 22,
+			"character": 628
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`token` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 77
+		},
+		"end": {
+			"line": 4,
+			"column": 10,
+			"character": 82
+		}
+	}
+]
+
+=== 385 src/lib/Settings/Version.svelte	css
+
+	div.svelte-1qqrdc9 {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 10px;
+		align-items: center;
+	}
+
+	button.svelte-1qqrdc9 {
+		margin-top: 2rem;
+		max-width: 12rem;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	p.svelte-1qqrdc9 {
+		margin-block-end: 0.6rem;
+		font-size: 0.9rem;
+		opacity: 0.75;
+	}
+
+	a.svelte-1qqrdc9 {
+		color: #00dbff;
+	}
+
+=== 5107 src/lib/Settings/Version.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onMount } from 'svelte';
+import { base } from '$app/paths';
+import { lang, ripple } from '$lib/Stores';
+import Ripple from 'svelte-ripple';
+
+var root = $.from_html(`<!> <a href="https://github.com/matt8707/ha-fusion/releases" target="_blank" class="svelte-1qqrdc9"> </a>`, 1);
+var root_1 = $.from_html(`<div class="svelte-1qqrdc9"><span><h2>Version</h2> <p class="svelte-1qqrdc9"><!></p></span> <button class="action done svelte-1qqrdc9"> </button></div>`);
+
+export default function Version($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $lang = () => $.store_get(lang, '$lang', $$stores);
+	const $ripple = () => $.store_get(ripple, '$ripple', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	const debug = false;
+	let installed;
+	let latest;
+	let last_updated;
+	let timeout;
+	let busy = false;
+	let error_code;
+
+	onMount(async () => {
+		try {
+			const response = await fetch(`${base}/_api/version`, { headers: { 'Content-Type': 'application/json' } });
+			const data = await response.json();
+
+			const diff = data?.last_updated
+				? new Date().getTime() - new Date(data.last_updated).getTime()
+				: Infinity;
+
+			// fetch new data if missing or older than a day
+			if (diff > 86400000) {
+				if (debug) console.debug('stale version');
+
+				installed = data?.installed;
+				await fetchLatest();
+			} else {
+				installed = data?.installed;
+				latest = data?.latest;
+				last_updated = data?.last_updated;
+
+				if (debug) console.debug('version loaded from file:', latest);
+			}
+		} catch(err) {
+			console.error(err);
+		}
+	});
+
+	async function fetchLatest() {
+		clearTimeout(timeout);
+
+		try {
+			if (debug) console.debug('fetching latest version from github');
+
+			const url = 'https://api.github.com/repos/matt8707/ha-fusion/releases/latest';
+			const response = await fetch(url);
+
+			if (!response.ok) {
+				error_code = response.status;
+				console.error(response.status);
+			}
+
+			const data = await response.json();
+
+			latest = data?.tag_name;
+
+			// save latest data
+			if (latest) save(latest);
+		} catch(err) {
+			console.error(err);
+		}
+	}
+
+	async function save(latest) {
+		try {
+			if (debug) console.debug('saving version file');
+
+			last_updated = new Date().toISOString();
+
+			const response = await fetch(`${base}/_api/version`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ latest, installed, last_updated })
+			});
+
+			const result = await response.json();
+
+			if (result?.message === 'success') {
+				// add frontend ui response
+				if (debug) console.debug('version file saved');
+			}
+		} catch(err) {
+			console.error(err);
+		} finally {
+			timeout = setTimeout(
+				() => {
+					busy = false;
+				},
+				750
+			);
+		}
+	}
+
+	function compare(installed, latest) {
+		return latest.localeCompare(installed, undefined, { numeric: true, sensitivity: 'base' });
+	}
+
+	var div = root_1();
+	var span = $.child(div);
+	var p = $.sibling($.child(span), 2);
+	var node = $.child(p);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var fragment = root();
+			var node_1 = $.first_child(fragment);
+
+			{
+				var consequent = ($$anchor) => {
+					var text = $.text();
+
+					$.template_effect(($0) => $.set_text(text, `${$0 ?? ''} ${latest ?? ''}`), [() => $lang()('update_available')]);
+					$.append($$anchor, text);
+				};
+
+				var d = $.derived(() => compare(installed, latest) > 0);
+
+				var alternate = ($$anchor) => {
+					var text_1 = $.text();
+
+					$.template_effect(($0) => $.set_text(text_1, `${$0 ?? ''} ${installed ?? ''}`), [() => $lang()('update_up_to_date')]);
+					$.append($$anchor, text_1);
+				};
+
+				$.if(node_1, ($$render) => {
+					if ($.get(d)) $$render(consequent); else $$render(alternate, -1);
+				});
+			}
+
+			var a = $.sibling(node_1, 2);
+			var text_2 = $.only_child(a, true);
+
+			$.template_effect(($0) => $.set_text(text_2, $0), [() => $lang()('update_release_notes')]);
+			$.append($$anchor, fragment);
+		};
+
+		var consequent_2 = ($$anchor) => {
+			var text_3 = $.text();
+
+			$.template_effect(($0) => $.set_text(text_3, `${$0 ?? ''}: ${error_code ?? ''}`), [() => $lang()('error')]);
+			$.append($$anchor, text_3);
+		};
+
+		var alternate_1 = ($$anchor) => {
+			var text_4 = $.text();
+
+			$.template_effect(($0) => $.set_text(text_4, $0), [() => $lang()('loading')]);
+			$.append($$anchor, text_4);
+		};
+
+		$.if(node, ($$render) => {
+			if (installed && latest) $$render(consequent_1); else if (error_code) $$render(consequent_2, 1); else $$render(alternate_1, -1);
+		});
+	}
+
+	$.reset(p);
+	$.reset(span);
+
+	var button = $.sibling(span, 2);
+	var text_5 = $.only_child(button, true);
+
+	$.effect(() => $.event('click', button, $.preventDefault(() => {
+		busy = true;
+		fetchLatest();
+	})));
+
+	$.action(button, ($$node, $$action_arg) => Ripple?.($$node, $$action_arg), () => ({ ...$ripple(), color: 'rgba(0, 0, 0, 0.35)' }));
+	$.reset(div);
+	$.template_effect(($0) => $.set_text(text_5, $0), [() => $lang()(busy ? 'checking_updates' : 'check_updates')]);
+	$.append($$anchor, div);
+	$.pop();
+	$$cleanup();
+}
+=== 1755 src/lib/Settings/Version.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 132,
+			"column": 2,
+			"character": 2936
+		},
+		"end": {
+			"line": 135,
+			"column": 4,
+			"character": 3007
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`installed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 5,
+			"character": 201
+		},
+		"end": {
+			"line": 9,
+			"column": 22,
+			"character": 218
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`latest` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 225
+		},
+		"end": {
+			"line": 10,
+			"column": 19,
+			"character": 239
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`busy` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 14,
+			"column": 5,
+			"character": 319
+		},
+		"end": {
+			"line": 14,
+			"column": 9,
+			"character": 323
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`error_code` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 5,
+			"character": 338
+		},
+		"end": {
+			"line": 15,
+			"column": 23,
+			"character": 356
+		}
+	}
+]
+
+=== 809 src/routes/+layout.svelte	css
+
+	body, html {
+		margin: 0;
+		padding: 0;
+		-webkit-tap-highlight-color: transparent;
+		box-sizing: border-box;
+	}
+
+	html {
+		background-color: var(--theme-colors-background, initial);
+		color: var(--theme-colors-text, initial);
+		font-size: 100%;
+	}
+
+	body {
+		background: black;
+		font-family: var(--theme-font-family);
+		user-select: none;
+		-webkit-user-select: none;
+		background-size: cover;
+		background-repeat: no-repeat;
+		background-attachment: fixed;
+		transition: background-image 100ms ease;
+	}
+
+	*, *::before, *::after, *:focus {
+		box-sizing: inherit;
+	}
+
+	.backdrop.svelte-12qhfyh {
+		position: fixed;
+		top: 0;
+		bottom: 0;
+		right: 0;
+		left: 0;
+		z-index: 2;
+		background-size: cover;
+		background-repeat: no-repeat;
+		background-attachment: fixed;
+		transition: opacity 100ms ease-out;
+	}
+
+=== 1890 src/routes/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { motion } from '$lib/Stores';
+import { fade } from 'svelte/transition';
+import { Modals, closeModal } from 'svelte-modals';
+import Loader from '$lib/Components/Loader.svelte';
+import '@fontsource-variable/inter';
+import { expoOut } from 'svelte/easing';
+
+var root = $.from_html(`<meta name="description" content="fusion"/> <meta charset="utf-8"/>`, 1);
+var root_1 = $.from_html(`<div slot="backdrop" class="backdrop svelte-12qhfyh" role="button" tabindex="0"></div>`);
+var root_2 = $.from_html(`<div slot="loading"><!></div>`);
+var root_3 = $.from_html(`<!> <!>`, 1);
+
+export default function _layout($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $motion = () => $.store_get(motion, '$motion', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	var fragment_1 = root_3();
+
+	$.head('12qhfyh', ($$anchor) => {
+		var fragment = root();
+
+		$.next(2);
+
+		$.effect(() => {
+			$.document.title = 'FUSION';
+		});
+
+		$.append($$anchor, fragment);
+	});
+
+	var node = $.first_child(fragment_1);
+
+	Modals(node, {
+		$$slots: {
+			backdrop: ($$anchor, $$slotProps) => {
+				var div = root_1();
+
+				$.event('click', div, () => {
+					closeModal();
+				});
+
+				$.transition(1, div, () => fade, () => ({ duration: $motion(), easing: expoOut }));
+				$.transition(2, div, () => fade, () => ({ duration: $motion() / 2 }));
+
+				$.event('keydown', div, function ($$arg) {
+					$.bubble_event.call(this, $$props, $$arg);
+				});
+
+				$.append($$anchor, div);
+			},
+
+			loading: ($$anchor, $$slotProps) => {
+				var div_1 = root_2();
+				var node_1 = $.child(div_1);
+
+				Loader(node_1, {});
+				$.reset(div_1);
+				$.append($$anchor, div_1);
+			}
+		}
+	});
+
+	var node_2 = $.sibling(node, 2);
+
+	$.slot(node_2, $$props, 'default', {}, null);
+	$.append($$anchor, fragment_1);
+	$.pop();
+	$$cleanup();
+}
+=== 1039 src/routes/+layout.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 20,
+			"column": 2,
+			"character": 477
+		},
+		"end": {
+			"line": 22,
+			"column": 4,
+			"character": 516
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 28,
+			"column": 2,
+			"character": 617
+		},
+		"end": {
+			"line": 28,
+			"column": 12,
+			"character": 627
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 38,
+			"column": 0,
+			"character": 723
+		},
+		"end": {
+			"line": 38,
+			"column": 8,
+			"character": 731
+		}
+	}
+]
+

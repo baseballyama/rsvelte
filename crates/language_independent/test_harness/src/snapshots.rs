@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
@@ -7,11 +6,9 @@ use rsvelte_kernel::computation::task::TaskOutput;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;
-use rsvelte_kernel::task_files;
 use rustc_hash::FxHashSet;
 
 use crate::cases::{Case, Kind};
-use crate::oracle::{self, Verdict};
 
 const EXPECTED_DIR: &str = "expected";
 const ACTUAL_DIR: &str = "actual";
@@ -22,30 +19,6 @@ const CONTEXT_LINES: usize = 3;
 pub(crate) struct Snapshot {
     pub(crate) task: &'static str,
     pub(crate) name: &'static str,
-    /// Whether rsvelte implements the task. One it does not stays in the ratchet: its units are
-    /// `missing`.
-    pub(crate) implemented: bool,
-}
-
-impl Snapshot {
-    /// What the names of this snapshot's files start with, relative to `expected/` and `actual/`.
-    fn prefix(&self, kind: Kind) -> String {
-        match kind {
-            Kind::HandWritten | Kind::Copied => format!("{}.", self.name),
-            Kind::Corpus => {
-                let (dir, variant) = task_files::location(self.task);
-                format!("{dir}/{variant}.")
-            }
-        }
-    }
-}
-
-/// How the units of one task and variant compare with the official output.
-#[derive(Default, Clone)]
-pub(crate) struct Tally {
-    /// Per [`Verdict::ALL`].
-    pub(crate) verdicts: [usize; Verdict::ALL.len()],
-    pub(crate) refused: usize,
 }
 
 #[derive(Default)]
@@ -54,14 +27,9 @@ pub(crate) struct Outcome {
     pub(crate) written: usize,
     pub(crate) removed: usize,
     pub(crate) problems: usize,
-    /// Official-output cases with no official file for any of the tasks.
-    pub(crate) unmeasured: usize,
-    pub(crate) tallies: BTreeMap<&'static str, Tally>,
-    /// `<task>/<variant> <case>` and its verdict, `None` when refused, for the ratchet.
-    pub(crate) parity: Vec<(String, Option<Verdict>)>,
+    /// Copied cases that differ from the official output, as their `differs.txt` says.
+    pub(crate) differ: usize,
     pub(crate) messages: Vec<String>,
-    /// `verdict case file` per file of an official-output case, for [`crate::VERDICTS_VARIABLE`].
-    pub(crate) verdicts: Vec<String>,
 }
 
 impl Outcome {
@@ -70,17 +38,8 @@ impl Outcome {
         self.written += other.written;
         self.removed += other.removed;
         self.problems += other.problems;
-        self.unmeasured += other.unmeasured;
-        for (task, tally) in other.tallies {
-            let total = self.tallies.entry(task).or_default();
-            for (t, o) in total.verdicts.iter_mut().zip(tally.verdicts) {
-                *t += o;
-            }
-            total.refused += tally.refused;
-        }
-        self.parity.extend(other.parity);
+        self.differ += other.differ;
         self.messages.extend(other.messages);
-        self.verdicts.extend(other.verdicts);
     }
 
     fn problem(&mut self, case: &Case, message: &str) {
@@ -90,14 +49,13 @@ impl Outcome {
 }
 
 /// Writes the case's output to `actual/`, then compares it with `expected/` (or with `update`,
-/// writes `expected/` of a snapshot case).
+/// writes `expected/` of a hand-written case).
 pub(crate) fn check(
     case: &Case,
     document: &Document,
     result: &DocumentResult,
     snapshots: &[Snapshot],
     update: bool,
-    corpus_actual: bool,
 ) -> Outcome {
     let mut outcome = Outcome::default();
     if let Some(p) = &result.panic {
@@ -107,11 +65,8 @@ pub(crate) fn check(
     let mut produced = Vec::new();
     for s in snapshots {
         match result.outputs.iter().find(|(task, _)| *task == s.task) {
-            Some((_, out)) => produce(s, case.kind, document, out, &mut produced),
-            None if case.kind == Kind::HandWritten && s.implemented => {
-                outcome.problem(case, &format!("{} did not run on this input", s.task));
-            }
-            None => {}
+            Some((_, out)) => produce(s, document, out, &mut produced),
+            None => outcome.problem(case, &format!("{} did not run on this input", s.task)),
         }
     }
     let mut names = FxHashSet::default();
@@ -120,95 +75,39 @@ pub(crate) fn check(
             outcome.problem(case, &format!("two outputs are named {name}"));
         }
     }
-    let actual_dir = case.dir.join(ACTUAL_DIR);
-    let written = match case.kind {
-        Kind::HandWritten | Kind::Copied => write_actual(&actual_dir, &produced),
-        // Other tasks' files in the unit's `actual/` are not this harness's to remove.
-        Kind::Corpus if !corpus_actual => Ok(()),
-        Kind::Corpus => snapshots
-            .iter()
-            .try_for_each(|s| write_owned(&actual_dir, &s.prefix(Kind::Corpus), &produced)),
-    };
-    if let Err(e) = written {
+    if let Err(e) = write_actual(&case.dir.join(ACTUAL_DIR), &produced) {
         outcome.problem(case, &e);
     }
     let expected_dir = case.dir.join(EXPECTED_DIR);
-    let existing = match existing_snapshots(&expected_dir, case.kind, snapshots) {
+    let existing = match existing_snapshots(&expected_dir, snapshots) {
         Ok(e) => e,
         Err(e) => {
             outcome.problem(case, &e);
             return outcome;
         }
     };
-    match case.kind {
-        Kind::HandWritten => {
-            compare_snapshots(
+    if case.differs {
+        if matches(&expected_dir, &existing, &produced) {
+            outcome.problem(
                 case,
-                &expected_dir,
-                &existing,
-                &produced,
-                update,
-                &mut outcome,
+                "now matches the official output; remove it from differs.txt",
             );
+        } else {
+            outcome.differ += 1;
         }
-        Kind::Copied | Kind::Corpus => compare_with_official(
-            case,
-            &expected_dir,
-            &existing,
-            &produced,
-            snapshots,
-            &mut outcome,
-        ),
+        return outcome;
     }
+    // A copied case's `expected/` is the official output, which only the official tool writes.
+    let update = update && case.kind == Kind::HandWritten;
+    compare_snapshots(
+        case,
+        &expected_dir,
+        &existing,
+        &produced,
+        update,
+        &mut outcome,
+    );
     outcome
-}
-
-/// Each task the official tool has output for on this case, unless the case skips it.
-fn compare_with_official(
-    case: &Case,
-    expected_dir: &Path,
-    existing: &[String],
-    produced: &[(String, String)],
-    snapshots: &[Snapshot],
-    outcome: &mut Outcome,
-) {
-    let mut measured = false;
-    for s in snapshots {
-        let prefix = s.prefix(case.kind);
-        if case.skips(s.task) || !existing.iter().any(|e| e.starts_with(prefix.as_str())) {
-            continue;
-        }
-        measured = true;
-        let rows = match oracle::rows(expected_dir, &prefix, existing, produced) {
-            Ok(r) => r,
-            Err(e) => {
-                outcome.problem(case, &e);
-                continue;
-            }
-        };
-        outcome.verdicts.extend(
-            rows.iter()
-                .map(|(extension, v)| format!("{} {} {prefix}{extension}", v.label(), case.name)),
-        );
-        let verdict = oracle::verdict(&rows);
-        let tally = outcome.tallies.entry(s.task).or_default();
-        match verdict {
-            Some(v) => tally.verdicts[v as usize] += 1,
-            None => tally.refused += 1,
-        }
-        if case.kind == Kind::Corpus {
-            let (task, variant) = task_files::location(s.task);
-            outcome
-                .parity
-                .push((format!("{task}/{variant} {}", case.name), verdict));
-        }
-    }
-    if !measured {
-        outcome.unmeasured += 1;
-        outcome
-            .verdicts
-            .push(format!("unmeasured {} oracle", case.name));
-    }
 }
 
 /// Makes `dir` hold exactly `produced`. Most runs change few files, and creating and removing
@@ -256,46 +155,13 @@ fn write_actual(dir: &Path, produced: &[(String, String)]) -> Result<(), String>
     Ok(())
 }
 
-/// Makes the files under `actual` whose paths start with `prefix` (`<task>/<variant>.`) exactly
-/// the `produced` files with that prefix, writing only changed files.
-fn write_owned(actual: &Path, prefix: &str, produced: &[(String, String)]) -> Result<(), String> {
-    let (task, start) = prefix
-        .rsplit_once('/')
-        .ok_or_else(|| format!("{prefix}: not `<task>/<variant>.`"))?;
-    let dir = actual.join(task);
-    let at = |e: std::io::Error| format!("{}: {e}", dir.display());
-    let mine: Vec<(&str, &str)> = produced
-        .iter()
-        .filter(|(path, _)| path.starts_with(prefix))
-        .map(|(path, text)| (&path[task.len() + 1..], text.as_str()))
-        .collect();
-    match std::fs::read_dir(&dir) {
-        Ok(read) => {
-            for entry in read {
-                let entry = entry.map_err(at)?;
-                let name = entry.file_name();
-                let Some(name) = name.to_str() else { continue };
-                if name.starts_with(start) && !mine.iter().any(|(n, _)| *n == name) {
-                    std::fs::remove_file(entry.path()).map_err(at)?;
-                }
-            }
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound && mine.is_empty() => return Ok(()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            std::fs::create_dir_all(&dir).map_err(at)?;
-        }
-        Err(e) => return Err(at(e)),
-    }
-    for (name, text) in &mine {
-        let path = dir.join(name);
-        if std::fs::read(&path).is_ok_and(|old| old == text.as_bytes()) {
-            continue;
-        }
-        std::fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))?;
-    }
-    // Fails while another variant's files are still there.
-    drop(std::fs::remove_dir(&dir));
-    Ok(())
+/// Whether `expected/` holds exactly the produced files, byte for byte.
+fn matches(expected_dir: &Path, existing: &[String], produced: &[(String, String)]) -> bool {
+    existing.len() == produced.len()
+        && produced.iter().all(|(name, text)| {
+            existing.contains(name)
+                && std::fs::read(expected_dir.join(name)).is_ok_and(|e| e == text.as_bytes())
+        })
 }
 
 fn compare_snapshots(
@@ -347,18 +213,10 @@ fn compare_snapshots(
 
 fn produce(
     s: &Snapshot,
-    kind: Kind,
     document: &Document,
     out: &TaskOutput,
     produced: &mut Vec<(String, String)>,
 ) {
-    if kind == Kind::Corpus {
-        let (dir, variant) = task_files::location(s.task);
-        for (name, text) in task_files::files(variant, &document.text, out) {
-            produced.push((format!("{dir}/{name}"), text.into_owned()));
-        }
-        return;
-    }
     for f in &out.files {
         produced.push((format!("{}.{}", s.name, f.name), f.text.clone()));
     }
@@ -398,38 +256,28 @@ fn diagnostics_text(document: &Document, out: &TaskOutput) -> String {
     text
 }
 
-/// The files in `expected/` that belong to one of the snapshots, as paths relative to it.
-fn existing_snapshots(
-    expected: &Path,
-    kind: Kind,
-    snapshots: &[Snapshot],
-) -> Result<Vec<String>, String> {
+/// The files in `expected/` that belong to one of the snapshots.
+fn existing_snapshots(expected: &Path, snapshots: &[Snapshot]) -> Result<Vec<String>, String> {
+    let read = match std::fs::read_dir(expected) {
+        Ok(r) => r,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(format!("{}: {e}", expected.display())),
+    };
     let mut names = Vec::new();
-    for s in snapshots {
-        let prefix = s.prefix(kind);
-        let (dir, start) = prefix.rsplit_once('/').unwrap_or(("", prefix.as_str()));
-        let directory = expected.join(dir);
-        let read = match std::fs::read_dir(&directory) {
-            Ok(r) => r,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(e) => return Err(format!("{}: {e}", directory.display())),
+    for entry in read {
+        let entry = entry.map_err(|e| format!("{}: {e}", expected.display()))?;
+        let Ok(name) = entry.file_name().into_string() else {
+            continue;
         };
-        for entry in read {
-            let entry = entry.map_err(|e| format!("{}: {e}", directory.display()))?;
-            let Ok(name) = entry.file_name().into_string() else {
-                continue;
-            };
-            if name.starts_with(start) && !entry.path().is_dir() {
-                names.push(if dir.is_empty() {
-                    name
-                } else {
-                    format!("{dir}/{name}")
-                });
-            }
+        let owned = snapshots.iter().any(|s| {
+            name.strip_prefix(s.name)
+                .is_some_and(|rest| rest.starts_with('.'))
+        });
+        if owned && !entry.path().is_dir() {
+            names.push(name);
         }
     }
     names.sort_unstable();
-    names.dedup();
     Ok(names)
 }
 

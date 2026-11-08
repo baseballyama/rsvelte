@@ -1,0 +1,718 @@
+# rsvelte pack 1
+=== 87 example/Example1.svelte	css
+
+  .text-center {
+    text-align: center;
+  }
+  .text-left {
+    text-align: left;
+  }
+
+=== 3129 example/Example1.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import SvelteTable from "../src/SvelteTable.svelte";
+import faker from "faker";
+
+export default function Example1($$anchor, $$props) {
+	$.push($$props, true);
+
+	// import SvelteTable from "svelte-table";
+	faker.seed(5);
+
+	const colums = [
+		{
+			key: "id",
+			title: "ID",
+			value: (v) => v.id,
+			sortable: false,
+			filterOptions: (rows) => {
+				let nums = {};
+
+				rows.forEach((row) => {
+					let num = Math.floor(row.id / 10);
+
+					if (nums[num] === undefined) nums[num] = { name: `${num * 10} to ${(num + 1) * 10}`, value: num };
+				});
+
+				// fix order
+				nums = Object.entries(nums).sort().reduce((o, [k, v]) => (o[k] = v, o), {});
+
+				return Object.values(nums);
+			},
+			filterValue: (r, f) => f === Math.floor(r.id / 10),
+			headerClass: "text-left"
+		},
+
+		{
+			key: "first_name",
+			title: "FIRST NAME",
+			value: (v) => v.first_name,
+			sortable: true,
+			filterOptions: (rows) => {
+				let letrs = {};
+
+				rows.forEach((row) => {
+					let letr = row.first_name.charAt(0);
+
+					if (letrs[letr] === undefined) letrs[letr] = { name: `${letr.toUpperCase()}`, value: letr.toLowerCase() };
+				});
+
+				// fix order
+				letrs = Object.entries(letrs).sort().reduce((o, [k, v]) => (o[k] = v, o), {});
+
+				return Object.values(letrs);
+			},
+			filterValue: (r, f) => f === r.first_name.charAt(0).toLowerCase()
+		},
+
+		{
+			key: "last_name",
+			title: "LAST NAME",
+			value: (v) => v.last_name,
+			sortable: true,
+			filterOptions: (rows) => {
+				let letrs = {};
+
+				rows.forEach((row) => {
+					let letr = row.last_name.charAt(0);
+
+					if (letrs[letr] === undefined) letrs[letr] = { name: `${letr.toUpperCase()}`, value: letr.toLowerCase() };
+				});
+
+				// fix order
+				letrs = Object.entries(letrs).sort().reduce((o, [k, v]) => (o[k] = v, o), {});
+
+				return Object.values(letrs);
+			},
+			filterValue: (r, f) => f === r.last_name.charAt(0).toLowerCase()
+		},
+
+		{
+			key: "email",
+			title: "EMAIL",
+			value: (v) => v.email,
+			searchValue: (v) => v.email,
+			filterPlaceholder: "email",
+			sortable: true,
+			class: "text-center"
+		},
+
+		{
+			key: "pet",
+			title: "pet",
+			value: (v) => v.pet,
+			renderValue: (v) => {
+				let icon = v.pet.toLowerCase() === "cat" ? "🐱" : "";
+
+				icon = v.pet.toLowerCase() === "dog" ? "🐶" : icon;
+
+				return `${icon} ${v.pet}`;
+			},
+			sortable: true,
+			filterOptions: ["dog", "cat"],
+			filterPlaceholder: "all"
+		},
+
+		{
+			key: "ip_address",
+			title: "IP ADDRESS",
+			value: (v) => v.ip_address,
+			sortable: true
+		}
+	];
+
+	const numRows = 50;
+
+	const data = Array(numRows).fill("").map((n, i) => {
+		let d = {
+			id: i,
+			first_name: faker.name.firstName(),
+			last_name: faker.name.lastName(),
+			pet: faker.random.number(1) ? "cat" : "dog",
+			ip_address: "192.168." + faker.random.number(128) + "." + faker.random.number(255)
+		};
+
+		d.email = d.first_name[0].toLowerCase() + d.last_name.toLowerCase() + "@zipit.org.ca";
+
+		return d;
+	});
+
+	SvelteTable($$anchor, {
+		get columns() {
+			return colums;
+		},
+
+		get rows() {
+			return data;
+		}
+	});
+
+	$.pop();
+}
+=== 125 example/Example5.svelte	css
+
+  div.svelte-15hlp8y .text-center {
+    text-align: center;
+  }
+  div.svelte-15hlp8y .text-left {
+    text-align: left;
+  }
+
+=== 4865 example/Example5.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import SvelteTable from "../src/SvelteTable.svelte";
+import { generateFilter } from "./helper.js";
+import faker from "faker";
+
+var root = $.from_html(
+	`<div class="card svelte-15hlp8y" style="width: 100%; margin:8px auto;"><div class="card-body svelte-15hlp8y"><p class="card-text">This search example uses <code>searchValue</code> for both first and last name
+      fields</p> <p class="card-text">The first name field uses a <strong>single parameter</strong> searchValue
+      function which returns a <code>string</code>. The search logic is handled
+      by SvelteTable. <strong>This functionality will likely be deprecated in the future.</strong></p> <p class="card-text">The last name field uses a <strong>two parameters</strong> searchValue
+      function which returns a <code>boolean</code>. This allows more
+      flexibility in the search behaviour.</p></div></div> <div class="d-flex justify-content-center svelte-15hlp8y" role="group"><input placeholder="First Name"/> <button class="btn btn-outline-primary">CLEAR FIRST NAME</button> <button class="btn btn-outline-primary">CLEAR LAST NAME</button> <button class="btn btn-outline-primary">CLEAR AGE</button> <button class="btn btn-outline-primary">CLEAR ALL</button> <button class="btn btn-outline-primary">Find Rosie</button></div> <!> <h2> </h2>`,
+	1
+);
+
+export default function Example5($$anchor, $$props) {
+	$.push($$props, true);
+
+	// import SvelteTable from "svelte-table";
+	faker.seed(15);
+
+	let selection = { first_name: "", last_name: "b" };
+
+	const colums = [
+		{
+			key: "id",
+			title: "ID",
+			value: (v) => v.id,
+			sortable: false,
+			headerClass: "text-left"
+		},
+
+		{
+			key: "first_name",
+			title: "FIRST NAME",
+			value: (v) => v.first_name,
+			sortable: true,
+			searchValue: (v) => v.first_name,
+			hideFilterHeader: true
+		},
+
+		{
+			key: "last_name",
+			title: "LAST NAME",
+			value: (v) => v.last_name,
+			sortable: true,
+			searchValue: (v, s) => v.last_name.toString().toLowerCase().startsWith(s.toLowerCase())
+		},
+
+		{
+			key: "email",
+			title: "EMAIL",
+			value: (v) => v.email,
+			sortable: true,
+			class: "text-center"
+		},
+
+		{
+			key: "age",
+			title: "Age",
+			value: (v) => v.age,
+			sortable: true,
+			filterOptions: generateFilter("age")
+		},
+
+		{
+			key: "pet",
+			title: "Pet",
+			value: (v) => v.pet,
+			sortable: true,
+			filterOptions: generateFilter("pet")
+		},
+
+		{
+			key: "ip_address",
+			title: "IP ADDRESS",
+			value: (v) => v.ip_address,
+			sortable: true
+		}
+	];
+
+	const numRows = 50;
+
+	const data = Array(numRows).fill("").map((n, i) => {
+		let d = {
+			id: i,
+			first_name: faker.name.firstName(),
+			last_name: faker.name.lastName(),
+			pet: faker.random.number(1) ? "Dog" : "Cat",
+			age: 26 + faker.random.number(37),
+			ip_address: "192.168." + faker.random.number(128) + "." + faker.random.number(255)
+		};
+
+		d.email = d.first_name[0].toLowerCase() + d.last_name.toLowerCase() + "@zipit.org.ca";
+
+		return d;
+	});
+
+	function setFilter(key, value = undefined) {
+		if (selection[key] || value != undefined) {
+			selection[key] = value;
+		}
+	}
+
+	function clearAll() {
+		selection = {};
+	}
+
+	let filteredRows = [];
+	var fragment = root();
+	var div = $.sibling($.first_child(fragment), 2);
+	var input = $.child(div);
+
+	$.remove_input_defaults(input);
+
+	var button = $.sibling(input, 2);
+	var button_1 = $.sibling(button, 2);
+	var button_2 = $.sibling(button_1, 2);
+	var button_3 = $.sibling(button_2, 2);
+	var button_4 = $.sibling(button_3, 2);
+
+	$.reset(div);
+
+	var node = $.sibling(div, 2);
+
+	SvelteTable(node, {
+		classNameTable: 'table',
+		get columns() {
+			return colums;
+		},
+
+		get rows() {
+			return data;
+		},
+
+		get filterSelections() {
+			return selection;
+		},
+
+		set filterSelections($$value) {
+			selection = $$value;
+		},
+
+		get filteredRows() {
+			return filteredRows;
+		},
+
+		set filteredRows($$value) {
+			filteredRows = $$value;
+		}
+	});
+
+	var h2 = $.sibling(node, 2);
+	var text = $.only_child(h2);
+
+	$.template_effect(
+		($0) => {
+			button.disabled = selection["first_name"] === undefined;
+			button_1.disabled = selection["last_name"] === undefined;
+			button_2.disabled = selection["age"] === undefined;
+			button_3.disabled = $0;
+			$.set_text(text, `Number of filtered rows: ${filteredRows.length ?? ''}`);
+		},
+		[() => !Object.values(selection).some((v) => v != undefined)]
+	);
+
+	$.bind_value(input, () => selection["first_name"], ($$value) => selection["first_name"] = $$value);
+	$.event('click', button, () => setFilter("first_name"));
+	$.event('click', button_1, () => setFilter("last_name"));
+	$.event('click', button_2, () => setFilter("age"));
+	$.event('click', button_3, () => clearAll());
+	$.event('click', button_4, () => setFilter("first_name", "R") + setFilter("age", 48));
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 2485 example/Example5.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 126,
+			"column": 4,
+			"character": 3166
+		},
+		"end": {
+			"line": 126,
+			"column": 44,
+			"character": 3206
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 133,
+			"column": 4,
+			"character": 3346
+		},
+		"end": {
+			"line": 133,
+			"column": 43,
+			"character": 3385
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 140,
+			"column": 4,
+			"character": 3518
+		},
+		"end": {
+			"line": 140,
+			"column": 37,
+			"character": 3551
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 147,
+			"column": 4,
+			"character": 3699
+		},
+		"end": {
+			"line": 147,
+			"column": 31,
+			"character": 3726
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 153,
+			"column": 4,
+			"character": 3807
+		},
+		"end": {
+			"line": 153,
+			"column": 72,
+			"character": 3875
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selection` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 211
+		},
+		"end": {
+			"line": 8,
+			"column": 15,
+			"character": 220
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`filteredRows` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 96,
+			"column": 6,
+			"character": 2128
+		},
+		"end": {
+			"line": 96,
+			"column": 18,
+			"character": 2140
+		}
+	}
+]
+
+=== 87 example/Example6.svelte	css
+
+  .text-center {
+    text-align: center;
+  }
+  .text-left {
+    text-align: left;
+  }
+
+=== 1890 example/Example6.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import SvelteTable from "../src/SvelteTable.svelte";
+import ContactButtonComponent from "./example6/ContactButtonComponent.svelte";
+import HelpButtonComponent from "./example6/HelpButtonComponent.svelte";
+import faker from "faker";
+
+export default function Example6($$anchor, $$props) {
+	$.push($$props, true);
+
+	// import SvelteTable from "svelte-table";
+	faker.seed(15);
+
+	const onContactButtonClick = (row) => alert(`Contacted ${row.first_name} ${row.last_name}`);
+
+	const colums = [
+		{
+			key: "id",
+			title: "ID",
+			value: (v) => v.id,
+			sortable: false,
+			headerClass: "text-left"
+		},
+
+		{
+			key: "first_name",
+			title: "FIRST NAME",
+			value: (v) => v.first_name,
+			sortable: true,
+			searchValue: (v) => v.first_name
+		},
+
+		{
+			key: "last_name",
+			title: "LAST NAME",
+			value: (v) => v.last_name,
+			sortable: true,
+			searchValue: (v) => v.last_name
+		},
+
+		{
+			key: "email",
+			title: "EMAIL",
+			value: (v) => v.email,
+			sortable: true,
+			class: "text-center"
+		},
+
+		{
+			key: "contact",
+			title: "",
+			sortable: false,
+			renderComponent: {
+				component: ContactButtonComponent,
+				props: { onContactButtonClick }
+			}
+		},
+
+		{
+			key: "help",
+			title: "",
+			sortable: false,
+			renderComponent: HelpButtonComponent
+		}
+	];
+
+	const numRows = 50;
+
+	const data = Array(numRows).fill("").map((n, i) => {
+		let d = {
+			id: i,
+			first_name: faker.name.firstName(),
+			last_name: faker.name.lastName(),
+			pet: faker.random.number(1) ? "Dog" : "Cat",
+			ip_address: "192.168." + faker.random.number(128) + "." + faker.random.number(255)
+		};
+
+		d.email = d.first_name[0].toLowerCase() + d.last_name.toLowerCase() + "@zipit.org.ca";
+
+		return d;
+	});
+
+	SvelteTable($$anchor, {
+		get columns() {
+			return colums;
+		},
+
+		get rows() {
+			return data;
+		}
+	});
+
+	$.pop();
+}
+=== 132 example/Example8.svelte	css
+
+  .table1 td.cell {
+    background: rgba(65, 255, 65, 0.178);
+  }
+
+  .table2 tr.row-odd {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+=== 2813 example/Example8.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import SvelteTable from "../src/SvelteTable.svelte";
+
+var root = $.from_html(`<div class="container"><h1>SvelteTable example 8 ~ dynamic column classes</h1> <div class="row"><!></div></div> <div class="container"><h1>SvelteTable example 8 ~ dynamic row class</h1> <div class="row"><!></div></div>`, 1);
+
+export default function Example8($$anchor, $$props) {
+	$.push($$props, true);
+	globalThis.faker.seed(5);
+
+	const classNameRow = (v, rowIndex) => rowIndex % 2 == 0 ? null : "row-odd";
+
+	const generateData = (numRows) => {
+		return Array(numRows).fill("").map((n, i) => {
+			let d = {
+				id: i,
+				first_name: globalThis.faker.name.firstName() + "",
+				last_name: globalThis.faker.name.lastName() + "",
+				county: globalThis.faker.address.county() + "",
+				state: globalThis.faker.address.state() + "",
+				country: globalThis.faker.address.country() + "",
+				email: ""
+			};
+
+			// update email
+			d.email = d.first_name[0].toLowerCase() + d.last_name.toLowerCase() + "@zipit.org.ca";
+
+			return d;
+		});
+	};
+
+	const data1 = generateData(9);
+	const data2 = generateData(9);
+
+	const cols1 = [
+		{
+			key: "id",
+			title: "ID",
+			value: (v) => v.id,
+			sortable: true,
+			class: (v, r, c) => v.id % 2 == 1 ? null : "cell"
+		},
+
+		{
+			key: "first_name",
+			title: "FIRST NAME",
+			value: (v) => v.first_name,
+			sortable: true
+		},
+
+		{
+			key: "last_name",
+			title: "LAST NAME",
+			value: (v) => v.last_name,
+			sortable: true
+		},
+
+		{
+			key: "email",
+			title: "EMAIL (rowIndex)",
+			value: (v) => v.email,
+			sortable: true,
+			class: (v, r, c) => r % 2 == 1 ? null : "cell"
+		}
+	];
+
+	const cols2 = [
+		{ key: "id", title: "ID", value: (v) => v.id, sortable: true },
+		{
+			key: "first_name",
+			title: "FIRST NAME",
+			value: (v) => v.first_name,
+			sortable: true
+		},
+
+		{
+			key: "last_name",
+			title: "LAST NAME",
+			value: (v) => v.last_name,
+			sortable: true
+		},
+
+		{
+			key: "email",
+			title: "EMAIL (rowIndex)",
+			value: (v) => v.email,
+			sortable: true
+		}
+	];
+
+	var fragment = root();
+	var div = $.first_child(fragment);
+	var div_1 = $.sibling($.child(div), 2);
+	var node = $.child(div_1);
+
+	SvelteTable(node, {
+		get columns() {
+			return cols1;
+		},
+
+		get rows() {
+			return data1;
+		},
+		classNameTable: 'table table1',
+		classNameThead: 'table-primary',
+		sortBy: 'first_name'
+	});
+
+	$.reset(div_1);
+	$.reset(div);
+
+	var div_2 = $.sibling(div, 2);
+	var div_3 = $.sibling($.child(div_2), 2);
+	var node_1 = $.child(div_3);
+
+	SvelteTable(node_1, {
+		get columns() {
+			return cols2;
+		},
+
+		get rows() {
+			return data2;
+		},
+		classNameTable: 'table table2',
+		classNameThead: 'table-primary',
+		classNameRow
+	});
+
+	$.reset(div_3);
+	$.reset(div_2);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 361 example/example6/HelpButtonComponent.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button>Help</button>`);
+
+export default function HelpButtonComponent($$anchor) {
+	var button = root();
+
+	$.event('click', button, () => alert("Read the svelte-table docs: https://github.com/dasDaniel/svelte-table"));
+	$.append($$anchor, button);
+}
+=== 350 example/example6/HelpButtonComponent.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 2,
+			"column": 2,
+			"character": 10
+		},
+		"end": {
+			"line": 5,
+			"column": 6,
+			"character": 121
+		}
+	}
+]
+

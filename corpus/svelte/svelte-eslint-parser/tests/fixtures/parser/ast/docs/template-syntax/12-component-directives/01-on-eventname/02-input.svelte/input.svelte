@@ -1,1 +1,0 @@
-<SomeComponent on:whatever={handler}/>

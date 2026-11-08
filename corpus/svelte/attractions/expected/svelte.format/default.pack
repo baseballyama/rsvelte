@@ -1,0 +1,429 @@
+# rsvelte pack 1
+=== 397 attractions/autocomplete/more-horizontal.svelte	svelte
+<!-- More-horizontal icon from the Feather Icons pack: https://feathericons.com/ -->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="1" />
+  <circle cx="19" cy="12" r="1" />
+  <circle cx="5" cy="12" r="1" />
+</svg>
+
+=== 330 attractions/date-picker/chevron-left.svelte	svelte
+<!-- Chevron-left icon from the Feather Icons pack: https://feathericons.com/ -->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <polyline points="15 18 9 12 15 6" />
+</svg>
+
+=== 330 attractions/date-picker/chevron-right.svelte	svelte
+<!-- Chevron-right icon from the Feather Icons pack: https://feathericons.com/ -->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <polyline points="9 18 15 12 9 6" />
+</svg>
+
+=== 361 attractions/dialog/x.svelte	svelte
+<!-- X icon from the Feather Icons pack: https://feathericons.com/ -->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <line x1="18" y1="6" x2="6" y2="18" />
+  <line x1="6" y1="6" x2="18" y2="18" />
+</svg>
+
+=== 604 attractions/file-input/paperclip.svelte	svelte
+<!-- Paperclip icon from the Feather Icons pack: https://feathericons.com/ -->
+<script>
+  import classes from "../utils/classes.js";
+
+  let _class = null;
+  /** @type {string | false | null} */
+  export { _class as class };
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class={classes(_class)}
+>
+  <path
+    d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+  />
+</svg>
+
+=== 548 attractions/file-input/plus.svelte	svelte
+<!-- Plus icon from the Feather Icons pack: https://feathericons.com/ -->
+<script>
+  import classes from "../utils/classes.js";
+
+  let _class = null;
+  /** @type {string | false | null} */
+  export { _class as class };
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class={classes(_class)}
+>
+  <line x1="12" y1="5" x2="12" y2="19" />
+  <line x1="5" y1="12" x2="19" y2="12" />
+</svg>
+
+=== 508 attractions/file-input/trash-2.svelte	svelte
+<!-- Trash-2 icon from the Feather Icons pack: https://feathericons.com/ -->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <polyline points="3 6 5 6 21 6" />
+  <path
+    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+  />
+  <line x1="10" y1="11" x2="10" y2="17" />
+  <line x1="14" y1="11" x2="14" y2="17" />
+</svg>
+
+=== 401 attractions/loading/loading.svelte	svelte
+<!-- Adapted from SpinKit by @tobiasahlin: https://tobiasahlin.com/spinkit/ -->
+<script>
+  import classes from "../utils/classes.js";
+
+  let _class = null;
+  /** @type {string | false | null} */
+  export { _class as class };
+</script>
+
+<div class={classes("spinner", _class)}>
+  <div class="bounce1" />
+  <div class="bounce2" />
+  <div class="bounce3" />
+</div>
+
+<style src="./loading.scss">
+</style>
+
+=== 392 attractions/star-rating/star.svelte	svelte
+<!-- Star icon from the Feather Icons pack: https://feathericons.com/ -->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <polygon
+    points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+  />
+</svg>
+
+=== 360 attractions/time-picker/clock.svelte	svelte
+<!-- Clock icon from the Feather Icons pack: https://feathericons.com/ -->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="10" />
+  <polyline points="12 6 12 12 16 14" />
+</svg>
+
+=== 394 docs/src/containers/docs/showcase.svelte	svelte
+<script>
+  import { Label } from "attractions";
+  import CopyableCode from "src/components/docs/copyable-code.svelte";
+</script>
+
+<section class="showcase">
+  <Label>Showcase</Label>
+  <slot name="showcase" />
+  <Label class="code">Source</Label>
+  <CopyableCode>
+    <slot name="source" />
+  </CopyableCode>
+</section>
+
+<style src="../../../static/css/containers/docs/showcase.scss">
+</style>
+
+=== 1756 docs/src/containers/home/info-tiles.svelte	svelte
+<script>
+  import { onMount } from "svelte";
+  import * as attractions from "attractions";
+  import { s, formatFileSize } from "attractions/utils";
+  import { GridIcon, Edit2Icon, FeatherIcon } from "svelte-feather-icons";
+  import InfoTile from "src/components/home/info-tile.svelte";
+
+  const totalComponents =
+    Object.keys(attractions).length -
+    1 - // utils
+    1; // importer
+  let bundleSizePromise = Promise.resolve(Infinity);
+
+  onMount(() => {
+    bundleSizePromise = fetch(
+      `https://bundlephobia.com/api/size?package=attractions@${process.latest_version}`,
+    ).then((response) => response.json());
+  });
+</script>
+
+<div class="info-tiles">
+  <InfoTile
+    icon={GridIcon}
+    title="{totalComponents} component{s(totalComponents)}"
+    subtitle="and more to come!"
+    href="./docs/components/button"
+  />
+  <InfoTile
+    icon={Edit2Icon}
+    title="Stylable with Sass"
+    subtitle="customize colors, fonts, shadows!"
+    href="./docs/installation"
+  />
+  {#await bundleSizePromise}
+    <InfoTile
+      icon={FeatherIcon}
+      title="Calculating bundle size"
+      subtitle="gimme a sec..."
+      href="https://bundlephobia.com/result?p=attractions"
+    />
+  {:then bundleSize}
+    <InfoTile
+      icon={FeatherIcon}
+      title="{formatFileSize(bundleSize['size'])} in size"
+      subtitle="and only {formatFileSize(bundleSize['gzip'])} gzipped!"
+      href="https://bundlephobia.com/result?p=attractions"
+    />
+  {:catch}
+    <InfoTile
+      icon={FeatherIcon}
+      title="Well, that's embarrasing"
+      subtitle="an error occurred while fetching the bundle size."
+      href="https://bundlephobia.com/result?p=attractions"
+    />
+  {/await}
+</div>
+
+<style src="../../../static/css/containers/home/info-tiles.scss">
+</style>
+
+=== 810 docs/src/mdsvex/layout-no-head.svelte	svelte
+<script context="module">
+  import Heading1 from "src/mdsvex/h1.svelte";
+  import Heading2 from "src/mdsvex/h2.svelte";
+  import Heading3 from "src/mdsvex/h3.svelte";
+  import UnorderedList from "src/mdsvex/ul.svelte";
+  import ListItem from "src/mdsvex/li.svelte";
+  import Table from "src/mdsvex/table.svelte";
+  import TableHead from "src/mdsvex/th.svelte";
+  import TableRow from "src/mdsvex/tr.svelte";
+  import TableData from "src/mdsvex/td.svelte";
+  import Mark from "src/mdsvex/mark.svelte";
+  import Paragraph from "src/mdsvex/p.svelte";
+
+  export {
+    Heading1 as h1,
+    Heading2 as h2,
+    Heading3 as h3,
+    UnorderedList as ul,
+    ListItem as li,
+    Table as table,
+    TableHead as th,
+    TableRow as tr,
+    TableData as td,
+    Mark as mark,
+    Paragraph as p,
+  };
+</script>
+
+<slot />
+
+=== 78 docs/src/mdsvex/li.svelte	svelte
+<li>
+  <slot />
+</li>
+
+<style src="../../static/css/mdsvex/li.scss">
+</style>
+
+=== 80 docs/src/mdsvex/mark.svelte	svelte
+<mark><slot /></mark>
+
+<style src="../../static/css/mdsvex/mark.scss">
+</style>
+
+=== 75 docs/src/mdsvex/p.svelte	svelte
+<p>
+  <slot />
+</p>
+
+<style src="../../static/css/mdsvex/p.scss">
+</style>
+
+=== 87 docs/src/mdsvex/table.svelte	svelte
+<table>
+  <slot />
+</table>
+
+<style src="../../static/css/mdsvex/table.scss">
+</style>
+
+=== 78 docs/src/mdsvex/td.svelte	svelte
+<td>
+  <slot />
+</td>
+
+<style src="../../static/css/mdsvex/td.scss">
+</style>
+
+=== 160 docs/src/mdsvex/th.svelte	svelte
+<script>
+  import { Label } from "attractions";
+</script>
+
+<th>
+  <Label>
+    <slot />
+  </Label>
+</th>
+
+<style src="../../static/css/mdsvex/th.scss">
+</style>
+
+=== 78 docs/src/mdsvex/tr.svelte	svelte
+<tr>
+  <slot />
+</tr>
+
+<style src="../../static/css/mdsvex/tr.scss">
+</style>
+
+=== 78 docs/src/mdsvex/ul.svelte	svelte
+<ul>
+  <slot />
+</ul>
+
+<style src="../../static/css/mdsvex/ul.scss">
+</style>
+
+=== 1428 docs/src/routes/index.svelte	svelte
+<script>
+  import { Card, Button, H1 } from "attractions";
+  import { BookOpenIcon, GithubIcon } from "svelte-feather-icons";
+  import InfoTiles from "src/containers/home/info-tiles.svelte";
+</script>
+
+<svelte:head>
+  <title>Attractions</title>
+  <meta name="og:title" content="Attractions" />
+</svelte:head>
+
+<main>
+  <Card>
+    <header>
+      <img src="logo-no-bg.svg" alt="Attractions logo" />
+      <H1>Attractions</H1>
+      <a href="./docs/changelog" class="hide-on-tb-more" sapper:prefetch>
+        v{process.latest_version}
+      </a>
+    </header>
+    <p>
+      A <mark>pretty cool</mark> UI kit for
+      <a href="https://svelte.dev">Svelte</a>.
+    </p>
+    <div class="actions">
+      <Button filled href="./docs">
+        <BookOpenIcon size="24" class="mr" />
+        docs
+      </Button>
+      <Button outline class="ml" href="https://github.com/illright/attractions">
+        <GithubIcon size="24" class="mr" />
+        GitHub
+      </Button>
+    </div>
+  </Card>
+  <div class="strip" />
+  <InfoTiles />
+  <footer>
+    <p>
+      made with ❤ by
+      <a href="https://github.com/aabounegm">@aabounegm</a>
+      and
+      <a href="https://github.com/illright">@illright</a>
+    </p>
+    <p>
+      {process.license}
+      licensed &nbsp;•&nbsp;
+      <a href="./docs/changelog" sapper:prefetch>v{process.latest_version}</a>
+    </p>
+  </footer>
+</main>
+
+<style src="../../static/css/routes/index.scss">
+</style>
+

@@ -1,3 +1,0 @@
-{#if true}
-	<span>Component</span>
-{/if}

@@ -1,0 +1,7108 @@
+# rsvelte pack 1
+=== 1666 explorer-v2/src/lib/Header.svelte	svelte	runes	neutral
+<script>
+	import SnsBar from './SnsBar.svelte';
+	import { page } from '$app/stores';
+	import { resolve } from '$app/paths';
+
+	function isActive(pathname, path) {
+		const normalizedPathname = pathname.replace(/\/$/u, '');
+		const normalizedPath = path.replace(/\/$/u, '');
+		return (
+			normalizedPathname === normalizedPath || normalizedPathname === resolve(normalizedPath || '/')
+		);
+	}
+</script>
+
+<header class="header">
+	<span class="title">svelte-eslint-parser</span>
+	<a class="menu" class:active={isActive($page.url.pathname, `/`)} href={resolve('/')}>AST</a>
+	<a
+		class="menu"
+		class:active={isActive($page.url.pathname, `/playground`)}
+		href={resolve('/playground')}>Playgroud</a
+	>
+	<a class="menu" class:active={isActive($page.url.pathname, `/scope`)} href={resolve('/scope')}
+		>Scope</a
+	>
+	<a
+		class="menu"
+		class:active={isActive($page.url.pathname, `/virtual-script-code`)}
+		href={resolve('/virtual-script-code')}>Virtual Script Code</a
+	>
+	<div class="debug">
+		$page.url.pathname: {$page.url.pathname}
+	</div>
+	<SnsBar />
+	<a href="https://github.com/sveltejs/svelte-eslint-parser" class="github-link">View on GitHub</a>
+</header>
+
+<style>
+	.header {
+		height: 32px;
+		display: flex;
+		border-bottom: 1px #ddd solid;
+	}
+	.title {
+		font-size: 120%;
+		display: flex;
+		align-items: center;
+		padding-right: 16px;
+	}
+	.menu {
+		padding: 4px 16px;
+		border-radius: 4px 4px 0 0;
+		border-color: #ddd #ddd transparent #ddd;
+		border-style: solid;
+		border-width: 1px;
+	}
+	.menu.active {
+		margin-bottom: -2px;
+		border-bottom: 2px solid #ff3e00;
+	}
+	.github-link {
+		display: flex;
+		align-items: center;
+	}
+	.debug {
+		display: none;
+	}
+</style>
+
+=== 1270 explorer-v2/src/lib/SnsBar.svelte	svelte	runes	neutral
+<script>
+	import { onMount } from 'svelte';
+
+	let timeoutId = null;
+
+	/**
+	 * setup
+	 */
+	function setup() {
+		if (timeoutId) {
+			clearTimeout(timeoutId);
+		}
+		timeoutId = setTimeout(() => {
+			(function (d, s, id) {
+				const [fjs] = d.getElementsByTagName(s);
+				if (d.getElementById(id)) {
+					return;
+				}
+				const js = d.createElement(s);
+				js.id = id;
+				js.src = 'https://buttons.github.io/buttons.js';
+				fjs.parentNode.insertBefore(js, fjs);
+			})(document, 'script', 'gh-buttons');
+		}, 500);
+	}
+
+	onMount(() => {
+		setup();
+	});
+</script>
+
+<div class="sns-bar" style:margin-left="auto">
+	<div class="sns">
+		<a
+			class="github-button"
+			href="https://github.com/sveltejs/svelte-eslint-parser"
+			data-show-count="true"
+			aria-label="Star sveltejs/svelte-eslint-parser on GitHub">Star</a
+		>
+		<a href="https://www.npmjs.com/package/svelte-eslint-parser">
+			<img src="https://img.shields.io/npm/v/svelte-eslint-parser.svg" alt="npm" />
+		</a>
+	</div>
+</div>
+
+<style>
+	.sns-bar {
+		display: flex;
+		align-items: flex-end;
+		padding-left: 8px;
+		padding-right: 8px;
+	}
+	.sns-bar .sns {
+		display: flex;
+		align-items: flex-start;
+	}
+
+	.sns-bar .sns > * {
+		vertical-align: top !important;
+		margin-left: 4px;
+		height: 23px !important;
+	}
+</style>
+
+=== 379 explorer-v2/src/routes/+layout.svelte	svelte	runes	neutral
+<script>
+	import Header from '$lib/Header.svelte';
+	import '../app.css';
+	if (typeof window !== 'undefined') {
+		window.process = {
+			cwd: () => '/'
+		};
+	}
+</script>
+
+<Header />
+
+<main class="main">
+	<slot />
+</main>
+
+<style>
+	.main {
+		position: relative;
+		height: calc(100vh - 64px);
+	}
+	.main > :global(*) {
+		position: relative;
+		width: 100%;
+		height: 100%;
+	}
+</style>
+
+=== 237 explorer-v2/src/routes/+page.svelte	svelte	runes	neutral
+<script>
+	import AstExplorer from '$lib/AstExplorer.svelte';
+</script>
+
+<svelte:head>
+	<title>svelte-eslint-parser</title>
+	<meta name="description" content="Svelte parser for ESLint" />
+</svelte:head>
+
+<AstExplorer />
+
+<style>
+</style>
+
+=== 183 explorer-v2/src/routes/playground/+page.svelte	svelte	runes	neutral
+<script>
+	import ESLintPlayground from '$lib/ESLintPlayground.svelte';
+</script>
+
+<svelte:head>
+	<title>Playground | svelte-eslint-parser</title>
+</svelte:head>
+
+<ESLintPlayground />
+
+=== 176 explorer-v2/src/routes/scope/+page.svelte	svelte	runes	neutral
+<script>
+	import ScopeExplorer from '$lib/ScopeExplorer.svelte';
+</script>
+
+<svelte:head>
+	<title>ScopeManager | svelte-eslint-parser</title>
+</svelte:head>
+
+<ScopeExplorer />
+
+=== 195 explorer-v2/src/routes/virtual-script-code/+page.svelte	svelte	runes	neutral
+<script>
+	import VirtualScriptCode from '$lib/VirtualScriptCode.svelte';
+</script>
+
+<svelte:head>
+	<title>Virtual Script Code | svelte-eslint-parser</title>
+</svelte:head>
+
+<VirtualScriptCode />
+
+=== 62 tests/fixtures/integrations/prettier-plugin/x-input.svelte	svelte	runes	neutral
+<script>
+  let value = "Hello";
+</script>
+
+<div>{value}</div>
+
+=== 794 tests/fixtures/integrations/snippet-scope/snippet-shadow-scope-input.svelte	svelte	runes	neutral
+<script lang="ts">
+	import Foo from './Foo.svelte';
+</script>
+
+<div>
+	<!-- The snippet is not used. -->
+	{#snippet children()}
+		<th>fruit</th>
+		<th>qty</th>
+		<th>price</th>
+		<th>total</th>
+	{/snippet}
+</div>
+
+<Foo>
+	<!-- The snippet is used and does not add any variables. -->
+	{#snippet children(arg)}
+		<p>{arg}</p>
+	{/snippet}
+	{#snippet c()}
+		<Foo>
+			<!-- The snippet is used and does not add any variables. -->
+			{#snippet children(arg)}
+				<p>{arg}</p>
+			{/snippet}
+		</Foo>
+	{/snippet}
+</Foo>
+
+<!-- The snippet is used and add a variable. -->
+{#snippet bar(arg)}
+	<p>{arg}</p>
+{/snippet}
+<Foo children={bar}>
+	{#snippet c()}
+		<!-- The snippet is used and add a variable. -->
+		{#snippet bar(arg)}
+			<p>{arg}</p>
+		{/snippet}
+		<Foo children={bar}>
+		</Foo>
+	{/snippet}
+</Foo>
+
+=== 114 tests/fixtures/integrations/snippet-scope/ts-snippet-hoist-scope-input.svelte	svelte	runes	neutral
+<script lang="ts">
+	const bar = foo;
+</script>
+
+{#snippet foo()}
+	<p>Hello World!</p>
+{/snippet}
+
+{@render bar()}
+
+=== 343 tests/fixtures/integrations/type-info-tests/$derived-input.svelte	svelte	runes	runes
+<script lang="ts">
+    type Info = { foo: number };
+    let x: Info | null = { foo: 42 };
+    const get = () => "hello";
+
+    x = null;
+    const y = $derived(x);
+    const z = $derived(fn(y.foo));
+    const foo = $derived(get);
+
+    function fn(a: number): number {
+        return a;
+    }
+</script>
+
+<input title={z} bind:value={x}>
+{foo()}
+
+=== 230 tests/fixtures/integrations/type-info-tests/$derived-ts-input.svelte.ts	svelte-module-ts	runes	-
+type Info = { foo: number };
+let x: Info | null = { foo: 42 };
+const get = () => "hello";
+
+x = null;
+const y = $derived(x);
+const z = $derived(fn(y.foo));
+const foo = $derived(get);
+
+function fn(a: number): number {
+  return a;
+}
+
+=== 93 tests/fixtures/integrations/type-info-tests/$derived-within-class-input.svelte.ts	svelte-module-ts	runes	-
+export class Product {
+  x = $state(1)
+  y = $state(2)
+  result = $derived(this.x * this.y)
+}
+=== 308 tests/fixtures/integrations/type-info-tests/$derived2-ts-input.svelte.ts	svelte-module-ts	runes	-
+export type Info = { n: number };
+export function foo() {
+  let a: Info | null = $state(null);
+  a = null; // *
+  const d = $derived(a?.n ? fn(a.n) : null);
+  return {
+    get d() {
+      return d;
+    },
+    set(b: Info | null) {
+      a = b;
+    },
+  };
+
+  function fn(n: number) {
+    return n * 2;
+  }
+}
+
+=== 87 tests/fixtures/integrations/type-info-tests/$props-input.svelte	svelte	runes	runes
+<script lang="ts">
+    const { x }: { x: number} = $props();
+</script>
+
+<div>{x}</div>
+
+=== 130 tests/fixtures/integrations/type-info-tests/await-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    let foo: Promise<()=>void>
+</script>
+
+{#await foo then bar}
+    <button on:click={() => bar()} />
+{/await}
+
+=== 623 tests/fixtures/integrations/type-info-tests/await-with-same-id-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    let a: Promise<{ x: number }>
+    let b: Promise<{ x: number }>
+    let c: Promise<{ x: number }>
+    let d: Promise<number[]>
+    let e: Promise<number[]>
+</script>
+
+{#await a}
+    <div>await</div>
+{:then a}
+    <div>{a.x}</div>
+{/await}
+
+{#await b}
+    <div>await</div>
+{:then { x: b = 42 }}
+    <div>{b.toExponential()}</div>
+{/await}
+
+{#await c}
+    <div>await</div>
+{:then {...c}}
+    <div>{c.x}</div>
+{/await}
+
+{#await d}
+    <div>await</div>
+{:then [d]}
+    <div>{d.toExponential()}</div>
+{/await}
+
+{#await e}
+    <div>await</div>
+{:then [...e]}
+    <div>{e[0].toExponential()}</div>
+{/await}
+
+=== 113 tests/fixtures/integrations/type-info-tests/i18n-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    import { _ } from './svelte-i18n';
+</script>
+
+<main>
+    <input name={$_('test')}>
+</main>
+=== 502 tests/fixtures/integrations/type-info-tests/plugin-issue254-input.svelte	svelte	runes	neutral
+<script lang="ts">
+	let isOpen = false;
+
+	let id: string | undefined = undefined;
+</script>
+
+<h1>Welcome to SvelteKit</h1>
+<p>Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation</p>
+
+<button on:click={() => (isOpen = !isOpen)} />
+
+{#if !isOpen}
+	<div>{id}</div>
+{/if}
+
+{#if !isOpen && id}
+	<div>{id}</div>
+{/if}
+
+{#if !isOpen && !!id}
+	<div>only visible when isOpen and id</div>
+{/if}
+
+{#if !isOpen && id !== undefined}
+	<div>only visible when isopen and id</div>
+{/if}
+
+=== 30 tests/fixtures/parser/ast/$$slots-input.svelte	svelte	runes	neutral
+{#if $$slots.labelText}
+{/if}
+
+=== 59 tests/fixtures/parser/ast/$var-input.svelte	svelte	runes	neutral
+<script>
+  import { a } from "./stores"
+  $a = 42
+</script>
+=== 131 tests/fixtures/parser/ast/at-const01-within-component-input.svelte	svelte	runes	neutral
+<script>
+  import Component from './Component.svelte'
+  const b = 42
+</script>
+<Component>
+  {@const a = b * 2}
+  {a}
+</Component>
+
+=== 41 tests/fixtures/parser/ast/at-html01-input.svelte	svelte	runes	neutral
+{@html `<script>var x = ${50}</script>`}
+
+=== 92 tests/fixtures/parser/ast/attr01-input.svelte	svelte	runes	neutral
+<script>
+const a = 0;
+const b = 0;
+const c = 0;
+</script>
+<div
+  data-text="{a} {b} {c}"
+/>
+
+=== 216 tests/fixtures/parser/ast/await01-input.svelte	svelte	runes	neutral
+<script>
+let expression = new Promise()
+</script>
+
+{#await expression}
+{:then}
+{:catch}
+{/await}
+
+{#await expression}
+{:then}
+{/await}
+
+{#await expression then name}
+{/await}
+
+{#await expression catch name}
+{/await}
+
+=== 304 tests/fixtures/parser/ast/await02-input.svelte	svelte	runes	neutral
+<script>
+let expression = new Promise()
+</script>
+
+{#await expression catch}
+	<p>oh no! Something broke!</p>
+{/await}
+
+{#await expression then}
+	<p>the promise is resolved</p>
+{:catch theError}
+	<p>oh no! {theError.message}</p>
+{/await}
+
+{#await expression then}
+	<p>the promise is resolved</p>
+{/await}
+
+=== 167 tests/fixtures/parser/ast/await03-input.svelte	svelte	runes	neutral
+<script>
+let expression = new Promise()
+</script>
+
+{#await expression}{:then}{:catch}{/await}
+
+{#await expression}{:then}{/await}
+
+{#await expression}{:catch}{/await}
+
+=== 91 tests/fixtures/parser/ast/await04-input.svelte	svelte	runes	neutral
+<script lang="ts">
+  const p = Promise.resolve();
+</script>
+
+{#await p}
+{:then v}
+{/await}
+
+=== 145 tests/fixtures/parser/ast/blog/write-less-code01-input.svelte	svelte	runes	neutral
+<script>
+	let a = 1;
+	let b = 2;
+</script>
+
+<input type="number" bind:value={a}>
+<input type="number" bind:value={b}>
+
+<p>{a} + {b} = {a + b}</p>
+=== 105 tests/fixtures/parser/ast/class-directive01-input.svelte	svelte	runes	neutral
+<script>
+	let foo = false;
+	let bar = false;
+</script>
+<div class:bar={bar}></div>
+<div class:foo></div>
+
+=== 74 tests/fixtures/parser/ast/comments01-input.svelte	svelte	runes	neutral
+<div
+  data-text="{/* comment */ 'comment'} {// comment
+  'comment'} "
+/>
+
+=== 97 tests/fixtures/parser/ast/components01-input.svelte	svelte	runes	neutral
+<script>
+	import MyComponent from './MyComponent.svelte';
+</script>
+
+<MyComponent></MyComponent>
+
+=== 119 tests/fixtures/parser/ast/components02-input.svelte	svelte	runes	neutral
+<script>
+	import MyComponent from './MyComponent.svelte';
+</script>
+
+<MyComponent>
+	contents<div></div>
+</MyComponent>
+
+=== 233 tests/fixtures/parser/ast/components03-input.svelte	svelte	runes	neutral
+<script>
+	import * as MyComponents from './MyComponents';
+</script>
+
+<MyComponents.MyComponent>
+	contents<div></div>
+</MyComponents.MyComponent>
+<OtherComponents.OtherComponent>
+	contents<div></div>
+</OtherComponents.OtherComponent>
+
+=== 83 tests/fixtures/parser/ast/components04-input.svelte	svelte	runes	neutral
+<script>
+	import * as Nested from './Nested.svelte';
+</script>
+
+<Nested.default />
+
+=== 232 tests/fixtures/parser/ast/directive-on-with-expr-like-input.svelte	svelte	runes	neutral
+<script>
+	import Inner from './Inner.svelte'
+	const foo = { bar: () => alert('foo.bar') }
+</script>
+
+<Inner on:foo.bar/> <!-- bubble (not member) -->
+
+<!-- https://svelte.dev/repl/d6f31e9c5b784f8bb6bc3abd2c7153a7?version=3.52.0 -->
+
+=== 201 tests/fixtures/parser/ast/directive-use-with-expr-input.svelte	svelte	runes	neutral
+<script>
+const foo = {
+    bar: (node) => {
+        node.textContent = 'Success'
+    }
+}
+</script>
+<div use:foo.bar />
+
+<!-- https://svelte.dev/repl/c0a1754292044af695fc20ee66166f89?version=3.52.0 -->
+
+=== 127 tests/fixtures/parser/ast/docs/component-format/01-script/01-export-creates-a-component-prop/01-input.svelte	svelte	runes	neutral
+<script>
+	// logic goes here
+</script>
+
+<style>
+	/* styles go here */
+</style>
+
+<!-- markup (zero or more items) goes here -->
+
+=== 138 tests/fixtures/parser/ast/docs/component-format/01-script/01-export-creates-a-component-prop/05-input.svelte	svelte	runes	neutral
+<script>
+	let className;
+
+	// creates a `class` property, even
+	// though it is a reserved word
+	export { className as class };
+</script>
+
+=== 175 tests/fixtures/parser/ast/docs/component-format/01-script/02-assignments-are-reactive/01-input.svelte	svelte	runes	neutral
+<script>
+	let count = 0;
+
+	function handleClick () {
+		// calling this function will trigger an
+		// update if the markup references `count`
+		count = count + 1;
+	}
+</script>
+
+=== 216 tests/fixtures/parser/ast/docs/component-format/01-script/04-prefix-stores-with-$-to-access-their-values/01-input.svelte	svelte	runes	neutral
+<script>
+	import { writable } from 'svelte/store';
+
+	const count = writable(0);
+	console.log($count); // logs 0
+
+	count.set(1);
+	console.log($count); // logs 1
+
+	$count = 2;
+	console.log($count); // logs 2
+</script>
+
+=== 358 tests/fixtures/parser/ast/docs/component-format/02-script-context-module/01-input.svelte	svelte	runes	neutral
+<script context="module">
+	let totalComponents = 0;
+
+	// this allows an importer to do e.g.
+	// `import Example, { alertTotal } from './Example.svelte'`
+	export function alertTotal() {
+		alert(totalComponents);
+	}
+</script>
+
+<script>
+	totalComponents += 1;
+	console.log(`total number of times this component has been created: ${totalComponents}`);
+</script>
+
+=== 106 tests/fixtures/parser/ast/docs/component-format/03-style/01-input.svelte	svelte	runes	neutral
+<style>
+	p {
+		/* this will only affect <p> elements in this component */
+		color: burlywood;
+	}
+</style>
+
+=== 266 tests/fixtures/parser/ast/docs/component-format/03-style/02-input.svelte	svelte	runes	neutral
+<style>
+	:global(body) {
+		/* this will apply to <body> */
+		margin: 0;
+	}
+
+	div :global(strong) {
+		/* this will apply to all <strong> elements, in any
+			 component, that are inside <div> elements belonging
+			 to this component */
+		color: goldenrod;
+	}
+</style>
+
+=== 60 tests/fixtures/parser/ast/docs/component-format/03-style/03-input.svelte	svelte	runes	neutral
+<style>
+	@keyframes -global-my-animation-name {
+	}
+</style>
+
+=== 165 tests/fixtures/parser/ast/docs/component-format/03-style/04-input.svelte	svelte	runes	neutral
+<div>
+	<style>
+		/* this style tag will be inserted as-is */
+		div {
+			/* this will apply to all `<div>` elements in the DOM */
+			color: red;
+		}
+	</style>
+</div>
+
+=== 69 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/01-input.svelte	svelte	runes	neutral
+<div class="foo">
+	<button disabled>can't touch this</button>
+</div>
+
+=== 22 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/02-input.svelte	svelte	runes	neutral
+<input type=checkbox>
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/03-input.svelte	svelte	runes	neutral
+<a href="page/{p}">page {p}</a>
+
+=== 43 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/04-input.svelte	svelte	runes	neutral
+<button disabled={!clickable}>...</button>
+
+=== 128 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/05-input.svelte	svelte	runes	neutral
+<input required={false} placeholder="This input field is not required">
+<div title={null}>This div has no title attribute</div>
+
+=== 48 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/06-input.svelte	svelte	runes	neutral
+<button disabled="{number !== 42}">...</button>
+
+=== 103 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/07-input.svelte	svelte	runes	neutral
+<!-- These are equivalent -->
+<button disabled={disabled}>...</button>
+<button {disabled}>...</button>
+
+=== 45 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/08-input.svelte	svelte	runes	neutral
+<Widget foo={bar} answer={42} text="hello"/>
+
+=== 22 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/09-input.svelte	svelte	runes	neutral
+<Widget {...things}/>
+
+=== 13 tests/fixtures/parser/ast/docs/template-syntax/03-text-expressions/01-input.svelte	svelte	runes	neutral
+{expression}
+
+=== 51 tests/fixtures/parser/ast/docs/template-syntax/03-text-expressions/02-input.svelte	svelte	runes	neutral
+<h1>Hello {name}!</h1>
+<p>{a} + {b} = {a + b}.</p>
+
+=== 49 tests/fixtures/parser/ast/docs/template-syntax/04-comments/01-input.svelte	svelte	runes	neutral
+<!-- this is a comment! -->
+<h1>Hello world</h1>
+
+=== 109 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/01-input.svelte	svelte	runes	neutral
+{#if expression}...{/if}
+{#if expression}...{:else if expression}...{/if}
+{#if expression}...{:else}...{/if}
+
+=== 57 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/02-input.svelte	svelte	runes	neutral
+{#if answer === 42}
+	<p>what was the question?</p>
+{/if}
+
+=== 221 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/01-input.svelte	svelte	runes	neutral
+{#each expression as name}...{/each}
+{#each expression as name, index}...{/each}
+{#each expression as name (key)}...{/each}
+{#each expression as name, index (key)}...{/each}
+{#each expression as name}...{:else}...{/each}
+
+=== 102 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/02-input.svelte	svelte	runes	neutral
+<h1>Shopping list</h1>
+<ul>
+	{#each items as item}
+		<li>{item.name} x {item.qty}</li>
+	{/each}
+</ul>
+
+=== 77 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/03-input.svelte	svelte	runes	neutral
+{#each items as item, i}
+	<li>{i + 1}: {item.name} x {item.qty}</li>
+{/each}
+
+=== 203 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/04-input.svelte	svelte	runes	neutral
+{#each items as item (item.id)}
+	<li>{item.name} x {item.qty}</li>
+{/each}
+
+<!-- or with additional index value -->
+{#each items as item, i (item.id)}
+	<li>{i + 1}: {item.name} x {item.qty}</li>
+{/each}
+
+=== 277 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/05-input.svelte	svelte	runes	neutral
+{#each items as { id, name, qty }, i (id)}
+	<li>{i + 1}: {name} x {qty}</li>
+{/each}
+
+{#each objects as { id, ...rest }}
+	<li><span>{id}</span><MyComponent {...rest}/></li>
+{/each}
+
+{#each items as [id, ...rest]}
+	<li><span>{id}</span><MyComponent values={rest}/></li>
+{/each}
+
+=== 82 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/06-input.svelte	svelte	runes	neutral
+{#each todos as todo}
+	<p>{todo.text}</p>
+{:else}
+	<p>No tasks today!</p>
+{/each}
+
+=== 191 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/01-input.svelte	svelte	runes	neutral
+{#await expression}...{:then name}...{:catch name}...{/await}
+{#await expression}...{:then name}...{/await}
+{#await expression then name}...{/await}
+{#await expression catch name}...{/await}
+
+=== 268 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/02-input.svelte	svelte	runes	neutral
+{#await promise}
+	<!-- promise is pending -->
+	<p>waiting for the promise to resolve...</p>
+{:then value}
+	<!-- promise was fulfilled -->
+	<p>The value is {value}</p>
+{:catch error}
+	<!-- promise was rejected -->
+	<p>Something went wrong: {error.message}</p>
+{/await}
+
+=== 172 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/03-input.svelte	svelte	runes	neutral
+{#await promise}
+<!-- promise is pending -->
+<p>waiting for the promise to resolve...</p>
+{:then value}
+<!-- promise was fulfilled -->
+<p>The value is {value}</p>
+{/await}
+
+=== 66 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/04-input.svelte	svelte	runes	neutral
+{#await promise then value}
+	<p>The value is {value}</p>
+{/await}
+
+=== 67 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/05-input.svelte	svelte	runes	neutral
+{#await promise catch error}
+	<p>The error is {error}</p>
+{/await}
+
+=== 27 tests/fixtures/parser/ast/docs/template-syntax/08-hash-key/01-input.svelte	svelte	runes	neutral
+{#key expression}...{/key}
+
+=== 56 tests/fixtures/parser/ast/docs/template-syntax/08-hash-key/02-input.svelte	svelte	runes	neutral
+{#key value}
+	<div transition:fade>{value}</div>
+{/key}
+
+=== 19 tests/fixtures/parser/ast/docs/template-syntax/09-at-html/01-input.svelte	svelte	runes	neutral
+{@html expression}
+
+=== 76 tests/fixtures/parser/ast/docs/template-syntax/09-at-html/02-input.svelte	svelte	runes	neutral
+<div class="blog-post">
+	<h1>{post.title}</h1>
+	{@html post.content}
+</div>
+
+=== 39 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/01-input.svelte	svelte	runes	neutral
+{@debug}
+{@debug var1, var2, v3, varN}
+
+=== 129 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/02-input.svelte	svelte	runes	neutral
+<script>
+	let user = {
+		firstname: 'Ada',
+		lastname: 'Lovelace'
+	};
+</script>
+
+{@debug user}
+
+<h1>Hello {user.firstname}!</h1>
+
+=== 61 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/03-input.svelte	svelte	runes	neutral
+<!-- Compiles -->
+{@debug user}
+{@debug user1, user2, user3}
+
+=== 143 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/02-input.svelte	svelte	runes	neutral
+<script>
+	let count = 0;
+
+	function handleClick(event) {
+		count += 1;
+	}
+</script>
+
+<button on:click={handleClick}>
+	count: {count}
+</button>
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/03-input.svelte	svelte	runes	neutral
+<button on:click="{() => count += 1}">
+	count: {count}
+</button>
+
+=== 136 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/04-input.svelte	svelte	runes	neutral
+<form on:submit|preventDefault={handleSubmit}>
+	<!-- the `submit` event's default is prevented,
+		 so the page won't reload -->
+</form>
+
+=== 76 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/05-input.svelte	svelte	runes	neutral
+<button on:click>
+	The component itself will emit the click event
+</button>
+
+=== 204 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/06-input.svelte	svelte	runes	neutral
+<script>
+	let counter = 0;
+	function increment() {
+		counter = counter + 1;
+	}
+
+	function track(event) {
+		trackEvent(event)
+	}
+</script>
+
+<button on:click={increment} on:click={track}>Click me!</button>
+
+=== 596 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/02-input.svelte	svelte	runes	neutral
+<script>
+	let tortilla = 'Plain';
+	let fillings = [];
+</script>
+
+<!-- grouped radio inputs are mutually exclusive -->
+<input type="radio" bind:group={tortilla} value="Plain">
+<input type="radio" bind:group={tortilla} value="Whole wheat">
+<input type="radio" bind:group={tortilla} value="Spinach">
+
+<!-- grouped checkbox inputs populate an array -->
+<input type="checkbox" bind:group={fillings} value="Rice">
+<input type="checkbox" bind:group={fillings} value="Beans">
+<input type="checkbox" bind:group={fillings} value="Cheese">
+<input type="checkbox" bind:group={fillings} value="Guac (extra)">
+
+=== 27 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/04-bind-this/01-input.svelte	svelte	runes	neutral
+<foo bind:this={dom_node}/>
+=== 207 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/04-bind-this/02-input.svelte	svelte	runes	neutral
+<script>
+	import { onMount } from 'svelte';
+
+	let canvasElement;
+
+	onMount(() => {
+		const ctx = canvasElement.getContext('2d');
+		drawStuff(ctx);
+	});
+</script>
+
+<canvas bind:this={canvasElement}></canvas>
+
+=== 43 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05-class-name/01-input.svelte	svelte	runes	neutral
+<dov class:name={value}/>
+<dov class:name/>
+=== 310 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05-class-name/02-input.svelte	svelte	runes	neutral
+<!-- These are equivalent -->
+<div class="{active ? 'active' : ''}">...</div>
+<div class:active={active}>...</div>
+
+<!-- Shorthand, for when name and value match -->
+<div class:active>...</div>
+
+<!-- Multiple class toggles can be included -->
+<div class:active class:inactive={!active} class:isAdmin>...</div>
+
+=== 85 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/01-input.svelte	svelte	runes	neutral
+<dov style:property={value} />
+<dov style:property="value" />
+<dov style:property />
+
+=== 400 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/02-input.svelte	svelte	runes	neutral
+<!-- These are equivalent -->
+<div style:color="red">...</div>
+<div style="color: red;">...</div>
+
+<!-- Variables can be used -->
+<div style:color={myColor}>...</div>
+
+<!-- Shorthand, for when property and variable name match -->
+<div style:color>...</div>
+
+<!-- Multiple styles can be included -->
+<div style:color style:width="12rem" style:background-color={darkMode ? "black" : "white"}>...</div>
+
+=== 86 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/02.1-input.svelte	svelte	runes	neutral
+<!-- Styles can be marked as important -->
+<div style:color|important="red">...</div>
+
+=== 67 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/03-input.svelte	svelte	runes	neutral
+<div style="color: blue;" style:color="red">This will be red</div>
+
+=== 179 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/06-use-action/01-input.svelte	svelte	runes	neutral
+<script>
+	const action = (node, parameters) => ({
+        update: (parameters) => {},
+        destroy: () => {}
+    })
+</script>
+
+<div use:action/>
+<div use:action={parameters}/>
+
+=== 190 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/06-use-action/02-input.svelte	svelte	runes	neutral
+<script>
+	function foo(node) {
+		// the node has been mounted in the DOM
+
+		return {
+			destroy() {
+				// the node has been removed from the DOM
+			}
+		};
+	}
+</script>
+
+<div use:foo></div>
+
+=== 263 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/01-input.svelte	svelte	runes	neutral
+<script>
+const transition = (node, params) => ({
+	delay: 42,
+	duration: 42,
+	easing: (t) => 42,
+	css: (t, u) => 42,
+	tick: (t, u) => {}
+})
+</script>
+<div transition:fn/>
+<div transition:fn={params}/>
+<div transition:fn|local/>
+<div transition:fn|local={params}/>
+
+=== 70 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/02-input.svelte	svelte	runes	neutral
+{#if visible}
+	<div transition:fade>
+		fades in and out
+	</div>
+{/if}
+
+=== 113 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/03-input.svelte	svelte	runes	neutral
+{#if visible}
+	<div transition:fade="{{ duration: 2000 }}">
+		flies in, fades out over two seconds
+	</div>
+{/if}
+
+=== 296 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/06-input.svelte	svelte	runes	neutral
+{#if visible}
+	<p
+		transition:fly="{{ y: 200, duration: 2000 }}"
+		on:introstart="{() => status = 'intro started'}"
+		on:outrostart="{() => status = 'outro started'}"
+		on:introend="{() => status = 'intro ended'}"
+		on:outroend="{() => status = 'outro ended'}"
+	>
+		Flies in and out
+	</p>
+{/if}
+
+=== 174 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/07-input.svelte	svelte	runes	neutral
+{#if x}
+	{#if y}
+		<p transition:fade>
+			fades in and out when x or y change
+		</p>
+
+		<p transition:fade|local>
+			fades in and out only when y changes
+		</p>
+	{/if}
+{/if}
+
+=== 167 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/08-in-fn-out-fn/01-input.svelte	svelte	runes	neutral
+<div in:fn/>
+<div in:fn={params}/>
+<div in:fn|local/>
+<div in:fn|local={params}/>
+<div out:fn/>
+<div out:fn={params}/>
+<div out:fn|local/>
+<div out:fn|local={params}/>
+=== 73 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/08-in-fn-out-fn/02-input.svelte	svelte	runes	neutral
+{#if visible}
+	<div in:fly out:fade>
+		flies in, fades out
+	</div>
+{/if}
+
+=== 129 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/02-input.svelte	svelte	runes	neutral
+<!-- When `list` is reordered the animation will run-->
+{#each list as item, index (item)}
+	<li animate:flip>{item}</li>
+{/each}
+
+=== 92 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/03-input.svelte	svelte	runes	neutral
+{#each list as item, index (item)}
+	<li animate:flip="{{ delay: 500 }}">{item}</li>
+{/each}
+
+=== 475 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/04-input.svelte	svelte	runes	neutral
+<script>
+	import { cubicOut } from 'svelte/easing';
+
+	function whizz(node, { from, to }, params) {
+
+		const dx = from.left - to.left;
+		const dy = from.top - to.top;
+
+		const d = Math.sqrt(dx * dx + dy * dy);
+
+		return {
+			delay: 0,
+			duration: Math.sqrt(d) * 120,
+			easing: cubicOut,
+			css: (t, u) =>
+				`transform: translate(${u * dx}px, ${u * dy}px) rotate(${t*360}deg);`
+		};
+	}
+</script>
+
+{#each list as item, index (item)}
+	<div animate:whizz>{item}</div>
+{/each}
+
+=== 471 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/05-input.svelte	svelte	runes	neutral
+<script>
+	import { cubicOut } from 'svelte/easing';
+
+	function whizz(node, { from, to }, params) {
+
+		const dx = from.left - to.left;
+		const dy = from.top - to.top;
+
+		const d = Math.sqrt(dx * dx + dy * dy);
+
+		return {
+		delay: 0,
+		duration: Math.sqrt(d) * 120,
+		easing: cubicOut,
+		tick: (t, u) =>
+			Object.assign(node.style, {
+				color: t > 0.5 ? 'Pink' : 'Blue'
+			})
+	};
+	}
+</script>
+
+{#each list as item, index (item)}
+	<div animate:whizz>{item}</div>
+{/each}
+
+=== 33 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/01-input.svelte	svelte	runes	neutral
+<MyComp on:eventname={handler}/>
+
+=== 39 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/02-input.svelte	svelte	runes	neutral
+<SomeComponent on:whatever={handler}/>
+
+=== 29 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/03-input.svelte	svelte	runes	neutral
+<SomeComponent on:whatever/>
+
+=== 171 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/03-input.svelte	svelte	runes	neutral
+<!-- Slider.svelte -->
+<style>
+	.potato-slider-rail {
+	  background-color: var(--rail-color, var(--theme-color, 'purple'));
+	}
+</style>
+<Slider --rail-color="goldenrod"/>
+
+=== 41 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/01-input.svelte	svelte	runes	neutral
+<MyComp bind:this={component_instance}/>
+
+=== 104 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/02-input.svelte	svelte	runes	neutral
+<ShoppingCart bind:this={cart}/>
+
+<button on:click={() => cart.empty()}>
+	Empty shopping cart
+</button>
+
+=== 116 tests/fixtures/parser/ast/docs/template-syntax/13-slot/00/01-input.svelte	svelte	runes	neutral
+<slot><!-- optional fallback --></slot>
+<slot name="x"><!-- optional fallback --></slot>
+<slot prop={value}></slot>
+
+=== 344 tests/fixtures/parser/ast/docs/template-syntax/13-slot/00/02-input.svelte	svelte	runes	neutral
+<!-- Widget.svelte -->
+<div>
+	<slot>
+		this fallback content will be rendered when no content is provided, like in the first example
+	</slot>
+</div>
+
+<!-- App.svelte -->
+<Widget></Widget> <!-- this component will render the default content -->
+
+<Widget>
+	<p>this is some child content that will overwrite the default slot content</p>
+</Widget>
+
+=== 292 tests/fixtures/parser/ast/docs/template-syntax/13-slot/01-slot-name-name/01-input.svelte	svelte	runes	neutral
+<!-- Widget.svelte -->
+<div>
+	<slot name="header">No header was provided</slot>
+	<p>Some content between header and footer</p>
+	<slot name="footer"></slot>
+</div>
+
+<!-- App.svelte -->
+<Widget>
+	<h1 slot="header">Hello</h1>
+	<p slot="footer">Copyright (c) 2019 Svelte Industries</p>
+</Widget>
+
+=== 367 tests/fixtures/parser/ast/docs/template-syntax/13-slot/01-slot-name-name/02-input.svelte	svelte	runes	neutral
+<!-- Widget.svelte -->
+<div>
+	<slot name="header">No header was provided</slot>
+	<p>Some content between header and footer</p>
+	<slot name="footer"></slot>
+</div>
+
+<!-- App.svelte -->
+<Widget>
+	<HeaderComponent slot="header" />
+	<svelte:fragment slot="footer">
+		<p>All rights reserved.</p>
+		<p>Copyright (c) 2019 Svelte Industries</p>
+	</svelte:fragment>
+</Widget>
+
+=== 397 tests/fixtures/parser/ast/docs/template-syntax/13-slot/02-$$slots/01-input.svelte	svelte	runes	neutral
+<!-- Card.svelte -->
+<div>
+	<slot name="title"></slot>
+	{#if $$slots.description}
+		<!-- This <hr> and slot will render only if a slot named "description" is provided. -->
+		<hr>
+		<slot name="description"></slot>
+	{/if}
+</div>
+
+<!-- App.svelte -->
+<Card>
+	<h1 slot="title">Blog Post Title</h1>
+	<!-- No slot named "description" was provided so the optional slot will not be rendered. -->
+</Card>
+
+=== 223 tests/fixtures/parser/ast/docs/template-syntax/13-slot/03-slot-let-name-value/01-input.svelte	svelte	runes	neutral
+<!-- FancyList.svelte -->
+<ul>
+	{#each items as item}
+		<li class="fancy">
+			<slot prop={item}></slot>
+		</li>
+	{/each}
+</ul>
+
+<!-- App.svelte -->
+<FancyList {items} let:prop={thing}>
+	<div>{thing.text}</div>
+</FancyList>
+
+=== 321 tests/fixtures/parser/ast/docs/template-syntax/13-slot/03-slot-let-name-value/02-input.svelte	svelte	runes	neutral
+<!-- FancyList.svelte -->
+<ul>
+	{#each items as item}
+		<li class="fancy">
+			<slot name="item" {item}></slot>
+		</li>
+	{/each}
+</ul>
+
+<slot name="footer"></slot>
+
+<!-- App.svelte -->
+<FancyList {items}>
+	<div slot="item" let:item>{item.text}</div>
+	<p slot="footer">Copyright (c) 2019 Svelte Industries</p>
+</FancyList>
+
+=== 38 tests/fixtures/parser/ast/docs/template-syntax/15_1-svelte-component/01-input.svelte	svelte	runes	neutral
+<svelte:component this={expression}/>
+
+=== 64 tests/fixtures/parser/ast/docs/template-syntax/15_1-svelte-component/02-input.svelte	svelte	runes	neutral
+<svelte:component this={currentSelection.component} foo={bar}/>
+
+=== 35 tests/fixtures/parser/ast/docs/template-syntax/15_2-svelte-element/01-input.svelte	svelte	runes	neutral
+<svelte:element this={expression}/>
+=== 36 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/01-input.svelte	svelte	runes	neutral
+<svelte:window on:event={handler}/>
+
+=== 141 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/03-input.svelte	svelte	runes	neutral
+<script>
+	function handleKeydown(event) {
+		alert(`pressed the ${event.key} key`);
+	}
+</script>
+
+<svelte:window on:keydown={handleKeydown}/>
+
+=== 38 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/01-input.svelte	svelte	runes	neutral
+<svelte:document on:event={handler}/>
+
+=== 82 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/02-input.svelte	svelte	runes	neutral
+<svelte:document
+	on:visibilitychange={handleVisibilityChange}
+	use:someAction
+/>
+
+=== 34 tests/fixtures/parser/ast/docs/template-syntax/17-svelte-body/01-input.svelte	svelte	runes	neutral
+<svelte:body on:event={handler}/>
+
+=== 84 tests/fixtures/parser/ast/docs/template-syntax/17-svelte-body/02-input.svelte	svelte	runes	neutral
+<svelte:body
+	on:mouseenter={handleMouseenter}
+	on:mouseleave={handleMouseleave}
+/>
+
+=== 31 tests/fixtures/parser/ast/docs/template-syntax/18-svelte-head/01-input.svelte	svelte	runes	neutral
+<svelte:head>...</svelte:head>
+
+=== 85 tests/fixtures/parser/ast/docs/template-syntax/18-svelte-head/02-input.svelte	svelte	runes	neutral
+<svelte:head>
+	<link rel="stylesheet" href="tutorial/dark-theme.css">
+</svelte:head>
+
+=== 52 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-input.svelte	svelte	runes	neutral
+<svelte:options customElement="my-custom-element"/>
+
+=== 362 tests/fixtures/parser/ast/docs/template-syntax/20-svelte-fragment/01-input.svelte	svelte	runes	neutral
+<!-- Widget.svelte -->
+<div>
+	<slot name="header">No header was provided</slot>
+	<p>Some content between header and footer</p>
+	<slot name="footer"></slot>
+</div>
+
+<!-- App.svelte -->
+<Widget>
+	<h1 slot="header">Hello</h1>
+	<svelte:fragment slot="footer">
+		<p>All rights reserved.</p>
+		<p>Copyright (c) 2019 Svelte Industries</p>
+	</svelte:fragment>
+</Widget>
+
+=== 103 tests/fixtures/parser/ast/each-with-comment-input.svelte	svelte	runes	neutral
+<script>
+import Foo from './foo.svelte'
+</script>
+{#each Array(
+//comment
+) as i}<Foo>{i}</Foo>{/each}
+
+=== 65 tests/fixtures/parser/ast/empty-elements01-input.svelte	svelte	runes	neutral
+<style src="./style.scss"></style>
+<div></div>
+<script></script>
+
+=== 64 tests/fixtures/parser/ast/hello/hello-world01-input.svelte	svelte	runes	neutral
+<script>
+	let name = 'world';
+</script>
+
+<h1>Hello {name}!</h1>
+
+=== 194 tests/fixtures/parser/ast/hello/hello-world02-input.svelte	svelte	runes	neutral
+<script>
+	import Nested from './Nested.svelte';
+</script>
+
+<style>
+	p {
+		color: purple;
+		font-family: 'Comic Sans MS', cursive;
+		font-size: 2em;
+	}
+</style>
+
+<p>These styles...</p>
+<Nested/>
+
+=== 36 tests/fixtures/parser/ast/hello/hello-world03-input.svelte	svelte	runes	neutral
+<p>...don't affect this element</p>
+
+=== 172 tests/fixtures/parser/ast/hello/hello-world04-input.svelte	svelte	runes	neutral
+<script>
+	let count = 0;
+
+	function handleClick() {
+		count += 1;
+	}
+</script>
+
+<button on:click={handleClick}>
+	Clicked {count} {count === 1 ? 'time' : 'times'}
+</button>
+
+=== 1415 tests/fixtures/parser/ast/hello/hello-world05-input.svelte	svelte	runes	neutral
+<script>
+	import { quintOut } from 'svelte/easing';
+	import { fade, draw, fly } from 'svelte/transition';
+	import { expand } from './custom-transitions.js';
+	import { inner, outer } from './shape.js';
+
+	let visible = true;
+</script>
+
+<style>
+	svg {
+		width: 100%;
+		height: 100%;
+	}
+
+	path {
+		fill: white;
+		opacity: 1;
+	}
+
+	label {
+		position: absolute;
+		top: 1em;
+		left: 1em;
+	}
+
+	.centered {
+		font-size: 20vw;
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%,-50%);
+		font-family: 'Overpass';
+		letter-spacing: 0.12em;
+		color: #676778;
+		font-weight: 400;
+	}
+
+	.centered span {
+		will-change: filter;
+	}
+</style>
+
+{#if visible}
+	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 103 124">
+		<g out:fade="{{duration: 200}}" opacity=0.2>
+			<path
+				in:expand="{{duration: 400, delay: 1000, easing: quintOut}}"
+				style="stroke: #ff3e00; fill: #ff3e00; stroke-width: 50;"
+				d={outer}
+			/>
+			<path
+				in:draw="{{duration: 1000}}"
+				style="stroke:#ff3e00; stroke-width: 1.5"
+				d={inner}
+			/>
+		</g>
+	</svg>
+
+	<div class="centered" out:fly="{{y: -20, duration: 800}}">
+		{#each 'SVELTE' as char, i}
+			<span
+				in:fade="{{delay: 1000 + i * 150, duration: 800}}"
+			>{char}</span>
+		{/each}
+	</div>
+{/if}
+
+<label>
+	<input type="checkbox" bind:checked={visible}>
+	toggle me
+</label>
+
+<link href="https://fonts.googleapis.com/css?family=Overpass:100,400" rel="stylesheet">
+
+=== 90 tests/fixtures/parser/ast/html-comments01-input.svelte	svelte	runes	neutral
+<!-- <script> -->
+<script>
+    let a = '';
+</script>
+<input type="number" bind:value={a}>
+
+=== 123 tests/fixtures/parser/ast/i18n-test-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    import { _ } from './i18n-test-svelte-i18n';
+</script>
+
+<main>
+    <input name={$_('test')}>
+</main>
+=== 215 tests/fixtures/parser/ast/i18n-test-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+    import { _ } from './i18n-test-svelte-i18n'; // _: Readable<MessageFormatter>, _: Readable<MessageFormatter>
+</script>
+
+<main>
+    <input name={$_('test')}> <!-- $_('test'): string -->
+</main>
+=== 50 tests/fixtures/parser/ast/if-block01-input.svelte	svelte	runes	neutral
+{#if expression}{:else if expression}{:else}{/if}
+
+=== 46 tests/fixtures/parser/ast/issue327-eslint-plugin-svelte-input.svelte	svelte	runes	neutral
+{#each f(
+//asdf
+d) as k}<Csdf></Csdf>{/each}
+
+=== 884 tests/fixtures/parser/ast/kit-demo-home-input.svelte	svelte	runes	neutral
+<script context="module">
+	export const prerender = true;
+</script>
+
+<script>
+	import Counter from '$lib/Counter/index.svelte';
+</script>
+
+<svelte:head>
+	<title>Home</title>
+</svelte:head>
+
+<section>
+	<h1>
+		<div class="welcome">
+			<picture>
+				<source srcset="svelte-welcome.webp" type="image/webp" />
+				<img src="svelte-welcome.png" alt="Welcome" />
+			</picture>
+		</div>
+
+		to your new<br />SvelteKit app
+	</h1>
+
+	<h2>
+		try editing <strong>src/routes/index.svelte</strong>
+	</h2>
+
+	<Counter />
+</section>
+
+<style>
+	section {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		flex: 1;
+	}
+
+	h1 {
+		width: 100%;
+	}
+
+	.welcome {
+		position: relative;
+		width: 100%;
+		height: 0;
+		padding: 0 0 calc(100% * 495 / 2048) 0;
+	}
+
+	.welcome img {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		top: 0;
+		display: block;
+	}
+</style>
+
+=== 201 tests/fixtures/parser/ast/let-directive01-input.svelte	svelte	runes	neutral
+<script>
+	import FancyList from 'mod'
+</script>
+<FancyList let:foo={data}>
+	{data}
+	<div slot="item" let:item let:item2 let:item3={bar}>
+		{item.text}
+	</div>
+	{item} no-def
+</FancyList>
+{data} no-def
+
+=== 142 tests/fixtures/parser/ast/let-directive02-input.svelte	svelte	runes	neutral
+<script>
+	import Hoverable from './Hoverable.svelte';
+</script>
+
+<Hoverable let:hovering={ {foo:active} }>
+	<div class:active />
+</Hoverable>
+
+=== 176 tests/fixtures/parser/ast/let-directive03-input.svelte	svelte	runes	neutral
+<script>
+	import FancyList from 'mod'
+</script>
+<FancyList let:foo={data}>
+	{data}
+	<div slot="item" let:item let:item2 class={item2.class}>
+		{item.text}
+	</div>
+</FancyList>
+
+=== 12 tests/fixtures/parser/ast/mustache-with-comment-input.svelte	svelte	runes	neutral
+{foo(/**/)}
+
+=== 43 tests/fixtures/parser/ast/nesting-script-tag01-input.svelte	svelte	runes	neutral
+<div>
+	<script>
+		let a;
+	</script>
+</div>
+
+=== 93 tests/fixtures/parser/ast/postcss-input.svelte	svelte	runes	neutral
+<style lang="postcss">
+  body {
+    colour: white;
+    background-colour: grey;
+  }
+</style>
+
+=== 49 tests/fixtures/parser/ast/props03-input.svelte	svelte	runes	neutral
+<script>
+	let prop
+	export {prop as x}
+</script>
+
+=== 44 tests/fixtures/parser/ast/props04-input.svelte	svelte	runes	neutral
+<script>
+	let prop
+	export {prop}
+</script>
+
+=== 81 tests/fixtures/parser/ast/pug/each/self-closing-template-input.svelte	svelte	runes	neutral
+<template src="./fixtures/template.pug" />
+<script>
+console.log('foo')
+</script>
+
+=== 57 tests/fixtures/parser/ast/script-in-style-input.svelte	svelte	runes	neutral
+<style>
+a {
+    content: '<script> </script>';
+}
+</style>
+=== 174 tests/fixtures/parser/ast/script-tag-input.svelte	svelte	runes	neutral
+<head>
+    <script type="text/javascript" id="" src="/some-script.js"></script>
+    <link href="/style.css" rel="stylesheet">
+    <script>console.log('foo')</script>
+</head>
+
+=== 190 tests/fixtures/parser/ast/store-bindings-input.svelte	svelte	runes	neutral
+<script>
+	import { name, greeting } from './stores.js';
+</script>
+
+<h1>{$greeting}</h1>
+<input bind:value={$name}>
+
+<button on:click="{() => $name += '!'}">
+	Add exclamation mark!
+</button>
+
+=== 139 tests/fixtures/parser/ast/style-directive01-input.svelte	svelte	runes	neutral
+<div style:property="value" />
+<div style:property='value' />
+<div style:property=value />
+<div style:color="&#x72;&#x65;&#x64;">...</div>
+
+=== 166 tests/fixtures/parser/ast/style-directive02-input.svelte	svelte	runes	neutral
+<div style:color="red{variable}"></div>
+<div style:color='red{variable}'></div>
+<div style:color=red{variable}></div>
+<div style:color={`template${literal}`}></div> 
+
+=== 78 tests/fixtures/parser/ast/style-directive03-input.svelte	svelte	runes	neutral
+<script>
+    const color = 'red'
+</script>
+<div style:color|important ></div>
+
+=== 124 tests/fixtures/parser/ast/style-global01-input.svelte	svelte	runes	neutral
+<div />
+<!-- https://github.com/sveltejs/svelte-preprocess#global-style -->
+<style global>
+div {
+    color: red;
+}
+</style>
+
+=== 170 tests/fixtures/parser/ast/style-global02-input.svelte	svelte	runes	neutral
+<div ><div /></div>
+<!-- https://github.com/sveltejs/svelte-preprocess#global-style -->
+<style lang="scss" global>
+div {
+    & div {
+        color: red;
+    }
+}
+</style>
+
+=== 47 tests/fixtures/parser/ast/style01-input.svelte	svelte	runes	neutral
+<style>
+div {
+  color: red;
+}
+</style>
+<div />
+
+=== 135 tests/fixtures/parser/ast/svelte5/$bindable-used-input.svelte	svelte	runes	runes
+<script>
+	let { b = $bindable() } = $props();
+
+	function handler() {
+		b++;
+	}
+</script>
+
+<button onclick={handler}>Click Me!</button>
+
+=== 110 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-runes-input.svelte	svelte	runes	runes
+<script>
+	// It should not be recognized as a store.
+	const props = $props();
+</script>
+
+<span>{props}</span>
+
+=== 106 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-without-runes-input.svelte	svelte	runes	runes
+<script>
+	// It should be recognized as a store.
+	const props = $props();
+</script>
+
+<span>{props}</span>
+
+=== 62 tests/fixtures/parser/ast/svelte5/$props-without-runes01-input.svelte	svelte	runes	runes
+<script>
+	const { p } = $props();
+</script>
+
+<span>{p}</span>
+
+=== 159 tests/fixtures/parser/ast/svelte5/async/boundaries-input.svelte	svelte	runes	neutral
+<script>
+	import MyApp from './MyApp.svelte';
+</script>
+
+<svelte:boundary>
+	<MyApp />
+
+	{#snippet pending()}
+		<p>loading...</p>
+	{/snippet}
+</svelte:boundary>
+=== 273 tests/fixtures/parser/ast/svelte5/attach-ts-01-input.svelte	svelte	runes	neutral
+<script lang="ts">
+	import type { Attachment } from 'svelte/attachments';
+
+
+	const myAttachment: Attachment = (element) => {
+		console.log(element.nodeName); // 'DIV'
+
+		return () => {
+			console.log('cleaning up');
+		};
+	};
+</script>
+
+<div {@attach myAttachment}>...</div>
+=== 394 tests/fixtures/parser/ast/svelte5/attach-ts-02-input.svelte	svelte	runes	runes
+<script lang="ts">
+	import tippy from 'tippy.js';
+	import type { Attachment } from 'svelte/attachments';
+
+	let content = $state('Hello!');
+
+	function tooltip(content: string): Attachment {
+		return (element) => {
+			const tooltip = tippy(element, { content });
+			return tooltip.destroy;
+		};
+	}
+</script>
+
+<input bind:value={content} />
+
+<button {@attach tooltip(content)}>
+	Hover me
+</button>
+=== 394 tests/fixtures/parser/ast/svelte5/attach-ts-03-input.svelte	svelte	runes	runes
+<script lang="ts">
+	import { paint } from './gradient.js';
+</script>
+
+<canvas
+	width={32}
+	height={32}
+	{@attach (canvas) => {
+		const context = canvas.getContext('2d');
+
+		$effect(() => {
+			let frame = requestAnimationFrame(function loop(t) {
+				frame = requestAnimationFrame(loop);
+				paint(context, t);
+			});
+
+			return () => {
+				cancelAnimationFrame(frame);
+			};
+		});
+	}}
+></canvas>
+=== 246 tests/fixtures/parser/ast/svelte5/attach01-input.svelte	svelte	runes	neutral
+<script>
+	/** @type {import('svelte/attachments').Attachment} */
+	function myAttachment(element) {
+		console.log(element.nodeName); // 'DIV'
+
+		return () => {
+			console.log('cleaning up');
+		};
+	}
+</script>
+
+<div {@attach myAttachment}>...</div>
+=== 402 tests/fixtures/parser/ast/svelte5/attach02-input.svelte	svelte	runes	runes
+<script>
+	import tippy from 'tippy.js';
+
+	let content = $state('Hello!');
+
+	/**
+	 * @param {string} content
+	 * @returns {import('svelte/attachments').Attachment}
+	 */
+	function tooltip(content) {
+		return (element) => {
+			const tooltip = tippy(element, { content });
+			return tooltip.destroy;
+		};
+	}
+</script>
+
+<input bind:value={content} />
+
+<button {@attach tooltip(content)}>
+	Hover me
+</button>
+=== 384 tests/fixtures/parser/ast/svelte5/attach03-input.svelte	svelte	runes	runes
+<script>
+	import { paint } from './gradient.js';
+</script>
+
+<canvas
+	width={32}
+	height={32}
+	{@attach (canvas) => {
+		const context = canvas.getContext('2d');
+
+		$effect(() => {
+			let frame = requestAnimationFrame(function loop(t) {
+				frame = requestAnimationFrame(loop);
+				paint(context, t);
+			});
+
+			return () => {
+				cancelAnimationFrame(frame);
+			};
+		});
+	}}
+></canvas>
+=== 441 tests/fixtures/parser/ast/svelte5/attach04-input.svelte	svelte	runes	runes
+<script>
+	import tippy from 'tippy.js';
+	import Button from './Button.svelte';
+
+	let content = $state('Hello!');
+
+	/**
+	 * @param {string} content
+	 * @returns {import('svelte/attachments').Attachment}
+	 */
+	function tooltip(content) {
+		return (element) => {
+			const tooltip = tippy(element, { content });
+			return tooltip.destroy;
+		};
+	}
+</script>
+
+<input bind:value={content} />
+
+<Button {@attach tooltip(content)}>
+	Hover me
+</Button>
+=== 433 tests/fixtures/parser/ast/svelte5/attach04-ts-input.svelte	svelte	runes	runes
+<script lang="ts">
+	import tippy from 'tippy.js';
+	import Button from './Button.svelte';
+	import type { Attachment } from 'svelte/attachments';
+
+	let content = $state('Hello!');
+
+	function tooltip(content: string): Attachment {
+		return (element) => {
+			const tooltip = tippy(element, { content });
+			return tooltip.destroy;
+		};
+	}
+</script>
+
+<input bind:value={content} />
+
+<Button {@attach tooltip(content)}>
+	Hover me
+</Button>
+=== 112 tests/fixtures/parser/ast/svelte5/comments-in-tags01-input.svelte	svelte	runes	neutral
+<button
+  // when the user clicks the button, the thing should happen
+  onclick={doTheThing}
+>click me</button>
+
+=== 314 tests/fixtures/parser/ast/svelte5/declaration-tag-input.svelte	svelte	runes	neutral
+<script>
+  const boxes = [
+    { width: 10, height: 20 },
+    { width: 5, height: 5 },
+  ];
+  function format(value) {
+    return `${value} square pixels`;
+  }
+</script>
+{#each boxes as box}
+  {const area = box.width * box.height}
+  {let label = `${area} square pixels`}
+
+  <p>{format(area)} ({label})</p>
+{/each}
+
+=== 490 tests/fixtures/parser/ast/svelte5/docs/fine-grained-reactivity/example01-input.svelte	svelte	runes	runes
+<script>
+	let todos = $state([]);
+
+	function remaining(todos) {
+		console.log('recalculating');
+		return todos.filter(todo => !todo.done).length;
+	}
+
+	function addTodo(event) {
+		if (event.key !== 'Enter') return;
+
+		let done = $state(false);
+		let text = $state(event.target.value);
+
+		todos = [...todos, {
+			get done() { return done },
+			set done(value) { done = value },
+			get text() { return text },
+			set text(value) { text = value }
+		}];
+
+		event.target.value = '';
+	}
+</script>
+
+=== 222 tests/fixtures/parser/ast/svelte5/docs/functions/01-untrack-input.svelte	svelte	runes	runes
+<script>
+	import { untrack } from 'svelte';
+
+	let { a, b } = $props();
+
+	$effect(() => {
+		// this will run when `a` changes,
+		// but not when `b` changes
+		console.log(a);
+		console.log(untrack(() => b));
+	});
+</script>
+
+=== 213 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/01-counter-input.svelte	svelte	runes	runes
+<script>
+
+	let count = $state(0);
+	let double = $derived(count * 2);
+	$effect(() => {
+		if (count > 10) {
+			alert('Too high!');
+		}
+	});
+</script>
+
+<button on:click={() => count++}>
+	{count} / {double}
+</button>
+
+=== 235 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/02-tracking-dependencies-input.svelte	svelte	runes	runes
+<script>
+	let a = $state(0);
+	let b = $state(0);
+	let sum = $derived(add());
+
+	function add() {
+		return a + b;
+	}
+</script>
+
+<button on:click={() => a++}>a++</button>
+<button on:click={() => b++}>b++</button>
+<p>{a} + {b} = {sum}</p>
+
+=== 286 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/03-untracking-dependencies-input.svelte	svelte	runes	runes
+<script>
+	import { untrack } from 'svelte';
+
+	let a = $state(0);
+	let b = $state(0);
+	let sum = $derived(add());
+
+	function add() {
+		return a + untrack(() => b);
+	}
+</script>
+
+<button on:click={() => a++}>a++</button>
+<button on:click={() => b++}>b++</button>
+<p>{a} + {b} = {sum}</p>
+
+=== 59 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/04-simple-component-props-input.svelte	svelte	runes	runes
+<script>
+	let { count = 0 } = $props();
+</script>
+
+{count}
+
+=== 126 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/05-advanced-component-props-input.svelte	svelte	runes	runes
+<script>
+	let { class: classname, ...others } = $props();
+</script>
+
+<pre class={classname}>
+	{JSON.stringify(others)}
+</pre>
+
+=== 827 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/06-autoscroll-input.svelte	svelte	runes	runes
+<script>
+	import { tick } from 'svelte';
+
+	let theme = $state('dark');
+	let messages = $state([]);
+
+	let div;
+
+	$effect.pre(() => {
+		messages;
+		const autoscroll = div && div.offsetHeight + div.scrollTop > div.scrollHeight - 50;
+
+		if (autoscroll) {
+			tick().then(() => {
+				div.scrollTo(0, div.scrollHeight);
+			});
+		}
+
+	});
+
+	function handleKeydown(event) {
+		if (event.key === 'Enter') {
+			const text = event.target.value;
+			if (!text) return;
+
+			messages = [...messages, text];
+			event.target.value = '';
+		}
+	}
+
+	function toggle() {
+		toggleValue = !toggleValue;
+	}
+</script>
+
+<div class:dark={theme === 'dark'}>
+	<div bind:this={viewport}>
+		{#each messages as message}
+			<p>{message}</p>
+		{/each}
+	</div>
+
+	<input on:keydown={handleKeydown} />
+
+	<button on:click={toggle}>
+		Toggle dark mode
+	</button>
+</div>
+
+=== 109 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-input.svelte	svelte	runes	runes
+<script>
+  let count = $state(0);
+</script>
+
+<button on:click="{() => count++}">
+  clicks: {count}
+</button>
+
+=== 169 tests/fixtures/parser/ast/svelte5/docs/runes/02-$derived-input.svelte	svelte	runes	runes
+<script>
+	let count = $state(0);
+	let double = $derived(count * 2);
+</script>
+
+<button on:click={() => count++}>
+	{double}
+</button>
+
+<p>{count} doubled is {double}</p>
+
+=== 275 tests/fixtures/parser/ast/svelte5/docs/runes/02-2-$derived-by-input.svelte	svelte	runes	runes
+<script>
+	let numbers = $state([1, 2, 3]);
+	let total = $derived.by(() => {
+		let total = 0;
+		for (const n of numbers) {
+			total += n;
+		}
+		return total;
+	});
+</script>
+
+<button on:click={() => numbers.push(numbers.length + 1)}>
+	{numbers.join(' + ')} = {total}
+</button>
+
+=== 538 tests/fixtures/parser/ast/svelte5/docs/runes/03-1-$effect-input.svelte	svelte	runes	runes
+<script>
+	let count = $state(0);
+	let double = $derived(count * 2);
+
+	$effect(() => {
+		// runs when the component is mounted, and again
+		// whenever `count` or `double` change,
+		// after the DOM has been updated
+		console.log({ count, double });
+
+		return () => {
+			// if a callback is provided, it will run
+			// a) immediately before the effect re-runs
+			// b) when the component is destroyed
+			console.log('cleanup');
+		};
+	});
+</script>
+
+<button on:click={() => count++}>
+	{double}
+</button>
+
+<p>{count} doubled is {double}</p>
+
+=== 226 tests/fixtures/parser/ast/svelte5/docs/runes/03-2-$effect-tracking-input.svelte	svelte	runes	runes
+<script>
+  console.log("in component setup:", $effect.tracking()); // false
+
+  $effect(() => {
+    console.log("in effect:", $effect.tracking()); // true
+  });
+</script>
+
+<p>in template: {$effect.tracking()}</p>
+<!-- true -->
+
+=== 513 tests/fixtures/parser/ast/svelte5/docs/runes/04-$effect-pre-input.svelte	svelte	runes	runes
+<script>
+	import { tick } from 'svelte';
+
+	let div;
+	let messages = [];
+
+	// ...
+
+	$effect.pre(() => {
+		if (!div) return; // not yet mounted
+
+		// reference `messages` so that this code re-runs whenever it changes
+		messages;
+
+		// autoscroll when new messages are added
+		if (div.offsetHeight + div.scrollTop > div.scrollHeight - 20) {
+			tick().then(() => {
+				div.scrollTo(0, div.scrollHeight);
+			});
+		}
+	});
+</script>
+
+<div bind:this={div}>
+	{#each messages as message}
+		<p>{message}</p>
+	{/each}
+</div>
+
+=== 75 tests/fixtures/parser/ast/svelte5/docs/runes/05-$props-input.svelte	svelte	runes	runes
+<script>
+    let { optionalProp = 42, requiredProp } = $props();
+</script>
+
+=== 59 tests/fixtures/parser/ast/svelte5/docs/runes/06-$props-input.svelte	svelte	runes	runes
+<script>
+    let { catch: theCatch } = $props();
+</script>
+
+=== 70 tests/fixtures/parser/ast/svelte5/docs/runes/07-$props-input.svelte	svelte	runes	runes
+<script>
+    let { a, b, c, ...everythingElse } = $props();
+</script>
+
+=== 254 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-id-input.svelte	svelte	runes	runes
+<script>
+  const uid = $props.id();
+</script>
+
+<form>
+  <label for="{uid}-firstname">First Name: </label>
+  <input id="{uid}-firstname" type="text" />
+
+  <label for="{uid}-lastname">Last Name: </label>
+  <input id="{uid}-lastname" type="text" />
+</form>
+
+=== 272 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-id-ts-input.svelte	svelte	runes	runes
+<script lang="ts">
+  const uid: string = $props.id();
+</script>
+
+<form>
+  <label for="{uid}-firstname">First Name: </label>
+  <input id="{uid}-firstname" type="text" />
+
+  <label for="{uid}-lastname">Last Name: </label>
+  <input id="{uid}-lastname" type="text" />
+</form>
+
+=== 108 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-ts-input.svelte	svelte	runes	runes
+<script lang="ts">
+  type MyProps = {};
+  let { a, b, c, ...everythingElse }: MyProps = $props();
+</script>
+
+=== 67 tests/fixtures/parser/ast/svelte5/docs/runes/08-2-$bindable-input.svelte	svelte	runes	runes
+<script>
+	let { bindableProp = $bindable() } = $props();
+</script>
+
+=== 77 tests/fixtures/parser/ast/svelte5/docs/runes/08-3-$bindable-input.svelte	svelte	runes	runes
+<script>
+	let { bindableProp = $bindable('fallback') } = $props();
+</script>
+
+=== 105 tests/fixtures/parser/ast/svelte5/docs/runes/08-4-$bindable-ts-input.svelte	svelte	runes	runes
+<script lang="ts">
+	let { bindableProp = $bindable(42) }: { bindableProp: number } = $props();
+</script>
+
+=== 71 tests/fixtures/parser/ast/svelte5/docs/runes/09-how-to-opt-in-input.svelte	svelte	runes	runes
+<!-- this can be `true` or `false` -->
+<svelte:options runes={true} />
+
+=== 196 tests/fixtures/parser/ast/svelte5/docs/runes/10-$effect-root-input.svelte	svelte	runes	runes
+<script>
+	let count = $state(0);
+
+	const cleanup = $effect.root(() => {
+		$effect(() => {
+			console.log(count);
+		});
+
+		return () => {
+			console.log('effect root cleanup');
+		};
+	});
+</script>
+
+=== 246 tests/fixtures/parser/ast/svelte5/docs/runes/11-1-$inspect-input.svelte	svelte	runes	runes
+<script>
+  let count = $state(0);
+  let message = $state("hello");
+
+  $inspect(count, message); // will console.log when `count` or `message` change
+</script>
+
+<button onclick="{() => count++}">Increment</button>
+<input bind:value="{message}" />
+
+=== 256 tests/fixtures/parser/ast/svelte5/docs/runes/11-1-$inspect-ts-input.svelte	svelte	runes	runes
+<script lang="ts">
+  let count = $state(0);
+  let message = $state("hello");
+
+  $inspect(count, message); // will console.log when `count` or `message` change
+</script>
+
+<button onclick="{() => count++}">Increment</button>
+<input bind:value="{message}" />
+
+=== 242 tests/fixtures/parser/ast/svelte5/docs/runes/11-2-$inspect-input.svelte	svelte	runes	runes
+<script>
+  let count = $state(0);
+
+  $inspect(count).with((type, count) => {
+    if (type === "update") {
+      debugger; // or `console.trace`, or whatever you want
+    }
+  });
+</script>
+
+<button onclick="{() => count++}">Increment</button>
+
+=== 252 tests/fixtures/parser/ast/svelte5/docs/runes/11-2-$inspect-ts-input.svelte	svelte	runes	runes
+<script lang="ts">
+  let count = $state(0);
+
+  $inspect(count).with((type, count) => {
+    if (type === "update") {
+      debugger; // or `console.trace`, or whatever you want
+    }
+  });
+</script>
+
+<button onclick="{() => count++}">Increment</button>
+
+=== 84 tests/fixtures/parser/ast/svelte5/docs/runes/11-3-$inspect-input.svelte	svelte	runes	runes
+<script>
+  let count = $state(0);
+
+  $inspect(count).with(console.trace);
+</script>
+
+=== 94 tests/fixtures/parser/ast/svelte5/docs/runes/11-3-$inspect-ts-input.svelte	svelte	runes	runes
+<script lang="ts">
+  let count = $state(0);
+
+  $inspect(count).with(console.trace);
+</script>
+
+=== 225 tests/fixtures/parser/ast/svelte5/docs/runes/12-$inspect-input.svelte	svelte	runes	runes
+<script>
+	let count = $state(0);
+
+	$inspect(count, (count, type) => {
+		if (type === 'update') {
+			debugger; // or `console.trace`, or whatever you want
+		}
+	});
+</script>
+
+<button onclick={() => count++}>Increment</button>
+
+=== 90 tests/fixtures/parser/ast/svelte5/docs/runes/13-$inspect-input.svelte	svelte	runes	runes
+<script>
+	let stuff = $state(0);
+
+	$inspect(stuff, console.trace);
+
+	stuff = 1;
+</script>
+
+=== 353 tests/fixtures/parser/ast/svelte5/docs/snippets/01-input.svelte	svelte	runes	neutral
+{#snippet figure(image)}
+	<figure>
+		<img
+			src={image.src}
+			alt={image.caption}
+			width={image.width}
+			height={image.height}
+		/>
+		<figcaption>{image.caption}</figcaption>
+	</figure>
+{/snippet}
+
+{#each images as image}
+	{#if image.href}
+		<a href={image.href}>
+			{@render figure(image)}
+		</a>
+	{:else}
+		{@render figure(image)}
+	{/if}
+{/each}
+
+=== 167 tests/fixtures/parser/ast/svelte5/docs/snippets/02-input.svelte	svelte	runes	neutral
+{#snippet figure({ src, caption, width, height })}
+	<figure>
+		<img alt={caption} {src} {width} {height} />
+		<figcaption>{caption}</figcaption>
+	</figure>
+{/snippet}
+
+=== 192 tests/fixtures/parser/ast/svelte5/docs/snippets/03-snippet-scope-input.svelte	svelte	runes	runes
+<script>
+	let { message = `it's great to see you!` } = $props();
+</script>
+
+{#snippet hello(name)}
+	<p>hello {name}! {message}!</p>
+{/snippet}
+
+{@render hello('alice')}
+{@render hello('bob')}
+
+=== 247 tests/fixtures/parser/ast/svelte5/docs/snippets/04-snippet-scope-input.svelte	svelte	runes	neutral
+<div>
+	{#snippet x()}
+		{#snippet y()}...{/snippet}
+
+		<!-- this is fine -->
+		{@render y()}
+	{/snippet}
+
+	<!-- this will error, as `y` is not in scope -->
+	{@render y()}
+</div>
+
+<!-- this will also error, as `x` is not in scope -->
+{@render x()}
+
+=== 216 tests/fixtures/parser/ast/svelte5/docs/snippets/05-snippet-scope-input.svelte	svelte	runes	neutral
+{#snippet blastoff()}
+	<span>🚀</span>
+{/snippet}
+
+{#snippet countdown(n)}
+	{#if n > 0}
+		<span>{n}...</span>
+		{@render countdown(n - 1)}
+	{:else}
+		{@render blastoff()}
+	{/if}
+{/snippet}
+
+{@render countdown(10)}
+
+=== 454 tests/fixtures/parser/ast/svelte5/docs/snippets/06-passing-snippets-to-components-input.svelte	svelte	runes	neutral
+<script>
+	import Table from './Table.svelte';
+
+	const fruits = [
+		{ name: 'apples', qty: 5, price: 2 },
+		{ name: 'bananas', qty: 10, price: 1 },
+		{ name: 'cherries', qty: 20, price: 0.5 }
+	];
+</script>
+
+{#snippet header()}
+	<th>fruit</th>
+	<th>qty</th>
+	<th>price</th>
+	<th>total</th>
+{/snippet}
+
+{#snippet row(d)}
+	<td>{d.name}</td>
+	<td>{d.qty}</td>
+	<td>{d.price}</td>
+	<td>{d.qty * d.price}</td>
+{/snippet}
+
+<Table data={fruits} {header} {row} />
+
+=== 303 tests/fixtures/parser/ast/svelte5/docs/snippets/07-passing-snippets-to-components-input.svelte	svelte	runes	neutral
+<!-- this is semantically the same as the above -->
+<Table data={fruits}>
+	{#snippet header()}
+		<th>fruit</th>
+		<th>qty</th>
+		<th>price</th>
+		<th>total</th>
+	{/snippet}
+
+	{#snippet row(d)}
+		<td>{d.name}</td>
+		<td>{d.qty}</td>
+		<td>{d.price}</td>
+		<td>{d.qty * d.price}</td>
+	{/snippet}
+</Table>
+
+=== 108 tests/fixtures/parser/ast/svelte5/docs/snippets/08-passing-snippets-to-components-input.svelte	svelte	runes	neutral
+<Table data={fruits}>
+	<th>fruit</th>
+	<th>qty</th>
+	<th>price</th>
+	<th>total</th>
+
+	<!-- ... -->
+</Table>
+
+=== 170 tests/fixtures/parser/ast/svelte5/docs/snippets/09-passing-snippets-to-components-input.svelte	svelte	runes	runes
+<script>
+	let { data, children, row } = $props();
+</script>
+
+<table>
+	{#if children}
+		<thead>
+			<tr>{@render children()}</tr>
+		</thead>
+	{/if}
+
+	<!-- ... -->
+</table>
+
+=== 349 tests/fixtures/parser/ast/svelte5/docs/snippets/10-typing-snippets-input.svelte	svelte	runes	runes
+<script lang="ts">
+	import type { Snippet } from 'svelte';
+
+	let { data, children, row }: {
+		data: any[];
+		children: Snippet;
+		row: Snippet<[any]>;
+	} = $props();
+</script>
+
+<table>
+	{#if children}
+		<thead>
+			<tr>{@render children()}</tr>
+		</thead>
+	{/if}
+	<tbody>
+		{#each data as d}
+			<tr>{@render row(d)}</tr>
+		{/each}
+	</tbody>
+</table>
+
+=== 1038 tests/fixtures/parser/ast/svelte5/docs/snippets/10-typing-snippets-type-output.svelte	svelte	runes	runes
+<script lang="ts">
+	import type { Snippet } from 'svelte'; // Snippet: Snippet<Parameters>, Snippet: Snippet<Parameters>
+
+	let { data, children, row }: { // data: any[], data: any[], children: Snippet<[]>, children: Snippet<[]>, row: Snippet<[any]>, row: Snippet<[any]>
+		data: any[]; // data: any[]
+		children: Snippet; // children: Snippet<[]>, Snippet: Snippet<Parameters>
+		row: Snippet<[any]>; // row: Snippet<[any]>, Snippet: Snippet<Parameters>
+	} = $props(); // $props(): { data: any[]; children: Snippet<[]>; row: Snippet<[any]>; }
+</script>
+
+<table>
+	{#if children} <!-- children: Snippet<[]> -->
+		<thead>
+			<tr>{@render children()}</tr> <!-- children(): { '{@render ...} must be called with a Snippet': "import type { Snippet } from 'svelte'"; } & unique symbol -->
+		</thead>
+	{/if}
+	<tbody>
+		{#each data as d} <!-- data: any[], d: any -->
+			<tr>{@render row(d)}</tr> <!-- row(d): { '{@render ...} must be called with a Snippet': "import type { Snippet } from 'svelte'"; } & unique symbol -->
+		{/each}
+	</tbody>
+</table>
+
+=== 358 tests/fixtures/parser/ast/svelte5/docs/snippets/11-typing-snippets-input.svelte	svelte	runes	runes
+<script lang="ts" generics="T">
+	import type { Snippet } from 'svelte';
+
+	let { data, children, row }: {
+		data: T[];
+		children: Snippet;
+		row: Snippet<[T]>;
+	} = $props();
+</script>
+
+<table>
+	{#if children}
+		<thead>
+			<tr>{@render children()}</tr>
+		</thead>
+	{/if}
+	<tbody>
+		{#each data as d}
+			<tr>{@render row(d)}</tr>
+		{/each}
+	</tbody>
+</table>
+
+=== 1125 tests/fixtures/parser/ast/svelte5/docs/snippets/11-typing-snippets-type-output.svelte	svelte	runes	runes
+<script lang="ts" generics="T"> // T: unknown
+	import type { Snippet } from 'svelte'; // Snippet: Snippet<Parameters>, Snippet: Snippet<Parameters>
+
+	let { data, children, row }: { // data: unknown[], data: unknown[], children: Snippet<[]>, children: Snippet<[]>, row: Snippet<[unknown]>, row: Snippet<[unknown]>
+		data: T[]; // data: unknown[], T: unknown
+		children: Snippet; // children: Snippet<[]>, Snippet: Snippet<Parameters>
+		row: Snippet<[T]>; // row: Snippet<[unknown]>, Snippet: Snippet<Parameters>, T: unknown
+	} = $props(); // $props(): { data: unknown[]; children: Snippet<[]>; row: Snippet<[unknown]>; }
+</script>
+
+<table>
+	{#if children} <!-- children: Snippet<[]> -->
+		<thead>
+			<tr>{@render children()}</tr> <!-- children(): { '{@render ...} must be called with a Snippet': "import type { Snippet } from 'svelte'"; } & unique symbol -->
+		</thead>
+	{/if}
+	<tbody>
+		{#each data as d} <!-- data: unknown[], d: unknown -->
+			<tr>{@render row(d)}</tr> <!-- row(d): { '{@render ...} must be called with a Snippet': "import type { Snippet } from 'svelte'"; } & unique symbol -->
+		{/each}
+	</tbody>
+</table>
+
+=== 57 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/01-input.svelte	svelte	runes	neutral
+<svelte:boundary onerror={handler}>...</svelte:boundary>
+
+=== 154 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/02-input.svelte	svelte	runes	neutral
+<svelte:boundary>
+	<FlakyComponent />
+
+	{#snippet failed(error, reset)}
+		<button onclick={reset}>oops! try again</button>
+	{/snippet}
+</svelte:boundary>
+
+=== 145 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/03-input.svelte	svelte	runes	neutral
+{#snippet failed(error, reset)}
+    <button onclick={reset}>oops! try again</button>
+{/snippet}
+
+<svelte:boundary {failed}>...</svelte:boundary>
+
+=== 69 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/04-input.svelte	svelte	runes	neutral
+<svelte:boundary onerror={(e) => report(e)}>
+	...
+</svelte:boundary>
+
+=== 307 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/05-input.svelte	svelte	runes	runes
+<script>
+	let error = $state(null);
+	let reset = $state(() => {});
+
+	function onerror(e, r) {
+		error = e;
+		reset = r;
+	}
+</script>
+
+<svelte:boundary {onerror}>
+	<FlakyComponent />
+</svelte:boundary>
+
+{#if error}
+	<button onclick={() => {
+		error = null;
+		reset();
+	}}>
+		oops! try again
+	</button>
+{/if}
+
+=== 29 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/01-each-blocks-without-an-item-input.svelte	svelte	runes	neutral
+{#each expression}...{/each}
+
+=== 36 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/02-each-blocks-without-an-item-input.svelte	svelte	runes	neutral
+{#each expression, index}...{/each}
+
+=== 164 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/03-each-blocks-without-an-item-input.svelte	svelte	runes	neutral
+<div class="chess-board">
+	{#each { length: 8 }, rank}
+		{#each { length: 8 }, file}
+			<div class:black={(rank + file) % 2 === 1}></div>
+		{/each}
+	{/each}
+</div>
+
+=== 70 tests/fixtures/parser/ast/svelte5/docs/template-syntax/11-bind/function-bindings/01-input.svelte	svelte	runes	neutral
+<input bind:value={
+	() => value,
+	(v) => value = v.toLowerCase()}
+/>
+
+=== 83 tests/fixtures/parser/ast/svelte5/docs/template-syntax/11-bind/function-bindings/02-input.svelte	svelte	runes	neutral
+<div
+	bind:clientWidth={null, redraw}
+	bind:clientHeight={null, redraw}
+>...</div>
+
+=== 143 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/01-input.svelte	svelte	runes	runes
+<script>
+	let count = $state(0);
+
+	function increment() {
+		count += 1;
+	}
+</script>
+
+<button on:click={increment}>
+	clicks: {count}
+</button>
+
+=== 292 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/02-input.svelte	svelte	runes	runes
+<script>
+	function createCounter() {
+		let count = $state(0);
+
+		function increment() {
+			count += 1;
+		}
+
+		return {
+			get count() { return count },
+			increment
+		};
+	}
+
+	const counter = createCounter();
+</script>
+
+<button on:click={counter.increment}>
+	clicks: {counter.count}
+</button>
+
+=== 166 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/03-input.svelte.js	svelte-module-js	runes	-
+export function createCounter() {
+	let count = $state(0);
+
+	function increment() {
+		count += 1;
+	}
+
+	return {
+		get count() {
+			return count;
+		},
+		increment
+	};
+}
+=== 167 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/03-ts-input.svelte.ts	svelte-module-ts	runes	-
+export function createCounter() {
+	let count = $state(0);
+
+	function increment() {
+		count += 1;
+	}
+
+	return {
+		get count() {
+			return count;
+		},
+		increment
+	};
+}
+
+=== 397 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/03-ts-type-output.svelte.ts	svelte-module-ts	runes	-
+export function createCounter() { // createCounter: () => { readonly count: number; increment: () => void; }
+	let count = $state(0); // count: number, $state(0): 0
+
+	function increment() { // increment: () => void
+		count += 1; // count: number
+	}
+
+	return {
+		get count() { // count: number
+			return count; // count: number
+		},
+		increment // increment: () => void, increment: () => void
+	};
+}
+
+=== 67 tests/fixtures/parser/ast/svelte5/function-binding-with-comment01-input.svelte	svelte	runes	neutral
+<input bind:value={
+    /** Foo */
+    x,
+    /** Bar */
+    y
+}/>
+
+=== 59 tests/fixtures/parser/ast/svelte5/function-binding-with-comment02-input.svelte	svelte	runes	neutral
+<input bind:value={
+    // Foo
+    x,
+    // Bar
+    y
+}/>
+
+=== 369 tests/fixtures/parser/ast/svelte5/generics01-snippets-input.svelte	svelte	runes	runes
+<script lang="ts" generics="T">
+	import type { Snippet } from 'svelte';
+
+	type A = T
+	let { data, children, row }:{
+		data: A[];
+		children: Snippet;
+		row: Snippet<[A]>;
+	} = $props();
+</script>
+
+<table>
+	{#if children}
+		<thead>
+			<tr>{@render children()}</tr>
+		</thead>
+	{/if}
+	<tbody>
+		{#each data as d}
+			<tr>{@render row(d)}</tr>
+		{/each}
+	</tbody>
+</table>
+
+=== 1162 tests/fixtures/parser/ast/svelte5/generics01-snippets-type-output.svelte	svelte	runes	runes
+<script lang="ts" generics="T"> // T: unknown
+	import type { Snippet } from 'svelte'; // Snippet: Snippet<Parameters>, Snippet: Snippet<Parameters>
+
+	type A = T // A: unknown, T: unknown
+	let { data, children, row }:{ // data: unknown[], data: unknown[], children: Snippet<[]>, children: Snippet<[]>, row: Snippet<[unknown]>, row: Snippet<[unknown]>
+		data: A[]; // data: unknown[], A: unknown
+		children: Snippet; // children: Snippet<[]>, Snippet: Snippet<Parameters>
+		row: Snippet<[A]>; // row: Snippet<[unknown]>, Snippet: Snippet<Parameters>, A: unknown
+	} = $props(); // $props(): { data: unknown[]; children: Snippet<[]>; row: Snippet<[unknown]>; }
+</script>
+
+<table>
+	{#if children} <!-- children: Snippet<[]> -->
+		<thead>
+			<tr>{@render children()}</tr> <!-- children(): { '{@render ...} must be called with a Snippet': "import type { Snippet } from 'svelte'"; } & unique symbol -->
+		</thead>
+	{/if}
+	<tbody>
+		{#each data as d} <!-- data: unknown[], d: unknown -->
+			<tr>{@render row(d)}</tr> <!-- row(d): { '{@render ...} must be called with a Snippet': "import type { Snippet } from 'svelte'"; } & unique symbol -->
+		{/each}
+	</tbody>
+</table>
+
+=== 27 tests/fixtures/parser/ast/svelte5/non-function-binding01-input.svelte	svelte	runes	neutral
+<input bind:value={x, y}/>
+
+=== 55 tests/fixtures/parser/ast/svelte5/non-function-binding02-input.svelte	svelte	runes	neutral
+<input bind:value={
+    /* Foo */
+    x,
+    y
+    }/>
+
+=== 106 tests/fixtures/parser/ast/svelte5/render01-input.svelte	svelte	runes	runes
+<script>
+	const { foo } = $props();
+
+	function bar() {
+		return "baz";
+	}
+</script>
+
+{@render foo(bar())}
+
+=== 65 tests/fixtures/parser/ast/svelte5/render02-optional-input.svelte	svelte	runes	runes
+<script>
+	const { foo } = $props();
+</script>
+
+{@render foo?.()}
+
+=== 104 tests/fixtures/parser/ast/svelte5/snippet01-hoist-input.svelte	svelte	runes	neutral
+<script>
+	const bar = foo;
+</script>
+
+{#snippet foo()}
+	<p>Hello World!</p>
+{/snippet}
+
+{@render bar()}
+
+=== 153 tests/fixtures/parser/ast/svelte5/snippet02-nesting-input.svelte	svelte	runes	neutral
+<script>
+	import Foo from '$lib/foo.svelte';
+</script>
+
+{#snippet foo()}
+	{#snippet bar()} Bar {/snippet}
+	Foo {@render bar()}
+{/snippet}
+
+<Foo {foo} />
+
+=== 48 tests/fixtures/parser/ast/svelte5/svelte-options/svelte-options01-input.svelte	svelte	runes	runes
+<svelte:options runes={true} ></svelte:options>
+
+=== 49 tests/fixtures/parser/ast/svelte5/svelte-options/svelte-options02-input.svelte	svelte	runes	neutral
+<svelte:options runes={false} ></svelte:options>
+
+=== 216 tests/fixtures/parser/ast/svelte5/svelte-ts-$derived01-input.svelte.ts	svelte-module-ts	runes	-
+export function createCounterDouble() {
+  let count = $state(0);
+  const doubled = $derived(count * 2);
+
+	function increment() {
+		count += 1;
+	}
+
+	return {
+		get doubled() {
+			return doubled;
+		},
+		increment
+	};
+}
+=== 506 tests/fixtures/parser/ast/svelte5/svelte-ts-$derived01-type-output.svelte.ts	svelte-module-ts	runes	-
+export function createCounterDouble() { // createCounterDouble: () => { readonly doubled: number; increment: () => void; }
+  let count = $state(0); // count: number, $state(0): 0
+  const doubled = $derived(count * 2); // doubled: number, $derived(count * 2): number
+
+	function increment() { // increment: () => void
+		count += 1; // count: number
+	}
+
+	return {
+		get doubled() { // doubled: number
+			return doubled; // doubled: number
+		},
+		increment // increment: () => void, increment: () => void
+	};
+}
+=== 214 tests/fixtures/parser/ast/svelte5/svelte-ts-$effect01-input.svelte.ts	svelte-module-ts	runes	-
+let count = $state(0);
+const doubled = $derived(count * 2);
+
+export function increment() {
+  count += 1;
+}
+
+$effect(() => {
+  console.log({ count, doubled });
+
+  return () => {
+    console.log("cleanup");
+  };
+});
+
+=== 438 tests/fixtures/parser/ast/svelte5/svelte-ts-$effect01-type-output.svelte.ts	svelte-module-ts	runes	-
+let count = $state(0); // count: number, $state(0): 0
+const doubled = $derived(count * 2); // doubled: number, $derived(count * 2): number
+
+export function increment() { // increment: () => void
+  count += 1; // count: number
+}
+
+$effect(() => { // $effect(() => { console.log({ count, doubled }); return () => { console.log("cleanup"); }; }): void
+  console.log({ count, doubled });
+
+  return () => {
+    console.log("cleanup");
+  };
+});
+
+=== 83 tests/fixtures/parser/ast/svelte5/svelte-ts-$props01-input.svelte.ts	svelte-module-ts	runes	-
+// TODO We'll check later if we should handle it.
+export const invalid = $props();
+
+=== 289 tests/fixtures/parser/ast/svelte5/ts-$derived-by01-input.svelte	svelte	runes	runes
+<script lang="ts">
+	const numbers = $state([1, 2, 3]);
+	const total = $derived.by(() => {
+		let total = 0;
+		for (const n of numbers) {
+			total += n;
+		}
+		return total;
+	});
+</script>
+
+<button on:click={() => numbers.push(numbers.length + 1)}>
+	{numbers.join(' + ')} = {total}
+</button>
+
+=== 560 tests/fixtures/parser/ast/svelte5/ts-$derived-by01-type-output.svelte	svelte	runes	runes
+<script lang="ts">
+	const numbers = $state([1, 2, 3]); // numbers: number[], $state([1, 2, 3]): number[]
+	const total = $derived.by(() => { // total: number, $derived.by(() => { let total = 0; for (const n of numbers) { total += n; } return total; }): number
+		let total = 0;
+		for (const n of numbers) {
+			total += n;
+		}
+		return total;
+	});
+</script>
+
+<button on:click={() => numbers.push(numbers.length + 1)}> <!-- numbers.push(numbers.length + 1): number -->
+	{numbers.join(' + ')} = {total} <!-- numbers.join(' + '): string, total: number -->
+</button>
+
+=== 189 tests/fixtures/parser/ast/svelte5/ts-$derived01-input.svelte	svelte	runes	runes
+<script lang="ts">
+  let count = $state(0);
+  const doubled = $derived(count * 2);
+</script>
+
+<button on:click="{() => count++}">
+  {doubled}
+</button>
+
+<p>{count} doubled is {doubled}</p>
+
+=== 356 tests/fixtures/parser/ast/svelte5/ts-$derived01-type-output.svelte	svelte	runes	runes
+<script lang="ts">
+  let count = $state(0); // count: number, $state(0): 0
+  const doubled = $derived(count * 2); // doubled: number, $derived(count * 2): number
+</script>
+
+<button on:click="{() => count++}"> <!-- count: number -->
+  {doubled} <!-- doubled: number -->
+</button>
+
+<p>{count} doubled is {doubled}</p> <!-- count: number, doubled: number -->
+
+=== 584 tests/fixtures/parser/ast/svelte5/ts-$effect01-input.svelte	svelte	runes	runes
+<script lang="ts">
+  let count = $state(0);
+  let doubled = $derived(count * 2);
+
+  $effect(() => {
+    // runs when the component is mounted, and again
+    // whenever `count` or `doubled` change,
+    // after the DOM has been updated
+    console.log({ count, doubled });
+
+    return () => {
+      // if a callback is provided, it will run
+      // a) immediately before the effect re-runs
+      // b) when the component is destroyed
+      console.log("cleanup");
+    };
+  });
+</script>
+
+<button on:click="{() => count++}">
+  {doubled}
+</button>
+
+<p>{count} doubled is {doubled}</p>
+
+=== 1102 tests/fixtures/parser/ast/svelte5/ts-$effect01-type-output.svelte	svelte	runes	runes
+<script lang="ts">
+  let count = $state(0); // count: number, $state(0): 0
+  let doubled = $derived(count * 2); // doubled: number, $derived(count * 2): number
+
+  $effect(() => { // $effect(() => { // runs when the component is mounted, and again // whenever `count` or `doubled` change, // after the DOM has been updated console.log({ count, doubled }); return () => { // if a callback is provided, it will run // a) immediately before the effect re-runs // b) when the component is destroyed console.log("cleanup"); }; }): void
+    // runs when the component is mounted, and again
+    // whenever `count` or `doubled` change,
+    // after the DOM has been updated
+    console.log({ count, doubled });
+
+    return () => {
+      // if a callback is provided, it will run
+      // a) immediately before the effect re-runs
+      // b) when the component is destroyed
+      console.log("cleanup");
+    };
+  });
+</script>
+
+<button on:click="{() => count++}"> <!-- count: number -->
+  {doubled} <!-- doubled: number -->
+</button>
+
+<p>{count} doubled is {doubled}</p> <!-- count: number, doubled: number -->
+
+=== 586 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-input.svelte	svelte	runes	runes
+<script lang="ts">
+  let count = $state(0);
+  const doubled = $derived(count * 2);
+
+  $effect(() => {
+    // runs when the component is mounted, and again
+    // whenever `count` or `doubled` change,
+    // after the DOM has been updated
+    console.log({ count, doubled });
+
+    return () => {
+      // if a callback is provided, it will run
+      // a) immediately before the effect re-runs
+      // b) when the component is destroyed
+      console.log("cleanup");
+    };
+  });
+</script>
+
+<button on:click="{() => count++}">
+  {doubled}
+</button>
+
+<p>{count} doubled is {doubled}</p>
+
+=== 1104 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-type-output.svelte	svelte	runes	runes
+<script lang="ts">
+  let count = $state(0); // count: number, $state(0): 0
+  const doubled = $derived(count * 2); // doubled: number, $derived(count * 2): number
+
+  $effect(() => { // $effect(() => { // runs when the component is mounted, and again // whenever `count` or `doubled` change, // after the DOM has been updated console.log({ count, doubled }); return () => { // if a callback is provided, it will run // a) immediately before the effect re-runs // b) when the component is destroyed console.log("cleanup"); }; }): void
+    // runs when the component is mounted, and again
+    // whenever `count` or `doubled` change,
+    // after the DOM has been updated
+    console.log({ count, doubled });
+
+    return () => {
+      // if a callback is provided, it will run
+      // a) immediately before the effect re-runs
+      // b) when the component is destroyed
+      console.log("cleanup");
+    };
+  });
+</script>
+
+<button on:click="{() => count++}"> <!-- count: number -->
+  {doubled} <!-- doubled: number -->
+</button>
+
+<p>{count} doubled is {doubled}</p> <!-- count: number, doubled: number -->
+
+=== 204 tests/fixtures/parser/ast/svelte5/ts-$props01-input.svelte	svelte	runes	runes
+<script lang="ts">
+  interface MyProps {
+    a: number;
+    b: string;
+    c: boolean;
+    d: number;
+  }
+  let { a, b, c, ...everythingElse }: MyProps = $props();
+</script>
+
+{a}
+{b}
+{c}
+{everythingElse}
+
+=== 514 tests/fixtures/parser/ast/svelte5/ts-$props01-type-output.svelte	svelte	runes	runes
+<script lang="ts">
+  interface MyProps { // MyProps: MyProps
+    a: number; // a: number
+    b: string; // b: string
+    c: boolean; // c: boolean
+    d: number; // d: number
+  }
+  let { a, b, c, ...everythingElse }: MyProps = $props(); // a: number, a: number, b: string, b: string, c: boolean, c: boolean, everythingElse: { d: number; }, MyProps: MyProps, $props(): MyProps
+</script>
+
+{a} <!-- a: number -->
+{b} <!-- b: string -->
+{c} <!-- c: boolean -->
+{everythingElse} <!-- everythingElse: { d: number; } -->
+
+=== 82 tests/fixtures/parser/ast/svelte5/ts-$props02-input.svelte	svelte	runes	runes
+<script lang="ts">
+  let { name }: { name: string } = $props();
+</script>
+
+{name}
+
+=== 177 tests/fixtures/parser/ast/svelte5/ts-$props02-type-output.svelte	svelte	runes	runes
+<script lang="ts">
+  let { name }: { name: string } = $props(); // name: string, name: string, name: string, $props(): { name: string; }
+</script>
+
+{name} <!-- name: string -->
+
+=== 142 tests/fixtures/parser/ast/svelte5/ts-$state01-input.svelte	svelte	runes	runes
+<script lang="ts">
+  let count = $state(0);
+  let name = $state();
+</script>
+
+<button on:click="{() => count++}">
+  clicks: {count}
+</button>
+
+=== 255 tests/fixtures/parser/ast/svelte5/ts-$state01-type-output.svelte	svelte	runes	runes
+<script lang="ts">
+  let count = $state(0); // count: number, $state(0): 0
+  let name = $state(); // name: unknown, $state(): unknown
+</script>
+
+<button on:click="{() => count++}"> <!-- count: number -->
+  clicks: {count} <!-- count: number -->
+</button>
+
+=== 131 tests/fixtures/parser/ast/svelte5/ts-derived-in-snippet-declaration-tag-input.svelte	svelte	runes	runes
+<script lang="ts"></script>
+
+{#snippet derivedConst()}
+  {const x = $derived(0)}
+  <p>{x}</p>
+{/snippet}
+
+{@render derivedConst()}
+
+=== 146 tests/fixtures/parser/ast/svelte5/ts-event01-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    import Component from 'foo.svelte'
+</script>
+<button onclick="{e=>{}}"></button>
+<Component onclick="{e=>{}}"></Component>
+
+=== 154 tests/fixtures/parser/ast/svelte5/ts-event02-input.svelte	svelte	runes	neutral
+<script lang="typescript">
+    import Component from 'foo.svelte'
+</script>
+<button onclick="{e=>{}}"></button>
+<Component onclick="{e=>{}}"></Component>
+
+=== 313 tests/fixtures/parser/ast/svelte5/ts-event02-type-output.svelte	svelte	runes	neutral
+<script lang="typescript">
+    import Component from 'foo.svelte' // Component: LegacyComponentType
+</script>
+<button onclick="{e=>{}}"></button> <!-- e: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement; } -->
+<Component onclick="{e=>{}}"></Component> <!-- Component: LegacyComponentType, e: any -->
+
+=== 243 tests/fixtures/parser/ast/svelte5/ts-event03-input.svelte	svelte	runes	runes
+<script lang="ts">
+    const {onfoo}:{
+        onfoo: (e: { detail: number }) => void
+    } = $props()
+    onfoo({detail: 1})
+</script>
+
+<button onclick="{e=>{
+    e.currentTarget;
+}}"></button>
+<input oninput="{e=>{
+    e.currentTarget;
+}}">
+
+=== 719 tests/fixtures/parser/ast/svelte5/ts-event03-type-output.svelte	svelte	runes	runes
+<script lang="ts">
+    const {onfoo}:{ // onfoo: (e: { detail: number; }) => void, onfoo: (e: { detail: number; }) => void
+        onfoo: (e: { detail: number }) => void // onfoo: (e: { detail: number; }) => void, e: { detail: number; }
+    } = $props() // $props(): { onfoo: (e: { detail: number; }) => void; }
+    onfoo({detail: 1}) // onfoo({detail: 1}): void
+</script>
+
+<button onclick="{e=>{ // e: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement; }
+    e.currentTarget; // e.currentTarget: EventTarget & HTMLButtonElement
+}}"></button>
+<input oninput="{e=>{ // e: Event & { currentTarget: EventTarget & HTMLInputElement; }
+    e.currentTarget; // e.currentTarget: EventTarget & HTMLInputElement
+}}">
+
+=== 90 tests/fixtures/parser/ast/svelte5/ts-event04-input.svelte	svelte	runes	neutral
+<script lang="ts">
+</script>
+
+<button onunknown="{e=>{
+    e.currentTarget;
+}}"></button>
+
+=== 152 tests/fixtures/parser/ast/svelte5/ts-event04-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+</script>
+
+<button onunknown="{e=>{ // e: CustomEvent<any>
+    e.currentTarget; // e.currentTarget: EventTarget | null
+}}"></button>
+
+=== 363 tests/fixtures/parser/ast/svelte5/ts-event05-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    import Component from './ts-event03-input.svelte';
+</script>
+
+<Component onfoo="{e=>{
+    // e.detail is number
+    //   `@typescript-eslint/parser` doesn't get the correct types.
+    //   Using `typescript-eslint-parser-for-extra-files` will give we the correct types.
+    //   See `ts-event06-input.svelte` test case
+    e.detail;
+}}" />
+
+=== 456 tests/fixtures/parser/ast/svelte5/ts-event05-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+    import Component from './ts-event03-input.svelte'; // Component: LegacyComponentType
+</script>
+
+<Component onfoo="{e=>{ // Component: LegacyComponentType, e: any
+    // e.detail is number
+    //   `@typescript-eslint/parser` doesn't get the correct types.
+    //   Using `typescript-eslint-parser-for-extra-files` will give we the correct types.
+    //   See `ts-event06-input.svelte` test case
+    e.detail; // e.detail: any
+}}" />
+
+=== 156 tests/fixtures/parser/ast/svelte5/ts-event06-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    import Component from './ts-event03-input.svelte';
+</script>
+
+<Component onfoo="{e=>{
+    // e.detail is number
+    e.detail;
+}}" />
+
+=== 300 tests/fixtures/parser/ast/svelte5/ts-event06-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+    import Component from './ts-event03-input.svelte'; // Component: Component<$$ComponentProps, {}, "">
+</script>
+
+<Component onfoo="{e=>{ // Component: Component<$$ComponentProps, {}, "">, e: { detail: number; }
+    // e.detail is number
+    e.detail; // e.detail: number
+}}" />
+
+=== 307 tests/fixtures/parser/ast/svelte5/ts-event07-type-output.svelte	svelte	runes	runes
+<script lang="ts">
+	let count = $state(0); // count: number, $state(0): 0
+</script>
+
+<button
+	on:click={(e: MouseEvent) => { // e: MouseEvent
+		const next: number = count + 1; // next: number, count: number
+		count = next; // count: number, next: number
+	}}
+>clicks: {count}</button> <!-- count: number -->
+
+=== 143 tests/fixtures/parser/ast/svelte5/ts-event08-input.svelte	svelte	runes	runes
+<script lang="ts">
+	let count = $state(0);
+</script>
+
+<button onclick={(event: number) => {
+    count += event;
+}}>
+	clicks: {count}
+</button>
+
+=== 246 tests/fixtures/parser/ast/svelte5/ts-event08-type-output.svelte	svelte	runes	runes
+<script lang="ts">
+	let count = $state(0); // count: number, $state(0): 0
+</script>
+
+<button onclick={(event: number) => { // event: number
+    count += event; // count: number, event: number
+}}>
+	clicks: {count} <!-- count: number -->
+</button>
+
+=== 120 tests/fixtures/parser/ast/svelte5/ts-snippet01-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    let msg = ""
+</script>
+
+{#snippet foo(msg: string)}
+	<p>{msg}</p>
+{/snippet}
+
+{@render foo(msg)}
+
+=== 229 tests/fixtures/parser/ast/svelte5/ts-snippet01-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+    let msg = "" // msg: string
+</script>
+
+{#snippet foo(msg: string)} <!-- foo: (msg: string) => void, msg: string -->
+	<p>{msg}</p> <!-- msg: string -->
+{/snippet}
+
+{@render foo(msg)} <!-- foo(msg): void -->
+
+=== 213 tests/fixtures/parser/ast/svelte5/ts-snippet03-input.svelte	svelte	runes	neutral
+<script lang="ts">
+	function hello() {
+		console.log('Hello');
+	}
+</script>
+
+{@render foo({ onclick: hello })}
+
+{#snippet foo(o: {onclick: () => void})}
+  <button on:click={o.onclick}>Click me</button>
+{/snippet}
+
+=== 84 tests/fixtures/parser/ast/template-curly-spacing-test-input.svelte	svelte	runes	neutral
+<script>
+    const item = {}
+</script>
+<li
+    class={`bytemd-toc-${item.level}`}
+/>
+=== 286 tests/fixtures/parser/ast/this-attr01-input.svelte	svelte	runes	neutral
+<script>
+	import component from './foo'
+	const style = { color: 'red' }
+	let componentValue
+	let metaData = {}
+	function handleChange() {}
+</script>
+
+<svelte:component
+	this={component}
+	--style-props={style}
+	bind:value={componentValue}
+	on:changeValue={handleChange}
+	bind:metaData
+/>
+=== 286 tests/fixtures/parser/ast/this-attr02-input.svelte	svelte	runes	neutral
+<script>
+	import component from './foo'
+	const style = { color: 'red' }
+	let componentValue
+	let metaData = {}
+	function handleChange() {}
+</script>
+
+<svelte:component
+	--style-props={style}
+	bind:value={componentValue}
+	this={component}
+	on:changeValue={handleChange}
+	bind:metaData
+/>
+=== 286 tests/fixtures/parser/ast/this-attr03-input.svelte	svelte	runes	neutral
+<script>
+	import component from './foo'
+	const style = { color: 'red' }
+	let componentValue
+	let metaData = {}
+	function handleChange() {}
+</script>
+
+<svelte:component
+	--style-props={style}
+	bind:value={componentValue}
+	on:changeValue={handleChange}
+	bind:metaData
+	this={component}
+/>
+=== 116 tests/fixtures/parser/ast/this-attr04-input.svelte	svelte	runes	neutral
+<svelte:element class="foo" this="input" type="number"/>
+<svelte:element class="foo" this={"input"} type="number"/>
+
+=== 118 tests/fixtures/parser/ast/this-attr05-input.svelte	svelte	runes	neutral
+<svelte:element class="foo" this={'input'} type="number"/>
+<svelte:element class="foo" this={`input`} type="number"/>
+
+=== 89 tests/fixtures/parser/ast/trailing-comment01-input.svelte	svelte	runes	neutral
+<script>
+  let a = 1;
+  let b = /a/
+  //
+</script>
+
+<input type="number" bind:value={a}>
+
+=== 56 tests/fixtures/parser/ast/ts-$$slots01-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    $$slots
+</script>
+
+<slot></slot>
+
+=== 95 tests/fixtures/parser/ast/ts-$$slots01-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+    $$slots // $$slots: Record<"default", boolean>
+</script>
+
+<slot></slot>
+
+=== 41 tests/fixtures/parser/ast/ts-$$slots02-no-slot-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    $$slots
+</script>
+
+=== 74 tests/fixtures/parser/ast/ts-$$slots02-no-slot-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+    $$slots // $$slots: Record<any, boolean>
+</script>
+
+=== 67 tests/fixtures/parser/ast/ts-$$slots03-named-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    $$slots
+</script>
+
+<slot name="foo"></slot>
+
+=== 102 tests/fixtures/parser/ast/ts-$$slots03-named-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+    $$slots // $$slots: Record<"foo", boolean>
+</script>
+
+<slot name="foo"></slot>
+
+=== 92 tests/fixtures/parser/ast/ts-$$slots04-named-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    $$slots
+</script>
+
+<slot name="foo"></slot>
+<slot name="bar"></slot>
+
+=== 135 tests/fixtures/parser/ast/ts-$$slots04-named-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+    $$slots // $$slots: Record<"foo" | "bar", boolean>
+</script>
+
+<slot name="foo"></slot>
+<slot name="bar"></slot>
+
+=== 245 tests/fixtures/parser/ast/ts-await-non-promise01-input.svelte	svelte	runes	neutral
+<script lang="ts">
+	const str = 'abc' as const
+</script>
+
+{#await 1234 then number}
+	<p>The number is {number}</p>
+{/await}
+
+{#await str then s}
+	<p>The string is {s}</p>
+{/await}
+
+{#await str.slice(0) then s}
+	<p>The string is {s}</p>
+{/await}
+
+=== 438 tests/fixtures/parser/ast/ts-await-non-promise01-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+	const str = 'abc' as const // str: "abc", const: /*unresolved*/ any
+</script>
+
+{#await 1234 then number} <!-- number: 1234 -->
+	<p>The number is {number}</p> <!-- number: 1234 -->
+{/await}
+
+{#await str then s} <!-- str: "abc", s: "abc" -->
+	<p>The string is {s}</p> <!-- s: "abc" -->
+{/await}
+
+{#await str.slice(0) then s} <!-- str.slice(0): string, s: string -->
+	<p>The string is {s}</p> <!-- s: string -->
+{/await}
+
+=== 212 tests/fixtures/parser/ast/ts-each01-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    const list: number[] = []
+    const items: {id:number, name:string}[] = []
+</script>
+{#each list as e}
+    {e}
+{/each}
+{#each items as item, index (item.id)}
+    {index}{item.name}
+{/each}
+
+=== 485 tests/fixtures/parser/ast/ts-each01-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+    const list: number[] = [] // list: number[]
+    const items: {id:number, name:string}[] = [] // items: { id: number; name: string; }[]
+</script>
+{#each list as e} <!-- list: number[], e: number -->
+    {e} <!-- e: number -->
+{/each}
+{#each items as item, index (item.id)} <!-- items: { id: number; name: string; }[], item: { id: number; name: string; }, index: number, item.id: number -->
+    {index}{item.name} <!-- index: number, item.name: string -->
+{/each}
+
+=== 148 tests/fixtures/parser/ast/ts-event01-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    import Component from 'foo.svelte'
+</script>
+<button on:click="{e=>{}}"></button>
+<Component on:click="{e=>{}}"></Component>
+
+=== 156 tests/fixtures/parser/ast/ts-event02-input.svelte	svelte	runes	neutral
+<script lang="typescript">
+    import Component from 'foo.svelte'
+</script>
+<button on:click="{e=>{}}"></button>
+<Component on:click="{e=>{}}"></Component>
+
+=== 328 tests/fixtures/parser/ast/ts-event02-type-output.svelte	svelte	runes	neutral
+<script lang="typescript">
+    import Component from 'foo.svelte' // Component: LegacyComponentType
+</script>
+<button on:click="{e=>{}}"></button> <!-- e: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement; } -->
+<Component on:click="{e=>{}}"></Component> <!-- Component: LegacyComponentType, e: CustomEvent<any> -->
+
+=== 297 tests/fixtures/parser/ast/ts-event03-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    import {createEventDispatcher} from 'svelte'
+    const emit = createEventDispatcher<{
+        foo: number,
+        bar: string
+    }>()
+    emit('foo', 1)
+</script>
+
+<button on:click="{e=>{
+    e.currentTarget;
+}}"></button>
+<input on:input="{e=>{
+    e.currentTarget;
+}}">
+
+=== 924 tests/fixtures/parser/ast/ts-event03-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+    import {createEventDispatcher} from 'svelte' // createEventDispatcher: <EventMap extends Record<string, any> = any>() => EventDispatcher<EventMap>, createEventDispatcher: <EventMap extends Record<string, any> = any>() => EventDispatcher<EventMap>
+    const emit = createEventDispatcher<{ // emit: EventDispatcher<{ foo: number; bar: string; }>, createEventDispatcher<{ foo: number, bar: string }>(): EventDispatcher<{ foo: number; bar: string; }>
+        foo: number,
+        bar: string
+    }>()
+    emit('foo', 1) // emit('foo', 1): boolean
+</script>
+
+<button on:click="{e=>{ // e: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement; }
+    e.currentTarget; // e.currentTarget: EventTarget & HTMLButtonElement
+}}"></button>
+<input on:input="{e=>{ // e: Event & { currentTarget: EventTarget & HTMLInputElement; }
+    e.currentTarget; // e.currentTarget: EventTarget & HTMLInputElement
+}}">
+
+=== 91 tests/fixtures/parser/ast/ts-event04-input.svelte	svelte	runes	neutral
+<script lang="ts">
+</script>
+
+<button on:unknown="{e=>{
+    e.currentTarget;
+}}"></button>
+
+=== 153 tests/fixtures/parser/ast/ts-event04-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+</script>
+
+<button on:unknown="{e=>{ // e: CustomEvent<any>
+    e.currentTarget; // e.currentTarget: EventTarget | null
+}}"></button>
+
+=== 364 tests/fixtures/parser/ast/ts-event05-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    import Component from './ts-event03-input.svelte';
+</script>
+
+<Component on:foo="{e=>{
+    // e.detail is number
+    //   `@typescript-eslint/parser` doesn't get the correct types.
+    //   Using `typescript-eslint-parser-for-extra-files` will give we the correct types.
+    //   See `ts-event06-input.svelte` test case
+    e.detail;
+}}" />
+
+=== 470 tests/fixtures/parser/ast/ts-event05-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+    import Component from './ts-event03-input.svelte'; // Component: LegacyComponentType
+</script>
+
+<Component on:foo="{e=>{ // Component: LegacyComponentType, e: CustomEvent<any>
+    // e.detail is number
+    //   `@typescript-eslint/parser` doesn't get the correct types.
+    //   Using `typescript-eslint-parser-for-extra-files` will give we the correct types.
+    //   See `ts-event06-input.svelte` test case
+    e.detail; // e.detail: any
+}}" />
+
+=== 157 tests/fixtures/parser/ast/ts-event06-input.svelte	svelte	runes	neutral
+<script lang="ts">
+    import Component from './ts-event03-input.svelte';
+</script>
+
+<Component on:foo="{e=>{
+    // e.detail is number
+    e.detail;
+}}" />
+
+=== 269 tests/fixtures/parser/ast/ts-event06-sveltev4-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+    import Component from './ts-event03-input.svelte'; // Component: typeof SvelteComponent
+</script>
+
+<Component on:foo="{e=>{ // Component: typeof SvelteComponent, e: CustomEvent<any>
+    // e.detail is number
+    e.detail; // e.detail: any
+}}" />
+
+=== 561 tests/fixtures/parser/ast/ts-event06-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+    import Component from './ts-event03-input.svelte'; // Component: __sveltets_2_IsomorphicComponent<{}, { foo: CustomEvent<number>; bar: CustomEvent<string>; } & { [evt: string]: CustomEvent<any>; }, {}, Record<string, any>, string>
+</script>
+
+<Component on:foo="{e=>{ // Component: __sveltets_2_IsomorphicComponent<{}, { foo: CustomEvent<number>; bar: CustomEvent<string>; } & { [evt: string]: CustomEvent<any>; }, {}, Record<string, any>, string>, e: CustomEvent<number>
+    // e.detail is number
+    e.detail; // e.detail: number
+}}" />
+
+=== 632 tests/fixtures/parser/ast/ts-let/ts-let01-input.svelte	svelte	runes	neutral
+<script lang="ts">
+  import Component, { ListItem } from "./lib/Component.svelte";
+
+  const items: ListItem[] = [
+    {
+      title: "Svelte.dev",
+      link: "https://svelte.dev",
+    },
+    {
+      title: "TypeScript ESLint",
+      link: "https://typescript-eslint.io",
+    },
+    {
+      title: "TypeScript",
+      link: "https://www.typescriptlang.org",
+    },
+  ];
+</script>
+
+<main>
+  <Component {items} let:item>
+    <div>
+      {item.title}
+    </div>
+  </Component>
+  <Component {items}>
+    <div let:item>
+      {item.title}
+    </div>
+    <span slot="count" let:count={foo}>
+      {foo}
+    </span>
+  </Component>
+</main>
+
+=== 1097 tests/fixtures/parser/ast/ts-let/ts-let01-sveltev4-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+  import Component, { ListItem } from "./lib/Component.svelte"; // Component: typeof SvelteComponent, ListItem: any, ListItem: any
+
+  const items: ListItem[] = [ // items: ListItem[]
+    {
+      title: "Svelte.dev", // title: string
+      link: "https://svelte.dev", // link: string
+    },
+    {
+      title: "TypeScript ESLint", // title: string
+      link: "https://typescript-eslint.io", // link: string
+    },
+    {
+      title: "TypeScript", // title: string
+      link: "https://www.typescriptlang.org", // link: string
+    },
+  ];
+</script>
+
+<main>
+  <Component {items} let:item> <!-- Component: typeof SvelteComponent, items: ListItem[], items: ListItem[], item: any -->
+    <div>
+      {item.title} <!-- item.title: any -->
+    </div>
+  </Component>
+  <Component {items}> <!-- Component: typeof SvelteComponent, items: ListItem[], items: ListItem[] -->
+    <div let:item> <!-- item: any -->
+      {item.title} <!-- item.title: any -->
+    </div>
+    <span slot="count" let:count={foo}> <!-- foo: any -->
+      {foo} <!-- foo: any -->
+    </span>
+  </Component>
+</main>
+
+=== 1665 tests/fixtures/parser/ast/ts-let/ts-let01-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+  import Component, { ListItem } from "./lib/Component.svelte"; // Component: __sveltets_2_IsomorphicComponent<__sveltets_2_PropsWithChildren<{ items?: ListItem[] | undefined; }, { default: { item: ListItem; }; count: { count: number; }; }>, { ...; }, { ...; }, Record<...>, string>, ListItem: any, ListItem: any
+
+  const items: ListItem[] = [ // items: ListItem[]
+    {
+      title: "Svelte.dev", // title: string
+      link: "https://svelte.dev", // link: string
+    },
+    {
+      title: "TypeScript ESLint", // title: string
+      link: "https://typescript-eslint.io", // link: string
+    },
+    {
+      title: "TypeScript", // title: string
+      link: "https://www.typescriptlang.org", // link: string
+    },
+  ];
+</script>
+
+<main>
+  <Component {items} let:item> <!-- Component: __sveltets_2_IsomorphicComponent<__sveltets_2_PropsWithChildren<{ items?: ListItem[] | undefined; }, { default: { item: ListItem; }; count: { count: number; }; }>, { ...; }, { ...; }, Record<...>, string>, items: ListItem[], items: ListItem[], item: ListItem -->
+    <div>
+      {item.title} <!-- item.title: string -->
+    </div>
+  </Component>
+  <Component {items}> <!-- Component: __sveltets_2_IsomorphicComponent<__sveltets_2_PropsWithChildren<{ items?: ListItem[] | undefined; }, { default: { item: ListItem; }; count: { count: number; }; }>, { ...; }, { ...; }, Record<...>, string>, items: ListItem[], items: ListItem[] -->
+    <div let:item> <!-- item: ListItem -->
+      {item.title} <!-- item.title: string -->
+    </div>
+    <span slot="count" let:count={foo}> <!-- foo: number -->
+      {foo} <!-- foo: number -->
+    </span>
+  </Component>
+</main>
+
+=== 256 tests/fixtures/parser/ast/ts-promise01-input.svelte	svelte	runes	neutral
+<script lang="ts">
+	let promise:Promise<{a:number}> = new Promise((resolve)=>resolve({a:42}));
+</script>
+
+{#await promise}
+	<p>...waiting</p>
+{:then number}
+	<p>The number is {number.a}</p>
+{:catch error}
+	<p style="color: red">{error.message}</p>
+{/await}
+=== 569 tests/fixtures/parser/ast/ts-promise01-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+	let promise:Promise<{a:number}> = new Promise((resolve)=>resolve({a:42})); // promise: Promise<{ a: number; }>, Promise: PromiseConstructor, resolve: (value: { a: number; } | PromiseLike<{ a: number; }>) => void, resolve({a:42}): void
+</script>
+
+{#await promise} <!-- promise: Promise<{ a: number; }> -->
+	<p>...waiting</p>
+{:then number} <!-- number: { a: number; } -->
+	<p>The number is {number.a}</p> <!-- number.a: number -->
+{:catch error} <!-- error: Error -->
+	<p style="color: red">{error.message}</p> <!-- error.message: string -->
+{/await}
+=== 1293 tests/fixtures/parser/ast/ts-promise02-input.svelte	svelte	runes	neutral
+<script lang="ts">
+</script>
+
+{#await Promise.resolve(1)}
+	<p>...waiting</p>
+{:then number}
+	<p>The number is {number}</p>
+{:catch error}
+	<p style="color: red">{error.message}</p>
+{/await}
+
+
+{#await Promise.resolve(1)}
+	{#await Promise.resolve('str')}
+		<p>...waiting</p>
+	{:then s}
+		<p>The string is {s}</p>
+	{:catch error}
+		<p style="color: red">{error.message}</p>
+	{/await}
+{:then number}
+	<p>The number is {number}</p>
+{:catch error}
+	<p style="color: red">{error.message}</p>
+{/await}
+
+{#await Promise.resolve(true)}
+	<p>...waiting</p>
+{:then b}
+	<p>The boolean is {b}</p>
+{:catch error}
+	<p style="color: red">{error.message}</p>
+{/await}
+
+{#await Promise.resolve(1)}
+	<p>...waiting</p>
+{:then number}
+	<p>The number is {number}</p>
+{:catch error}
+	<p style="color: red">{error.message}</p>
+{/await}
+
+{#await Promise.resolve(1)}
+	<p>...waiting</p>
+{:then number}
+	<p>The number is {number}</p>
+{:catch error}
+	<p style="color: red">{error.message}</p>
+{/await}
+
+{#await Promise.resolve(1)}
+	<p>...waiting</p>
+{:then number}
+	<p>The number is {number}</p>
+{:catch error}
+	<p style="color: red">{error.message}</p>
+{/await}
+
+{#await Promise.resolve(1)}
+	<p>...waiting</p>
+{:then number}
+	<p>The number is {number}</p>
+{:catch error}
+	<p style="color: red">{error.message}</p>
+{/await}
+
+=== 2451 tests/fixtures/parser/ast/ts-promise02-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+</script>
+
+{#await Promise.resolve(1)} <!-- Promise.resolve(1): Promise<number> -->
+	<p>...waiting</p>
+{:then number} <!-- number: number -->
+	<p>The number is {number}</p> <!-- number: number -->
+{:catch error} <!-- error: Error -->
+	<p style="color: red">{error.message}</p> <!-- error.message: string -->
+{/await}
+
+
+{#await Promise.resolve(1)} <!-- Promise.resolve(1): Promise<number> -->
+	{#await Promise.resolve('str')} <!-- Promise.resolve('str'): Promise<string> -->
+		<p>...waiting</p>
+	{:then s} <!-- s: string -->
+		<p>The string is {s}</p> <!-- s: string -->
+	{:catch error} <!-- error: Error -->
+		<p style="color: red">{error.message}</p> <!-- error.message: string -->
+	{/await}
+{:then number} <!-- number: number -->
+	<p>The number is {number}</p> <!-- number: number -->
+{:catch error} <!-- error: Error -->
+	<p style="color: red">{error.message}</p> <!-- error.message: string -->
+{/await}
+
+{#await Promise.resolve(true)} <!-- Promise.resolve(true): Promise<boolean> -->
+	<p>...waiting</p>
+{:then b} <!-- b: boolean -->
+	<p>The boolean is {b}</p> <!-- b: boolean -->
+{:catch error} <!-- error: Error -->
+	<p style="color: red">{error.message}</p> <!-- error.message: string -->
+{/await}
+
+{#await Promise.resolve(1)} <!-- Promise.resolve(1): Promise<number> -->
+	<p>...waiting</p>
+{:then number} <!-- number: number -->
+	<p>The number is {number}</p> <!-- number: number -->
+{:catch error} <!-- error: Error -->
+	<p style="color: red">{error.message}</p> <!-- error.message: string -->
+{/await}
+
+{#await Promise.resolve(1)} <!-- Promise.resolve(1): Promise<number> -->
+	<p>...waiting</p>
+{:then number} <!-- number: number -->
+	<p>The number is {number}</p> <!-- number: number -->
+{:catch error} <!-- error: Error -->
+	<p style="color: red">{error.message}</p> <!-- error.message: string -->
+{/await}
+
+{#await Promise.resolve(1)} <!-- Promise.resolve(1): Promise<number> -->
+	<p>...waiting</p>
+{:then number} <!-- number: number -->
+	<p>The number is {number}</p> <!-- number: number -->
+{:catch error} <!-- error: Error -->
+	<p style="color: red">{error.message}</p> <!-- error.message: string -->
+{/await}
+
+{#await Promise.resolve(1)} <!-- Promise.resolve(1): Promise<number> -->
+	<p>...waiting</p>
+{:then number} <!-- number: number -->
+	<p>The number is {number}</p> <!-- number: number -->
+{:catch error} <!-- error: Error -->
+	<p style="color: red">{error.message}</p> <!-- error.message: string -->
+{/await}
+
+=== 100 tests/fixtures/parser/ast/ts-shorthand-attr01-input.svelte	svelte	runes	neutral
+<script lang="ts">
+	const src = 'Hello';
+</script>
+
+<img src={src} alt="foo">
+<img {src} alt="foo">
+
+=== 172 tests/fixtures/parser/ast/ts-shorthand-attr01-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+	const src = 'Hello'; // src: "Hello"
+</script>
+
+<img src={src} alt="foo"> <!-- src: "Hello" -->
+<img {src} alt="foo"> <!-- src: string, src: string -->
+
+=== 78 tests/fixtures/parser/ast/ts-slot-binding01-input-child.svelte	svelte	runes	neutral
+<script lang="ts">
+  let foo = { prop: true };
+</script>
+
+<slot {foo}></slot>
+
+=== 159 tests/fixtures/parser/ast/ts-slot-binding01-input.svelte	svelte	runes	neutral
+<script lang="ts">
+  import Component from "./ts-slot-binding01-input-child.svelte";
+</script>
+
+<Component>
+  <div let:foo={bar}>{bar.prop}</div>
+</Component>
+
+=== 168 tests/fixtures/parser/ast/ts-slot-binding01-sveltev4-input.svelte	svelte	runes	neutral
+<script lang="ts">
+  import Component from "./ts-slot-binding01-sveltev4-input-child.svelte";
+</script>
+
+<Component>
+  <div let:foo={bar}>{bar.prop}</div>
+</Component>
+
+=== 281 tests/fixtures/parser/ast/ts-slot-binding01-sveltev4-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+  import Component from "./ts-slot-binding01-sveltev4-input-child.svelte"; // Component: typeof SvelteComponent
+</script>
+
+<Component> <!-- Component: typeof SvelteComponent -->
+  <div let:foo={bar}>{bar.prop}</div> <!-- bar: any, bar.prop: any -->
+</Component>
+
+=== 543 tests/fixtures/parser/ast/ts-slot-binding01-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+  import Component from "./ts-slot-binding01-input-child.svelte"; // Component: __sveltets_2_IsomorphicComponent<any, { [evt: string]: CustomEvent<any>; }, { default: { foo: { prop: boolean; }; }; }, Record<string, any>, string>
+</script>
+
+<Component> <!-- Component: __sveltets_2_IsomorphicComponent<any, { [evt: string]: CustomEvent<any>; }, { default: { foo: { prop: boolean; }; }; }, Record<string, any>, string> -->
+  <div let:foo={bar}>{bar.prop}</div> <!-- bar: { prop: boolean; }, bar.prop: boolean -->
+</Component>
+
+=== 225 tests/fixtures/parser/ast/ts-store02-input.svelte	svelte	runes	neutral
+<script context="module" lang="ts">
+	import { writable } from 'svelte/store';
+	const a = writable(0)
+	declare const $a: string
+</script>
+<script lang="ts">
+	const b = writable(0)
+	declare const $b: string
+</script>
+{$a}
+{$b}
+
+=== 593 tests/fixtures/parser/ast/ts-store02-type-output.svelte	svelte	runes	neutral
+<script context="module" lang="ts">
+	import { writable } from 'svelte/store'; // writable: <T>(value?: T | undefined, start?: StartStopNotifier<T> | undefined) => Writable<T>, writable: <T>(value?: T | undefined, start?: StartStopNotifier<T> | undefined) => Writable<T>
+	const a = writable(0) // a: Writable<number>, writable(0): Writable<number>
+	declare const $a: string // $a: string
+</script>
+<script lang="ts">
+	const b = writable(0) // b: Writable<number>, writable(0): Writable<number>
+	declare const $b: string // $b: string
+</script>
+{$a} <!-- $a: string -->
+{$b} <!-- $b: string -->
+
+=== 346 tests/fixtures/parser/ast/ts-store03-input.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Writable, Readable } from 'svelte/store';
+	let maybeUndef: Writable<number> | undefined
+	let maybeNull: Readable<string> | null
+	let maybeNullAndStr: Readable<boolean> | null | string
+
+	export function fn() {
+		$maybeUndef;
+		$maybeNull;
+		$maybeNullAndStr;
+	}
+</script>
+{$maybeUndef}
+{$maybeNull}
+{$maybeNullAndStr}
+
+=== 798 tests/fixtures/parser/ast/ts-store03-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+	import { Writable, Readable } from 'svelte/store'; // Writable: any, Writable: any, Readable: any, Readable: any
+	let maybeUndef: Writable<number> | undefined // maybeUndef: Writable<number> | undefined
+	let maybeNull: Readable<string> | null // maybeNull: Readable<string> | null
+	let maybeNullAndStr: Readable<boolean> | null | string // maybeNullAndStr: string | Readable<boolean> | null
+
+	export function fn() { // fn: () => void
+		$maybeUndef; // $maybeUndef: number | undefined
+		$maybeNull; // $maybeNull: string | null
+		$maybeNullAndStr; // $maybeNullAndStr: string | boolean | null
+	}
+</script>
+{$maybeUndef} <!-- $maybeUndef: number | undefined -->
+{$maybeNull} <!-- $maybeNull: string | null -->
+{$maybeNullAndStr} <!-- $maybeNullAndStr: string | boolean | null -->
+
+=== 341 tests/fixtures/parser/ast/ts-use01-input.svelte	svelte	runes	neutral
+<script lang="ts">
+  type MyActionParam = () => (p: { foo: number }) => void;
+  function myAction(_node: HTMLElement, params: MyActionParam) {
+    const result = params();
+    result({ foo: 1 });
+    return {
+      destroy: () => {},
+    };
+  }
+</script>
+
+<div
+  use:myAction={() => {
+    return (param) => {
+      param.foo;
+    };
+  }}
+/>
+
+=== 788 tests/fixtures/parser/ast/ts-use01-type-output.svelte	svelte	runes	neutral
+<script lang="ts">
+  type MyActionParam = () => (p: { foo: number }) => void; // MyActionParam: MyActionParam, p: { foo: number; }
+  function myAction(_node: HTMLElement, params: MyActionParam) { // myAction: (_node: HTMLElement, params: MyActionParam) => { destroy: () => void; }, _node: HTMLElement, params: MyActionParam
+    const result = params(); // result: (p: { foo: number; }) => void, params(): (p: { foo: number; }) => void
+    result({ foo: 1 }); // result({ foo: 1 }): void
+    return {
+      destroy: () => {}, // destroy: () => void
+    };
+  }
+</script>
+
+<div
+  use:myAction={() => { // myAction: (_node: HTMLElement, params: MyActionParam) => { destroy: () => void; }
+    return (param) => { // param: { foo: number; }
+      param.foo; // param.foo: number
+    };
+  }}
+/>
+
+=== 1011 tests/fixtures/parser/ast/tutorial/actions-input.svelte	svelte	runes	neutral
+<script>
+	import { pannable } from './pannable.js';
+	import { spring } from 'svelte/motion';
+
+	const coords = spring({ x: 0, y: 0 }, {
+		stiffness: 0.2,
+		damping: 0.4
+	});
+
+	function handlePanStart() {
+		coords.stiffness = coords.damping = 1;
+	}
+
+	function handlePanMove(event) {
+		coords.update($coords => ({
+			x: $coords.x + event.detail.dx,
+			y: $coords.y + event.detail.dy
+		}));
+	}
+
+	function handlePanEnd(event) {
+		coords.stiffness = 0.2;
+		coords.damping = 0.4;
+		coords.set({ x: 0, y: 0 });
+	}
+</script>
+
+<style>
+	.box {
+		--width: 100px;
+		--height: 100px;
+		position: absolute;
+		width: var(--width);
+		height: var(--height);
+		left: calc(50% - var(--width) / 2);
+		top: calc(50% - var(--height) / 2);
+		border-radius: 4px;
+		background-color: #ff3e00;
+		cursor: move;
+	}
+</style>
+
+<div class="box"
+	use:pannable
+	on:panstart={handlePanStart}
+	on:panmove={handlePanMove}
+	on:panend={handlePanEnd}
+	style="transform:
+		translate({$coords.x}px,{$coords.y}px)
+		rotate({$coords.x * 0.2}deg)"
+></div>
+
+=== 428 tests/fixtures/parser/ast/tutorial/adding-parameters-to-actions-input.svelte	svelte	runes	neutral
+<script>
+	import { longpress } from './longpress.js';
+
+	let pressed = false;
+	let duration = 2000;
+</script>
+
+<label>
+	<input type=range bind:value={duration} max={2000} step={100}>
+	{duration}ms
+</label>
+
+<button use:longpress={duration}
+	on:longpress="{() => pressed = true}"
+	on:mouseenter="{() => pressed = false}"
+>press and hold</button>
+
+{#if pressed}
+	<p>congratulations, you pressed and held for {duration}ms</p>
+{/if}
+
+=== 254 tests/fixtures/parser/ast/tutorial/adding-parameters-to-transitions-input.svelte	svelte	runes	neutral
+<script>
+	import { fly } from 'svelte/transition';
+	let visible = true;
+</script>
+
+<label>
+	<input type="checkbox" bind:checked={visible}>
+	visible
+</label>
+
+{#if visible}
+	<p transition:fly="{{ y: 200, duration: 2000 }}">
+		Fades in and out
+	</p>
+{/if}
+
+=== 3497 tests/fixtures/parser/ast/tutorial/animate-input.svelte	svelte	runes	neutral
+<script>
+	import { flip } from 'svelte/animate';
+	import { quintOut } from 'svelte/easing';
+	import { crossfade } from 'svelte/transition';
+
+	const [send, receive] = crossfade({
+		duration: d => Math.sqrt(d * 200),
+
+		fallback(node, params) {
+			const style = getComputedStyle(node);
+			const transform = style.transform === 'none' ? '' : style.transform;
+
+			return {
+				duration: 600,
+				easing: quintOut,
+				css: t => `
+					transform: ${transform} scale(${t});
+					opacity: ${t}
+				`
+			};
+		}
+	});
+
+	let uid = 1;
+
+	let todos = [
+		{ id: uid++, done: false, description: 'write some docs' },
+		{ id: uid++, done: false, description: 'start writing blog post' },
+		{ id: uid++, done: true,  description: 'buy some milk' },
+		{ id: uid++, done: false, description: 'mow the lawn' },
+		{ id: uid++, done: false, description: 'feed the turtle' },
+		{ id: uid++, done: false, description: 'fix some bugs' },
+	];
+
+	function add(input) {
+		const todo = {
+			id: uid++,
+			done: false,
+			description: input.value
+		};
+
+		todos = [todo, ...todos];
+		input.value = '';
+	}
+
+	function remove(todo) {
+		todos = todos.filter(t => t !== todo);
+	}
+
+	function mark(todo, done) {
+		todo.done = done;
+		remove(todo);
+		todos = todos.concat(todo);
+	}
+</script>
+
+<div class='board'>
+	<input
+		placeholder="what needs to be done?"
+		on:keydown={e => e.key === 'Enter' && add(e.target)}
+	>
+
+	<div class='left'>
+		<h2>todo</h2>
+		{#each todos.filter(t => !t.done) as todo (todo.id)}
+			<label
+				in:receive="{{key: todo.id}}"
+				out:send="{{key: todo.id}}"
+				animate:flip
+			>
+				<input type=checkbox on:change={() => mark(todo, true)}>
+				{todo.description}
+				<button on:click="{() => remove(todo)}">remove</button>
+			</label>
+		{/each}
+	</div>
+
+	<div class='right'>
+		<h2>done</h2>
+		{#each todos.filter(t => t.done) as todo (todo.id)}
+			<label
+				class="done"
+				in:receive="{{key: todo.id}}"
+				out:send="{{key: todo.id}}"
+				animate:flip="{{duration: 200}}"
+			>
+				<input type=checkbox checked on:change={() => mark(todo, false)}>
+				{todo.description}
+				<button on:click="{() => remove(todo)}">remove</button>
+			</label>
+		{/each}
+	</div>
+</div>
+
+<style>
+	.board {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		grid-gap: 1em;
+		max-width: 36em;
+		margin: 0 auto;
+	}
+
+	.board > input {
+		font-size: 1.4em;
+		grid-column: 1/3;
+	}
+
+	h2 {
+		font-size: 2em;
+		font-weight: 200;
+		user-select: none;
+		margin: 0 0 0.5em 0;
+	}
+
+	label {
+		position: relative;
+		line-height: 1.2;
+		padding: 0.5em 2.5em 0.5em 2em;
+		margin: 0 0 0.5em 0;
+		border-radius: 2px;
+		user-select: none;
+		border: 1px solid hsl(240, 8%, 70%);
+		background-color:hsl(240, 8%, 93%);
+		color: #333;
+	}
+
+	input[type="checkbox"] {
+		position: absolute;
+		left: 0.5em;
+		top: 0.6em;
+		margin: 0;
+	}
+
+	.done {
+		border: 1px solid hsl(240, 8%, 90%);
+		background-color:hsl(240, 8%, 98%);
+	}
+
+	button {
+		position: absolute;
+		top: 0;
+		right: 0.2em;
+		width: 2em;
+		height: 100%;
+		background: no-repeat 50% 50% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23676778' d='M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M17,7H14.5L13.5,6H10.5L9.5,7H7V9H17V7M9,18H15A1,1 0 0,0 16,17V10H8V17A1,1 0 0,0 9,18Z'%3E%3C/path%3E%3C/svg%3E");
+		background-size: 1.4em 1.4em;
+		border: none;
+		opacity: 0;
+		transition: opacity 0.2s;
+		text-indent: -9999px;
+		cursor: pointer;
+	}
+
+	label:hover button {
+		opacity: 1;
+	}
+</style>
+
+=== 431 tests/fixtures/parser/ast/tutorial/auto-subscriptions01-input.svelte	svelte	runes	neutral
+<script>
+	import { onDestroy } from 'svelte';
+	import { count } from './stores.js';
+	import Incrementer from './Incrementer.svelte';
+	import Decrementer from './Decrementer.svelte';
+	import Resetter from './Resetter.svelte';
+
+	let count_value;
+
+	const unsubscribe = count.subscribe(value => {
+		count_value = value;
+	});
+	onDestroy(unsubscribe);
+</script>
+
+<h1>The count is {$count}</h1>
+
+<Incrementer/>
+<Decrementer/>
+<Resetter/>
+
+=== 836 tests/fixtures/parser/ast/tutorial/await-blocks-input.svelte	svelte	runes	neutral
+<script>
+	async function getRandomNumber() {
+		const res = await fetch(`tutorial/random-number`);
+		const text = await res.text();
+
+		if (res.ok) {
+			return text;
+		} else {
+			throw new Error(text);
+		}
+	}
+
+	let promise = getRandomNumber();
+
+	function handleClick() {
+		promise = getRandomNumber();
+	}
+</script>
+
+<button on:click={handleClick}>
+	generate random number
+</button>
+
+<!-- replace this element -->
+{#await promise}
+	<p>...waiting</p>
+{:then number}
+	<p>The number is {number}</p>
+{:catch error}
+	<p style="color: red">{error.message}</p>
+{/await}
+
+{#await promise then value}
+	<p>the value is {value}</p>
+{/await}
+
+{#await promise catch error}
+	<p style="color: red">{error.message}</p>
+{/await}
+
+{#await promise then value}
+	<p>the value is {value}</p>
+{:catch error}
+	<p style="color: red">{error.message}</p>
+{/await}
+
+
+=== 1123 tests/fixtures/parser/ast/tutorial/bind-this-input.svelte	svelte	runes	neutral
+<script>
+	import { onMount } from 'svelte';
+
+	let canvas;
+
+	onMount(() => {
+		const ctx = canvas.getContext('2d');
+		let frame = requestAnimationFrame(loop);
+
+		function loop(t) {
+			frame = requestAnimationFrame(loop);
+
+			const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+			for (let p = 0; p < imageData.data.length; p += 4) {
+				const i = p / 4;
+				const x = i % canvas.width;
+				const y = i / canvas.height >>> 0;
+
+				const r = 64 + (128 * x / canvas.width) + (64 * Math.sin(t / 1000));
+				const g = 64 + (128 * y / canvas.height) + (64 * Math.cos(t / 1000));
+				const b = 128;
+
+				imageData.data[p + 0] = r;
+				imageData.data[p + 1] = g;
+				imageData.data[p + 2] = b;
+				imageData.data[p + 3] = 255;
+			}
+
+			ctx.putImageData(imageData, 0, 0);
+		}
+
+		return () => {
+			cancelAnimationFrame(frame);
+		};
+	});
+</script>
+
+<style>
+	canvas {
+		width: 100%;
+		height: 100%;
+		background-color: #666;
+		-webkit-mask: url(svelte-logo-mask.svg) 50% 50% no-repeat;
+		mask: url(svelte-logo-mask.svg) 50% 50% no-repeat;
+	}
+</style>
+
+<canvas
+	bind:this={canvas}
+	width={32}
+	height={32}
+></canvas>
+
+=== 359 tests/fixtures/parser/ast/tutorial/checkbox-inputs-input.svelte	svelte	runes	neutral
+<script>
+	let yes = false;
+</script>
+
+<label>
+	<input type=checkbox bind:checked={yes}>
+	Yes! Send me regular email spam
+</label>
+
+{#if yes}
+	<p>Thank you. We will bombard your inbox and sell your personal details.</p>
+{:else}
+	<p>You must opt in to continue. If you're not paying, you're the product.</p>
+{/if}
+
+<button disabled={!yes}>
+	Subscribe
+</button>
+
+=== 208 tests/fixtures/parser/ast/tutorial/class-shorthand-input.svelte	svelte	runes	neutral
+<script>
+	let big = false;
+</script>
+
+<style>
+	.big {
+		font-size: 4em;
+	}
+</style>
+
+<label>
+	<input type=checkbox bind:checked={big}>
+	big
+</label>
+
+<div class:big>
+	some {big ? 'big' : 'small'} text
+</div>
+
+=== 452 tests/fixtures/parser/ast/tutorial/classes-input.svelte	svelte	runes	neutral
+<script>
+	let current = 'foo';
+</script>
+
+<style>
+	button {
+		display: block;
+	}
+
+	.selected {
+		background-color: #ff3e00;
+		color: white;
+	}
+</style>
+
+<button
+	class:selected="{current === 'foo'}"
+	on:click="{() => current = 'foo'}"
+>foo</button>
+
+<button
+	class:selected="{current === 'bar'}"
+	on:click="{() => current = 'bar'}"
+>bar</button>
+
+<button
+	class="{current === 'baz' ? 'selected' : ''}"
+	on:click="{() => current = 'baz'}"
+>baz</button>
+
+=== 158 tests/fixtures/parser/ast/tutorial/component-events01-input.svelte	svelte	runes	neutral
+<script>
+	import Inner from './Inner.svelte';
+
+	function handleMessage(event) {
+		alert(event.detail.text);
+	}
+</script>
+
+<Inner on:message={handleMessage}/>
+
+=== 247 tests/fixtures/parser/ast/tutorial/component-events02-input.svelte	svelte	runes	neutral
+<script>
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
+
+	function sayHello() {
+		dispatch('message', {
+			text: 'Hello!'
+		});
+	}
+</script>
+
+<button on:click={sayHello}>
+	Click to say hello
+</button>
+
+=== 869 tests/fixtures/parser/ast/tutorial/congratulations-input.svelte	svelte	runes	neutral
+<script>
+	import { onMount } from 'svelte';
+
+	let characters = ['🥳', '🎉', '✨'];
+
+	let confetti = new Array(100).fill()
+		.map((_, i) => {
+			return {
+				character: characters[i % characters.length],
+				x: Math.random() * 100,
+				y: -20 - Math.random() * 100,
+				r: 0.1 + Math.random() * 1
+			};
+		})
+		.sort((a, b) => a.r - b.r);
+
+	onMount(() => {
+		let frame;
+
+		function loop() {
+			frame = requestAnimationFrame(loop);
+
+			confetti = confetti.map(emoji => {
+				emoji.y += 0.7 * emoji.r;
+				if (emoji.y > 120) emoji.y = -20;
+				return emoji;
+			});
+		}
+
+		loop();
+
+		return () => cancelAnimationFrame(frame);
+	});
+</script>
+
+<style>
+	:global(body) {
+		overflow: hidden;
+	}
+
+	span {
+		position: absolute;
+		font-size: 5vw;
+	}
+</style>
+
+{#each confetti as c}
+	<span style="left: {c.x}%; top: {c.y}%; transform: scale({c.r})">{c.character}</span>
+{/each}
+
+=== 243 tests/fixtures/parser/ast/tutorial/contenteditable-bindings-input.svelte	svelte	runes	neutral
+<script>
+	let html = '<p>Write some text!</p>';
+</script>
+
+<div contenteditable="true" bind:innerHTML={html}></div>
+
+<pre>{html}</pre>
+
+<style>
+	[contenteditable] {
+		padding: 0.5em;
+		border: 1px solid #eee;
+		border-radius: 4px;
+	}
+</style>
+
+=== 596 tests/fixtures/parser/ast/tutorial/context-api01-input.svelte	svelte	runes	neutral
+<script>
+	import Map from './Map.svelte';
+	import MapMarker from './MapMarker.svelte';
+</script>
+
+<Map lat={35} lon={-84} zoom={3.5}>
+	<MapMarker lat={37.8225} lon={-122.0024} label="Svelte Body Shaping"/>
+	<MapMarker lat={33.8981} lon={-118.4169} label="Svelte Barbershop & Essentials"/>
+	<MapMarker lat={29.7230} lon={-95.4189} label="Svelte Waxing Studio"/>
+	<MapMarker lat={28.3378} lon={-81.3966} label="Svelte 30 Nutritional Consultants"/>
+	<MapMarker lat={40.6483} lon={-74.0237} label="Svelte Brands LLC"/>
+	<MapMarker lat={40.6986} lon={-74.4100} label="Svelte Medical Systems"/>
+</Map>
+
+=== 704 tests/fixtures/parser/ast/tutorial/custom-css-transitions01-input.svelte	svelte	runes	neutral
+<script>
+	function fade(node, {
+		delay = 0,
+		duration = 400
+	}) {
+		const o = +getComputedStyle(node).opacity;
+
+		return {
+			delay,
+			duration,
+			css: t => `opacity: ${t * o}`
+		};
+	}
+
+	let visible = true;
+
+	function spin(node, { duration }) {
+		return {
+			duration,
+			css: t => ``
+		};
+	}
+</script>
+
+<style>
+	.centered {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%,-50%);
+	}
+
+	span {
+		position: absolute;
+		transform: translate(-50%,-50%);
+		font-size: 4em;
+	}
+</style>
+
+<label>
+	<input type="checkbox" bind:checked={visible}>
+	visible
+</label>
+
+{#if visible}
+	<div class="centered" in:spin="{{duration: 8000}}" out:fade>
+		<span>transitions!</span>
+	</div>
+{/if}
+
+=== 851 tests/fixtures/parser/ast/tutorial/custom-css-transitions02-input.svelte	svelte	runes	neutral
+<script>
+	import { fade } from 'svelte/transition';
+	import { elasticOut } from 'svelte/easing';
+
+	let visible = true;
+
+	function spin(node, { duration }) {
+		return {
+			duration,
+			css: t => {
+				const eased = elasticOut(t);
+
+				return `
+					transform: scale(${eased}) rotate(${eased * 1080}deg);
+					color: hsl(
+						${~~(t * 360)},
+						${Math.min(100, 1000 - 1000 * t)}%,
+						${Math.min(50, 500 - 500 * t)}%
+					);`
+			}
+		};
+	}
+</script>
+
+<style>
+	.centered {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%,-50%);
+	}
+
+	span {
+		position: absolute;
+		transform: translate(-50%,-50%);
+		font-size: 4em;
+	}
+</style>
+
+<label>
+	<input type="checkbox" bind:checked={visible}>
+	visible
+</label>
+
+{#if visible}
+	<div class="centered" in:spin="{{duration: 8000}}" out:fade>
+		<span>transitions!</span>
+	</div>
+{/if}
+
+=== 679 tests/fixtures/parser/ast/tutorial/custom-js-transitions-input.svelte	svelte	runes	neutral
+<script>
+	let visible = false;
+
+	function typewriter(node, { speed = 50 }) {
+		const valid = (
+			node.childNodes.length === 1 &&
+			node.childNodes[0].nodeType === Node.TEXT_NODE
+		);
+
+		if (!valid) {
+			throw new Error(`This transition only works on elements with a single text node child`);
+		}
+
+		const text = node.textContent;
+		const duration = text.length * speed;
+
+		return {
+			duration,
+			tick: t => {
+				const i = ~~(text.length * t);
+				node.textContent = text.slice(0, i);
+			}
+		};
+	}
+</script>
+
+<label>
+	<input type="checkbox" bind:checked={visible}>
+	visible
+</label>
+
+{#if visible}
+	<p in:typewriter>
+		The quick brown fox jumps over the lazy dog
+	</p>
+{/if}
+
+=== 228 tests/fixtures/parser/ast/tutorial/custom-stores-input.svelte	svelte	runes	neutral
+<script>
+	import { count } from './stores.js';
+</script>
+
+<h1>The count is {$count}</h1>
+
+<button on:click={count.increment}>+</button>
+<button on:click={count.decrement}>-</button>
+<button on:click={count.reset}>reset</button>
+
+=== 201 tests/fixtures/parser/ast/tutorial/debug01-input.svelte	svelte	runes	neutral
+<script>
+	let user = {
+		firstname: 'Ada',
+		lastname: 'Lovelace'
+	};
+</script>
+
+<input bind:value={user.firstname}>
+<input bind:value={user.lastname}>
+
+{@debug user}
+
+<h1>Hello {user.firstname}!</h1>
+
+=== 206 tests/fixtures/parser/ast/tutorial/debug02-input.svelte	svelte	runes	neutral
+<script>
+	let user = {
+		firstname: 'Ada',
+		lastname: 'Lovelace'
+	};
+</script>
+
+<input bind:value={user.firstname}>
+<input bind:value={user.lastname}>
+
+{@debug user, foo}
+
+<h1>Hello {user.firstname}!</h1>
+
+=== 81 tests/fixtures/parser/ast/tutorial/declaring-props01-input.svelte	svelte	runes	neutral
+<script>
+	import Nested from './Nested.svelte';
+</script>
+
+<Nested answer={42}/>
+
+=== 69 tests/fixtures/parser/ast/tutorial/default-values01-input.svelte	svelte	runes	neutral
+<script>
+	import Nested from './Nested.svelte';
+</script>
+
+<Nested/>
+
+=== 3395 tests/fixtures/parser/ast/tutorial/deferred-transitions-input.svelte	svelte	runes	neutral
+<script>
+	import { quintOut } from 'svelte/easing';
+	import { crossfade } from 'svelte/transition';
+
+	const [send, receive] = crossfade({
+		duration: d => Math.sqrt(d * 200),
+
+		fallback(node, params) {
+			const style = getComputedStyle(node);
+			const transform = style.transform === 'none' ? '' : style.transform;
+
+			return {
+				duration: 600,
+				easing: quintOut,
+				css: t => `
+					transform: ${transform} scale(${t});
+					opacity: ${t}
+				`
+			};
+		}
+	});
+
+	let uid = 1;
+
+	let todos = [
+		{ id: uid++, done: false, description: 'write some docs' },
+		{ id: uid++, done: false, description: 'start writing blog post' },
+		{ id: uid++, done: true,  description: 'buy some milk' },
+		{ id: uid++, done: false, description: 'mow the lawn' },
+		{ id: uid++, done: false, description: 'feed the turtle' },
+		{ id: uid++, done: false, description: 'fix some bugs' },
+	];
+
+	function add(input) {
+		const todo = {
+			id: uid++,
+			done: false,
+			description: input.value
+		};
+
+		todos = [todo, ...todos];
+		input.value = '';
+	}
+
+	function remove(todo) {
+		todos = todos.filter(t => t !== todo);
+	}
+
+	function mark(todo, done) {
+		todo.done = done;
+		remove(todo);
+		todos = todos.concat(todo);
+	}
+</script>
+
+<div class='board'>
+	<input
+		placeholder="what needs to be done?"
+		on:keydown={e => e.key === 'Enter' && add(e.target)}
+	>
+
+	<div class='left'>
+		<h2>todo</h2>
+		{#each todos.filter(t => !t.done) as todo (todo.id)}
+			<label
+				in:receive="{{key: todo.id}}"
+				out:send="{{key: todo.id}}"
+			>
+				<input type=checkbox on:change={() => mark(todo, true)}>
+				{todo.description}
+				<button on:click="{() => remove(todo)}">remove</button>
+			</label>
+		{/each}
+	</div>
+
+	<div class='right'>
+		<h2>done</h2>
+		{#each todos.filter(t => t.done) as todo (todo.id)}
+			<label class="done"
+				in:receive="{{key: todo.id}}"
+				out:send="{{key: todo.id}}">
+				<input type=checkbox checked on:change={() => mark(todo, false)}>
+				{todo.description}
+				<button on:click="{() => remove(todo)}">remove</button>
+			</label>
+		{/each}
+	</div>
+</div>
+
+<style>
+	.board {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		grid-gap: 1em;
+		max-width: 36em;
+		margin: 0 auto;
+	}
+
+	.board > input {
+		font-size: 1.4em;
+		grid-column: 1/3;
+	}
+
+	h2 {
+		font-size: 2em;
+		font-weight: 200;
+		user-select: none;
+		margin: 0 0 0.5em 0;
+	}
+
+	label {
+		position: relative;
+		line-height: 1.2;
+		padding: 0.5em 2.5em 0.5em 2em;
+		margin: 0 0 0.5em 0;
+		border-radius: 2px;
+		user-select: none;
+		border: 1px solid hsl(240, 8%, 70%);
+		background-color:hsl(240, 8%, 93%);
+		color: #333;
+	}
+
+	input[type="checkbox"] {
+		position: absolute;
+		left: 0.5em;
+		top: 0.6em;
+		margin: 0;
+	}
+
+	.done {
+		border: 1px solid hsl(240, 8%, 90%);
+		background-color:hsl(240, 8%, 98%);
+	}
+
+	button {
+		position: absolute;
+		top: 0;
+		right: 0.2em;
+		width: 2em;
+		height: 100%;
+		background: no-repeat 50% 50% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23676778' d='M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M17,7H14.5L13.5,6H10.5L9.5,7H7V9H17V7M9,18H15A1,1 0 0,0 16,17V10H8V17A1,1 0 0,0 9,18Z'%3E%3C/path%3E%3C/svg%3E");
+		background-size: 1.4em 1.4em;
+		border: none;
+		opacity: 0;
+		transition: opacity 0.2s;
+		text-indent: -9999px;
+		cursor: pointer;
+	}
+
+	label:hover button {
+		opacity: 1;
+	}
+</style>
+
+=== 337 tests/fixtures/parser/ast/tutorial/derived-stores-input.svelte	svelte	runes	neutral
+<script>
+	import { time, elapsed } from './stores.js';
+
+	const formatter = new Intl.DateTimeFormat('en', {
+		hour12: true,
+		hour: 'numeric',
+		minute: '2-digit',
+		second: '2-digit'
+	});
+</script>
+
+<h1>The time is {formatter.format($time)}</h1>
+
+<p>
+	This page has been open for
+	{$elapsed} {$elapsed === 1 ? 'second' : 'seconds'}
+</p>
+
+=== 382 tests/fixtures/parser/ast/tutorial/dimensions-input.svelte	svelte	runes	neutral
+<script>
+	let w;
+	let h;
+	let size = 42;
+	let text = 'edit me';
+</script>
+
+<style>
+	input { display: block; }
+	div { display: inline-block; }
+	span { word-break: break-all; }
+</style>
+
+<input type=range bind:value={size}>
+<input bind:value={text}>
+
+<p>size: {w}px x {h}px</p>
+
+<div bind:clientWidth={w} bind:clientHeight={h}>
+	<span style="font-size: {size}px">{text}</span>
+</div>
+
+=== 160 tests/fixtures/parser/ast/tutorial/dom-event-forwarding01-input.svelte	svelte	runes	neutral
+<script>
+	import CustomButton from './CustomButton.svelte';
+
+	function handleClick() {
+		alert('clicked');
+	}
+</script>
+
+<CustomButton on:click={handleClick}/>
+
+=== 423 tests/fixtures/parser/ast/tutorial/dom-event-forwarding02-input.svelte	svelte	runes	neutral
+<style>
+	button {
+		height: 4rem;
+		width: 8rem;
+		background-color: #aaa;
+		border-color: #f1c40f;
+		color: #f1c40f;
+		font-size: 1.25rem;
+		background-image: linear-gradient(45deg, #f1c40f 50%, transparent 50%);
+		background-position: 100%;
+		background-size: 400%;
+		transition: background 300ms ease-in-out;
+	}
+	button:hover {
+		background-position: 0;
+		color: #aaa;
+	}
+</style>
+
+<button on:click>
+	Click me
+</button>
+
+=== 265 tests/fixtures/parser/ast/tutorial/dom-events-input.svelte	svelte	runes	neutral
+<script>
+	let m = { x: 0, y: 0 };
+
+	function handleMousemove(event) {
+		m.x = event.clientX;
+		m.y = event.clientY;
+	}
+</script>
+
+<style>
+	div { width: 100%; height: 100%; }
+</style>
+
+<div on:mousemove={handleMousemove}>
+	The mouse position is {m.x} x {m.y}
+</div>
+
+=== 143 tests/fixtures/parser/ast/tutorial/dynamic-attributes-input.svelte	svelte	runes	neutral
+<script>
+	let src = 'tutorial/image.gif';
+</script>
+
+<img>
+<img src={src}>
+<img src={src} alt="A man dances.">
+<img {src} alt="A man dances.">
+
+=== 361 tests/fixtures/parser/ast/tutorial/each-blocks01-input.svelte	svelte	runes	neutral
+<script>
+	let cats = [
+		{ id: 'J---aiyznGQ', name: 'Keyboard Cat' },
+		{ id: 'z_AbfPXTKms', name: 'Maru' },
+		{ id: 'OUtn3pvWmpg', name: 'Henri The Existential Cat' }
+	];
+</script>
+
+<h1>The Famous Cats of YouTube</h1>
+
+<ul>
+	{#each cats as cat}
+		<li><a target="_blank" href="https://www.youtube.com/watch?v={cat.id}">
+			{cat.name}
+		</a></li>
+	{/each}
+</ul>
+
+=== 373 tests/fixtures/parser/ast/tutorial/each-blocks02-input.svelte	svelte	runes	neutral
+<script>
+	let cats = [
+		{ id: 'J---aiyznGQ', name: 'Keyboard Cat' },
+		{ id: 'z_AbfPXTKms', name: 'Maru' },
+		{ id: 'OUtn3pvWmpg', name: 'Henri The Existential Cat' }
+	];
+</script>
+
+<h1>The Famous Cats of YouTube</h1>
+
+<ul>
+	{#each cats as cat, i}
+		<li><a target="_blank" href="https://www.youtube.com/watch?v={cat.id}">
+			{i + 1}: {cat.name}
+		</a></li>
+	{/each}
+</ul>
+
+=== 243 tests/fixtures/parser/ast/tutorial/else-blocks-input.svelte	svelte	runes	neutral
+<script>
+	let user = { loggedIn: false };
+
+	function toggle() {
+		user.loggedIn = !user.loggedIn;
+	}
+</script>
+
+{#if user.loggedIn}
+	<button on:click={toggle}>
+		Log out
+	</button>
+{:else}
+	<button on:click={toggle}>
+		Log in
+	</button>
+{/if}
+
+=== 180 tests/fixtures/parser/ast/tutorial/else-if-blocks01-input.svelte	svelte	runes	neutral
+<script>
+	let x = 7;
+</script>
+
+{#if x > 10}
+	<p>{x} is greater than 10</p>
+{:else}
+	{#if 5 > x}
+		<p>{x} is less than 5</p>
+	{:else}
+		<p>{x} is between 5 and 10</p>
+	{/if}
+{/if}
+
+=== 166 tests/fixtures/parser/ast/tutorial/else-if-blocks02-input.svelte	svelte	runes	neutral
+<script>
+	let x = 7;
+</script>
+
+{#if x > 10}
+	<p>{x} is greater than 10</p>
+{:else if 5 > x}
+	<p>{x} is less than 5</p>
+{:else}
+	<p>{x} is between 5 and 10</p>
+{/if}
+
+=== 158 tests/fixtures/parser/ast/tutorial/event-forwarding01-input.svelte	svelte	runes	neutral
+<script>
+	import Outer from './Outer.svelte';
+
+	function handleMessage(event) {
+		alert(event.detail.text);
+	}
+</script>
+
+<Outer on:message={handleMessage}/>
+
+=== 248 tests/fixtures/parser/ast/tutorial/event-forwarding03-input.svelte	svelte	runes	neutral
+<script>
+	import Inner from './Inner.svelte';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
+
+	function forward(event) {
+		dispatch('message', event.detail);
+	}
+</script>
+
+<Inner on:message={forward}/>
+
+=== 77 tests/fixtures/parser/ast/tutorial/event-forwarding04-input.svelte	svelte	runes	neutral
+<script>
+	import Inner from './Inner.svelte';
+</script>
+
+<Inner on:message/>
+
+=== 132 tests/fixtures/parser/ast/tutorial/event-modifiers-input.svelte	svelte	runes	neutral
+<script>
+	function handleClick() {
+		alert('no more alerts')
+	}
+</script>
+
+<button on:click|once={handleClick}>
+	Click me
+</button>
+
+=== 981 tests/fixtures/parser/ast/tutorial/group-inputs-input.svelte	svelte	runes	neutral
+<script>
+	let scoops = 1;
+	let flavours = ['Mint choc chip'];
+
+	function join(flavours) {
+		if (flavours.length === 1) return flavours[0];
+		return `${flavours.slice(0, -1).join(', ')} and ${flavours[flavours.length - 1]}`;
+	}
+	let menu = [
+		'Cookies and cream',
+		'Mint choc chip',
+		'Raspberry ripple'
+	];
+</script>
+
+<h2>Size</h2>
+
+<label>
+	<input type=radio bind:group={scoops} value={1}>
+	One scoop
+</label>
+
+<label>
+	<input type=radio bind:group={scoops} value={2}>
+	Two scoops
+</label>
+
+<label>
+	<input type=radio bind:group={scoops} value={3}>
+	Three scoops
+</label>
+
+<h2>Flavours</h2>
+
+{#each menu as flavour}
+	<label>
+		<input type=checkbox bind:group={flavours} value={flavour}>
+		{flavour}
+	</label>
+{/each}
+
+{#if flavours.length === 0}
+	<p>Please select at least one flavour</p>
+{:else if flavours.length > scoops}
+	<p>Can't order more flavours than scoops!</p>
+{:else}
+	<p>
+		You ordered {scoops} {scoops === 1 ? 'scoop' : 'scoops'}
+		of {join(flavours)}
+	</p>
+{/if}
+
+=== 104 tests/fixtures/parser/ast/tutorial/html-tags01-input.svelte	svelte	runes	neutral
+<script>
+	let string = `this string contains some <strong>HTML!!!</strong>`;
+</script>
+
+<p>{string}</p>
+
+=== 110 tests/fixtures/parser/ast/tutorial/html-tags02-input.svelte	svelte	runes	neutral
+<script>
+	let string = `this string contains some <strong>HTML!!!</strong>`;
+</script>
+
+<p>{@html string}</p>
+
+=== 263 tests/fixtures/parser/ast/tutorial/if-blocks-input.svelte	svelte	runes	neutral
+<script>
+	let user = { loggedIn: false };
+
+	function toggle() {
+		user.loggedIn = !user.loggedIn;
+	}
+</script>
+
+{#if user.loggedIn}
+	<button on:click={toggle}>
+		Log out
+	</button>
+{/if}
+
+{#if !user.loggedIn}
+	<button on:click={toggle}>
+		Log in
+	</button>
+{/if}
+
+=== 261 tests/fixtures/parser/ast/tutorial/in-and-out-input.svelte	svelte	runes	neutral
+<script>
+	import { fade, fly } from 'svelte/transition';
+	let visible = true;
+</script>
+
+<label>
+	<input type="checkbox" bind:checked={visible}>
+	visible
+</label>
+
+{#if visible}
+	<p in:fly="{{ y: 200, duration: 2000 }}" out:fade>
+		Flies in and out
+	</p>
+{/if}
+
+=== 291 tests/fixtures/parser/ast/tutorial/inline-handlers-input.svelte	svelte	runes	neutral
+<script>
+	let m = { x: 0, y: 0 };
+
+	function handleMousemove(event) {
+		m.x = event.clientX;
+		m.y = event.clientY;
+	}
+</script>
+
+<style>
+	div { width: 100%; height: 100%; }
+</style>
+
+<div on:mousemove="{e => m = { x: e.clientX, y: e.clientY }}">
+	The mouse position is {m.x} x {m.y}
+</div>
+
+=== 425 tests/fixtures/parser/ast/tutorial/keyed-each-blocks-input.svelte	svelte	runes	neutral
+<script>
+	import Thing from './Thing.svelte';
+
+	let things = [
+		{ id: 1, color: 'darkblue' },
+		{ id: 2, color: 'indigo' },
+		{ id: 3, color: 'deeppink' },
+		{ id: 4, color: 'salmon' },
+		{ id: 5, color: 'gold' }
+	];
+
+	function handleClick() {
+		things = things.slice(1);
+	}
+</script>
+
+<button on:click={handleClick}>
+	Remove first thing
+</button>
+
+{#each things as thing (thing.id)}
+	<Thing current={thing.color}/>
+{/each}
+
+=== 530 tests/fixtures/parser/ast/tutorial/local-transitions-input.svelte	svelte	runes	neutral
+<script>
+	import { slide } from 'svelte/transition';
+
+	let showItems = true;
+	let i = 5;
+	let items = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+</script>
+
+<style>
+	div {
+		padding: 0.5em 0;
+		border-top: 1px solid #eee;
+	}
+</style>
+
+<label>
+	<input type="checkbox" bind:checked={showItems}>
+	show list
+</label>
+
+<label>
+	<input type="range" bind:value={i} max=10>
+
+</label>
+
+{#if showItems}
+	{#each items.slice(0, i) as item}
+		<div transition:slide|local>
+			{item}
+		</div>
+	{/each}
+{/if}
+
+=== 2782 tests/fixtures/parser/ast/tutorial/media-elements-input.svelte	svelte	runes	neutral
+<script>
+	// These values are bound to properties of the video
+	let time = 0;
+	let duration;
+	let paused = true;
+
+	let showControls = true;
+	let showControlsTimeout;
+
+	function handleMousemove(e) {
+		// Make the controls visible, but fade out after
+		// 2.5 seconds of inactivity
+		clearTimeout(showControlsTimeout);
+		showControlsTimeout = setTimeout(() => showControls = false, 2500);
+		showControls = true;
+
+		if (!(e.buttons & 1)) return; // mouse not down
+		if (!duration) return; // video not loaded yet
+
+		const { left, right } = this.getBoundingClientRect();
+		time = duration * (e.clientX - left) / (right - left);
+	}
+
+	function handleMousedown(e) {
+		// we can't rely on the built-in click event, because it fires
+		// after a drag — we have to listen for clicks ourselves
+
+		function handleMouseup() {
+			if (paused) e.target.play();
+			else e.target.pause();
+			cancel();
+		}
+
+		function cancel() {
+			e.target.removeEventListener('mouseup', handleMouseup);
+		}
+
+		e.target.addEventListener('mouseup', handleMouseup);
+
+		setTimeout(cancel, 200);
+	}
+
+	function format(seconds) {
+		if (isNaN(seconds)) return '...';
+
+		const minutes = Math.floor(seconds / 60);
+		seconds = Math.floor(seconds % 60);
+		if (seconds < 10) seconds = '0' + seconds;
+
+		return `${minutes}:${seconds}`;
+	}
+</script>
+
+<style>
+	div {
+		position: relative;
+	}
+
+	.controls {
+		position: absolute;
+		top: 0;
+		width: 100%;
+		transition: opacity 1s;
+	}
+
+	.info {
+		display: flex;
+		width: 100%;
+		justify-content: space-between;
+	}
+
+	span {
+		padding: 0.2em 0.5em;
+		color: white;
+		text-shadow: 0 0 8px black;
+		font-size: 1.4em;
+		opacity: 0.7;
+	}
+
+	.time {
+		width: 3em;
+	}
+
+	.time:last-child { text-align: right }
+
+	progress {
+		display: block;
+		width: 100%;
+		height: 10px;
+		-webkit-appearance: none;
+		appearance: none;
+	}
+
+	progress::-webkit-progress-bar {
+		background-color: rgba(0,0,0,0.2);
+	}
+
+	progress::-webkit-progress-value {
+		background-color: rgba(255,255,255,0.6);
+	}
+
+	video {
+		width: 100%;
+	}
+</style>
+
+<h1>Caminandes: Llamigos</h1>
+<p>From <a href="https://cloud.blender.org/open-projects">Blender Open Projects</a>. CC-BY</p>
+
+<div>
+	<video
+		poster="https://sveltejs.github.io/assets/caminandes-llamigos.jpg"
+		src="https://sveltejs.github.io/assets/caminandes-llamigos.mp4"
+		on:mousemove={handleMousemove}
+		on:mousedown={handleMousedown}
+		bind:currentTime={time}
+		bind:duration
+		bind:paused>
+		<track kind="captions">
+	</video>
+
+	<div class="controls" style="opacity: {duration && showControls ? 1 : 0}">
+		<progress value="{(time / duration) || 0}"/>
+
+		<div class="info">
+			<span class="time">{format(time)}</span>
+			<span>click anywhere to {paused ? 'play' : 'pause'} / drag to seek</span>
+			<span class="time">{format(duration)}</span>
+		</div>
+	</div>
+</div>
+
+=== 1357 tests/fixtures/parser/ast/tutorial/module-exports01-input.svelte	svelte	runes	neutral
+<script>
+	import AudioPlayer, { stopAll } from './AudioPlayer.svelte';
+</script>
+
+<button on:click={stopAll}>
+	stop all audio
+</button>
+
+<!-- https://musopen.org/music/9862-the-blue-danube-op-314/ -->
+<AudioPlayer
+	src="https://sveltejs.github.io/assets/music/strauss.mp3"
+	title="The Blue Danube Waltz"
+	composer="Johann Strauss"
+	performer="European Archive"
+/>
+
+<!-- https://musopen.org/music/43775-the-planets-op-32/ -->
+<AudioPlayer
+	src="https://sveltejs.github.io/assets/music/holst.mp3"
+	title="Mars, the Bringer of War"
+	composer="Gustav Holst"
+	performer="USAF Heritage of America Band"
+/>
+
+<!-- https://musopen.org/music/8010-3-gymnopedies/ -->
+<AudioPlayer
+	src="https://sveltejs.github.io/assets/music/satie.mp3"
+	title="Gymnopédie no. 1"
+	composer="Erik Satie"
+	performer="Prodigal Procrastinator"
+/>
+
+<!-- https://musopen.org/music/2567-symphony-no-5-in-c-minor-op-67/ -->
+<AudioPlayer
+	src="https://sveltejs.github.io/assets/music/beethoven.mp3"
+	title="Symphony no. 5 in Cm, Op. 67 - I. Allegro con brio"
+	composer="Ludwig van Beethoven"
+	performer="European Archive"
+/>
+
+<!-- https://musopen.org/music/43683-requiem-in-d-minor-k-626/ -->
+<AudioPlayer
+	src="https://sveltejs.github.io/assets/music/mozart.mp3"
+	title="Requiem in D minor, K. 626 - III. Sequence - Lacrymosa"
+	composer="Wolfgang Amadeus Mozart"
+	performer="Markus Staab"
+/>
+
+=== 993 tests/fixtures/parser/ast/tutorial/multiple-select-bindings-input.svelte	svelte	runes	neutral
+<script>
+	let scoops = 1;
+	let flavours = ['Mint choc chip'];
+
+	let menu = [
+		'Cookies and cream',
+		'Mint choc chip',
+		'Raspberry ripple'
+	];
+
+	function join(flavours) {
+		if (flavours.length === 1) return flavours[0];
+		return `${flavours.slice(0, -1).join(', ')} and ${flavours[flavours.length - 1]}`;
+	}
+</script>
+
+<h2>Size</h2>
+
+<label>
+	<input type=radio bind:group={scoops} value={1}>
+	One scoop
+</label>
+
+<label>
+	<input type=radio bind:group={scoops} value={2}>
+	Two scoops
+</label>
+
+<label>
+	<input type=radio bind:group={scoops} value={3}>
+	Three scoops
+</label>
+
+<h2>Flavours</h2>
+
+<select multiple bind:value={flavours}>
+	{#each menu as flavour}
+		<option value={flavour}>
+			{flavour}
+		</option>
+	{/each}
+</select>
+
+{#if flavours.length === 0}
+	<p>Please select at least one flavour</p>
+{:else if flavours.length > scoops}
+	<p>Can't order more flavours than scoops!</p>
+{:else}
+	<p>
+		You ordered {scoops} {scoops === 1 ? 'scoop' : 'scoops'}
+		of {join(flavours)}
+	</p>
+{/if}
+
+=== 237 tests/fixtures/parser/ast/tutorial/named-slots01-input.svelte	svelte	runes	neutral
+<script>
+	import ContactCard from './ContactCard.svelte';
+</script>
+
+<ContactCard>
+	<!-- contact details go here -->
+	<span slot="name">
+		P. Sherman
+	</span>
+
+	<span slot="address">
+		42 Wallaby Way<br>
+		Sydney
+	</span>
+</ContactCard>
+
+=== 911 tests/fixtures/parser/ast/tutorial/named-slots02-input.svelte	svelte	runes	neutral
+<style>
+	.contact-card {
+		width: 300px;
+		border: 1px solid #aaa;
+		border-radius: 2px;
+		box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+		padding: 1em;
+	}
+
+	h2 {
+		padding: 0 0 0.2em 0;
+		margin: 0 0 1em 0;
+		border-bottom: 1px solid #ff3e00
+	}
+
+	.address, .email {
+		padding: 0 0 0 1.5em;
+		background:  0 50% no-repeat;
+		background-size: 1em 1em;
+		margin: 0 0 0.5em 0;
+		line-height: 1.2;
+	}
+
+	.address { background-image: url(tutorial/icons/map-marker.svg) }
+	.email   { background-image: url(tutorial/icons/email.svg) }
+	.missing { color: #999 }
+</style>
+
+<article class="contact-card">
+	<h2>
+		<slot name="name">
+			<span class="missing">Unknown name</span>
+		</slot>
+	</h2>
+
+	<div class="address">
+		<slot name="address">
+			<span class="missing">Unknown address</span>
+		</slot>
+	</div>
+
+	<div class="email">
+		<slot name="email">
+			<span class="missing">Unknown email</span>
+		</slot>
+	</div>
+</article>
+
+=== 97 tests/fixtures/parser/ast/tutorial/nested-components01-input.svelte	svelte	runes	neutral
+<script>
+	import Nested from './Nested.svelte';
+</script>
+
+<p>This is a paragraph.</p>
+<Nested/>
+
+=== 34 tests/fixtures/parser/ast/tutorial/nested-components02-input.svelte	svelte	runes	neutral
+<p>This is another paragraph.</p>
+
+=== 281 tests/fixtures/parser/ast/tutorial/numeric-inputs01-input.svelte	svelte	runes	neutral
+<script>
+	let a = 1;
+	let b = 2;
+</script>
+
+<label>
+	<input type=number value={a} min=0 max=10>
+	<input type=range value={a} min=0 max=10>
+</label>
+
+<label>
+	<input type=number value={b} min=0 max=10>
+	<input type=range value={b} min=0 max=10>
+</label>
+
+<p>{a} + {b} = {a + b}</p>
+
+=== 301 tests/fixtures/parser/ast/tutorial/numeric-inputs02-input.svelte	svelte	runes	neutral
+<script>
+	let a = 1;
+	let b = 2;
+</script>
+
+<label>
+	<input type=number bind:value={a} min=0 max=10>
+	<input type=range bind:value={a} min=0 max=10>
+</label>
+
+<label>
+	<input type=number bind:value={b} min=0 max=10>
+	<input type=range bind:value={b} min=0 max=10>
+</label>
+
+<p>{a} + {b} = {a + b}</p>
+
+=== 264 tests/fixtures/parser/ast/tutorial/ondestroy-input.svelte	svelte	runes	neutral
+<script>
+	import { onDestroy } from 'svelte';
+
+	let seconds = 0;
+	const interval = setInterval(() => seconds += 1, 1000);
+
+	onDestroy(() => clearInterval(interval));
+</script>
+
+<p>
+	The page has been open for
+	{seconds} {seconds === 1 ? 'second' : 'seconds'}
+</p>
+
+=== 670 tests/fixtures/parser/ast/tutorial/onmount-input.svelte	svelte	runes	neutral
+<script>
+	import { onMount } from 'svelte';
+
+	let photos = [];
+
+	onMount(async () => {
+		const res = await fetch(`https://jsonplaceholder.typicode.com/photos?_limit=20`);
+		photos = await res.json();
+	});
+</script>
+
+<style>
+	.photos {
+		width: 100%;
+		display: grid;
+		grid-template-columns: repeat(5, 1fr);
+		grid-gap: 8px;
+	}
+
+	figure, img {
+		width: 100%;
+		margin: 0;
+	}
+</style>
+
+<h1>Photo album</h1>
+
+<div class="photos">
+	{#each photos as photo}
+		<figure>
+			<img src={photo.thumbnailUrl} alt={photo.title}>
+			<figcaption>{photo.title}</figcaption>
+		</figure>
+	{:else}
+		<!-- this block renders when photos.length === 0 -->
+		<p>loading...</p>
+	{/each}
+</div>
+
+=== 811 tests/fixtures/parser/ast/tutorial/optional-slots01-input.svelte	svelte	runes	neutral
+<script>
+	import Project from './Project.svelte'
+	import Comment from './Comment.svelte'
+</script>
+
+<style>
+	h1 {
+		font-weight: 300;
+		margin: 0 1rem;
+	}
+
+	ul {
+		list-style: none;
+		padding: 0;
+		margin: 0.5rem;
+		display: flex;
+	}
+
+	@media (max-width: 600px) {
+		ul {
+			flex-direction: column;
+		}
+	}
+
+	li {
+		padding: 0.5rem;
+		flex: 1 1 50%;
+		min-width: 200px;
+	}
+</style>
+
+<h1>
+	Projects
+</h1>
+
+<ul>
+	<li>
+		<Project
+			title="Add Typescript support"
+			tasksCompleted={25}
+			totalTasks={57}
+		>
+			<div slot="comments">
+				<Comment name="Ecma Script" postedAt={new Date('2020-08-17T14:12:23')}>
+					<p>Those interface tests are now passing.</p>
+				</Comment>
+			</div>
+		</Project>
+	</li>
+	<li>
+		<Project
+			title="Update documentation"
+			tasksCompleted={18}
+			totalTasks={21}
+		/>
+	</li>
+</ul>
+
+=== 212 tests/fixtures/parser/ast/tutorial/reactive-assignments-input.svelte	svelte	runes	neutral
+<script>
+	let count = 0;
+
+	function handleClick() {
+		// event handler code goes here
+        count += 1;
+	}
+</script>
+
+<button on:click={handleClick}>
+	Clicked {count} {count === 1 ? 'time' : 'times'}
+</button>
+
+=== 237 tests/fixtures/parser/ast/tutorial/readable-stores-input.svelte	svelte	runes	neutral
+<script>
+	import { time } from './stores.js';
+
+	const formatter = new Intl.DateTimeFormat('en', {
+		hour12: true,
+		hour: 'numeric',
+		minute: '2-digit',
+		second: '2-digit'
+	});
+</script>
+
+<h1>The time is {formatter.format($time)}</h1>
+
+=== 890 tests/fixtures/parser/ast/tutorial/select-bindings-input.svelte	svelte	runes	neutral
+<script>
+	let questions = [
+		{ id: 1, text: `Where did you go to school?` },
+		{ id: 2, text: `What is your mother's name?` },
+		{ id: 3, text: `What is another personal fact that an attacker could easily find with Google?` }
+	];
+
+	let selected;
+
+	let answer = '';
+
+	function handleSubmit() {
+		alert(`answered question ${selected.id} (${selected.text}) with "${answer}"`);
+	}
+</script>
+
+<style>
+	input { display: block; width: 500px; max-width: 100%; }
+</style>
+
+<h2>Insecurity questions</h2>
+
+<form on:submit|preventDefault={handleSubmit}>
+	<select bind:value={selected} on:change="{() => answer = ''}">
+		{#each questions as question}
+			<option value={question}>
+				{question.text}
+			</option>
+		{/each}
+	</select>
+
+	<input bind:value={answer}>
+
+	<button disabled={!answer} type=submit>
+		Submit
+	</button>
+</form>
+
+<p>selected question {selected ? selected.id : '[waiting...]'}</p>
+
+=== 1289 tests/fixtures/parser/ast/tutorial/sharing-code01-input.svelte	svelte	runes	neutral
+<script>
+	import AudioPlayer from './AudioPlayer.svelte';
+</script>
+
+<!-- https://musopen.org/music/9862-the-blue-danube-op-314/ -->
+<AudioPlayer
+	src="https://sveltejs.github.io/assets/music/strauss.mp3"
+	title="The Blue Danube Waltz"
+	composer="Johann Strauss"
+	performer="European Archive"
+/>
+
+<!-- https://musopen.org/music/43775-the-planets-op-32/ -->
+<AudioPlayer
+	src="https://sveltejs.github.io/assets/music/holst.mp3"
+	title="Mars, the Bringer of War"
+	composer="Gustav Holst"
+	performer="USAF Heritage of America Band"
+/>
+
+<!-- https://musopen.org/music/8010-3-gymnopedies/ -->
+<AudioPlayer
+	src="https://sveltejs.github.io/assets/music/satie.mp3"
+	title="Gymnopédie no. 1"
+	composer="Erik Satie"
+	performer="Prodigal Procrastinator"
+/>
+
+<!-- https://musopen.org/music/2567-symphony-no-5-in-c-minor-op-67/ -->
+<AudioPlayer
+	src="https://sveltejs.github.io/assets/music/beethoven.mp3"
+	title="Symphony no. 5 in Cm, Op. 67 - I. Allegro con brio"
+	composer="Ludwig van Beethoven"
+	performer="European Archive"
+/>
+
+<!-- https://musopen.org/music/43683-requiem-in-d-minor-k-626/ -->
+<AudioPlayer
+	src="https://sveltejs.github.io/assets/music/mozart.mp3"
+	title="Requiem in D minor, K. 626 - III. Sequence - Lacrymosa"
+	composer="Wolfgang Amadeus Mozart"
+	performer="Markus Staab"
+/>
+
+=== 138 tests/fixtures/parser/ast/tutorial/slot-fallbacks01-input.svelte	svelte	runes	neutral
+<script>
+	import Box from './Box.svelte';
+</script>
+
+<Box>
+	<h2>Hello!</h2>
+	<p>This is a box. It can contain anything.</p>
+</Box>
+<Box/>
+
+=== 250 tests/fixtures/parser/ast/tutorial/slot-fallbacks02-input.svelte	svelte	runes	neutral
+<style>
+	.box {
+		width: 300px;
+		border: 1px solid #aaa;
+		border-radius: 2px;
+		box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+		padding: 1em;
+		margin: 0 0 1em 0;
+	}
+</style>
+
+<div class="box">
+	<slot>
+		<em>no content was provided</em>
+	</slot>
+</div>
+
+=== 384 tests/fixtures/parser/ast/tutorial/slot-props01-input.svelte	svelte	runes	neutral
+<script>
+	import Hoverable from './Hoverable.svelte';
+</script>
+
+<style>
+	div {
+		padding: 1em;
+		margin: 0 0 1em 0;
+		background-color: #eee;
+	}
+
+	.active {
+		background-color: #ff3e00;
+		color: white;
+	}
+</style>
+
+<Hoverable let:hovering={active}>
+	<div class:active>
+		{#if active}
+			<p>I am being hovered upon.</p>
+		{:else}
+			<p>Hover over me!</p>
+		{/if}
+	</div>
+</Hoverable>
+
+=== 214 tests/fixtures/parser/ast/tutorial/slot-props02-input.svelte	svelte	runes	neutral
+<script>
+	let hovering;
+
+	function enter() {
+		hovering = true;
+	}
+
+	function leave() {
+		hovering = false;
+	}
+</script>
+
+<div on:mouseenter={enter} on:mouseleave={leave}>
+	<slot hovering={hovering}></slot>
+</div>
+
+=== 399 tests/fixtures/parser/ast/tutorial/slot-props03-input.svelte	svelte	runes	neutral
+<script>
+	import Hoverable from './Hoverable.svelte';
+</script>
+
+<style>
+	div {
+		padding: 1em;
+		margin: 0 0 1em 0;
+		background-color: #eee;
+	}
+
+	.active {
+		background-color: #ff3e00;
+		color: white;
+	}
+</style>
+
+<Hoverable let:hovering={hovering}>
+	<div class:active={hovering}>
+		{#if hovering}
+			<p>I am being hovered upon.</p>
+		{:else}
+			<p>Hover over me!</p>
+		{/if}
+	</div>
+</Hoverable>
+
+=== 178 tests/fixtures/parser/ast/tutorial/slots01-input.svelte	svelte	runes	neutral
+<script>
+	import Box from './Box.svelte';
+</script>
+
+<Box>
+	<h2>Hello!</h2>
+	<p>This is a box. It can contain anything.</p>
+	<div>
+		<p>I'm a child of the div</p>
+	</div>
+</Box>
+
+=== 213 tests/fixtures/parser/ast/tutorial/slots02-input.svelte	svelte	runes	neutral
+<style>
+	.box {
+		width: 300px;
+		border: 1px solid #aaa;
+		border-radius: 2px;
+		box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+		padding: 1em;
+		margin: 0 0 1em 0;
+	}
+</style>
+
+<div class="box">
+	<slot></slot>
+</div>
+
+=== 245 tests/fixtures/parser/ast/tutorial/spread-props01-input.svelte	svelte	runes	neutral
+<script>
+	import Info from './Info.svelte';
+
+	const pkg = {
+		name: 'svelte',
+		version: 3,
+		speed: 'blazing',
+		website: 'https://svelte.dev'
+	};
+</script>
+
+<Info name={pkg.name} version={pkg.version} speed={pkg.speed} website={pkg.website}/>
+
+=== 176 tests/fixtures/parser/ast/tutorial/spread-props03-input.svelte	svelte	runes	neutral
+<script>
+	import Info from './Info.svelte';
+
+	const pkg = {
+		name: 'svelte',
+		version: 3,
+		speed: 'blazing',
+		website: 'https://svelte.dev'
+	};
+</script>
+
+<Info {...pkg}/>
+
+=== 796 tests/fixtures/parser/ast/tutorial/spring-input.svelte	svelte	runes	neutral
+<script>
+	import { spring } from 'svelte/motion';
+
+	let coords = spring({ x: 50, y: 50 }, {
+		stiffness: 0.1,
+		damping: 0.25
+	});
+	let size = spring(10);
+</script>
+
+<style>
+	svg { width: 100%; height: 100%; margin: -8px; }
+	circle { fill: #ff3e00 }
+</style>
+
+<div style="position: absolute; right: 1em;">
+	<label>
+		<h3>stiffness ({coords.stiffness})</h3>
+		<input bind:value={coords.stiffness} type="range" min="0" max="1" step="0.01">
+	</label>
+
+	<label>
+		<h3>damping ({coords.damping})</h3>
+		<input bind:value={coords.damping} type="range" min="0" max="1" step="0.01">
+	</label>
+</div>
+
+<svg
+	on:mousemove="{e => coords.set({ x: e.clientX, y: e.clientY })}"
+	on:mousedown="{() => size.set(30)}"
+	on:mouseup="{() => size.set(10)}"
+>
+	<circle cx={$coords.x} cy={$coords.y} r={$size}/>
+</svg>
+
+=== 68 tests/fixtures/parser/ast/tutorial/styling01-input.svelte	svelte	runes	neutral
+<style>
+	/* styles go here */
+</style>
+
+<p>This is a paragraph.</p>
+
+=== 129 tests/fixtures/parser/ast/tutorial/styling02-input.svelte	svelte	runes	neutral
+<style>
+	p {
+		color: purple;
+		font-family: 'Comic Sans MS', cursive;
+		font-size: 2em;
+	}
+</style>
+
+<p>This is a paragraph.</p>
+=== 705 tests/fixtures/parser/ast/tutorial/svelte-body-input.svelte	svelte	runes	neutral
+<script>
+	let hereKitty = false;
+
+	const handleMouseenter = () => hereKitty = true;
+	const handleMouseleave = () => hereKitty = false;
+</script>
+
+<style>
+	img {
+		position: absolute;
+		left: 0;
+		bottom: -60px;
+		transform: translate(-80%, 0) rotate(-30deg);
+		transform-origin: 100% 100%;
+		transition: transform 0.4s;
+	}
+
+	.curious {
+		transform: translate(-15%, 0) rotate(0deg);
+	}
+
+	:global(body) {
+		overflow: hidden;
+	}
+</style>
+
+<svelte:body
+	on:mouseenter={handleMouseenter}
+	on:mouseleave={handleMouseleave}
+/>
+
+<!-- creative commons BY-NC http://www.pngall.com/kitten-png/download/7247 -->
+<img
+	class:curious={hereKitty}
+	alt="Kitten wants to know what's going on"
+	src="tutorial/kitten.png"
+>
+
+=== 516 tests/fixtures/parser/ast/tutorial/svelte-component-input.svelte	svelte	runes	neutral
+<script>
+	import RedThing from './RedThing.svelte';
+	import GreenThing from './GreenThing.svelte';
+	import BlueThing from './BlueThing.svelte';
+
+	const options = [
+		{ color: 'red',   component: RedThing   },
+		{ color: 'green', component: GreenThing },
+		{ color: 'blue',  component: BlueThing  },
+	];
+
+	let selected = options[0];
+</script>
+
+<select bind:value={selected}>
+	{#each options as option}
+		<option value={option}>{option.color}</option>
+	{/each}
+</select>
+
+<svelte:component this={selected.component}/>
+
+=== 250 tests/fixtures/parser/ast/tutorial/svelte-document-input.svelte	svelte	runes	neutral
+<script>
+	let selection = '';
+
+	const handleSelectionChange = (e) => selection = document.getSelection();
+</script>
+
+<svelte:document on:selectionchange={handleSelectionChange} />
+
+<p>Select this text to fire events</p>
+<p>Selection: {selection}</p>
+
+=== 275 tests/fixtures/parser/ast/tutorial/svelte-element-input.svelte	svelte	runes	neutral
+<script>
+	const options = ['h1', 'h3', 'p'];
+	let selected = options[0];
+</script>
+
+<select bind:value={selected}>
+	{#each options as option}
+		<option value={option}>{option}</option>
+	{/each}
+</select>
+
+<svelte:element this={selected}>I'm a {selected} tag</svelte:element>
+
+=== 194 tests/fixtures/parser/ast/tutorial/svelte-fragment-input.svelte	svelte	runes	neutral
+<script>
+	import Box from './Box.svelte'
+</script>
+
+<Box>
+	<svelte:fragment slot="footer">
+		<p>All rights reserved.</p>
+		<p>Copyright (c) 2019 Svelte Industries</p>
+	</svelte:fragment>
+</Box>
+
+=== 108 tests/fixtures/parser/ast/tutorial/svelte-head-input.svelte	svelte	runes	neutral
+<svelte:head>
+	<link rel="stylesheet" href="tutorial/dark-theme.css">
+</svelte:head>
+
+<h1>Hello world!</h1>
+
+=== 574 tests/fixtures/parser/ast/tutorial/svelte-options01-input.svelte	svelte	runes	neutral
+<script>
+	import Todo from './Todo.svelte';
+
+	let todos = [
+		{ id: 1, done: true, text: 'wash the car' },
+		{ id: 2, done: false, text: 'take the dog for a walk' },
+		{ id: 3, done: false, text: 'mow the lawn' }
+	];
+
+	function toggle(toggled) {
+		todos = todos.map(todo => {
+			if (todo === toggled) {
+				// return a new object
+				return {
+					id: todo.id,
+					text: todo.text,
+					done: !todo.done
+				};
+			}
+
+			// return the same object
+			return todo;
+		});
+	}
+</script>
+
+<h2>Todos</h2>
+{#each todos as todo}
+	<Todo {todo} on:click={() => toggle(todo)}/>
+{/each}
+
+=== 836 tests/fixtures/parser/ast/tutorial/svelte-self01-input.svelte	svelte	runes	neutral
+<script>
+	import Folder from './Folder.svelte';
+
+	let root = [
+		{
+			type: 'folder',
+			name: 'Important work stuff',
+			files: [
+				{ type: 'file', name: 'quarterly-results.xlsx' }
+			]
+		},
+		{
+			type: 'folder',
+			name: 'Animal GIFs',
+			files: [
+				{
+					type: 'folder',
+					name: 'Dogs',
+					files: [
+						{ type: 'file', name: 'treadmill.gif' },
+						{ type: 'file', name: 'rope-jumping.gif' }
+					]
+				},
+				{
+					type: 'folder',
+					name: 'Goats',
+					files: [
+						{ type: 'file', name: 'parkour.gif' },
+						{ type: 'file', name: 'rampage.gif' }
+					]
+				},
+				{ type: 'file', name: 'cat-roomba.gif' },
+				{ type: 'file', name: 'duck-shuffle.gif' },
+				{ type: 'file', name: 'monkey-on-a-pig.gif' }
+			]
+		},
+		{ type: 'file', name: 'TODO.md' }
+	];
+</script>
+
+<Folder name="Home" files={root} expanded/>
+
+=== 1557 tests/fixtures/parser/ast/tutorial/svelte-window-bindings-input.svelte	svelte	runes	neutral
+<script>
+	const layers = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+
+	let y;
+</script>
+
+<svelte:window bind:scrollY={y}/>
+
+<a class="parallax-container" href="https://www.firewatchgame.com">
+	{#each layers as layer}
+		<img
+			style="transform: translate(0,{-y * layer / (layers.length - 1)}px)"
+			src="https://www.firewatchgame.com/images/parallax/parallax{layer}.png"
+			alt="parallax layer {layer}"
+		>
+	{/each}
+</a>
+
+<div class="text">
+	<span style="opacity: {1 - Math.max(0, y / 40)}">
+		scroll down
+	</span>
+
+	<div class="foreground">
+		You have scrolled {y} pixels
+	</div>
+</div>
+
+<style>
+	.parallax-container {
+		position: fixed;
+		width: 2400px;
+		height: 712px;
+		left: 50%;
+		transform: translate(-50%,0);
+	}
+
+	.parallax-container img {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		will-change: transform;
+	}
+
+	.parallax-container img:last-child::after {
+		content: '';
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		background: rgb(45,10,13);
+	}
+
+	.text {
+		position: relative;
+		width: 100%;
+		height: 300vh;
+		color: rgb(220,113,43);
+		text-align: center;
+		padding: 4em 0.5em 0.5em 0.5em;
+		box-sizing: border-box;
+		pointer-events: none;
+	}
+
+	span {
+		display: block;
+		font-size: 1em;
+		text-transform: uppercase;
+		will-change: transform, opacity;
+	}
+
+	.foreground {
+		position: absolute;
+		top: 711px;
+		left: 0;
+		width: 100%;
+		height: calc(100% - 712px);
+		background-color: rgb(32,0,1);
+		color: white;
+		padding: 50vh 0 0 0;
+	}
+
+	:global(body) {
+		margin: 0;
+		padding: 0;
+		background-color: rgb(253, 174, 51);
+	}
+</style>
+
+=== 781 tests/fixtures/parser/ast/tutorial/svelte-window-input.svelte	svelte	runes	neutral
+<script>
+	let key;
+	let keyCode;
+
+	function handleKeydown(event) {
+		key = event.key;
+		keyCode = event.keyCode;
+	}
+</script>
+
+<style>
+	div {
+		display: flex;
+		height: 100%;
+		align-items: center;
+		justify-content: center;
+		flex-direction: column;
+	}
+
+	kbd {
+		background-color: #eee;
+		border-radius: 4px;
+		font-size: 6em;
+		padding: 0.2em 0.5em;
+		border-top: 5px solid rgba(255,255,255,0.5);
+		border-left: 5px solid rgba(255,255,255,0.5);
+		border-right: 5px solid rgba(0,0,0,0.2);
+		border-bottom: 5px solid rgba(0,0,0,0.2);
+		color: #555;
+	}
+</style>
+
+<svelte:window on:keydown={handleKeydown}/>
+
+<div style="text-align: center">
+	{#if key}
+		<kbd>{key === ' ' ? 'Space' : key}</kbd>
+		<p>{keyCode}</p>
+	{:else}
+		<p>Focus this window and press any key</p>
+	{/if}
+</div>
+
+=== 91 tests/fixtures/parser/ast/tutorial/text-inputs01-input.svelte	svelte	runes	neutral
+<script>
+	let name = 'world';
+</script>
+
+<input bind:value={name}>
+
+<h1>Hello {name}!</h1>
+
+=== 86 tests/fixtures/parser/ast/tutorial/text-inputs02-input.svelte	svelte	runes	neutral
+<script>
+	let name = 'world';
+</script>
+
+<input value={name}>
+
+<h1>Hello {name}!</h1>
+
+=== 225 tests/fixtures/parser/ast/tutorial/textarea-inputs-input.svelte	svelte	runes	neutral
+<script>
+	import marked from 'marked';
+	let value = `Some words are *italic*, some are **bold**`;
+</script>
+
+<style>
+	textarea { width: 100%; height: 200px; }
+</style>
+
+<textarea bind:value></textarea>
+
+{@html marked(value)}
+
+=== 834 tests/fixtures/parser/ast/tutorial/tick-input.svelte	svelte	runes	neutral
+<script>
+	import { tick } from 'svelte';
+	let text = `Select some text and hit the tab key to toggle uppercase`;
+
+	async function handleKeydown(event) {
+		if (event.key !== 'Tab') return;
+
+		event.preventDefault();
+
+		const { selectionStart, selectionEnd, value } = this;
+		const selection = value.slice(selectionStart, selectionEnd);
+
+		const replacement = /[a-z]/.test(selection)
+			? selection.toUpperCase()
+			: selection.toLowerCase();
+
+		text = (
+			value.slice(0, selectionStart) +
+			replacement +
+			value.slice(selectionEnd)
+		);
+
+		// this has no effect, because the DOM hasn't updated yet
+		await tick();
+		this.selectionStart = selectionStart;
+		this.selectionEnd = selectionEnd;
+	}
+</script>
+
+<style>
+	textarea {
+		width: 100%;
+		height: 200px;
+	}
+</style>
+
+<textarea value={text} on:keydown={handleKeydown}></textarea>
+
+=== 508 tests/fixtures/parser/ast/tutorial/transition-events-input.svelte	svelte	runes	neutral
+<script>
+	import { fly } from 'svelte/transition';
+
+	let visible = true;
+	let status = 'waiting...';
+</script>
+
+<p>status: {status}</p>
+
+<label>
+	<input type="checkbox" bind:checked={visible}>
+	visible
+</label>
+
+{#if visible}
+	<p
+		transition:fly="{{ y: 200, duration: 2000 }}"
+		on:introstart="{() => status = 'intro started'}"
+		on:outrostart="{() => status = 'outro started'}"
+		on:introend="{() => status = 'intro ended'}"
+		on:outroend="{() => status = 'outro ended'}"
+	>
+		Flies in and out
+	</p>
+{/if}
+
+=== 225 tests/fixtures/parser/ast/tutorial/transition-input.svelte	svelte	runes	neutral
+<script>
+	import { fade } from 'svelte/transition';
+	let visible = true;
+</script>
+
+<label>
+	<input type="checkbox" bind:checked={visible}>
+	visible
+</label>
+
+{#if visible}
+	<p transition:fade>
+		Fades in and out
+	</p>
+{/if}
+
+=== 592 tests/fixtures/parser/ast/tutorial/tweened-input.svelte	svelte	runes	neutral
+<script>
+	import { tweened } from 'svelte/motion';
+	import { cubicOut } from 'svelte/easing';
+
+	const progress = tweened(0, {
+		duration: 400,
+		easing: cubicOut
+	});
+</script>
+
+<style>
+	progress {
+		display: block;
+		width: 100%;
+	}
+</style>
+
+<progress value={$progress}></progress>
+
+<button on:click="{() => progress.set(0)}">
+	0%
+</button>
+
+<button on:click="{() => progress.set(0.25)}">
+	25%
+</button>
+
+<button on:click="{() => progress.set(0.5)}">
+	50%
+</button>
+
+<button on:click="{() => progress.set(0.75)}">
+	75%
+</button>
+
+<button on:click="{() => progress.set(1)}">
+	100%
+</button>
+
+=== 374 tests/fixtures/parser/ast/tutorial/writable-stores01-input.svelte	svelte	runes	neutral
+<script>
+	import { count } from './stores.js';
+	import Incrementer from './Incrementer.svelte';
+	import Decrementer from './Decrementer.svelte';
+	import Resetter from './Resetter.svelte';
+
+	let count_value;
+
+	const unsubscribe = count.subscribe(value => {
+		count_value = value;
+	});
+</script>
+
+<h1>The count is {count_value}</h1>
+
+<Incrementer/>
+<Decrementer/>
+<Resetter/>
+
+=== 157 tests/fixtures/parser/ast/tutorial/writable-stores02-input.svelte	svelte	runes	neutral
+<script>
+	import { count } from './stores.js';
+
+	function decrement() {
+		count.update(n => n - 1);
+	}
+</script>
+
+<button on:click={decrement}>
+	-
+</button>
+
+=== 157 tests/fixtures/parser/ast/tutorial/writable-stores03-input.svelte	svelte	runes	neutral
+<script>
+	import { count } from './stores.js';
+
+	function increment() {
+		count.update(n => n + 1);
+	}
+</script>
+
+<button on:click={increment}>
+	+
+</button>
+
+=== 141 tests/fixtures/parser/ast/tutorial/writable-stores04-input.svelte	svelte	runes	neutral
+<script>
+	import { count } from './stores.js';
+
+	function reset() {
+		count.set(0);
+	}
+</script>
+
+<button on:click={reset}>
+	reset
+</button>
+
+=== 101 tests/fixtures/parser/ast/unknown-directive01-input.svelte	svelte	runes	neutral
+<script>
+	let foo = false;
+	let bar = false;
+</script>
+<div foo:bar={bar}></div>
+<div bar:foo></div>
+
+=== 243 tests/fixtures/parser/ast/unused-write-only-store-input.svelte	svelte	runes	neutral
+<script>
+	import { imported, createStore } from './store.js';
+	const writeOnly = createStore();
+	$writeOnly = 99;
+	const readOnly = createStore();
+	$readOnly;
+	$imported = 'some value';
+</script>
+<div on:click={() => $imported = 'clicked' }/>
+
+=== 658 tests/fixtures/parser/error/directive-animate-with-expr-input.svelte	svelte	runes	neutral
+<script>
+	import { flip } from 'svelte/animate';
+	const foo = { flip }
+	let list = [1,2,3,4,5,6,7,8,9,10]
+	function shuffle() {
+		let currentIndex = list.length;
+		while (currentIndex != 0) {
+			const randomIndex = Math.floor(Math.random() * currentIndex);
+			currentIndex--;
+			[list[currentIndex], list[randomIndex]] = [
+				list[randomIndex], list[currentIndex]];
+		}
+	}
+</script>
+<button on:click={shuffle}>Shuffle</button>
+{#each list as item, index (item)}
+	<li animate:foo.flip>{item}</li>
+{/each}
+
+<!-- Treat it as a compile error, as it will be a run-time error. -->
+
+<!-- https://svelte.dev/repl/d761c6514ec94909b76524585d72ed88?version=3.52.0 -->
+
+=== 280 tests/fixtures/parser/error/directive-class-with-expr-input.svelte	svelte	runes	neutral
+
+<div class:Number.EPSILON >A</div>
+<div class:Number(2) >A</div>
+<!-- svelte compiler will warn, but it actually works. -->
+<!-- Treats it as a compile error because svelte compiler will warn. -->
+
+<!-- https://svelte.dev/repl/a7b23c3508844bbca7907b5ebaf78751?version=3.52.0 -->
+
+=== 439 tests/fixtures/parser/error/directive-in-with-exxpr-input.svelte	svelte	runes	neutral
+<script>
+	import { fade, fly } from 'svelte/transition';
+	let visible = true;
+	const foo = { fade, fly }
+</script>
+
+<label>
+	<input type="checkbox" bind:checked={visible}>
+	visible
+</label>
+
+{#if visible}
+	<p in:foo.fly="{{ y: 200, duration: 2000 }}">
+		Flies in, fades out
+	</p>
+{/if}
+
+<!-- Treat it as a compile error, as it will be a run-time error. -->
+
+<!-- https://svelte.dev/repl/4d94297a6c80488595e1e1fd7558d081?version=3.52.0 -->
+
+=== 410 tests/fixtures/parser/error/directive-out-with-expr-input.svelte	svelte	runes	neutral
+<script>
+	import { fade, fly } from 'svelte/transition';
+	let visible = true;
+	const foo = { fade, fly }
+</script>
+
+<label>
+	<input type="checkbox" bind:checked={visible}>
+	visible
+</label>
+
+{#if visible}
+	<p out:foo.fade>
+		Flies in, fades out
+	</p>
+{/if}
+
+<!-- Treat it as a compile error, as it will be a run-time error. -->
+
+<!-- https://svelte.dev/repl/4d94297a6c80488595e1e1fd7558d081?version=3.52.0 -->
+
+=== 286 tests/fixtures/parser/error/directive-style-with-expr-input.svelte	svelte	runes	neutral
+
+<div style:Number.EPSILON >A</div>
+<div style:Number(2) >A</div>
+<!-- svelte compiler will warn, but it actually works. -->
+<!-- But it treats it as a compile error because the style is not applied. -->
+
+<!-- https://svelte.dev/repl/230d0de63e9e46ab8dd2d2ca2f779ce9?version=3.52.0 -->
+
+=== 404 tests/fixtures/parser/error/directive-transition-with-expr-input.svelte	svelte	runes	neutral
+<script>
+	import { fade } from 'svelte/transition';
+	const foo = { fade }
+	let visible = true;
+</script>
+
+<label>
+	<input type="checkbox" bind:checked={visible}>
+	visible
+</label>
+
+{#if visible}
+	<p transition:foo.fade>
+		Fades in and out
+	</p>
+{/if}
+
+<!-- Treat it as a compile error, as it will be a run-time error. -->
+
+<!-- https://svelte.dev/repl/0bd83f7f65714191bae9da8c23553451?version=3.52.0 -->
+
+=== 340 tests/fixtures/parser/error/directive-use-with-expr01-input.svelte	svelte	runes	neutral
+<script context="module">
+	function foo() {
+		  return (node) => node.textContent = 'Success'
+	}
+</script>
+
+<div use:foo() />
+<!-- svelte compiler will warn, but it actually works. -->
+<!-- Treats it as a compile error because svelte compiler will warn. -->
+
+<!-- https://svelte.dev/repl/9204b41bcc0e4c088a0abd390b0e6ca4?version=3.52.0 -->
+
+=== 303 tests/fixtures/parser/error/directive-use-with-expr02-input.svelte	svelte	runes	neutral
+<script>
+	const obj = {
+		'a()': (node) => node.textContent = 'Success'
+	}
+</script>
+
+<div use:obj.a() />
+<!-- It actually works. -->
+<!-- Treats it as a compile error, as it shouldn't have been intended by the user. -->
+
+<!-- https://svelte.dev/repl/00d48f7d8e504f488fb8148de74f9ca4?version=3.52.0 -->
+
+=== 114 tests/fixtures/parser/error/name01-input.svelte	svelte	runes	neutral
+<script>
+let name = 'world';
+const max = 0
+const width = 0
+</script>
+
+<h1 transition:max-width>Hello {name}!</h1>
+
+=== 109 tests/fixtures/parser/error/shorthand02-input.svelte	svelte	runes	neutral
+<script>
+let name = 'world';
+const max = 0
+const width = 0
+</script>
+
+<h1 style:max-width>Hello {name}!</h1>
+
+=== 264 tests/fixtures/parser/selector-parsing/simple-css-input.svelte	svelte	runes	neutral
+<script>
+  let a = 10
+</script>
+
+<span class="myClass">Hello!</span>
+
+<b>{a}</b>
+
+<style>
+  .myClass {
+    color: red;
+  }
+
+  b {
+    font-size: xx-large;
+  }
+
+  a:active,
+  a::before,
+  b + a,
+  b + .myClass,
+  a[data-key="value"] {
+    color: blue;
+  }
+</style>
+
+=== 300 tests/fixtures/parser/selector-parsing/simple-postcss-input.svelte	svelte	runes	neutral
+<div class="container">
+  <div class="div-class">Hello</div>
+
+  <span class="span-class">World!</span>
+</div>
+
+<style lang="postcss">
+  body {
+    colour: white;
+    background-colour: grey;
+  }
+
+  a:active,
+  a::before,
+  b + a,
+  b + .myClass,
+  a[data-key="value"] {
+    color: blue;
+  }
+</style>
+
+=== 395 tests/fixtures/parser/selector-parsing/simple-scss-input.svelte	svelte	runes	neutral
+<div class="container">
+  <div class="div-class">Hello</div>
+
+  <span class="span-class">World!</span>
+</div>
+
+<style lang="scss">
+  .container {
+    .div-class {
+      // This is an inline comment
+      color: red;
+    }
+
+    .span-class {
+      font-weight: bold;
+    }
+
+    a:active,
+    a::before,
+    b + a,
+    b + .myClass,
+    a[data-key="value"] {
+      color: blue;
+    }
+  }
+</style>
+
+=== 61 tests/fixtures/parser/style-context/empty-style-element-input.svelte	svelte	runes	neutral
+<script>
+  let a = 10
+</script>
+
+<b>{a}</b>
+
+<style></style>
+
+=== 44 tests/fixtures/parser/style-context/no-style-element-input.svelte	svelte	runes	neutral
+<script>
+  let a = 10
+</script>
+
+<b>{a}</b>
+
+=== 112 tests/fixtures/parser/style-context/one-line-css-input.svelte	svelte	runes	neutral
+<script>
+  let a = 10
+</script>
+
+<span class="myClass">Hello!</span>
+
+<style> .myClass { color: red; } </style>
+
+=== 168 tests/fixtures/parser/style-context/simple-css-input.svelte	svelte	runes	neutral
+<script>
+  let a = 10
+</script>
+
+<span class="myClass">Hello!</span>
+
+<b>{a}</b>
+
+<style>
+  .myClass {
+    color: red;
+  }
+
+  b {
+    font-size: xx-large;
+  }
+</style>
+
+=== 203 tests/fixtures/parser/style-context/simple-postcss-input.svelte	svelte	runes	neutral
+<div class="container">
+  <div class="div-class">Hello</div>
+  <span class="span-class">World!</span>
+</div>
+
+<style lang="postcss">
+  body {
+    colour: white;
+    background-colour: grey;
+  }
+</style>
+
+=== 285 tests/fixtures/parser/style-context/simple-scss-input.svelte	svelte	runes	neutral
+<div class="container">
+  <div class="div-class">Hello</div>
+
+  <span class="span-class">World!</span>
+</div>
+
+<style lang="scss">
+  .container {
+    .div-class {
+      // This is an inline comment
+      color: red;
+    }
+
+    .span-class {
+      font-weight: bold;
+    }
+  }
+</style>
+
+=== 185 tests/fixtures/parser/style-context/unrelated-style-attr-input.svelte	svelte	runes	neutral
+<script>
+  let a = 10
+</script>
+
+<span class="myClass">Hello!</span>
+
+<b>{a}</b>
+
+<style unrelated="scss">
+  .myClass {
+    color: red;
+  }
+
+  b {
+    font-size: xx-large;
+  }
+</style>
+
+=== 204 tests/fixtures/parser/style-location-converter/simple-postcss-input.svelte	svelte	runes	neutral
+<div class="container">
+  <div class="div-class">Hello</div>
+
+  <span class="span-class">World!</span>
+</div>
+
+<style lang="postcss">
+  body {
+    colour: white;
+    background-colour: grey;
+  }
+</style>
+

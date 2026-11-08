@@ -9,6 +9,6 @@ declare module 'virtual:rsvelte-source' {
 	export const performanceBaseline: import('#lib/server/performance.ts').PerformanceBaseline;
 	/** Every committed tools/performance/baseline.json, oldest first, read from git at build time. */
 	export const performanceHistory: import('#lib/build/performance-history.ts').PerformanceRecord[];
-	/** corpus/_registry/parity.json at build time, counted per task and verdict. */
+	/** The parity ledger (corpus/_registry/parity/) at build time, counted per task and verdict. */
 	export const parity: { units: number; rows: import('#lib/build/source-plugin.ts').ParityRow[] };
 }

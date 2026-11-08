@@ -1,0 +1,5016 @@
+# rsvelte pack 1
+=== 1724 packages/avatar/src/Avatar.svelte	svelte
+<script>
+  import {
+    resolveAlt,
+    resolveSize,
+    resolveSrc,
+    DEFINITIVE_FALLBACK,
+  } from "./avatar.utils.js";
+
+  /** @type {import('./types.public').AvatarProps} */
+  let {
+    src,
+    gravatar,
+    uiAvatar,
+    fallback,
+    size,
+    alt,
+    class: cls = "",
+    img,
+    ...rest
+  } = $props();
+
+  let rAlt = $derived(resolveAlt(alt, gravatar, uiAvatar, src));
+  let rSize = $derived(resolveSize(32, size, src, gravatar, uiAvatar));
+  let sources = $derived(resolveSrc(src, gravatar, uiAvatar, fallback));
+  let rSrc = $state(DEFINITIVE_FALLBACK);
+
+  /** @type {HTMLImageElement | undefined} */
+  let element = $state(undefined);
+
+  $effect(() => {
+    let rElement = element;
+    if (img) {
+      rElement = new Image();
+      rElement.style.display = "none";
+      document.body.appendChild(rElement);
+    }
+    let currentSourceIndex = 0;
+    if (rElement) {
+      rElement.addEventListener("error", () => {
+        if (currentSourceIndex < sources.length - 1) {
+          currentSourceIndex++;
+          rElement.src = rSrc = sources[currentSourceIndex];
+        } else {
+          rElement.src = rSrc = DEFINITIVE_FALLBACK;
+        }
+      });
+      rElement.src = rSrc = sources[currentSourceIndex] ?? DEFINITIVE_FALLBACK;
+    }
+  });
+</script>
+
+<!--
+  @component
+  Svelte image wrapper component for displaying avatar
+  @public
+-->
+{#if img}
+  {@render img({ src: rSrc, size: rSize, alt: rAlt, sources })}
+{:else}
+  <img
+    src={rSrc}
+    alt={rAlt}
+    height={rSize}
+    width={rSize}
+    class="svelte-put-avatar {cls}"
+    data-sources={sources.join(",")}
+    bind:this={element}
+    {...rest}
+  />
+{/if}
+
+<style>
+  :global(:where(.svelte-put-avatar)) {
+    aspect-ratio: 1 / 1;
+  }
+</style>
+
+=== 1505 packages/preprocess-markdown/src/enhance-code-block/ButtonCollapse.svelte	svelte
+<script lang="ts" module>
+  import type { HTMLLabelAttributes } from "svelte/elements";
+
+  export interface ButtonCollapseProps extends HTMLLabelAttributes {
+    id: string;
+    /** $bindable */
+    collapsed: boolean;
+  }
+</script>
+
+<script lang="ts">
+  let { id, collapsed = $bindable(), ...rest }: ButtonCollapseProps = $props();
+</script>
+
+<label {...rest}>
+  <input
+    class="codeblock-collapsed sr-only"
+    type="checkbox"
+    bind:checked={collapsed}
+    {id}
+  />
+  <span class="sr-only">Collapse</span>
+  <svg
+    class:animate-bounce={collapsed}
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    fill="currentcolor"
+    viewBox="0 0 256 256"
+  >
+    <path
+      d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"
+    >
+    </path>
+  </svg>
+</label>
+
+<style lang="postcss">
+  /** copied from CodeBlock.svelte */
+  @custom-selector :--fullscreen :has(.codeblock-fullscreen:checked);
+  @custom-selector :--collapsed :has(.codeblock-collapsed:checked);
+  @custom-selector :--c-collapsible-not-fullscreen
+    :global(.codeblock.collapsible:not(:--fullscreen));
+  @custom-selector :--c-not-collapsed :global(.codeblock:not(:--collapsed));
+
+  label {
+    transform: rotate(180deg);
+    display: none;
+    transition: transform 150ms ease-out;
+
+    :--c-collapsible-not-fullscreen & {
+      display: block;
+    }
+
+    :--c-not-collapsed & {
+      transform: rotate(0deg);
+    }
+  }
+</style>
+
+=== 2934 packages/preprocess-markdown/src/enhance-code-block/ButtonCopy.svelte	svelte
+<script lang="ts" module>
+  import type { TextResolverInput } from "@svelte-put/copy";
+  import type { HTMLButtonAttributes } from "svelte/elements";
+
+  export interface ButtonCopyProps extends HTMLButtonAttributes {
+    /** $bindable. The button element. Pass as `trigger` arg to `@svelte-put/copy` */
+    trigger?: HTMLButtonElement;
+  }
+
+  /**
+   * copy code exclude meta lines. Pass as `text` arg to `@svelte-put/copy`
+   */
+  export function copyCode(input: TextResolverInput<"click">): string {
+    const codeNode = input.node.getElementsByTagName("code")[0];
+    if (!codeNode) return "";
+    let text = "";
+    for (const lineNode of codeNode.children) {
+      // assuming shiki build output and transformers set up at mdsvex.config.js
+      if ((lineNode as HTMLElement).dataset.lineDiff === "-") continue;
+      text += (lineNode.textContent || "") + "\n";
+    }
+    return text;
+  }
+</script>
+
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { fade } from "svelte/transition";
+
+  let { trigger = $bindable(), ...rest }: ButtonCopyProps = $props();
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined = undefined;
+  let optimistic = $state(false);
+
+  function onClick() {
+    optimistic = true;
+  }
+  function onMouseEnter() {
+    clearTimeout(timeoutId);
+  }
+  function onMouseLeave() {
+    timeoutId = setTimeout(() => {
+      optimistic = false;
+    }, 1800);
+  }
+
+  let hydrated = $state(false);
+  onMount(() => {
+    hydrated = true;
+  });
+</script>
+
+{#if hydrated}
+  <button
+    type="button"
+    bind:this={trigger}
+    disabled={optimistic}
+    onmouseleave={onMouseLeave}
+    onmouseenter={onMouseEnter}
+    onclick={onClick}
+    {...rest}
+  >
+    <span class="sr-only">Copy</span>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="20"
+      height="20"
+      fill="currentcolor"
+      viewBox="0 0 256 256"
+    >
+      {#if optimistic}
+        <path
+          d="M168,152a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,152Zm-8-40H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16Zm56-64V216a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V48A16,16,0,0,1,56,32H92.26a47.92,47.92,0,0,1,71.48,0H200A16,16,0,0,1,216,48ZM96,64h64a32,32,0,0,0-64,0ZM200,48H173.25A47.93,47.93,0,0,1,176,64v8a8,8,0,0,1-8,8H88a8,8,0,0,1-8-8V64a47.93,47.93,0,0,1,2.75-16H56V216H200Z"
+          in:fade={{ duration: 150 }}
+        >
+        </path>
+      {:else}
+        <path
+          d="M200,32H163.74a47.92,47.92,0,0,0-71.48,0H56A16,16,0,0,0,40,48V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Zm-72,0a32,32,0,0,1,32,32H96A32,32,0,0,1,128,32Zm72,184H56V48H82.75A47.93,47.93,0,0,0,80,64v8a8,8,0,0,0,8,8h80a8,8,0,0,0,8-8V64a47.93,47.93,0,0,0-2.75-16H200Z"
+          in:fade={{ duration: 150 }}
+        >
+        </path>
+      {/if}
+    </svg>
+  </button>
+{/if}
+
+<style lang="postcss">
+  button {
+    &:disabled {
+      /* allow clicking even if already copied */
+      cursor: pointer;
+    }
+  }
+</style>
+
+=== 3172 packages/preprocess-markdown/src/enhance-code-block/ButtonFullScreen.svelte	svelte
+<script lang="ts" module>
+  import type { HTMLLabelAttributes } from "svelte/elements";
+
+  export interface ButtonFullScreeenProps extends HTMLLabelAttributes {
+    id: string;
+    codeblock?: HTMLElement;
+  }
+</script>
+
+<script lang="ts">
+  import { onMount } from "svelte";
+
+  import { CodeBlockGroupContext } from "./CodeBlockGroup.svelte";
+
+  let { id, codeblock, ...rest }: ButtonFullScreeenProps = $props();
+
+  let fullscreen = $state(false);
+  const groupContext = CodeBlockGroupContext.get();
+
+  function onFullScreenChange() {
+    fullscreen = !!document.fullscreenElement;
+  }
+
+  function goFullscreen() {
+    if (!document.fullscreenElement) {
+      if (groupContext?.node) {
+        groupContext.node.requestFullscreen();
+      } else {
+        codeblock?.requestFullscreen();
+      }
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  }
+
+  function onKeyDown(e: KeyboardEvent) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      goFullscreen();
+    }
+  }
+
+  function onClick(e: MouseEvent) {
+    e.preventDefault();
+    goFullscreen();
+  }
+
+  onMount(() => {
+    document.addEventListener("fullscreenchange", onFullScreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFullScreenChange);
+    };
+  });
+</script>
+
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<label for={id} {...rest} onclick={onClick} onkeydown={onKeyDown}>
+  <span class="sr-only">Toggle full screen</span>
+  {#if !groupContext}
+    <input
+      class="codeblock-fullscreen sr-only"
+      type="checkbox"
+      {id}
+      bind:checked={fullscreen}
+    />
+  {/if}
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    fill="currentcolor"
+    viewBox="0 0 256 256"
+  >
+    <path
+      class="maximize"
+      d="M216,48V88a8,8,0,0,1-16,0V56H168a8,8,0,0,1,0-16h40A8,8,0,0,1,216,48ZM88,200H56V168a8,8,0,0,0-16,0v40a8,8,0,0,0,8,8H88a8,8,0,0,0,0-16Zm120-40a8,8,0,0,0-8,8v32H168a8,8,0,0,0,0,16h40a8,8,0,0,0,8-8V168A8,8,0,0,0,208,160ZM88,40H48a8,8,0,0,0-8,8V88a8,8,0,0,0,16,0V56H88a8,8,0,0,0,0-16Z"
+    ></path>
+    <path
+      class="minimize"
+      d="M152,96V48a8,8,0,0,1,16,0V88h40a8,8,0,0,1,0,16H160A8,8,0,0,1,152,96ZM96,152H48a8,8,0,0,0,0,16H88v40a8,8,0,0,0,16,0V160A8,8,0,0,0,96,152Zm112,0H160a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V168h40a8,8,0,0,0,0-16ZM96,40a8,8,0,0,0-8,8V88H48a8,8,0,0,0,0,16H96a8,8,0,0,0,8-8V48A8,8,0,0,0,96,40Z"
+    ></path>
+  </svg>
+</label>
+
+<style lang="postcss">
+  /** copied from CodeBlock.svelte */
+  @custom-selector :--fullscreen :has(.codeblock-fullscreen:checked);
+  @custom-selector :--g-fullscreen
+    :global(.codeblock-group:has(.codeblock-group-fullscreen:checked));
+  @custom-selector :--g-fullscreen-focus
+    :global(.codeblock-group:has(.codeblock-group-fullscreen:focus-visible));
+
+  .minimize {
+    display: none;
+  }
+
+  :--g-fullscreen-focus label {
+    outline: 2px solid var(--color-outline-focus);
+    outline-offset: -2px;
+  }
+
+  :--g-fullscreen,
+  label:has(:global(.codeblock-fullscreen:checked)) {
+    & .maximize {
+      display: none;
+    }
+
+    & .minimize {
+      display: block;
+    }
+  }
+</style>
+
+=== 9054 packages/preprocess-markdown/src/enhance-code-block/CodeBlock.svelte	svelte
+<script lang="ts" module>
+  import type { HTMLAttributes } from "svelte/elements";
+
+  export interface SingleCodeBlockProps extends HTMLAttributes<HTMLElement> {
+    /**
+     * the programming language
+     */
+    lang?: string;
+    /**
+     * title for the code block
+     */
+    title?: string;
+    /**
+     * whether should hide the line number at start of each line
+     */
+    hideLineNumber?: string;
+    /**
+     * total number of lines in the code block
+     */
+    numLines?: string;
+    /**
+     * bindable
+     */
+    collapsed?: "disabled" | string;
+  }
+</script>
+
+<script lang="ts">
+  import { copy } from "@svelte-put/copy";
+
+  import ButtonCollapse from "./ButtonCollapse.svelte";
+  import ButtonCopy, { copyCode } from "./ButtonCopy.svelte";
+  import ButtonFullScreen from "./ButtonFullScreen.svelte";
+  import { CodeBlockGroupContext } from "./CodeBlockGroup.svelte";
+  import FileIcon from "./FileIcon.svelte";
+
+  const {
+    lang = "",
+    title = "",
+    hideLineNumber = "false",
+    numLines = undefined,
+    collapsed = "false",
+    children,
+    class: cls,
+    ...rest
+  }: SingleCodeBlockProps = $props();
+
+  // init context & id
+  const groupContext = CodeBlockGroupContext.get();
+  const id = Math.random().toString(36).slice(2);
+  const fullScreenCheckBoxId = groupContext
+    ? `codeblock-group-${groupContext.id}-fullscreen`
+    : `codeblock-${id}-fullscreen`;
+  const collapsedCheckboxId = `codeblock-${id}-collapsed`;
+
+  // resolve the collapsed prop
+  let collapsible = $derived(groupContext ? false : collapsed !== "disabled");
+  let collapsedInputChecked = $state(collapsed === "true");
+  $effect(() => {
+    if (!collapsible) collapsedInputChecked = false;
+  });
+
+  let copyBtnEl: HTMLButtonElement | undefined = $state(undefined);
+  let codeBlockEl: HTMLElement | undefined = $state(undefined);
+</script>
+
+{#snippet titleAndFileIcon()}
+  <span class="codeblock-title">
+    <FileIcon {lang} />
+    <span>{title}</span>
+  </span>
+{/snippet}
+
+<section
+  class="codeblock {cls}"
+  bind:this={codeBlockEl}
+  class:collapsible={groupContext ? false : collapsible}
+  class:titled={!!title}
+  class:grouped={!!groupContext}
+  class:hide-line-number={hideLineNumber !== "false"}
+  style:--num-line-width="{numLines ? numLines.length + 2 : 4}ch"
+  {...groupContext && { "data-group-display": groupContext.display }}
+  {...rest}
+>
+  {#if groupContext}
+    <label class="codeblock-group-label">
+      {#if groupContext.display === "files"}
+        {@render titleAndFileIcon()}
+      {:else}
+        <span>{title}</span>
+      {/if}
+      <input
+        type="radio"
+        class="codeblock-group-selected sr-only"
+        value={title}
+        name={groupContext.name}
+        checked={title === groupContext.title}
+        bind:group={groupContext.title}
+      />
+    </label>
+  {:else}
+    <label class="codeblock-header" for={collapsedCheckboxId}>
+      {@render titleAndFileIcon()}
+    </label>
+  {/if}
+  <div class="codeblock-content">
+    <div class="codeblock-content-accordion">
+      <!-- buttons -->
+      <div class="codeblock-btns">
+        <ButtonCopy class="codeblock-btn" bind:trigger={copyBtnEl} />
+        <ButtonFullScreen
+          class="codeblock-btn codeblock--btn--collapse"
+          codeblock={codeBlockEl}
+          id={fullScreenCheckBoxId}
+        />
+        {#if collapsible}
+          <ButtonCollapse
+            class="codeblock-btn codeblock-btn--collapse"
+            id={collapsedCheckboxId}
+            collapsed={collapsedInputChecked}
+          />
+        {/if}
+      </div>
+      <!-- pre & code -->
+      <div
+        class="codeblock-pre-container"
+        use:copy={{ trigger: copyBtnEl, text: copyCode }}
+      >
+        {#if children}
+          {@render children()}
+        {/if}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style lang="postcss">
+  /** has selectors */
+  @custom-selector :--group-selected :has(.codeblock-group-selected:checked);
+  @custom-selector :--fullscreen :has(.codeblock-fullscreen:checked);
+  @custom-selector :--oneliner :has(pre[data-num-lines="1"]);
+  @custom-selector :--collapsed :has(.codeblock-collapsed:checked);
+
+  /** complex patterns for codeblock-group */
+  @custom-selector :--g-fullscreen
+    :global(.codeblock-group:has(.codeblock-group-fullscreen:checked));
+  @custom-selector :--g-not-fullscreen
+    :global(.codeblock-group:not(:has(.codeblock-group-fullscreen:checked)));
+
+  /** complex patterns for codeblock */
+  @custom-selector :--c-not-collapsed :global(.codeblock:not(:--collapsed));
+
+  @custom-selector :--c-collapsible-not-fullscreen
+    :global(.codeblock.collapsible:not(:--fullscreen));
+
+  @custom-selector :--c-oneliner-not-grouped-or-titled
+    :global(.codeblock:not(.grouped, .titled):--oneliner);
+
+  @custom-selector :--c-grouped-and-selected
+    :global(.codeblock.grouped:--group-selected);
+  @custom-selector :--c-tabs-grouped
+    :global(.codeblock.grouped[data-group-display="tabs"]);
+
+  @custom-selector :--c-first-of-group :global(.codeblock:first-of-type);
+  @custom-selector :--c-last-of-non-files-group
+    :global(.codeblock:not([data-group-display="files"]):last-of-type);
+
+  @custom-selector :--c-first-of-unselected-group
+    :global(.codeblock-group:not(:--group-selected) .codeblock:first-of-type);
+
+  .codeblock {
+    --color-header-fg: hsl(0deg 0% 50%);
+
+    position: relative;
+
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+
+    margin-block: 24px;
+
+    border-width: 1px;
+    border-radius: 0.375rem;
+
+    &.grouped {
+      display: contents !important;
+    }
+
+    :global(:--fullscreen) {
+      border-radius: 0;
+    }
+  }
+
+  .codeblock:global(:--fullscreen),
+  :--g-fullscreen {
+    position: fixed;
+    z-index: var(--z-index-overlay);
+    inset: 0;
+
+    height: 100dvh;
+    margin: 0;
+  }
+
+  .codeblock-header {
+    padding: 12px 16px;
+    line-height: normal;
+    background-color: var(--color-pre-bg);
+
+    :--c-collapsible-not-fullscreen & {
+      cursor: pointer;
+    }
+
+    :--c-oneliner-not-grouped-or-titled & {
+      display: none;
+    }
+  }
+
+  .codeblock-title {
+    width: fit-content;
+    margin: 0;
+    padding: 0;
+
+    font-size: var(--text-xs);
+    white-space: nowrap;
+  }
+
+  .codeblock-group-label {
+    cursor: pointer;
+
+    position: relative;
+    z-index: 2;
+
+    grid-column: auto;
+    grid-row: 1;
+
+    padding: 12px 16px;
+
+    font-size: var(--text-sm);
+    line-height: normal;
+    color: var(--color-header-fg);
+
+    background-color: var(--color-bg);
+    border-top-width: 1px;
+    border-left-width: 1px;
+
+    &:has(:global(input:focus-visible)) {
+      outline-offset: -1px;
+    }
+
+    &:hover {
+      color: currentcolor;
+    }
+
+    :--g-not-fullscreen :--c-first-of-group & {
+      border-top-left-radius: 0.375rem;
+    }
+
+    :--c-last-of-non-files-group & {
+      border-right-width: 1px;
+
+      :--g-not-fullscreen & {
+        border-top-right-radius: 0.375rem;
+      }
+    }
+
+    :--c-first-of-unselected-group &,
+    :--c-grouped-and-selected & {
+      margin-bottom: -1px;
+      color: currentcolor;
+      background-color: var(--color-pre-bg);
+    }
+  }
+
+  .codeblock-content {
+    z-index: 1;
+    display: grid;
+    max-width: 100%;
+
+    .codeblock.grouped & {
+      display: none;
+      grid-column: 1 / span calc(var(--cols) + 1);
+      grid-row: 2;
+    }
+
+    :--c-grouped-and-selected &,
+    :--c-first-of-unselected-group & {
+      display: grid;
+    }
+
+    :--c-collapsible-not-fullscreen & {
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 150ms ease-out;
+    }
+
+    :--c-not-collapsed & {
+      grid-template-rows: 1fr !important;
+    }
+  }
+
+  .codeblock-content-accordion {
+    overflow: hidden;
+  }
+
+  .codeblock-btns {
+    position: absolute;
+    z-index: 2;
+    top: 8px;
+    right: 8px;
+
+    display: flex;
+    gap: 4px;
+    align-items: center;
+
+    width: fit-content;
+
+    :--c-tabs-grouped & {
+      right: 0;
+    }
+
+    :--c-oneliner-not-grouped-or-titled & {
+      display: none;
+    }
+
+    :--g-fullscreen & {
+      right: 12px;
+    }
+  }
+
+  :global(.codeblock-btn) {
+    cursor: pointer;
+    padding: 4px;
+    color: var(--color-header-fg);
+    transition: color 150ms ease-out;
+
+    &:hover {
+      color: currentcolor;
+    }
+  }
+
+  .codeblock-pre-container {
+    height: 100%;
+  }
+
+  .codeblock :global(pre) {
+    height: 100%;
+    margin-block: 0;
+
+    border-width: 1px 0 0 !important;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  .codeblock.grouped :global(pre) {
+    border-width: 1px !important;
+  }
+
+  :--c-tabs-grouped :global(pre) {
+    border-top-right-radius: 0.375rem;
+  }
+
+  :--c-oneliner-not-grouped-or-titled :global(pre) {
+    border-top-width: 0 !important;
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+  }
+
+  .codeblock:global(:--fullscreen) :global(pre) {
+    max-height: 100dvh !important;
+    max-height: 100vh !important;
+  }
+
+  :--g-fullscreen :global(pre) {
+    max-height: calc(100vh - 2.625rem) !important;
+    max-height: calc(100dvh - 2.625rem) !important;
+  }
+</style>
+
+=== 3931 packages/preprocess-markdown/src/enhance-code-block/CodeBlockGroup.svelte	svelte
+<script lang="ts" module>
+  import { getContext, setContext, hasContext } from "svelte";
+  import type { HTMLAttributes } from "svelte/elements";
+
+  export interface CodeBlockGroupProps extends HTMLAttributes<HTMLElement> {
+    /**
+     * number of code blocks inside group
+     * Required but should be injected automatically
+     * by the `enhance-code-block` preprocessor
+     */
+    cols: number;
+    /**
+     * unique name for group.
+     * Required but should be injected automatically
+     * by the `enhance-code-block` preprocessor
+     */
+    name: string;
+    /**
+     * display mode for group. Default to `files`
+     */
+    display?: "files" | "tabs";
+    /**
+     * bindable, title of the current active child code block
+     */
+    title?: string;
+  }
+
+  export interface CodeBlockGroupContextInit {
+    /** unique id to identify this context */
+    id: string;
+    /** name for the code block group, mapped to the checkbox input `name` field */
+    name: string;
+    /** display mode of the code block group */
+    display: CodeBlockGroupProps["display"];
+    /** initial code block identifier to display */
+    title?: string;
+  }
+
+  export class CodeBlockGroupContext {
+    static KEY = "enhanced:codeblock:group";
+
+    node: HTMLElement | undefined;
+
+    #init: CodeBlockGroupContextInit;
+
+    /**
+     * Caution: expect init.title to be in a "writable closure"
+     */
+    constructor(init: CodeBlockGroupContextInit) {
+      this.#init = init;
+    }
+
+    get id() {
+      return this.#init.id;
+    }
+
+    get name() {
+      return this.#init.name;
+    }
+
+    get display() {
+      return this.#init.display;
+    }
+
+    get title(): string | undefined {
+      return this.#init.title;
+    }
+
+    set title(title: string) {
+      this.#init.title = title;
+    }
+
+    static set(init: CodeBlockGroupContextInit) {
+      return setContext(
+        CodeBlockGroupContext.KEY,
+        new CodeBlockGroupContext(init),
+      );
+    }
+
+    static get(): CodeBlockGroupContext | null {
+      if (!hasContext(CodeBlockGroupContext.KEY)) return null;
+      return getContext(CodeBlockGroupContext.KEY);
+    }
+  }
+</script>
+
+<script lang="ts">
+  let {
+    cols,
+    name,
+    display = "files",
+    title = $bindable(),
+    children,
+    class: cls,
+    ...rest
+  }: CodeBlockGroupProps = $props();
+
+  let groupEl: HTMLDivElement;
+
+  // preserve reactivity of title inside GroupContext
+  const initClosure = {
+    id: Math.random().toString(36).slice(2).toString(),
+    name,
+    display,
+    get title(): string | undefined {
+      return title;
+    },
+    set title(t: string) {
+      title = t;
+    },
+  } satisfies CodeBlockGroupContextInit;
+
+  const groupContext = CodeBlockGroupContext.set(initClosure);
+
+  $effect(() => {
+    groupContext.node = groupEl;
+  });
+
+  let fullscreen = $state(false);
+  function onFullScreenChange() {
+    fullscreen = !!document.fullscreenElement;
+  }
+</script>
+
+<div
+  class="codeblock-group codeblock-group--{display} {cls}"
+  style:--cols={cols}
+  {...rest}
+  bind:this={groupEl}
+  onfullscreenchange={onFullScreenChange}
+>
+  {#if children}
+    {@render children()}
+  {/if}
+  <input
+    id="codeblock-group-{groupContext.id}-fullscreen"
+    class="codeblock-group-fullscreen sr-only"
+    type="checkbox"
+    bind:checked={fullscreen}
+  />
+  <div class="first-row-last-col-fill"></div>
+</div>
+
+<style lang="postcss">
+  .first-row-last-col-fill {
+    position: relative;
+
+    grid-column: -2;
+
+    background-color: var(--color-bg);
+    border-color: var(--color-outline);
+    border-style: solid;
+    border-top-right-radius: 4px;
+  }
+
+  .codeblock-group {
+    position: relative;
+
+    overflow: auto;
+    display: grid;
+    grid-template-columns: repeat(var(--cols), auto) 1fr;
+    grid-template-rows: auto 1fr;
+
+    max-width: 100%;
+    margin-block: 24px;
+
+    &:where(:global(.codeblock-group--files)) .first-row-last-col-fill {
+      border-width: 1px 1px 0 0;
+    }
+  }
+</style>
+
+=== 6454 packages/preprocess-markdown/src/enhance-code-block/FileIcon.svelte	svelte
+<script lang="ts" module>
+  export type FileIconProps = {
+    lang: string;
+  };
+</script>
+
+<script lang="ts">
+  let { lang }: FileIconProps = $props();
+</script>
+
+<!-- https://shiki.style/languages -->
+{#if ["javascript", "js"].includes(lang)}
+  <svg
+    role="img"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentcolor"
+    ><title>JavaScript</title><path
+      d="M0 0h24v24H0V0zm22.034 18.276c-.175-1.095-.888-2.015-3.003-2.873-.736-.345-1.554-.585-1.797-1.14-.091-.33-.105-.51-.046-.705.15-.646.915-.84 1.515-.66.39.12.75.42.976.9 1.034-.676 1.034-.676 1.755-1.125-.27-.42-.404-.601-.586-.78-.63-.705-1.469-1.065-2.834-1.034l-.705.089c-.676.165-1.32.525-1.71 1.005-1.14 1.291-.811 3.541.569 4.471 1.365 1.02 3.361 1.244 3.616 2.205.24 1.17-.87 1.545-1.966 1.41-.811-.18-1.26-.586-1.755-1.336l-1.83 1.051c.21.48.45.689.81 1.109 1.74 1.756 6.09 1.666 6.871-1.004.029-.09.24-.705.074-1.65l.046.067zm-8.983-7.245h-2.248c0 1.938-.009 3.864-.009 5.805 0 1.232.063 2.363-.138 2.711-.33.689-1.18.601-1.566.48-.396-.196-.597-.466-.83-.855-.063-.105-.11-.196-.127-.196l-1.825 1.125c.305.63.75 1.172 1.324 1.517.855.51 2.004.675 3.207.405.783-.226 1.458-.691 1.811-1.411.51-.93.402-2.07.397-3.346.012-2.054 0-4.109 0-6.179l.004-.056z"
+    /></svg
+  >
+{:else if ["typescript", "ts"].includes(lang)}
+  <svg
+    role="img"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentcolor"
+    ><title>TypeScript</title><path
+      d="M1.125 0C.502 0 0 .502 0 1.125v21.75C0 23.498.502 24 1.125 24h21.75c.623 0 1.125-.502 1.125-1.125V1.125C24 .502 23.498 0 22.875 0zm17.363 9.75c.612 0 1.154.037 1.627.111a6.38 6.38 0 0 1 1.306.34v2.458a3.95 3.95 0 0 0-.643-.361 5.093 5.093 0 0 0-.717-.26 5.453 5.453 0 0 0-1.426-.2c-.3 0-.573.028-.819.086a2.1 2.1 0 0 0-.623.242c-.17.104-.3.229-.393.374a.888.888 0 0 0-.14.49c0 .196.053.373.156.529.104.156.252.304.443.444s.423.276.696.41c.273.135.582.274.926.416.47.197.892.407 1.266.628.374.222.695.473.963.753.268.279.472.598.614.957.142.359.214.776.214 1.253 0 .657-.125 1.21-.373 1.656a3.033 3.033 0 0 1-1.012 1.085 4.38 4.38 0 0 1-1.487.596c-.566.12-1.163.18-1.79.18a9.916 9.916 0 0 1-1.84-.164 5.544 5.544 0 0 1-1.512-.493v-2.63a5.033 5.033 0 0 0 3.237 1.2c.333 0 .624-.03.872-.09.249-.06.456-.144.623-.25.166-.108.29-.234.373-.38a1.023 1.023 0 0 0-.074-1.089 2.12 2.12 0 0 0-.537-.5 5.597 5.597 0 0 0-.807-.444 27.72 27.72 0 0 0-1.007-.436c-.918-.383-1.602-.852-2.053-1.405-.45-.553-.676-1.222-.676-2.005 0-.614.123-1.141.369-1.582.246-.441.58-.804 1.004-1.089a4.494 4.494 0 0 1 1.47-.629 7.536 7.536 0 0 1 1.77-.201zm-15.113.188h9.563v2.166H9.506v9.646H6.789v-9.646H3.375z"
+    /></svg
+  >
+{:else if ["markdown", "md"].includes(lang)}
+  <svg
+    role="img"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentcolor"
+    ><title>Markdown</title><path
+      d="M22.27 19.385H1.73A1.73 1.73 0 010 17.655V6.345a1.73 1.73 0 011.73-1.73h20.54A1.73 1.73 0 0124 6.345v11.308a1.73 1.73 0 01-1.73 1.731zM5.769 15.923v-4.5l2.308 2.885 2.307-2.885v4.5h2.308V8.078h-2.308l-2.307 2.885-2.308-2.885H3.46v7.847zM21.232 12h-2.309V8.077h-2.307V12h-2.308l3.461 4.039z"
+    /></svg
+  >
+{:else if lang === "html"}
+  <svg
+    role="img"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentcolor"
+    ><title>HTML5</title><path
+      d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm7.031 9.75l-.232-2.718 10.059.003.23-2.622L5.412 4.41l.698 8.01h9.126l-.326 3.426-2.91.804-2.955-.81-.188-2.11H6.248l.33 4.171L12 19.351l5.379-1.443.744-8.157H8.531z"
+    /></svg
+  >
+{:else if lang === "css"}
+  <svg
+    role="img"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentcolor"
+    ><title>CSS3</title><path
+      d="M1.5 0h21l-1.91 21.563L11.977 24l-8.565-2.438L1.5 0zm17.09 4.413L5.41 4.41l.213 2.622 10.125.002-.255 2.716h-6.64l.24 2.573h6.182l-.366 3.523-2.91.804-2.956-.81-.188-2.11h-2.61l.29 3.855L12 19.288l5.373-1.53L18.59 4.414z"
+    /></svg
+  >
+{:else if lang === "svelte"}
+  <svg
+    role="img"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentcolor"
+    ><title>Svelte</title><path
+      d="M10.354 21.125a4.44 4.44 0 0 1-4.765-1.767 4.109 4.109 0 0 1-.703-3.107 3.898 3.898 0 0 1 .134-.522l.105-.321.287.21a7.21 7.21 0 0 0 2.186 1.092l.208.063-.02.208a1.253 1.253 0 0 0 .226.83 1.337 1.337 0 0 0 1.435.533 1.231 1.231 0 0 0 .343-.15l5.59-3.562a1.164 1.164 0 0 0 .524-.778 1.242 1.242 0 0 0-.211-.937 1.338 1.338 0 0 0-1.435-.533 1.23 1.23 0 0 0-.343.15l-2.133 1.36a4.078 4.078 0 0 1-1.135.499 4.44 4.44 0 0 1-4.765-1.766 4.108 4.108 0 0 1-.702-3.108 3.855 3.855 0 0 1 1.742-2.582l5.589-3.563a4.072 4.072 0 0 1 1.135-.499 4.44 4.44 0 0 1 4.765 1.767 4.109 4.109 0 0 1 .703 3.107 3.943 3.943 0 0 1-.134.522l-.105.321-.286-.21a7.204 7.204 0 0 0-2.187-1.093l-.208-.063.02-.207a1.255 1.255 0 0 0-.226-.831 1.337 1.337 0 0 0-1.435-.532 1.231 1.231 0 0 0-.343.15L8.62 9.368a1.162 1.162 0 0 0-.524.778 1.24 1.24 0 0 0 .211.937 1.338 1.338 0 0 0 1.435.533 1.235 1.235 0 0 0 .344-.151l2.132-1.36a4.067 4.067 0 0 1 1.135-.498 4.44 4.44 0 0 1 4.765 1.766 4.108 4.108 0 0 1 .702 3.108 3.857 3.857 0 0 1-1.742 2.583l-5.589 3.562a4.072 4.072 0 0 1-1.135.499m10.358-17.95C18.484-.015 14.082-.96 10.9 1.068L5.31 4.63a6.412 6.412 0 0 0-2.896 4.295 6.753 6.753 0 0 0 .666 4.336 6.43 6.43 0 0 0-.96 2.396 6.833 6.833 0 0 0 1.168 5.167c2.229 3.19 6.63 4.135 9.812 2.108l5.59-3.562a6.41 6.41 0 0 0 2.896-4.295 6.756 6.756 0 0 0-.665-4.336 6.429 6.429 0 0 0 .958-2.396 6.831 6.831 0 0 0-1.167-5.168Z"
+    /></svg
+  >
+{:else}
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="16"
+    height="16"
+    fill="currentcolor"
+    viewBox="0 0 256 256"
+    ><path
+      d="M69.12,94.15,28.5,128l40.62,33.85a8,8,0,1,1-10.24,12.29l-48-40a8,8,0,0,1,0-12.29l48-40a8,8,0,0,1,10.24,12.3Zm176,27.7-48-40a8,8,0,1,0-10.24,12.3L227.5,128l-40.62,33.85a8,8,0,1,0,10.24,12.29l48-40a8,8,0,0,0,0-12.29ZM162.73,32.48a8,8,0,0,0-10.25,4.79l-64,176a8,8,0,0,0,4.79,10.26A8.14,8.14,0,0,0,96,224a8,8,0,0,0,7.52-5.27l64-176A8,8,0,0,0,162.73,32.48Z"
+    ></path></svg
+  >
+{/if}
+
+<style>
+  svg {
+    display: inline-block;
+
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+
+    vertical-align: bottom;
+  }
+</style>
+
+=== 1518 packages/qr/src/img/QR.svelte	svelte
+<script>
+  import { createQrPngDataUrl, createQrSvgDataUrl } from "../qr/index.js";
+
+  import { toDataURL } from "./index.js";
+
+  /** @type {import('./QR.svelte').QRProps} */
+  let {
+    data,
+    margin,
+    shape,
+    logo,
+    logoRatio,
+    moduleFill,
+    anchorInnerFill,
+    anchorOuterFill,
+    backgroundFill,
+    version,
+    typeNumber,
+    correction,
+    errorCorrectionLevel,
+    onqrinit,
+    onqrlogofetch,
+    img,
+    ...rest
+  } = $props();
+
+  let config = $derived({
+    data,
+    anchorInnerFill,
+    anchorOuterFill,
+    logoRatio,
+    margin,
+    moduleFill,
+    shape,
+    version,
+    correction,
+    typeNumber,
+    errorCorrectionLevel,
+  });
+
+  let srcSvgPlaceholder = $derived(createQrSvgDataUrl(config));
+  let base64pngPromise = $derived.by(async () => {
+    /** @type {string | undefined}*/
+    let logoData = undefined;
+    if (logo?.startsWith("http")) {
+      logoData = await toDataURL(logo);
+      onqrlogofetch?.(logo);
+    }
+    return await createQrPngDataUrl({
+      ...config,
+      backgroundFill,
+      width: parseInt(rest.width),
+      height: parseInt(rest.height),
+      logo: logoData,
+    });
+  });
+
+  /** @type {HTMLImageElement | undefined}*/
+  let element = $state(undefined);
+
+  $effect(() => {
+    if (element) onqrinit?.(element);
+  });
+</script>
+
+{#await base64pngPromise}
+  <img src={srcSvgPlaceholder} {...rest} />
+{:then base64}
+  {#if img}
+    {@render img({ src: base64 })}
+  {:else}
+    <img src={base64} {...rest} bind:this={element} />
+  {/if}
+{/await}
+
+=== 1091 packages/qr/src/svg/QR.svelte	svelte
+<script>
+  import { createQrSvgParts } from "../qr/index.js";
+
+  /** @type {import('./QR.svelte').QRProps} */
+  let {
+    onqrinit,
+    svg,
+    data,
+    anchorInnerFill,
+    anchorOuterFill,
+    logo,
+    logoRatio,
+    margin,
+    moduleFill,
+    shape,
+    correction,
+    version,
+    errorCorrectionLevel,
+    typeNumber,
+    ...rest
+  } = $props();
+
+  let parts = $derived(
+    createQrSvgParts({
+      data,
+      anchorInnerFill,
+      anchorOuterFill,
+      logo,
+      logoRatio,
+      margin,
+      moduleFill,
+      shape,
+      errorCorrectionLevel,
+      version,
+      correction,
+      typeNumber,
+    }),
+  );
+  let innerHTML = $derived(`${parts.anchors}${parts.modules}${parts.logo}`);
+
+  /** @type {SVGElement | undefined}*/
+  let element = $state(undefined);
+
+  $effect(() => {
+    if (element) onqrinit?.(element);
+  });
+</script>
+
+{#if svg}
+  {@render svg({ attributes: parts.attributes, innerHTML })}
+{:else}
+  <svg {...parts.attributes} {...rest} bind:this={element}>
+    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+    {@html innerHTML}
+  </svg>
+{/if}
+
+=== 3244 sites/docs/src/lib/components/color-scheme-menu/ColorSchemeMenu.svelte	svelte
+<script lang="ts">
+  import { clickoutside } from "@svelte-put/clickoutside";
+  import type { HTMLAttributes } from "svelte/elements";
+
+  import { COLOR_SCHEMES } from "$lib/constants";
+  import { SettingsContext } from "$lib/settings/context.svelte";
+
+  let { class: cls, ...rest }: HTMLAttributes<HTMLDivElement> = $props();
+  let open = $state(false);
+  let settings = SettingsContext.get();
+
+  function toggle(force?: boolean) {
+    open = force ?? !open;
+  }
+
+  const LABELS = {
+    light: "Light",
+    dark: "Dark",
+    system: "System",
+  } satisfies Record<App.ColorScheme, string>;
+
+  const iconClassMap = {
+    light: "i-[sun]",
+    dark: "i-[moon-stars]",
+    system: "i-[desktop]",
+  } satisfies Record<App.ColorScheme, string>;
+</script>
+
+{#snippet icon(scheme: App.ColorScheme)}
+  <span class="i {iconClassMap[scheme]} h-6 w-6 shrink-0"></span>
+{/snippet}
+
+<div class="color-scheme-menu csm relative {cls}" {...rest}>
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <label
+    class="c-btn c-btn--icon grid grid-cols-[auto_auto] gap-2"
+    id="csm-toggler"
+    onclick={(e) => e.stopPropagation()}
+  >
+    <span class="sr-only">{settings.colorScheme}</span>
+    {@render icon(settings.colorScheme)}
+    <input type="checkbox" bind:checked={open} class="sr-only" />
+    <i
+      class="i i-[caret-down] h-5 w-5 transition-transform"
+      class:rotate-180={open}
+    ></i>
+  </label>
+  <div
+    class="csm-dropdown"
+    use:clickoutside={{ enabled: open }}
+    onclickoutside={() => toggle(false)}
+    inert={!open}
+  >
+    <div class="overflow-hidden">
+      <ul class="bg-bg relative border">
+        {#each COLOR_SCHEMES as scheme}
+          <li class="border-b last:border-b-0">
+            <form
+              method="GET"
+              onsubmit={(e) => {
+                e.preventDefault();
+                settings.colorScheme = scheme;
+                toggle(false);
+              }}
+            >
+              <label
+                class="c-btn c-btn--outlined focus-within:bg-bg-200 justify-start gap-4 border-none px-4
+								py-2 focus-within:outline-none"
+                class:text-primary={scheme === settings.colorScheme}
+              >
+                <input
+                  type="submit"
+                  value={scheme}
+                  name="color-scheme"
+                  class="sr-only"
+                />
+                {@render icon(scheme)}
+                <span class="text-sm">{LABELS[scheme]}</span>
+              </label>
+            </form>
+          </li>
+        {/each}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<style lang="postcss">
+  .csm-dropdown {
+    position: absolute;
+    z-index: var(--z-index-popup);
+    top: calc(100% + var(--spacing) * 2);
+    right: 0;
+
+    display: grid;
+    grid-template-rows: 0fr;
+
+    width: max-content;
+
+    transition: grid-template-rows 150ms
+      var(--default-transition-timing-function);
+
+    .csm:has(#csm-toggler input:checked) & {
+      grid-template-rows: 1fr;
+    }
+  }
+
+  .csm-caret {
+    transition: transform 150ms var(--default-transition-timing-function);
+
+    .csm:has(#csm-toggler input:checked) & {
+      transform: rotate(180deg);
+    }
+  }
+</style>
+
+=== 375 sites/docs/src/lib/components/connected-list/ConnectedList.svelte	svelte
+<script lang="ts">
+  import type { HTMLAttributes } from "svelte/elements";
+
+  let {
+    class: cls,
+    children,
+    ...rest
+  }: HTMLAttributes<HTMLUListElement> = $props();
+</script>
+
+<ul class="prose-p:m-0 prose-ul:m-4 prose-li:m-0 {cls}" {...rest}>
+  {#if children}
+    {@render children()}
+  {/if}
+</ul>
+
+<style>
+  ul {
+    counter-reset: connected-list;
+  }
+</style>
+
+=== 857 sites/docs/src/lib/components/connected-list/ConnectedListItem.svelte	svelte
+<script lang="ts">
+  import type { HTMLAttributes } from "svelte/elements";
+
+  let {
+    line = true,
+    class: cls,
+    children,
+    ...rest
+  }: HTMLAttributes<HTMLLIElement> & { line?: boolean } = $props();
+</script>
+
+<li class="group flex items-baseline space-x-4 {cls}" {...rest}>
+  <div class="mt-0 flex flex-col items-center self-stretch">
+    <p
+      class="connected-step bg-primary-bg text-primary-fg grid h-7 w-7 place-items-center rounded-full text-xs font-bold"
+    ></p>
+    {#if line}
+      <div
+        class="bg-primary-bg/75 min-h-[1rem] w-0.5 flex-1 group-last:hidden"
+      ></div>
+    {/if}
+  </div>
+  <div class="mb-4">
+    {#if children}
+      {@render children()}
+    {/if}
+  </div>
+</li>
+
+<style lang="postcss">
+  .connected-step::after {
+    content: counter(connected-list);
+    counter-increment: connected-list;
+  }
+</style>
+
+=== 1398 sites/docs/src/lib/components/menu-label/MenuLabel.svelte	svelte
+<script lang="ts">
+  import type { HTMLLabelAttributes } from "svelte/elements";
+
+  let {
+    align = "left",
+    class: cls,
+    for: forHtml,
+    children,
+    ...rest
+  }: HTMLLabelAttributes & { align?: "left" | "right" } = $props();
+
+  const commonPathClasses = `transition-transform origin-left`;
+</script>
+
+<label
+  class="hover:text-link group flex cursor-pointer items-center gap-2 text-xs {cls}"
+  class:flex-row-reverse={align === "right"}
+  for={forHtml}
+  {...rest}
+>
+  <span class="sr-only">Menu</span>
+  <svg
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+    height="24"
+    width="24"
+    class="inline h-6 w-6"
+    class:-scale-x-100={align === "right"}
+    fill="currentcolor"
+  >
+    <path
+      class="{commonPathClasses} group-hover:scale-x-75"
+      d="M21,7H3C2.4,7,2,6.6,2,6s0.4-1,1-1h18c0.6,0,1,0.4,1,1S21.6,7,21,7z"
+    />
+    <path
+      class="{commonPathClasses} group-hover:scale-x-125"
+      d="M17,11H3c-0.6,0-1-0.4-1-1s0.4-1,1-1h14c0.6,0,1,0.4,1,1S17.6,11,17,11z"
+    />
+    <path
+      class="{commonPathClasses} group-hover:scale-x-75"
+      d="M21,15H3c-0.6,0-1-0.4-1-1s0.4-1,1-1h18c0.6,0,1,0.4,1,1S21.6,15,21,15z"
+    />
+    <path
+      class="{commonPathClasses} group-hover:scale-x-125"
+      d="M17,19H3c-0.6,0-1-0.4-1-1s0.4-1,1-1h14c0.6,0,1,0.4,1,1S17.6,19,17,19z"
+    />
+  </svg>
+  {#if children}
+    {@render children()}
+  {/if}
+</label>
+
+=== 1025 sites/docs/src/lib/components/page-load-indicator/PageLoadIndicator.svelte	svelte
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { cubicInOut } from "svelte/easing";
+  import { tweened } from "svelte/motion";
+
+  const p = tweened(0);
+  onMount(() => {
+    p.set(1, {
+      duration: 8000,
+      easing(t) {
+        const steps = [0, 0.2, 0.6, 0.75, 1] as const;
+        for (let i = 0; i < steps.length; i++) {
+          if (t < steps[i]) {
+            const stepDuration = steps[i] - steps[i - 1];
+            return (
+              cubicInOut((t - steps[i - 1]) / stepDuration) * stepDuration +
+              steps[i - 1]
+            );
+          }
+        }
+        return 1;
+      },
+    });
+  });
+</script>
+
+<div
+  class="z-notification fixed left-0 right-0 top-0 h-0.5 w-full"
+  style="--percentage: {$p * 100}%"
+>
+  <progress
+    max="100"
+    value={$p * 100}
+    aria-label="page loading indicator"
+    class="invisible">{$p}%</progress
+  >
+  <div
+    class="absolute left-0 top-0 h-full bg-orange-500"
+    style:width="var(--percentage)"
+    aria-disabled="true"
+  ></div>
+</div>
+
+=== 1527 sites/docs/src/lib/components/runes/Runes.svelte	svelte
+<script lang="ts">
+  import { Popover } from "@svelte-put/popover";
+  import type { HTMLAttributes } from "svelte/elements";
+
+  import { compute } from "$lib/popover/compute";
+
+  let { class: cls, ...rest }: HTMLAttributes<HTMLDivElement> = $props();
+
+  let controlEl: HTMLButtonElement;
+  let targetEl: HTMLElement;
+  let arrowEl: HTMLDivElement;
+
+  let cleanup = () => {};
+  const popover = new Popover({
+    triggers: {
+      hover: true,
+      focus: true,
+    },
+    plugins: () => ({
+      target: {
+        attributes: {
+          role: "tooltip",
+          onbeforetoggle: (e) => {
+            if (e.newState !== "open") return cleanup();
+            cleanup = compute(controlEl, targetEl, arrowEl);
+          },
+        },
+        actions: [
+          (node) => {
+            node.classList.toggle("enhanced", true);
+          },
+        ],
+      },
+    }),
+  });
+</script>
+
+<div class="not-prose {cls}" {...rest}>
+  <button
+    type="button"
+    class="c-btn c-btn--icon"
+    bind:this={controlEl}
+    {...popover.control.attributes}
+    use:popover.control.actions
+  >
+    <svg inline-src="runes" width="80" height="80"></svg>
+    <span class="sr-only">Run support</span>
+  </button>
+
+  <div
+    bind:this={targetEl}
+    {...popover.target.attributes}
+    use:popover.target.actions
+    class="c-tooltip"
+  >
+    <div class="arrow" bind:this={arrowEl}></div>
+    <p>
+      Compatible with or powered directly by
+      <a href="https://svelte.dev/blog/runes" class="c-link">Svelte runes</a>.
+    </p>
+  </div>
+</div>
+
+=== 673 sites/docs/src/lib/components/status-badge/StatusBadge.svelte	svelte
+<script lang="ts">
+  import type { HTMLAttributes } from "svelte/elements";
+
+  let {
+    status,
+    class: cls,
+    children,
+    ...rest
+  }: HTMLAttributes<HTMLSpanElement> & {
+    status: Exclude<App.Package["status"], "deprecated">;
+  } = $props();
+
+  const BADGE_CLASSES = {
+    beta: "hl-info",
+    dev: "hl-warning",
+    new: "hl-success",
+    flux: "hl-error",
+    stable: "bg-gray-700 text-white",
+  } satisfies Record<typeof status, string>;
+  let badgeClass = $derived(BADGE_CLASSES[status]);
+</script>
+
+<span class="rounded-lg px-1.5 py-px text-xs {badgeClass} {cls}" {...rest}>
+  {#if children}
+    {@render children()}
+  {:else}
+    {status}
+  {/if}
+</span>
+
+=== 3650 sites/docs/src/lib/notifications/components/BaseNotification.svelte	svelte
+<script lang="ts" module>
+  import type { StackItemProps } from "@svelte-put/async-stack";
+  import type { HTMLAttributes } from "svelte/elements";
+
+  export interface BaseNotificationProps
+    extends HTMLAttributes<HTMLElement>, StackItemProps {
+    title?: string;
+    status?: "info" | "success" | "warning" | "error";
+  }
+
+  const iconClassMap: Record<
+    NonNullable<BaseNotificationProps["status"]>,
+    string
+  > = {
+    info: "i-[info]",
+    success: "i-[check-circle]",
+    warning: "i-[warning]",
+    error: "i-[warning-circle]",
+  };
+</script>
+
+<script lang="ts">
+  let {
+    item,
+    title,
+    status,
+    class: cls,
+    children,
+    ...rest
+  }: BaseNotificationProps = $props();
+
+  function dismiss() {
+    item.resolve();
+  }
+
+  const iconClass = status ? iconClassMap[status] : "i-[info]";
+</script>
+
+<article
+  class="relative rounded border shadow {cls}"
+  role="status"
+  aria-live="polite"
+  aria-atomic="true"
+  data-status={status}
+  {...rest}
+>
+  <!-- x button to dismiss -->
+  <button
+    onclick={dismiss}
+    class="absolute right-0 top-0 flex -translate-y-1/2 translate-x-1/2 cursor-pointer rounded-full
+		border border-current bg-inherit p-1.5"
+  >
+    <i class="i i-[x] h-3.5 w-3.5"></i>
+    <span class="sr-only">Dismiss</span>
+  </button>
+
+  <div
+    class="rounded-inherit relative flex items-start gap-3 overflow-hidden p-3"
+  >
+    <div class="i {iconClass} h-6 w-6 shrink-0"></div>
+
+    <div class="w-full leading-normal">
+      <p
+        class="mb-2 border-b {status ? 'border-current' : ''} pb-1 font-medium"
+      >
+        {title ?? (status ? status[0].toUpperCase() + status.slice(1) : "")}
+      </p>
+      {#if children}
+        {@render children()}
+      {/if}
+    </div>
+
+    <!-- progress, (time until auto-dismiss) -->
+    <div
+      class="progress absolute inset-x-0 bottom-0 h-0.5 origin-left overflow-hidden"
+      style:--progress-duration={item.config.timeout + "ms"}
+      style:--progress-play-state={item.state === "paused"
+        ? "paused"
+        : "running"}
+      aria-disabled="true"
+    ></div>
+  </div>
+</article>
+
+<style>
+  article {
+    --noti-color-icon: var(--color-fg);
+    --noti-color-progress: var(--color-fg-100);
+    --noti-color-bg: var(--color-bg);
+    --noti-color-fg: var(--color-fg);
+
+    color: var(--noti-color-fg);
+    background-color: var(--noti-color-bg);
+
+    &[data-status="info"] {
+      --noti-color-icon: var(--color-info-fg);
+      --noti-color-progress: var(--color-info-bg-200);
+      --noti-color-bg: var(--color-info-bg);
+      --noti-color-fg: var(--color-info-fg);
+    }
+
+    &[data-status="success"] {
+      --noti-color-icon: var(--color-success-fg);
+      --noti-color-progress: var(--color-success-bg-200);
+      --noti-color-bg: var(--color-success-bg);
+      --noti-color-fg: var(--color-success-fg);
+    }
+
+    &[data-status="warning"] {
+      --noti-color-icon: var(--color-warning-fg);
+      --noti-color-progress: var(--color-warning-bg-200);
+      --noti-color-bg: var(--color-warning-bg);
+      --noti-color-fg: var(--color-warning-fg);
+    }
+
+    &[data-status="error"] {
+      --noti-color-icon: var(--color-error-fg);
+      --noti-color-progress: var(--color-error-bg-200);
+      --noti-color-bg: var(--color-error-bg);
+      --noti-color-fg: var(--color-error-fg);
+    }
+  }
+
+  .progress {
+    background-color: var(--noti-color-progress);
+    animation: progress var(--progress-duration) linear;
+    animation-play-state: var(--progress-play-state);
+  }
+
+  .i {
+    color: var(--noti-color-icon);
+  }
+
+  @keyframes progress {
+    from {
+      transform: scaleX(0);
+    }
+
+    to {
+      transform: scaleX(1);
+    }
+  }
+</style>
+
+=== 4283 sites/docs/src/lib/notifications/components/NotificationPortal.svelte	svelte
+<script lang="ts">
+  import { flip } from "svelte/animate";
+  import { fly } from "svelte/transition";
+
+  import { NotificationContext } from "../context.svelte";
+
+  const MAX_ITEMS = 3;
+  const SCALE_STEP = 0.05;
+  const EXPAND_REM_GAP = 1;
+  const TRANSLATE_REM_STEP = 1;
+  /** if render top down, 1, if bottom up, -1 */
+  const Y_SIGN = 1;
+
+  const { stack } = NotificationContext.get();
+
+  let expanded = $state(false);
+  let visibleItems = $derived(stack.items.slice(-3));
+
+  let liMap: Record<string, HTMLLIElement> = $state({});
+  let liHeightMap = $derived(
+    Object.entries(liMap).reduce(
+      (acc, [id, li]) => {
+        acc[id] = li.clientHeight;
+        return acc;
+      },
+      {} as Record<string, number>,
+    ),
+  );
+  let liOpacityMap = $derived(
+    Object.entries(liMap).reduce(
+      (acc, [id, li]) => {
+        const index = parseInt(li.dataset.index ?? "0") || 0;
+        acc[id] = index >= stack.items.length - MAX_ITEMS ? 1 : 0;
+        return acc;
+      },
+      {} as Record<string, number>,
+    ),
+  );
+  let liTransformMap = $derived(
+    Object.entries(liMap).reduce(
+      (acc, [id, li]) => {
+        const index = parseInt(li.dataset.index ?? "0") || 0;
+        if (!expanded) {
+          const delta = Math.min(stack.items.length - index, MAX_ITEMS + 1) - 1;
+          const scaleX = 1 - delta * SCALE_STEP;
+
+          const liHeight = liHeightMap[id] ?? 0;
+          let topLiHeight = 0;
+          const topItem = stack.items.at(-1);
+          if (topItem) topLiHeight = liHeightMap[topItem.config.id] ?? 0;
+
+          let scaleY = scaleX;
+          let yPx = 0;
+          if (liHeight >= topLiHeight) {
+            scaleY = topLiHeight / liHeight || 1;
+          } else {
+            yPx = Y_SIGN * (topLiHeight - liHeight * scaleY);
+          }
+          const yRem = (Y_SIGN * delta * TRANSLATE_REM_STEP) / scaleY;
+
+          acc[id] =
+            `scaleX(${scaleX}) scaleY(${scaleY}) translateY(calc(${yPx}px + ${yRem}rem))`;
+          return acc;
+        }
+
+        let accumulatedHeight = 0;
+        let rem = 0;
+        for (let i = stack.items.length - 1; i > index; i--) {
+          accumulatedHeight += liHeightMap[stack.items[i].config.id] ?? 0;
+          rem += EXPAND_REM_GAP;
+        }
+        let scale =
+          index < stack.items.length - MAX_ITEMS
+            ? 1 - MAX_ITEMS * SCALE_STEP
+            : 1;
+
+        acc[id] =
+          `scale(${scale}) translateY(calc(${Y_SIGN * accumulatedHeight}px + ${Y_SIGN * rem}rem))`;
+        return acc;
+      },
+      {} as Record<string, string>,
+    ),
+  );
+  const olHeight = $derived.by(() => {
+    if (!expanded) return "auto";
+    const contentPx = visibleItems.reduce((acc, item) => {
+      acc += (liHeightMap[item.config.id] ?? 0) + EXPAND_REM_GAP;
+      return acc;
+    }, 0);
+    const remGap = EXPAND_REM_GAP * (visibleItems.length - 1);
+    return `calc(${contentPx}px + ${remGap}rem)`;
+  });
+
+  function onMouseEnter() {
+    expanded = true;
+    stack.pause(); // pause all items;
+  }
+  function onMouseLeave() {
+    expanded = false;
+    stack.resume(); // resume all items;
+  }
+</script>
+
+<ol
+  class="z-notification tablet:top-10 tablet:right-10 fixed right-4 top-2 grid content-start items-start"
+  style:height={olHeight}
+  onmouseenter={onMouseEnter}
+  onmouseleave={onMouseLeave}
+  data-expanded={expanded}
+>
+  {#each stack.items as notification, index (notification.config.id)}
+    {@const id = notification.config.id}
+    <li
+      data-index={index}
+      class="w-full origin-top"
+      animate:flip={{ duration: 200 }}
+      transition:fly={{ duration: 200, y: "-2rem" }}
+      style:opacity={liOpacityMap[id]}
+      style:transform={liTransformMap[id]}
+      use:stack.actions.render={notification}
+      onstackitemmount={(e) => {
+        liMap[id] = e.target as HTMLLIElement;
+      }}
+      onstackitemunmount={() => {
+        delete liMap[id];
+      }}
+    ></li>
+  {/each}
+</ol>
+
+<style lang="postcss">
+  ol {
+    width: min(calc(100% - 2rem), 40rem);
+    transition-duration: 500ms;
+
+    &:hover {
+      transition-duration: 250ms;
+    }
+  }
+
+  li {
+    grid-column: 1;
+    grid-row: 1;
+
+    transition-timing-function: var(--default-transition-timing-function);
+    transition-duration: inherit;
+    transition-property: transform;
+  }
+</style>
+
+=== 1100 sites/docs/src/lib/notifications/components/Svelte5.svelte	svelte
+<script lang="ts" module>
+  import type { BaseNotificationProps } from "./BaseNotification.svelte";
+
+  export interface ToastProps extends BaseNotificationProps {
+    message: string;
+  }
+</script>
+
+<script lang="ts">
+  import BaseNotification from "./BaseNotification.svelte";
+
+  let { item, ...rest }: ToastProps = $props();
+
+  function doNotShowAgain() {
+    localStorage.setItem("skip-svelte-5-notification", "true");
+    item.resolve();
+  }
+</script>
+
+<BaseNotification status="info" title="Are you runes-ed yet?" {item} {...rest}>
+  <div class="space-y-2">
+    <p>
+      The <code>svelte-put</code> collection has moved to
+      <a class="c-link" href="https://svelte.dev/docs/svelte/v5-migration-guide"
+        >Svelte 5</a
+      >. I recommend you do too. If you are still using Svelte 4, head over to
+      <a class="c-link" href="https://svelte-put-svelte-4.vnphanquang.com"
+        >the old documentation site</a
+      >.
+    </p>
+    <button
+      class="c-btn c-btn--outlined text-fg ml-auto"
+      onclick={doNotShowAgain}>Don't show me again</button
+    >
+  </div>
+</BaseNotification>
+
+=== 409 sites/docs/src/lib/notifications/components/Toast.svelte	svelte
+<script lang="ts" module>
+  import type { BaseNotificationProps } from "./BaseNotification.svelte";
+
+  export interface ToastProps extends BaseNotificationProps {
+    message: string;
+  }
+</script>
+
+<script lang="ts">
+  import BaseNotification from "./BaseNotification.svelte";
+
+  let { message, ...rest }: ToastProps = $props();
+</script>
+
+<BaseNotification {...rest}>
+  <p>{message}</p>
+</BaseNotification>
+
+=== 1252 sites/docs/src/packages/async-stack/_page/examples/await.svelte	svelte
+<script lang="ts">
+  import { notiStack } from "./comprehensive/notification-stack";
+
+  // :::focus
+  // :::highlight
+  let promise: Promise<unknown> | null = null;
+  // :::
+  // :::
+  async function pushNoti() {
+    // :::focus
+    // :::highlight
+    const pushed = notiStack.push("info", {
+      // :::
+      // :::
+      timeout: 0,
+      props: { content: "persistent" },
+    });
+
+    // :::focus
+    // :::highlight
+    promise = pushed.resolution;
+    await promise;
+    // :::
+    // :::
+    setTimeout(() => (promise = null), 2000);
+  }
+
+  function popNoti() {
+    // :::focus
+    // :::highlight
+    notiStack.pop();
+    // :::
+    // :::
+  }
+</script>
+
+<button
+  onclick={pushNoti}
+  disabled={!!promise}
+  class="c-btn"
+  class:bg-gray-500={!!promise}
+>
+  Push a persistent notification
+</button>
+{#if promise}
+  <p class="mt-2 text-blue-500">
+    <!-- :::focus -->
+    <!-- :::highlight -->
+    {#await promise}
+      Notification is pushed and waiting for resolution. Either click the x
+      button on the notification, or <button class="c-link" onclick={popNoti}
+        >click here</button
+      > to pop the notification.
+    {:then}
+      Resolved (resetting in 2 seconds)
+    {/await}
+    <!-- ::: -->
+    <!-- ::: -->
+  </p>
+{/if}
+
+=== 1746 sites/docs/src/packages/async-stack/_page/examples/comprehensive/Notification.svelte	svelte
+<script lang="ts" module>
+  import type { StackItemProps } from "@svelte-put/async-stack";
+
+  export interface NotificationProps extends StackItemProps<{
+    reason: string;
+  }> {
+    content?: string;
+    special?: boolean;
+  }
+</script>
+
+<script lang="ts">
+  import { fly } from "svelte/transition";
+
+  let {
+    content = "Placeholder",
+    special = false,
+    item, // injected by @svelte-put/async-stack
+  }: NotificationProps = $props();
+
+  function dismiss() {
+    item.resolve({ reason: "popped from within component" });
+  }
+</script>
+
+<!-- eslint-disable svelte/valid-compile -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+  class="not-prose pointer-events-auto relative flex items-start justify-between px-4 py-2 shadow-lg md:items-center"
+  class:hl-error={special}
+  class:hl-info={!special}
+  in:fly|global={{ duration: 200, y: -20 }}
+  onmouseenter={item.pause}
+  onmouseleave={item.resume}
+>
+  <p>
+    Notification (variant: {item.config.variant}): {content} (id = {item.config
+      .id})
+  </p>
+  <button onclick={dismiss} type="button" class="c-btn c-btn--icon">
+    <i class="i i-[x] h-6 w-6"></i>
+    <span class="sr-only">Dismiss</span>
+  </button>
+  <div
+    class="progress absolute inset-x-0 bottom-0 h-0.5 origin-left {special
+      ? 'bg-error-bg-200'
+      : 'bg-info-bg-200'}"
+    class:paused={item.state === "paused"}
+    style={`--progress-duration: ${item.config.timeout}ms;`}
+    aria-disabled={true}
+  ></div>
+</div>
+
+<style>
+  .progress {
+    animation: progress var(--progress-duration) linear;
+  }
+
+  .progress.paused {
+    animation-play-state: paused;
+  }
+
+  @keyframes progress {
+    from {
+      transform: scaleX(0);
+    }
+
+    to {
+      transform: scaleX(1);
+    }
+  }
+</style>
+
+=== 699 sites/docs/src/packages/async-stack/_page/examples/comprehensive/NotificationPortal.svelte	svelte
+<script>
+  import { flip } from "svelte/animate";
+  import { fly, fade } from "svelte/transition";
+
+  import { notiStack } from "./notification-stack";
+</script>
+
+<!-- notification portal, typically setup at somewhere global like root layout -->
+<aside
+  class="z-notification pointer-events-none fixed inset-y-0 right-0 flex flex-col-reverse justify-end gap-4 p-10 md:left-1/2 md:justify-start"
+>
+  {#each notiStack.items as notification (notification.config.id)}
+    <div
+      animate:flip={{ duration: 200 }}
+      in:fly={{ duration: 200, x: 20 }}
+      out:fade={{ duration: 120 }}
+      class="relative w-full"
+      use:notiStack.actions.render={notification}
+    ></div>
+  {/each}
+</aside>
+
+=== 452 sites/docs/src/packages/async-stack/_page/examples/comprehensive/usage.svelte	svelte
+<script lang="ts">
+  import { notiStack } from "./notification-stack";
+
+  const pushInfo = () =>
+    notiStack.push("info", { props: { content: "An info notification" } });
+  const pushSpecial = () => notiStack.push("special");
+</script>
+
+<!-- notification push triggers -->
+<button class="c-btn c-btn--outlined" onclick={pushInfo}
+  >Push an info notification</button
+>
+<button class="c-btn" onclick={pushSpecial}>Push a special notification</button>
+
+=== 723 sites/docs/src/packages/async-stack/_page/examples/interactive/InteractiveNotification.svelte	svelte
+<script lang="ts">
+  import type { StackItemProps } from "@svelte-put/async-stack";
+  import { fly } from "svelte/transition";
+
+  let { item, message }: StackItemProps<boolean> & { message: string } =
+    $props();
+
+  // :::highlight
+  const join = () => item.resolve(true);
+  const del = () => item.resolve(false);
+  // :::
+</script>
+
+<div
+  class="bg-bg-100 pointer-events-auto rounded-sm px-4 py-2 shadow-lg"
+  in:fly|global={{ duration: 200, y: -20 }}
+>
+  <p class="text-xl font-bold">Invitation</p>
+  <p class="text-lg">{message}</p>
+  <div class="flex gap-6">
+    <button class="c-btn w-40" onclick={join}> Join </button>
+    <button class="c-btn c-btn--outlined w-40" onclick={del}> Delete </button>
+  </div>
+</div>
+
+=== 1096 sites/docs/src/packages/async-stack/_page/examples/interactive/usage.svelte	svelte
+<script>
+  import { notiStack } from "../comprehensive/notification-stack";
+
+  // :::highlight
+  import InteractiveNotification from "./InteractiveNotification.svelte";
+  // :::
+
+  let state = $state("idle");
+  async function pushNoti() {
+    const pushed = notiStack.push("custom", {
+      timeout: 0,
+      // :::highlight
+      component: InteractiveNotification,
+      // :::
+      props: {
+        message: "You are invited to join the Svelte community!",
+      },
+    });
+
+    state = "pending";
+    // :::highlight
+    const agreed = await pushed.resolution;
+    // :::
+    state = agreed ? "accepted" : "denied";
+  }
+</script>
+
+<p>
+  {#if state === "idle"}
+    Waiting for notification to be pushed
+  {:else if state === "pending"}
+    Waiting for user action to resolve notification
+  {:else}
+    Invitation was <span
+      class="px-2"
+      class:hl-error={state == "denied"}
+      class:hl-success={state === "accepted"}
+    >
+      {state}
+    </span>
+  {/if}
+</p>
+<button class="c-btn" onclick={pushNoti} disabled={state === "pending"}>
+  Trigger Interactive Notification
+</button>
+
+=== 1773 sites/docs/src/packages/async-stack/_page/examples/modal/ConfirmationModal.svelte	svelte
+<script lang="ts">
+  import type { StackItemProps } from "@svelte-put/async-stack";
+
+  import { enhancedialog } from "./enhance-dialog";
+
+  let {
+    item,
+    title,
+    description,
+  }: StackItemProps<{ confirmed: boolean }> & {
+    title: string;
+    description: string;
+  } = $props();
+
+  let dialog: HTMLDialogElement;
+
+  function checkAndResolve() {
+    // when dialog has closed and animation has finished, resolve
+    if (!dialog.open) {
+      item.resolve({ confirmed: dialog.returnValue === "yes" });
+    }
+  }
+
+  $effect(() => {
+    dialog?.showModal();
+  });
+</script>
+
+<dialog
+  class="bg-bg-200 text-fg backdrop:bg-bg space-y-4 p-8 shadow-lg backdrop:opacity-50"
+  bind:this={dialog}
+  use:enhancedialog
+  onclickbackdrop={() => dialog.close()}
+  onanimationend={checkAndResolve}
+>
+  <p class="text-xl font-medium">{title}</p>
+  <p>{description}</p>
+  <form method="dialog" class="flex justify-end gap-4">
+    <button type="submit" class="c-btn c-btn--outlined" value="no">No</button>
+    <button type="submit" class="c-btn" value="yes">Yes</button>
+  </form>
+</dialog>
+
+<style>
+  dialog {
+    inset: 0;
+
+    display: block; /* required for animation to work */
+
+    margin: auto;
+
+    animation-name: fly-out-down;
+    animation-duration: 150ms;
+    animation-timing-function: var(--default-transition-timing-function);
+    animation-fill-mode: forwards;
+  }
+
+  dialog[open] {
+    animation-name: fly-in-up;
+  }
+
+  @keyframes fly-in-up {
+    from {
+      transform: translateY(50px);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fly-out-down {
+    from {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    to {
+      transform: translateY(50px);
+      opacity: 0;
+    }
+  }
+</style>
+
+=== 393 sites/docs/src/packages/async-stack/_page/examples/modal/ModalPortal.svelte	svelte
+<script>
+  import { modalStack } from "./modal-stack";
+</script>
+
+<!-- notification portal, typically setup at somewhere global like root layout -->
+<aside class="z-modal pointer-events-none fixed inset-0">
+  {#each modalStack.items as modal (modal.config.id)}
+    <div
+      class="pointer-events-auto h-full w-full"
+      use:modalStack.actions.render={modal}
+    ></div>
+  {/each}
+</aside>
+
+=== 596 sites/docs/src/packages/async-stack/_page/examples/modal/usage.svelte	svelte
+<script lang="ts">
+  import { modalStack } from "./modal-stack";
+
+  let confirmed: boolean | undefined = undefined;
+  async function confirm() {
+    const pushed = modalStack.push("confirm");
+    ({ confirmed } = (await pushed.resolution) ?? {});
+  }
+</script>
+
+<div class="not-prose flex items-center gap-2">
+  <button class="c-btn" onclick={confirm}>Trigger Modal</button>
+  {#if confirmed === true}
+    <p class="text-sm font-bold text-green-500">We have an accord.</p>
+  {:else if confirmed === false}
+    <p class="text-sm font-bold text-red-500">We don't have an accord.</p>
+  {/if}
+</div>
+
+=== 3318 sites/docs/src/packages/async-stack/_page/examples/toast/Toast.svelte	svelte
+<script lang="ts" module>
+  import type { StackItemProps } from "@svelte-put/async-stack";
+  import type { HTMLAttributes } from "svelte/elements";
+
+  export interface ToastProps
+    extends HTMLAttributes<HTMLElement>, StackItemProps {
+    title?: string;
+    message: string;
+    status?: "info" | "success" | "warning" | "error";
+  }
+
+  const iconClassMap: Record<NonNullable<ToastProps["status"]>, string> = {
+    info: "i-[info]",
+    success: "i-[check-circle]",
+    warning: "i-[warning]",
+    error: "i-[warning-circle]",
+  };
+</script>
+
+<script lang="ts">
+  let {
+    item,
+    title,
+    message,
+    status = "info",
+    class: cls,
+    ...rest
+  }: ToastProps = $props();
+
+  const iconClass = $derived(status ? iconClassMap[status] : "i-[info]");
+
+  function dismiss() {
+    item.resolve();
+  }
+</script>
+
+<article
+  class="relative shadow {cls}"
+  role="status"
+  aria-live="polite"
+  aria-atomic="true"
+  data-status={status}
+  {...rest}
+>
+  <!-- x button to dismiss -->
+  <button
+    onclick={dismiss}
+    class="absolute right-0 top-0 flex -translate-y-1/2 translate-x-1/2 cursor-pointer rounded-full border border-current bg-inherit p-1.5"
+  >
+    <i class="i i-[x] h-3.5 w-3.5"></i>
+    <span class="sr-only">Dismiss</span>
+  </button>
+  <div class="relative flex items-start gap-3 overflow-hidden p-3">
+    <div class="i {iconClass} h-6 w-6 shrink-0"></div>
+
+    <div class="leading-normal">
+      <p class="mb-2 border-b border-current pb-1 font-medium">
+        {title}
+      </p>
+      <p>{message}</p>
+    </div>
+
+    <!-- progress, (time until auto-dismiss) -->
+    <div
+      class="progress absolute inset-x-0 bottom-0 h-0.5 origin-left overflow-hidden"
+      style:--progress-duration={item.config.timeout + "ms"}
+      style:--progress-play-state={item.state === "paused"
+        ? "paused"
+        : "running"}
+      aria-disabled="true"
+    ></div>
+  </div>
+</article>
+
+<style>
+  article {
+    color: var(--toast-color-fg);
+    background-color: var(--toast-color-bg);
+
+    &[data-status="info"] {
+      --toast-color-icon: var(--color-info-fg);
+      --toast-color-progress: var(--color-info-bg-200);
+      --toast-color-bg: var(--color-info-bg);
+      --toast-color-fg: var(--color-info-fg);
+    }
+
+    &[data-status="success"] {
+      --toast-color-icon: var(--color-success-fg);
+      --toast-color-progress: var(--color-success-bg-200);
+      --toast-color-bg: var(--color-success-bg);
+      --toast-color-fg: var(--color-success-fg);
+    }
+
+    &[data-status="warning"] {
+      --toast-color-icon: var(--color-warning-fg);
+      --toast-color-progress: var(--color-warning-bg-200);
+      --toast-color-bg: var(--color-warning-bg);
+      --toast-color-fg: var(--color-warning-fg);
+    }
+
+    &[data-status="error"] {
+      --toast-color-icon: var(--color-error-fg);
+      --toast-color-progress: var(--color-error-bg-200);
+      --toast-color-bg: var(--color-error-bg);
+      --toast-color-fg: var(--color-error-fg);
+    }
+  }
+
+  .progress {
+    background-color: var(--toast-color-progress);
+    animation: progress var(--progress-duration) linear;
+    animation-play-state: var(--progress-play-state);
+  }
+
+  .i {
+    color: var(--toast-color-icon);
+  }
+
+  @keyframes progress {
+    from {
+      transform: scaleX(0);
+    }
+
+    to {
+      transform: scaleX(1);
+    }
+  }
+</style>
+
+=== 4364 sites/docs/src/packages/async-stack/_page/examples/toast/ToastPortal.svelte	svelte
+<script lang="ts">
+  import { flip } from "svelte/animate";
+  import { fly } from "svelte/transition";
+
+  import { toastStack } from "./toast";
+
+  const MAX_ITEMS = 3;
+  const SCALE_STEP = 0.05;
+  const EXPAND_REM_GAP = 1;
+  const TRANSLATE_REM_STEP = 1;
+  /** if render top down, 1, if bottom up, -1 */
+  const Y_SIGN = -1;
+
+  let expanded = $state(false);
+  let visibleItems = $derived(toastStack.items.slice(-3));
+
+  let liMap: Record<string, HTMLLIElement> = $state({});
+  let liHeightMap = $derived(
+    Object.entries(liMap).reduce(
+      (acc, [id, li]) => {
+        acc[id] = li.clientHeight;
+        return acc;
+      },
+      {} as Record<string, number>,
+    ),
+  );
+  let liOpacityMap = $derived(
+    Object.entries(liMap).reduce(
+      (acc, [id, li]) => {
+        const index = parseInt(li.dataset.index ?? "0") || 0;
+        acc[id] = index >= toastStack.items.length - MAX_ITEMS ? 1 : 0;
+        return acc;
+      },
+      {} as Record<string, number>,
+    ),
+  );
+  let liTransformMap = $derived(
+    Object.entries(liMap).reduce(
+      (acc, [id, li]) => {
+        const index = parseInt(li.dataset.index ?? "0") || 0;
+        if (!expanded) {
+          const delta =
+            Math.min(toastStack.items.length - index, MAX_ITEMS + 1) - 1;
+          const scaleX = 1 - delta * SCALE_STEP;
+
+          const liHeight = liHeightMap[id] ?? 0;
+          let topLiHeight = 0;
+          const topItem = toastStack.items.at(-1);
+          if (topItem) topLiHeight = liHeightMap[topItem.config.id] ?? 0;
+
+          let scaleY = scaleX;
+          let yPx = 0;
+          if (liHeight >= topLiHeight) {
+            scaleY = topLiHeight / liHeight || 1;
+          } else {
+            yPx = Y_SIGN * (topLiHeight - liHeight * scaleY);
+          }
+          const yRem = (Y_SIGN * delta * TRANSLATE_REM_STEP) / scaleY;
+
+          acc[id] =
+            `scaleX(${scaleX}) scaleY(${scaleY}) translateY(calc(${yPx}px + ${yRem}rem))`;
+          return acc;
+        }
+
+        let accumulatedHeight = 0;
+        let rem = 0;
+        for (let i = toastStack.items.length - 1; i > index; i--) {
+          accumulatedHeight += liHeightMap[toastStack.items[i].config.id] ?? 0;
+          rem += EXPAND_REM_GAP;
+        }
+        let scale =
+          index < toastStack.items.length - MAX_ITEMS
+            ? 1 - MAX_ITEMS * SCALE_STEP
+            : 1;
+
+        acc[id] =
+          `scale(${scale}) translateY(calc(${Y_SIGN * accumulatedHeight}px + ${Y_SIGN * rem}rem))`;
+        return acc;
+      },
+      {} as Record<string, string>,
+    ),
+  );
+  const olHeight = $derived.by(() => {
+    if (!expanded) return "auto";
+    const contentPx = visibleItems.reduce((acc, item) => {
+      acc += (liHeightMap[item.config.id] ?? 0) + EXPAND_REM_GAP;
+      return acc;
+    }, 0);
+    const remGap = EXPAND_REM_GAP * (visibleItems.length - 1);
+    return `calc(${contentPx}px + ${remGap}rem)`;
+  });
+
+  function onMouseEnter() {
+    expanded = true;
+    toastStack.pause(); // pause all items;
+  }
+  function onMouseLeave() {
+    expanded = false;
+    toastStack.resume(); // resume all items;
+  }
+</script>
+
+<!-- toast portal, typically setup at somewhere global like root layout -->
+<ol
+  class="z-notification tablet:bottom-10 tablet:right-10 fixed bottom-2 right-4 grid content-end items-end"
+  style:height={olHeight}
+  onmouseenter={onMouseEnter}
+  onmouseleave={onMouseLeave}
+  data-expanded={expanded}
+>
+  {#each toastStack.items as notification, index (notification.config.id)}
+    {@const id = notification.config.id}
+    <li
+      data-index={index}
+      class="w-full origin-center"
+      animate:flip={{ duration: 200 }}
+      transition:fly={{ duration: 200, y: "2rem" }}
+      style:opacity={liOpacityMap[id]}
+      style:transform={liTransformMap[id]}
+      use:toastStack.actions.render={notification}
+      onstackitemmount={(e) => {
+        liMap[id] = e.target as HTMLLIElement;
+      }}
+      onstackitemunmount={() => {
+        delete liMap[id];
+      }}
+    ></li>
+  {/each}
+</ol>
+
+<style lang="postcss">
+  ol {
+    width: min(calc(100% - 2rem), 40rem);
+    transition-duration: 500ms;
+
+    &:hover {
+      transition-duration: 250ms;
+    }
+  }
+
+  li {
+    grid-column: 1;
+    grid-row: 1;
+
+    transition-timing-function: var(--default-transition-timing-function);
+    transition-duration: inherit;
+    transition-property: transform;
+  }
+</style>
+
+=== 710 sites/docs/src/packages/async-stack/_page/examples/toast/usage.svelte	svelte
+<script lang="ts">
+  import { toast } from "./toast";
+
+  const message = `Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s`;
+</script>
+
+<div class="not-prose flex flex-wrap items-center gap-2">
+  <button class="c-btn c-btn--outlined" onclick={() => toast.info(message)}
+    >info</button
+  >
+  <button class="c-btn c-btn--outlined" onclick={() => toast.success(message)}
+    >success</button
+  >
+  <button class="c-btn c-btn--outlined" onclick={() => toast.warning(message)}
+    >warning</button
+  >
+  <button class="c-btn c-btn--outlined" onclick={() => toast.error(message)}
+    >error</button
+  >
+</div>
+
+=== 309 sites/docs/src/packages/avatar/_page/examples/custom.markup.svelte	svelte
+<script>
+  import Avatar from "@svelte-put/avatar/Avatar.svelte";
+</script>
+
+<Avatar
+  size={50}
+  gravatar="billy.hargrove@domain.com"
+  uiAvatar="Billy+Hargrove"
+>
+  {#snippet img({ src, size, alt, sources })}
+    <img {src} {alt} width={size} height={size} data-sources={sources} />
+  {/snippet}
+</Avatar>
+
+=== 693 sites/docs/src/packages/avatar/_page/examples/custom.styling.svelte	svelte
+<script lang="ts">
+  import Avatar from "@svelte-put/avatar/Avatar.svelte";
+  /** passed from parent */
+  let { color = "blue" }: { color?: string } = $props();
+</script>
+
+<Avatar
+  src="https://img.freepik.com/free-photo/adorable-jack-russell-retriever-puppy-portrait_53876-64825.jpg?w=2000"
+  uiAvatar="Jim+Hopper"
+  size={50}
+  class="custom-avatar rounded-full"
+  --border-color={color}
+/>
+
+<style lang="postcss">
+  :global(.custom-avatar) {
+    border: 2px var(--border-color) solid;
+    box-shadow:
+      0 0 0 10px hsl(0deg 0% 50%),
+      0 0 0 15px hsl(0deg 0% 60%),
+      0 0 0 20px hsl(0deg 0% 70%),
+      0 0 0 25px hsl(0deg 0% 80%),
+      0 0 0 30px hsl(0deg 0% 90%);
+  }
+</style>
+
+=== 270 sites/docs/src/packages/avatar/_page/examples/direct-url.svelte	svelte
+<script>
+  import Avatar from "@svelte-put/avatar/Avatar.svelte";
+</script>
+
+<Avatar
+  src="https://media.istockphoto.com/id/697946430/photo/pitbull-dog-portrait-with-human-expression.jpg?s=612x612&w=0&k=20&c=uWT9vBoCZPPyg9xkJ0cQI-HqWd5slf7_QsdiwYvazSY="
+  size={50}
+/>
+
+=== 381 sites/docs/src/packages/avatar/_page/examples/gravatar.helper.svelte	svelte
+<script>
+  import { gravatar } from "@svelte-put/avatar";
+  import Avatar from "@svelte-put/avatar/Avatar.svelte";
+
+  const gravatarUrl = gravatar({
+    email: "willbyers@domain.com",
+    rating: "r",
+    size: 50,
+    default: "retro",
+    // forcedefault: 'y',
+  });
+</script>
+
+<Avatar src={gravatarUrl} />
+
+<!-- or simply -->
+<!-- <img src={gravatarUrl} alt="a gravatar" /> -->
+
+=== 131 sites/docs/src/packages/avatar/_page/examples/gravatar.minimal.svelte	svelte
+<script>
+  import Avatar from "@svelte-put/avatar/Avatar.svelte";
+</script>
+
+<Avatar gravatar="vnphanquang@gmail.com" size={50} />
+
+=== 227 sites/docs/src/packages/avatar/_page/examples/gravatar.verbose.svelte	svelte
+<script>
+  import Avatar from "@svelte-put/avatar/Avatar.svelte";
+</script>
+
+<Avatar
+  gravatar={{
+    email: "maxmayfield@domain.com",
+    rating: "r",
+    size: 50,
+    default: "monsterid",
+    // forcedefault: 'y',
+  }}
+/>
+
+=== 165 sites/docs/src/packages/avatar/_page/examples/multiple.svelte	svelte
+<script>
+  import Avatar from "@svelte-put/avatar/Avatar.svelte";
+</script>
+
+<Avatar
+  gravatar="nancy.wheeler@domain.com"
+  uiAvatar="Nancy+Wheeler"
+  size={50}
+/>
+
+=== 471 sites/docs/src/packages/avatar/_page/examples/uiAvatar.helper.svelte	svelte
+<script>
+  import { uiAvatar } from "@svelte-put/avatar";
+  import Avatar from "@svelte-put/avatar/Avatar.svelte";
+
+  const uiAvatarUrl = uiAvatar({
+    name: "Steve+Harrington",
+    background: "313131",
+    color: "FFFFFF",
+    "font-size": 0.3,
+    uppercase: true,
+    rounded: true,
+    length: 3,
+    bold: true,
+    size: 50,
+    format: "svg",
+  });
+</script>
+
+<Avatar src={uiAvatarUrl} />
+
+<!-- or simply -->
+<!-- <img src={gravatarUrl} alt="a ui avatar" /> -->
+
+=== 122 sites/docs/src/packages/avatar/_page/examples/uiAvatar.minimal.svelte	svelte
+<script>
+  import Avatar from "@svelte-put/avatar/Avatar.svelte";
+</script>
+
+<Avatar uiAvatar="Eddie+Munson" size={50} />
+
+=== 305 sites/docs/src/packages/avatar/_page/examples/uiAvatar.verbose.svelte	svelte
+<script>
+  import Avatar from "@svelte-put/avatar/Avatar.svelte";
+</script>
+
+<Avatar
+  uiAvatar={{
+    name: "Jane+Hopper",
+    background: "313131",
+    color: "FFFFFF",
+    "font-size": 0.3,
+    uppercase: true,
+    rounded: true,
+    length: 3,
+    bold: true,
+    size: 50,
+    format: "svg",
+  }}
+/>
+
+=== 2069 sites/docs/src/packages/clickoutside/_page/examples/demo.svelte	svelte
+<script lang="ts">
+  import { clickoutside } from "@svelte-put/clickoutside";
+  import { quintOut } from "svelte/easing";
+  import type { HTMLFieldsetAttributes } from "svelte/elements";
+  import { fly } from "svelte/transition";
+
+  let { class: cls, ...rest }: HTMLFieldsetAttributes = $props();
+
+  let enabled = $state(true);
+  let parent: Element | undefined = $state(undefined);
+  let click = $state(0);
+
+  function onClickOutside() {
+    click++;
+  }
+  function toggleEnabled(e: Event) {
+    e.stopPropagation();
+    enabled = !enabled;
+  }
+</script>
+
+<fieldset
+  class="border-error-fg hl-error select-none border-4 p-10 {cls}"
+  bind:this={parent}
+  {...rest}
+>
+  <legend class="text-error-fg font-bold">&nbsp; Limit &nbsp;</legend>
+
+  <div
+    class="border-suscess-fg hl-success grid border-2 p-6"
+    use:clickoutside={{ enabled, limit: { parent } }}
+    onclickoutside={onClickOutside}
+  >
+    <p>
+      <code>use:clickoutside</code> is registered for this
+      <strong>green box</strong>. Try these:
+    </p>
+    <ol>
+      <li>
+        Click within this <strong>green</strong> zone => <strong>won't </strong>
+        trigger
+        <code>onclickoutside</code>
+      </li>
+      <li>
+        Click on the <strong>red</strong> zone => <strong>will</strong> trigger
+        <code>onclickoutside</code>
+      </li>
+      <li>
+        Click outside the <strong>red</strong> limit => <strong>won't</strong>
+        trigger
+        <code>onclickoutside</code>
+      </li>
+      <li>
+        Enable/disable <code>use:clickoutside</code> with button below, then try (2)
+        again
+      </li>
+    </ol>
+  </div>
+  <div class="flex items-center justify-between">
+    <p class="">
+      <code>onclickoutside</code> counter:
+      {#key click}
+        <strong
+          in:fly={{ y: 8, duration: 250, easing: quintOut }}
+          class="inline-block">{click}</strong
+        >
+      {/key}
+    </p>
+    <button class="c-btn" onclick={toggleEnabled}>
+      {#if enabled}
+        Disable
+      {:else}
+        Enable
+      {/if}
+    </button>
+  </div>
+</fieldset>
+
+=== 1698 sites/docs/src/packages/clickoutside/_page/examples/exclude.svelte	svelte
+<script lang="ts">
+  import { clickoutside } from "@svelte-put/clickoutside";
+
+  let leftOpen = $state(true);
+  // :::highlight success
+  function toggleLeft(e: Event) {
+    e.stopPropagation();
+    leftOpen = !leftOpen;
+  }
+  // :::
+  let rightOpen = $state(false);
+  // :::highlight error
+  function toggleRight() {
+    rightOpen = !rightOpen;
+  }
+  // :::
+
+  let containerEl: HTMLDivElement | undefined = $state(undefined);
+</script>
+
+<div class="relative w-full overflow-hidden" bind:this={containerEl}>
+  <!-- :::highlight success -->
+  <div
+    class="bg-success-bg-100 absolute inset-y-0 left-0 grid w-1/3 origin-left place-items-center transition-[opacity_transform] {leftOpen
+      ? 'scale-x-100 opacity-100'
+      : 'scale-x-50 opacity-50'}"
+    use:clickoutside={{ enabled: leftOpen, limit: { parent: containerEl } }}
+    onclickoutside={toggleLeft}
+  >
+    <!-- ::: -->
+    <div class="i i-[arrow-right] h-8 w-8"></div>
+  </div>
+  <div class="mx-auto flex w-1/3">
+    <button
+      onclick={toggleLeft}
+      class="hl-success inline flex-1 cursor-pointer p-2 active:scale-95"
+    >
+      Toggle Left
+    </button>
+    <button
+      onclick={toggleRight}
+      class="hl-error inline flex-1 cursor-pointer p-2 active:scale-95"
+    >
+      Toggle Right
+    </button>
+  </div>
+  <!-- :::highlight error -->
+  <div
+    class="bg-error-bg-100 absolute inset-y-0 right-0 grid w-1/3 origin-right place-items-center {rightOpen
+      ? 'scale-x-100 opacity-100'
+      : 'scale-x-50 opacity-50'}"
+    use:clickoutside={{ enabled: rightOpen, limit: { parent: containerEl } }}
+    onclickoutside={toggleRight}
+  >
+    <!-- ::: -->
+    <div class="i i-[arrow-left] h-8 w-8"></div>
+  </div>
+</div>
+
+=== 235 sites/docs/src/packages/clickoutside/_page/examples/quick-start.svelte	svelte
+<script lang="ts">
+  import { clickoutside } from "@svelte-put/clickoutside";
+
+  function doSomething(e: CustomEvent<MouseEvent>) {
+    console.log(e.target);
+  }
+</script>
+
+<div use:clickoutside onclickoutside={doSomething}>...</div>
+
+=== 664 sites/docs/src/packages/cloudflare-turnstile/_page/examples/quick-start.svelte	svelte
+<script lang="ts">
+  import { turnstile } from "@svelte-put/cloudflare-turnstile";
+
+  // assume using SvelteKit and the '$env/static/public' module is available
+  import { PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY } from "$env/static/public";
+
+  let token = $state("");
+  $inspect(token);
+</script>
+
+<div
+  use:turnstile
+  turnstile-sitekey={PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY}
+  turnstile-theme="auto"
+  turnstile-size="normal"
+  turnstile-language="en"
+  turnstile-response-field-name="turnstile"
+  turnstile-response-field
+  onturnstile={(e) => (token = e.detail.token)}
+></div>
+<p>
+  Captured Token: <span class="hl-success px-2">{token ?? "pending"}</span>
+</p>
+
+=== 226 sites/docs/src/packages/copy/_page/examples/custom-event.svelte	svelte
+<script>
+  import { copy } from "@svelte-put/copy";
+</script>
+
+<button type="button" use:copy={{ event: "mousedown" }}>...</button>
+<button type="button" use:copy={{ event: ["pointerenter", "pointerleave"] }}
+  >...</button
+>
+
+=== 836 sites/docs/src/packages/copy/_page/examples/custom-text.svelte	svelte
+<script lang="ts">
+  import { copy, type TextResolverInput } from "@svelte-put/copy";
+  import { fade } from "svelte/transition";
+
+  let copied = $state("");
+  // :::focus
+  // :::highlight
+  function copyText(input: TextResolverInput<"pointerdown">) {
+    const { node } = input;
+    copied = `Custom - ${node.innerText}`;
+    return copied;
+  }
+  // :::
+  // :::
+</script>
+
+<div class="not-prose grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+  <!-- :::focus -->
+  <!-- :::highlight -->
+  <button
+    class="c-btn"
+    type="button"
+    use:copy={{ event: "pointerdown", text: copyText }}
+  >
+    Click
+  </button>
+  <!-- ::: -->
+  <!-- ::: -->
+  <p>-></p>
+  <div class="hl-success grid place-items-center self-stretch">
+    {#if copied}
+      <p in:fade={{ duration: 200 }}>
+        {copied}
+      </p>
+    {/if}
+  </div>
+</div>
+
+=== 908 sites/docs/src/packages/copy/_page/examples/custom-trigger.svelte	svelte
+<script lang="ts">
+  import { copy, type CopyDetail } from "@svelte-put/copy";
+  import { fade } from "svelte/transition";
+
+  let trigger: HTMLButtonElement | undefined = $state(undefined);
+  let copied = $state("");
+  function handleCopied(e: CustomEvent<CopyDetail>) {
+    copied = e.detail.text;
+  }
+</script>
+
+<div
+  class="not-prose grid grid-cols-[0.5fr_auto_0.5fr_auto_1fr] items-center gap-4"
+>
+  <!-- :::focus -->
+  <!-- :::highlight -->
+  <button class="c-btn" type="button" bind:this={trigger}>Click</button>
+  <p>to</p>
+  <div
+    class="grid place-items-center border border-yellow-500 p-2"
+    use:copy={{ trigger }}
+    oncopied={handleCopied}
+  >
+    <p>copy this</p>
+  </div>
+  <!-- ::: -->
+  <!-- ::: -->
+  <p>-></p>
+  <div class="hl-success grid place-items-center self-stretch">
+    {#if copied}
+      <p in:fade={{ duration: 200 }}>
+        {copied}
+      </p>
+    {/if}
+  </div>
+</div>
+
+=== 821 sites/docs/src/packages/copy/_page/examples/no-parameters.svelte	svelte
+<script lang="ts">
+  // :::focus
+  // :::highlight
+  import { copy, type CopyDetail } from "@svelte-put/copy";
+  // :::
+  // :::
+  import { fade } from "svelte/transition";
+
+  // :::focus
+  // :::highlight
+  let copied = $state("");
+  function handleCopied(e: CustomEvent<CopyDetail>) {
+    copied = e.detail.text;
+  }
+  // :::
+  // :::
+</script>
+
+<div class="not-prose grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+  <!-- :::focus -->
+  <!-- :::highlight -->
+  <button class="c-btn" type="button" use:copy oncopied={handleCopied}>
+    <!-- ::: -->
+    <!-- ::: -->
+    <strong>Click</strong> <span>to copy this</span>
+  </button>
+  <p>-></p>
+  <div class="hl-success grid place-items-center self-stretch">
+    {#if copied}
+      <p in:fade={{ duration: 200 }}>
+        {copied}
+      </p>
+    {/if}
+  </div>
+</div>
+
+=== 868 sites/docs/src/packages/copy/_page/examples/synthetic-copy.svelte	svelte
+<script lang="ts">
+  import { copy } from "@svelte-put/copy";
+  import { fade } from "svelte/transition";
+
+  let copied = $state("");
+  function onSyntheticCopy(e: ClipboardEvent) {
+    const clipboardData = e.clipboardData;
+    copied = clipboardData?.getData("text/plain") ?? "";
+    // clipboardData.setData will have no effect here
+  }
+</script>
+
+<div class="not-prose grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+  <!-- :::focus -->
+  <!-- :::highlight -->
+  <button
+    class="c-btn"
+    type="button"
+    use:copy={{ synthetic: true }}
+    oncopy={onSyntheticCopy}
+  >
+    <!-- ::: -->
+    <!-- ::: -->
+    <strong>Click</strong> <span>synthetic copy</span>
+  </button>
+  <p>-></p>
+  <div class="hl-success grid place-items-center self-stretch">
+    {#if copied}
+      <p in:fade={{ duration: 200 }}>
+        {copied}
+      </p>
+    {/if}
+  </div>
+</div>
+
+=== 437 sites/docs/src/packages/dragscroll/_page/examples/limitation-scroll-snap.svelte	svelte
+<script>
+  import { dragscroll } from "@svelte-put/dragscroll";
+</script>
+
+<ul
+  class="not-prose mx-auto flex max-w-4xl snap-x snap-mandatory overflow-x-auto border-2
+	border-violet-500 p-4 text-black"
+  use:dragscroll={{ axis: "x" }}
+>
+  {#each new Array(10) as _, i}
+    <li
+      class="mx-[20%] grid h-20 w-2/3 shrink-0 snap-center place-items-center odd:bg-green-200 even:bg-blue-200"
+    >
+      {i + 1}
+    </li>
+  {/each}
+</ul>
+
+=== 860 sites/docs/src/packages/dragscroll/_page/examples/no-parameters.svelte	svelte
+<script>
+  // :::focus
+  // :::highlight
+  import { dragscroll } from "@svelte-put/dragscroll";
+  // :::
+  // :::
+
+  const classesForOddRows =
+    "odd:bg-white odd:text-black even:bg-black even:text-white";
+  const classesForEvenRows =
+    "odd:bg-black odd:text-white even:bg-white even:text-black";
+</script>
+
+<!-- :::focus -->
+<!-- :::highlight -->
+<div
+  class="mx-auto max-w-4xl overflow-x-auto border-2 border-violet-500 p-4"
+  use:dragscroll
+>
+  <!-- ::: -->
+  <!-- ::: -->
+  {#each new Array(10) as _, row}
+    <div class="grid grid-cols-[repeat(10,1fr)]">
+      {#each new Array(10) as _, col}
+        <div
+          class="
+						grid h-10 w-32 select-none place-items-center
+						{row % 2 === 0 ? classesForEvenRows : classesForOddRows}
+          "
+        >
+          {row * 10 + col + 1}
+        </div>
+      {/each}
+    </div>
+  {/each}
+</div>
+
+=== 1914 sites/docs/src/packages/dragscroll/_page/examples/option-axis.svelte	svelte
+<script lang="ts">
+  import {
+    dragscroll,
+    type DragScrollParameters,
+  } from "@svelte-put/dragscroll";
+
+  // :::focus
+  // :::highlight
+  let axis: DragScrollParameters["axis"] = "both";
+  // :::
+  // :::
+
+  const classesForOddRows =
+    "odd:bg-white odd:text-black even:bg-black even:text-white";
+  const classesForEvenRows =
+    "odd:bg-black odd:text-white even:bg-white even:text-black";
+</script>
+
+<div class="not-prose mx-auto grid max-w-4xl place-items-center">
+  <div class="flex items-center space-x-4">
+    <p>Select the scroll axis</p>
+    <label class="flex cursor-pointer items-center gap-2">
+      <input
+        class="c-input"
+        type="radio"
+        name="axis"
+        value="x"
+        id="x"
+        bind:group={axis}
+      />
+      x
+    </label>
+    <label class="flex cursor-pointer items-center gap-2">
+      <input
+        class="c-input"
+        type="radio"
+        name="axis"
+        value="y"
+        id="y"
+        bind:group={axis}
+      />
+      y
+    </label>
+    <label class="flex cursor-pointer items-center gap-2">
+      <input
+        class="c-input"
+        type="radio"
+        name="axis"
+        value="both"
+        id="both"
+        bind:group={axis}
+      />
+      both
+    </label>
+  </div>
+  <!-- :::focus -->
+  <!-- :::highlight -->
+  <div
+    class="mt-4 max-h-[300px] max-w-[300px] overflow-x-auto border-2 border-violet-500 md:max-h-[400px] md:max-w-[400px]"
+    use:dragscroll={{ axis }}
+  >
+    <!-- ::: -->
+    <!-- ::: -->
+    {#each new Array(10) as _, row}
+      <div class="grid grid-cols-[repeat(10,1fr)]">
+        {#each new Array(10) as _, col}
+          <div
+            class="
+							grid h-20 w-20 select-none place-items-center
+              {row % 2 === 0 ? classesForEvenRows : classesForOddRows}
+            "
+          >
+            {row * 10 + col + 1}
+          </div>
+        {/each}
+      </div>
+    {/each}
+  </div>
+</div>
+
+=== 403 sites/docs/src/packages/inline-svg/_page/examples/action.svelte	svelte
+<script>
+  import { inlineSvg } from "@svelte-put/inline-svg";
+
+  let {
+    src = "https://raw.githubusercontent.com/sveltejs/branding/master/svelte-logo.svg",
+  } = $props();
+</script>
+
+<!-- add attributes and styling as with any other HTML element -->
+<svg use:inlineSvg={src} width="100" class="svelte" />
+
+<style>
+  svg.svelte {
+    filter: drop-shadow(0 0 0.5rem var(--color-svelte));
+  }
+</style>
+
+=== 676 sites/docs/src/packages/intersect/_page/examples/event-intersect.svelte	svelte
+<script lang="ts">
+  import { intersect, type IntersectDetail } from "@svelte-put/intersect";
+
+  let detail: IntersectDetail | undefined = $state();
+  function onIntersect(e: CustomEvent<IntersectDetail>) {
+    detail = e.detail;
+  }
+</script>
+
+<div
+  class="hl-info mx-auto flex h-80 w-4/5 flex-col items-center justify-between"
+  use:intersect={{ threshold: 0.5, rootMargin: "-100px 0px 0px" }}
+  onintersect={onIntersect}
+>
+  {#each new Array(2) as _}
+    <p>
+      {#if detail}
+        <span>Scrolling {detail?.direction}</span> &
+        <span
+          >{detail?.entries[0]?.isIntersecting ? "entering" : "leaving"}</span
+        >
+      {/if}
+    </p>
+  {/each}
+</div>
+
+=== 920 sites/docs/src/packages/intersect/_page/examples/event-intersectonce.svelte	svelte
+<script lang="ts">
+  import { intersect } from "@svelte-put/intersect";
+  import { fly } from "svelte/transition";
+
+  let ulElement: HTMLUListElement | undefined = $state();
+  let intersectionMap: Record<string, boolean> = $state({
+    one: false,
+    two: false,
+    three: false,
+    four: false,
+    five: false,
+    six: false,
+    seven: false,
+    eight: false,
+  });
+</script>
+
+<ul
+  class="max-h-[400px] w-full space-y-20 overflow-hidden overflow-y-auto p-4"
+  bind:this={ulElement}
+>
+  {#each Object.keys(intersectionMap) as key (key)}
+    {#key intersectionMap[key]}
+      <li
+        class="odd:bg-success-fg even:bg-info-fg h-[300px] marker:content-none"
+        class:invisible={!intersectionMap[key]}
+        in:fly={{ y: 100, duration: 250 }}
+        use:intersect={{ threshold: 0.4, root: ulElement }}
+        onintersectonce={() => (intersectionMap[key] = true)}
+      ></li>
+    {/key}
+  {/each}
+</ul>
+
+=== 275 sites/docs/src/packages/intersect/_page/examples/initialization-options.svelte	svelte
+<script>
+  import { intersect } from "@svelte-put/intersect";
+  let root;
+</script>
+
+<main bind:this={root}>
+  <section
+    use:intersect={{
+      enabled: true,
+      root,
+      rootMargin: "100px 0px 50px 0px",
+      threshold: [0.2, 0.5, 1],
+    }}
+  ></section>
+</main>
+
+=== 548 sites/docs/src/packages/intersect/_page/examples/quick-start.svelte	svelte
+<script lang="ts">
+  // :::highlight
+  import { intersect, type IntersectDetail } from "@svelte-put/intersect";
+  // :::
+
+  function onIntersect(e: CustomEvent<IntersectDetail>) {
+    const { observer, entries, direction } = e.detail;
+    console.log("the observer itself", observer);
+    console.log("scrolling direction:", direction);
+    console.log(
+      "intersecting:",
+      entries[0]?.isIntersecting ? "entering" : "leaving",
+    );
+  }
+</script>
+
+<!-- :::highlight -->
+<div use:intersect onintersect={onIntersect}>...</div>
+<!-- ::: -->
+
+=== 301 sites/docs/src/packages/lockscroll/_page/examples/quick-start.svelte	svelte
+<script>
+  import { lockscroll } from "@svelte-put/lockscroll";
+
+  let locked = $state(false);
+  function toggleLockScroll() {
+    locked = !locked;
+  }
+</script>
+
+<svelte:body use:lockscroll={locked} />
+<button class="c-btn mx-auto" onclick={toggleLockScroll}
+  >Toggle lock scroll on body</button
+>
+
+=== 1052 sites/docs/src/packages/lockscroll/_page/examples/scroll-container.svelte	svelte
+<script lang="ts">
+  import { lockscroll } from "@svelte-put/lockscroll";
+
+  let locked = $state(false);
+</script>
+
+<button class="c-btn mx-auto" onclick={() => (locked = !locked)}
+  >Toggle lock scroll for below section</button
+>
+<section
+  class="bg-bg-soft mt-4 max-h-[400px] overflow-auto rounded px-6"
+  use:lockscroll={locked}
+>
+  {#each new Array(10) as _}
+    <p>
+      What is Lorem Ipsum? Lorem Ipsum is simply dummy text of the printing and
+      typesetting industry. Lorem Ipsum has been the industry's standard dummy
+      text ever since the 1500s, when an unknown printer took a galley of type
+      and scrambled it to make a type specimen book. It has survived not only
+      five centuries, but also the leap into electronic typesetting, remaining
+      essentially unchanged. It was popularised in the 1960s with the release of
+      Letraset sheets containing Lorem Ipsum passages, and more recently with
+      desktop publishing software like Aldus PageMaker including versions of
+      Lorem Ipsum.
+    </p>
+  {/each}
+</section>
+
+=== 620 sites/docs/src/packages/lockscroll/_page/examples/svelte-rune.svelte	svelte
+<script>
+  import { lockscroll } from "@svelte-put/lockscroll";
+
+  class ScrollLock {
+    locked = $state(false);
+
+    toggle(force = !this.locked) {
+      this.locked = force;
+    }
+  }
+
+  const lock = new ScrollLock();
+</script>
+
+<svelte:body use:lockscroll={lock.locked} />
+<div class="flex justify-center gap-4">
+  <button class="c-btn" onclick={() => lock.toggle()}>Toggle lock scroll</button
+  >
+  <button class="c-btn c-btn--outlined" onclick={() => lock.toggle(true)}
+    >Force locked</button
+  >
+  <button class="c-btn c-btn--outlined" onclick={() => lock.toggle(false)}
+    >Force unlocked</button
+  >
+</div>
+
+=== 733 sites/docs/src/packages/modal/docs.md.svelte	svelte
+<script>
+  import { SettingsContext } from "$lib/settings/context.svelte";
+
+  const settings = SettingsContext.get();
+</script>
+
+## Deprecation Notice This package has been dropped in favor of
+[@svelte-put/async-stack](/docs/async-stack). `@svelte-put/async-stack` is a
+generic implementation inspired by `@svelte-put/modal` and `@svelte-put/noti`,
+and now is more minimal, unopinionated, and powerful thanks to Svelte runes.
+Follow patterns introduced in the `async-stack` ["Recipes"
+section](/docs/async-stack#modal--dialog) to migrate your existing
+`@svelte-put/modal` system to `@svelte-put/async-stack`. To see the original
+documentation, [visit here](https://02e439f1.svelte-put.pages.dev/docs/modal).
+--- Happy migrating 😅
+
+=== 394 sites/docs/src/packages/movable/_page/examples/handle.svelte	svelte
+<script lang="ts">
+  import { movable } from "@svelte-put/movable";
+
+  let handle: HTMLElement | undefined = $state();
+</script>
+
+<div class="hl-info flex h-40 w-40 flex-col p-2" use:movable={{ handle }}>
+  <div
+    class="hl-warning grid h-8 w-8 place-items-center self-end"
+    bind:this={handle}
+  >
+    .
+  </div>
+  <div class="grid flex-1 place-items-center self-stretch">...</div>
+</div>
+
+=== 424 sites/docs/src/packages/movable/_page/examples/ignore.svelte	svelte
+<script>
+  import { movable } from "@svelte-put/movable";
+  import { onMount } from "svelte";
+
+  let mounted = false;
+  onMount(() => {
+    setTimeout(() => {
+      mounted = true;
+    }, 500);
+  });
+</script>
+
+<div
+  class="hl-info z-overlay grid h-40 w-40 place-items-center"
+  use:movable={{ ignore: ".to-ignore" }}
+>
+  {#if mounted}
+    <p class="to-ignore hl-error cursor-auto p-2 text-sm">To ignore</p>
+  {/if}
+</div>
+
+=== 451 sites/docs/src/packages/movable/_page/examples/limit-ancestor.svelte	svelte
+<script lang="ts">
+  import { movable } from "@svelte-put/movable";
+
+  let parentNode: HTMLElement;
+</script>
+
+<div
+  class="grid place-items-center border-2 border-violet-500 p-4"
+  bind:this={parentNode}
+>
+  <p class="text-center">
+    Box below can be moved around, but only within the violet border
+  </p>
+  <div
+    class="hl-info grid h-20 w-20 place-items-center"
+    use:movable={{ limit: { parent: parentNode } }}
+  >
+    ...
+  </div>
+</div>
+
+=== 186 sites/docs/src/packages/movable/_page/examples/limit-delta.svelte	svelte
+<script>
+  import { movable } from "@svelte-put/movable";
+</script>
+
+<div
+  class="hl-info grid h-20 w-20 place-items-center"
+  use:movable={{ limit: { delta: "100%" } }}
+>
+  ...
+</div>
+
+=== 199 sites/docs/src/packages/movable/_page/examples/limit-screen.svelte	svelte
+<script>
+  import { movable } from "@svelte-put/movable";
+</script>
+
+<div
+  class="hl-info z-overlay grid h-20 w-20 place-items-center"
+  use:movable={{ limit: { parent: "screen" } }}
+>
+  ...
+</div>
+
+=== 199 sites/docs/src/packages/movable/_page/examples/limit-single-axis.svelte	svelte
+<script>
+  import { movable } from "@svelte-put/movable";
+</script>
+
+<div
+  class="hl-info grid h-20 w-20 place-items-center"
+  use:movable={{ limit: { delta: { x: "100%", y: 0 } } }}
+>
+  ...
+</div>
+
+=== 170 sites/docs/src/packages/movable/_page/examples/quick-start.svelte	svelte
+<script lang="ts">
+  import { movable } from "@svelte-put/movable";
+</script>
+
+<div class="hl-info z-overlay grid h-20 w-20 place-items-center" use:movable>
+  ...
+</div>
+
+=== 423 sites/docs/src/packages/popover/_page/examples/quick-start.svelte	svelte
+<script>
+  import { Popover } from "@svelte-put/popover";
+
+  const popover = new Popover();
+</script>
+
+<button
+  class="c-btn"
+  {...popover.control.attributes}
+  use:popover.control.actions
+>
+  Open me Popover
+</button>
+
+<div
+  class="fixed inset-0 m-auto p-6 backdrop:bg-black backdrop:opacity-50"
+  {...popover.target.attributes}
+  use:popover.target.actions
+>
+  <p>Popover content. Click backdrop to dismiss</p>
+</div>
+
+=== 1435 sites/docs/src/packages/popover/_page/examples/tooltip/HintedText.svelte	svelte
+<script lang="ts">
+  import { Popover, type PopoverPlugin } from "@svelte-put/popover";
+  import type { Snippet } from "svelte";
+  import type { HTMLButtonAttributes } from "svelte/elements";
+
+  import { compute } from "./compute";
+  import "./tooltip.css";
+
+  let {
+    children,
+    hint,
+    class: cls,
+    ...rest
+  }: HTMLButtonAttributes & { children: Snippet; hint: Snippet } = $props();
+
+  let controlEl: HTMLButtonElement;
+  let targetEl: HTMLElement;
+  let arrowEl: HTMLSpanElement;
+
+  let cleanup = () => {};
+  const tooltipPlugin: PopoverPlugin = () => ({
+    name: "tooltip",
+    target: {
+      attributes: {
+        role: "tooltip",
+        onbeforetoggle: (e) => {
+          if (e.newState !== "open") return cleanup();
+          cleanup = compute(controlEl, targetEl, arrowEl);
+        },
+      },
+      actions: [
+        (node) => {
+          node.classList.toggle("enhanced", true);
+        },
+      ],
+    },
+  });
+
+  const popover = new Popover({
+    triggers: {
+      hover: true,
+      focus: true,
+    },
+    plugins: tooltipPlugin,
+  });
+</script>
+
+<button
+  bind:this={controlEl}
+  class="inline-block {cls}"
+  use:popover.control.actions
+  {...popover.control.attributes}
+  {...rest}>{@render children()}</button
+>
+
+<span
+  class="text-hint"
+  bind:this={targetEl}
+  {...popover.target.attributes}
+  use:popover.target.actions
+>
+  <span class="arrow" bind:this={arrowEl}></span>
+  {@render hint()}
+</span>
+
+=== 412 sites/docs/src/packages/popover/_page/examples/tooltip/usage.svelte	svelte
+<script>
+  import HintedText from "./HintedText.svelte";
+</script>
+
+{#snippet hint()}
+  <span class="m-0"
+    >Built with ♡ using <code>@svelte-put/popover </code> and
+    <code>@floating-ui</code></span
+  >
+{/snippet}
+
+<p class="m-0">
+  <span>Hover on</span>
+  <HintedText {hint} class="hl-info cursor-help">this text ⓘ</HintedText>
+  <span>for some hinting action (or focus it using keyboard).</span>
+</p>
+
+=== 1256 sites/docs/src/packages/preaction/_page/examples/demo.svelte	svelte
+<script lang="ts">
+  // :::highlight
+  import { make, apply } from "@svelte-put/preaction";
+  // :::
+  import type { HTMLAttributes, HTMLButtonAttributes } from "svelte/elements";
+
+  const popover = {
+    // :::highlight
+    control: make((id: string) => {
+      // :::
+      return {
+        action: (node: HTMLButtonElement) => {
+          // regular runtime Svelte action business
+          console.log("popover control", node);
+        },
+        attributes: {
+          popovertarget: id,
+          class: "c-btn",
+          popovertargetaction: "show",
+        } as HTMLButtonAttributes,
+      };
+    }),
+
+    // :::highlight
+    target: make((id: string) => {
+      // :::
+      return {
+        action: (node: HTMLDivElement) => {
+          // regular runtime Svelte action business
+          console.log("popover target", node);
+        },
+        attributes: {
+          id,
+          class: "border-2 p-10 m-auto",
+          popover: "auto",
+        } as HTMLAttributes<HTMLDivElement>,
+      };
+    }),
+  };
+</script>
+
+<!-- :::highlight -->
+<button use:apply={popover.control("my-popover")}>
+  <!-- ::: -->
+  Open Popover
+</button>
+
+<!-- :::highlight -->
+<div use:apply={popover.target("my-popover")}>
+  <!-- ::: -->
+  My simple popover
+</div>
+
+=== 366 sites/docs/src/packages/qr/_page/examples/img-action.svelte	svelte
+<script>
+  import { qr } from "@svelte-put/qr/img";
+</script>
+
+<img
+  use:qr={{
+    data: "https://svelte-put.vnphanquang.com/docs/qr",
+    logo: "https://svelte-put.vnphanquang.com/images/svelte-put-logo.svg",
+    shape: "circle",
+    anchorInnerFill: "gray",
+    anchorOuterFill: "gray",
+    moduleFill: "gray",
+    width: 500,
+    height: 500,
+  }}
+  alt="qr"
+/>
+
+=== 257 sites/docs/src/packages/qr/_page/examples/img-background-fill.svelte	svelte
+<script>
+  import QR from "@svelte-put/qr/img/QR.svelte";
+</script>
+
+<QR
+  data="https://svelte-put.vnphanquang.com/docs/qr"
+  anchorOuterFill="blue"
+  moduleFill="green"
+  anchorInnerFill="blue"
+  backgroundFill="lightblue"
+  width="168"
+  height="168"
+/>
+
+=== 418 sites/docs/src/packages/qr/_page/examples/img-component-with-snippet.svelte	svelte
+<script>
+  import QR from "@svelte-put/qr/img/QR.svelte";
+</script>
+
+<QR
+  data="https://svelte.dev"
+  logo="https://raw.githubusercontent.com/sveltejs/branding/master/svelte-logo.svg"
+  logoRatio={107 / 128}
+  shape="square"
+  anchorInnerFill="tomato"
+  anchorOuterFill="tomato"
+  moduleFill="tomato"
+  margin={4}
+  width="500"
+  height="500"
+>
+  {#snippet img({ src })}
+    <img {src} alt="qr" />
+  {/snippet}
+</QR>
+
+=== 230 sites/docs/src/packages/qr/_page/examples/img-component.svelte	svelte
+<script>
+  import QR from "@svelte-put/qr/img/QR.svelte";
+</script>
+
+<QR
+  data="https://svelte-put.vnphanquang.com/docs/qr"
+  moduleFill="violet"
+  anchorOuterFill="red"
+  anchorInnerFill="violet"
+  width="500"
+  height="500"
+/>
+
+=== 546 sites/docs/src/packages/qr/_page/examples/img-headless.svelte	svelte
+<script lang="ts">
+  import { createQrPngDataUrl, type QRConfig } from "@svelte-put/qr";
+  import { onMount } from "svelte";
+
+  const config = {
+    data: "https://svelte.dev",
+    width: 500,
+    height: 500,
+    backgroundFill: "#fff",
+  } satisfies QRConfig;
+
+  let src = "";
+  onMount(async () => {
+    src = await createQrPngDataUrl(config);
+  });
+</script>
+
+<div class="flex flex-col items-center gap-2">
+  <img {src} width="180" height="180" alt="a qr code" />
+  <a class="c-btn" href={src} download="qr.png">Download QR as PNG</a>
+</div>
+
+=== 240 sites/docs/src/packages/qr/_page/examples/svg-action.svelte	svelte
+<script>
+  import { qr } from "@svelte-put/qr/svg";
+</script>
+
+<svg
+  use:qr={{
+    data: "https://svelte-put.vnphanquang.com/docs/qr",
+    logo: "https://svelte-put.vnphanquang.com/images/svelte-put-logo.svg",
+    shape: "circle",
+  }}
+/>
+
+=== 453 sites/docs/src/packages/qr/_page/examples/svg-component-with-snippet.svelte	svelte
+<script>
+  import QR from "@svelte-put/qr/svg/QR.svelte";
+</script>
+
+<QR
+  data="https://svelte.dev"
+  logo="https://raw.githubusercontent.com/sveltejs/branding/master/svelte-logo.svg"
+  logoRatio={107 / 128}
+  shape="square"
+  margin={4}
+>
+  {#snippet svg({ attributes, innerHTML })}
+    <svg {...attributes} class="**:fill-blue-500">
+      <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+      {@html innerHTML}
+    </svg>
+  {/snippet}
+</QR>
+
+=== 201 sites/docs/src/packages/qr/_page/examples/svg-component.svelte	svelte
+<script>
+  import QR from "@svelte-put/qr/svg/QR.svelte";
+</script>
+
+<QR
+  data="https://svelte-put.vnphanquang.com/docs/qr"
+  moduleFill="violet"
+  anchorOuterFill="red"
+  anchorInnerFill="violet"
+/>
+
+=== 505 sites/docs/src/packages/qr/_page/examples/svg-headless.svelte	svelte
+<script lang="ts">
+  import {
+    createQrSvgString,
+    createQrSvgDataUrl,
+    type QRConfig,
+  } from "@svelte-put/qr";
+
+  const config = { data: "https://svelte.dev" } satisfies QRConfig;
+
+  const dataURL = createQrSvgDataUrl(config);
+  const svgString = createQrSvgString(config);
+</script>
+
+<div class="flex flex-col items-center gap-2">
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+  {@html svgString}
+  <a class="c-btn" href={dataURL} download="qr.svg">Download QR as SVG</a>
+</div>
+
+=== 1495 sites/docs/src/packages/resize/_page/examples/example.svelte	svelte
+<script lang="ts">
+  import { resize } from "@svelte-put/resize";
+  import type { ResizeDetail } from "@svelte-put/resize";
+
+  let enabled = $state(true);
+
+  function calcBorderRadius(size1: number, size2: number) {
+    return `${Math.min(100, size1 / 10 + size2 / 10)}px`;
+  }
+
+  function onResized(e: CustomEvent<ResizeDetail>) {
+    const { entry } = e.detail;
+
+    const target = entry.target as HTMLElement;
+    if (entry.borderBoxSize?.length > 0) {
+      target.style.borderRadius = calcBorderRadius(
+        entry.borderBoxSize[0].inlineSize,
+        entry.borderBoxSize[0].blockSize,
+      );
+    } else {
+      target.style.borderRadius = calcBorderRadius(
+        entry.contentRect.width,
+        entry.contentRect.height,
+      );
+    }
+  }
+
+  let box: HTMLDivElement;
+  $effect(() => {
+    if (!enabled) box.style.borderRadius = "8px";
+  });
+</script>
+
+<div class="flex flex-col items-center space-y-4">
+  <p>
+    Resize <span class="bg-blue-500 px-2 text-white">blue</span> box (dragging bottom
+    right corner) to see change
+  </p>
+  <div
+    class="h-24 w-24 resize overflow-auto bg-blue-500"
+    use:resize={{ enabled }}
+    onresized={onResized}
+    bind:this={box}
+  ></div>
+  <div class="flex items-center space-x-2">
+    <label for="resize-enable"
+      >Check to {enabled ? "disable" : "enable"} action:</label
+    >
+    <input
+      type="checkbox"
+      id="resize-enable"
+      bind:checked={enabled}
+      class="c-input accent-primary h-5 w-5"
+    />
+  </div>
+</div>
+
+=== 2812 sites/docs/src/packages/swipeable/_page/examples/demo.svelte	svelte
+<script lang="ts">
+  // :::focus
+  // :::highlight
+  import {
+    swipeable,
+    type SwipeEndEventDetail,
+    type SwipeSingleDirection,
+    type SwipeStartEventDetail,
+  } from "@svelte-put/swipeable";
+  // :::
+  // :::
+  import { slide } from "svelte/transition";
+
+  const ITEMS = new Array(4).fill(undefined).map(() => ({
+    id:
+      "crypto" in globalThis
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2),
+    title: "Message from Universe",
+    excerpt:
+      "Lorem ipsum dolor sit amet consectetur adipisicing elit. \
+			Repudiandae blanditiis nulla perspiciatis quas necessitatibus deleniti! Sapiente fuge...",
+  }));
+
+  let items = $state(structuredClone(ITEMS));
+  let direction: SwipeSingleDirection | null = $state(null);
+
+  function swipestart(e: CustomEvent<SwipeStartEventDetail>) {
+    direction = e.detail.direction;
+  }
+
+  function swipeend(e: CustomEvent<SwipeEndEventDetail>) {
+    const { passThreshold } = e.detail;
+    if (passThreshold) {
+      const id = (e.target as HTMLElement).dataset.id;
+      items = items.filter((i) => i.id !== id);
+    }
+  }
+
+  function reset() {
+    items = structuredClone(ITEMS);
+    direction = null;
+  }
+</script>
+
+<div class="flex items-baseline justify-between gap-4">
+  <p class="mt-0">Swipe left to archive, swipe right to delete</p>
+  <button class="c-btn c-btn--outlined" onclick={reset}>Reset</button>
+</div>
+<ul class="relative mt-8 overflow-hidden border border-current p-2">
+  {#each items as { id, title, excerpt } (id)}
+    <li
+      class="relative"
+      class:bg-error-bg={direction === "right"}
+      class:bg-info-bg={direction === "left"}
+      out:slide={{ axis: "y", duration: 200 }}
+    >
+      {#if direction === "right"}
+        <div
+          class="i i-[trash] absolute left-4 top-1/2 z-0 h-6 w-6 -translate-y-1/2 text-white"
+        ></div>
+      {/if}
+
+      <!-- :::focus -->
+      <!-- :::highlight -->
+      <article
+        class="z-px border-outline bg-bg-100 relative touch-pan-y space-y-1 border p-4"
+        use:swipeable={{
+          disableTouchEvents: false,
+          followThrough: { container: "ul" },
+        }}
+        onswipestart={swipestart}
+        onswipeend={swipeend}
+        style:left="var(--swipe-distance-x)"
+        data-id={id}
+      >
+        <!-- ::: -->
+        <!-- ::: -->
+        <p class="flex items-center gap-2 leading-normal">
+          <i class="i i-[envelope-simple] h-6 w-6"></i>
+          <span>>></span>
+          <span class="font-medium">{title}</span>
+        </p>
+        <hr />
+        <p class="text-sm leading-relaxed">{excerpt}</p>
+      </article>
+
+      {#if direction === "left"}
+        <div
+          class="i i-[archive] absolute right-4 top-1/2 z-0 h-6 w-6 -translate-y-1/2 text-white"
+        ></div>
+      {/if}
+    </li>
+  {/each}
+</ul>
+
+=== 405 sites/docs/src/packages/tooltip/docs.md.svelte	svelte
+## Deprecation Notice This package has been dropped in favor of
+[@svelte-put/popover](/docs/popover). `@svelte-put/popover` is a more generic
+implementation that relies on [Popover
+API](https://developer.mozilla.org/en-US/docs/Web/API/Popover_API), which has
+landed in baseline in 2024 and provides better fallback for progressive
+enhancement in case Javascript is not available. --- Happy migrating 😅
+
+=== 11227 sites/docs/src/routes/(site)/+layout.svelte	svelte
+<script lang="ts">
+  import { Toc } from "@svelte-put/toc";
+  import { onMount } from "svelte";
+
+  import { goto } from "$app/navigation";
+  import { navigating, page } from "$app/stores";
+  import { ColorSchemeMenu } from "$lib/components/color-scheme-menu";
+  import { MenuLabel } from "$lib/components/menu-label";
+  import { PageLoadIndicator } from "$lib/components/page-load-indicator/";
+  import { StatusBadge } from "$lib/components/status-badge";
+  import { SOCIAL_LINKS } from "$lib/constants";
+  import NotificationPortal from "$lib/notifications/components/NotificationPortal.svelte";
+  import Svelte5 from "$lib/notifications/components/Svelte5.svelte";
+  import { NotificationContext } from "$lib/notifications/context.svelte";
+
+  let { data, children } = $props();
+
+  const TOP_LEVEL_PATHS = {
+    Introduction: "/docs",
+    Architecture: "/docs/architecture",
+    Guidelines: "/docs/guidelines",
+    Contributing: "/docs/contributing",
+  };
+
+  const toc = new Toc({
+    selector: ":where(h2, h3, h4, h5, h6)",
+    observe: {
+      enabled: true,
+      link: {
+        activeAttribute: "data-current",
+      },
+    },
+  });
+
+  let isleftSidebarOpen = $state(false);
+  function closeLeftSidebar() {
+    isleftSidebarOpen = false;
+  }
+
+  let hydrated = $state(false);
+
+  const { stack } = NotificationContext.set();
+  onMount(() => {
+    hydrated = true;
+    const url = $page.url;
+    if (url.searchParams.has("color-scheme")) {
+      url.searchParams.delete("color-scheme");
+      goto(url, { replaceState: true });
+    }
+
+    if (!localStorage.getItem("skip-svelte-5-notification")) {
+      stack.push("custom", {
+        component: Svelte5,
+        timeout: 10_000,
+      });
+    }
+  });
+</script>
+
+{#if $navigating}
+  <PageLoadIndicator />
+{/if}
+<div class="pt-header relative flex w-full flex-1 flex-col" id="docs">
+  <header
+    class="z-header h-header border-outline fixed inset-x-0 top-0 flex flex-col border-b"
+  >
+    <nav class="max-w-pad flex flex-1 items-center py-2" aria-label="header">
+      <a href="/" class="mr-auto flex items-center gap-2">
+        <svg
+          class="h-8 w-8 shrink-0"
+          inline-src="svelte-put"
+          width="32"
+          height="32"
+        />
+        <span class="font-fingerpaint text-gradient-brand text-sm font-bold"
+          >svelte-put</span
+        >
+      </a>
+      {#if hydrated}
+        <a class="c-btn c-btn--outlined gap-2 py-1.5 pl-3 pr-4" href="/search">
+          <i class="i i-[magnifying-glass] h-5 w-5"></i>
+          <span class="text-sm">Search...</span>
+        </a>
+      {/if}
+      <ColorSchemeMenu class="ml-5" />
+      <a href={SOCIAL_LINKS.GITHUB} data-external class="c-link-icon ml-5">
+        <svg inline-src="simpleicon/github" height="28" width="28" />
+        <span class="sr-only">Github</span>
+      </a>
+    </nav>
+    <div
+      class="max-w-pad border-outline desktop:justify-end widescreen:hidden flex flex-1 items-center justify-between
+			border-t py-1"
+    >
+      <MenuLabel class="desktop:hidden" for="pages-toggler"
+        >Navigation</MenuLabel
+      >
+      <MenuLabel align="right" for="toc-toggler">Table of Contents</MenuLabel>
+    </div>
+  </header>
+
+  <div class="max-w-pad flex items-stretch">
+    <!-- left sidebar -->
+    <nav class="sidebar sidebar-left" aria-label="pages">
+      <input
+        id="pages-toggler"
+        type="checkbox"
+        hidden
+        bind:checked={isleftSidebarOpen}
+      />
+      <ul class="sidebar-content space-y-4 text-sm">
+        <li>
+          <p class="font-bold uppercase">Overview</p>
+          <ul class="border-outline mt-3 space-y-1 border-l">
+            <li>
+              {#each Object.entries(TOP_LEVEL_PATHS) as [label, path]}
+                <a
+                  href={path}
+                  data-current={data.pathname === path}
+                  class="c-link-lazy current:border-link current:text-link -ml-px block whitespace-nowrap border-l border-transparent py-1 pl-3"
+                >
+                  {label}
+                </a>
+              {/each}
+            </li>
+          </ul>
+        </li>
+        <li>
+          <p class="font-bold uppercase">Packages</p>
+          <ul class="border-outline mt-3 space-y-1 border-l">
+            {#each data.packages.active as { id, status } (id)}
+              <li>
+                <a
+                  href="/docs/{id}"
+                  data-current={data.pathname.includes(`/${id}`)}
+                  class="current:text-link c-link-lazy current:border-link -ml-px block whitespace-nowrap border-l border-transparent py-1 pl-3"
+                  onclick={closeLeftSidebar}
+                >
+                  <span class="bg-primary h-full w-1"></span>
+                  {id}
+                  <sup>
+                    {#if status !== "stable" && status !== "deprecated"}
+                      <StatusBadge {status} />
+                    {/if}
+                  </sup>
+                </a>
+              </li>
+            {/each}
+            <li class="pt-4">
+              <p class="border-t pl-3 pt-4 font-bold uppercase">Deprecated</p>
+              <ul class="mt-3">
+                {#each data.packages.deprecated as { id } (id)}
+                  <li>
+                    <a
+                      href="/docs/{id}"
+                      data-current={data.pathname.includes(`/${id}`)}
+                      class="current:text-link c-link-lazy current:border-link -ml-px block whitespace-nowrap border-l border-transparent py-1 pl-3"
+                      onclick={closeLeftSidebar}
+                    >
+                      <span class="bg-primary h-full w-1"></span>
+                      {id}
+                    </a>
+                  </li>
+                {/each}
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+    <label class="sidebar-backdrop" for="pages-toggler"></label>
+
+    <!-- main content -->
+    {#key data.pathname}
+      <main class="prose dark:prose-invert" use:toc.actions.root>
+        {@render children()}
+      </main>
+    {/key}
+
+    <!-- right sidebar -->
+    <nav class="sidebar sidebar-right" aria-label="table of contents">
+      <p
+        class="c-callout c-callout--success c-callout--icon-megaphone upto-widescreen:hidden mt-10"
+      >
+        Still on Svelte 4? See
+        <a class="c-link" href="https://svelte-put-svelte-4.vnphanquang.com"
+          >the old docs site here.</a
+        >
+      </p>
+      <div
+        class="sveltevietnam-banner upto-widescreen:hidden mt-5 space-y-2 rounded border p-4"
+      >
+        <p class="font-medium">Are you based in Vietnam?</p>
+        <div class="flex items-center gap-4">
+          <div class="i i-sveltename h-10 w-10 shrink-0"></div>
+          <p>
+            Join the <a class="c-link" href="https://www.sveltevietnam.dev"
+              >Svelte Vietnam</a
+            > community.
+          </p>
+        </div>
+      </div>
+      <input id="toc-toggler" type="checkbox" hidden />
+      <div class="sidebar-content text-sm">
+        {#if toc.items.size}
+          <p class="py-2 font-bold uppercase">On This Page</p>
+          <ul class="border-outline space-y-1 border-l">
+            {#each toc.items.values() as tocItem (tocItem.id)}
+              {@const level = tocItem.element.tagName.slice(1)}
+              <li>
+                <!-- svelte-ignore a11y_missing_attribute -->
+                <a
+                  use:toc.actions.link={tocItem}
+                  class="c-link-lazy current:border-link current:text-link -ml-px block border-l border-transparent py-1 capitalize"
+                  style:padding-left="calc(({level} - 1) * 2ch)"
+                >
+                  <!-- textContent injected by toc -->
+                </a>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
+    </nav>
+  </div>
+</div>
+<NotificationPortal />
+
+<style lang="postcss">
+  @import "@svelte-put/ui/css/medias";
+
+  #docs {
+    --color-bg-aside: color-mix(in oklch, var(--color-bg), var(--color-fg) 4%);
+  }
+
+  header {
+    background-color: var(--color-bg-aside);
+  }
+
+  .sidebar {
+    flex-shrink: 0;
+
+    width: var(--spacing-sidebar);
+
+    font-size: var(--text-sm);
+
+    transition-timing-function: var(--default-transition-timing-function);
+    transition-duration: 200ms;
+    transition-property: transform, opacity;
+
+    & .sidebar-content {
+      position: sticky;
+      top: var(--spacing-header);
+      overflow: auto;
+      padding-block: calc(var(--spacing) * 10);
+    }
+
+    &.sidebar-left {
+      & .sidebar-content {
+        max-height: calc(100dvh - var(--spacing-header));
+        padding-inline: calc(var(--spacing) * 4);
+      }
+
+      @media (--upto-desktop) {
+        position: fixed;
+        z-index: calc(var(--z-index-header) + 2);
+        top: 0;
+        bottom: 0;
+        left: 0;
+        transform: translateX(-100%);
+
+        display: flex;
+
+        opacity: 0;
+        background-color: var(--color-bg-aside);
+        border-right-width: 1px;
+        box-shadow: var(--box-shadow-lg);
+
+        & .sidebar-content {
+          max-height: 100vh;
+        }
+      }
+    }
+
+    &.sidebar-right {
+      & .sidebar-content {
+        max-height: calc(100dvh - var(--spacing-header));
+        padding: calc(var(--spacing) * 10) calc(var(--spacing) * 2)
+          calc(var(--spacing) * 2);
+      }
+
+      @media (--upto-widescreen) {
+        position: fixed;
+        z-index: calc(var(--z-index-header) + 2);
+        top: var(--spacing-header);
+        right: 0;
+        transform: translateX(100%);
+
+        display: flex;
+        justify-content: center;
+
+        width: auto;
+        max-width: 80vw;
+
+        opacity: 0;
+        background-color: var(--color-bg-aside);
+        border-bottom-right-radius: var(--radius-sm);
+        border-bottom-left-radius: var(--radius-sm);
+        box-shadow: var(--box-shadow-lg);
+
+        & .sidebar-content {
+          max-height: calc(95dvh - var(--spacing-header));
+          padding: calc(var(--spacing) * 8) calc(var(--spacing) * 8)
+            calc(var(--spacing) * 10);
+        }
+      }
+    }
+  }
+
+  .sidebar-backdrop {
+    pointer-events: none;
+
+    position: fixed;
+    z-index: calc(var(--z-index-header) + 1);
+    inset: 0;
+
+    opacity: 0;
+    background-color: color-mix(
+      in oklch,
+      var(--color-black) 50%,
+      transparent 50%
+    );
+    backdrop-filter: blur(1px);
+
+    transition: opacity 200ms var(--default-transition-timing-function);
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .sidebar:has(input:checked) {
+    transform: translateX(0);
+    opacity: 1;
+
+    & + .sidebar-backdrop {
+      pointer-events: unset;
+      opacity: 1;
+    }
+  }
+
+  main {
+    width: 100%;
+    max-width: 100%;
+    padding-top: calc(var(--spacing) * 10);
+    padding-bottom: calc(var(--spacing) * 20);
+
+    @media (--desktop) {
+      max-width: calc(100% - var(--spacing-sidebar));
+      padding-inline: calc(var(--spacing) * 10);
+    }
+
+    @media (--widescreen) {
+      max-width: calc(100% - var(--spacing-sidebar) * 2);
+      padding-inline: calc(var(--spacing) * 14);
+    }
+  }
+
+  :where(#docs) :global(:where(h1, h2, h3, h4, h5, h6)) {
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-outline);
+  }
+</style>
+
+=== 2680 sites/docs/src/routes/(site)/docs/+page.md.svelte	svelte
+<script>
+  import { StatusBadge } from "$lib/components/status-badge";
+  import { createNpmBadgeUrl, createNpmUrl } from "$lib/utils/badge";
+
+  let { data } = $props();
+</script>
+
+# @svelte-put
+
+<p class="c-callout c-callout--info c-callout--icon-bulb">
+  svelte-put is a collection of useful svelte actions, utilities, and minimal
+  components extracted from (my) real world projects that might be helpful for
+  yours.
+</p>
+
+## Packages `@svelte-put` includes several packages with self-manged release
+cycles, listed below. Check out their corresponding documentation for more
+details.
+
+<table class="not-prose border-collapse w-full">
+  <thead>
+    <tr class="*:text-left *:p-4 *:border *:bg-bg-100">
+      <th>ID</th>
+      <th>Desrciption</th>
+      <th>Version</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody class="*:even:bg-bg-100/50">
+    {#each data.packages.active as { id, description, status, releaseTag }}
+      {@const name = `@svelte-put/${id}`}
+      <tr class="*:border *:p-4">
+        <td>
+          <a href="/docs/{id}" class="c-link font-medium">
+            {id}
+          </a>
+        </td>
+        <td>{description}</td>
+        <td class="w-40">
+          <a
+            href={createNpmUrl(name)}
+            target="_blank"
+            class="block"
+            data-external
+          >
+            <img
+              class="block rounded"
+              src={createNpmBadgeUrl(name, releaseTag)}
+              alt={name}
+              width="180"
+              height="22"
+              loading="lazy"
+              decoding="async"
+            />
+          </a>
+        </td>
+        <td class=""><StatusBadge {status} /></td>
+      </tr>
+    {/each}
+  </tbody>
+</table>
+
+## Inspiration & Acknowledgement There is already a great pool of [svelte
+actions collected by Shawn and other
+contributors](https://github.com/sw-yx/svelte-actions) that you should check
+out. There might be some duplications here and there. However: - Shawn's project
+aims to be a source for RFCs into Svelte; I believe stuff I am putting here
+should stay in user land. - I prefer having separate packages for their
+dedicated purposes (instead of one package that exports everything). - I want to
+incrementally include more than just actions int his collection. For those
+reasons, a monorepo seems like a good fit, hence this project. To contribute or
+support the project, head over to the [contributing page](/docs/contributing).
+Happy coding! 👨‍💻
+
+<p class="text-right text-sm">
+  <a
+    class="c-link"
+    href="https://github.com/vnphanquang/svelte-put/edit/main/sites/docs/src/routes/(site)/docs/+page.md.svelte"
+  >
+    Edit this page on Github
+  </a>
+</p>
+
+=== 2775 sites/docs/src/routes/(site)/docs/[id=pkg]/+page.svelte	svelte
+<script lang="ts">
+  import { Runes } from "$lib/components/runes";
+  import {
+    createBundlephobiaBadgeUrl,
+    createBundlephobiaUrl,
+    createChangelogBadgeUrl,
+    createNpmBadgeUrl,
+    createNpmDownloadBadgeUrl,
+    createNpmUrl,
+    createSvelteReplBadgeUrl,
+    createSvelteReplUrl,
+  } from "$lib/utils/badge";
+
+  let { data } = $props();
+
+  const name = $derived(`@svelte-put/${data.package.id}`);
+  const githubSourceUrl = $derived(
+    `https://github.com/vnphanquang/svelte-put/edit/main/sites/docs/src/packages/${data.package.id}/docs.md.svelte`,
+  );
+  const changelogUrl = $derived(
+    `https://github.com/vnphanquang/svelte-put/tree/main/packages/${data.package.id}/CHANGELOG.md`,
+  );
+  const githubUrl = $derived(
+    `https://github.com/vnphanquang/svelte-put/tree/main/packages/${data.package.id}`,
+  );
+</script>
+
+<div class="mb-8 flex items-center justify-between border-b">
+  <h1 class="font-fingerpaint border-b-0">
+    {name}
+  </h1>
+  <a href={githubUrl} class="c-link-icon not-prose" data-external>
+    <svg inline-src="simpleicon/github" class="inline" height="28" width="28" />
+    <span class="sr-only">Github</span>
+  </a>
+</div>
+{#if data.package.description}
+  <p class="c-callout c-callout--info c-callout--icon-bulb">
+    {data.package.description}
+  </p>
+{/if}
+
+{#if data.package.rune}
+  <Runes class="float-right" />
+{/if}
+
+{#snippet badge(href: string, src: string, width: number, height: number)}
+  <a {href} data-external class="h-full">
+    <img
+      loading="lazy"
+      decoding="async"
+      class="my-0 inline-block h-6 w-auto rounded"
+      alt={name}
+      {src}
+      {width}
+      {height}
+    />
+  </a>
+{/snippet}
+
+<p class="not-prose flex flex-wrap items-center gap-2">
+  {@render badge(
+    createNpmUrl(name),
+    createNpmBadgeUrl(name, data.package.releaseTag),
+    24,
+    107,
+  )}
+  {@render badge(createNpmUrl(name), createNpmDownloadBadgeUrl(name), 24, 134)}
+  {@render badge(
+    createBundlephobiaUrl(name),
+    createBundlephobiaBadgeUrl(name),
+    24,
+    125,
+  )}
+
+  {#if data.package.replId}
+    {@render badge(
+      createSvelteReplUrl(data.package.replId),
+      createSvelteReplBadgeUrl(),
+      24,
+      112,
+    )}
+  {/if}
+  {@render badge(changelogUrl, createChangelogBadgeUrl(), 24, 90)}
+</p>
+
+<p
+  class="c-callout c-callout--success c-callout--icon-megaphone max-w-md xl:hidden"
+>
+  Still on Svelte 4? See
+  <a class="c-link" href="https://svelte-put-svelte-4.vnphanquang.com"
+    >the old docs site here.</a
+  >
+</p>
+
+{#if data.Content}
+  {@const Content = data.Content}
+  <Content />
+{/if}
+
+<p class="text-right text-sm">
+  <a class="c-link" href={githubSourceUrl}> Edit this page on Github </a>
+</p>
+
+<style lang="postcss">
+  h1 {
+    margin-bottom: 0;
+    border-bottom: 0;
+  }
+</style>
+
+=== 1453 sites/docs/src/routes/(site)/docs/architecture/+page.md.svelte	svelte
+# Architecture Packages within the `svelte-put` collection follow, as much as
+possible, the following design decisions: - Minimalism. Stay small, with as few
+dependencies as possible. Do one thing at a time, and do it well. - Headless UI.
+Stay away from UI component abstraction as much as possible to avoid opinionated
+UI patterns and lock-in solutions, prioritize flexibility for users. -
+Typescript support. Provide type-safety with self-documented code for code
+discovery and language server support. Because of the philosophies above, you
+will find that the majority of packages rely primarily on [Svelte
+action](https://svelte.dev/docs/svelte-action) and/or extend on [Svelte
+runes](https://svelte.dev/blog/runes) to encapsulate only the necessary logics
+and leave the UI to be defined by users. The trade-off, however, is that
+sometimes it takes verbose setup to achieve a desired system (such as in the
+case of [@svelte-put/async-stack](/docs/async-stack)). In my own work, this has
+encouraged me to "own" my code and get familiar with pieces of the package; if
+issues or customization demand arises, I will likely be more capable of
+providing solutions than say if I were to use a highly abstract prebuilt
+component.
+
+<p class="text-right text-sm">
+  <a
+    class="c-link"
+    href="https://github.com/vnphanquang/svelte-put/edit/main/sites/docs/src/routes/(site)/docs/architecture/+page.md.svelte"
+  >
+    Edit this page on Github
+  </a>
+</p>
+
+=== 1757 sites/docs/src/routes/(site)/docs/contributing/+page.md.svelte	svelte
+# Contributing This text is just to balance out the content to ease my OCD.
+Please skip to the next section. ## Code Source code can be found at
+[github/svelte-put](https://github.com/vnphanquang/svelte-put). If you have any
+suggestion or bug report, please read the [Contributing
+Guidelines](https://github.com/vnphanquang/svelte-put/blob/main/CONTRIBUTING.md),
+[start a discussion](https://github.com/vnphanquang/svelte-put/discussions), or
+[open an issue](https://github.com/vnphanquang/svelte-put/issues).
+
+<h2 id="money">Money</h2>
+
+It is strange asking for money; but here I am. To sponsor my work, please visit
+[github.com/sponsors/vnphanquang](https://github.com/sponsors/vnphanquang).
+Thank you very much for your support. ## A Hello
+
+<p>
+  Why would you donate? I honestly don't know. I build this collection mainly
+  for myself; it is open source and my code is largely inspired by other open
+  source projects. And you too can use it however you wish. So if you find it
+  useful, just reach out to say hello and let me know what amazing project you
+  are building. That probably means more to me than a donation
+  <span class="text-xs opacity-75">
+    (unless your donation can help me pay the rent, of course)
+  </span>.
+</p>
+
+Stop by [this Github discussion
+thread](https://github.com/vnphanquang/svelte-put/discussions/223) and say
+hello! ## Svelte Vietnam If you are based in Vietnam, stop by
+[sveltevietnam.dev](https://sveltevietnam.dev), a community for people of Svelte
+in Vietnam that I am proudly a part of.
+
+<p class="text-right text-sm">
+  <a
+    class="c-link"
+    href="https://github.com/vnphanquang/svelte-put/edit/main/sites/docs/src/routes/(site)/docs/contributing/+page.md.svelte"
+  >
+    Edit this page on Github
+  </a>
+</p>
+
+=== 3014 sites/docs/src/routes/(site)/search/+page.svelte	svelte
+<script lang="ts">
+  import { onMount } from "svelte";
+
+  import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
+
+  let { data } = $props();
+
+  let pagefind: typeof import("@pagefind") | null = $state(null);
+  let sanitize: typeof import("sanitize-html") | null = $state(null);
+  let query = $state(data.query);
+  let promise: ReturnType<import("@pagefind").PageFind["debouncedSearch"]> =
+    $derived.by(() => {
+      if (!pagefind || !data.query) return new Promise(() => {});
+      return pagefind.debouncedSearch(data.query, undefined, 500);
+    });
+
+  onMount(async () => {
+    pagefind = await import("@pagefind");
+    sanitize = (await import("sanitize-html")).default;
+    pagefind.init();
+  });
+
+  function submit(e: Event) {
+    e.preventDefault();
+    const url = new URL($page.url);
+    url.searchParams.set("q", query);
+    goto(url, { replaceState: true });
+  }
+
+  function transformLink(url: string) {
+    return url.replace(".html", "");
+  }
+</script>
+
+<div class="not-prose contents">
+  <h1 class="text-4xl">Search</h1>
+  <form class="mt-8" method="GET" onsubmit={submit}>
+    <div class="flex gap-2">
+      <label class="c-text-input flex-1">
+        <i class="i i-[magnifying-glass] h-6 w-6 shrink-0"></i>
+        <input
+          type="text"
+          name="q"
+          id="q"
+          bind:value={query}
+          placeholder="search something..."
+        />
+      </label>
+      <button class="c-btn c-btn--outlined" type="submit">Search</button>
+    </div>
+    <label class="text-fg-200 mt-1 block text-sm" for="q"
+      >Type and press enter or hit "search" button</label
+    >
+  </form>
+  {#await promise then searched}
+    {#if searched}
+      <ul class="divide-outline divide-y">
+        {#each searched.results as { data }}
+          <li class="">
+            {#await data()}
+              <div class="c-loader mx-auto"></div>
+            {:then { meta, url, sub_results }}
+              <article class="space-y-4 py-4">
+                <p class="font-fingerpaint text-lg">
+                  <a class="c-link" href={transformLink(url)}>{meta.title}</a>
+                </p>
+                {#if sub_results?.length}
+                  <ul class="space-y-2 px-4">
+                    {#each sub_results.slice(0, 5) as { title, url, excerpt }}
+                      <li>
+                        <p class="">
+                          <a class="c-link" href={transformLink(url)}>{title}</a
+                          >
+                        </p>
+                        {#if sanitize}
+                          <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                          <p>...{@html sanitize(excerpt)}...</p>
+                        {:else}
+                          <p>...{excerpt}...</p>
+                        {/if}
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              </article>
+            {/await}
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  {/await}
+</div>
+
+=== 3230 sites/docs/src/routes/+layout.svelte	svelte
+<script lang="ts">
+  import { page } from "$app/stores";
+  import { PUBLIC_MODE } from "$env/static/public";
+  import ogImageHome from "$lib/assets/images/svelte-put-og.jpg?url";
+  import { SettingsContext } from "$lib/settings/context.svelte";
+  import "$lib/styles/app.css";
+
+  let { children, data } = $props();
+
+  const DEFAULT_KEYWORDS = ["svelte", "svelte-put", "utility"];
+
+  let meta = $derived.by(() => {
+    const meta = $page.data.meta;
+    const title = meta?.title ?? "svelte-put";
+    const description =
+      meta?.description ??
+      "svelte-put is a collection of utilities, minimal components, and tooling support for projects using Svelte";
+    const keywords = meta?.keywords
+      ? [...DEFAULT_KEYWORDS, ...meta.keywords]
+      : DEFAULT_KEYWORDS;
+    const canonical =
+      meta?.canonical ?? `${$page.url.origin}${$page.url.pathname}`;
+
+    const rootRelativeOgImage = meta?.og?.image ?? ogImageHome;
+
+    const og = {
+      title: meta?.og?.title ?? title,
+      description: meta?.og?.description ?? description,
+      type: meta?.og?.type ?? "website",
+      url: meta?.og?.url ?? canonical,
+      image: rootRelativeOgImage.startsWith("/")
+        ? `${$page.url.origin}${rootRelativeOgImage}`
+        : rootRelativeOgImage,
+      imageAlt: meta?.og?.imageAlt ?? title,
+    };
+
+    const twitter = {
+      title: meta?.twitter?.title ?? og.title,
+      description: meta?.twitter?.description ?? og.description,
+      image: meta?.twitter?.image ?? og.image,
+      imageAlt: meta?.twitter?.imageAlt ?? og.imageAlt,
+      card: meta?.twitter?.card ?? "summary_large_image",
+      site: meta?.twitter?.site ?? "@vnphanquang",
+      creator: meta?.twitter?.creator ?? "@vnphanquang",
+    };
+
+    return {
+      title,
+      description,
+      keywords,
+      canonical,
+      og,
+      twitter,
+    };
+  });
+
+  let settings = SettingsContext.set(data.settings);
+  $effect(() => {
+    settings.colorScheme = data.settings.colorScheme;
+    settings.packageManager = data.settings.packageManager;
+  });
+</script>
+
+<svelte:head>
+  <!-- SEO meta tags -->
+  <title>{meta.title}</title>
+  <meta name="description" content={meta.description} />
+  <meta name="keywords" content={meta.keywords.join(", ")} />
+
+  <meta property="og:title" content={meta.og.title} />
+  <meta property="og:description" content={meta.og.description} />
+  <meta property="og:type" content={meta.og.type} />
+  <meta property="og:image" content={meta.og.image} />
+  <meta property="og:image:alt" content={meta.og.imageAlt} />
+  <meta property="og:url" content={meta.og.url} />
+
+  <meta name="twitter:title" content={meta.twitter.title} />
+  <meta name="twitter:description" content={meta.twitter.description} />
+  <meta name="twitter:card" content={meta.twitter.card} />
+  <meta name="twitter:image" content={meta.twitter.image} />
+  <meta name="twitter:image:alt" content={meta.twitter.imageAlt} />
+  <meta name="twitter:site" content={meta.twitter.site} />
+  <meta name="twitter:creator" content={meta.twitter.creator} />
+
+  <link href={meta.canonical} rel="canonical" />
+  <link type="text/plain" rel="author" href="{$page.url.origin}/humans.txt" />
+
+  <meta name="mode" content={PUBLIC_MODE} />
+</svelte:head>
+
+{@render children()}
+
+=== 828 sites/docs/src/routes/+page.svelte	svelte
+<script lang="ts">
+  import { SOCIAL_LINKS } from "$lib/constants";
+</script>
+
+<main class="flex h-dvh flex-col items-center justify-center gap-10">
+  <div class="flex items-end gap-6">
+    <svg
+      class="h-24 w-24 shrink-0"
+      inline-src="svelte-put"
+      height="96"
+      width="96"
+    ></svg>
+    <h1 class=" font-fingerpaint text-gradient-brand text-4xl tracking-wide">
+      svelte-put
+    </h1>
+  </div>
+  <p>
+    Useful
+    <a class="c-link" href="https://svelte.dev">svelte</a> stuff to put in your projects
+  </p>
+  <div class="flex items-center justify-between gap-10 text-sm uppercase">
+    <a class="c-link-preserved text-link" href="/docs"> Read Docs </a>
+    <a
+      class="c-link-preserved text-link"
+      href={SOCIAL_LINKS.GITHUB}
+      data-external
+    >
+      See Github
+    </a>
+  </div>
+</main>
+
+=== 2157 sites/docs/src/routes/design/+page.svelte	svelte
+<main class="space-y-10 p-10">
+  <h1 class="text-primary text-5xl">svelte-put :3 Tailwind 4</h1>
+  <p>Trying my best over here</p>
+
+  <p>
+    .c-link: <a class="c-link" href="https://example.com">www.example.com</a>
+  </p>
+  <p>
+    .c-link-preserved: <a class="c-link-preserved" href="https://example.com"
+      >www.example.com</a
+    >
+  </p>
+  <p>
+    c-link-lazy: <a class="c-link-lazy" href="https://example.com"
+      >www.example.com</a
+    >
+  </p>
+  <p>
+    c-link-icon:
+    <a class="c-link-icon" href="https://github.com/vnphanquang">
+      <span class="sr-only">vnphanquang's Github</span>
+      <svg
+        class="inline-block h-6 w-6"
+        width="24"
+        height="24"
+        inline-src="simpleicon/github"
+      ></svg>
+    </a>
+  </p>
+
+  <div>
+    <p>.c-link-image</p>
+    <a href="https://example.com" class="c-link-image">
+      <img
+        src="/images/github-social-preview.svg"
+        width="800"
+        height="400"
+        alt="test"
+      />
+    </a>
+  </div>
+
+  <p>
+    Plain input .c-text-input:
+    <input class="c-text-input" type="email" placeholder="user@example.com" />
+  </p>
+
+  <section>
+    <p>Input with icon .c-text-input:</p>
+    <div class="c-text-input">
+      <div class="i i-[magnifying-glass] h-6 w-6"></div>
+      <input type="email" placeholder="user@example.com" />
+    </div>
+  </section>
+
+  <section>
+    <p>Input with icon .c-text-input but disabled:</p>
+    <div class="c-text-input">
+      <div class="i i-[magnifying-glass] h-6 w-6"></div>
+      <input type="email" placeholder="user@example.com" required disabled />
+    </div>
+  </section>
+
+  <section>
+    <p>
+      .c-checkbox
+      <input class="c-checkbox" type="checkbox" />
+    </p>
+  </section>
+
+  <section>
+    <p>
+      .c-checkbox but disabled:
+      <input class="c-checkbox" type="checkbox" disabled />
+    </p>
+  </section>
+
+  <section>
+    <p>
+      .c-radio
+      <input class="c-radio" type="radio" name="test" />
+      <input class="c-radio" type="radio" name="test" />
+    </p>
+  </section>
+
+  <section>
+    <p>
+      .c-radio but disabled:
+      <input class="c-radio" type="radio" disabled />
+    </p>
+  </section>
+</main>
+
+=== 1876 sites/docs/src/routes/design/button/+page.svelte	svelte
+<script>
+  const variant_to_css = {
+    default: "c-btn",
+    outlied: "c-btn c-btn--outlined",
+    pop: "c-btn c-btn--pop",
+    icon: "c-btn c-btn--icon",
+  };
+</script>
+
+<main class="mx-auto max-w-5xl p-10">
+  <table class="border-collapse">
+    <thead class="">
+      <tr class="*:bg-bg-100 *:border *:p-4">
+        <th scope="col">Variant</th>
+        <th scope="col">Default</th>
+        <th scope="col">No Icon</th>
+        <th scope="col">Delayed</th>
+        <th scope="col">Timeout</th>
+        <th scope="col">Disabled</th>
+      </tr>
+    </thead>
+
+    <tbody class="">
+      {#each Object.entries(variant_to_css) as [variant, css]}
+        <tr class="*:border *:p-4">
+          <th class="text-left capitalize" scope="row">
+            {variant}
+          </th>
+          <td>
+            <button class={css}>
+              <i class="i i-[info] h-6 w-6"></i>
+              <span class:sr-only={variant === "icon"}>Click me</span>
+            </button>
+          </td>
+          <td>
+            {#if variant !== "icon"}
+              <button class={css}>
+                <span>Click me</span>
+              </button>
+            {/if}
+          </td>
+          <td>
+            <button class={css} data-delayed>
+              <i class="i i-[info] h-6 w-6"></i>
+              <span class:sr-only={variant === "icon"}>Click me</span>
+            </button>
+          </td>
+          <td>
+            <button class={css} data-timeout>
+              <i class="i i-[info] h-6 w-6"></i>
+              <span class:sr-only={variant === "icon"}>Click me</span>
+            </button>
+          </td>
+          <td>
+            <button class={css} disabled>
+              <i class="i i-[info] h-6 w-6"></i>
+              <span class:sr-only={variant === "icon"}>Click me</span>
+            </button>
+          </td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+</main>
+
+=== 870 sites/docs/src/routes/design/callout/+page.svelte	svelte
+<script lang="ts">
+  const status_modifiers = [
+    "c-callout--info",
+    "c-callout--success",
+    "c-callout--warning",
+    "c-callout--error",
+  ];
+
+  const icon_modifiers = [
+    "c-callout--icon-bulb",
+    "c-callout--icon-confetti",
+    "c-callout--icon-megaphone",
+    "c-callout--icon-question",
+    "c-callout--icon-trophy",
+  ];
+
+  const text =
+    "This is a sample “callout” that enhances a text block with some contextual meaning.\
+	It is used in blog posts to better draw user attention. See real usage at this blog post\
+	“Productive Dark Mode with SvelteKit, PostCSS, and TailwindCSS (Behind the Screen)”";
+</script>
+
+<main class="mx-auto max-w-5xl space-y-10 p-10">
+  {#each status_modifiers as css}
+    <p class="c-callout {css}">{text}</p>
+  {/each}
+  {#each icon_modifiers as css}
+    <p class="c-callout {css}">{text}</p>
+  {/each}
+</main>
+

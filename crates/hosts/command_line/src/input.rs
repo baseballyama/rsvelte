@@ -1,126 +1,66 @@
-//! Corpus discovery and document loading.
+//! Finding the documents a command runs on.
 
 use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::document::Document;
 
-/// A unit is a directory holding `input.<ext>`; its path relative to its source directory
-/// (`corpus/<family>/<source>`), with the reserved-name `~` escape undone, is the filename the
-/// original file had. The source directory is found from the unit, not from `root`, so the path
-/// (and every output derived from it: component names, CSS hashes) does not depend on which
-/// directory the run was started from.
+/// A unit outside the corpus is a directory holding `input.<ext>`; its path relative to the root
+/// is the filename the document gets.
 ///
-/// The walk visits each directory's entries in name order, depth first, so the units come out in
-/// `Path::cmp` order of their inputs with no sort, and the same on every file system.
+/// The units come out in `Path::cmp` order of their inputs, the same on every file system.
 pub(crate) fn units(root: &Path) -> Vec<Unit> {
-    enum Item {
-        Dir(PathBuf, Option<usize>, Option<String>),
-        Unit(Unit),
-    }
     let mut out = Vec::new();
-    let depth = depth_in_corpus(root);
-    let rel = source_of(root, depth).map(|source| unescaped(root.strip_prefix(source)));
-    let mut stack = vec![Item::Dir(root.to_path_buf(), depth, rel)];
-    let mut entries = Vec::new();
-    while let Some(item) = stack.pop() {
-        let (dir, depth, rel) = match item {
-            Item::Unit(u) => {
-                out.push(u);
-                continue;
-            }
-            Item::Dir(dir, depth, rel) => (dir, depth, rel),
-        };
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
         let Ok(read) = std::fs::read_dir(&dir) else {
             continue;
         };
-        entries.extend(read.flatten().map(|e| (e.file_name(), e)));
-        entries.sort_unstable_by(|a, b| a.0.cmp(&b.0));
-        // Pushed last to first, so the first name is popped first.
-        while let Some((name, e)) = entries.pop() {
+        let mut found = Vec::new();
+        for e in read.flatten() {
             let p = e.path();
+            let name = e.file_name();
             let name = name.to_string_lossy();
             // The entry's own type, without a `stat`, unless it is a link to follow.
             let is_dir = match e.file_type() {
                 Ok(t) if !t.is_symlink() => t.is_dir(),
                 _ => p.is_dir(),
             };
-            if is_dir {
-                if matches!(name.as_ref(), "expected" | "actual" | "cache") {
-                    continue;
-                }
-                let depth = if p.join("_registry").is_dir() {
-                    Some(0)
-                } else {
-                    depth.map(|d| d + 1)
-                };
-                let rel = match depth {
-                    Some(2) => Some(String::new()),
-                    Some(3..) => rel.as_deref().map(|r| {
-                        let name = name.strip_prefix('~').unwrap_or(&name);
-                        if r.is_empty() {
-                            name.to_owned()
-                        } else {
-                            format!("{r}/{name}")
-                        }
-                    }),
-                    _ => None,
-                };
-                stack.push(Item::Dir(p, depth, rel));
-            } else if name.starts_with("input.") {
-                // Outside a source directory, the unit's path is relative to `root`.
-                let path = rel
-                    .clone()
-                    .unwrap_or_else(|| unescaped(dir.strip_prefix(root)));
-                stack.push(Item::Unit(Unit {
-                    input: p,
-                    dir: dir.clone(),
-                    path,
-                }));
+            if is_dir && !matches!(name.as_ref(), "expected" | "actual") {
+                stack.push(p);
+            } else if !is_dir && name.starts_with("input.") {
+                found.push(p);
             }
         }
+        out.extend(found.into_iter().map(|input| Unit {
+            path: relative(root, &dir),
+            input,
+            dir: dir.clone(),
+        }));
     }
+    // Read order depends on the file system, and an input sorts among its sibling directories.
+    out.sort_unstable_by(|a, b| a.input.cmp(&b.input));
     out
 }
 
 pub(crate) struct Unit {
     pub(crate) input: PathBuf,
     pub(crate) dir: PathBuf,
-    /// The original file's path, relative to its source directory.
+    /// The document's filename, relative to the root.
     pub(crate) path: String,
 }
 
-/// A relative path's components with the reserved-name `~` escape undone, joined by `/`.
-fn unescaped(rel: Result<&Path, std::path::StripPrefixError>) -> String {
-    let rel = rel.expect("a unit is inside its source directory");
-    let mut path = String::new();
-    for s in rel {
-        if !path.is_empty() {
-            path.push('/');
-        }
-        let s = s.to_string_lossy();
-        path.push_str(s.strip_prefix('~').unwrap_or(&s));
-    }
-    path
+fn relative(root: &Path, dir: &Path) -> String {
+    let rel = dir.strip_prefix(root).expect("a unit is inside its root");
+    let parts: Vec<String> = rel
+        .iter()
+        .map(|s| s.to_string_lossy().into_owned())
+        .collect();
+    parts.join("/")
 }
 
-/// `corpus/<family>/<source>` at or above `dir`, which is `depth` below its corpus root.
-pub(crate) fn source_of(dir: &Path, depth: Option<usize>) -> Option<&Path> {
-    depth
-        .filter(|&d| d >= 2)
-        .and_then(|d| dir.ancestors().nth(d - 2))
-}
-
-/// How far `dir` is below the nearest directory holding `_registry/` (the corpus root, `dir`
-/// itself included); its source directory, `corpus/<family>/<source>`, is the ancestor two
-/// levels below that. `None` outside a corpus tree. The walk in [`units`] carries this down
-/// rather than asking again for every unit.
-pub(crate) fn depth_in_corpus(dir: &Path) -> Option<usize> {
-    dir.ancestors().position(|a| a.join("_registry").is_dir())
-}
-
-/// Every readable, size-checked unit below `roots`, with its unit directory and the number
-/// of units that could not be loaded.
+/// Every readable, size-checked document below `roots`, the directory each one's outputs go to,
+/// and the number that could not be loaded. A root inside the corpus is read from its packs.
 ///
 /// # Errors
 ///
@@ -135,18 +75,34 @@ pub(crate) fn load(
     let mut docs = Vec::new();
     let mut dirs = Vec::new();
     let mut skipped = 0usize;
-    for Unit { input, dir, path } in roots.iter().flat_map(|r| units(r)) {
-        let Ok(text) = std::fs::read_to_string(&input) else {
-            skipped += 1;
-            continue;
-        };
-        match reg.document(path, text) {
-            Ok(d) => {
-                docs.push(d);
-                dirs.push(dir);
+    let mut unreadable = 0usize;
+    let mut add = |path: &str, text: &str, dir: PathBuf| match reg.document(path, text) {
+        Ok(d) => {
+            docs.push(d);
+            dirs.push(dir);
+        }
+        Err(_) => skipped += 1,
+    };
+    for root in roots {
+        let sources = rsvelte_corpus::sources(root).unwrap_or_default();
+        if sources.is_empty() {
+            for Unit { input, dir, path } in units(root) {
+                match std::fs::read_to_string(&input) {
+                    Ok(text) => add(&path, &text, dir.join("actual")),
+                    Err(_) => unreadable += 1,
+                }
             }
-            Err(_) => skipped += 1,
+            continue;
+        }
+        for source in sources {
+            let pack = source.inputs()?;
+            // `Path::cmp` order, as the walk gives outside the corpus: a pack is in byte order.
+            let mut entries: Vec<_> = pack.entries().collect();
+            entries.sort_by(|a, b| Path::new(a.path).cmp(Path::new(b.path)));
+            for e in entries {
+                add(e.path, e.body, source.dir.join("actual").join(e.path));
+            }
         }
     }
-    Ok((docs, dirs, skipped))
+    Ok((docs, dirs, skipped + unreadable))
 }

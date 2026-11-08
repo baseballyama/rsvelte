@@ -1,1 +1,0 @@
-{type instanceof /* probe */ Object}

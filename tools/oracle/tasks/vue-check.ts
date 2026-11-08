@@ -52,10 +52,9 @@ const NODE_MODULES = path.resolve(import.meta.dirname, '../node_modules');
 // workspace links this package's node_modules so `vue` resolves as in a real project.
 const task: Task = {
 	id: 'vue.check',
-	storage: 'committed',
 	oracles: ['vue-tsc', '@vue/language-core', '@volar/typescript', 'typescript', 'vue'],
 	variants: [{ id: 'default', options: {} }],
-	appliesTo: (unit) => unit.lang === 'vue' && unit.source === 'rsvelte',
+	appliesTo: (unit) => unit.lang === 'vue',
 	run(unit, src) {
 		const ws = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'vue-check-')));
 		try {

@@ -1,0 +1,6699 @@
+# rsvelte pack 1
+=== 30 packages/adapter-netlify/test/apps/basic/src/routes/+page.svelte	svelte
+<h1>Hello from SvelteKit</h1>
+
+=== 74 packages/adapter-netlify/test/apps/basic/src/routes/greeting/[name]/+page.svelte	svelte
+<script>
+  let { data } = $props();
+</script>
+
+<h1>Hello {data.name}</h1>
+
+=== 53 packages/adapter-netlify/test/apps/edge/src/routes/treeshake-server/+page.svelte	svelte
+<p>this should never appear in the server bundle</p>
+
+=== 147 packages/adapter-netlify/test/apps/split/src/routes/+error.svelte	svelte
+<script lang="ts">
+  import { page } from "$app/state";
+</script>
+
+<h1>{page.status}: {page.error?.message}</h1>
+
+<p>Custom default error page</p>
+
+=== 136 packages/adapter-netlify/test/apps/split/src/routes/dynamic/+page.svelte	svelte
+<script lang="ts">
+  import { resolve } from "$app/paths";
+</script>
+
+<a href={resolve("/dynamic/[id]", { id: "1" })}>go to dynamic</a>
+
+=== 142 packages/adapter-node/test/apps/basic/src/routes/+page.svelte	svelte
+<script>
+  let toggle = $state(false);
+</script>
+
+<h1>Hello world!</h1>
+
+<button onclick={() => (toggle = !toggle)}>Toggle: {toggle}</button>
+
+=== 218 packages/adapter-static/test/apps/prerendered/src/routes/public-env/+page.svelte	svelte
+<script>
+  import { browser } from "$app/env";
+  import { PUBLIC_ANSWER } from "$app/env/public";
+</script>
+
+<h1>The answer is {PUBLIC_ANSWER}</h1>
+
+{#if browser}
+  <h2>The dynamic answer is {PUBLIC_ANSWER}</h2>
+{/if}
+
+=== 80 packages/adapter-static/test/apps/spa/src/routes/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>{page.status}</h1>
+
+=== 138 packages/adapter-static/test/apps/spa/src/routes/+layout.svelte	svelte
+<nav>
+  <a href="/">home</a>
+  <a href="/about">about</a>
+</nav>
+
+<slot />
+
+<style>
+  nav {
+    background-color: lightblue;
+  }
+</style>
+
+=== 39 packages/adapter-static/test/apps/spa/src/routes/+page.svelte	svelte
+<h1>This page was not prerendered</h1>
+
+=== 35 packages/adapter-static/test/apps/spa/src/routes/about/+page.svelte	svelte
+<h1>This page was prerendered</h1>
+
+=== 133 packages/adapter-static/test/apps/spa/src/routes/fallback/[...rest]/+page.svelte	svelte
+<script>
+  import { PUBLIC_VALUE } from "$app/env/public";
+</script>
+
+<h1>the fallback page was rendered</h1>
+
+<b>{PUBLIC_VALUE}</b>
+
+=== 247 packages/adapter-vercel/test/apps/basic/src/routes/+page.svelte	svelte
+<h1>Hello from SvelteKit on Vercel</h1>
+
+<nav>
+  <a href="/server-data">Server Data</a>
+  <a href="/isr">ISR</a>
+  <a href="/isr/hello">ISR Dynamic</a>
+  <a href="/prerendered">Prerendered</a>
+  <a href="/deep/nested/route">Deep Nested</a>
+</nav>
+
+=== 144 packages/adapter-vercel/test/apps/basic/src/routes/deep/nested/route/+page.svelte	svelte
+<script lang="ts">
+  let { data } = $props();
+</script>
+
+<h1>Deep nested route</h1>
+<p id="depth">{data.depth}</p>
+<p id="path">{data.path}</p>
+
+=== 118 packages/adapter-vercel/test/apps/basic/src/routes/isr/+page.svelte	svelte
+<script lang="ts">
+  let { data } = $props();
+</script>
+
+<h1>ISR Page</h1>
+<p id="rendered-at">{data.rendered_at}</p>
+
+=== 126 packages/adapter-vercel/test/apps/basic/src/routes/isr/[slug]/+page.svelte	svelte
+<script lang="ts">
+  let { data } = $props();
+</script>
+
+<h1>ISR: {data.slug}</h1>
+<p id="rendered-at">{data.rendered_at}</p>
+
+=== 81 packages/adapter-vercel/test/apps/basic/src/routes/prerendered/+page.svelte	svelte
+<script lang="ts">
+  let { data } = $props();
+</script>
+
+<h1>{data.message}</h1>
+
+=== 120 packages/adapter-vercel/test/apps/basic/src/routes/server-data/+page.svelte	svelte
+<script lang="ts">
+  let { data } = $props();
+</script>
+
+<h1>{data.message}</h1>
+<p id="timestamp">{data.timestamp}</p>
+
+=== 87 packages/adapter-vercel/test/apps/split/src/routes/+page.svelte	svelte
+<h1>Hello from SvelteKit on Vercel</h1>
+
+<nav>
+  <a href="/a">go to route a</a>
+</nav>
+
+=== 95 packages/adapter-vercel/test/apps/split/src/routes/a/+page.svelte	svelte
+<p>
+  This route will be served by a different function because we use the split
+  config
+</p>
+
+=== 1463 packages/enhanced-img/test/Input.svelte	svelte
+<script lang="ts">
+  import manual_image1 from "./no.png";
+  import manual_image2 from "./no.svg";
+
+  const src = manual_image1;
+  const images = [manual_image1, manual_image2];
+  const get_image = (image_key: number) => images[image_key];
+
+  let foo: string = "bar";
+</script>
+
+{foo}
+
+<img src="./dev.png" alt="non-enhanced test" />
+
+<enhanced:img src="./dev.png" alt="dev test" />
+
+<div>
+  <enhanced:img src="./dev.png" alt="nested test" />
+</div>
+
+<enhanced:img src="./prod.png" alt="production test" />
+
+<enhanced:img src="./dev.png" width="5" height="10" alt="dimensions test" />
+
+<enhanced:img src="./dev.png?blur=5" alt="directive test" />
+
+<enhanced:img src="./dev.png" {...{ foo }} alt="spread attributes test" />
+
+<enhanced:img
+  src="./dev.png?w=1024,640,320"
+  sizes="(min-width: 60rem) 80vw, (min-width: 40rem) 90vw, 100vw"
+  alt="sizes test"
+/>
+
+<enhanced:img
+  src="./dev.png"
+  onclick={() => (foo = "clicked an image!")}
+  alt="event handler test"
+/>
+
+<enhanced:img src="#lib/dev.png" alt="alias test" />
+
+<enhanced:img src="/src/dev.png" alt="absolute path test" />
+
+<enhanced:img {src} alt="attribute shorthand test" />
+
+{#each images as image}
+  <enhanced:img src={image} alt="opt-in test" />
+{/each}
+
+{#each images as _, i}
+  <enhanced:img src={get_image(i)} alt="opt-in test" />
+{/each}
+
+<picture>
+  <source src="./dev.avif" />
+  <source srcset="./dev.avif 500v ./bar.avif 100v" />
+  <source srcset="./dev.avif, ./bar.avif 1v" />
+</picture>
+
+=== 5386 packages/enhanced-img/test/Output.svelte	svelte
+<script lang="ts">
+  import manual_image1 from "./no.png";
+
+  import manual_image2 from "./no.svg";
+
+  const src = manual_image1;
+  const images = [manual_image1, manual_image2];
+  const get_image = (image_key: number) => images[image_key];
+
+  let foo: string = "bar";
+</script>
+
+{foo}
+
+<img src="./dev.png" alt="non-enhanced test" />
+
+<picture
+  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+    srcset="/3 1440w, /4 960w"
+    type="image/webp"
+  /><source srcset="5 1440w, /6 960w" type="image/png" /><img
+    src="/7"
+    alt="dev test"
+    width="1440"
+    height="1440"
+  /></picture
+>
+
+<div>
+  <picture
+    ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+      srcset="/3 1440w, /4 960w"
+      type="image/webp"
+    /><source srcset="5 1440w, /6 960w" type="image/png" /><img
+      src="/7"
+      alt="nested test"
+      width="1440"
+      height="1440"
+    /></picture
+  >
+</div>
+
+<picture
+  ><source
+    srcset={"__VITE_ASSET__2AM7_y_a__ 1440w, __VITE_ASSET__2AM7_y_b__ 960w"}
+    type="image/avif"
+  /><source
+    srcset={"__VITE_ASSET__2AM7_y_c__ 1440w, __VITE_ASSET__2AM7_y_d__ 960w"}
+    type="image/webp"
+  /><source
+    srcset={"__VITE_ASSET__2AM7_y_e__ 1440w, __VITE_ASSET__2AM7_y_f__ 960w"}
+    type="image/png"
+  /><img
+    src={"__VITE_ASSET__2AM7_y_g__"}
+    alt="production test"
+    width="1440"
+    height="1440"
+  /></picture
+>
+
+<picture
+  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+    srcset="/3 1440w, /4 960w"
+    type="image/webp"
+  /><source srcset="5 1440w, /6 960w" type="image/png" /><img
+    src="/7"
+    width="5"
+    height="10"
+    alt="dimensions test"
+  /></picture
+>
+
+<picture
+  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+    srcset="/3 1440w, /4 960w"
+    type="image/webp"
+  /><source srcset="5 1440w, /6 960w" type="image/png" /><img
+    src="/7"
+    alt="directive test"
+    width="1440"
+    height="1440"
+  /></picture
+>
+
+<picture
+  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+    srcset="/3 1440w, /4 960w"
+    type="image/webp"
+  /><source srcset="5 1440w, /6 960w" type="image/png" /><img
+    src="/7"
+    {...{ foo }}
+    alt="spread attributes test"
+    width="1440"
+    height="1440"
+  /></picture
+>
+
+<picture
+  ><source
+    srcset="/1 1440w, /2 960w"
+    sizes="(min-width: 60rem) 80vw, (min-width: 40rem) 90vw, 100vw"
+    type="image/avif"
+  /><source
+    srcset="/3 1440w, /4 960w"
+    sizes="(min-width: 60rem) 80vw, (min-width: 40rem) 90vw, 100vw"
+    type="image/webp"
+  /><source
+    srcset="5 1440w, /6 960w"
+    sizes="(min-width: 60rem) 80vw, (min-width: 40rem) 90vw, 100vw"
+    type="image/png"
+  /><img src="/7" alt="sizes test" width="1440" height="1440" /></picture
+>
+
+<picture
+  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+    srcset="/3 1440w, /4 960w"
+    type="image/webp"
+  /><source srcset="5 1440w, /6 960w" type="image/png" /><img
+    src="/7"
+    onclick={() => (foo = "clicked an image!")}
+    alt="event handler test"
+    width="1440"
+    height="1440"
+  /></picture
+>
+
+<picture
+  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+    srcset="/3 1440w, /4 960w"
+    type="image/webp"
+  /><source srcset="5 1440w, /6 960w" type="image/png" /><img
+    src="/7"
+    alt="alias test"
+    width="1440"
+    height="1440"
+  /></picture
+>
+
+<picture
+  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+    srcset="/3 1440w, /4 960w"
+    type="image/webp"
+  /><source srcset="5 1440w, /6 960w" type="image/png" /><img
+    src="/7"
+    alt="absolute path test"
+    width="1440"
+    height="1440"
+  /></picture
+>
+
+{#if typeof src === "string"}
+  {#if import.meta.env.DEV && false}
+    {src} was not enhanced. Cannot determine dimensions.
+  {:else}
+    <img {src} alt="attribute shorthand test" />
+  {/if}
+{:else}
+  <picture>
+    {#each Object.entries(src.sources) as [format, srcset]}
+      <source {srcset} type={"image/" + format} />
+    {/each}
+    <img
+      src={src.img.src}
+      alt="attribute shorthand test"
+      width={src.img.w}
+      height={src.img.h}
+    />
+  </picture>
+{/if}
+
+{#each images as image}
+  {#if typeof image === "string"}
+    {#if import.meta.env.DEV && false}
+      {image} was not enhanced. Cannot determine dimensions.
+    {:else}
+      <img src={image} alt="opt-in test" />
+    {/if}
+  {:else}
+    <picture>
+      {#each Object.entries(image.sources) as [format, srcset]}
+        <source {srcset} type={"image/" + format} />
+      {/each}
+      <img
+        src={image.img.src}
+        alt="opt-in test"
+        width={image.img.w}
+        height={image.img.h}
+      />
+    </picture>
+  {/if}
+{/each}
+
+{#each images as _, i}
+  {#if typeof get_image(i) === "string"}
+    {#if import.meta.env.DEV && false}
+      {get_image(i)} was not enhanced. Cannot determine dimensions.
+    {:else}
+      <img src={get_image(i)} alt="opt-in test" />
+    {/if}
+  {:else}
+    <picture>
+      {#each Object.entries(get_image(i).sources) as [format, srcset]}
+        <source {srcset} type={"image/" + format} />
+      {/each}
+      <img
+        src={get_image(i).img.src}
+        alt="opt-in test"
+        width={get_image(i).img.w}
+        height={get_image(i).img.h}
+      />
+    </picture>
+  {/if}
+{/each}
+
+<picture>
+  <source src="./dev.avif" />
+  <source srcset="./dev.avif 500v ./bar.avif 100v" />
+  <source srcset="./dev.avif, ./bar.avif 1v" />
+</picture>
+
+=== 129 packages/enhanced-img/test/apps/basics/src/routes/+layout.svelte	svelte
+<script>
+  /** @type {{children?: import('svelte').Snippet}} */
+  let { children } = $props();
+</script>
+
+{@render children?.()}
+
+=== 563 packages/enhanced-img/test/apps/basics/src/routes/+page.svelte	svelte
+<script>
+  import logo from "./logo.png?enhanced";
+
+  // see https://github.com/sveltejs/kit/issues/15616
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const rawImports = import.meta.glob("./image.svelte", {
+    eager: true,
+    query: "?raw",
+  });
+</script>
+
+<!-- standard image -->
+<enhanced:img id="birds" src="./birds.jpg" alt="birds" />
+
+<!-- svg over inline size -->
+<enhanced:img
+  id="playwright"
+  src="./playwright-logo.svg"
+  alt="Playwright logo"
+/>
+
+<!-- dynamic image -->
+<enhanced:img id="logo" src={logo} alt="Svelte logo" />
+
+=== 344 packages/enhanced-img/test/apps/basics/src/routes/image.svelte	svelte
+<script>
+  import logo from "./logo.png?enhanced";
+</script>
+
+<!-- standard image -->
+<enhanced:img id="birds" src="./birds.jpg" alt="birds" />
+
+<!-- svg over inline size -->
+<enhanced:img
+  id="playwright"
+  src="./playwright-logo.svg"
+  alt="Playwright logo"
+/>
+
+<!-- dynamic image -->
+<enhanced:img id="logo" src={logo} alt="Svelte logo" />
+
+=== 33 packages/kit/src/core/sync/create_manifest_data/test/samples/named-layouts/+layout.svelte	svelte
+<!-- not referenced anywhere -->
+
+=== 14 packages/kit/src/core/sync/create_manifest_data/test/samples/prerendered-dual-route/x/+page.svelte	svelte
+<h1>nope</h1>
+
+=== 36 packages/kit/src/core/sync/write_types/test/slugs-layout-not-all-pages-have-load/+layout.svelte	svelte
+export function load() &lcub;&rcub;
+
+=== 142 packages/kit/src/runtime/components/error.svelte	svelte
+<svelte:options runes={true} />
+
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>{page.status}</h1>
+<p>{page.error?.message}</p>
+
+=== 74 packages/kit/src/runtime/components/layout.svelte	svelte
+<script>
+  const { children } = $props();
+</script>
+
+{@render children()}
+
+=== 1668 packages/kit/src/runtime/components/root.svelte	svelte
+<script lang="ts">
+  import { afterNavigate } from "$app/navigation";
+  import type { Props, RenderNode } from "../props.svelte.js";
+
+  const { page, components, onerror, tree, form, error }: Props = $props();
+
+  let mounted = $state(false);
+  let navigated = $state(false);
+  let title = $state("");
+
+  afterNavigate(() => {
+    if (mounted) {
+      navigated = true;
+      title = document.title || "untitled page";
+    } else {
+      mounted = true;
+    }
+  });
+</script>
+
+{#snippet node(n: RenderNode, depth: number)}
+  {const Component = $derived(n.component)}
+  {const Error = $derived(n.error)}
+  {const data = $derived(n.data)}
+
+  {#snippet failed(error: unknown)}
+    <Error {error} />
+  {/snippet}
+
+  <svelte:boundary
+    failed={Error ? failed : undefined}
+    onerror={Error ? onerror : undefined}
+  >
+    {#if n.child}
+      <!-- svelte-ignore binding_property_non_reactive -->
+      <Component
+        bind:this={components[depth]}
+        {data}
+        {form}
+        params={page.params}
+      >
+        {@render node(n.child, depth + 1)}
+      </Component>
+    {:else}
+      <!-- svelte-ignore binding_property_non_reactive -->
+      <Component
+        bind:this={components[depth]}
+        {data}
+        {form}
+        params={page.params}
+        {error}
+      />
+    {/if}
+  </svelte:boundary>
+{/snippet}
+
+{@render node(tree, 0)}
+
+{#if mounted}
+  <div
+    id="svelte-announcer"
+    aria-live="assertive"
+    aria-atomic="true"
+    style="position: absolute; left: 0; top: 0; clip: rect(0 0 0 0); clip-path: inset(50%); overflow: hidden; white-space: nowrap; width: 1px; height: 1px"
+  >
+    {#if navigated}
+      {title}
+    {/if}
+  </div>
+{/if}
+
+=== 574 packages/kit/test/apps/async/src/routes/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+
+  let { error } = $props();
+</script>
+
+<svelte:head>
+  <title>Custom error page: {error.message}</title>
+</svelte:head>
+
+<h1>{page.status}</h1>
+
+<p id="message">
+  This is your custom error page saying: "<b>{error.message}</b>"
+</p>
+
+<a id="error-home" href="/">home</a>
+
+<style>
+  h1,
+  p {
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 2.8em;
+    font-weight: 700;
+    margin: 0 0 0.5em 0;
+    color: red;
+  }
+
+  p {
+    margin: 1em auto;
+  }
+
+  @media (min-width: 480px) {
+    h1 {
+      font-size: 4em;
+    }
+  }
+</style>
+
+=== 147 packages/kit/test/apps/async/src/routes/+layout.svelte	svelte
+<script lang="ts">
+  import { setup } from "../../../../setup.js";
+
+  const { children } = $props();
+
+  setup();
+</script>
+
+{@render children?.()}
+
+=== 231 packages/kit/test/apps/async/src/routes/+page.svelte	svelte
+<script lang="ts" module>
+  import { routes } from "$app/manifest";
+</script>
+
+<h3>Tests</h3>
+<ul style:font-family="sans-serif">
+  {#each routes as route}
+    <li>
+      <a href={route.id}>{route.id}</a>
+    </li>
+  {/each}
+</ul>
+
+=== 227 packages/kit/test/apps/async/src/routes/fork/+page.svelte	svelte
+<script>
+  import { goto } from "$app/navigation";
+</script>
+
+<a href="/fork/1">Navigate to /1</a>
+
+<button
+  onclick={() => {
+    goto("/fork?key=value", {
+      replace: true,
+    });
+  }}
+>
+  Go to /fork?key=value
+</button>
+
+=== 69 packages/kit/test/apps/async/src/routes/plain-lib/+page.svelte	svelte
+<script>
+  let { data } = $props();
+</script>
+
+<p>{data.key_set}</p>
+
+=== 357 packages/kit/test/apps/async/src/routes/remote/batch-redirect/+page.svelte	svelte
+<script>
+  import { batch_redirect } from "./data.remote.js";
+
+  let status = $state("idle");
+
+  async function run() {
+    status = "pending";
+
+    try {
+      await batch_redirect("a");
+      status = "resolved";
+    } catch {
+      status = "rejected";
+    }
+  }
+</script>
+
+<button id="trigger" onclick={run}>trigger</button>
+<p id="status">{status}</p>
+
+=== 163 packages/kit/test/apps/async/src/routes/remote/dev/+page.svelte	svelte
+<script lang="ts">
+  import { resolve } from "$app/paths";
+</script>
+
+<a href={resolve("/remote/dev/preload")} data-sveltekit-preload-data="hover"
+  >preload</a
+>
+
+=== 176 packages/kit/test/apps/async/src/routes/remote/error-hydration/+page.svelte	svelte
+<script>
+  import { failing } from "./data.remote";
+
+  const q = failing();
+</script>
+
+<div id="q-error">
+  {q.error ? `${q.error.status}: ${q.error.message}` : "none"}
+</div>
+
+=== 1291 packages/kit/test/apps/async/src/routes/remote/form/as-value/Form.svelte	svelte
+<script lang="ts">
+  import { as_value_form, type get_values } from "./form.remote";
+
+  const { value }: { value: Awaited<ReturnType<typeof get_values>>[number] } =
+    $props();
+  const form = $derived(as_value_form.for(value.id));
+</script>
+
+<form class="form" {...form}>
+  <input {...form.fields.hidden.string.as("hidden", "string")} />
+  <input {...form.fields.hidden.number.as("hidden", 1)} />
+  <input {...form.fields.hidden.boolean.as("hidden", true)} />
+
+  <input {...form.fields.text_field.as("text", value.text_field)} />
+
+  <input {...form.fields.number_field.as("number", value.number_field)} />
+
+  <select {...form.fields.select_field.as("select", value.select_field)}>
+    <option>apple</option>
+    <option>banana</option>
+    <option>cherry</option>
+  </select>
+
+  <input {...form.fields.color_field.as("color", value.color_field)} />
+
+  <input {...form.fields.range_field.as("range", value.range_field)} />
+
+  <label
+    >Checkbox
+    <input
+      {...form.fields.checkbox_field.as("checkbox", value.checkbox_field)}
+    />
+  </label>
+  <button {...form.fields.id.as("submit", value.id)}>submit</button>
+</form>
+
+<style>
+  .form {
+    display: flex;
+    flex-direction: column;
+    max-width: 200px;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    background: #eee;
+  }
+</style>
+
+=== 528 packages/kit/test/apps/async/src/routes/remote/form/file-upload/+page.svelte	svelte
+<script lang="ts">
+  import { upload } from "./form.remote";
+</script>
+
+<form {...upload} enctype="multipart/form-data">
+  <input {...upload.fields.text.as("hidden", "Hello world")} />
+  <p>File 1:</p>
+  <input {...upload.fields.file1.as("file")} />
+  <p>File 2:</p>
+  <input {...upload.fields.file2.as("file")} />
+  <label style:display="block">
+    <input {...upload.fields.read_files.as("checkbox")} />
+    Read files
+  </label>
+  <br />
+  <br />
+  <button>Submit</button>
+</form>
+
+<pre>{JSON.stringify(upload.result)}</pre>
+
+=== 386 packages/kit/test/apps/async/src/routes/remote/form/for-duplicate/+page.svelte	svelte
+<script>
+  import { get_count, increment } from "./form.remote.ts";
+  const count = get_count();
+</script>
+
+<p id="count">{count.current}</p>
+
+<!-- this looks weird but forces the spread into being reactive -->
+<form
+  {...increment.for((count.current || 1) && "a").enhance(async ({ submit }) => {
+    await submit();
+  })}
+>
+  <button type="submit" id="submit">Submit</button>
+</form>
+
+=== 945 packages/kit/test/apps/async/src/routes/remote/form/imperative/+page.svelte	svelte
+<script lang="ts">
+  import { set_message } from "../[test_name]/form.remote.js";
+  import * as v from "valibot";
+
+  const schema = v.object({
+    test_name: v.string(),
+    message: v.picklist(
+      ["hello", "goodbye", "unexpected error", "expected error", "redirect"],
+      "message is invalid",
+    ),
+  });
+</script>
+
+<form {...set_message.preflight(schema)}>
+  <label>
+    <span>Message</span>
+    <input {...set_message.fields.message.as("text")} />
+    <input {...set_message.fields.test_name.as("hidden", "imperative")} />
+  </label>
+
+  <p id="issue">
+    {set_message.fields.message.issues()?.[0]?.message ?? "ok"}
+  </p>
+  <p id="value">{set_message.fields.message.value()}</p>
+
+  <button
+    id="set-and-validate"
+    type="button"
+    onclick={async () => {
+      set_message.fields.message.set("hello");
+      await set_message.validate({ all: true });
+    }}
+  >
+    Set & validate
+  </button>
+  <button>Submit</button>
+</form>
+
+=== 1282 packages/kit/test/apps/async/src/routes/remote/form/native-result/+page.svelte	svelte
+<script>
+  import { onMount } from "svelte";
+  import { echo } from "./form.remote";
+
+  // a key with a space forces the encoded (server) and raw (client) id conventions to diverge
+  const keyed = echo.for("a b");
+
+  // a key with a slash must not break the `?/remote=` id parsing on the server
+  const keyed_slash = echo.for("a/b");
+
+  let hydrated = $state(false);
+
+  onMount(() => {
+    hydrated = true;
+  });
+</script>
+
+<div id="hydrated">{hydrated}</div>
+<div id="result">{echo.result ?? "none"}</div>
+<div id="issue">
+  {echo.fields.message.issues()?.[0]?.message ?? "no issues"}
+</div>
+<div id="keyed-result">{keyed.result ?? "none"}</div>
+<div id="keyed-slash-result">{keyed_slash.result ?? "none"}</div>
+
+<!-- deliberately not enhanced: action/method only, so submission is a native full-page POST -->
+<form id="plain" action={echo.action} method="POST">
+  <input {...echo.fields.message.as("text")} />
+  <button type="submit">Submit</button>
+</form>
+
+<form id="keyed" action={keyed.action} method="POST">
+  <input {...keyed.fields.message.as("text")} />
+  <button type="submit">Submit</button>
+</form>
+
+<form id="keyed-slash" action={keyed_slash.action} method="POST">
+  <input {...keyed_slash.fields.message.as("text")} />
+  <button type="submit">Submit</button>
+</form>
+
+=== 766 packages/kit/test/apps/async/src/routes/remote/form/preflight-for/+page.svelte	svelte
+<script>
+  import { get_value, set_value } from "./form.remote.ts";
+  import * as v from "valibot";
+
+  const value = get_value();
+
+  const schema = v.object({
+    value: v.pipe(v.number(), v.maxValue(20, "too big")),
+  });
+
+  // preflight().for() ordering — the bug: preflight was lost when chained before for
+  const form = set_value.preflight(schema).for("a");
+</script>
+
+<p>value.current: {value.current}</p>
+
+<form data-preflight-for {...form}>
+  {#each form.fields.value.issues() as issue}
+    <p>{issue.message}</p>
+  {/each}
+
+  <input data-preflight-for-input {...form.fields.value.as("number")} />
+  <button>submit</button>
+</form>
+
+<p data-preflight-for-pending>form.pending: {form.pending}</p>
+<p data-preflight-for-result>form.result: {form.result}</p>
+
+=== 1266 packages/kit/test/apps/async/src/routes/remote/form/preflight-pending/+page.svelte	svelte
+<script>
+  import { create } from "./form.remote.ts";
+  import * as v from "valibot";
+
+  const passing_schema = v.pipeAsync(
+    v.object({
+      name: v.string(),
+    }),
+    v.checkAsync(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return true;
+    }, "async check failed"),
+  );
+
+  const failing_schema = v.pipeAsync(
+    v.object({
+      name: v.string(),
+    }),
+    v.checkAsync(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return false;
+    }, "async check failed"),
+  );
+
+  const passing = create.for("passing");
+  const failing = create.for("failing");
+</script>
+
+<form data-passing {...passing.preflight(passing_schema)}>
+  <input {...passing.fields.name.as("text")} value="test" />
+  <button>submit passing</button>
+</form>
+<p data-passing-pending>passing pending: {passing.pending}</p>
+<p data-passing-result>passing result: {passing.result}</p>
+
+<hr />
+
+<form data-failing {...failing.preflight(failing_schema)}>
+  <input {...failing.fields.name.as("text")} value="test" />
+  <button>submit failing</button>
+</form>
+<p data-failing-pending>failing pending: {failing.pending}</p>
+{#each failing.fields.allIssues() as issue}
+  <p data-failing-issue>{issue.message}</p>
+{/each}
+
+=== 470 packages/kit/test/apps/async/src/routes/remote/form/redirect-target/+page.svelte	svelte
+<script>
+  import { redirectForm } from "./form.remote.ts";
+</script>
+
+<form {...redirectForm.for("blank")} target="_blank" data-testid="form-blank">
+  <button type="submit">Submit blank</button>
+</form>
+
+<form {...redirectForm.for("same")} data-testid="form-same">
+  <button type="submit">Submit same</button>
+</form>
+
+<form {...redirectForm.for("input")} data-testid="form-input-blank">
+  <input type="submit" formtarget="_blank" value="Submit input blank" />
+</form>
+
+=== 21 packages/kit/test/apps/async/src/routes/remote/form/redirect-target/destination/+page.svelte	svelte
+<h1>destination</h1>
+
+=== 209 packages/kit/test/apps/async/src/routes/remote/form/requested/+page.svelte	svelte
+<script>
+  import { submit } from "./form.remote.ts";
+</script>
+
+<form {...submit}>
+  <button id="requested-submit">Submit</button>
+</form>
+
+<p id="form-result">{submit.result?.message ?? "not submitted"}</p>
+
+=== 425 packages/kit/test/apps/async/src/routes/remote/form/reset-id/+page.svelte	svelte
+<script lang="ts">
+  import { reset_id } from "./form.remote";
+</script>
+
+<form {...reset_id}>
+  <input id="reset" {...reset_id.fields.message.as("text")} />
+  <button>submit</button>
+  <button type="reset">reset</button>
+</form>
+
+{#each reset_id.fields.message.issues() as issue (issue)}
+  <p class="error">{issue.message}</p>
+{/each}
+
+{#if reset_id.result?.message}
+  <div id="result">{reset_id.result.message}</div>
+{/if}
+
+=== 604 packages/kit/test/apps/async/src/routes/remote/form/reset-on-redirect/+page.svelte	svelte
+<script lang="ts">
+  import { redirect_form, reset_form } from "./form.remote";
+</script>
+
+<form {...reset_form}>
+  <button id="return" {...reset_form.fields.action.as("submit", "return")}
+    >Return</button
+  >
+  <button id="redirect" {...reset_form.fields.action.as("submit", "redirect")}
+    >Redirect</button
+  >
+</form>
+
+<div id="result">{reset_form.result}</div>
+
+<form
+  {...redirect_form.enhance(async ({ submit }) => {
+    await submit();
+    sessionStorage.setItem("submit-resolved-pathname", location.pathname);
+  })}
+>
+  <button id="redirect-other">Redirect to another page</button>
+</form>
+
+=== 309 packages/kit/test/apps/async/src/routes/remote/form/select-untouched/+page.svelte	svelte
+<script>
+  import { myform } from "./form.remote.ts";
+</script>
+
+<form {...myform}>
+  <input {...myform.fields.message.as("text")} />
+
+  <select {...myform.fields.number.as("select")}>
+    <option>one</option>
+    <option>two</option>
+    <option>three</option>
+  </select>
+
+  <button>submit</button>
+</form>
+
+=== 360 packages/kit/test/apps/async/src/routes/remote/form/set-ssr/+page.svelte	svelte
+<script>
+  import { editData } from "./form.remote";
+
+  const form = editData;
+  form.fields.set({ description: "ssr" });
+  form.fields.description.set("nested");
+</script>
+
+<div id="description">Description: {form.fields.description.value()}</div>
+
+<form {...form}>
+  <input {...form.fields.name.as("text")} />
+  <button type="submit">Submit</button>
+</form>
+
+=== 573 packages/kit/test/apps/async/src/routes/remote/form/skip-submit/+page.svelte	svelte
+<script lang="ts">
+  import { set_message } from "./form.remote.ts";
+
+  let should_submit = $state(false);
+
+  const pendings_arr: number[] = [];
+  const pendings = $derived.by(() => {
+    pendings_arr.push(set_message.pending);
+    return pendings_arr.join(", ");
+  });
+</script>
+
+<label>
+  <input type="checkbox" bind:checked={should_submit} data-should-submit />
+  should submit
+</label>
+
+<form
+  {...set_message.enhance(async ({ submit }) => {
+    if (!should_submit) return;
+    await submit();
+  })}
+>
+  <button>submit</button>
+</form>
+
+<p data-pending>{pendings}</p>
+
+=== 1047 packages/kit/test/apps/async/src/routes/remote/form/snapshot/+page.svelte	svelte
+<script lang="ts">
+  import { update, release } from "./snapshot.remote.ts";
+
+  let status = $state("idle");
+  let captured = $state<string | undefined>("none");
+  let live = $state<string | undefined>("none");
+</script>
+
+<form
+  {...update.enhance(async (form) => {
+    // take a snapshot of the fields *before* doing any async work
+    const data = form.fields.value();
+
+    // the submission is held open by the server, giving the test a window
+    // to mutate the form state after the snapshot has been taken
+    status = "submitting";
+    await form.submit();
+    status = "done";
+
+    // the snapshot should reflect the values at the time it was taken, not
+    // any changes to the form that happened post-submission
+    captured = data.a?.b?.c;
+    live = form.fields.a.b.c.value();
+  })}
+>
+  <input {...update.fields.a.b.c.as("text")} />
+  <button>submit</button>
+</form>
+
+<form {...release}>
+  <button>release</button>
+</form>
+
+<p id="status">status: {status}</p>
+<p id="captured">captured: {captured}</p>
+<p id="live">live: {live}</p>
+
+=== 679 packages/kit/test/apps/async/src/routes/remote/form/submit-field-value/+page.svelte	svelte
+<script lang="ts">
+  import { my_form } from "./form.remote.ts";
+
+  let captured = $state<number | null>(null);
+
+  my_form.enhance(async ({ fields, submit }) => {
+    // the submit field's value should already reflect the clicked button
+    captured = fields.quantity.value()!;
+    await submit();
+  });
+</script>
+
+<a href="/remote/form/submit-field-value/page2">Page 2</a>
+
+<form {...my_form}>
+  <button id="one" {...my_form.fields.quantity.as("submit", 1)}>1</button>
+  <button id="five" {...my_form.fields.quantity.as("submit", 5)}>5</button>
+  <button id="no-value" type="submit">no value</button>
+</form>
+
+<p id="captured">{captured}</p>
+<p id="result">{my_form.result}</p>
+
+=== 530 packages/kit/test/apps/async/src/routes/remote/form/submit-field-value/page2/+page.svelte	svelte
+<script lang="ts">
+  import { my_form } from "../form.remote.ts";
+
+  let captured = $state<number | null>(null);
+
+  my_form.enhance(async ({ fields, submit }) => {
+    // the submit field's value should already reflect the clicked button
+    captured = fields.quantity.value()!;
+    await submit();
+  });
+</script>
+
+<form {...my_form}>
+  <input id="input" {...my_form.fields.quantity.as("number")} />
+  <button id="submit" type="submit">submit</button>
+</form>
+
+<p id="captured">{captured}</p>
+<p id="result">{my_form.result}</p>
+
+=== 209 packages/kit/test/apps/async/src/routes/remote/form/submitter/+page.svelte	svelte
+<script>
+  import { my_form } from "./form.remote.ts";
+</script>
+
+<form {...my_form}>
+  <button {...my_form.fields.submitter.as("submit", "hello")}>submit</button>
+</form>
+
+<p id="result">{my_form.result}</p>
+
+=== 111 packages/kit/test/apps/async/src/routes/remote/form/throwing-error-page/+error.svelte	svelte
+<script>
+  throw new Error("error page render error");
+</script>
+
+<p>This error page should not be visible</p>
+
+=== 352 packages/kit/test/apps/async/src/routes/remote/form/throwing-error-page/+page.svelte	svelte
+<script>
+  import { set_message } from "../[test_name]/form.remote.ts";
+</script>
+
+<form {...set_message}>
+  <input {...set_message.fields.message.as("text")} />
+  <input
+    {...set_message.fields.test_name.as("hidden", "throwing-error-page")}
+  />
+
+  <button {...set_message.fields.action.as("submit", "normal")}
+    >set message</button
+  >
+</form>
+
+=== 651 packages/kit/test/apps/async/src/routes/remote/form/touched/+page.svelte	svelte
+<script>
+  import { touched_form } from "./touched.remote.js";
+</script>
+
+<p id="touched-name">Name touched: {touched_form.fields.name.touched()}</p>
+<p id="touched-age">Age touched: {touched_form.fields.age.touched()}</p>
+
+<button
+  id="set-btn"
+  type="button"
+  onclick={() => touched_form.fields.name.set("example")}
+>
+  set name programmatically
+</button>
+
+<form {...touched_form}>
+  <label>
+    Name
+    <input id="name-input" {...touched_form.fields.name.as("text")} />
+  </label>
+
+  <label>
+    Age
+    <input id="age-input" {...touched_form.fields.age.as("number")} />
+  </label>
+
+  <button id="reset-btn" type="reset">Reset</button>
+</form>
+
+=== 377 packages/kit/test/apps/async/src/routes/remote/form/underscore/+page.svelte	svelte
+<script>
+  import { register } from "./form.remote.ts";
+</script>
+
+<form {...register}>
+  <input {...register.fields.username.as("text")} />
+  <input {...register.fields._password.as("password")} />
+
+  <button>submit</button>
+</form>
+
+<pre>{JSON.stringify(register.fields.issues(), null, "  ")}</pre>
+
+<style>
+  [aria-invalid="true"] {
+    outline: 2px solid red;
+  }
+</style>
+
+=== 2530 packages/kit/test/apps/async/src/routes/remote/form/validate/+page.svelte	svelte
+<script>
+  import {
+    issue_path_form,
+    my_form,
+    my_form_2,
+    unmount_form,
+  } from "./form.remote.ts";
+  import * as v from "valibot";
+
+  const schema = v.object({
+    foo: v.picklist(["a", "b", "c"]),
+    bar: v.picklist(["d", "e"]),
+    button: v.literal("submitter"),
+  });
+
+  const unmount_schema = v.object({
+    qux: v.picklist(["a", "b"]),
+  });
+
+  let error = $state(false);
+  let mounted = $state(true);
+  let unmount_error = $state("no error");
+</script>
+
+<form
+  id="my-form"
+  {...my_form.preflight(schema)}
+  oninput={() => my_form.validate()}
+  onfocusout={() => my_form.validate()}
+>
+  {#each my_form.fields.foo.issues() as issue}
+    <p>{issue.message}</p>
+  {/each}
+
+  <input {...my_form.fields.foo.as("text")} />
+
+  {#each my_form.fields.bar.issues() as issue}
+    <p>{issue.message}</p>
+  {/each}
+
+  <input {...my_form.fields.bar.as("text")} />
+
+  <button {...my_form.fields.button.as("submit", "incorrect_value")}>
+    submit
+  </button>
+
+  {#each my_form.fields.button.issues() as issue}
+    <p>{issue.message}</p>
+  {/each}
+
+  <button {...my_form.fields.button.as("submit", "submitter")}>
+    submit (imperative validation)
+  </button>
+</form>
+<button id="trigger-validate" onclick={() => my_form.validate({ all: true })}>
+  trigger validation
+</button>
+
+<form id="issue-path-form" {...issue_path_form}>
+  <input {...issue_path_form.fields.nested.value.as("text")} />
+  <button
+    type="button"
+    id="validate"
+    onclick={() => issue_path_form.validate({ all: true })}
+  >
+    Validate
+  </button>
+  <pre id="allIssues">{JSON.stringify(issue_path_form.fields.allIssues())}</pre>
+</form>
+
+<form
+  id="my-form-2"
+  {...my_form_2.enhance(async ({ submit }) => {
+    error = false;
+    try {
+      await submit();
+    } catch {
+      error = true;
+    }
+  })}
+>
+  {#each my_form_2.fields.baz.issues() as issue}
+    <p>{issue.message}</p>
+  {/each}
+
+  <input {...my_form_2.fields.baz.as("text")} />
+
+  <p data-error>{error ? "An error occurred" : "No error"}</p>
+
+  <button>submit</button>
+</form>
+
+{#if mounted}
+  <form id="unmount-form" {...unmount_form.preflight(unmount_schema)}>
+    <input {...unmount_form.fields.qux.as("text")} />
+  </form>
+{/if}
+
+<button
+  id="unmount-then-validate"
+  onclick={async () => {
+    const validated = unmount_form.validate({ all: true });
+    mounted = false;
+
+    try {
+      await validated;
+    } catch (e) {
+      unmount_error = /** @type {Error} */ (e).message;
+    }
+  }}
+>
+  unmount then validate
+</button>
+<p id="unmount-error">{unmount_error}</p>
+
+=== 1091 packages/kit/test/apps/async/src/routes/remote/form/value/+page.svelte	svelte
+<script>
+  import { values } from "./value.remote.ts";
+</script>
+
+<h1>Remote Form Value Test</h1>
+
+<form {...values}>
+  <label>
+    Leaf:
+    <input {...values.fields.leaf.as("text")} />
+  </label>
+
+  <label>
+    Object Leaf:
+    <input {...values.fields.object.leaf.as("text")} />
+  </label>
+
+  <label>
+    Object Array 0:
+    <input {...values.fields.object.array[0].as("text")} />
+  </label>
+  <label>
+    Object Array 1:
+    <input {...values.fields.object.array[1].as("text")} />
+  </label>
+
+  <label>
+    Array 0 Leaf:
+    <input {...values.fields.array[0].leaf.as("text")} />
+  </label>
+  <label>
+    Array 1 Leaf:
+    <input {...values.fields.array[1].leaf.as("text")} />
+  </label>
+
+  <button>Submit</button>
+</form>
+
+<h2>Full Form Value</h2>
+<pre id="full-value">{JSON.stringify(values.fields.value(), null, "  ")}</pre>
+
+<h2>Nested Object Value</h2>
+<pre id="object-value">{JSON.stringify(
+    values.fields.object.value(),
+    null,
+    "  ",
+  )}</pre>
+
+<h2>Array Value</h2>
+<pre id="array-value">{JSON.stringify(
+    values.fields.array.value(),
+    null,
+    "  ",
+  )}</pre>
+
+=== 681 packages/kit/test/apps/async/src/routes/remote/isomorphic-caching/+page.svelte	svelte
+<script>
+  import { get_value, get_call_count } from "./isomorphic.remote.js";
+
+  let call_count = $state("-");
+  let dedupe_status = $state("idle");
+</script>
+
+<p>call count: <span id="call-count">{call_count}</span></p>
+
+<button
+  id="await-dedupe"
+  onclick={async () => {
+    dedupe_status = "pending";
+    const [a, b, c] = await Promise.all([
+      get_value(),
+      get_value(),
+      get_value(),
+    ]);
+    if (a === b && b === c) {
+      dedupe_status = "dedupe ok";
+    } else {
+      dedupe_status = "mismatch";
+    }
+    call_count = String(await get_call_count());
+  }}
+>
+  await x3 simultaneously
+</button>
+
+<p>dedupe: <span id="dedupe">{dedupe_status}</span></p>
+
+=== 234 packages/kit/test/apps/async/src/routes/remote/live-error-seed/[key]/+page.svelte	svelte
+<script>
+  import { live_fail } from "./data.remote";
+
+  const { params } = $props();
+  const q = $derived(live_fail(params.key));
+</script>
+
+<div id="live-error">
+  {q.error ? `${q.error.status}: ${q.error.message}` : "none"}
+</div>
+
+=== 335 packages/kit/test/apps/async/src/routes/remote/live-ssr-value/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+  import { live_value, notify } from "./data.remote.js";
+
+  const key = page.url.searchParams.get("key") ?? "default";
+  const live = live_value(key);
+</script>
+
+<p id="live-state">{live.ready ? live.current : "loading"}</p>
+<button id="notify" onclick={() => notify(key)}>notify</button>
+
+=== 879 packages/kit/test/apps/async/src/routes/remote/live-terminal/+page.svelte	svelte
+<script>
+  import { get_value, get_connection_count, trigger } from "./data.remote.js";
+
+  const live = get_value();
+
+  let connections = $state("pending");
+
+  async function refresh_connections() {
+    connections = String(await get_connection_count());
+  }
+</script>
+
+<button id="trigger-error" onclick={() => trigger("error")}
+  >trigger error</button
+>
+<button id="trigger-redirect" onclick={() => trigger("redirect")}
+  >trigger redirect</button
+>
+<button id="trigger-yield" onclick={() => trigger("yield")}
+  >trigger yield</button
+>
+<button id="refresh-connections" onclick={refresh_connections}
+  >refresh connections</button
+>
+
+<p id="value">{live.current}</p>
+<p id="error">
+  {live.error ? `${live.error.status} ${live.error.message}` : ""}
+</p>
+<p id="connected">{String(live.connected)}</p>
+<p id="done">{String(live.done)}</p>
+<p id="connections">{connections}</p>
+
+=== 38 packages/kit/test/apps/async/src/routes/remote/live-terminal/target/+page.svelte	svelte
+<h1 id="redirect-target">arrived</h1>
+
+=== 3412 packages/kit/test/apps/async/src/routes/remote/live/+page.svelte	svelte
+<script lang="ts">
+  import { refreshAll } from "$app/navigation";
+  import LiveView from "./LiveView.svelte";
+  import {
+    increment,
+    reset,
+    drop,
+    get_count,
+    reconnect_live,
+    reconnect_requested_live,
+    reconnect_live_form,
+    notify_only,
+    get_stats,
+  } from "./live.remote.js";
+
+  let show_live = $state(true);
+  let stats = $state("pending");
+
+  async function refresh_stats() {
+    const next = await get_stats();
+    stats = JSON.stringify(next);
+  }
+
+  let for_await_count = $state(0);
+  let for_await_values = $state("");
+  let stop_iteration: AbortController | null = null;
+
+  async function start_for_await() {
+    stop_iteration?.abort();
+    stop_iteration = new AbortController();
+    const signal = stop_iteration.signal;
+    for_await_count = 0;
+    for_await_values = "";
+    const collected: number[] = [];
+
+    try {
+      for await (const value of get_count()) {
+        if (signal.aborted) break;
+        for_await_count += 1;
+        collected.push(value);
+        for_await_values = collected.join(",");
+        if (for_await_count >= 3) break;
+      }
+    } catch (error) {
+      for_await_values = `error: ${(error as Error).message}`;
+    }
+  }
+
+  let stream_log = $state("");
+  let stream_iteration: AbortController | null = null;
+
+  async function start_stream_log() {
+    stream_iteration?.abort();
+    stream_iteration = new AbortController();
+    const signal = stream_iteration.signal;
+    stream_log = "";
+    const collected: number[] = [];
+
+    try {
+      for await (const value of get_count()) {
+        if (signal.aborted) break;
+        collected.push(value);
+        stream_log = collected.join(",");
+      }
+    } catch (error) {
+      stream_log = `error: ${(error as Error).message}`;
+    }
+  }
+
+  let refresh_state = $state("idle");
+
+  async function run_refresh_all() {
+    refresh_state = "pending";
+    try {
+      await refreshAll();
+      refresh_state = "resolved";
+    } catch {
+      refresh_state = "rejected";
+    }
+  }
+</script>
+
+<button id="increment" onclick={() => increment()}>increment</button>
+<button id="reset" onclick={() => reset()}>reset</button>
+<button id="notify-only" onclick={() => notify_only()}>notify only</button>
+<button id="drop" onclick={() => drop()}>drop connection</button>
+<button id="reconnect-live" onclick={() => reconnect_live()}
+  >reconnect live query</button
+>
+<button
+  id="reconnect-live-requested"
+  onclick={() => reconnect_requested_live().updates(get_count)}
+>
+  reconnect requested live queries
+</button>
+<form
+  {...reconnect_live_form.enhance(async ({ submit }) => {
+    await submit();
+  })}
+>
+  <button id="reconnect-live-form" type="submit"
+    >reconnect live query (form)</button
+  >
+</form>
+<button id="toggle-live" onclick={() => (show_live = !show_live)}
+  >toggle live query</button
+>
+<button id="stats" onclick={refresh_stats}>refresh stats</button>
+
+{#if show_live}
+  <LiveView />
+{:else}
+  <p id="detached">detached</p>
+{/if}
+<p id="stats-value">{stats}</p>
+
+<button id="start-for-await" onclick={start_for_await}>start for-await</button>
+<p id="for-await-count">{for_await_count}</p>
+<p id="for-await-values">{for_await_values}</p>
+
+<button id="start-stream-log" onclick={start_stream_log}
+  >start stream log</button
+>
+<p id="stream-log">{stream_log}</p>
+<button id="run-refresh-all" onclick={run_refresh_all}>refresh all</button>
+<p id="refresh-state">{refresh_state}</p>
+
+=== 792 packages/kit/test/apps/async/src/routes/remote/prerender/+page.svelte	svelte
+<script lang="ts">
+  import {
+    prerendered,
+    prerendered_entries,
+    with_read,
+  } from "./prerender.remote.js";
+
+  let prerendered_result = $state<string | null>(null);
+  let live_result = $state<string | null>(null);
+  let read_result = $state<string | null>(null);
+</script>
+
+<a href="/remote/prerender/whole-page">whole-page</a>
+<a href="/remote/prerender/functions-only">functions-only</a>
+
+<button
+  id="fetch-prerendered"
+  onclick={async () => (prerendered_result = await prerendered())}
+>
+  {prerendered_result}
+</button>
+<button
+  id="fetch-not-prerendered"
+  onclick={async () => (live_result = await prerendered_entries("d"))}
+>
+  {live_result}
+</button>
+<button
+  id="fetch-with-read"
+  onclick={async () => (read_result = await with_read())}
+>
+  {read_result}
+</button>
+
+=== 126 packages/kit/test/apps/async/src/routes/remote/prerender/functions-only/+page.svelte	svelte
+<script>
+  let { data } = $props();
+</script>
+
+<p id="prerendered-data">
+  {data.r1}
+  {data.r2}
+  {data.r3}
+  {data.r4}
+</p>
+
+=== 213 packages/kit/test/apps/async/src/routes/remote/private-query/+page.svelte	svelte
+<script>
+  import { reveal } from "./data.remote.js";
+
+  let result = $state("none");
+</script>
+
+<button id="reveal" onclick={async () => (result = await reveal())}
+  >reveal</button
+>
+<p id="result">{result}</p>
+
+=== 277 packages/kit/test/apps/async/src/routes/remote/query-redirect/+page.svelte	svelte
+<!-- TODO can remove this when preloading doesn't eagerly redirect -->
+<a data-sveltekit-preload-data={false} href="/remote/query-redirect/from-page"
+  >from page</a
+>
+<a
+  data-sveltekit-preload-data={false}
+  href="/remote/query-redirect/from-common-layout">from layout</a
+>
+
+=== 29 packages/kit/test/apps/async/src/routes/remote/query-redirect/from-common-layout/+page.svelte	svelte
+<p>should never see this</p>
+
+=== 34 packages/kit/test/apps/async/src/routes/remote/query-redirect/from-common-layout/redirected/+page.svelte	svelte
+<p id="redirected">redirected</p>
+
+=== 895 packages/kit/test/apps/async/src/routes/remote/query-runtime-errors/not-tracked/+page.svelte	svelte
+<script lang="ts">
+  import type { RemoteQuery } from "$app/server";
+  import { get_count } from "../../query-command.remote.js";
+
+  let status = $state("idle");
+  let result = $state("");
+  let stored: RemoteQuery<number>;
+
+  function get_message(error: unknown) {
+    return error instanceof Error ? error.message : String(error);
+  }
+</script>
+
+<p id="status">{status}</p>
+<p id="result">{result}</p>
+
+<button
+  id="create"
+  onclick={() => {
+    stored = get_count();
+    status = "query created";
+  }}
+>
+  create query
+</button>
+
+<button
+  id="await"
+  onclick={async () => {
+    result = String(await stored);
+    status = "query awaited";
+  }}
+>
+  await query
+</button>
+
+<button
+  id="read-current"
+  onclick={async () => {
+    try {
+      await stored;
+      result = String(stored.current);
+    } catch (error) {
+      result = get_message(error);
+    }
+  }}
+>
+  read current
+</button>
+
+=== 366 packages/kit/test/apps/async/src/routes/remote/redirect-external/+page.svelte	svelte
+<script>
+  import { redirectOutsideApp } from "./redirect.remote.js";
+
+  let status = $state("idle");
+
+  async function run() {
+    status = "pending";
+
+    try {
+      await redirectOutsideApp();
+      status = "resolved";
+    } catch {
+      status = "rejected";
+    }
+  }
+</script>
+
+<button id="trigger" onclick={run}>trigger</button>
+<p id="status">{status}</p>
+
+=== 347 packages/kit/test/apps/async/src/routes/remote/requested-limit/[key]/+page.svelte	svelte
+<script>
+  import { bump, get_count } from "./data.remote";
+
+  const { params } = $props();
+  const q = $derived(get_count(params.key));
+</script>
+
+<div id="value">{q.current ?? "unset"}</div>
+<div id="error">
+  {q.error ? `${q.error.status}: ${q.error.message}` : "none"}
+</div>
+
+<button onclick={() => bump(params.key).updates(q)}>bump</button>
+
+=== 394 packages/kit/test/apps/async/src/routes/remote/reserved/+page.svelte	svelte
+<script lang="ts">
+  import * as reserved from "./reserved.remote";
+
+  let result = $state("pending");
+
+  async function run() {
+    const del = await reserved.delete();
+    const cls = await reserved.class();
+    const ret = await reserved.return();
+    result = `${del}/${cls}/${ret}`;
+  }
+</script>
+
+<p id="reserved-result">{result}</p>
+
+<button onclick={run} id="reserved-run">run</button>
+
+=== 249 packages/kit/test/apps/async/src/routes/remote/server-action/+page.svelte	svelte
+<script>
+  import { enhance } from "$app/forms";
+
+  let { form } = $props();
+</script>
+
+<p id="result">{form?.result ?? ""}</p>
+
+<form method="POST" use:enhance>
+  <input type="hidden" name="input" value="hello" />
+  <button>submit</button>
+</form>
+
+=== 394 packages/kit/test/apps/async/src/routes/remote/server-endpoint/+page.svelte	svelte
+<script>
+  let result = $state("");
+</script>
+
+<p>{result}</p>
+
+<button
+  onclick={() =>
+    fetch("/remote/server-endpoint/api")
+      .then((r) => r.json())
+      .then((r) => (result = r.result))}
+>
+  get
+</button>
+
+<button
+  onclick={() =>
+    fetch("/remote/server-endpoint/api", { method: "POST" })
+      .then((r) => r.json())
+      .then((r) => (result = r.result))}
+>
+  post
+</button>
+
+=== 68 packages/kit/test/apps/async/src/routes/remote/server-load-command/+page.svelte	svelte
+<script>
+  let { data } = $props();
+</script>
+
+<p>{data.result}</p>
+
+=== 518 packages/kit/test/apps/async/src/routes/remote/transport-status/+page.svelte	svelte
+<script>
+  import { get_data } from "./data.remote.js";
+
+  const result = get_data();
+</script>
+
+<button
+  id="deny-btn"
+  onclick={() => {
+    document.cookie = "deny-remote=1; path=/";
+    result.refresh();
+  }}>Deny and refresh</button
+>
+
+<button
+  id="clear-btn"
+  onclick={() => {
+    document.cookie = "deny-remote=0; path=/; max-age=0";
+  }}>Clear cookie</button
+>
+
+{#if result.error}
+  <p id="status">{result.error.status}</p>
+{:else if result.current !== undefined}
+  <p id="value">{result.current}</p>
+{/if}
+
+=== 5204 packages/kit/test/apps/async/src/routes/remote/validation/+page.svelte	svelte
+<script lang="ts">
+  import { isHttpError } from "@sveltejs/kit";
+  import type { RemoteLiveQuery } from "$app/server";
+  import {
+    validated_query_no_args,
+    validated_query_with_arg,
+    validated_live_query_no_args,
+    validated_live_query_with_arg,
+    validated_prerendered_query_no_args,
+    validated_prerendered_query_with_arg,
+    validated_command_no_args,
+    validated_command_with_arg,
+    validated_batch_query_no_validation,
+    validated_batch_query_with_validation,
+  } from "./validation.remote.js";
+
+  function validate_result(result: "success" | "failure") {
+    if (result !== "success") {
+      throw new Error("Remote function called with invalid arguments");
+    }
+  }
+
+  async function read_live(resource: RemoteLiveQuery<"success" | "failure">) {
+    for await (const value of resource) {
+      return value;
+    }
+
+    throw new Error("query.live did not yield a value");
+  }
+
+  let status = $state("pending");
+</script>
+
+<p>{status}</p>
+
+<button
+  onclick={async () => {
+    status = "pending";
+    try {
+      validate_result(await validated_query_no_args());
+      validate_result(await read_live(validated_live_query_no_args()));
+      validate_result(await validated_prerendered_query_no_args());
+      validate_result(await validated_command_no_args());
+
+      validate_result(await validated_query_with_arg("valid"));
+      validate_result(await read_live(validated_live_query_with_arg("valid")));
+      validate_result(await validated_prerendered_query_with_arg("valid"));
+      validate_result(await validated_command_with_arg("valid"));
+
+      validate_result(await validated_batch_query_no_validation("valid"));
+      validate_result(await validated_batch_query_with_validation("valid"));
+
+      status = "success";
+    } catch {
+      status = "error";
+    }
+  }}
+>
+  valid
+</button>
+
+<button
+  onclick={async () => {
+    status = "pending";
+    try {
+      // @ts-expect-error
+      await validated_query_no_args("invalid");
+      status = "error";
+    } catch {
+      try {
+        // @ts-expect-error
+        await read_live(validated_live_query_no_args("invalid"));
+        status = "error";
+      } catch {
+        try {
+          // @ts-expect-error
+          await validated_prerendered_query_no_args("invalid");
+          status = "error";
+        } catch {
+          try {
+            // @ts-expect-error
+            await validated_command_no_args("invalid");
+            status = "error";
+          } catch {
+            status = "success";
+          }
+        }
+      }
+    }
+  }}
+>
+  invalid (arg when no args expected)
+</button>
+
+<button
+  onclick={async () => {
+    status = "pending";
+    try {
+      // @ts-expect-error
+      await validated_query_with_arg(1);
+      status = "error";
+    } catch (e) {
+      if (!isHttpError(e) || e.body.message !== "Input must be a string") {
+        status = "wrong error message";
+        return;
+      }
+
+      try {
+        // @ts-expect-error
+        await read_live(validated_live_query_with_arg(1));
+        status = "error";
+      } catch (e) {
+        if (!isHttpError(e) || e.body.message !== "Input must be a string") {
+          status = "wrong error message";
+          return;
+        }
+
+        try {
+          // @ts-expect-error
+          await validated_prerendered_query_with_arg(1);
+          status = "error";
+        } catch (e) {
+          if (!isHttpError(e) || e.body.message !== "Input must be a string") {
+            status = "wrong error message";
+            return;
+          }
+
+          try {
+            // @ts-expect-error
+            await validated_command_with_arg(1);
+            status = "error";
+          } catch (e) {
+            if (
+              !isHttpError(e) ||
+              e.body.message !== "Input must be a string"
+            ) {
+              status = "wrong error message";
+              return;
+            }
+
+            try {
+              // @ts-expect-error
+              await validated_batch_query_with_validation(123);
+              status = "error";
+            } catch (e) {
+              if (
+                !isHttpError(e) ||
+                e.body.message !== "Input must be a string"
+              ) {
+                status = "wrong error message";
+                return;
+              }
+
+              status = "success";
+            }
+          }
+        }
+      }
+    }
+  }}
+>
+  invalid (wrong arg type)
+</button>
+
+<button
+  onclick={async () => {
+    status = "pending";
+    try {
+      // @ts-expect-error
+      validate_result(await validated_query_with_arg("valid", "ignored"));
+      validate_result(
+        // @ts-expect-error
+        await read_live(validated_live_query_with_arg("valid", "ignored")),
+      );
+      validate_result(
+        // @ts-expect-error
+        await validated_prerendered_query_with_arg("valid", "ignored"),
+      );
+      // @ts-expect-error
+      validate_result(await validated_command_with_arg("valid", "ignored"));
+      validate_result(
+        // @ts-expect-error
+        await validated_batch_query_no_validation("valid", "ignored"),
+      );
+
+      status = "success";
+    } catch {
+      status = "error";
+    }
+  }}
+>
+  ignored (more than one arg, only one sent to backend)
+</button>
+
+=== 133 packages/kit/test/apps/async/src/routes/server-error-boundary/+layout.svelte	svelte
+<script>
+  let { children } = $props();
+</script>
+
+<div id="nested-layout">
+  <h2>Nested Layout</h2>
+  {@render children?.()}
+</div>
+
+=== 91 packages/kit/test/apps/async/src/routes/server-error-boundary/+page.svelte	svelte
+<script>
+  throw new Error("render error");
+</script>
+
+<h1>This should not be visible</h1>
+
+=== 148 packages/kit/test/apps/async/src/routes/server-error-boundary/layout-throws/+error.svelte	svelte
+<script>
+  let { error } = $props();
+</script>
+
+<p id="layout-throws-error-message">
+  Sibling error page (should not render): {error.message}
+</p>
+
+=== 153 packages/kit/test/apps/async/src/routes/server-error-boundary/layout-throws/+layout.svelte	svelte
+<script>
+  let { children } = $props();
+
+  throw new Error("layout render error");
+</script>
+
+<div id="throwing-layout">
+  {@render children?.()}
+</div>
+
+=== 41 packages/kit/test/apps/async/src/routes/server-error-boundary/layout-throws/+page.svelte	svelte
+<h1>This page should not be visible</h1>
+
+=== 377 packages/kit/test/apps/async/src/routes/server-error-boundary/nested/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+
+  let { error } = $props();
+</script>
+
+<p id="nested-error-message">
+  <!-- page.error always !== error on hydration because the former comes from the SvelteKit SSR payload and the latter from the failed boundary hydration comment -->
+  Nested error: {error.message} | {page.error?.message === error.message} | {page.status}
+</p>
+
+=== 110 packages/kit/test/apps/async/src/routes/server-error-boundary/nested/+page.svelte	svelte
+<script>
+  throw new Error("nested render error");
+</script>
+
+<h1>This nested page should not be visible</h1>
+
+=== 519 packages/kit/test/apps/basics/src/routes/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<svelte:head>
+  <title>Custom error page: {page.error?.message}</title>
+</svelte:head>
+
+<h1>{page.status}</h1>
+
+<p id="message">
+  This is your custom error page saying: "<b>{page.error?.message}</b>"
+</p>
+
+<style>
+  h1,
+  p {
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 2.8em;
+    font-weight: 700;
+    margin: 0 0 0.5em 0;
+    color: red;
+  }
+
+  p {
+    margin: 1em auto;
+  }
+
+  @media (min-width: 480px) {
+    h1 {
+      font-size: 4em;
+    }
+  }
+</style>
+
+=== 230 packages/kit/test/apps/basics/src/routes/accessibility/+layout.svelte	svelte
+<button>focus me</button>
+
+<nav>
+  <a href="/accessibility/a">a</a>
+  <a href="/accessibility/b">b</a>
+  <a href="/accessibility/autofocus/a">autofocus/a</a>
+  <a href="/accessibility/autofocus/b">autofocus/b</a>
+</nav>
+
+<slot />
+
+=== 60 packages/kit/test/apps/basics/src/routes/accessibility/a/+page.svelte	svelte
+<svelte:head>
+  <title>a</title>
+</svelte:head>
+
+<h1>a</h1>
+
+=== 90 packages/kit/test/apps/basics/src/routes/accessibility/autofocus/+layout.svelte	svelte
+<slot />
+
+<!-- svelte-ignore a11y-autofocus -->
+<input autofocus />
+
+<a href="/">Home</a>
+
+=== 200 packages/kit/test/apps/basics/src/routes/accessibility/autofocus/b/+page.svelte	svelte
+<script>
+  import { enhance } from "$app/forms";
+</script>
+
+<svelte:head>
+  <title>b</title>
+</svelte:head>
+
+<h1>b</h1>
+
+<form method="POST" use:enhance>
+  <button id="submit">submit</button>
+</form>
+
+=== 60 packages/kit/test/apps/basics/src/routes/accessibility/b/+page.svelte	svelte
+<svelte:head>
+  <title>b</title>
+</svelte:head>
+
+<h1>b</h1>
+
+=== 93 packages/kit/test/apps/basics/src/routes/accessibility/blur-during-navigation/other/+page.svelte	svelte
+<h1>Other page</h1>
+<a href="/accessibility/blur-during-navigation/page-with-input">Back</a>
+
+=== 486 packages/kit/test/apps/basics/src/routes/accessibility/blur-during-navigation/page-with-input/+page.svelte	svelte
+<script>
+  let { data } = $props();
+
+  function handleBlur() {
+    // Without the fix, data was already nulled when blur fired during
+    // navigation, causing "Cannot read properties of undefined".
+    // We write to window so the result survives component teardown.
+    /** @type {any} */ (window).__blur_test_result = data.message;
+  }
+</script>
+
+<h1>Blur test</h1>
+<input id="blur-input" onblur={handleBlur} />
+<a href="/accessibility/blur-during-navigation/other">Go to other</a>
+
+=== 200 packages/kit/test/apps/basics/src/routes/accessibility/c/+page.svelte	svelte
+<script>
+  import { enhance } from "$app/forms";
+</script>
+
+<svelte:head>
+  <title>c</title>
+</svelte:head>
+
+<h1>c</h1>
+
+<form method="POST" use:enhance>
+  <button id="submit">submit</button>
+</form>
+
+=== 133 packages/kit/test/apps/basics/src/routes/actions/cross-page/destination/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1 class="destination-error">destination error: {page.error?.message}</h1>
+
+=== 39 packages/kit/test/apps/basics/src/routes/actions/cross-page/redirected/+page.svelte	svelte
+<h1 class="redirected">redirected</h1>
+
+=== 398 packages/kit/test/apps/basics/src/routes/actions/cross-page/refreshall-false/+page.svelte	svelte
+<script>
+  import { enhance } from "$app/forms";
+</script>
+
+<h1 class="source">source (refreshAll: false)</h1>
+
+<form
+  method="POST"
+  action="/actions/cross-page/destination?/success"
+  use:enhance={() =>
+    async ({ update }) => {
+      await update({ refreshAll: false });
+    }}
+>
+  <input name="username" type="text" value="paolo" />
+  <button class="submit-success">Submit</button>
+</form>
+
+=== 109 packages/kit/test/apps/basics/src/routes/actions/enhance-non-action-response/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>{page.status}</h1>
+<p>{page.error?.message}</p>
+
+=== 504 packages/kit/test/apps/basics/src/routes/actions/enhance-non-action-response/+page.svelte	svelte
+<script>
+  import { enhance } from "$app/forms";
+</script>
+
+<form
+  method="POST"
+  action="/actions/enhance-non-action-response/reject"
+  use:enhance
+>
+  <button class="json">Submit</button>
+</form>
+
+<form
+  method="POST"
+  action="/actions/enhance-non-action-response/reject?body=html"
+  use:enhance
+>
+  <button class="html">Submit</button>
+</form>
+
+<form
+  method="POST"
+  action="/actions/enhance-non-action-response/reject?body=empty"
+  use:enhance
+>
+  <button class="empty">Submit</button>
+</form>
+
+=== 177 packages/kit/test/apps/basics/src/routes/actions/file-without-enctype/+page.svelte	svelte
+<script>
+  import { enhance } from "$app/forms";
+</script>
+
+<form method="POST" use:enhance>
+  <input name="file" type="file" />
+  <button type="submit">upload</button>
+</form>
+
+=== 108 packages/kit/test/apps/basics/src/routes/actions/form-errors/adjacent-error-boundary/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<pre style:color="red">{page.error?.message}</pre>
+
+=== 141 packages/kit/test/apps/basics/src/routes/actions/form-errors/adjacent-error-boundary/+page.svelte	svelte
+<script>
+  import { enhance } from "$app/forms";
+</script>
+
+<form method="POST" use:enhance>
+  <button type="submit">submit</button>
+</form>
+
+=== 127 packages/kit/test/apps/basics/src/routes/actions/redirect-in-handle/+page.svelte	svelte
+<script>
+  import { enhance } from "$app/forms";
+</script>
+
+<form method="post" use:enhance>
+  <button>Submit</button>
+</form>
+
+=== 281 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/+page.svelte	svelte
+<h1>Welcome to a test project</h1>
+<a href="/anchor-with-manual-scroll/anchor-onmount#go-to-element">Anchor demo</a
+>
+
+<style>
+  :global(body) {
+    background-color: tan;
+    display: flex;
+    flex-direction: column;
+  }
+
+  a {
+    display: block;
+    margin: 20px;
+  }
+</style>
+
+=== 609 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/anchor-afternavigate/+page.svelte	svelte
+<script>
+  import { afterNavigate, disableScrollHandling } from "$app/navigation";
+
+  afterNavigate(() => {
+    disableScrollHandling();
+    document.getElementById("abcde")?.scrollIntoView();
+  });
+</script>
+
+<div style="height: 180vh; background-color: hotpink;">
+  They (don't) see me...
+</div>
+<div style="height: 180vh; background-color: peru;">
+  <p id="go-to-element">The browser scrolls to me</p>
+</div>
+<p id="abcde" style="height: 180vh; background-color: hotpink;">
+  I take precedence
+</p>
+<div></div>
+
+<a href="/anchor-with-manual-scroll/anchor-afternavigate?x=y#go-to-element"
+  >reload me</a
+>
+
+=== 529 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/anchor-onmount/+page.svelte	svelte
+<script>
+  import { onMount } from "svelte";
+  import { disableScrollHandling } from "$app/navigation";
+
+  onMount(() => {
+    disableScrollHandling();
+    document.getElementById("abcde")?.scrollIntoView();
+  });
+</script>
+
+<div style="height: 180vh; background-color: hotpink;">
+  They (don't) see me...
+</div>
+<div style="height: 180vh; background-color: peru;">
+  <p id="go-to-element">The browser scrolls to me</p>
+</div>
+<p id="abcde" style="height: 180vh; background-color: hotpink;">
+  I take precedence
+</p>
+<div></div>
+
+=== 1123 packages/kit/test/apps/basics/src/routes/anchor/+page.svelte	svelte
+<h1>Welcome to a test project</h1>
+<a id="scroll-anchor" href="#last-anchor-2">Bottom of this page</a>
+<a id="non-ascii-anchor" href="/anchor/anchor#go-to-encöded"
+  >Anchor demo (non-ASCII)</a
+>
+<a id="special-char-anchor" href="/anchor/anchor#go-to-.="
+  >Anchor demo (special characters)</a
+>
+<a id="first-anchor" href="/anchor/anchor#go-to-element">Anchor demo (first)</a>
+<div>Spacing</div>
+<a id="second-anchor" href="/anchor/anchor#go-to-element"
+  >Anchor demo (second)</a
+>
+<div>Spacing</div>
+<a id="third-anchor" href="/anchor/anchor">Anchor demo (third)</a>
+<div>Spacing</div>
+<a id="last-anchor" href="/anchor/anchor#go-to-element">Anchor demo (last)</a>
+<a id="last-anchor-2" href="/anchor/anchor">Anchor demo (last 2)</a>
+<a id="routing-page" href="/routing/hashes/target">Different page</a>
+<a id="to-scroll-margin" href="/anchor/anchor#scroll-margin"
+  >Scroll margin anchor</a
+>
+
+<style>
+  :global(body) {
+    background-color: tan;
+    display: flex;
+    flex-direction: column;
+  }
+
+  a {
+    display: block;
+    margin: 20px;
+  }
+
+  div {
+    background-color: hotpink;
+    height: 180vh;
+  }
+</style>
+
+=== 692 packages/kit/test/apps/basics/src/routes/anchor/anchor/+page.svelte	svelte
+<div style="height: 180vh; background-color: hotpink;">
+  They (don't) see me...
+</div>
+<div style="height: 180vh; background-color: peru;">
+  <p id="go-to-element">The browser scrolls to me</p>
+</div>
+<div style="height: 180vh; background-color: tomato;">
+  <p id="go-to-encöded">The browser scrolls to me</p>
+</div>
+<div style="height: 180vh; background-color: honeydew;">
+  <p id="go-to-.=" class="special-char-id">The browser scrolls to me</p>
+</div>
+<div style="height: 180vh; background-color: lightblue;">
+  <p id="scroll-margin" style="scroll-margin-top: 40px;">
+    The browser scrolls to me
+  </p>
+</div>
+<a id="non-ascii-anchor" href="#go-to-encöded">Anchor demo (non-ASCII)</a>
+
+=== 77 packages/kit/test/apps/basics/src/routes/app-environment/+page.svelte	svelte
+<script>
+  import { version } from "$app/env";
+</script>
+
+<h1>{version}</h1>
+
+=== 716 packages/kit/test/apps/basics/src/routes/app-manifest/+page.svelte	svelte
+<script>
+  import { immutable, assets, prerendered, routes } from "$app/manifest";
+
+  let prerendered_json = JSON.stringify(prerendered, null, "  ");
+  let routes_json = JSON.stringify(routes, null, "  ");
+  let files_json = JSON.stringify(assets, null, "  ");
+  let build_json = JSON.stringify(immutable, null, "  ");
+</script>
+
+<h1>$app/manifest</h1>
+
+<section data-name="routes">
+  <h2>routes</h2>
+  <pre>{routes_json}</pre>
+</section>
+
+<section data-name="assets">
+  <h2>assets</h2>
+  <pre>{files_json}</pre>
+</section>
+
+<section data-name="prerendered">
+  <h2>prerendered</h2>
+  <pre>{prerendered_json}</pre>
+</section>
+
+<section data-name="immutable">
+  <h2>immutable</h2>
+  <pre>{build_json}</pre>
+</section>
+
+=== 158 packages/kit/test/apps/basics/src/routes/asset-import/+page.svelte	svelte
+<script>
+  import small from "./small.png";
+  import large from "./large.jpg";
+</script>
+
+<img alt="svelte" src={small} />
+<img alt="potatoes" src={large} />
+
+=== 121 packages/kit/test/apps/basics/src/routes/asset-preload/+page.svelte	svelte
+<script>
+  import "./styles.css";
+</script>
+
+<h1>asset-preload</h1>
+
+<style>
+  h1 {
+    font-family: Shlop;
+  }
+</style>
+
+=== 49 packages/kit/test/apps/basics/src/routes/caching/+page.svelte	svelte
+<h1>this page will be cached for 30 seconds</h1>
+
+=== 63 packages/kit/test/apps/basics/src/routes/caching/server-data/+page.svelte	svelte
+<h1>this page's __data.json will be cached for 30 seconds</h1>
+
+=== 94 packages/kit/test/apps/basics/src/routes/cookies/collect-without-re-escaping/+page.svelte	svelte
+<script>
+  import { browser } from "$app/env";
+</script>
+
+<p>{browser && document.cookie}</p>
+
+=== 596 packages/kit/test/apps/basics/src/routes/cookies/forwarded-in-etag-multiple/+page.svelte	svelte
+<script>
+  import { onMount } from "svelte";
+
+  /** @type {string} */
+  let cookies;
+
+  onMount(() => {
+    cookies = document.cookie
+      .split("; ")
+      .filter(
+        (c) =>
+          c.startsWith("one=") ||
+          c.startsWith("two=") ||
+          c.startsWith("three="),
+      )
+      .sort()
+      .join("; ");
+  });
+</script>
+
+<button
+  onclick={() => {
+    for (const name of ["one", "two", "three"]) {
+      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+    }
+    location.reload();
+  }}
+>
+  Delete cookies and reload the page
+</button>
+
+<p>{cookies}</p>
+
+=== 346 packages/kit/test/apps/basics/src/routes/cookies/forwarded-in-etag/+page.svelte	svelte
+<script>
+  import { onMount } from "svelte";
+
+  /** @type {string} */
+  let cookies;
+
+  onMount(() => {
+    cookies = document.cookie;
+  });
+</script>
+
+<button
+  onclick={() => {
+    document.cookie = "foo=bar;expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+    location.reload();
+  }}
+>
+  Delete cookies and reload the page
+</button>
+
+<p>{cookies}</p>
+
+=== 413 packages/kit/test/apps/basics/src/routes/css/+page.svelte	svelte
+<script>
+  import "./_styles.css";
+  import "./_manual.css?url";
+  import "./_manual.css?raw";
+  import "./_manual.css?inline";
+</script>
+
+<div class="styled">this text is red</div>
+
+<div class="also-styled">this text is blue</div>
+
+<div class="overridden">this text is green</div>
+
+<div class="not">this text is black</div>
+
+<a href="/css/other">other</a>
+
+<style>
+  .also-styled {
+    color: blue;
+  }
+</style>
+
+=== 268 packages/kit/test/apps/basics/src/routes/css/dynamic/+page.svelte	svelte
+<script>
+  /** @type {typeof import('./Dynamic.svelte').default}*/
+  let Dynamic;
+</script>
+
+<button
+  onclick={async () => {
+    Dynamic = (await import("./Dynamic.svelte")).default;
+  }}>load component</button
+>
+
+<svelte:component this={Dynamic}></svelte:component>
+
+=== 77 packages/kit/test/apps/basics/src/routes/css/dynamic/Dynamic.svelte	svelte
+<p>I'm dynamically imported</p>
+
+<style>
+  p {
+    color: blue;
+  }
+</style>
+
+=== 79 packages/kit/test/apps/basics/src/routes/css/encöded/+page.svelte	svelte
+<h1>this should be purple</h1>
+
+<style>
+  h1 {
+    color: purple;
+  }
+</style>
+
+=== 15 packages/kit/test/apps/basics/src/routes/css/other/+page.svelte	svelte
+<h1>other</h1>
+
+=== 170 packages/kit/test/apps/basics/src/routes/cyclical-dynamic-import/+page.svelte	svelte
+<script>
+  import { onMount } from "svelte";
+
+  onMount(async () => {
+    const { is_even } = await import("./_is_even.js");
+    console.log(is_even(5));
+  });
+</script>
+
+=== 504 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-code/+page.svelte	svelte
+<a
+  id="eager"
+  href="/data-sveltekit/preload-code/target/eager"
+  data-sveltekit-preload-code="eager">eager</a
+>
+
+<div style="height: 200vh"></div>
+
+<a
+  id="viewport"
+  href="/data-sveltekit/preload-code/target/viewport"
+  data-sveltekit-preload-code="viewport">viewport</a
+>
+<a
+  id="hover"
+  href="/data-sveltekit/preload-code/target/hover"
+  data-sveltekit-preload-code="hover">hover</a
+>
+<a
+  id="tap"
+  href="/data-sveltekit/preload-code/target/tap"
+  data-sveltekit-preload-code="tap">tap</a
+>
+
+=== 857 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/+page.svelte	svelte
+<script>
+  let x = 0;
+</script>
+
+<a
+  id="one"
+  href="/data-sveltekit/preload-data/target"
+  data-sveltekit-preload-data>one</a
+>
+
+<div data-sveltekit-preload-data>
+  <a id="two" href="/data-sveltekit/preload-data/target">two</a>
+  <a
+    id="three"
+    href="/data-sveltekit/preload-data/target"
+    data-sveltekit-preload-data={false}>three</a
+  >
+</div>
+
+<a
+  id="tap"
+  href="/data-sveltekit/preload-data/target"
+  data-sveltekit-preload-data="tap">tap</a
+>
+
+<a
+  id="hover-then-tap"
+  href="/data-sveltekit/preload-data/target"
+  data-sveltekit-preload-code="hover"
+  data-sveltekit-preload-data="tap">hover for code then tap for data</a
+>
+
+<a
+  id="dynamic"
+  data-sveltekit-preload-data="hover"
+  href="/data-sveltekit/preload-data/target?x={x}">dynamic</a
+>
+<button id="change_dynamic" type="button" onclick={() => x++}
+  >change dynamic</button
+>
+
+=== 249 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/+page.svelte	svelte
+<a
+  id="one"
+  href="/data-sveltekit/preload-data/offline/target"
+  data-sveltekit-preload-data>target</a
+>
+
+<a
+  id="slow-navigation"
+  href="/data-sveltekit/preload-data/offline/slow-navigation"
+  data-sveltekit-preload-data>slow-navigation</a
+>
+
+=== 23 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/slow-navigation/+page.svelte	svelte
+<p>slow navigation</p>
+
+=== 14 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/target/+page.svelte	svelte
+<p>target</p>
+
+=== 387 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/+layout.svelte	svelte
+<script>
+  import { resolve } from "$app/paths";
+
+  const { children } = $props();
+</script>
+
+<ul>
+  <li>
+    <a id="home" href={resolve("/data-sveltekit/preload-data/repeat")}>home</a>
+  </li>
+  <li>
+    <a
+      id="target"
+      href={resolve("/data-sveltekit/preload-data/repeat/target")}
+      data-sveltekit-preload-data="hover">target</a
+    >
+  </li>
+</ul>
+
+{@render children()}
+
+=== 12 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/+page.svelte	svelte
+<p>home</p>
+
+=== 61 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/target/+page.svelte	svelte
+<p>this string should only appear in this preloaded file</p>
+
+=== 63 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/target/+page.svelte	svelte
+<h1>this string should only appear in this preloaded file</h1>
+
+=== 282 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/+page.svelte	svelte
+<a id="one" href="/data-sveltekit/reload/target" data-sveltekit-reload>one</a>
+
+<div data-sveltekit-reload>
+  <a id="two" href="/data-sveltekit/reload/target">two</a>
+  <a
+    id="three"
+    href="/data-sveltekit/reload/target"
+    data-sveltekit-reload={false}>three</a
+  >
+</div>
+
+=== 129 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/hash/+page.svelte	svelte
+<a href="#example" data-sveltekit-reload>focus</a>
+<input id="example" />
+<a href="/data-sveltekit/reload/hash/new">new page</a>
+
+=== 19 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/hash/new/+page.svelte	svelte
+<p>hello world</p>
+
+=== 16 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/target/+page.svelte	svelte
+<h1>target</h1>
+
+=== 333 packages/kit/test/apps/basics/src/routes/data-sveltekit/replacestate/+page.svelte	svelte
+<a
+  id="one"
+  href="/data-sveltekit/replacestate/target"
+  data-sveltekit-replacestate>one</a
+>
+
+<div data-sveltekit-replacestate>
+  <a id="two" href="/data-sveltekit/replacestate/target">two</a>
+  <a
+    id="three"
+    href="/data-sveltekit/replacestate/target"
+    data-sveltekit-replacestate={false}
+  >
+    three
+  </a>
+</div>
+
+=== 344 packages/kit/test/apps/basics/src/routes/data-sveltekit/reset/+page.svelte	svelte
+<div style="height: 2000px; background: palegoldenrod"></div>
+
+<a id="one" href="/data-sveltekit/reset/target" data-sveltekit-reset="false"
+  >one</a
+>
+
+<div data-sveltekit-reset="false">
+  <a id="two" href="/data-sveltekit/reset/target">two</a>
+  <a id="three" href="/data-sveltekit/reset/target" data-sveltekit-reset
+    >three</a
+  >
+</div>
+
+=== 79 packages/kit/test/apps/basics/src/routes/data-sveltekit/reset/target/+page.svelte	svelte
+<div style="height: 2000px; background: palegoldenrod"></div>
+
+<h1>target</h1>
+
+=== 367 packages/kit/test/apps/basics/src/routes/delete-route/+page.svelte	svelte
+<script>
+  /** @type {string} */
+  let status;
+
+  function del() {
+    fetch("delete-route/42.json", { method: "DELETE" })
+      .then((r) => r.json())
+      .then(
+        ({ id }) => (status = `deleted ${id}`),
+        (e) => (status = e.toString()),
+      );
+  }
+</script>
+
+<button class="del" onclick={del}>delete</button>
+
+{#if status}
+  <h1>{status}</h1>
+{/if}
+
+=== 347 packages/kit/test/apps/basics/src/routes/encoded/+page.svelte	svelte
+<a href="/encoded/苗条">苗条</a>
+<a href="/encoded/土豆">土豆</a>
+<a href="/encoded/反应">反应</a>
+<a href="/encoded/redirect">Redirect</a>
+<a href="/encoded/@svelte">@svelte</a>
+<a href="/encoded/test%2520me">test%20me</a>
+<a href="/encoded/test%252fme">test%2fme</a>
+<a href="/encoded/AC%2fDC">AC/DC</a>
+<a href="/encoded/%5b">[</a>
+
+=== 90 packages/kit/test/apps/basics/src/routes/encoded/@[username]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>@{page.params.username}</h1>
+
+=== 567 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/+layout.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>{decodeURIComponent(page.url.pathname.split("/").pop() ?? "")}</h1>
+<slot />
+
+<a href="/encoded/escape-sequences/:-)">:-)</a>
+<a href="/encoded/escape-sequences/%23">#</a>
+<a href="/encoded/escape-sequences/%2F">/</a>
+<a href="/encoded/escape-sequences/%3f">?</a>
+<a href="/encoded/escape-sequences/苗">苗</a>
+<a href="/encoded/escape-sequences/<">&lt;</a>
+<a href="/encoded/escape-sequences/1<2">1&lt;2</a>
+<a href="/encoded/escape-sequences/🤪">🤪</a>
+<a href="/encoded/escape-sequences/%25">%</a>
+
+=== 4 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[u+82d7]/+page.svelte	svelte
+苗
+
+=== 5 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[u+d83e][u+dd2a]/+page.svelte	svelte
+🤪
+
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+23]/+page.svelte	svelte
+#
+
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+25]/+page.svelte	svelte
+%
+
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+2f]/+page.svelte	svelte
+/
+
+=== 4 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+3a]-[x+29]/+page.svelte	svelte
+:-)
+
+=== 5 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+3c]/+page.svelte	svelte
+&lt;
+
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+3f]/+page.svelte	svelte
+?
+
+=== 7 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x][x+3c][y]/+page.svelte	svelte
+1&lt;2
+
+=== 206 packages/kit/test/apps/basics/src/routes/encoded/苗条/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+
+  /** @type {{ data: import('./$types').PageData }} */
+  let { data } = $props();
+</script>
+
+<h1>static</h1>
+<h2>{data.path}</h2>
+<h3>{page.url.pathname}</h3>
+
+=== 36 packages/kit/test/apps/basics/src/routes/endpoint-output/actions-with-endpoint/+page.svelte	svelte
+<h1>actions with endpoint page</h1>
+
+=== 32 packages/kit/test/apps/basics/src/routes/endpoint-output/fallback-with-page/+page.svelte	svelte
+<h1>fallback endpoint page</h1>
+
+=== 33 packages/kit/test/apps/basics/src/routes/endpoint-output/post-only-with-page/+page.svelte	svelte
+<h1>POST-only endpoint page</h1>
+
+=== 37 packages/kit/test/apps/basics/src/routes/env/+page.svelte	svelte
+<a href="/env/includes">Includes</a>
+
+=== 10 packages/kit/test/apps/basics/src/routes/errors/+layout.svelte	svelte
+<slot />;
+
+=== 116 packages/kit/test/apps/basics/src/routes/errors/clientside/+page.svelte	svelte
+<script>
+  import { browser } from "$app/env";
+
+  if (browser) {
+    throw new Error("Crashing now");
+  }
+</script>
+
+=== 37 packages/kit/test/apps/basics/src/routes/errors/endpoint-shadow-not-ok/+page.svelte	svelte
+<h1>this text should not appear</h1>
+
+=== 454 packages/kit/test/apps/basics/src/routes/errors/error-html/+page.svelte	svelte
+<script>
+  /** @param {string} type */
+  async function fail(type) {
+    await fetch(`/errors/error-html/make-root-fail?type=${type}`);
+    if (type === "redirect") {
+      location.assign(location.href + "/404");
+    } else {
+      location.reload();
+    }
+  }
+</script>
+
+<button onclick={() => fail("unexpected")}>Unexpected</button>
+<button onclick={() => fail("expected")}>Expected</button>
+<button onclick={() => fail("redirect")}>Redirect</button>
+
+=== 89 packages/kit/test/apps/basics/src/routes/errors/error-in-handle/+page.svelte	svelte
+<!-- this will never be rendered, because hooks.js will throw an error for this path -->
+
+=== 78 packages/kit/test/apps/basics/src/routes/errors/invalid-load-response/+page.svelte	svelte
+<!-- this will never be rendered, load function returns something invalid -->
+
+=== 94 packages/kit/test/apps/basics/src/routes/errors/kind/+page.svelte	svelte
+<a href="/errors/kind/expected">expected</a>
+<a href="/errors/kind/unexpected">unexpected</a>
+
+=== 98 packages/kit/test/apps/basics/src/routes/errors/load-error-page-options/+error.svelte	svelte
+<script lang="ts">
+  import { page } from "$app/state";
+</script>
+
+<h1>{page.error?.message}</h1>
+
+=== 133 packages/kit/test/apps/basics/src/routes/errors/module-scope-client/+page.svelte	svelte
+<script context="module">
+  import { browser } from "$app/env";
+
+  if (browser) {
+    throw new Error("Crashing now");
+  }
+</script>
+
+=== 180 packages/kit/test/apps/basics/src/routes/errors/module-scope-server/+page.svelte	svelte
+<script context="module">
+  import { dev } from "$app/env";
+
+  if (dev) {
+    // can't throw in prod, the app won't start at all
+    throw new Error("Crashing now");
+  }
+</script>
+
+=== 271 packages/kit/test/apps/basics/src/routes/errors/nested-error-page/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>Nested error page</h1>
+<p id="nested-error-status">status: {page.status}</p>
+<p id="nested-error-message">
+  error.message: {page.error && page.error.message}
+</p>
+
+<style>
+  h1 {
+    color: blue;
+  }
+</style>
+
+=== 50 packages/kit/test/apps/basics/src/routes/errors/nested-error-page/+page.svelte	svelte
+<a href="/errors/nested-error-page/nope">nope</a>
+
+=== 29 packages/kit/test/apps/basics/src/routes/errors/nested-error-page/nope/+page.svelte	svelte
+<h1>should not see this</h1>
+
+=== 171 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<pre>{JSON.stringify(
+    {
+      status: page.status,
+      ...page.error,
+    },
+    null,
+    "  ",
+  )}</pre>
+
+=== 452 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/+page.svelte	svelte
+<a id="get-implicit" href="/errors/page-endpoint/get-implicit">GET (implicit)</a
+>
+<a id="get-explicit" href="/errors/page-endpoint/get-explicit">GET (explicit)</a
+>
+
+<form action="/errors/page-endpoint/post-implicit" method="post">
+  <button type="submit" id="post-implicit">POST (implicit)</button>
+</form>
+
+<form action="/errors/page-endpoint/post-explicit" method="post">
+  <button type="submit" id="post-explicit">POST (explicit)</button>
+</form>
+
+=== 46 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/get-explicit/+page.svelte	svelte
+<h1>if you see this something went wrong</h1>
+
+=== 163 packages/kit/test/apps/basics/src/routes/errors/serverside/+page.svelte	svelte
+<script>
+  import { dev } from "$app/env";
+
+  if (dev) {
+    // can't throw in prod, the app won't start at all
+    throw new Error("Crashing now");
+  }
+</script>
+
+=== 66 packages/kit/test/apps/basics/src/routes/errors/stack-trace/+page.svelte	svelte
+<script>
+  import bad from "./_bad.js";
+</script>
+
+<h1>{bad}</h1>
+
+=== 49 packages/kit/test/apps/basics/src/routes/get-request-event/+page.svelte	svelte
+<a href="/get-request-event/with-message">go</a>
+
+=== 88 packages/kit/test/apps/basics/src/routes/get-request-event/with-error/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>{page.error?.message}</h1>
+
+=== 177 packages/kit/test/apps/basics/src/routes/get-request-event/with-message/+page.svelte	svelte
+<script>
+  let { data, form } = $props();
+</script>
+
+<h1>{form?.message ?? data.message}</h1>
+
+<form method="POST">
+  <input name="message" />
+  <button>submit</button>
+</form>
+
+=== 306 packages/kit/test/apps/basics/src/routes/goto/+page.svelte	svelte
+<script>
+  import { goto } from "$app/navigation";
+
+  let message = "...";
+</script>
+
+<button
+  onclick={async () => {
+    try {
+      await goto("https://example.com");
+    } catch (e) {
+      message = e instanceof Error ? e.message : "unknown error message";
+    }
+  }}>goto</button
+>
+
+<p>{message}</p>
+
+=== 321 packages/kit/test/apps/basics/src/routes/goto/no-such-route/+page.svelte	svelte
+<script>
+  import { goto } from "$app/navigation";
+
+  let message = $state("...");
+</script>
+
+<button
+  onclick={async () => {
+    try {
+      await goto("/this-route-does-not-exist");
+    } catch (e) {
+      message = e instanceof Error ? e.message : "unknown error message";
+    }
+  }}>goto</button
+>
+
+<p>{message}</p>
+
+=== 31 packages/kit/test/apps/basics/src/routes/goto/testentry/+page.svelte	svelte
+<h3>navigation test entry</h3>
+
+=== 133 packages/kit/test/apps/basics/src/routes/goto/testfinish/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h3>navigation test finish</h3>
+<p>active: {page.state.active ?? false}</p>
+
+=== 31 packages/kit/test/apps/basics/src/routes/goto/teststart/+page.svelte	svelte
+<h3>navigation test start</h3>
+
+=== 17 packages/kit/test/apps/basics/src/routes/headers/+page.svelte	svelte
+<h1>headers</h1>
+
+=== 44 packages/kit/test/apps/basics/src/routes/iframes/+page.svelte	svelte
+<a href="/iframes/nested/parent">parent</a>
+
+=== 30 packages/kit/test/apps/basics/src/routes/iframes/nested/child/+page.svelte	svelte
+<h1>Hello from the child</h1>
+
+=== 54 packages/kit/test/apps/basics/src/routes/iframes/nested/parent/+page.svelte	svelte
+<iframe title="Child content" src="./child"></iframe>
+
+=== 108 packages/kit/test/apps/basics/src/routes/ignored-files/+page.svelte	svelte
+<p>
+  this directory exists to confirm that files with test/spec/stories in the
+  filename are ignored
+</p>
+
+=== 121 packages/kit/test/apps/basics/src/routes/init-hooks/+page.svelte	svelte
+<script>
+  const { data } = $props();
+</script>
+
+<p>{data.did_init_run}</p>
+
+<a href="/init-hooks/navigate">navigate</a>
+
+=== 10 packages/kit/test/apps/basics/src/routes/init-hooks/navigate/+page.svelte	svelte
+navigated
+
+=== 505 packages/kit/test/apps/basics/src/routes/interactivity/toggle-element/+page.svelte	svelte
+<script>
+  let visible = true;
+
+  function toggle() {
+    visible = !visible;
+  }
+</script>
+
+{#if visible}
+  <button onclick={toggle}>remove</button>
+
+  <!-- svelte-ignore a11y-missing-attribute a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+  <a onclick={toggle}>remove</a>
+{:else}
+  <button onclick={toggle}>add</button>
+
+  <!-- svelte-ignore a11y-missing-attribute a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+  <a onclick={toggle}>add</a>
+{/if}
+
+=== 267 packages/kit/test/apps/basics/src/routes/keepfocus/+page.svelte	svelte
+<script>
+  import { goto } from "$app/navigation";
+  import { page } from "$app/state";
+</script>
+
+<input
+  id="input"
+  type="text"
+  value={page.url.searchParams.get("foo")}
+  on:input={(e) => {
+    goto("?foo=" + e.currentTarget?.value, { reset: false });
+  }}
+/>
+
+=== 130 packages/kit/test/apps/basics/src/routes/load/accumulated/+page.svelte	svelte
+<a href="/load/accumulated/with-page-data">with page data</a>
+<a href="/load/accumulated/without-page-data">without page data</a>
+
+=== 54 packages/kit/test/apps/basics/src/routes/load/devalue/+page.svelte	svelte
+<a href="/load/devalue/regex">/load/devalue/regex</a>
+
+=== 79 packages/kit/test/apps/basics/src/routes/load/dynamic-import-styles/_/Thing.svelte	svelte
+<p id="thing">this text is red</p>
+
+<style>
+  p {
+    color: red;
+  }
+</style>
+
+=== 176 packages/kit/test/apps/basics/src/routes/load/fetch-cache-control/+page.svelte	svelte
+<a href="/load/fetch-cache-control/load-data">load-data</a>
+
+<a href="/load/fetch-cache-control/headers-diff">headers-diff</a>
+
+<a href="/load/fetch-cache-control/b64">b64</a>
+
+=== 440 packages/kit/test/apps/basics/src/routes/load/fetch-external-non-canonical/+page.svelte	svelte
+<script>
+  import { invalidate } from "$app/navigation";
+
+  /** @type {import('./$types').PageProps} */
+  let { data } = $props();
+
+  async function update() {
+    // no trailing slash, so it differs from the normalized cache key
+    await fetch(`http://localhost:${data.port}`, { method: "POST" });
+    await invalidate(`http://localhost:${data.port}`);
+  }
+</script>
+
+<h1>count: {data.count}</h1>
+<button onclick={update}>update</button>
+
+=== 70 packages/kit/test/apps/basics/src/routes/load/fetch-no-body/+page.svelte	svelte
+<script>
+  let { data } = $props();
+</script>
+
+<h1>ok: {data.ok}</h1>
+
+=== 622 packages/kit/test/apps/basics/src/routes/load/invalidation/during-navigation/[slug]/+layout.svelte	svelte
+<script>
+  import { refreshAll } from "$app/navigation";
+  let { children } = $props();
+</script>
+
+<nav>
+  <a href="/load/invalidation/during-navigation/a" data-testid="nav-a">a</a>
+  <a href="/load/invalidation/during-navigation/b" data-testid="nav-b">b</a>
+  <a
+    href="/load/invalidation/during-navigation/b"
+    data-testid="nav-b-refresh"
+    onclick={() => setTimeout(() => refreshAll(), 50)}
+  >
+    b+refresh
+  </a>
+  <a
+    href="/load/invalidation/during-navigation/a"
+    data-testid="nav-a-refresh"
+    onclick={() => setTimeout(() => refreshAll(), 50)}
+  >
+    a+refresh
+  </a>
+</nav>
+
+{@render children()}
+
+=== 89 packages/kit/test/apps/basics/src/routes/load/invalidation/during-navigation/[slug]/+page.svelte	svelte
+<script>
+  let { data } = $props();
+</script>
+
+<p data-testid="scores">{data.scores}</p>
+
+=== 767 packages/kit/test/apps/basics/src/routes/load/invalidation/multiple/+layout.svelte	svelte
+<script>
+  import { invalidate, refreshAll } from "$app/navigation";
+  import { page } from "$app/state";
+  import { increment_layout, increment_page } from "./state";
+
+  /** @param {string} str */
+  async function update(str) {
+    if (str !== "page") {
+      increment_layout();
+    }
+    if (str !== "layout") {
+      increment_page();
+    }
+
+    if (str === "all") {
+      refreshAll();
+    } else {
+      invalidate(`invalid:${str}`);
+    }
+  }
+</script>
+
+<button class="layout" onclick={() => update("layout")}>Refresh layout</button>
+<button class="page" onclick={() => update("page")}>Refresh page</button>
+<button class="all" onclick={() => update("all")}>Refresh all</button>
+
+<p>layout: {page.data.count_layout}, page: {page.data.count_page}</p>
+
+<slot />
+
+=== 319 packages/kit/test/apps/basics/src/routes/load/invalidation/multiple/redirect/+page.svelte	svelte
+<script>
+  import { refreshAll } from "$app/navigation";
+  import { redirect_state } from "../state";
+
+  function redirect() {
+    redirect_state.set("start");
+    refreshAll();
+  }
+</script>
+
+<button class="redirect" onclick={redirect}>redirect</button>
+<p class="redirect-state">Redirect state: {$redirect_state}</p>
+
+=== 13 packages/kit/test/apps/basics/src/routes/load/invalidation/params/[a]/+page.svelte	svelte
+<h1>[a]</h1>
+
+=== 17 packages/kit/test/apps/basics/src/routes/load/invalidation/params/[a]/[b]/+page.svelte	svelte
+<h1>[a]/[b]</h1>
+
+=== 11 packages/kit/test/apps/basics/src/routes/load/invalidation/route/server/a/+page.svelte	svelte
+<h2>a</h2>
+
+=== 11 packages/kit/test/apps/basics/src/routes/load/invalidation/route/server/b/+page.svelte	svelte
+<h2>b</h2>
+
+=== 11 packages/kit/test/apps/basics/src/routes/load/invalidation/route/shared/[x]/+page.svelte	svelte
+<p>[x]</p>
+
+=== 477 packages/kit/test/apps/basics/src/routes/load/mutated-url/+page.svelte	svelte
+<script>
+  import { goto } from "$app/navigation";
+  import { page } from "$app/state";
+
+  /** @type {{ data: import('./$types').PageData }} */
+  let { data } = $props();
+
+  function update_q() {
+    // @ts-expect-error set is not in the types; we wanna test here that we guard against mutation in goto, too
+    page.url.searchParams.set("q", "updated");
+    // @ts-expect-error
+    goto(page.url);
+  }
+</script>
+
+<h1>{data.q}</h1>
+<button onclick={update_q}>update q</button>
+
+=== 88 packages/kit/test/apps/basics/src/routes/load/no-server-load/+layout.svelte	svelte
+<a href="/load/no-server-load/a">a</a>
+<a href="/load/no-server-load/b">b</a>
+
+<slot />
+
+=== 11 packages/kit/test/apps/basics/src/routes/load/no-server-load/a/+page.svelte	svelte
+<h1>a</h1>
+
+=== 11 packages/kit/test/apps/basics/src/routes/load/no-server-load/b/+page.svelte	svelte
+<h1>b</h1>
+
+=== 134 packages/kit/test/apps/basics/src/routes/load/parent/server/[x]/[y]/[z]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>message: {page.data.message}</h1>
+<pre>{JSON.stringify(page.data)}</pre>
+
+=== 141 packages/kit/test/apps/basics/src/routes/load/raw-body/+page.svelte	svelte
+<a href="/load/raw-body/dataview">DataView</a>
+<a href="/load/raw-body/string">String</a>
+<a href="/load/raw-body/uint8array">Uint8Array</a>
+
+=== 132 packages/kit/test/apps/basics/src/routes/load/serialization-post-body-collision/+page.svelte	svelte
+<script>
+  /** @type {import('./$types').PageProps} */
+  let { data } = $props();
+</script>
+
+<h1>{data.post}</h1>
+<p>{data.get}</p>
+
+=== 114 packages/kit/test/apps/basics/src/routes/load/serialization-post-body-object/+page.svelte	svelte
+<script>
+  /** @type {import('./$types').PageProps} */
+  let { data } = $props();
+</script>
+
+<h1>{data.body}</h1>
+
+=== 120 packages/kit/test/apps/basics/src/routes/load/unchanged-parent/+page.svelte	svelte
+<a href="/load/unchanged-parent/uses-parent/a">uses parent</a>
+<a href="/load/unchanged-parent/isolated/a">isolated</a>
+
+=== 50 packages/kit/test/apps/basics/src/routes/load/unchanged/+page.svelte	svelte
+<a href="/load/unchanged/isolated/a">isolated</a>
+
+=== 351 packages/kit/test/apps/basics/src/routes/load/url-query-param/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>Hello {page.data.currentClientState ?? ""}</h1>
+
+<p>{page.data.textFromTheServer}</p>
+
+<a href="/load/url-query-param?currentClientState=ABC">ABC</a>
+<a href="/load/url-query-param?currentClientState=DEF">DEF</a>
+<hr />
+<a href="/load/url-query-param" data-sveltekit-reload>Reload site</a>
+
+=== 25 packages/kit/test/apps/basics/src/routes/load/url-to-string/+page.svelte	svelte
+<h1>I didn't break!</h1>
+
+=== 277 packages/kit/test/apps/basics/src/routes/load/window-fetch/outside-load/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+  import { onMount } from "svelte";
+
+  let answer = 0;
+
+  onMount(async () => {
+    const res = await fetch(`${page.url.origin}/load/window-fetch/data.json`);
+    ({ answer } = await res.json());
+  });
+</script>
+
+<h1>{answer}</h1>
+
+=== 548 packages/kit/test/apps/basics/src/routes/load/window-fetch/patching-server-load/+page.svelte	svelte
+<script>
+  import { browser } from "$app/env";
+
+  if (browser) {
+    const original_fetch = window.fetch;
+    window.fetch = (input, init) => {
+      console.log("Called a patched window.fetch for server load request");
+      return original_fetch(input, init);
+    };
+  }
+</script>
+
+<p>
+  The sole purpose of this page is to apply a `window.fetch` patch before
+  navigating to the next page. Click the link below to navigate to the next page
+  with a server load function.
+</p>
+
+<a href="./patching-server-load-ii">Go To Page with Server Load</a>
+
+=== 885 packages/kit/test/apps/basics/src/routes/match/+page.svelte	svelte
+<script>
+  import { match } from "$app/paths";
+  import { onMount } from "svelte";
+  import { testPaths } from "./const";
+
+  let { data } = $props();
+
+  /** @type {Array<{ path: string; result: { id: import('$app/types').RouteId; params: Record<string, import('@sveltejs/kit/params').ParamValue> } | null }>} */
+  const clientResults = $state([]);
+
+  onMount(async () => {
+    for (const path of testPaths) {
+      const result = await match(path);
+      clientResults.push({ path, result });
+    }
+  });
+</script>
+
+<h1>Match Test</h1>
+
+<div id="server-results">
+  {#each data.serverResults as { path, result }}
+    <div class="result" data-path={path}>
+      {JSON.stringify(result)}
+    </div>
+  {/each}
+</div>
+
+<div id="client-results">
+  {#each clientResults as { path, result }}
+    <div class="result" data-path={path}>
+      {JSON.stringify(result)}
+    </div>
+  {/each}
+</div>
+
+=== 4 packages/kit/test/apps/basics/src/routes/match/load/foo/+page.svelte	svelte
+bar
+
+=== 5 packages/kit/test/apps/basics/src/routes/match/slug/[slug]/+page.svelte	svelte
+slug
+
+=== 169 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate-properly-removed/+layout.svelte	svelte
+<script>
+  import { onNavigate } from "$app/navigation";
+  let { children } = $props();
+
+  onNavigate(() => {
+    return () => {};
+  });
+</script>
+
+{@render children()}
+
+=== 491 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate-properly-removed/a/+page.svelte	svelte
+<script>
+  import { afterNavigate } from "$app/navigation";
+
+  afterNavigate(() => {
+    console.log("after navigate called");
+
+    /** @type {HTMLElement | null} */
+    const el = document.querySelector(
+      ".nav-lifecycle-after-nav-removed-test-target",
+    );
+
+    if (el) {
+      el.innerText = "true";
+    }
+  });
+</script>
+
+<h1>/A</h1>
+<a href="/navigation-lifecycle/after-navigate-properly-removed/a">/a</a>
+<a href="/navigation-lifecycle/after-navigate-properly-removed/b">/b</a>
+
+=== 258 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate-properly-removed/b/+page.svelte	svelte
+<h1>/B</h1>
+<div>
+  was called:
+  <span class="nav-lifecycle-after-nav-removed-test-target">false</span>
+</div>
+<a href="/navigation-lifecycle/after-navigate-properly-removed/a">/a</a>
+<a href="/navigation-lifecycle/after-navigate-properly-removed/b">/b</a>
+
+=== 437 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate/a/+page.svelte	svelte
+<script>
+  import { afterNavigate } from "$app/navigation";
+
+  /** @type {import('$app/navigation').AfterNavigate['from'] | null} */
+  let from;
+
+  /** @type {import('$app/navigation').AfterNavigate['to']} */
+  let to;
+
+  afterNavigate((navigation) => {
+    from = navigation.from;
+    to = navigation.to;
+  });
+</script>
+
+<h1>{`${from?.url.pathname} -> ${to?.url.pathname}`}</h1>
+<a href="/navigation-lifecycle/after-navigate/b">/b</a>
+
+=== 431 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate/b/+page.svelte	svelte
+<script>
+  import { afterNavigate } from "$app/navigation";
+
+  /** @type {import('$app/navigation').AfterNavigate['from'] | null} */
+  let from;
+
+  /** @type {import('$app/navigation').AfterNavigate['to']} */
+  let to;
+
+  afterNavigate((navigation) => {
+    from = navigation.from;
+    to = navigation.to;
+  });
+</script>
+
+<h1>{from?.url.pathname} -> {to?.url.pathname}</h1>
+<a href="/navigation-lifecycle/after-navigate/a">/a</a>
+
+=== 251 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/complete/+page.svelte	svelte
+<script>
+  import { beforeNavigate } from "$app/navigation";
+
+  beforeNavigate(({ complete }) => {
+    complete.then(() => {
+      console.log("complete");
+    });
+  });
+</script>
+
+<a href="/navigation-lifecycle/before-navigate/redirect">redirect</a>
+
+=== 501 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/event/+layout.svelte	svelte
+<script>
+  import { beforeNavigate } from "$app/navigation";
+
+  let { children } = $props();
+
+  beforeNavigate((navigation) => {
+    if (navigation.type === "link" || navigation.type === "popstate") {
+      console.log(
+        `${navigation.event.type} ${navigation.from?.url.pathname} -> ${navigation.to?.url.pathname}`,
+      );
+    }
+  });
+</script>
+
+<a href="/navigation-lifecycle/before-navigate/event/a">a</a>
+<a href="/navigation-lifecycle/before-navigate/event/b">b</a>
+
+{@render children()}
+
+=== 243 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/hash-links/+page.svelte	svelte
+<script>
+  import { beforeNavigate } from "$app/navigation";
+
+  let before_navigate_ran = false;
+
+  beforeNavigate(() => {
+    before_navigate_ran = true;
+  });
+</script>
+
+<h1>before_navigate_ran: {before_navigate_ran}</h1>
+<a href="#x">x</a>
+
+=== 907 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/prevent-navigation/+page.svelte	svelte
+<script>
+  import { beforeNavigate } from "$app/navigation";
+
+  let times_triggered = 0;
+  let unload = false;
+  /** @type {import("$app/navigation").BeforeNavigate['type']} */
+  let navigation_type;
+  beforeNavigate(({ cancel, type, willUnload, to }) => {
+    times_triggered++;
+    unload = willUnload;
+    navigation_type = type;
+    if (!to?.route.id?.includes("redirect")) {
+      cancel();
+    }
+  });
+</script>
+
+<h1>prevent navigation</h1>
+<a href="/navigation-lifecycle/before-navigate/a">a</a>
+<a href="/navigation-lifecycle/before-navigate/redirect">redirect</a>
+<a href="/navigation-lifecycle/before-navigate/prevent-navigation?x=1">self</a>
+<a href="https://google.com" target="_blank" rel="noreferrer">_blank</a>
+<a href="https://google.de">external</a>
+<!-- svelte-ignore a11y-invalid-attribute -->
+<a download href="">external</a>
+<pre>{times_triggered} {unload} {`${navigation_type}`}</pre>
+
+=== 759 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/on-navigate/[x]/+page.svelte	svelte
+<script>
+  import { onNavigate } from "$app/navigation";
+
+  /** @type {import("$app/navigation").OnNavigate['from']} */
+  let from;
+
+  /** @type {import("$app/navigation").OnNavigate['to']} */
+  let to;
+
+  /** @type {Omit<import('$app/navigation').NavigationType, 'enter' | 'leave'>} */
+  let type;
+  let shallow = false;
+
+  let called_return = false;
+
+  onNavigate((navigation) => {
+    from = navigation.from;
+    to = navigation.to;
+    type = navigation.type;
+    shallow = navigation.shallow;
+  });
+
+  onNavigate(() => {
+    return () => {
+      called_return = true;
+    };
+  });
+</script>
+
+<h1>
+  {`${from?.url.pathname} -> ${to?.url.pathname} (${type ?? "..."}) ${shallow} ${called_return}`}
+</h1>
+<a href="/navigation-lifecycle/on-navigate/b">/b</a>
+
+=== 1083 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/scroll-state/a/+page.svelte	svelte
+<script>
+  import { beforeNavigate, onNavigate, afterNavigate } from "$app/navigation";
+
+  beforeNavigate((navigation) => {
+    console.log(
+      "beforeNavigate:" +
+        JSON.stringify({
+          fromScroll: navigation.from?.scroll,
+          toScroll: navigation.to?.scroll,
+          type: navigation.type,
+        }),
+    );
+  });
+
+  onNavigate((navigation) => {
+    console.log(
+      "onNavigate:" +
+        JSON.stringify({
+          fromScroll: navigation.from?.scroll,
+          toScroll: navigation.to?.scroll,
+          type: navigation.type,
+        }),
+    );
+  });
+
+  afterNavigate((navigation) => {
+    console.log(
+      "afterNavigate:" +
+        JSON.stringify({
+          fromScroll: navigation.from?.scroll,
+          toScroll: navigation.to?.scroll,
+          type: navigation.type,
+        }),
+    );
+  });
+</script>
+
+<h1>Page A</h1>
+
+<div style="height: 100vh; background: linear-gradient(teal, cyan)"></div>
+
+<a id="to-b" href="/navigation-lifecycle/scroll-state/b">Go to B</a>
+
+<div style="height: 100vh; background: linear-gradient(cyan, blue)"></div>
+
+=== 1088 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/scroll-state/b/+page.svelte	svelte
+<script>
+  import { beforeNavigate, onNavigate, afterNavigate } from "$app/navigation";
+
+  beforeNavigate((navigation) => {
+    console.log(
+      "beforeNavigate:" +
+        JSON.stringify({
+          fromScroll: navigation.from?.scroll,
+          toScroll: navigation.to?.scroll,
+          type: navigation.type,
+        }),
+    );
+  });
+
+  onNavigate((navigation) => {
+    console.log(
+      "onNavigate:" +
+        JSON.stringify({
+          fromScroll: navigation.from?.scroll,
+          toScroll: navigation.to?.scroll,
+          type: navigation.type,
+        }),
+    );
+  });
+
+  afterNavigate((navigation) => {
+    console.log(
+      "afterNavigate:" +
+        JSON.stringify({
+          fromScroll: navigation.from?.scroll,
+          toScroll: navigation.to?.scroll,
+          type: navigation.type,
+        }),
+    );
+  });
+</script>
+
+<h1>Page B</h1>
+
+<div style="height: 100vh; background: linear-gradient(orange, yellow)"></div>
+
+<a id="to-a" href="/navigation-lifecycle/scroll-state/a">Go to A</a>
+
+<div style="height: 100vh; background: linear-gradient(yellow, red)"></div>
+
+=== 62 packages/kit/test/apps/basics/src/routes/nested-layout/+layout.svelte	svelte
+<slot />
+<p id="nested">This is a nested layout component</p>
+
+=== 112 packages/kit/test/apps/basics/src/routes/nested-layout/+page.svelte	svelte
+<h1>Hello from inside the nested layout component</h1>
+
+<div>
+  <a href="/nested-layout/error">error</a>
+</div>
+
+=== 19 packages/kit/test/apps/basics/src/routes/nested-layout/error/+page.svelte	svelte
+<h1>Not shown</h1>
+
+=== 50 packages/kit/test/apps/basics/src/routes/nested-layout/foo/+layout.svelte	svelte
+<slot />
+<p id="nested-foo">Nested layout foo</p>
+
+=== 254 packages/kit/test/apps/basics/src/routes/nested-layout/foo/bar/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>Nested error page</h1>
+<p id="nested-error-status">status: {page.status}</p>
+<p id="nested-error-message">error.message: {page.error?.message}</p>
+
+<style>
+  h1 {
+    color: blue;
+  }
+</style>
+
+=== 50 packages/kit/test/apps/basics/src/routes/nested-layout/foo/bar/+layout.svelte	svelte
+<slot />
+<p id="nested-bar">Nested layout bar</p>
+
+=== 20 packages/kit/test/apps/basics/src/routes/nested-layout/foo/baz/+page.svelte	svelte
+<p id="baz">baz</p>
+
+=== 31 packages/kit/test/apps/basics/src/routes/nested-layout/reset/+layout@.svelte	svelte
+<h1>Layout reset</h1>
+<slot />
+
+=== 15 packages/kit/test/apps/basics/src/routes/nested-layout/reset/+page.svelte	svelte
+<h2>Hello</h2>
+
+=== 110 packages/kit/test/apps/basics/src/routes/no-ssr/+page.svelte	svelte
+<h1>content was rendered</h1>
+
+<a href="/no-ssr/other">other</a>
+
+<style>
+  h1 {
+    color: red;
+  }
+</style>
+
+=== 214 packages/kit/test/apps/basics/src/routes/no-ssr/after-navigate/+page.svelte	svelte
+<script>
+  import { afterNavigate } from "$app/navigation";
+
+  let count = 0;
+  let type = "";
+
+  afterNavigate((event) => {
+    count += 1;
+    type = event.type;
+  });
+</script>
+
+<p>{type.toString()} {count}</p>
+
+=== 74 packages/kit/test/apps/basics/src/routes/no-ssr/browser-only-global/+page.svelte	svelte
+<script context="module">
+  document;
+</script>
+
+{document}
+
+<p>Works</p>
+
+=== 208 packages/kit/test/apps/basics/src/routes/no-ssr/margin/+page.svelte	svelte
+<div class="container">
+  <span> ^this is not the top of the screen</span>
+  <div class="spacer"></div>
+</div>
+
+<style>
+  .container {
+    margin-top: 300px;
+  }
+
+  .spacer {
+    height: 1000px;
+  }
+</style>
+
+=== 91 packages/kit/test/apps/basics/src/routes/no-ssr/ssr-page-config/layout/overwrite/+page.svelte	svelte
+<script context="module">
+  document;
+</script>
+
+{document}
+
+<p>You shouldn't see this</p>
+
+=== 84 packages/kit/test/apps/basics/src/routes/origin/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>{page.url.origin}</h1>
+
+=== 143 packages/kit/test/apps/basics/src/routes/params-prop/+layout.svelte	svelte
+<script>
+  let { children } = $props();
+</script>
+
+<a href="/params-prop/123">123</a>
+<a href="/params-prop/456">456</a>
+
+{@render children()}
+
+=== 70 packages/kit/test/apps/basics/src/routes/params-prop/[x]/+page.svelte	svelte
+<script>
+  let { params } = $props();
+</script>
+
+<p>x: {params.x}</p>
+
+=== 30 packages/kit/test/apps/basics/src/routes/preload-code-on-load/+page.svelte	svelte
+<h1>preload code on load</h1>
+
+=== 143 packages/kit/test/apps/basics/src/routes/prerendering/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+
+  const title = $derived(`${page.status}: ${page.error?.message}`);
+</script>
+
+<h1>{title}</h1>
+
+=== 114 packages/kit/test/apps/basics/src/routes/prerendering/env/+layout.svelte	svelte
+<a href="/prerendering/env/prerendered">prerendered</a>
+<a href="/prerendering/env/dynamic">dynamic</a>
+
+<slot />
+
+=== 122 packages/kit/test/apps/basics/src/routes/prerendering/env/dynamic/+page.svelte	svelte
+<script>
+  import { PUBLIC_PRERENDERING } from "$app/env/public";
+</script>
+
+<h2>prerendering: {PUBLIC_PRERENDERING}</h2>
+
+=== 21 packages/kit/test/apps/basics/src/routes/prerendering/env/prerendered/+page.svelte	svelte
+<h2>prerendered</h2>
+
+=== 171 packages/kit/test/apps/basics/src/routes/prerendering/log-url/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+
+  let error = false;
+
+  try {
+    console.log(page);
+  } catch (e) {
+    error = true;
+  }
+</script>
+
+<p>error: {error}</p>
+
+=== 37 packages/kit/test/apps/basics/src/routes/prerendering/mutative-endpoint/+page.svelte	svelte
+<h1>I have a mutative endpoint!</h1>
+
+=== 54 packages/kit/test/apps/basics/src/routes/prerendering/no-ssr/+page.svelte	svelte
+<h1>Hello world!</h1>
+<p>{window.location.origin}</p>
+
+=== 90 packages/kit/test/apps/basics/src/routes/prerendering/prerendered-endpoint/+page.svelte	svelte
+<a href="/prerendering/prerendered-endpoint/from-handle-hook"
+  >through handle hook</a
+>
+
+=== 339 packages/kit/test/apps/basics/src/routes/query/echo/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+  import { to_pojo } from "./utils.js";
+
+  /** @type {{ data: import('./$types').PageData }} */
+  let { data } = $props();
+</script>
+
+<pre id="one">{JSON.stringify(data.values)}</pre>
+<pre id="two">{JSON.stringify(to_pojo(page.url.searchParams))}</pre>
+
+<a href="/query/echo?bar=2">?bar=2</a>
+
+=== 90 packages/kit/test/apps/basics/src/routes/redirect-on-load/+page.svelte	svelte
+<h1>Woops!</h1>
+<p>You shouldn't be here. You should have been directed to /redirect!</p>
+
+=== 16 packages/kit/test/apps/basics/src/routes/redirect-on-load/redirected/+page.svelte	svelte
+<h1>Hazaa!</h1>
+
+=== 414 packages/kit/test/apps/basics/src/routes/redirect/+page.svelte	svelte
+<h1>redirects</h1>
+<a href="/redirect/a">a</a>
+<a href="/redirect/b">b</a>
+
+<a href="/redirect/loopy/a">a (loopy)</a>
+<a href="/redirect/loopy/b">b (loopy)</a>
+
+<a href="/redirect/missing-status/a">a (missing-status)</a>
+<a href="/redirect/missing-status/b">b (missing-status)</a>
+
+<a href="/redirect/in-handle?throw">in-handle (redirect)</a>
+<a href="/redirect/in-handle?response">in-handle (return Response)</a>
+
+=== 11 packages/kit/test/apps/basics/src/routes/redirect/c/+page.svelte	svelte
+<h1>c</h1>
+
+=== 19 packages/kit/test/apps/basics/src/routes/redirect/in-handle/+page.svelte	svelte
+<h1>in-handle</h1>
+
+=== 173 packages/kit/test/apps/basics/src/routes/reroute/async/+page.svelte	svelte
+<a href="/reroute/async/a">Go to url that should be rewritten</a>
+<a href="/reroute/async/c"
+  >Go to url that should be rewritten and its reroute api call prerendered</a
+>
+
+=== 69 packages/kit/test/apps/basics/src/routes/reroute/async/a/+page.svelte	svelte
+<h1>Should have been rewritten to <code>/reroute/async/b</code></h1>
+
+=== 135 packages/kit/test/apps/basics/src/routes/reroute/async/b/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>Successfully rewritten, URL should still show a: {page.url.pathname}</h1>
+
+=== 66 packages/kit/test/apps/basics/src/routes/reroute/basic/+page.svelte	svelte
+<a href="/reroute/basic/a">Go to url that should be rewritten</a>
+
+=== 69 packages/kit/test/apps/basics/src/routes/reroute/basic/a/+page.svelte	svelte
+<h1>Should have been rewritten to <code>/reroute/basic/b</code></h1>
+
+=== 30 packages/kit/test/apps/basics/src/routes/reroute/client-only-redirect/+page.svelte	svelte
+<h1>Should be redirected</h1>
+
+=== 88 packages/kit/test/apps/basics/src/routes/reroute/client-only-redirect/a/+page.svelte	svelte
+<h1>
+  Should have been rewritten to <code>/reroute/client-only-redirect/b</code>
+</h1>
+
+=== 32 packages/kit/test/apps/basics/src/routes/reroute/client-only-redirect/b/+page.svelte	svelte
+<h1>Successfully rewritten</h1>
+
+=== 190 packages/kit/test/apps/basics/src/routes/reroute/error-handling/+page.svelte	svelte
+<a href="/reroute/error-handling/client-error" id="client-error"
+  >Url with client error</a
+>
+<a href="/reroute/error-handling/server-error" id="server-error"
+  >Url with server error</a
+>
+
+=== 25 packages/kit/test/apps/basics/src/routes/reroute/error-handling/client-error-rewritten/+page.svelte	svelte
+<h1>Full Navigation</h1>
+
+=== 173 packages/kit/test/apps/basics/src/routes/reroute/error-handling/client-error/+page.svelte	svelte
+<h1>
+  The rewrite on this page should fail in the browser, causing a full navigation
+  that resolves to
+  <code>/reroute/error-handling/client-error-rewritten</code>
+</h1>
+
+=== 46 packages/kit/test/apps/basics/src/routes/reroute/error-handling/server-error/+page.svelte	svelte
+<h1>Should be unreachable - 500 expected</h1>
+
+=== 144 packages/kit/test/apps/basics/src/routes/reroute/external/+page.svelte	svelte
+<a href="/reroute/external/rewritten">Go to rewritten page</a>
+<a href="https://expired.badssl.com/" data-test="external-url">External Link</a>
+
+=== 406 packages/kit/test/apps/basics/src/routes/reroute/preload-data/+page.svelte	svelte
+<script>
+  import { preloadData } from "$app/navigation";
+
+  /** @type {Record<string, any> | null} */
+  let data = null;
+
+  async function onClick() {
+    const result = await preloadData("/reroute/preload-data/a");
+    if (result.type === "loaded") {
+      data = result.data;
+    }
+  }
+</script>
+
+<button onclick={onClick}>Preload</button>
+
+{#if data}
+  <pre>{JSON.stringify(data, null, 2)}</pre>
+{/if}
+
+=== 70 packages/kit/test/apps/basics/src/routes/reroute/prerendered/+page.svelte	svelte
+<a href="/reroute/prerendered/to-destination">to prerendered page</a>
+
+=== 55 packages/kit/test/apps/basics/src/routes/reroute/prerendered/destination/+page.svelte	svelte
+<h1>reroute that points to prerendered page works</h1>
+
+=== 88 packages/kit/test/apps/basics/src/routes/reset-focus/+page.svelte	svelte
+<button id="an:invalid+selector"
+  >I have a weird ID but I should be focused</button
+>
+
+=== 459 packages/kit/test/apps/basics/src/routes/routing/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>Great success!</h1>
+
+<a href="/routing/a">a</a>
+<a href="/routing/ambiguous/ok.json" rel="external">ok</a>
+<a href="/routing/next-paint">next-paint</a>
+<a href="/routing/symlink-from">symlinked</a>
+<a href="http://localhost:{page.url.searchParams.get('port')}">elsewhere</a>
+<a href="/static.json">static.json</a>
+
+<a href="/routing/b" data-sveltekit-reload>b</a>
+
+<div class="hydrate-test"></div>
+
+=== 85 packages/kit/test/apps/basics/src/routes/routing/[slug]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>{page.params.slug}</h1>
+
+=== 90 packages/kit/test/apps/basics/src/routes/routing/cancellation/+layout.svelte	svelte
+<slot />
+
+<a href="/routing/cancellation/a">a</a>
+<a href="/routing/cancellation/b">b</a>
+
+=== 22 packages/kit/test/apps/basics/src/routes/routing/cancellation/+page.svelte	svelte
+<h1>cancellation</h1>
+
+=== 32 packages/kit/test/apps/basics/src/routes/routing/cancellation/a/+page.svelte	svelte
+<h1>this should not appear</h1>
+
+=== 13 packages/kit/test/apps/basics/src/routes/routing/client/bar/+page.svelte	svelte
+<h1>bar</h1>
+
+=== 41 packages/kit/test/apps/basics/src/routes/routing/clobbered-node-name/+page.svelte	svelte
+<form>
+  <input id="nodeName" />
+</form>
+
+=== 43 packages/kit/test/apps/basics/src/routes/routing/const/+page.svelte	svelte
+<h1>reserved words are okay as routes</h1>
+
+=== 25 packages/kit/test/apps/basics/src/routes/routing/dirs/bar/+page.svelte	svelte
+<h1 class="bar">bar</h1>
+
+=== 66 packages/kit/test/apps/basics/src/routes/routing/dirs/bar/[a]/+page.svelte	svelte
+<h1>A page</h1>
+
+<a href="/routing/dirs/foo/xyz">same segment</a>
+
+=== 35 packages/kit/test/apps/basics/src/routes/routing/dirs/foo/+page.svelte	svelte
+<h1>foo</h1>
+<a href="bar">bar</a>
+
+=== 16 packages/kit/test/apps/basics/src/routes/routing/dirs/foo/[b]/+page.svelte	svelte
+<h1>B page</h1>
+
+=== 182 packages/kit/test/apps/basics/src/routes/routing/external-popstate/+page.svelte	svelte
+<h1>hello</h1>
+
+<button
+  onclick={() => {
+    history.pushState({}, "", "/routing/external-popstate/does-not-exist");
+  }}>go to /routing/external-popstate/does-not-exist</button
+>
+
+=== 43 packages/kit/test/apps/basics/src/routes/routing/focus/+page.svelte	svelte
+<a href="/routing/focus/a#p">click me!</a>
+
+=== 123 packages/kit/test/apps/basics/src/routes/routing/focus/a/+page.svelte	svelte
+<button>button 1</button>
+<button>button 2</button>
+<p id="p">cannot be focused</p>
+<button id="button3">button 3</button>
+
+=== 442 packages/kit/test/apps/basics/src/routes/routing/form-get/+page.svelte	svelte
+<script>
+  import { afterNavigate } from "$app/navigation";
+  import { page } from "$app/state";
+
+  let type = "...";
+
+  afterNavigate((navigation) => {
+    type = /** @type {string} */ (navigation.type);
+  });
+</script>
+
+<h1>{page.url.searchParams.get("q") ?? "..."}</h1>
+<h2>{type}</h2>
+<h3>{page.url.searchParams.get("foo") ?? "..."}</h3>
+
+<form>
+  <input name="q" />
+  <button type="submit" name="foo" value="bar">Submit</button>
+</form>
+
+=== 156 packages/kit/test/apps/basics/src/routes/routing/form-target-blank/+page.svelte	svelte
+<form target="_blank">
+  <button>Inside form</button>
+</form>
+
+<form id="my-form"></form>
+
+<button formtarget="_blank" form="my-form">Outside form</button>
+
+=== 309 packages/kit/test/apps/basics/src/routes/routing/hashes/a/+page.svelte	svelte
+<h1 id="hash-target">a</h1>
+<a href="#hash-target">hash link</a>
+<a href="/routing/hashes/b">b</a>
+<a href="#replace-state" data-sveltekit-replacestate>replace state</a>
+
+<a data-sveltekit-preload-data href="/routing/hashes/a">/routing/hashes/a</a>
+<a data-sveltekit-preload-data href="#preload">#preload</a>
+
+=== 67 packages/kit/test/apps/basics/src/routes/routing/hashes/b/+page.svelte	svelte
+<h1>b</h1>
+<button onclick={() => history.back()}>go back</button>
+
+=== 59 packages/kit/test/apps/basics/src/routes/routing/hashes/base/+layout.svelte	svelte
+<svelte:head>
+  <base href="/" />
+</svelte:head>
+
+<slot />
+
+=== 62 packages/kit/test/apps/basics/src/routes/routing/hashes/base/+page.svelte	svelte
+<a id="navigate" href="/routing/hashes/base/a#x">navigate</a>
+
+=== 16 packages/kit/test/apps/basics/src/routes/routing/hashes/base/a/+page.svelte	svelte
+<p id="x">X</p>
+
+=== 52 packages/kit/test/apps/basics/src/routes/routing/hashes/focus/+page.svelte	svelte
+<a href="#example">focus</a>
+<input id="example" />
+
+=== 452 packages/kit/test/apps/basics/src/routes/routing/hashes/pagestate/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+  import { onMount } from "svelte";
+
+  /** @type {string} */
+  let hash;
+
+  onMount(set_hash);
+
+  function set_hash() {
+    hash = window.location.hash;
+  }
+</script>
+
+<svelte:window on:hashchange={set_hash} />
+
+<h1 id="window-hash">{hash}</h1>
+<h1 id="page-url-hash">{page.url.hash}</h1>
+
+<a href="#target">Nav to hash</a>
+<a href="/routing/hashes/pagestate">Nav to page</a>
+<div id="target">Target</div>
+
+=== 282 packages/kit/test/apps/basics/src/routes/routing/hashes/target/+page.svelte	svelte
+<ol>
+  <li><a href="#p1">first paragraph</a></li>
+  <li><a href="#p2">second paragraph</a></li>
+</ol>
+
+<p tabindex="-1" id="p1">paragraph 1</p>
+<p tabindex="-1" id="p2">paragraph 2</p>
+
+<li><button>next focus element</button></li>
+
+<style>
+  p:target {
+    color: red;
+  }
+</style>
+
+=== 154 packages/kit/test/apps/basics/src/routes/routing/link-outside-app-target/source/+page.svelte	svelte
+<script>
+  import { onMount } from "svelte";
+  import { increment, count } from "../state.js";
+
+  onMount(increment);
+</script>
+
+<h1>source: {count}</h1>
+
+=== 84 packages/kit/test/apps/basics/src/routes/routing/link-outside-app-target/target/+page.svelte	svelte
+<script>
+  import { count } from "../state.js";
+</script>
+
+<h1>target: {count}</h1>
+
+=== 179 packages/kit/test/apps/basics/src/routes/routing/long-navigation/+page.svelte	svelte
+<script>
+  import { onNavigate } from "$app/navigation";
+
+  onNavigate(() => new Promise((resolve) => setTimeout(resolve, 3000)));
+</script>
+
+<a href="/routing">Go to routing</a>
+
+=== 246 packages/kit/test/apps/basics/src/routes/routing/matched/+layout.svelte	svelte
+<a href="/routing/matched/a">/routing/matched/a</a>
+<a href="/routing/matched/B">/routing/matched/B</a>
+<a href="/routing/matched/1">/routing/matched/1</a>
+<a href="/routing/matched/everything-else">/routing/matched/everything-else</a>
+
+<slot />
+
+=== 18 packages/kit/test/apps/basics/src/routes/routing/matched/+page.svelte	svelte
+<h1>Matchers</h1>
+
+=== 99 packages/kit/test/apps/basics/src/routes/routing/matched/[fallback]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>fallback: {page.params.fallback}</h1>
+
+=== 98 packages/kit/test/apps/basics/src/routes/routing/matched/[letter=lowercase]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>lowercase: {page.params.letter}</h1>
+
+=== 98 packages/kit/test/apps/basics/src/routes/routing/matched/[letter=uppercase]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>uppercase: {page.params.letter}</h1>
+
+=== 95 packages/kit/test/apps/basics/src/routes/routing/matched/[number=numeric]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>number: {page.params.number}</h1>
+
+=== 224 packages/kit/test/apps/basics/src/routes/routing/missing-href/+page.svelte	svelte
+<script>
+  import { afterNavigate } from "$app/navigation";
+
+  let count = 0;
+
+  afterNavigate(() => {
+    count += 1;
+  });
+</script>
+
+<!-- svelte-ignore a11y-missing-attribute -->
+<a data-testid="count">count: {count}</a>
+
+=== 18 packages/kit/test/apps/basics/src/routes/routing/next-paint/+page.svelte	svelte
+<p>next-paint</p>
+
+=== 440 packages/kit/test/apps/basics/src/routes/routing/preloading/error/+page.svelte	svelte
+<script>
+  import { preloadData } from "$app/navigation";
+
+  /** @type {any} */
+  let data;
+</script>
+
+<button
+  type="button"
+  onclick={async () => {
+    data = await preloadData("/routing/preloading/error/404");
+  }}>404</button
+>
+
+<button
+  type="button"
+  onclick={async () => {
+    data = await preloadData("/routing/preloading/error/500");
+  }}>500</button
+>
+
+<p>{`${data?.type}`} {`${data?.status}`} {`${data?.error?.message}`}</p>
+
+=== 657 packages/kit/test/apps/basics/src/routes/routing/preloading/hash-route/+page.svelte	svelte
+<script>
+  import { onMount } from "svelte";
+  import { page } from "$app/state";
+
+  let { data } = $props();
+
+  /** @type {Record<string, { title: string }>} */
+  const modal_contents = {
+    "please-dont-show-me": {
+      title: "Oopsie",
+    },
+    "please-dont-show-me-jr": {
+      title: "Oopsie Jr.",
+    },
+  };
+
+  /** @type {{ title: string } | undefined} */
+  let modal = $state(undefined);
+
+  const show_modal = () => {
+    const hash = page.url.hash.substring(1);
+    modal = modal_contents[hash];
+  };
+
+  onMount(show_modal);
+</script>
+
+<svelte:window on:popstate={show_modal} />
+
+<h1>{modal?.title ?? ""}</h1>
+<p>Loaded {data.calls} times.</p>
+
+=== 402 packages/kit/test/apps/basics/src/routes/routing/rest/[...rest]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+
+  /** @type {{ data: import('./$types').PageData }} */
+  let { data } = $props();
+</script>
+
+<h1>{page.params.rest}</h1>
+<h2>{data.rest}</h2>
+
+<a href="/routing/rest/xyz/abc/deep">deep</a>
+<a href="/routing/rest/xyz/abc">abc</a>
+<a href="/routing/rest/xyz/abc/def">def</a>
+<a href="/routing/rest/xyz/abc/def/ghi">ghi</a>
+<a href="/routing/rest">empty</a>
+
+=== 301 packages/kit/test/apps/basics/src/routes/routing/rest/[...rest]/deep/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+
+  /** @type {{ data: import('./$types').PageData }} */
+  let { data } = $props();
+</script>
+
+<h1>{page.params.rest}</h1>
+<h2>{data.rest}</h2>
+
+<a href="/routing/rest/xyz/abc/qwe/deep.json" rel="external">deep</a>
+<a href="/routing/rest/xyz/abc">back</a>
+
+=== 311 packages/kit/test/apps/basics/src/routes/routing/rest/non-greedy/+layout.svelte	svelte
+<h1>non-greedy</h1>
+
+<slot />
+
+<a href="/routing/rest/non-greedy/foo/one/two">foo/one/two</a>
+<a href="/routing/rest/non-greedy/food/one/two">food/one/two</a>
+<a href="/routing/rest/non-greedy/one-bar/two/three">one-bar/two/three</a>
+<a href="/routing/rest/non-greedy/one-bard/two/three">one-bard/two/three</a>
+
+=== 96 packages/kit/test/apps/basics/src/routes/routing/rest/non-greedy/[dynamic]-bar/[...rest]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h2>{JSON.stringify(page.params)}</h2>
+
+=== 223 packages/kit/test/apps/basics/src/routes/routing/rest/path/+layout.svelte	svelte
+<a href="/routing/rest/path/one">one</a>
+<a href="/routing/rest/path/two">two</a>
+<a href="/routing/rest/path/three">three</a>
+<a href="/routing/rest/path/four">four</a>
+<a href="/routing/rest/path/five">five</a>
+
+<slot />
+
+=== 58 packages/kit/test/apps/basics/src/routes/routing/route-id/+page.svelte	svelte
+<a href="/routing/route-id/foo">/routing/route-id/foo</a>
+
+=== 227 packages/kit/test/apps/basics/src/routes/routing/route-id/[x]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+
+  /** @type {{ data: import('./$types').PageData }} */
+  let { data } = $props();
+</script>
+
+<h1>route.id in load: {data.route.id}</h1>
+<h2>route.id in store: {page.route.id}</h2>
+
+=== 395 packages/kit/test/apps/basics/src/routes/routing/shadow-dom/+page.svelte	svelte
+<script>
+  import { onMount } from "svelte";
+
+  /** @type {HTMLDivElement} */
+  let elem;
+
+  onMount(() => {
+    const shadow = elem.attachShadow({ mode: "open" });
+    const anchor = document.createElement("a");
+    anchor.href = "/routing/a";
+    anchor.innerHTML = "<slot>";
+    shadow.appendChild(anchor);
+  });
+</script>
+
+<div bind:this={elem}>
+  <div id="clickme">Hello world</div>
+</div>
+
+=== 269 packages/kit/test/apps/basics/src/routes/routing/slashes/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<a href="/routing/">/routing/</a>
+<a href="/routing/?">/routing/?</a>
+<a href="/routing/?foo=bar">/routing/?foo=bar</a>
+<a href="http://localhost:{page.url.searchParams.get('port')}/with-slash/"
+  >external</a
+>
+
+=== 70 packages/kit/test/apps/basics/src/routes/routing/split-params/+page.svelte	svelte
+<a href="/routing/split-params/x-y-z">/routing/split-params/x-y-z</a>
+
+=== 107 packages/kit/test/apps/basics/src/routes/routing/split-params/[a]-[b]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>{page.params.a}</h1>
+<h2>{page.params.b}</h2>
+
+=== 19 packages/kit/test/apps/basics/src/routes/routing/symlink-to/+page.svelte	svelte
+<h1>symlinked</h1>
+
+=== 524 packages/kit/test/apps/basics/src/routes/routing/trailing-slash-server/+layout.svelte	svelte
+<script>
+  import { page } from "$app/state";
+
+  let { data, children } = $props();
+</script>
+
+<ul>
+  <li><a href="/routing/trailing-slash-server/always">/always</a></li>
+  <li><a href="/routing/trailing-slash-server/ignore">/ignore</a></li>
+  <li><a href="/routing/trailing-slash-server/ignore/">/ignore/</a></li>
+  <li><a href="/routing/trailing-slash-server/never/">/never/</a></li>
+</ul>
+
+<p data-test-id="pathname-store">{page.url.pathname}</p>
+<p data-test-id="pathname-data">{data.pathname}</p>
+
+{@render children()}
+
+=== 336 packages/kit/test/apps/basics/src/routes/routing/trailing-slash/+layout.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<ul data-sveltekit-preload-data="hover">
+  <li><a href="/routing/trailing-slash/always">/always</a></li>
+  <li><a href="/routing/trailing-slash/ignore/">/ignore/</a></li>
+  <li><a href="/routing/trailing-slash/never/">/never/</a></li>
+</ul>
+
+<p>{page.url.pathname}</p>
+
+<slot />
+
+=== 128 packages/kit/test/apps/basics/src/routes/scroll/cross-document/a/+page.svelte	svelte
+<h1>a</h1>
+
+<div style="height: 200vh; background: teal"></div>
+
+<a data-sveltekit-reload href="/scroll/cross-document/b">b</a>
+
+=== 53 packages/kit/test/apps/basics/src/routes/scroll/cross-document/b/+page.svelte	svelte
+<h1>b</h1>
+
+<a href="/scroll/cross-document/c">c</a>
+
+=== 511 packages/kit/test/apps/basics/src/routes/scroll/push-state/+page.svelte	svelte
+<script>
+  import { goto } from "$app/navigation";
+  import { page } from "$app/state";
+
+  function handleClick() {
+    goto("", { shallow: true, state: { active: true } });
+  }
+</script>
+
+<a id="subpage-link" href="/scroll/push-state/a">Subpage</a>
+
+{#each { length: 20 } as _, n}
+  <p>#{n}</p>
+{/each}
+
+<button id="shallow-button" type="button" onclick={handleClick}>Shallow</button>
+
+{#if page.state.active}
+  <button id="back-button" type="button" onclick={() => history.back()}
+    >Back</button
+  >
+{/if}
+
+=== 88 packages/kit/test/apps/basics/src/routes/scroll/push-state/a/+page.svelte	svelte
+<button id="back-button" type="button" onclick={() => history.back()}
+  >Back</button
+>
+
+=== 177 packages/kit/test/apps/basics/src/routes/scroll/top/+page.svelte	svelte
+<div style="width:100%; height: 200vh; background-color: goldenrod"></div>
+<!-- svelte-ignore a11y-invalid-attribute -->
+<p><a href="#">#</a></p>
+<p><a href="#top">#top</a></p>
+
+=== 79 packages/kit/test/apps/basics/src/routes/selection/+layout.svelte	svelte
+<nav><a href="/selection/a">a</a> <a href="/selection/b">b</a></nav>
+
+<slot />
+
+=== 200 packages/kit/test/apps/basics/src/routes/serialization-basic/+page.svelte	svelte
+<script lang="ts">
+  import type { PageData } from "./$types";
+
+  let { data }: { data: PageData } = $props();
+</script>
+
+<h1>{data.foo.bar()}</h1>
+<a href="/serialization-basic/child">child page</a>
+
+=== 148 packages/kit/test/apps/basics/src/routes/serialization-basic/child/+page.svelte	svelte
+<script lang="ts">
+  import type { PageData } from "./$types";
+
+  let { data }: { data: PageData } = $props();
+</script>
+
+<h1>{data.foo.bar()}</h1>
+
+=== 279 packages/kit/test/apps/basics/src/routes/serialization-form-enhanced/+page.svelte	svelte
+<script lang="ts">
+  import { enhance } from "$app/forms";
+
+  const { form } = $props();
+</script>
+
+<form method="POST" use:enhance>
+  <button type="submit">submit</button>
+</form>
+
+{#if form}
+  <h1>{form?.foo?.bar()}</h1>
+{/if}
+
+<a href="/serialization-basic">To basic form</a>
+
+=== 207 packages/kit/test/apps/basics/src/routes/serialization-form-non-enhanced/+page.svelte	svelte
+<script lang="ts">
+  const { form } = $props();
+</script>
+
+<form method="POST">
+  <button type="submit">submit</button>
+</form>
+
+<h1>{form?.foo?.bar()}</h1>
+
+<a href="/serialization-basic">To basic form</a>
+
+=== 956 packages/kit/test/apps/basics/src/routes/shadowed/+page.svelte	svelte
+<a href="/shadowed/simple">simple</a>
+<a href="/shadowed/redirect-get">redirect-get</a>
+<a href="/shadowed/redirect-get-with-cookie">redirect-get-with-cookie</a>
+<a href="/shadowed/redirect-get-with-cookie-from-fetch"
+  >redirect-get-with-cookie-from-fetch</a
+>
+<a href="/shadowed/error-get">error-get</a>
+<a href="/shadowed/no-get">no-get</a>
+<a href="/shadowed/dynamic/foo">dynamic/foo</a>
+<a href="/shadowed/missing-get">missing-get</a>
+<a href="/shadowed/serialization">serialization</a>
+
+<form action="/shadowed/redirect-post" method="post">
+  <button type="submit" id="redirect-post">redirect</button>
+</form>
+
+<form action="/shadowed/redirect-post-with-cookie" method="post">
+  <button type="submit" id="redirect-post-with-cookie">redirect</button>
+</form>
+
+<form action="/shadowed/error-post" method="post" enctype="multipart/form-data">
+  <input name="message" value="posted data" />
+  <button type="submit" id="error-post">error</button>
+</form>
+
+=== 36 packages/kit/test/apps/basics/src/routes/shadowed/error-get/+page.svelte	svelte
+<h1>This should not be visible</h1>
+
+=== 273 packages/kit/test/apps/basics/src/routes/shadowed/error-post/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+
+  /** @type {{ data: import('./$types').PageData, form: import('./$types').ActionData }} */
+  let { data, form } = $props();
+</script>
+
+<h1>{data.get_message} / {form?.errors?.post_message}</h1>
+<h2>status: {page.status}</h2>
+
+=== 26 packages/kit/test/apps/basics/src/routes/shadowed/missing-get/+page.svelte	svelte
+<h1>post without get</h1>
+
+=== 57 packages/kit/test/apps/basics/src/routes/shadowed/post-success-redirect/+page.svelte	svelte
+<form method="POST">
+  <button>Click me</button>
+</form>
+
+=== 29 packages/kit/test/apps/basics/src/routes/shadowed/post-success-redirect/redirected/+page.svelte	svelte
+<h1>POST was successful</h1>
+
+=== 49 packages/kit/test/apps/basics/src/routes/shadowed/redirect/+page.svelte	svelte
+<a href="/shadowed/redirect/a">redirect to c</a>
+
+=== 18 packages/kit/test/apps/basics/src/routes/shadowed/redirect/[a]/+page.svelte	svelte
+<h1>redirect</h1>
+
+=== 14 packages/kit/test/apps/basics/src/routes/shadowed/redirect/b/+page.svelte	svelte
+<h1>done</h1>
+
+=== 73 packages/kit/test/apps/basics/src/routes/shadowed/same-render-entry/+page.svelte	svelte
+<a href="/shadowed/same-render?param1=value1">Click here to navigate</a>
+
+=== 1411 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/+layout.svelte	svelte
+<script>
+  import { afterNavigate, beforeNavigate, onNavigate } from "$app/navigation";
+  import { onMount } from "svelte";
+
+  onMount(() => {
+    window.shallow_navigation_log = [];
+  });
+
+  beforeNavigate((navigation) => {
+    if (!navigation.shallow) return;
+
+    window.shallow_navigation_log.push({
+      hook: "before",
+      params: navigation.to?.params,
+      path: navigation.to?.url.pathname,
+      route: navigation.to?.route.id,
+      shallow: navigation.shallow,
+      type: navigation.type,
+    });
+
+    if (navigation.to?.url.searchParams.has("cancel")) {
+      navigation.cancel();
+    } else {
+      void navigation.complete.then(() => {
+        window.shallow_navigation_log.push({ hook: "complete" });
+      });
+    }
+  });
+
+  onNavigate((navigation) => {
+    if (navigation.shallow) {
+      window.shallow_navigation_log.push({
+        hook: "on",
+        shallow: navigation.shallow,
+        type: navigation.type,
+      });
+    }
+  });
+
+  afterNavigate((navigation) => {
+    if (navigation.shallow) {
+      window.shallow_navigation_log.push({
+        hook: "after",
+        shallow: navigation.shallow,
+        state: document.querySelector("p")?.textContent ?? null,
+        type: navigation.type,
+      });
+    }
+  });
+</script>
+
+<a href="/shallow-routing/push-state">push-state</a>
+<a href="/shallow-routing/push-state/a">a</a>
+<a href="/shallow-routing/push-state/b">b</a>
+
+<slot />
+
+=== 2808 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/+page.svelte	svelte
+<script>
+  import { goto, refreshAll } from "$app/navigation";
+  import { page } from "$app/state";
+
+  let { data } = $props();
+  /** @type {string | null} */
+  let resolved = $state(null);
+
+  function one() {
+    void goto("", { shallow: true, state: { active: true } });
+  }
+
+  function two() {
+    void goto("/shallow-routing/push-state/a", {
+      state: { active: true },
+      shallow: true,
+    });
+  }
+
+  async function params() {
+    await goto("/shallow-routing/push-state/hello", {
+      state: { active: true },
+      shallow: true,
+    });
+    resolved = document.querySelector("p")?.textContent ?? null;
+  }
+</script>
+
+<h1>parent</h1>
+
+<button data-id="one" onclick={one}>add state on current page</button>
+<button data-id="two" onclick={two}>shallow navigate to child page</button>
+<button data-id="params" onclick={params}
+  >shallow navigate to parameterized page</button
+>
+<button
+  data-id="cancel"
+  onclick={() => goto("?cancel", { shallow: true, state: { active: true } })}
+  >cancel</button
+>
+<button
+  data-id="state-only"
+  onclick={() => goto("", { shallow: true, state: { active: true } })}
+  >state only</button
+>
+<button
+  data-id="state-only-persist"
+  onclick={() =>
+    goto("", { shallow: true, state: { active: true }, persistState: true })}
+  >persist state only</button
+>
+<button
+  data-id="shallow-persist"
+  onclick={() =>
+    goto("/shallow-routing/push-state/a", {
+      shallow: true,
+      state: { active: true },
+      persistState: true,
+    })}>persist shallow state</button
+>
+<button
+  data-id="goto-state"
+  onclick={() =>
+    goto("/shallow-routing/push-state", { state: { active: true } })}
+  >goto with state</button
+>
+<button
+  data-id="goto-persist"
+  onclick={() =>
+    goto("/shallow-routing/push-state", {
+      state: { active: true },
+      persistState: true,
+    })}>persist goto state</button
+>
+<button
+  data-id="end-shallow"
+  onclick={() =>
+    goto("/shallow-routing/push-state", { state: { active: true } })}
+  >end shallow</button
+>
+<button data-id="refresh" onclick={refreshAll}>refresh all</button>
+<div style="position: fixed; right: 0; bottom: 0">
+  <input data-id="options-focus" aria-label="focus target" />
+  <button
+    data-id="options-default"
+    onclick={() => goto("?options=default", { shallow: true })}
+    >default options</button
+  >
+  <button
+    data-id="options-false"
+    onclick={() => goto("?options=false", { shallow: true, reset: true })}
+    >disabled options</button
+  >
+</div>
+
+<p>active: {page.state.active ?? false}</p>
+<span data-id="shallow">
+  {page.shallow
+    ? `${page.shallow.url.pathname} ${page.shallow.route?.id ?? "null"} ${JSON.stringify(page.shallow.params)}`
+    : "null"}
+</span>
+<span data-id="resolved">{resolved}</span>
+<span data-id="now">{data.now}</span>
+<div style="height: 2000px"></div>
+
+=== 29 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/[param]/+page.svelte	svelte
+<h1>parameterized child</h1>
+
+=== 417 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/a/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+  import { goto } from "$app/navigation";
+</script>
+
+<h1>a</h1>
+
+<p>active: {page.state.active ?? false}</p>
+<span data-id="shallow"
+  >{page.shallow ? page.shallow.url.pathname : "null"}</span
+>
+
+<button
+  data-id="shallow-b"
+  onclick={() =>
+    goto("/shallow-routing/push-state/b", {
+      shallow: true,
+      state: { active: true },
+    })}>shallow to b</button
+>
+
+=== 113 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/b/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>b</h1>
+
+<p>active: {page.state.active ?? false}</p>
+
+=== 242 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/effect/+page.svelte	svelte
+<script lang="ts">
+  import { pushState } from "$app/navigation";
+
+  let count = $state(0);
+
+  $effect(() => {
+    if (count) pushState("", { count });
+  });
+</script>
+
+<p>count: {count}</p>
+<button onclick={() => count++}>Increment</button>
+
+=== 722 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/foo/+page.svelte	svelte
+<script>
+  import { goto } from "$app/navigation";
+  import { page } from "$app/state";
+  import { Foo } from "#lib";
+</script>
+
+<button
+  data-id="shallow"
+  onclick={() => {
+    const state = $state({ foo: new Foo("it works?"), count: 0 });
+    void goto("", { shallow: true, state });
+  }}>add state</button
+>
+
+<button
+  data-id="full"
+  onclick={() => {
+    const state = $state({ foo: new Foo("it works?"), count: 0 });
+    void goto("", { state });
+  }}>add state with navigation</button
+>
+
+<button onclick={() => (page.state.count = (page.state.count ?? 0) + 1)}
+  >bump count</button
+>
+
+<p data-testid="foo">foo: {page.state.foo?.bar() ?? "nope"}</p>
+<p data-testid="count">count: {page.state.count ?? "nope"}</p>
+
+=== 735 packages/kit/test/apps/basics/src/routes/shallow-routing/refresh/+page.svelte	svelte
+<script>
+  import { goto, invalidate, invalidateAll, refreshAll } from "$app/navigation";
+  import { page } from "$app/state";
+
+  let { data } = $props();
+
+  function activate() {
+    goto("", { shallow: true, state: { active: true } });
+  }
+</script>
+
+<h1>refresh</h1>
+
+<button data-id="activate" onclick={activate}>add state</button>
+<button data-id="refreshAll" onclick={() => (window.promise = refreshAll())}
+  >refreshAll</button
+>
+<button
+  data-id="invalidate"
+  onclick={() => (window.promise = invalidate("refresh:now"))}
+  >invalidate</button
+>
+<button
+  data-id="invalidateAll"
+  onclick={() => (window.promise = invalidateAll())}>invalidateAll</button
+>
+
+<p>active: {page.state.active ?? false}</p>
+<span>{data.now}</span>
+
+=== 1026 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/+layout.svelte	svelte
+<script>
+  import { afterNavigate, beforeNavigate, onNavigate } from "$app/navigation";
+  import { onMount } from "svelte";
+
+  onMount(() => {
+    window.shallow_navigation_log = [];
+  });
+
+  beforeNavigate((navigation) => {
+    if (navigation.shallow) {
+      window.shallow_navigation_log.push({
+        hook: "before",
+        shallow: navigation.shallow,
+        type: navigation.type,
+      });
+    }
+  });
+
+  onNavigate((navigation) => {
+    if (navigation.shallow) {
+      window.shallow_navigation_log.push({
+        hook: "on",
+        shallow: navigation.shallow,
+        type: navigation.type,
+      });
+    }
+  });
+
+  afterNavigate((navigation) => {
+    if (navigation.shallow) {
+      window.shallow_navigation_log.push({
+        hook: "after",
+        shallow: navigation.shallow,
+        type: navigation.type,
+      });
+    }
+  });
+</script>
+
+<a href="/shallow-routing/replace-state">replace-state</a>
+<a href="/shallow-routing/replace-state/a">a</a>
+<a href="/shallow-routing/replace-state/b">b</a>
+
+<slot />
+
+=== 1045 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/+page.svelte	svelte
+<script>
+  import { goto } from "$app/navigation";
+  import { page } from "$app/state";
+
+  async function one() {
+    await goto("", { shallow: true, replace: true, state: { active: true } });
+  }
+
+  async function two() {
+    await goto("/shallow-routing/replace-state/a", {
+      replace: true,
+      shallow: true,
+      state: { active: true },
+    });
+  }
+</script>
+
+<h1>parent</h1>
+
+<button data-id="one" onclick={one}>replace state on current page</button>
+<button data-id="two" onclick={two}>shallow navigate and replace</button>
+<button
+  data-id="end-shallow"
+  onclick={() =>
+    goto("/shallow-routing/replace-state", {
+      replace: true,
+      state: { active: true },
+    })}>end shallow</button
+>
+<button
+  data-id="state-only"
+  onclick={() =>
+    goto("", {
+      shallow: true,
+      replace: true,
+      state: { active: true },
+      persistState: true,
+    })}>persist state only</button
+>
+
+<p>active: {page.state.active ?? false}</p>
+<span data-id="shallow"
+  >{page.shallow ? page.shallow.url.pathname : "null"}</span
+>
+
+=== 113 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/a/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>a</h1>
+
+<p>active: {page.state.active ?? false}</p>
+
+=== 248 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/effect/+page.svelte	svelte
+<script lang="ts">
+  import { replaceState } from "$app/navigation";
+
+  let count = $state(0);
+
+  $effect(() => {
+    if (count) replaceState("", { count });
+  });
+</script>
+
+<p>count: {count}</p>
+<button onclick={() => count++}>Increment</button>
+
+=== 116 packages/kit/test/apps/basics/src/routes/snapshot/+layout.svelte	svelte
+<a href="/snapshot/a">a</a>
+<a href="/snapshot/b">b</a>
+<a href="/snapshot/c" data-sveltekit-reload>c</a>
+
+<slot />
+
+=== 235 packages/kit/test/apps/basics/src/routes/snapshot/a/+page.svelte	svelte
+<script>
+  let message = "";
+
+  /** @type {import('./$types').Snapshot<string>} */
+  export const snapshot = {
+    capture: () => message,
+    restore: (snapshot) => (message = snapshot),
+  };
+</script>
+
+<input bind:value={message} />
+
+=== 374 packages/kit/test/apps/basics/src/routes/snapshot/helper/+layout.svelte	svelte
+<script>
+  import { snapshot } from "$app/navigation";
+
+  let { children } = $props();
+  let value = $state("");
+
+  snapshot({
+    id: "snapshot-helper-layout",
+    capture: () => value,
+    restore: (snapshot) => (value = snapshot),
+    reset: () => (value = ""),
+  });
+</script>
+
+<label>
+  layout
+  <input data-testid="layout" bind:value />
+</label>
+
+{@render children()}
+
+=== 1187 packages/kit/test/apps/basics/src/routes/snapshot/helper/+page.svelte	svelte
+<script>
+  import { afterNavigate, goto, snapshot } from "$app/navigation";
+  import { Foo } from "#lib";
+
+  let message = $state("");
+  let manual = $state("");
+  let foo = $state(new Foo("initial"));
+  /** @type {string[]} */
+  let order = $state([]);
+
+  snapshot({
+    capture: () => message,
+    restore: (value) => {
+      message = value;
+      order.push("restore");
+    },
+  });
+
+  snapshot({
+    id: "snapshot-helper-manual",
+    capture: () => manual,
+    restore: (value) => (manual = value),
+  });
+
+  snapshot({
+    id: "snapshot-helper-transport",
+    capture: () => foo,
+    restore: (value) => (foo = value),
+  });
+
+  afterNavigate(() => {
+    order.push("afterNavigate");
+  });
+</script>
+
+<label>
+  default
+  <input data-testid="default" bind:value={message} />
+</label>
+
+<label>
+  manual
+  <input data-testid="manual" bind:value={manual} />
+</label>
+
+<button
+  onclick={() => void goto("", { shallow: true, state: { active: true } })}
+>
+  shallow
+</button>
+<button onclick={() => (foo = new Foo("restored"))}
+  >change transport value</button
+>
+
+<a href="/snapshot/helper/b">b</a>
+
+<p data-testid="transport">{foo.bar()}</p>
+<p data-testid="order">{order.join(",")}</p>
+
+=== 45 packages/kit/test/apps/basics/src/routes/snapshot/helper/b/+page.svelte	svelte
+<h1>b</h1>
+
+<a href="/snapshot/helper">a</a>
+
+=== 400 packages/kit/test/apps/basics/src/routes/snapshot/order/+page.svelte	svelte
+<script>
+  import { afterNavigate } from "$app/navigation";
+
+  /** @type {string[]} */
+  const order = $state([]);
+
+  /** @type {import('./$types').Snapshot<void>} */
+  export const snapshot = {
+    capture: () => {},
+    restore: () => {
+      order.push("restore");
+    },
+  };
+
+  afterNavigate(() => {
+    order.push("afterNavigate");
+  });
+</script>
+
+<p data-testid="order">{order.join(",")}</p>
+
+=== 242 packages/kit/test/apps/basics/src/routes/snapshot/stale/Stale.svelte	svelte
+<script>
+  import { snapshot } from "$app/navigation";
+
+  let value = $state("");
+
+  snapshot({
+    id: "stale-check",
+    capture: () => value,
+    restore: (v) => (value = v),
+  });
+</script>
+
+<input data-testid="stale-input" bind:value />
+
+=== 34 packages/kit/test/apps/basics/src/routes/snapshot/stale/a/+page.svelte	svelte
+<a href="/snapshot/stale/b">b</a>
+
+=== 233 packages/kit/test/apps/basics/src/routes/snapshot/stale/b/+page.svelte	svelte
+<script>
+  import Stale from "../Stale.svelte";
+
+  let shown = $state(false);
+</script>
+
+<button data-testid="toggle" onclick={() => (shown = !shown)}>toggle</button>
+
+{#if shown}
+  <Stale />
+{/if}
+
+<a href="/snapshot/stale/a">a</a>
+
+=== 193 packages/kit/test/apps/basics/src/routes/state/client-access/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+
+  let pathname = $state();
+</script>
+
+<h1>{`${pathname}`}</h1>
+
+<button
+  onclick={() => {
+    pathname = page.url.pathname;
+  }}>click</button
+>
+
+=== 188 packages/kit/test/apps/basics/src/routes/state/data/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+  import { goto } from "$app/navigation";
+</script>
+
+<button id="reload-button" onclick={() => goto(page.url.toString())}
+  >Reload</button
+>
+
+=== 367 packages/kit/test/apps/basics/src/routes/state/data/+layout.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<div id="state-data">{JSON.stringify(page.data)}</div>
+<div id="state-error">{page.error?.message}</div>
+<div id="url-hash">{page.url.hash}</div>
+
+<nav>
+  <a href="/state/data/xxx">xxx</a> <a href="/state/data/yyy">yyy</a>
+  <a href="/state/data/zzz">zzz</a> <a href="/state/data/foo">foo</a>
+</nav>
+
+<slot />
+
+=== 427 packages/kit/test/apps/basics/src/routes/state/data/state-update/+layout.svelte	svelte
+<script>
+  import { page } from "$app/state";
+  import { untrack } from "svelte";
+
+  let { children } = $props();
+
+  let previous = page.data;
+  let count = $state(0);
+
+  $effect(() => {
+    if (previous !== page.data) {
+      untrack(() => count++);
+    }
+  });
+</script>
+
+<p>page.data was updated {count} time(s)</p>
+<a href="/state/data/state-update/a">a</a>
+<a href="/state/data/state-update/b">b</a>
+
+{@render children()}
+
+=== 7 packages/kit/test/apps/basics/src/routes/state/data/state-update/a/+page.svelte	svelte
+Page A
+
+=== 7 packages/kit/test/apps/basics/src/routes/state/data/state-update/b/+page.svelte	svelte
+Page B
+
+=== 489 packages/kit/test/apps/basics/src/routes/state/navigating/+layout.svelte	svelte
+<script>
+  import { navigating } from "$app/state";
+</script>
+
+<nav>
+  <a href="/state/navigating/a">a</a>
+  <a href="/state/navigating/b">b</a>
+  <a href="/state/navigating/c">c</a>
+</nav>
+
+<div id="nav-status">
+  {#if navigating.to}
+    <!-- prettier-ignore -->
+    <p id="navigating">
+			navigating from {navigating.from?.url.pathname} to {navigating.to.url.pathname} ({navigating.type})
+		</p>
+  {:else}
+    <p id="not-navigating">not currently navigating</p>
+  {/if}
+</div>
+
+<slot />
+
+=== 9 packages/kit/test/apps/basics/src/routes/state/navigating/a/+page.svelte	svelte
+<p>a</p>
+
+=== 9 packages/kit/test/apps/basics/src/routes/state/navigating/b/+page.svelte	svelte
+<p>b</p>
+
+=== 9 packages/kit/test/apps/basics/src/routes/state/navigating/c/+page.svelte	svelte
+<p>c</p>
+
+=== 447 packages/kit/test/apps/basics/src/routes/state/url/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+  import { goto } from "$app/navigation";
+
+  const q = $derived(page.url.searchParams.get("q") || undefined);
+</script>
+
+<button
+  type="button"
+  onclick={() => {
+    // @ts-expect-error set is not in the types; we wanna test here that we guard against mutation in goto, too
+    page.url.searchParams.set("q", "test");
+    // @ts-expect-error
+    goto(page.url);
+  }}>test</button
+>
+
+<p>{`${q}`}</p>
+
+=== 210 packages/kit/test/apps/basics/src/routes/streaming/+page.svelte	svelte
+<a href="/streaming/universal">Universal</a>
+<a href="/streaming/server">Server</a>
+<a href="/streaming/server-error">Server Error</a>
+<a href="/streaming/server/delayed-rejection">Server Delayed Rejection</a>
+
+=== 50 packages/kit/test/apps/basics/src/routes/tracing/http-error/+page.svelte	svelte
+<h1>This should not render due to load error</h1>
+
+=== 17 packages/kit/test/apps/basics/src/routes/tracing/one/two/three/[...four]/+page.svelte	svelte
+<h1>Tracing</h1>
+
+=== 154 packages/kit/test/apps/basics/src/routes/treeshaking/browser/+page.svelte	svelte
+<script>
+  import { browser } from "$app/env";
+</script>
+
+<p>
+  {browser ? "client" : "server"}
+</p>
+<p>
+  negated: {!browser ? "server" : "client"}
+</p>
+
+=== 134 packages/kit/test/apps/basics/src/routes/treeshaking/dev/+page.svelte	svelte
+<script>
+  import { dev } from "$app/env";
+</script>
+
+<p>{dev ? "not prod" : "prod"}</p>
+<p>negated: {!dev ? "prod" : "not prod"}</p>
+
+=== 263 packages/kit/test/apps/basics/src/routes/use-action/+page.svelte	svelte
+<h1>Welcome to a test project</h1>
+<a href="/use-action/focus-and-scroll">Focus and scroll demo</a>
+
+<style>
+  :global(body) {
+    background-color: tan;
+    display: flex;
+    flex-direction: column;
+  }
+
+  a {
+    display: block;
+    margin: 20px;
+  }
+</style>
+
+=== 508 packages/kit/test/apps/basics/src/routes/use-action/focus-and-scroll/+page.svelte	svelte
+<script>
+  import { disableScrollHandling } from "$app/navigation";
+
+  const focusAndScroll = /** @param {HTMLInputElement} node */ (node) => {
+    disableScrollHandling();
+
+    node.focus();
+    node.scrollIntoView();
+  };
+</script>
+
+<div>They (don't) see me scrollin'...</div>
+<div style="height: 180vh; background-color: peru;">
+  <label for="input">Focus! </label>
+  <input use:focusAndScroll id="input" type="text" />
+</div>
+<div style="height: 180vh; background-color: teal;">They (not) focusin'</div>
+
+=== 94 packages/kit/test/apps/basics/src/routes/xss/[path]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1 id="one">{page.params.path}</h1>
+
+=== 26 packages/kit/test/apps/basics/src/routes/xss/query-tracking/+page.svelte	svelte
+<p>check window.pwned</p>
+
+=== 299 packages/kit/test/apps/basics/src/routes/xss/query/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+  import { to_pojo } from "./utils.js";
+
+  /** @type {{ data: import('./$types').PageData }} */
+  let { data } = $props();
+</script>
+
+<pre id="one">{JSON.stringify(data.values)}</pre>
+<pre id="two">{JSON.stringify(to_pojo(page.url.searchParams))}</pre>
+
+=== 90 packages/kit/test/apps/dev-only/src/routes/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<pre>{page.error?.message}</pre>
+
+=== 89 packages/kit/test/apps/dev-only/src/routes/+layout.svelte	svelte
+<script>
+  import { setup } from "../../../../setup.js";
+
+  setup();
+</script>
+
+<slot />
+
+=== 200 packages/kit/test/apps/dev-only/src/routes/+page.svelte	svelte
+<script>
+  import { onMount } from "svelte";
+
+  let message = "";
+
+  onMount(() => {
+    message = "hello world!";
+  });
+</script>
+
+<p>{message}</p>
+
+<a href="/optimize-deps">Go to /optimize-deps</a>
+
+=== 65 packages/kit/test/apps/dev-only/src/routes/illegal-imports/app-server/+page.svelte	svelte
+<script>
+  import { read } from "$app/server";
+  read;
+</script>
+
+=== 97 packages/kit/test/apps/dev-only/src/routes/illegal-imports/env/private/+page.svelte	svelte
+<script>
+  import { SHOULD_EXPLODE } from "$app/env/private";
+</script>
+
+<p>{SHOULD_EXPLODE}</p>
+
+=== 108 packages/kit/test/apps/dev-only/src/routes/illegal-imports/server-only-folder/path-top-level/+page.svelte	svelte
+<script>
+  import { should_explode } from "#lib/server/blah/private.js";
+</script>
+
+<p>{should_explode}</p>
+
+=== 121 packages/kit/test/apps/dev-only/src/routes/illegal-imports/server-only-folder/relative-nested/+page.svelte	svelte
+<script>
+  import { should_explode } from "../../../../lib/nested/server/private.js";
+</script>
+
+<p>{should_explode}</p>
+
+=== 86 packages/kit/test/apps/dev-only/src/routes/illegal-imports/server-only-modules/static-import/+page.svelte	svelte
+<script>
+  import { should_explode } from "./foo";
+</script>
+
+<p>{should_explode}</p>
+
+=== 144 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+error.svelte	svelte
+<script>
+  // @ts-ignore
+  import cjs from "e2e-test-dep-error";
+  cjs.cjs();
+</script>
+
+<slot />
+
+<p>this error page uses a new dependency</p>
+
+=== 148 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+layout.svelte	svelte
+<script>
+  // @ts-ignore
+  import cjs from "e2e-test-dep-layout-svelte";
+  cjs.cjs();
+</script>
+
+<slot />
+
+<p>this layout uses a new dependency</p>
+
+=== 134 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+page.svelte	svelte
+<script>
+  // @ts-ignore
+  import cjs from "e2e-test-dep-page-svelte";
+  cjs.cjs();
+</script>
+
+<p>this page uses a new dependency</p>
+
+=== 904 packages/kit/test/apps/dev-only/src/routes/request-abort/+page.svelte	svelte
+<script lang="ts">
+  import { onMount } from "svelte";
+
+  let result: { ok: true } | { aborted: boolean };
+
+  function test_abort() {
+    const controller = new AbortController();
+    fetch("/request-abort", { method: "POST", signal: controller.signal }).then(
+      (r) => r.json(),
+    );
+    setTimeout(async () => {
+      controller.abort();
+
+      // the server doesn't necessarily observe the abort immediately, so poll the
+      // status endpoint until it reports that the request was aborted
+      for (let i = 0; i < 50; i += 1) {
+        const r = await fetch("/request-abort", {
+          headers: { accept: "application/json" },
+        });
+        result = await r.json();
+        if (result && "aborted" in result && result.aborted) return;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    }, 50);
+  }
+
+  onMount(test_abort);
+</script>
+
+<pre>{JSON.stringify(result)}</pre>
+
+=== 120 packages/kit/test/apps/embed/src/routes/embed/a/+page.svelte	svelte
+<script>
+  import { browser } from "$app/env";
+</script>
+
+<h2 data-testid="a">a ({browser ? "browser" : "server"})</h2>
+
+=== 120 packages/kit/test/apps/embed/src/routes/embed/b/+page.svelte	svelte
+<script>
+  import { browser } from "$app/env";
+</script>
+
+<h2 data-testid="b">b ({browser ? "browser" : "server"})</h2>
+
+=== 709 packages/kit/test/apps/hash-based-routing/src/routes/+layout.svelte	svelte
+<script>
+  import { goto } from "$app/navigation";
+  import { setup } from "../../../../setup.js";
+
+  setup();
+
+  let { children } = $props();
+</script>
+
+<a href="/">/</a>
+<a href="/#/a">/#/a</a>
+<a href="/#/b">/#/b</a>
+<a href="/#/a#b">/#/a#b</a>
+<a href="/#/b/123">/#/b/123</a>
+<a href="/#/b/456">/#/b/456</a>
+<a href="/#/reroute-a">/#/reroute-a</a>
+<a href="/#/reroute-b">/#/reroute-b</a>
+<button data-goto onclick={() => goto("/#/b")}>goto /#/b</button>
+<button data-shallow onclick={() => goto("/#/b", { shallow: true })}
+  >shallow /#/b</button
+>
+<button
+  data-shallow-replace
+  onclick={() => goto("/#/a#b", { shallow: true, replace: true })}
+  >shallow replace /#/a#b</button
+>
+
+{@render children()}
+
+=== 31 packages/kit/test/apps/hash-based-routing/src/routes/a/+page.svelte	svelte
+<p>a</p>
+<div id="b">a#b</div>
+
+=== 56 packages/kit/test/apps/hash-based-routing/src/routes/anchor/+page.svelte	svelte
+<a href="#test">go to #test</a>
+
+<p id="test">#test</p>
+
+=== 335 packages/kit/test/apps/hash-based-routing/src/routes/b/[slug]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+  let { data } = $props();
+</script>
+
+<p data-data>
+  {JSON.stringify(data.params)}
+  {data.route.id}
+  {data.url.pathname + data.url.search + data.url.hash}
+</p>
+
+<p data-page>
+  {JSON.stringify(page.params)}
+  {page.route.id}
+  {page.url.pathname + page.url.search + page.url.hash}
+</p>
+
+=== 36 packages/kit/test/apps/hash-based-routing/src/routes/focus/+page.svelte	svelte
+<a href="#/focus/a#p">click me!</a>
+
+=== 16 packages/kit/test/apps/hash-based-routing/src/routes/rerouted/+page.svelte	svelte
+<p>rerouted</p>
+
+=== 108 packages/kit/test/apps/hash-based-routing/src/routes/resolve/+page.svelte	svelte
+<script lang="ts">
+  import { resolve } from "$app/paths";
+</script>
+
+<a href={resolve("/")}>go to home</a>
+
+=== 85 packages/kit/test/apps/no-csr/src/routes/+layout.svelte	svelte
+<slot />
+<footer>footer</footer>
+
+<style>
+  footer {
+    color: purple;
+  }
+</style>
+
+=== 226 packages/kit/test/apps/no-csr/src/routes/assets/+page.svelte	svelte
+<script>
+  import image from "./favicon.png?no-inline";
+</script>
+
+<img src={image} alt="svelte logo" />
+
+<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+<a href="/asset.json">includes public assets</a>
+
+=== 14 packages/kit/test/apps/no-ssr/src/routes/+page.svelte	svelte
+<h1>home</h1>
+
+=== 25 packages/kit/test/apps/no-ssr/src/routes/root-layout-error/+page.svelte	svelte
+<p>root layout error</p>
+
+=== 69 packages/kit/test/apps/no-ssr/src/routes/styles/+page.svelte	svelte
+<p>I should be blue</p>
+
+<style>
+  p {
+    color: blue;
+  }
+</style>
+
+=== 67 packages/kit/test/apps/no-ssr/src/routes/styles/prerendered/+page.svelte	svelte
+<p>I should be red</p>
+
+<style>
+  p {
+    color: red;
+  }
+</style>
+
+=== 289 packages/kit/test/apps/options-2/src/routes/+error.svelte	svelte
+<script>
+  import { page } from "$app/state";
+  import { resolve, asset } from "$app/paths";
+</script>
+
+<h1 data-testid="error-status">{page.status}</h1>
+
+<p data-testid="base">base: {resolve("")}</p>
+<p data-testid="assets">
+  assets: {asset("answer.txt").replace("answer.txt", "")}
+</p>
+
+=== 337 packages/kit/test/apps/options-2/src/routes/+page.svelte	svelte
+<script>
+  import { resolve, asset } from "$app/paths";
+</script>
+
+<h1>Hello</h1>
+
+<p data-testid="base">base: {resolve("")}</p>
+<p data-testid="assets">
+  assets: {asset("answer.txt").replace("answer.txt", "")}
+</p>
+
+<a href={resolve("/hello")} data-testid="link">Go to /hello</a>
+
+<style>
+  a {
+    text-decoration: none;
+  }
+</style>
+
+=== 116 packages/kit/test/apps/options-2/src/routes/asset-preload/prerendered/+page.svelte	svelte
+<h1>asset-preload/prerendered</h1>
+
+<style>
+  @import "../styles.css";
+
+  h1 {
+    font-family: Shlop;
+  }
+</style>
+
+=== 80 packages/kit/test/apps/options-2/src/routes/csp-trusted-types/+page.svelte	svelte
+<p>this page will error when SvelteKit tries to register the service worker</p>
+
+=== 261 packages/kit/test/apps/options-2/src/routes/deeply/nested/page/+page.svelte	svelte
+<script>
+  import { resolve, asset } from "$app/paths";
+</script>
+
+<h1>Hello</h1>
+
+<p data-testid="base">base: {resolve("")}</p>
+<p data-testid="assets">
+  assets: {asset("answer.txt").replace("answer.txt", "")}
+</p>
+
+<style>
+  p {
+    color: red;
+  }
+</style>
+
+=== 533 packages/kit/test/apps/options-2/src/routes/env/+page.svelte	svelte
+<script>
+  import { browser } from "$app/env";
+  import { MESSAGE } from "$app/env/public";
+
+  /** @type {import('./$types').PageProps} */
+  let { data } = $props();
+</script>
+
+<p data-testid="public">public: {MESSAGE}</p>
+<p data-testid="browser">browser: {browser}</p>
+<p data-testid="private-dynamic">private dynamic: {data.private_dynamic}</p>
+<p data-testid="private-static">private static: {data.private_static}</p>
+<p data-testid="private-validated-default">
+  private validated default: {data.private_validated_default}
+</p>
+
+=== 186 packages/kit/test/apps/options-2/src/routes/env/import-all/+page.svelte	svelte
+<script>
+  import * as env from "$app/env/public";
+
+  let { data } = $props();
+</script>
+
+<pre data-private>{JSON.stringify(data.env)}</pre>
+<pre data-public>{JSON.stringify(env)}</pre>
+
+=== 111 packages/kit/test/apps/options-2/src/routes/env/prerendered/+page.svelte	svelte
+<p>
+  This prerendered page only imports env.js when the app uses a public dynamic
+  environment variable
+</p>
+
+=== 129 packages/kit/test/apps/options-2/src/routes/fetch-prerendered/+page.svelte	svelte
+<script>
+  /** @type {import('./$types').PageProps} */
+  let { data } = $props();
+</script>
+
+<h1>{data.status} {data.found}</h1>
+
+=== 19 packages/kit/test/apps/options-2/src/routes/fetch-prerendered/shadowed/[...rest]/+page.svelte	svelte
+<h1>catch-all</h1>
+
+=== 35 packages/kit/test/apps/options-2/src/routes/fetch-prerendered/shadowed/static/+page.svelte	svelte
+<h1>this page was prerendered</h1>
+
+=== 79 packages/kit/test/apps/options-2/src/routes/hello/+page.svelte	svelte
+<h1>Prerendered</h1>
+
+<style>
+  h1 {
+    background-color: green;
+  }
+</style>
+
+=== 822 packages/kit/test/apps/options-2/src/routes/remote/+page.svelte	svelte
+<script lang="ts">
+  import {
+    prerendered,
+    get_count,
+    set_count,
+    set_count_form,
+  } from "./count.remote.js";
+
+  let count = $state<number | null>(null);
+  let prerendered_result = $state<string | null>(null);
+</script>
+
+<p id="count">{count}</p>
+
+<button onclick={async () => (count = await get_count())}>get count</button>
+
+<button onclick={async () => (count = await set_count(0))} id="reset-btn"
+  >reset</button
+>
+
+<form
+  {...set_count_form.enhance(async ({ submit }) => {
+    await submit();
+    count = await get_count();
+  })}
+>
+  <input {...set_count_form.fields.count.as("text")} />
+  <button>submit</button>
+</form>
+
+<button
+  id="fetch-prerendered"
+  onclick={async () => (prerendered_result = await prerendered())}
+>
+  get prerendered
+</button>
+
+<p id="prerendered">{prerendered_result}</p>
+
+=== 168 packages/kit/test/apps/options-2/src/routes/trailing-slash-server/+page.svelte	svelte
+<script>
+  import { resolve } from "$app/paths";
+</script>
+
+<a href={resolve("/trailing-slash-server/prerender")}
+  >{resolve("/trailing-slash-server/prerender")}</a
+>
+
+=== 86 packages/kit/test/apps/options-2/src/routes/trailing-slash-server/prerender/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h2>{page.url.pathname}</h2>
+
+=== 144 packages/kit/test/apps/options-3/src/routes/+layout.svelte	svelte
+<script>
+  import { setup } from "../../../../setup.js";
+
+  setup();
+</script>
+
+<slot />
+
+<style>
+  :global(h1) {
+    color: teal;
+  }
+</style>
+
+=== 104 packages/kit/test/apps/options-3/src/routes/app-manifest/+page.svelte	svelte
+<script>
+  import { immutable } from "$app/manifest";
+</script>
+
+<pre>{JSON.stringify(immutable)}</pre>
+
+=== 153 packages/kit/test/apps/options/source/components/Message.svelte	svelte
+<script>
+  import { browser, dev } from "$app/env";
+</script>
+
+<p>
+  Hello from the {browser ? "client" : "server"} in {dev ? "dev" : "prod"} mode!
+</p>
+
+=== 155 packages/kit/test/apps/options/source/components/SharedCSS.svelte	svelte
+<p>
+  This component is imported in multiple pages and therefore its CSS lands in a
+  separate CSS chunk
+</p>
+
+<style>
+  p {
+    color: blue;
+  }
+</style>
+
+=== 2062 packages/kit/test/apps/options/source/components/SvelteLogo.svelte	svelte
+<div class="svelte-logo"></div>
+
+<style>
+  .svelte-logo {
+    width: 107px;
+    height: 128px;
+    background: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="107" height="128" viewBox="0 0 107 128"><title>svelte-logo</title><path d="M94.1566,22.8189c-10.4-14.8851-30.94-19.2971-45.7914-9.8348L22.2825,29.6078A29.9234,29.9234,0,0,0,8.7639,49.6506a31.5136,31.5136,0,0,0,3.1076,20.2318A30.0061,30.0061,0,0,0,7.3953,81.0653a31.8886,31.8886,0,0,0,5.4473,24.1157c10.4022,14.8865,30.9423,19.2966,45.7914,9.8348L84.7167,98.3921A29.9177,29.9177,0,0,0,98.2353,78.3493,31.5263,31.5263,0,0,0,95.13,58.117a30,30,0,0,0,4.4743-11.1824,31.88,31.88,0,0,0-5.4473-24.1157" style="fill:%23ff3e00"/><path d="M45.8171,106.5815A20.7182,20.7182,0,0,1,23.58,98.3389a19.1739,19.1739,0,0,1-3.2766-14.5025,18.1886,18.1886,0,0,1,.6233-2.4357l.4912-1.4978,1.3363.9815a33.6443,33.6443,0,0,0,10.203,5.0978l.9694.2941-.0893.9675a5.8474,5.8474,0,0,0,1.052,3.8781,6.2389,6.2389,0,0,0,6.6952,2.485,5.7449,5.7449,0,0,0,1.6021-.7041L69.27,76.281a5.4306,5.4306,0,0,0,2.4506-3.631,5.7948,5.7948,0,0,0-.9875-4.3712,6.2436,6.2436,0,0,0-6.6978-2.4864,5.7427,5.7427,0,0,0-1.6.7036l-9.9532,6.3449a19.0329,19.0329,0,0,1-5.2965,2.3259,20.7181,20.7181,0,0,1-22.2368-8.2427,19.1725,19.1725,0,0,1-3.2766-14.5024,17.9885,17.9885,0,0,1,8.13-12.0513L55.8833,23.7472a19.0038,19.0038,0,0,1,5.3-2.3287A20.7182,20.7182,0,0,1,83.42,29.6611a19.1739,19.1739,0,0,1,3.2766,14.5025,18.4,18.4,0,0,1-.6233,2.4357l-.4912,1.4978-1.3356-.98a33.6175,33.6175,0,0,0-10.2037-5.1l-.9694-.2942.0893-.9675a5.8588,5.8588,0,0,0-1.052-3.878,6.2389,6.2389,0,0,0-6.6952-2.485,5.7449,5.7449,0,0,0-1.6021.7041L37.73,51.719a5.4218,5.4218,0,0,0-2.4487,3.63,5.7862,5.7862,0,0,0,.9856,4.3717,6.2437,6.2437,0,0,0,6.6978,2.4864,5.7652,5.7652,0,0,0,1.602-.7041l9.9519-6.3425a18.978,18.978,0,0,1,5.2959-2.3278,20.7181,20.7181,0,0,1,22.2368,8.2427,19.1725,19.1725,0,0,1,3.2766,14.5024,17.9977,17.9977,0,0,1-8.13,12.0532L51.1167,104.2528a19.0038,19.0038,0,0,1-5.3,2.3287" style="fill:%23fff"/></svg>');
+  }
+</style>
+
+=== 108 packages/kit/test/apps/options/source/pages/+page.svelte	svelte
+<script>
+  import Message from "#lib/Message.svelte";
+</script>
+
+<h2>We're on index.svelte</h2>
+<Message />
+
+=== 207 packages/kit/test/apps/options/source/pages/base/[slug]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+  import SvelteLogo from "#lib/SvelteLogo.svelte";
+</script>
+
+<SvelteLogo />
+
+<h2>{page.params.slug}</h2>
+
+<a href="/path-base/base/two">/path-base/base/two</a>
+
+=== 96 packages/kit/test/apps/options/source/pages/csp-trusted-types/+page.svelte	svelte
+<p>
+  this page will error when Svelte tries to set the innerHTML without a trusted
+  type
+</p>
+
+=== 183 packages/kit/test/apps/options/source/pages/csp/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<svelte:head>
+  <script
+    src="http://localhost:{page.url.searchParams.get('port')}/blocked.js"
+  ></script>
+</svelte:head>
+
+=== 236 packages/kit/test/apps/options/source/pages/custom-extensions/+layout.svelte	svelte
+<script>
+  import { goto, preloadCode, preloadData } from "$app/navigation";
+
+  if (typeof window !== "undefined") {
+    Object.assign(window, { goto, preloadCode, preloadData });
+  }
+</script>
+
+<slot />
+
+<footer>Custom layout</footer>
+
+=== 18 packages/kit/test/apps/options/source/pages/custom-extensions/unsafe-replacement/+page.svelte	svelte
+<h2>Bazooom!</h2>
+
+=== 53 packages/kit/test/apps/options/source/pages/error/+page.svelte	svelte
+<!-- https://github.com/sveltejs/kit/issues/4186 -->
+
+=== 199 packages/kit/test/apps/options/source/pages/fetch/link-outside-base/+page.svelte	svelte
+<script>
+  /** @type {import('./$types').PageProps} */
+  const { data } = $props();
+</script>
+
+<p data-testid="fetch-url">{data.fetchUrl}</p>
+<p data-testid="fetch-response">{data.fetchResponse}</p>
+
+=== 657 packages/kit/test/apps/options/source/pages/fetch/link-root/+page.svelte	svelte
+<script>
+  /** @type {import('./$types').PageProps} */
+  const { data } = $props();
+</script>
+
+<h2>Fetch URLs</h2>
+
+<dl>
+  {#each data.fetches as item, index}
+    <dt>fetch{index + 1}-url</dt>
+    <dd data-testid={`fetch${index + 1}-url`}>{item.url}</dd>
+  {/each}
+</dl>
+
+<h2>Fetch Responses</h2>
+<dl>
+  {#each data.fetches as item, index}
+    <dt>fetch{index + 1}-response</dt>
+    <dd data-testid="fetch{index + 1}-response">{item.response}</dd>
+  {/each}
+</dl>
+
+<h2>Fetch Redirects</h2>
+<dl>
+  {#each data.fetches as item, index}
+    <dt>fetch{index + 1}-redirect</dt>
+    <dd data-testid="fetch{index + 1}-redirect">{item.redirect}</dd>
+  {/each}
+</dl>
+
+=== 407 packages/kit/test/apps/options/source/pages/inline-style/+page.svelte	svelte
+<script>
+  import SharedCSS from "#lib/SharedCSS.svelte";
+  // @ts-ignore this is a vite font import so it has no side-effect types
+  import "@fontsource/libre-barcode-128-text";
+</script>
+
+<p>
+  Test that the fontsource is referenced correctly, while the shared CSS in
+  SharedCSS doesn't cause problems
+</p>
+<SharedCSS />
+
+<style>
+  p {
+    font-family: "Libre Barcode 128 Text", sans-serif;
+  }
+</style>
+
+=== 275 packages/kit/test/apps/options/source/pages/inline-style/conditional-rendering/+page.svelte	svelte
+<script>
+  import Component from "./Component.svelte";
+
+  let show = false;
+</script>
+
+<h1 id="always">This is always rendered</h1>
+
+<button onclick={() => (show = !show)}>show component</button>
+
+{#if show}
+  <Component />
+{/if}
+
+<style>
+  h1 {
+    color: red;
+  }
+</style>
+
+=== 102 packages/kit/test/apps/options/source/pages/inline-style/conditional-rendering/Component.svelte	svelte
+<p id="conditionally">This is conditionally rendered</p>
+
+<style>
+  p {
+    color: blue;
+  }
+</style>
+
+=== 98 packages/kit/test/apps/options/source/pages/inline-style/dynamic-import/Thing.svelte	svelte
+<p>I'm dynamically imported</p>
+
+<style>
+  p {
+    color: blue;
+    font-size: 20px;
+  }
+</style>
+
+=== 137 packages/kit/test/apps/options/source/pages/inline-style/import-meta/+page.svelte	svelte
+<div>
+  this page is being imported so its css is associated with a separate chunk
+</div>
+
+<style>
+  div {
+    color: pink;
+  }
+</style>
+
+=== 316 packages/kit/test/apps/options/source/pages/inline-style/static-dir/+page.svelte	svelte
+<div></div>
+
+<p>
+  Assets located in the static directory have their URL path transformed to
+  '../../../asset.png' instead of './asset.png' like most assets that go through
+  Vite's static asset handling
+</p>
+
+<style>
+  div {
+    background: url(/favicon.png?v=1);
+    height: 128px;
+    width: 128px;
+  }
+</style>
+
+=== 198 packages/kit/test/apps/options/source/pages/inline-style/url-encoded/+page.svelte	svelte
+<p>
+  testing if we correctly fix the asset URL in the CSS if it has URL encoded
+  characters
+</p>
+
+<style>
+  p {
+    background: url("./愛.png");
+    height: 128px;
+    width: 128px;
+  }
+</style>
+
+=== 583 packages/kit/test/apps/options/source/pages/on-navigate/+layout.svelte	svelte
+<script>
+  import { onNavigate } from "$app/navigation";
+  import { resolve } from "$app/paths";
+
+  let { children } = $props();
+
+  onNavigate((navigation) => {
+    if (!document.startViewTransition || navigation.willUnload) return;
+
+    return new Promise((resolve) => {
+      document.startViewTransition(async () => {
+        resolve();
+        await navigation.complete;
+        console.log("navigated");
+      });
+    });
+  });
+</script>
+
+<ul>
+  <li><a href={resolve("/on-navigate/a")}>a</a></li>
+  <li><a href={resolve("/on-navigate/b")}>b</a></li>
+</ul>
+
+{@render children()}
+
+=== 16 packages/kit/test/apps/options/source/pages/on-navigate/a/+page.svelte	svelte
+<h1>Page A</h1>
+
+=== 221 packages/kit/test/apps/options/source/pages/performance/+page.svelte	svelte
+<script>
+  import Image from "./icon.svg?no-inline";
+</script>
+
+<p>
+  this app has paths.assets set so it should not use relative paths for imported
+  assets in the client code
+</p>
+
+<img src={Image} alt="svelte logo" />
+
+=== 167 packages/kit/test/apps/options/source/pages/preloading/+page.svelte	svelte
+<a data-sveltekit-preload-data href="/path-base/preloading/preloaded"
+  >click me</a
+>
+<a data-sveltekit-preload-code href="/path-base/preloading/code">click me 2</a>
+
+=== 32 packages/kit/test/apps/options/source/pages/preloading/code/+page.svelte	svelte
+<h1>Should preload my code</h1>
+
+=== 154 packages/kit/test/apps/options/source/pages/routing/link-outside-app-target/source/+page.svelte	svelte
+<script>
+  import { onMount } from "svelte";
+  import { increment, count } from "../state.js";
+
+  onMount(increment);
+</script>
+
+<h2>source: {count}</h2>
+
+=== 84 packages/kit/test/apps/options/source/pages/routing/link-outside-app-target/target/+page.svelte	svelte
+<script>
+  import { count } from "../state.js";
+</script>
+
+<h2>target: {count}</h2>
+
+=== 198 packages/kit/test/apps/options/source/pages/slash/+page.svelte	svelte
+<script>
+  import { resolve } from "$app/paths";
+  import { page } from "$app/state";
+</script>
+
+<h2>{page.url.pathname}</h2>
+
+<a data-testid="child" href={resolve("/slash/child")}>/slash/child</a>
+
+=== 39 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+error.svelte	svelte
+<p>This is your custom error page.</p>
+
+=== 137 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+layout.svelte	svelte
+<script>
+  import { setup } from "../../../../setup.js";
+
+  const { children } = $props();
+
+  setup();
+</script>
+
+{@render children?.()}
+
+=== 121 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+page.svelte	svelte
+<p>
+  This app exists to assert that an app with only prerendered routes
+  successfully renders custom error pages.
+</p>
+
+=== 457 packages/kit/test/apps/writes/src/routes/double-mount/+page.svelte	svelte
+<script context="module">
+  import { browser } from "$app/env";
+
+  if (browser) {
+    window.mounted = window.mounted || 0;
+  }
+</script>
+
+<script>
+  import { goto } from "$app/navigation";
+  import { onMount } from "svelte";
+
+  let mounted = 0;
+
+  onMount(() => {
+    mounted = window.mounted += 1;
+  });
+</script>
+
+<h1>mounted: {browser ? mounted : 0}</h1>
+<button onclick={() => goto("/double-mount")}>click me</button>
+<span hidden>PLACEHOLDER:0</span>
+
+=== 24 packages/kit/test/apps/writes/src/routes/new-route/+page.svelte	svelte
+<h1>Great success!</h1>
+
+=== 155 packages/kit/test/build-errors/apps/env-private-dynamic/src/routes/+page.svelte	svelte
+<script>
+  const p = import("$app/env/private");
+</script>
+
+{#await p}
+  <p>Awaiting...</p>
+{:then envModule}
+  <p>{envModule.SHOULD_EXPLODE}</p>
+{/await}
+
+=== 17 packages/kit/test/build-errors/apps/env-private-service-worker/src/routes/+page.svelte	svelte
+<h1>Bonjour</h1>
+
+=== 32 packages/kit/test/build-errors/apps/prerender-entry-generator-mismatch/src/routes/[slug]/specific/+page.svelte	svelte
+<div>This will be matched</div>
+
+=== 113 packages/kit/test/build-errors/apps/prerender-remote-function-error/src/routes/+page.svelte	svelte
+<script>
+  import { throws } from "./data.remote.ts";
+</script>
+
+{#await throws() then value}
+  {value}
+{/await}
+
+=== 34 packages/kit/test/build-errors/apps/prerenderable-incorrect-fragment/src/routes/+page.svelte	svelte
+<a href="foo#missing">missing</a>
+
+=== 25 packages/kit/test/build-errors/apps/prerenderable-incorrect-fragment/src/routes/foo/+page.svelte	svelte
+<h1 id="exists">foo</h1>
+
+=== 77 packages/kit/test/build-errors/apps/prerenderable-not-prerendered/src/routes/+page.svelte	svelte
+<a href="/foo">this page is not prerendered, so this link is not crawled</a>
+
+=== 83 packages/kit/test/build-errors/apps/remote-function-without-flag/src/routes/+page.svelte	svelte
+<script>
+  import { greet } from "./data.remote.js";
+</script>
+
+<h1>{greet()}</h1>
+
+=== 97 packages/kit/test/build-errors/apps/removed-lib-import/src/routes/+page.svelte	svelte
+<script>
+  // @ts-expect-error this import intentionally fails
+  import "$lib/foo.js";
+</script>
+
+=== 101 packages/kit/test/build-errors/apps/removed-service-worker-import/src/routes/+page.svelte	svelte
+<script>
+  // @ts-expect-error this import intentionally fails
+  import "$service-worker";
+</script>
+
+=== 154 packages/kit/test/build-errors/apps/server-only-folder-dynamic-import/src/routes/+page.svelte	svelte
+<script>
+  const mod = import("#lib/blah/server/something/private.js");
+</script>
+
+{#await mod then resolved}
+  <p>{resolved.should_explode}</p>
+{/await}
+
+=== 118 packages/kit/test/build-errors/apps/server-only-folder/src/routes/+page.svelte	svelte
+<script>
+  import { should_explode } from "#lib/blah/server/something/private.js";
+</script>
+
+<p>{should_explode}</p>
+
+=== 136 packages/kit/test/build-errors/apps/server-only-module-dynamic-import/src/routes/+page.svelte	svelte
+<script>
+  const mod = import("#lib/test.server.js");
+</script>
+
+{#await mod then resolved}
+  <p>{resolved.should_explode}</p>
+{/await}
+
+=== 100 packages/kit/test/build-errors/apps/server-only-module/src/routes/+page.svelte	svelte
+<script>
+  import { should_explode } from "#lib/test.server.js";
+</script>
+
+<p>{should_explode}</p>
+
+=== 356 packages/kit/test/build-errors/apps/server-only-shared/src/routes/+page.svelte	svelte
+<script>
+  // This server-only module is also imported by +page.server.js.
+  // The guard must still detect this client-side import and report
+  // "Cannot import ... into the browser" rather than following the
+  // server branch and throwing "An impossible situation occurred".
+  import { secret } from "#lib/secret.server.js";
+</script>
+
+<p>{secret}</p>
+
+=== 17 packages/kit/test/prerendering/basics/src/routes/(grouped)/grouped/+page.svelte	svelte
+<h1>grouped</h1>
+
+=== 62 packages/kit/test/prerendering/basics/src/routes/content-type-charset/+page.svelte	svelte
+<a href="/content-type-charset/dynamic">Please crawl this</a>
+
+=== 113 packages/kit/test/prerendering/basics/src/routes/content-type-charset/[dynamic]/+page.svelte	svelte
+<h1>
+  This page will only be discovered if pages whose content-type has a charset
+  parameter are crawled
+</h1>
+
+=== 107 packages/kit/test/prerendering/basics/src/routes/encoding/[path]/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+</script>
+
+<h1>{page.params.path} / {page.url.pathname}</h1>
+
+=== 60 packages/kit/test/prerendering/basics/src/routes/encöded-hash-link/+page.svelte	svelte
+<h2 id="encöded">
+  <a href="#encöded">encöded</a>
+</h2>
+
+=== 88 packages/kit/test/prerendering/basics/src/routes/fetch-image/+page.svelte	svelte
+<img src="/fetch-image/image.jpg" alt="" />
+<img src="/fetch-image/image.png" alt="" />
+
+=== 48 packages/kit/test/prerendering/basics/src/routes/max-age/+page.svelte	svelte
+<h1>This page will be cached for 5 minutes</h1>
+
+=== 63 packages/kit/test/prerendering/basics/src/routes/missing-id/+page.svelte	svelte
+<a href="#missing-id">Bad link</a>
+<a href="#top">Bad link</a>
+
+=== 58 packages/kit/test/prerendering/basics/src/routes/optional-params/[[optional]]/+page.svelte	svelte
+<a href="/optional-params/with-value">Path with Value</a>
+
+=== 191 packages/kit/test/prerendering/basics/src/routes/origin/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+
+  /** @type {{ data: import('./$types').PageData }} */
+  let { data } = $props();
+</script>
+
+<h1>{data.message}</h1>
+<h2>{page.url.origin}</h2>
+
+=== 164 packages/kit/test/prerendering/basics/src/routes/prerender-origin/+page.svelte	svelte
+<script>
+  import { page } from "$app/state";
+  const href = new URL("/prerender-origin/dynamic", page.url.origin).href;
+</script>
+
+<a {href}>Please crawl this</a>
+
+=== 115 packages/kit/test/prerendering/basics/src/routes/prerender-origin/[dynamic]/+page.svelte	svelte
+<h1>
+  This page will only be discovered if full hrefs that start with
+  config.prerender.origin are crawled
+</h1>
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/prerendering-true/+page.svelte	svelte
+<h1>prerendering: __INITIAL_PRERENDERING__/__PRERENDERING__</h1>
+
+=== 17 packages/kit/test/prerendering/basics/src/routes/resolve-relative/lv1/+page.svelte	svelte
+<h1>level 1</h1>
+
+=== 132 packages/kit/test/prerendering/basics/src/routes/resolve-relative/lv1/lv2/+page.svelte	svelte
+<script>
+  import { resolve } from "$app/paths";
+</script>
+
+<a id="resolved-link" href={resolve("/resolve-relative/lv1")}>go up</a>
+
+=== 35 packages/kit/test/prerendering/basics/src/routes/spa-shell/+page.svelte	svelte
+<h1>this won't be prerendered</h1>
+
+=== 74 packages/kit/test/prerendering/basics/src/routes/初めまして/+page.svelte	svelte
+<p>Test for characters that need to be en/decoded during prerendering</p>
+
+=== 272 packages/kit/test/prerendering/options/src/routes/(group)/+page.svelte	svelte
+<h1>hello</h1>
+
+<!-- https://github.com/sveltejs/kit/issues/10735 — crawler must not fail reaching a
+	non-prerendered page that has a POST-only +server.js sibling -->
+<a href="/path-base/non-prerendered-page-and-endpoint/"
+  >page with a POST-only endpoint sibling</a
+>
+
+=== 92 packages/kit/test/prerendering/options/src/routes/+layout.svelte	svelte
+<svelte:head>
+  <link rel="alternate" href="/path-base/rss.xml" />
+</svelte:head>
+
+<slot />
+
+=== 22 packages/kit/test/prerendering/options/src/routes/nested/+page.svelte	svelte
+<h1>nested hello</h1>
+
+=== 48 packages/kit/test/prerendering/options/src/routes/non-prerendered-page-and-endpoint/+page.svelte	svelte
+<h1>page with a POST-only endpoint sibling</h1>
+
+=== 69 packages/kit/test/prerendering/paths-base/src/routes/+page.svelte	svelte
+<div>
+  <h1>Main Page</h1>
+  <a href="nested">Nested Link</a>
+</div>
+
+=== 26 packages/kit/test/prerendering/paths-base/src/routes/a/b/c/+page.svelte	svelte
+<a href="a/b/d">a/b/d</a>
+
+=== 26 packages/kit/test/prerendering/paths-base/src/routes/a/b/d/+page.svelte	svelte
+<a href="a/b/c">a/b/c</a>
+
+=== 90 packages/kit/test/prerendering/paths-base/src/routes/assets/+page.svelte	svelte
+<script>
+  import logo from "./logo.svg";
+</script>
+
+<img src={logo} alt="Svelte logo" />
+
+=== 71 packages/kit/test/prerendering/paths-base/src/routes/assets/emitted/+page.svelte	svelte
+<script>
+  const { data } = $props();
+</script>
+
+<p>{data.message}</p>
+
+=== 228 packages/package/test/fixtures/emitTypes-false/expected/Test.svelte	svelte
+<script>
+  import { createEventDispatcher } from "svelte";
+  /**
+   * @type {string}
+   */
+  export const astring = "potato";
+
+  const dispatch = createEventDispatcher();
+  dispatch("event", true);
+</script>
+
+<slot {astring} />
+
+=== 205 packages/package/test/fixtures/svelte-3-types/expected/Test.svelte	svelte
+<script lang="ts">
+  import { createEventDispatcher } from "svelte";
+  export const astring = "potato";
+  const dispatch = createEventDispatcher();
+  dispatch("event", true);
+</script>
+
+<slot {astring} />
+
+=== 234 packages/package/test/fixtures/svelte-3-types/src/lib/Test.svelte	svelte
+<script lang="ts">
+  import { createEventDispatcher } from "svelte";
+  export const astring: string = "potato";
+
+  const dispatch = createEventDispatcher<{ event: boolean }>();
+  dispatch("event", true);
+</script>
+
+<slot {astring} />
+
+=== 75 packages/package/test/fixtures/typescript-declaration-map/expected/Test.svelte	svelte
+<script lang="ts">
+  let { foo } = $props();
+  export {};
+</script>
+
+{foo}
+
+=== 79 packages/package/test/fixtures/typescript-declaration-map/src/lib/Test.svelte	svelte
+<script lang="ts">
+  let { foo }: { foo: string } = $props();
+</script>
+
+{foo}
+
+=== 179 packages/package/test/fixtures/typescript-ts-extension-rewrites/expected/Demo.svelte	svelte
+<script lang="ts">
+  import { helper } from "./helper.js";
+  import { helper2 } from "./helper2.js";
+</script>
+
+{helper()}{helper2()}
+
+<pre>import.meta.glob('./helper*.ts')</pre>
+
+=== 182 packages/package/test/fixtures/typescript-ts-extension-rewrites/src/lib/Demo.svelte	svelte
+<script lang="ts">
+  import { helper } from "#lib/helper.ts";
+  import { helper2 } from "./helper2.ts";
+</script>
+
+{helper()}{helper2()}
+
+<pre>import.meta.glob('./helper*.ts')</pre>
+
+=== 41 packages/package/test/watch/expected/post-error.svelte	svelte
+<button on:click={foo}>click me</button>
+
+=== 46 playgrounds/basic/src/routes/+page.svelte	svelte
+<script lang="ts">
+</script>
+
+<h1>hello!</h1>
+

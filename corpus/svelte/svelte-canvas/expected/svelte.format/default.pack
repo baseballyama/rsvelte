@@ -1,0 +1,1606 @@
+# rsvelte pack 1
+=== 2335 src/lib/components/Canvas.svelte	svelte
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { createHitCanvas } from "hit-canvas";
+  import LayerManager from "../util/LayerManager.svelte";
+  import { getMaxPixelRatio } from "../util/getMaxPixelRatio";
+  import type { CanvasContext, CanvasProps } from "../types";
+
+  let {
+    width: _width,
+    height: _height,
+    pixelRatio: _pixelRatio,
+    class: className,
+    style = "",
+    autoplay = false,
+    autoclear = true,
+    layerEvents = false,
+    onresize,
+    contextSettings,
+    children,
+    ...handlers
+  }: CanvasProps = $props();
+
+  let canvas: HTMLCanvasElement;
+  let context: CanvasContext;
+  let layerRef: HTMLDivElement;
+
+  let devicePixelRatio: number = $state(2);
+  let canvasWidth: number = $state(0);
+  let canvasHeight: number = $state(0);
+
+  const width = $derived(_width ?? canvasWidth);
+  const height = $derived(_height ?? canvasHeight);
+
+  const pixelRatio = $derived.by(() => {
+    if (devicePixelRatio && _pixelRatio === "auto")
+      return getMaxPixelRatio(width, height, devicePixelRatio);
+
+    if (_pixelRatio && _pixelRatio !== "auto") return _pixelRatio;
+
+    return devicePixelRatio;
+  });
+
+  const manager = new LayerManager({
+    get width() {
+      return width;
+    },
+    get height() {
+      return height;
+    },
+    get pixelRatio() {
+      return pixelRatio;
+    },
+    get autoplay() {
+      return autoplay;
+    },
+    get autoclear() {
+      return autoclear;
+    },
+    get layerEvents() {
+      return layerEvents;
+    },
+    get onresize() {
+      return onresize;
+    },
+    handlers,
+  });
+
+  onMount(() => {
+    if (layerEvents) {
+      context = createHitCanvas(canvas, contextSettings);
+    } else {
+      context = canvas.getContext("2d", contextSettings)!;
+    }
+
+    manager.init(context, layerRef);
+  });
+
+  const redraw = () => manager.redraw();
+  export { redraw, canvas, context };
+</script>
+
+<svelte:window bind:devicePixelRatio />
+
+<canvas
+  bind:this={canvas}
+  bind:clientWidth={canvasWidth}
+  bind:clientHeight={canvasHeight}
+  class={className}
+  width={width * pixelRatio}
+  height={height * pixelRatio}
+  {style}
+  style:width={_width ? `${_width}px` : "100%"}
+  style:height={_height ? `${_height}px` : "100%"}
+  {...manager.createEventHandlers()}
+></canvas>
+
+<div style:display="none" bind:this={layerRef}>
+  {@render children?.()}
+</div>
+
+=== 238 src/lib/components/Layer.svelte	svelte
+<script lang="ts">
+  import type { LayerProps } from "../types";
+  import { register } from "../util/registerLayer";
+
+  const layer: LayerProps = $props();
+  const layerId = register(layer);
+</script>
+
+<div data-layer-id={layerId}></div>
+
+=== 5430 src/routes/_components/Code.svelte	svelte
+<script module>
+  import { createHighlighter } from "shiki";
+
+  const { codeToHtml } = await createHighlighter({
+    themes: ["one-dark-pro"],
+    langs: ["typescript", "svelte"],
+  });
+</script>
+
+<script lang="ts">
+  let {
+    files = [],
+    text = "",
+    lang = "svelte",
+    copy = false,
+  }: {
+    files: string[][];
+    text?: string;
+    lang?: "svelte" | "ts" | "text";
+    copy?: boolean;
+  } = $props();
+
+  let selectedFile = $state(0);
+
+  let code = $derived(files.length ? files[selectedFile][1] : text.trim());
+  let html = $derived(codeToHtml(code, { lang, theme: "one-dark-pro" }));
+</script>
+
+<div class="code">
+  {#if files}
+    <div class="hljs title">
+      {#each files as [title], i}
+        <button
+          class="tab"
+          class:active={selectedFile === i}
+          onclick={() => (selectedFile = i)}
+        >
+          {title}
+        </button>
+      {/each}
+    </div>
+  {/if}
+  <div class="inner">
+    {#if copy}
+      <button
+        class="copy"
+        aria-label="Copy to clipboard"
+        onclick={() => navigator.clipboard.writeText(code)}
+      >
+        <svg viewBox="0 0 32 32">
+          <path
+            d="m17.709 1.9941c-0.51479-8.807e-4 -1.0805 0.0058594-1.709 0.0058594h-4c-1.4978 0-2.6354-0.002642-3.5762 0.10352s-1.7668 0.33644-2.377 0.94727c-0.61012 0.61083-0.83978 1.4368-0.94531 2.377s-0.10156 2.0765-0.10156 3.5723v10a1.0001 1.0001 0 0 0 0 0.009766 1.0001 1.0001 0 0 0 0 0.011718c0 2.5474-0.1083 4.0675 0.58984 5.3379 0.34907 0.63518 0.97662 1.101 1.666 1.3242 0.53202 0.17225 1.1381 0.23738 1.8125 0.27734 0.013242 0.19927 0.01449 0.4321 0.035156 0.61523 0.10616 0.94072 0.33644 1.7668 0.94727 2.377 0.61083 0.61012 1.4368 0.83978 2.377 0.94531 0.94019 0.10553 2.0765 0.10156 3.5723 0.10156h4c1.4978 0 2.6354 0.0026 3.5762-0.10352 0.94072-0.10616 1.7668-0.33644 2.377-0.94726s0.83978-1.4368 0.94531-2.377c0.10553-0.94019 0.10156-2.0765 0.10156-3.5723v-10c0-1.4978 0.0026-2.6354-0.10352-3.5762-0.10616-0.94072-0.33644-1.7668-0.94726-2.377s-1.4368-0.83978-2.377-0.94531c-0.18849-0.021156-0.42724-0.021887-0.63281-0.035156-0.04161-0.70746-0.11126-1.3341-0.30273-1.8867-0.23402-0.67543-0.71468-1.2822-1.3477-1.6152-0.94946-0.49955-2.0357-0.56767-3.5801-0.57031zm-5.709 2.0059h4c2.513 0 3.9261 0.10706 4.3574 0.33398 0.21565 0.11346 0.27566 0.17381 0.38867 0.5 0.081847 0.23623 0.13914 0.65988 0.18164 1.1719-0.3111-9.989e-4 -0.57979-0.0058594-0.92773-0.0058594h-4c-1.4978 0-2.6354-0.002642-3.5762 0.10352s-1.7668 0.33644-2.377 0.94727c-0.61012 0.61083-0.83978 1.4368-0.94531 2.377-0.10553 0.94019-0.10156 2.0765-0.10156 3.5723v10c0 0.35612 0.0046599 0.63162 0.0058594 0.94922-0.48679-0.039688-0.89531-0.091073-1.1328-0.16797-0.34888-0.11296-0.41474-0.17827-0.5293-0.38672-0.22911-0.41689-0.34375-1.8274-0.34375-4.373a1.0001 1.0001 0 0 0 0 -0.009765 1.0001 1.0001 0 0 0 0 -0.011719v-10c0-1.4952 0.0061497-2.604 0.089844-3.3496 0.08369-0.74562 0.22984-1.0461 0.37109-1.1875 0.14126-0.14142 0.44176-0.28889 1.1875-0.37305 0.74574-0.084155 1.8548-0.089844 3.3516-0.089844zm4 4h4c1.4952 0 2.604 0.0061497 3.3496 0.089844 0.74562 0.08369 1.0461 0.22984 1.1875 0.37109 0.14142 0.14126 0.28889 0.44176 0.37305 1.1875 0.084155 0.74575 0.089844 1.8548 0.089844 3.3516v10c0 1.4952-0.006204 2.604-0.089844 3.3496-0.08369 0.74562-0.22984 1.0461-0.37109 1.1875-0.14126 0.14142-0.44175 0.28889-1.1875 0.37305-0.74575 0.084155-1.8548 0.089844-3.3516 0.089844h-4c-1.4952 0-2.604-0.006204-3.3496-0.089844-0.74562-0.08369-1.0461-0.22984-1.1875-0.37109-0.14142-0.14126-0.28889-0.44175-0.37305-1.1875-0.084155-0.74575-0.089844-1.8548-0.089844-3.3516v-10c0-1.4952 0.006204-2.604 0.089844-3.3496 0.08369-0.74562 0.22984-1.0461 0.37109-1.1875 0.14126-0.14142 0.44175-0.28889 1.1875-0.37305 0.74575-0.084155 1.8548-0.089844 3.3516-0.089844z"
+          />
+        </svg>
+      </button>
+    {/if}
+    {@html html}
+  </div>
+</div>
+
+<style>
+  .code {
+    height: auto;
+    width: 100%;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    font-size: 0.9rem;
+    position: relative;
+  }
+
+  .code :global(pre) {
+    margin: 0;
+    line-height: 1.25;
+    padding: 0.75rem;
+    overflow-x: scroll;
+  }
+
+  .title {
+    position: relative;
+  }
+
+  button {
+    appearance: none;
+    background-color: transparent;
+    border: none;
+    font-family: "Fira Mono", monospace;
+    color: inherit;
+    font-size: inherit;
+    cursor: pointer;
+  }
+
+  .inner {
+    position: relative;
+  }
+
+  .copy {
+    position: absolute;
+    z-index: 1;
+    top: 0.5rem;
+    right: 0.5rem;
+    opacity: 0.7;
+    aspect-ratio: 1;
+    width: 2rem;
+    border-radius: 2px;
+    transition-property: opacity, background-color;
+    transition-duration: 0.1s;
+    transition-timing-function: ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  path {
+    fill: var(--body);
+  }
+
+  .copy:hover {
+    opacity: 1;
+    background-color: var(--bg);
+  }
+
+  .tab {
+    padding: 1rem;
+    position: relative;
+  }
+
+  .tab:after {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 4px;
+    left: 0;
+    bottom: 0;
+  }
+
+  button:not(.active):hover:after {
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .active:after {
+    background-color: rgba(255, 255, 255, 0.5);
+  }
+
+  .title:after {
+    content: "";
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+  }
+</style>
+
+=== 816 src/routes/_components/Demo/Blob.svelte	svelte
+<script>
+  import DemoLayer from "./DemoLayer.svelte";
+
+  const pathString =
+    "M26.8,-43.9C33.8,-37.1,38,-28.2,47,-18.5C56,-8.9,69.7,1.6,70.3,11.5C71,21.4,58.7,30.7,46,33C33.4,35.3,20.5,30.5,9.6,34.7C-1.4,38.8,-10.2,52,-18.9,54.1C-27.5,56.2,-35.9,47.3,-46.6,38.4C-57.3,29.6,-70.2,20.8,-68.1,12C-65.9,3.2,-48.6,-5.6,-40.9,-17.1C-33.2,-28.6,-35,-43,-29.8,-50.6C-24.5,-58.2,-12.3,-59.1,-1.2,-57.2C9.9,-55.4,19.7,-50.7,26.8,-43.9Z";
+</script>
+
+<DemoLayer
+  name="Blob"
+  render={({ context, width, height, active }) => {
+    const path = new Path2D(pathString);
+    context.fillStyle = "mediumturquoise";
+    context.translate(width * 0.85, height * 0.6);
+
+    const scale = width * 0.0018;
+    context.scale(scale * 0.9, scale);
+    context.fill(path);
+
+    if (active()) {
+      context.stroke(path);
+    }
+  }}
+/>
+
+=== 389 src/routes/_components/Demo/Circle.svelte	svelte
+<script>
+  import DemoLayer from "./DemoLayer.svelte";
+</script>
+
+<DemoLayer
+  name="Circle"
+  render={({ context, width, height, active }) => {
+    context.fillStyle = "goldenrod";
+    context.translate(width * 0.15, height * 0.7);
+    context.beginPath();
+    context.arc(0, 0, width * 0.1, 0, 2 * Math.PI);
+    context.fill();
+
+    if (active()) {
+      context.stroke();
+    }
+  }}
+/>
+
+=== 1110 src/routes/_components/Demo/Demo.svelte	svelte
+<script>
+  import { Canvas } from "$lib";
+  import Rect from "./Rect.svelte";
+  import Circle from "./Circle.svelte";
+  import Blob from "./Blob.svelte";
+  import Text from "./Text.svelte";
+  import Tooltip from "./Tooltip.svelte";
+  import { coords, activeLayer } from "./store";
+
+  const touch = (e) => {
+    const { left, top } = e.target.getBoundingClientRect();
+    const { clientX, clientY } = e.changedTouches[0];
+    $coords = [clientX - left, clientY - top];
+  };
+</script>
+
+<div>
+  <Canvas
+    layerEvents
+    style="cursor: {$activeLayer ? 'pointer' : 'default'}"
+    onpointermove={(e) => ($coords = [e.offsetX, e.offsetY])}
+    ontouchstart={touch}
+    ontouchmove={touch}
+  >
+    <Rect />
+    <Blob />
+    <Circle />
+    <Text text="svelte-canvas" yOffset={-0.03} scale={0.06} />
+    <Text
+      text="Reactive canvas components"
+      scale={0.0297}
+      yOffset={0.04}
+      opacity={0.7}
+    />
+    {#if $activeLayer?.id}
+      <Tooltip />
+    {/if}
+  </Canvas>
+</div>
+
+<style>
+  div {
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 5/3;
+    touch-action: none;
+  }
+</style>
+
+=== 1961 src/routes/_components/Demo/DemoLayer.svelte	svelte
+<script>
+  import { Layer } from "$lib";
+  import { spring, tweened } from "svelte/motion";
+  import { quadInOut as easing } from "svelte/easing";
+  import { coords, activeLayer } from "./store";
+
+  let { name, render } = $props();
+
+  const id = Symbol();
+
+  const styleTween = (initial) => {
+    const tween = tweened(initial, { duration: 250, easing });
+    return {
+      subscribe: tween.subscribe,
+      set: (value) => tween.set(value, { delay: Math.random() * 50 + 10 }),
+    };
+  };
+
+  const blur = styleTween(0);
+  const saturation = styleTween(1);
+  const opacity = styleTween(1);
+  const scale = spring(1, { stiffness: 0.1, damping: 0.2 });
+
+  let active = $derived($activeLayer?.id === id);
+  let inactive = $derived($activeLayer?.id && !active);
+
+  $effect(() => {
+    blur.set(inactive ? 0.018 : 0);
+    saturation.set(inactive ? 0.4 : 1);
+    opacity.set(inactive ? 0.5 : 1);
+  });
+
+  $effect(() => {
+    scale.set(
+      !$activeLayer?.id ? 1 : (!active ? 0.95 : 1.1) + Math.random() / 10,
+    );
+  });
+
+  let styleActive = $derived((context) => () => {
+    if (active) {
+      context.setLineDash([4, 4]);
+      context.strokeStyle = "#dcdcdc";
+      context.lineWidth = 2;
+    }
+
+    return active;
+  });
+
+  const _render = ({ context, width, height, time }) => {
+    const [x, y] = $coords;
+    context.save();
+    context.translate(x, y);
+    context.scale($scale, $scale);
+    context.translate(-x, -y);
+    context.globalAlpha = $opacity;
+    context.filter = `blur(${width * $blur}px) saturate(${$saturation * 100}%)`;
+    render({ context, width, height, time, active: styleActive(context) });
+    context.restore();
+  };
+</script>
+
+<Layer
+  onpointerenter={() => ($activeLayer = { name, id })}
+  ontouchstart={() => ($activeLayer = { name, id })}
+  onpointerleave={() => ($activeLayer = null)}
+  ontouchend={() => ($activeLayer = null)}
+  onpointerdown={() => scale.set(0.95)}
+  onpointerup={() => scale.set(1.1)}
+  render={_render}
+/>
+
+=== 352 src/routes/_components/Demo/Rect.svelte	svelte
+<script>
+  import DemoLayer from "./DemoLayer.svelte";
+</script>
+
+<DemoLayer
+  name="Rect"
+  render={({ context, width, height, active }) => {
+    const rect = [width * 0.2, height * 0.14, width * 0.2, width * 0.12];
+    context.fillStyle = "tomato";
+    context.fillRect(...rect);
+
+    if (active()) {
+      context.strokeRect(...rect);
+    }
+  }}
+/>
+
+=== 820 src/routes/_components/Demo/Text.svelte	svelte
+<script>
+  import DemoLayer from "./DemoLayer.svelte";
+
+  let { text, scale, opacity = 1, yOffset = 0 } = $props();
+</script>
+
+<DemoLayer
+  name="Text"
+  render={({ context, width, height, active }) => {
+    const size = width * scale;
+    const offset = height * yOffset;
+    context.font = `${size}px 'Fira Mono', monospace`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillStyle = "#dcdcdc";
+    context.globalAlpha = opacity;
+    context.fillText(text, width / 2, height / 2 + offset);
+
+    const { width: w } = context.measureText(text);
+    const rect = [width / 2 - w / 2, height / 2 - size / 2 + offset, w, size];
+    context.globalAlpha = 0;
+    context.fillRect(...rect);
+    context.globalAlpha = 1;
+
+    if (active()) {
+      context.strokeRect(...rect);
+    }
+  }}
+/>
+
+=== 779 src/routes/_components/Demo/Tooltip.svelte	svelte
+<script>
+  import { Layer } from "$lib";
+  import { coords, activeLayer } from "./store";
+</script>
+
+<Layer
+  render={({ context }) => {
+    const [x, y] = $coords;
+    const text = `<${$activeLayer?.name} />`;
+
+    const size = 17;
+    const tooltipX = x + size;
+    const tooltipY = y + size;
+
+    context.font = `${size}px 'Fira Mono', monospace`;
+    context.textAlign = "left";
+    context.textBaseline = "top";
+
+    const { width: w } = context.measureText(text);
+    const rect = [tooltipX - 2, tooltipY - 2, w + 4, size + 4];
+    context.fillStyle = "#fff";
+    context.globalAlpha = 0.9;
+    context.fillRect(...rect);
+    context.strokeRect(...rect);
+
+    context.globalAlpha = 1;
+    context.fillStyle = "#000";
+    context.fillText(text, tooltipX, tooltipY);
+  }}
+/>
+
+=== 579 src/routes/_components/Example.svelte	svelte
+<script lang="ts">
+  import type { Snippet } from "svelte";
+  import Code from "./Code.svelte";
+
+  let {
+    width = "100%",
+    aspectRatio = "1",
+    files = [],
+    children,
+  }: {
+    width: string;
+    aspectRatio: string;
+    files: string[][];
+    children: Snippet;
+  } = $props();
+</script>
+
+<div style:max-width={width} style:aspect-ratio={aspectRatio}>
+  {@render children()}
+</div>
+
+<Code copy {files} />
+
+<style>
+  div {
+    width: 100%;
+    justify-self: center;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background-color: var(--bg-light);
+  }
+</style>
+
+=== 5645 src/routes/_components/Layout.svelte	svelte
+<script lang="ts">
+  import "./page.css";
+  import { page } from "$app/stores";
+  import { browser, version } from "$app/environment";
+  import NavMenu, { type NavItems } from "./NavMenu.svelte";
+  import type { Snippet } from "svelte";
+
+  let {
+    data,
+    title,
+    children,
+  }: { data: { menu: NavItems }; title: string; children: Snippet } = $props();
+
+  let menuVisible = $state(false);
+  let article = $derived(!$page.url.pathname.includes("/examples/"));
+
+  $effect(() => {
+    $page;
+    menuVisible = false;
+  });
+
+  $effect(() => {
+    if (!browser) return;
+    document.body.style.overflow = menuVisible ? "hidden" : "auto";
+  });
+</script>
+
+<svelte:head>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Fira+Mono&family=Source+Sans+3:wght@400;600;800&display=swap");
+  </style>
+
+  <title>{title} • svelte-canvas</title>
+</svelte:head>
+
+<div class="page">
+  <nav>
+    <div class="header">
+      <button
+        aria-expanded={menuVisible}
+        aria-label="Toggle menu"
+        onclick={() => (menuVisible = !menuVisible)}
+      >
+        <svg viewBox="0 0 24 24">
+          <line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" />
+          <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" />
+          <line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" />
+        </svg>
+      </button>
+      <h1>
+        <a href="/svelte-canvas">svelte-canvas</a>
+        <a
+          target="_blank"
+          href="https://github.com/dnass/svelte-canvas/blob/master/CHANGELOG.md"
+        >
+          <span>
+            {version}
+          </span>
+        </a>
+      </h1>
+      <a
+        class="github"
+        target="_blank"
+        href="https://github.com/dnass/svelte-canvas"
+        aria-label="GitHub"
+      >
+        <svg viewBox="0 0 98 96">
+          <path
+            fill-rule="evenodd"
+            clip-rule="evenodd"
+            d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z"
+            fill="currentColor"
+          />
+        </svg>
+      </a>
+    </div>
+    <div class="menu" class:visible={menuVisible}>
+      <NavMenu items={data.menu} />
+    </div>
+  </nav>
+
+  <main class:article>
+    {@render children()}
+  </main>
+</div>
+
+<style>
+  .page {
+    position: relative;
+  }
+
+  nav {
+    display: flex;
+    gap: 0.33rem;
+    flex-direction: column;
+  }
+
+  .header {
+    top: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  button {
+    appearance: none;
+    border: none;
+    background: none;
+    padding: 0;
+    line-height: 0;
+    color: var(--secondary);
+    cursor: pointer;
+  }
+
+  button:hover,
+  button:active {
+    color: var(--primary);
+  }
+
+  svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  line {
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+
+  .github {
+    line-height: 0;
+    margin-left: auto;
+  }
+
+  h1 span {
+    font-size: 0.8rem;
+  }
+
+  main {
+    width: 100%;
+    max-width: 100%;
+    min-height: calc(100vh - var(--header-offset, 0vh));
+    display: grid;
+    grid-template-columns: minmax(auto, 80ch);
+    grid-auto-rows: min-content;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 2rem;
+    background-color: var(--bg);
+    padding: 1.5rem 1.5rem 2rem;
+  }
+
+  .article {
+    gap: 1rem;
+  }
+
+  @media (max-width: 45rem) {
+    .page {
+      --header-pad: 0.75rem;
+      --header-height: 2rem;
+      --header-offset: calc(var(--header-height) + var(--header-pad) * 2);
+    }
+
+    .header {
+      width: 100%;
+      position: fixed;
+      z-index: 1;
+      padding: var(--header-pad) 1.5rem;
+      background-color: var(--bg-dark);
+      border-bottom: 1px solid var(--bg-light);
+      line-height: 1.3;
+    }
+
+    h1 {
+      height: var(--header-height);
+    }
+
+    .menu,
+    main {
+      margin-top: var(--header-offset);
+    }
+
+    .menu {
+      transform: translateX(-100%);
+      opacity: 0;
+      transition-property: transform, opacity, visibility;
+      transition-duration: 0.2s;
+      transition-timing-function: ease-in-out;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg);
+      top: 0;
+      z-index: 2;
+      visibility: hidden;
+      padding: 1rem 1.5rem;
+    }
+
+    .menu.visible {
+      transform: none;
+      visibility: visible;
+      opacity: 1;
+    }
+  }
+
+  @media (min-width: 45rem) {
+    .page {
+      --sidebar-width: max(25vw, 20rem);
+      --gutter-width: 4rem;
+      --margin-top: 4rem;
+
+      display: grid;
+      grid-template-columns: var(--sidebar-width) 1fr;
+    }
+
+    nav {
+      position: fixed;
+      top: var(--margin-top);
+      right: 0;
+      margin-right: calc(100% - var(--sidebar-width) + var(--gutter-width));
+    }
+
+    main {
+      gap: 3rem;
+      padding: var(--margin-top) 2rem 4rem var(--gutter-width);
+      grid-column: 2;
+      border-left: 1px solid var(--bg-light);
+    }
+
+    button {
+      display: none;
+    }
+  }
+</style>
+
+=== 854 src/routes/_components/NavMenu.svelte	svelte
+<script module lang="ts">
+  export type NavItems = {
+    [key in string]: string | NavItems;
+  };
+</script>
+
+<script lang="ts">
+  import { page } from "$app/stores";
+  import NavMenu from "./NavMenu.svelte";
+
+  let { items }: { items: NavItems } = $props();
+</script>
+
+{#each Object.entries(items) as [title, value]}
+  {#if typeof value === "string"}
+    {@const href = `/svelte-canvas${value}`}
+    <a class:active={$page.url.pathname.replace(/\/$/, "") === href} {href}>
+      {title}
+    </a>
+  {:else if typeof value === "object"}
+    <p>{title}</p>
+    <NavMenu items={value} />
+  {/if}
+{/each}
+
+<style>
+  a {
+    display: block;
+    line-height: 1.4;
+  }
+
+  a.active {
+    font-weight: 600;
+    color: var(--primary);
+  }
+
+  p {
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 1.5rem 0 0.25rem;
+  }
+</style>
+
+=== 1044 src/routes/examples/canvas-svg/App.svelte	svelte
+<script>
+  import { Canvas } from "$lib";
+  import { mesh, feature } from "topojson-client";
+  import { geoIdentity, geoPath } from "d3-geo";
+  import Bubble from "./Bubble.svelte";
+  import us from "us-atlas/states-albers-10m.json";
+
+  let width = $state(0);
+
+  const projection = $derived(geoIdentity().scale(width / 975));
+  const path = $derived(geoPath(projection));
+
+  const centroids = $derived(
+    us
+      ? feature(us, us.objects.states)
+          .features.map(path.centroid)
+          .sort(([a], [b]) => b - a)
+      : [],
+  );
+</script>
+
+<div>
+  <svg>
+    {#if us}
+      <path d={path(mesh(us, us.objects.states))} />
+    {/if}
+  </svg>
+  <Canvas
+    onresize={(e) => (width = e.width)}
+    style="position: absolute"
+    autoplay
+  >
+    {#each centroids as [x, y], i}
+      <Bubble {x} {y} {i} />
+    {/each}
+  </Canvas>
+</div>
+
+<style>
+  div {
+    position: relative;
+    height: 100%;
+  }
+
+  svg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+  }
+
+  path {
+    stroke: #ccc;
+    fill: transparent;
+  }
+</style>
+
+=== 789 src/routes/examples/canvas-svg/Bubble.svelte	svelte
+<script>
+  import { Layer } from "$lib";
+  import { quadInOut } from "svelte/easing";
+  import { piecewise, interpolateRgbBasis } from "d3-interpolate";
+
+  let { x, y, i } = $props();
+
+  const pieces = piecewise([
+    { r: 0.005, alpha: 0.1 },
+    { r: 0.02, alpha: 0.9 },
+    { r: 0.005, alpha: 0.1 },
+  ]);
+
+  const scale = (t) => pieces(quadInOut(t));
+  const interpolate = interpolateRgbBasis([
+    "tomato",
+    "goldenrod",
+    "mediumturquoise",
+  ]);
+
+  const render = ({ context, width, time }) => {
+    const { r, alpha } = scale(((time / 25 + i * 3) % 100) / 100);
+
+    context.fillStyle = interpolate(1 - i / 50);
+    context.globalAlpha = alpha;
+    context.beginPath();
+    context.arc(x, y, r * width, 0, Math.PI * 2);
+    context.fill();
+  };
+</script>
+
+<Layer {render} />
+
+=== 193 src/routes/examples/dvd-bounce/App.svelte	svelte
+<script>
+  import { Canvas } from "$lib";
+  import Background from "./Background.svelte";
+  import Logo from "./Logo.svelte";
+</script>
+
+<Canvas autoplay>
+  <Logo />
+  <Background />
+</Canvas>
+
+=== 457 src/routes/examples/dvd-bounce/Background.svelte	svelte
+<script>
+  import { Layer } from "$lib";
+
+  const render = ({ context, width, height }) => {
+    const w = width / 2;
+    const h = height / 2;
+    const gradient = context.createRadialGradient(w, h, 0, w, h, height);
+    gradient.addColorStop(0, "#222");
+    gradient.addColorStop(1, "#000");
+
+    context.globalCompositeOperation = "lighten";
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+  };
+</script>
+
+<Layer {render} />
+
+=== 1051 src/routes/examples/dvd-bounce/Logo.svelte	svelte
+<script>
+  import { Layer } from "$lib";
+  import { onMount, untrack } from "svelte";
+  import Logo from "./DVD_logo.svg?raw";
+
+  let logo = $state();
+
+  onMount(() => {
+    logo = new Image();
+    logo.src = `data:image/svg+xml,${encodeURIComponent(Logo)}`;
+  });
+
+  let x = $state(0);
+  let y = $state(0);
+  let xflip = $state(1);
+  let yflip = $state(1);
+  let colorIndex = $state(0);
+
+  const colors = ["tomato", "goldenrod", "mediumturquoise"];
+
+  const render = ({ context, width, height }) => {
+    untrack(() => {
+      const w = Math.min(210, width / 3);
+      const h = w / 2;
+
+      if ((x += 5 * xflip) <= 0 || x + w >= width) {
+        xflip *= -1;
+        colorIndex++;
+      }
+
+      if ((y += 5 * yflip) <= 0 || y + h >= height) {
+        yflip *= -1;
+        colorIndex++;
+      }
+
+      context.fillStyle = colors[colorIndex % colors.length];
+      context.fillRect(0, 0, width, height);
+      context.globalCompositeOperation = "destination-in";
+      context.drawImage(logo, x, y, w, h);
+    });
+  };
+</script>
+
+<Layer {render} />
+
+=== 1050 src/routes/examples/globe/App.svelte	svelte
+<script>
+  import { Canvas, Layer } from "$lib";
+  import { geoOrthographic, geoGraticule10, geoPath } from "d3-geo";
+  import { feature } from "topojson-client";
+  import land from "world-atlas/land-110m.json";
+
+  const map = feature(land, "land");
+
+  let width = $state();
+  const pad = $derived(width * 0.02);
+
+  const projection = $derived(
+    geoOrthographic().fitExtent(
+      [
+        [pad, pad],
+        [width - pad, width - pad],
+      ],
+      { type: "Sphere" },
+    ),
+  );
+
+  const path = $derived(geoPath(projection));
+</script>
+
+<Canvas autoplay onresize={(e) => (width = e.width)}>
+  <!-- Graticule -->
+  <Layer
+    render={({ context, time }) => {
+      path.context(context);
+      projection.rotate([time / 50, -10]);
+
+      context.strokeStyle = "#ccc";
+      context.beginPath();
+      path(geoGraticule10());
+      context.stroke();
+    }}
+  />
+
+  <!-- Map -->
+  <Layer
+    render={({ context }) => {
+      context.fillStyle = "tomato";
+      context.beginPath();
+      path(map);
+      context.fill();
+    }}
+  />
+</Canvas>
+
+=== 371 src/routes/examples/hello-world/App.svelte	svelte
+<script>
+  import { Canvas, Layer } from "$lib";
+
+  const render = ({ context, width, height }) => {
+    context.font = `${width / 10}px sans-serif`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillStyle = "tomato";
+    context.fillText("hello world", width / 2, height / 2);
+  };
+</script>
+
+<Canvas>
+  <Layer {render} />
+</Canvas>
+
+=== 577 src/routes/examples/layer-events/App.svelte	svelte
+<script>
+  import { Canvas } from "$lib";
+  import Ball from "./Ball.svelte";
+
+  let balls = [
+    { color: "tomato", x: 0.5, y: 0.333 },
+    { color: "goldenrod", x: 0.333, y: 0.625 },
+    { color: "mediumturquoise", x: 0.667, y: 0.625 },
+  ];
+
+  const reorder = (color) => {
+    balls = balls
+      .filter((c) => c.color !== color)
+      .concat(balls.filter((c) => c.color === color));
+  };
+</script>
+
+<Canvas layerEvents style="touch-action: none">
+  {#each balls as { color, x, y } (color)}
+    <Ball {color} {x} {y} onclick={() => reorder(color)} />
+  {/each}
+</Canvas>
+
+=== 1407 src/routes/examples/layer-events/Ball.svelte	svelte
+<script>
+  import { Layer } from "$lib";
+  import { spring } from "svelte/motion";
+
+  let { x, y, color, onclick } = $props();
+
+  let dragging = $state(false);
+
+  let _x = $state();
+  let _y = $state();
+
+  const radius = spring(80, { stiffness: 0.15, damping: 0.2 });
+
+  const setup = ({ width, height }) => {
+    _x = spring(width * x, { stiffness: 0.15, damping: 0.2 });
+    _y = spring(height * y, { stiffness: 0.15, damping: 0.2 });
+  };
+
+  const render = ({ context }) => {
+    context.globalCompositeOperation = "screen";
+    context.fillStyle = color;
+    context.lineWidth = 10;
+    context.beginPath();
+    context.arc($_x, $_y, $radius, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+  };
+
+  const onEnter = () => {
+    document.body.style.cursor = "pointer";
+    radius.set(90);
+  };
+
+  const onLeave = () => {
+    document.body.style.cursor = "auto";
+    dragging = false;
+    radius.set(80);
+  };
+
+  const onDown = (e) => {
+    dragging = true;
+    radius.set(120);
+    onclick?.();
+  };
+
+  const onUp = () => {
+    dragging = false;
+    radius.set(80);
+  };
+
+  const onMove = ({ x, y }) => {
+    if (dragging) {
+      _x.set(x);
+      _y.set(y);
+    }
+  };
+</script>
+
+<Layer
+  {setup}
+  {render}
+  onmouseenter={onEnter}
+  onmouseleave={onLeave}
+  onmousedown={onDown}
+  onmousemove={onMove}
+  onmouseup={onUp}
+  ontouchstart={onDown}
+  ontouchmove={onMove}
+  ontouchend={onUp}
+/>
+
+=== 1692 src/routes/examples/pixel-ratio/App.svelte	svelte
+<script>
+  import { Canvas, Layer } from "$lib";
+
+  const heights = [
+    { value: 1000, label: "1000" },
+    { value: 10000, label: "10000" },
+    { value: 100000, label: "100000" },
+  ];
+
+  const pixelRatios = [
+    { value: undefined, label: "unset" },
+    { value: 3, label: "3" },
+    { value: 0.5, label: "0.5" },
+    { value: "auto", label: "'auto'" },
+  ];
+
+  let heightSetting = $state(heights[0]);
+  let pixelRatioSetting = $state(pixelRatios[0]);
+  let pixelRatioValue = $state();
+</script>
+
+<div class="controls">
+  <div>
+    canvas height:
+    {#each heights as option}
+      <button
+        onclick={() => (heightSetting = option)}
+        disabled={option.label === heightSetting.label}
+      >
+        {option.label}
+      </button>
+    {/each}
+  </div>
+
+  <div>
+    pixel ratio:
+    {#each pixelRatios as option}
+      <button
+        onclick={() => (pixelRatioSetting = option)}
+        disabled={option.label === pixelRatioSetting.label}
+      >
+        {option.label}
+      </button>
+    {/each}
+  </div>
+</div>
+
+<Canvas
+  height={heightSetting.value}
+  pixelRatio={pixelRatioSetting.value}
+  onresize={(e) => (pixelRatioValue = e.pixelRatio)}
+>
+  <Layer
+    render={({ context, width }) => {
+      context.font = `${width / 20}px 'Fira Mono', monospace`;
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillStyle = "tomato";
+      context.fillText(
+        `pixelRatio: ${pixelRatioValue?.toFixed(1)}`,
+        width / 2,
+        width / 4,
+      );
+    }}
+  />
+</Canvas>
+
+<style>
+  .controls {
+    position: absolute;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 1em;
+    padding: 0.25em;
+  }
+</style>
+
+=== 626 src/routes/examples/reactive-render/App.svelte	svelte
+<script>
+  import { Canvas, Layer } from "$lib";
+  import { onMount } from "svelte";
+  import { tweened } from "svelte/motion";
+  import { quadOut as easing } from "svelte/easing";
+
+  const position = tweened([0.5, 0.5], { duration: 400, easing });
+
+  onMount(() => {
+    setInterval(() => ($position = [Math.random(), Math.random()]), 1000);
+  });
+
+  const render = ({ context, width, height }) => {
+    const [x, y] = $position;
+    context.fillStyle = "tomato";
+    context.beginPath();
+    context.arc(x * width, y * height, 20, 0, 2 * Math.PI);
+    context.fill();
+  };
+</script>
+
+<Canvas>
+  <Layer {render} />
+</Canvas>
+
+=== 960 src/routes/examples/resize/App.svelte	svelte
+<script>
+  import { Canvas, Layer } from "$lib";
+  import ResizableLayer from "./ResizableLayer.svelte";
+
+  let colors = $state(["tomato", "goldenrod", "mediumturquoise"]);
+
+  const sort = (color) =>
+    (colors = colors.sort((a, b) => (a === color ? 1 : b === color ? -1 : 0)));
+</script>
+
+<Canvas style="touch-action: none" layerEvents>
+  {#each colors as color, i (color)}
+    {@const c = (i + 1) * 85}
+    <ResizableLayer
+      initialBounds={{ x0: c, y0: c, x1: c + 338, y1: c + 338 }}
+      onmousedown={() => sort(color)}
+      ontouchstart={() => sort(color)}
+    >
+      {#snippet content(bounds)}
+        <Layer
+          render={({ context }) => {
+            const { x0, y0, x1, y1 } = bounds;
+            context.globalAlpha = 0.9;
+            context.fillStyle = color;
+            context.fillRect(x0, y0, x1 - x0, y1 - y0);
+            context.globalAlpha = 1;
+          }}
+        />
+      {/snippet}
+    </ResizableLayer>
+  {/each}
+</Canvas>
+
+=== 2725 src/routes/examples/resize/ResizableLayer.svelte	svelte
+<script>
+  import Handle from "./ResizableLayerHandle.svelte";
+  import Surface from "./ResizableLayerSurface.svelte";
+
+  const [N, S, E, W] = [1, 2, 4, 8],
+    HANDLES = [N, S, E, W, N | E, N | W, S | E, S | W],
+    SURFACE = N | S | E | W;
+
+  let {
+    initialBounds = { x0: 160, y0: 160, x1: 480, y1: 480 },
+    onmousedown,
+    ontouchstart,
+    content,
+  } = $props();
+
+  let x0 = $state(initialBounds.x0);
+  let y0 = $state(initialBounds.y0);
+  let x1 = $state(initialBounds.x1);
+  let y1 = $state(initialBounds.y1);
+  const bounds = $derived({ x0, y0, x1, y1 });
+
+  let hoveredHandle = $state(null);
+  let draggedHandle = $state(null);
+  let previousTouch = $state();
+
+  const active = $derived(Boolean(hoveredHandle || draggedHandle));
+  const sortedHandles = $derived(
+    HANDLES.sort((a, b) =>
+      a === hoveredHandle ? 1 : b === hoveredHandle ? -1 : 0,
+    ),
+  );
+
+  const setCursor = ({ style }) => ({
+    update: (cursor) => (style.cursor = cursor),
+  });
+</script>
+
+<svelte:body
+  use:setCursor={active ? "pointer" : "auto"}
+  onmousemove={({ movementX, movementY }) => {
+    x0 += draggedHandle & W && movementX;
+    y0 += draggedHandle & N && movementY;
+    x1 += draggedHandle & E && movementX;
+    y1 += draggedHandle & S && movementY;
+  }}
+  onmouseup={() => (draggedHandle = null)}
+  onpointerdown={() => (draggedHandle = null)}
+  ontouchstart={(e) => (previousTouch = e.touches[0])}
+  ontouchmove={(e) => {
+    const { clientX, clientY } = e.touches[0];
+    const movementX = clientX - previousTouch.clientX;
+    const movementY = clientY - previousTouch.clientY;
+    x0 += draggedHandle & W && movementX;
+    y0 += draggedHandle & N && movementY;
+    x1 += draggedHandle & E && movementX;
+    y1 += draggedHandle & S && movementY;
+    previousTouch = e.touches[0];
+  }}
+/>
+
+{@render content(bounds)}
+
+<Surface
+  {bounds}
+  show={active}
+  onmouseenter={() => {
+    hoveredHandle = SURFACE;
+  }}
+  ontouchstart={() => {
+    draggedHandle = SURFACE;
+    ontouchstart?.();
+  }}
+  onmouseleave={() => {
+    hoveredHandle = null;
+  }}
+  onmousedown={() => {
+    draggedHandle = SURFACE;
+    onmousedown?.();
+  }}
+/>
+
+{#if active}
+  {#each sortedHandles as handle (handle)}
+    <Handle
+      active={handle === hoveredHandle || handle === draggedHandle}
+      x={handle & W ? x0 : handle & E ? x1 : (x0 + x1) / 2}
+      y={handle & N ? y0 : handle & S ? y1 : (y0 + y1) / 2}
+      onmouseenter={() => {
+        hoveredHandle = handle;
+      }}
+      ontouchstart={() => {
+        draggedHandle = handle;
+        ontouchstart?.();
+      }}
+      onmouseleave={() => (hoveredHandle = null)}
+      onmousedown={() => {
+        draggedHandle = handle;
+        onmousedown?.();
+      }}
+    />
+  {/each}
+{/if}
+
+=== 288 src/routes/examples/resize/ResizableLayerHandle.svelte	svelte
+<script>
+  import { Layer } from "$lib";
+
+  let { x, y, active = false, ...eventHandlers } = $props();
+
+  const render = ({ context }) => {
+    context.fillStyle = active ? "#111" : "#444";
+    context.fillRect(x - 6, y - 6, 12, 12);
+  };
+</script>
+
+<Layer {render} {...eventHandlers} />
+
+=== 480 src/routes/examples/resize/ResizableLayerSurface.svelte	svelte
+<script>
+  import { Layer } from "$lib";
+
+  let { bounds, show = false, ...eventHandlers } = $props();
+
+  const render = ({ context }) => {
+    const { x0, y0, x1, y1 } = bounds;
+
+    if (show) {
+      context.strokeStyle = "#444";
+      context.lineWidth = 2;
+      context.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    }
+
+    context.globalAlpha = 0;
+    context.fillRect(x0, y0, x1 - x0, y1 - y0);
+    context.globalAlpha = 1;
+  };
+</script>
+
+<Layer {render} {...eventHandlers} />
+
+=== 1983 src/routes/examples/scatterplot/App.svelte	svelte
+<script>
+  import { onMount } from "svelte";
+  import { Canvas } from "$lib";
+  import { extent } from "d3-array";
+  import { scaleLinear } from "d3-scale";
+  import { Delaunay } from "d3-delaunay";
+
+  import Point from "./Point.svelte";
+  import Axis from "./Axis.svelte";
+
+  const margin = { top: 24, right: 24, bottom: 36, left: 36 };
+
+  let points = $state([]),
+    width = $state(),
+    height = $state(),
+    picked = $state(null),
+    click = $state(false);
+
+  onMount(() =>
+    fetch(
+      "https://raw.githubusercontent.com/vega/vega/master/docs/data/cars.json",
+    )
+      .then((data) => data.json())
+      .then((data) => {
+        points = data
+          .map((d, id) => ({ mpg: d.Miles_per_Gallon, hp: d.Horsepower, id }))
+          .filter((d) => d.mpg && d.hp);
+      }),
+  );
+
+  let x = $derived(
+    scaleLinear()
+      .domain(extent(points, (d) => d.mpg))
+      .range([margin.left, width - margin.right])
+      .nice(),
+  );
+
+  let y = $derived(
+    scaleLinear()
+      .domain(extent(points, (d) => d.hp))
+      .range([height - margin.bottom, margin.top])
+      .nice(),
+  );
+
+  let delaunay = $derived(
+    Delaunay.from(
+      points,
+      (d) => x(d.mpg),
+      (d) => y(d.hp),
+    ),
+  );
+</script>
+
+<Canvas
+  style="cursor: pointer"
+  onresize={(e) => {
+    width = e.width;
+    height = e.height;
+  }}
+  onmousemove={({ offsetX, offsetY }) => {
+    const i = delaunay.find(offsetX, offsetY);
+    if (i) {
+      picked = points[i].id;
+      points.push(points.splice(i, 1)[0]);
+      points = points;
+    }
+  }}
+  onmouseout={() => (picked = null)}
+  onmousedown={() => (click = true)}
+  onmouseup={() => (click = false)}
+>
+  <Axis type="x" scale={x} tickNumber={8} {margin} />
+  <Axis type="y" scale={y} tickNumber={10} {margin} />
+  {#each points as { mpg, hp, id } (id)}
+    <Point
+      x={x(mpg)}
+      y={y(hp)}
+      fill="tomato"
+      r={id === picked && !click ? 5 : 3}
+      stroke={id === picked ? "#eee" : null}
+    />
+  {/each}
+</Canvas>
+
+=== 1063 src/routes/examples/scatterplot/Axis.svelte	svelte
+<script>
+  import { Layer } from "$lib";
+
+  const { scale, tickSize = 4, margin, tickNumber = 10, type = "x" } = $props();
+
+  const render = ({ context, height }) => {
+    const ticks = scale.ticks(tickNumber);
+    context.beginPath();
+
+    ticks.forEach((d) => {
+      if (type === "x") {
+        context.moveTo(scale(d), height - margin.bottom);
+        context.lineTo(scale(d), height - margin.bottom + tickSize);
+      } else if (type === "y") {
+        context.moveTo(margin.left, scale(d));
+        context.lineTo(margin.left - tickSize, scale(d));
+      }
+    });
+
+    context.strokeStyle = "#ccc";
+    context.stroke();
+
+    context.textAlign = type === "x" ? "center" : "right";
+    context.textBaseline = type === "x" ? "top" : "middle";
+    context.fillStyle = "#ccc";
+
+    ticks.forEach((d) => {
+      if (type === "x") {
+        context.fillText(d, scale(d), height - margin.bottom + tickSize + 1);
+      } else if (type === "y") {
+        context.fillText(d, margin.left - tickSize - 1, scale(d));
+      }
+    });
+  };
+</script>
+
+<Layer {render} />
+
+=== 749 src/routes/examples/scatterplot/Point.svelte	svelte
+<script>
+  import { Layer } from "$lib";
+  import { spring } from "svelte/motion";
+
+  const {
+    x = 0,
+    y = 0,
+    r = 1,
+    fill = "black",
+    stroke = null,
+    strokeWidth = 1,
+  } = $props();
+
+  const radius = spring(r, { stiffness: 0.15, damping: 0.3 });
+  $effect(() => {
+    radius.set(r);
+  });
+
+  const render = ({ context }) => {
+    const r = Math.max($radius, 0);
+
+    context.fillStyle = fill;
+    context.beginPath();
+    context.arc(x, y, r, 0, 2 * Math.PI);
+    context.fill();
+
+    if (stroke) {
+      context.strokeStyle = stroke;
+      context.lineWidth = strokeWidth;
+      context.beginPath();
+      context.arc(x, y, r + strokeWidth / 2, 0, 2 * Math.PI);
+      context.stroke();
+    }
+  };
+</script>
+
+<Layer {render} />
+

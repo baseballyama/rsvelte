@@ -25,7 +25,15 @@
 	};
 	const totalSelf = $derived(data.phases.reduce((n, p) => n + p.self_ms, 0));
 	const maxMs = $derived(Math.max(...data.arms.map((x) => x.plain[0])));
-	const verdicts = ['match', 'mismatch', 'unparseable', 'unexpected', 'missing'];
+	const verdicts = [
+		'match',
+		'mismatch',
+		'unparseable',
+		'unexpected',
+		'missing',
+		'refused',
+		'panicked',
+	];
 	const perByte = (n: number) => (n / data.performance.instructionSample.source_bytes).toFixed(1);
 </script>
 
@@ -264,9 +272,8 @@
 	<p>
 		出力が公式ツールと一致するかも検査します。<code>cargo test</code>
 		は、タスク・出力の種類・検証例ごとに判定を一つ出します。成果物が複数あるときは、いちばん悪い判定を採ります。判定を
-		<code>corpus/_registry/parity.json</code>
-		と比べ、悪化も改善も検出します。次の表は、このページをビルドしたときの
-		<code>parity.json</code> を数えたものです。
+		<code>corpus/_registry/parity/</code>
+		の記録と比べ、悪化も改善も検出します。次の表は、このページをビルドしたときの記録を数えたものです。
 	</p>
 </div>
 
@@ -288,7 +295,7 @@
 		</tbody>
 	</table>
 	<figcaption class="mt-2 text-[13px] leading-[1.7] text-muted">
-		合計 {fmt(data.parity.units)} 件です。rsvelte が未対応として拒否した検証例は表に載りません。
+		合計 {fmt(data.parity.units)} 件です。
 	</figcaption>
 </figure>
 

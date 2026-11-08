@@ -1,0 +1,3829 @@
+# rsvelte pack 1
+=== 3 src/lib/AdminActions.svelte	json
+[]
+
+=== 655 src/lib/AdminMenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@leveluptuts/svelte-side-menu' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './form_action' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 44
+		}
+	}
+]
+
+=== 3 src/lib/AdminSearch.svelte	json
+[]
+
+=== 237 src/lib/AmsterdamBanner.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../assets/syntax-wordmark-wide.svg' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	}
+]
+
+=== 218 src/lib/DropdownMenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$actions/anchor' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	}
+]
+
+=== 3 src/lib/FacePile.svelte	json
+[]
+
+=== 426 src/lib/FormButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './form_action' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 44
+		}
+	}
+]
+
+=== 1269 src/lib/FormWithLoader.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 38
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/loading' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltejs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 51
+		},
+		"end": {
+			"line": 4,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-french-toast' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 19
+		},
+		"end": {
+			"line": 5,
+			"character": 40
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'cancel' implicitly has an 'any' type.",
+		"start": {
+			"line": 24,
+			"character": 33
+		},
+		"end": {
+			"line": 24,
+			"character": 39
+		}
+	}
+]
+
+=== 439 src/lib/HostsAndGuests.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hosts/Host.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	}
+]
+
+=== 226 src/lib/Icon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$utilities/capitalize' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 28
+		},
+		"end": {
+			"line": 36,
+			"character": 51
+		}
+	}
+]
+
+=== 221 src/lib/ListenLinks.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$server/ai/queries' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	}
+]
+
+=== 217 src/lib/Loading.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/loading' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	}
+]
+
+=== 3 src/lib/Logo.svelte	json
+[]
+
+=== 3 src/lib/MadCSS.svelte	json
+[]
+
+=== 420 src/lib/Pagination.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 35
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$const' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 34
+		}
+	}
+]
+
+=== 340 src/lib/PodcastHero.svelte	json
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './schedule.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-JXElgr/src/lib/schedule.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	}
+]
+
+=== 209 src/lib/PodcastLinks.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$const' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 3 src/lib/ProducedBySentry.svelte	json
+[]
+
+=== 873 src/lib/SelectMenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$actions/anchor' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 22
+		},
+		"end": {
+			"line": 6,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@oddbird/popover-polyfill/fn' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 36
+		},
+		"end": {
+			"line": 7,
+			"character": 66
+		}
+	}
+]
+
+=== 2357 src/lib/ShowCard.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/player' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$utilities/format_show_type' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 34
+		},
+		"end": {
+			"line": 4,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$utilities/slug' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'date-fns' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 34
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './badges/Badge.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-JXElgr/src/lib/badges/Badge.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 9,
+			"character": 19
+		},
+		"end": {
+			"line": 9,
+			"character": 42
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './badges/Badges.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-JXElgr/src/lib/badges/Badges.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/server/shows/shows_queries' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 31
+		},
+		"end": {
+			"line": 11,
+			"character": 61
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'host' implicitly has an 'any' type.",
+		"start": {
+			"line": 49,
+			"character": 23
+		},
+		"end": {
+			"line": 49,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'topic' implicitly has an 'any' type.",
+		"start": {
+			"line": 114,
+			"character": 15
+		},
+		"end": {
+			"line": 114,
+			"character": 20
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'guest' implicitly has an 'any' type.",
+		"start": {
+			"line": 125,
+			"character": 34
+		},
+		"end": {
+			"line": 125,
+			"character": 39
+		}
+	}
+]
+
+=== 425 src/lib/ShowTable.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'date-fns' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 34
+		}
+	}
+]
+
+=== 3 src/lib/Svg.svelte	json
+[]
+
+=== 3 src/lib/Tabs.svelte	json
+[]
+
+=== 233 src/lib/UnderConstruction.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$assets/under-construction.gif' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 63
+		}
+	}
+]
+
+=== 3 src/lib/badges/Badge.svelte	json
+[]
+
+=== 3 src/lib/badges/Badges.svelte	json
+[]
+
+=== 3 src/lib/forms/InlineError.svelte	json
+[]
+
+=== 3 src/lib/forms/Input.svelte	json
+[]
+
+=== 2032 src/lib/forms/UserSubmissionForm.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../form_action' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-turnstile' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$env/dynamic/public' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 42
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './InlineError.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-JXElgr/src/lib/forms/InlineError.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 36
+		},
+		"end": {
+			"line": 6,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../routes/(site)/oss/$types' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 33
+		},
+		"end": {
+			"line": 7,
+			"character": 65
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'data' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 49
+		},
+		"end": {
+			"line": 31,
+			"character": 53
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'context' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 55
+		},
+		"end": {
+			"line": 31,
+			"character": 62
+		}
+	}
+]
+
+=== 3 src/lib/hosts/Host.svelte	json
+[]
+
+=== 219 src/lib/hosts/HostSocialLink.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	}
+]
+
+=== 646 src/lib/hotkeys/HotkeyDialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$actions/click_outside_dialog' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './utils' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	}
+]
+
+=== 3 src/lib/hotkeys/Hotkeys.svelte	json
+[]
+
+=== 432 src/lib/meta/Meta.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$env/static/public' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	}
+]
+
+=== 586 src/lib/newsletter/NewsletterForm.svelte	json
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './NewsletterLogo.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-JXElgr/src/lib/newsletter/NewsletterLogo.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/forms/Input.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 44
+		}
+	}
+]
+
+=== 3 src/lib/newsletter/NewsletterLogo.svelte	json
+[]
+
+=== 436 src/lib/newsletter/SwaggyNewsletterForm.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/forms/Input.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './swag.png' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 30
+		}
+	}
+]
+
+=== 620 src/lib/page_loading_indicator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'navigation' implicitly has an 'any' type.",
+		"start": {
+			"line": 8,
+			"character": 13
+		},
+		"end": {
+			"line": 8,
+			"character": 23
+		}
+	}
+]
+
+=== 224 src/lib/player/Album.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$assets/whitegrit.png' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 649 src/lib/player/AlbumArt.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$env/static/public' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/state/player' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 40
+		}
+	}
+]
+
+=== 872 src/lib/player/Player.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/player' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/player_window_status' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 38
+		},
+		"end": {
+			"line": 2,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$utilities/slug' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 27
+		},
+		"end": {
+			"line": 8,
+			"character": 43
+		}
+	}
+]
+
+=== 629 src/lib/player/SaveOffline.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/player_offline' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 38
+		},
+		"end": {
+			"line": 3,
+			"character": 61
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'response' implicitly has an 'any' type.",
+		"start": {
+			"line": 12,
+			"character": 38
+		},
+		"end": {
+			"line": 12,
+			"character": 46
+		}
+	}
+]
+
+=== 253 src/lib/player/Visualizer.svelte	json
+[
+	{
+		"code": 2551,
+		"message": "Property 'webkitAudioContext' does not exist on type 'Window & typeof globalThis'. Did you mean 'AudioContext'?",
+		"start": {
+			"line": 7,
+			"character": 54
+		},
+		"end": {
+			"line": 7,
+			"character": 72
+		}
+	}
+]
+
+=== 3 src/lib/schedule.svelte	json
+[]
+
+=== 648 src/lib/search/Search.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/search' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 42
+		}
+	}
+]
+
+=== 1496 src/lib/search/SearchBox.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/search' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 70
+		},
+		"end": {
+			"line": 4,
+			"character": 85
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './search-worker.js?worker' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 26
+		},
+		"end": {
+			"line": 6,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$actions/click_outside_dialog' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 32
+		},
+		"end": {
+			"line": 10,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 34
+		},
+		"end": {
+			"line": 11,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 27
+		},
+		"end": {
+			"line": 12,
+			"character": 43
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'x' implicitly has an 'any' type.",
+		"start": {
+			"line": 69,
+			"character": 52
+		},
+		"end": {
+			"line": 69,
+			"character": 53
+		}
+	}
+]
+
+=== 1253 src/lib/search/SearchResultList.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/player' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/search' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 31
+		},
+		"end": {
+			"line": 5,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 34
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 27
+		},
+		"end": {
+			"line": 8,
+			"character": 43
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'href' implicitly has an 'any' type.",
+		"start": {
+			"line": 84,
+			"character": 46
+		},
+		"end": {
+			"line": 84,
+			"character": 50
+		}
+	}
+]
+
+=== 210 src/lib/search/SearchResults.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 36
+		}
+	}
+]
+
+=== 431 src/lib/share/HairButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/state/player' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 38
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	}
+]
+
+=== 865 src/lib/share/ShareActions.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/player' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-french-toast' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 4,
+			"character": 53
+		}
+	}
+]
+
+=== 661 src/lib/share/ShareWindow.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/actions/click_outside_dialog' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/state/player' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 38
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	}
+]
+
+=== 215 src/lib/theme/ThemeToggle.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/theme' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	}
+]
+
+=== 3 src/lib/transcript/Squiggle.svelte	json
+[]
+
+=== 432 src/lib/transcript/TableOfContents.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$server/ai/queries' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'speakingurl' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 31
+		}
+	}
+]
+
+=== 2926 src/lib/transcript/Transcript.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$server/transcripts/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/player' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$utilities/format_time' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 36
+		},
+		"end": {
+			"line": 3,
+			"character": 60
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'core-js/full/map/group-by'.",
+		"start": {
+			"line": 4,
+			"character": 8
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'speakingurl' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$server/ai/queries' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 66
+		},
+		"end": {
+			"line": 9,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$server/transcripts/types' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 36
+		},
+		"end": {
+			"line": 10,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@deepgram/sdk' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 46
+		},
+		"end": {
+			"line": 11,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 27
+		},
+		"end": {
+			"line": 12,
+			"character": 43
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'utterance' implicitly has an 'any' type.",
+		"start": {
+			"line": 26,
+			"character": 11
+		},
+		"end": {
+			"line": 26,
+			"character": 20
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'summary' implicitly has an 'any' type.",
+		"start": {
+			"line": 45,
+			"character": 50
+		},
+		"end": {
+			"line": 45,
+			"character": 57
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'i' implicitly has an 'any' type.",
+		"start": {
+			"line": 45,
+			"character": 59
+		},
+		"end": {
+			"line": 45,
+			"character": 60
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'summary' implicitly has an 'any' type.",
+		"start": {
+			"line": 61,
+			"character": 55
+		},
+		"end": {
+			"line": 61,
+			"character": 62
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 61,
+			"character": 64
+		},
+		"end": {
+			"line": 61,
+			"character": 69
+		}
+	}
+]
+
+=== 217 src/lib/videos/PlaylistCard.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 55
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 217 src/lib/videos/PlaylistVideo.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 38
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	}
+]
+
+=== 1284 src/params/ThemeMaker.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/theme/variable_color_svg' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$actions/click_outside' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/theme' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'js-cookie' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 20
+		},
+		"end": {
+			"line": 5,
+			"character": 31
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'glob' does not exist on type 'ImportMeta'.",
+		"start": {
+			"line": 10,
+			"character": 28
+		},
+		"end": {
+			"line": 10,
+			"character": 32
+		}
+	}
+]
+
+=== 448 src/routes/(blank)/+layout.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../(site)/style.css'.",
+		"start": {
+			"line": 1,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"character": 29
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'media-chrome'.",
+		"start": {
+			"line": 2,
+			"character": 8
+		},
+		"end": {
+			"line": 2,
+			"character": 22
+		}
+	}
+]
+
+=== 2228 src/routes/(blank)/embed/[show_number]/+page.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '$/routes/(site)/style.css'.",
+		"start": {
+			"line": 1,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'date-fns' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/ListenLinks.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/player/AlbumArt.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/share/HairButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-french-toast' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/share/ShareActions.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/state/player.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 38
+		},
+		"end": {
+			"line": 10,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 25
+		},
+		"end": {
+			"line": 11,
+			"character": 43
+		}
+	}
+]
+
+=== 1129 src/routes/(blank)/links/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/Logo.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/newsletter/NewsletterForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/PodcastLinks.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 53
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../(site)/style.css'.",
+		"start": {
+			"line": 5,
+			"character": 8
+		},
+		"end": {
+			"line": 5,
+			"character": 32
+		}
+	}
+]
+
+=== 222 src/routes/(blank)/og/[show_number_or_title]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/server/ai/queries' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	}
+]
+
+=== 1251 src/routes/(blank)/og/[show_number_or_title]/ShowOg.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/FacePile.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$server/ai/queries' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 33
+		},
+		"end": {
+			"line": 2,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$utilities/format_show_type' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 34
+		},
+		"end": {
+			"line": 3,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'date-fns' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'host' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 8
+		},
+		"end": {
+			"line": 19,
+			"character": 12
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'guest' implicitly has an 'any' type.",
+		"start": {
+			"line": 26,
+			"character": 30
+		},
+		"end": {
+			"line": 26,
+			"character": 35
+		}
+	}
+]
+
+=== 3323 src/routes/(site)/+layout.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of './style.css'.",
+		"start": {
+			"line": 1,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"character": 21
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'media-chrome'.",
+		"start": {
+			"line": 2,
+			"character": 8
+		},
+		"end": {
+			"line": 2,
+			"character": 22
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'youtube-video-element'.",
+		"start": {
+			"line": 3,
+			"character": 8
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-french-toast' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 28
+		},
+		"end": {
+			"line": 5,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/player/Player.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 20
+		},
+		"end": {
+			"line": 6,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Loading.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 21
+		},
+		"end": {
+			"line": 9,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 25
+		},
+		"end": {
+			"line": 10,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/search/SearchBox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 23
+		},
+		"end": {
+			"line": 11,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/meta/Meta.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 18
+		},
+		"end": {
+			"line": 12,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/AdminMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 23
+		},
+		"end": {
+			"line": 13,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 22
+		},
+		"end": {
+			"line": 15,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/page_loading_indicator.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 34
+		},
+		"end": {
+			"line": 16,
+			"character": 70
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'navigation' implicitly has an 'any' type.",
+		"start": {
+			"line": 21,
+			"character": 19
+		},
+		"end": {
+			"line": 21,
+			"character": 29
+		}
+	},
+	{
+		"code": 2794,
+		"message": "Expected 1 arguments, but got 0. Did you forget to include 'void' in your type argument to 'Promise'?",
+		"start": {
+			"line": 26,
+			"character": 4
+		},
+		"end": {
+			"line": 26,
+			"character": 26
+		}
+	}
+]
+
+=== 446 src/routes/(site)/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/PodcastHero.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ShowCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 44
+		}
+	}
+]
+
+=== 653 src/routes/(site)/Footer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$const' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ProducedBySentry.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 60
+		}
+	}
+]
+
+=== 655 src/routes/(site)/Header.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Logo.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/search/Search.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	}
+]
+
+=== 224 src/routes/(site)/MobileNav.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$assets/whitegrit.png' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 1299 src/routes/(site)/UserMenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$assets/github.svg' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/DropdownMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/loading' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/form_action' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@prisma/client' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 43
+		}
+	}
+]
+
+=== 1759 src/routes/(site)/about/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hosts/HostSocialLink.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$assets/emo.jpg' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 17
+		},
+		"end": {
+			"line": 4,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$assets/bboy.jpg' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$assets/kaitlin.jpg' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$assets/runonlove.jpg' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 23
+		},
+		"end": {
+			"line": 7,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$assets/cj.jpg' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 16
+		},
+		"end": {
+			"line": 8,
+			"character": 32
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$assets/niki.jpeg' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 18
+		},
+		"end": {
+			"line": 9,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$assets/komatsu.jpeg' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 21
+		},
+		"end": {
+			"line": 10,
+			"character": 43
+		}
+	}
+]
+
+=== 214 src/routes/(site)/admin/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	}
+]
+
+=== 433 src/routes/(site)/admin/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/ShowTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 41
+		}
+	}
+]
+
+=== 654 src/routes/(site)/admin/cache/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/AdminActions.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/form_action' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	}
+]
+
+=== 2306 src/routes/(site)/admin/shows/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/AdminActions.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/AdminSearch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/FormWithLoader.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 28
+		},
+		"end": {
+			"line": 5,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/form_action' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 29
+		},
+		"end": {
+			"line": 6,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'date-fns' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 's' implicitly has an 'any' type.",
+		"start": {
+			"line": 71,
+			"character": 25
+		},
+		"end": {
+			"line": 71,
+			"character": 26
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'loading' implicitly has an 'any' type.",
+		"start": {
+			"line": 104,
+			"character": 30
+		},
+		"end": {
+			"line": 104,
+			"character": 37
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'loading' implicitly has an 'any' type.",
+		"start": {
+			"line": 111,
+			"character": 30
+		},
+		"end": {
+			"line": 111,
+			"character": 37
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'loading' implicitly has an 'any' type.",
+		"start": {
+			"line": 120,
+			"character": 29
+		},
+		"end": {
+			"line": 120,
+			"character": 36
+		}
+	}
+]
+
+=== 211 src/routes/(site)/admin/shows/[show_number]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	}
+]
+
+=== 3 src/routes/(site)/admin/shows/[show_number]/Dump.svelte	json
+[]
+
+=== 2224 src/routes/(site)/admin/submissions/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'date-fns' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'sveltekit-search-params' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/SelectMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/FormWithLoader.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 28
+		},
+		"end": {
+			"line": 5,
+			"character": 57
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 29,
+			"character": 14
+		},
+		"end": {
+			"line": 29,
+			"character": 15
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 42,
+			"character": 14
+		},
+		"end": {
+			"line": 42,
+			"character": 15
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 55,
+			"character": 14
+		},
+		"end": {
+			"line": 55,
+			"character": 15
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 70,
+			"character": 14
+		},
+		"end": {
+			"line": 70,
+			"character": 15
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'loading' implicitly has an 'any' type.",
+		"start": {
+			"line": 108,
+			"character": 27
+		},
+		"end": {
+			"line": 108,
+			"character": 34
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'loading' implicitly has an 'any' type.",
+		"start": {
+			"line": 132,
+			"character": 27
+		},
+		"end": {
+			"line": 132,
+			"character": 34
+		}
+	}
+]
+
+=== 862 src/routes/(site)/admin/transcripts/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/AdminActions.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/form_action' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 31
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	}
+]
+
+=== 844 src/routes/(site)/admin/videos/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/AdminActions.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/AdminSearch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'date-fns' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 's' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 35
+		},
+		"end": {
+			"line": 31,
+			"character": 36
+		}
+	}
+]
+
+=== 619 src/routes/(site)/admin/videos/[playlist_id]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/AdminSearch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 41
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 's' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 41
+		},
+		"end": {
+			"line": 14,
+			"character": 42
+		}
+	}
+]
+
+=== 1067 src/routes/(site)/admin/videos/import/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/AdminActions.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/AdminSearch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/FormButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'date-fns' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 's' implicitly has an 'any' type.",
+		"start": {
+			"line": 38,
+			"character": 29
+		},
+		"end": {
+			"line": 38,
+			"character": 30
+		}
+	}
+]
+
+=== 455 src/routes/(site)/guest/[name_slug]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ShowCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hosts/HostSocialLink.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	}
+]
+
+=== 454 src/routes/(site)/guests/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/utilities/slug.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hosts/HostSocialLink.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	}
+]
+
+=== 861 src/routes/(site)/login/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$assets/github.svg' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/loading' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/form_action' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	}
+]
+
+=== 240 src/routes/(site)/oss/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/forms/UserSubmissionForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 3 src/routes/(site)/pages/[page]/+page.svelte	json
+[]
+
+=== 3 src/routes/(site)/potluck/+page.svelte	json
+[]
+
+=== 672 src/routes/(site)/search/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/search/Search.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/search/SearchBox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 53
+		}
+	}
+]
+
+=== 2907 src/routes/(site)/show/[show_number]/[slug]/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/share/HairButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/theme/variable_color_svg.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/utilities/time_param_to_seconds.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 39
+		},
+		"end": {
+			"line": 3,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/HostsAndGuests.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 28
+		},
+		"end": {
+			"line": 5,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 18
+		},
+		"end": {
+			"line": 6,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ListenLinks.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Tabs.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 18
+		},
+		"end": {
+			"line": 8,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/share/ShareWindow.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 25
+		},
+		"end": {
+			"line": 9,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/player' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 24
+		},
+		"end": {
+			"line": 10,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'date-fns' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 24
+		},
+		"end": {
+			"line": 11,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/player/SaveOffline.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 25
+		},
+		"end": {
+			"line": 12,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/utilities/format_time.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 23
+		},
+		"end": {
+			"line": 13,
+			"character": 51
+		}
+	}
+]
+
+=== 465 src/routes/(site)/show/[show_number]/[slug]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/utilities/slug.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/newsletter/SwaggyNewsletterForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 79
+		}
+	}
+]
+
+=== 236 src/routes/(site)/show/[show_number]/[slug]/transcript/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/transcript/Transcript.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	}
+]
+
+=== 1859 src/routes/(site)/shows/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$const' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/SelectMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ShowCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'sveltekit-search-params' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 33
+		},
+		"end": {
+			"line": 6,
+			"character": 58
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 36,
+			"character": 15
+		},
+		"end": {
+			"line": 36,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 52,
+			"character": 15
+		},
+		"end": {
+			"line": 52,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 66,
+			"character": 15
+		},
+		"end": {
+			"line": 66,
+			"character": 16
+		}
+	}
+]
+
+=== 3 src/routes/(site)/sickpicks/+page.svelte	json
+[]
+
+=== 686 src/routes/(site)/snackpack/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/newsletter/NewsletterForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/newsletter/NewsletterLogo.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'date-fns' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 34
+		}
+	}
+]
+
+=== 211 src/routes/(site)/snackpack/[issue_id]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'date-fns' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	}
+]
+
+=== 3 src/routes/(site)/spooky/+page.svelte	json
+[]
+
+=== 3 src/routes/(site)/suggest/+page.svelte	json
+[]
+
+=== 3 src/routes/(site)/system/+layout.svelte	json
+[]
+
+=== 440 src/routes/(site)/system/colors/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-french-toast' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/utilities/colors' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 40
+		},
+		"end": {
+			"line": 3,
+			"character": 60
+		}
+	}
+]
+
+=== 219 src/routes/(site)/system/colors/colors-in-js.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	}
+]
+
+=== 468 src/routes/(site)/system/components/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ComponentWindow.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/newsletter/NewsletterForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	}
+]
+
+=== 3 src/routes/(site)/system/layout/+page.svelte	json
+[]
+
+=== 650 src/routes/(site)/system/theme/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ShowCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$state/theme' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	}
+]
+
+=== 3 src/routes/(site)/system/typography/+page.svelte	json
+[]
+
+=== 3 src/routes/(site)/videos/+layout.svelte	json
+[]
+
+=== 445 src/routes/(site)/videos/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/videos/PlaylistCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 3 src/routes/(site)/videos/[p_slug]/+page.svelte	json
+[]
+
+=== 224 src/routes/(site)/videos/[p_slug]/[v_slug]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/lib/ShowCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	}
+]
+
+=== 433 src/routes/+error.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$/server/auth/users' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 36
+		},
+		"end": {
+			"line": 3,
+			"character": 57
+		}
+	}
+]
+

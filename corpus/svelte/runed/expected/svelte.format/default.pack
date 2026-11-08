@@ -1,0 +1,1750 @@
+# rsvelte pack 1
+=== 2513 packages/runed/src/routes/(test)/test-search/[mode]/+page.svelte	svelte
+<script lang="ts">
+  import { page } from "$app/state";
+  import {
+    createSearchParamsSchema,
+    useSearchParams,
+    type SearchParamsOptions,
+  } from "$lib/utilities/use-search-params/use-search-params.svelte";
+  const mode = page.params.mode;
+
+  const schema = createSearchParamsSchema({
+    page: { type: "number", default: 1 },
+    filter: { type: "string", default: "" },
+    createdAt: {
+      type: "date",
+      default: new Date("2023-01-01T00:00:00Z"),
+      dateFormat: "date",
+    },
+    updatedAt: { type: "date", default: new Date("2023-12-31T23:59:59Z") },
+  });
+
+  const options: SearchParamsOptions = {
+    ...(mode === "default" && {}),
+    ...(mode === "show-default" && { showDefaults: true }),
+    ...(mode === "nopush" && { pushHistory: false }),
+    ...(mode === "debounce" && { debounce: 200 }),
+    ...(mode === "compress" && { compress: true }),
+    ...(mode === "memory" && { updateURL: false }),
+    ...(mode === "no-scroll" && { noScroll: true }),
+    ...(mode === "date-format-options" && {
+      dateFormats: { createdAt: "date", updatedAt: "datetime" },
+    }),
+  };
+
+  const paramsObj = useSearchParams(schema, options);
+
+  function inc() {
+    paramsObj.page += 1;
+  }
+  function resetParams() {
+    paramsObj.reset();
+  }
+  function setBoth() {
+    paramsObj.update({ page: 5, filter: "bar" });
+  }
+  function setCreatedAt() {
+    paramsObj.createdAt = new Date("2023-06-15T10:30:00Z");
+  }
+  function setUpdatedAt() {
+    paramsObj.updatedAt = new Date("2023-06-20T18:00:00Z");
+  }
+
+  // Create a derived value to avoid potential infinite loops
+  let createdAtString = $derived(
+    paramsObj.createdAt instanceof Date
+      ? paramsObj.createdAt.toISOString()
+      : "Invalid Date",
+  );
+  let updatedAtString = $derived(
+    paramsObj.updatedAt instanceof Date
+      ? paramsObj.updatedAt.toISOString()
+      : "Invalid Date",
+  );
+</script>
+
+<input data-testid="filter-input" bind:value={paramsObj.filter} />
+<button data-testid="inc" onclick={inc}>Inc</button>
+<button data-testid="reset" onclick={resetParams}>Reset</button>
+<button data-testid="setBoth" onclick={setBoth}>Set both</button>
+<button data-testid="setCreatedAt" onclick={setCreatedAt}>Set createdAt</button>
+<button data-testid="setUpdatedAt" onclick={setUpdatedAt}>Set updatedAt</button>
+<span data-testid="page">{paramsObj.page}</span>
+<span data-testid="filter">{paramsObj.filter}</span>
+<span data-testid="createdAt">{createdAtString}</span>
+<span data-testid="updatedAt">{updatedAtString}</span>
+
+=== 2815 packages/runed/src/routes/(test)/test-zod-codec/+page.svelte	svelte
+<script lang="ts">
+  import { useSearchParams } from "$lib/utilities/use-search-params/use-search-params.svelte";
+  import { z } from "zod";
+
+  // Create a codec that converts between ISO date string (YYYY-MM-DD) and Date object
+  const stringToDate = z.codec(
+    z.iso.date(), // input schema: ISO date string (YYYY-MM-DD only)
+    z.date(), // output schema: Date object
+    {
+      decode: (isoString) => new Date(isoString), // ISO string → Date
+      encode: (date) => date.toISOString().split("T")[0]!, // Date → YYYY-MM-DD
+    },
+  );
+
+  // Create a codec for full datetime
+  const stringToDatetime = z.codec(
+    z.iso.datetime(), // input schema: full ISO datetime string
+    z.date(), // output schema: Date object
+    {
+      decode: (isoString) => new Date(isoString), // ISO string → Date
+      encode: (date) => date.toISOString(), // Date → Full ISO string
+    },
+  );
+
+  const schema = z.object({
+    createdAt: stringToDate.default(() => new Date("2023-01-01T00:00:00Z")),
+    updatedAt: stringToDatetime.default(() => new Date("2023-12-31T23:59:59Z")),
+    filter: z.string().default(""),
+  });
+
+  const paramsObj = useSearchParams(schema);
+
+  function setCreatedAt() {
+    paramsObj.createdAt = new Date("2024-06-15T10:30:00Z");
+  }
+
+  function setUpdatedAt() {
+    paramsObj.updatedAt = new Date("2024-06-20T18:00:00Z");
+  }
+
+  function resetParams() {
+    paramsObj.reset();
+  }
+
+  // Create derived values for display
+  let createdAtString = $derived(
+    paramsObj.createdAt instanceof Date
+      ? paramsObj.createdAt.toISOString()
+      : "Invalid Date",
+  );
+  let updatedAtString = $derived(
+    paramsObj.updatedAt instanceof Date
+      ? paramsObj.updatedAt.toISOString()
+      : "Invalid Date",
+  );
+</script>
+
+<div>
+  <h1>Zod Codec Test Page</h1>
+
+  <div class="controls">
+    <input
+      data-testid="filter-input"
+      bind:value={paramsObj.filter}
+      placeholder="Filter..."
+    />
+    <button data-testid="setCreatedAt" onclick={setCreatedAt}
+      >Set createdAt</button
+    >
+    <button data-testid="setUpdatedAt" onclick={setUpdatedAt}
+      >Set updatedAt</button
+    >
+    <button data-testid="reset" onclick={resetParams}>Reset</button>
+  </div>
+
+  <div class="output">
+    <div>
+      <strong>Filter:</strong>
+      <span data-testid="filter">{paramsObj.filter}</span>
+    </div>
+    <div>
+      <strong>CreatedAt (date-only format):</strong>
+      <span data-testid="createdAt">{createdAtString}</span>
+    </div>
+    <div>
+      <strong>UpdatedAt (datetime format):</strong>
+      <span data-testid="updatedAt">{updatedAtString}</span>
+    </div>
+  </div>
+</div>
+
+<style>
+  .controls {
+    display: flex;
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+
+  .output {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+</style>
+
+=== 269 sites/docs/src/lib/components/blueprint.svelte	svelte
+<script lang="ts" module>
+  // prettier-ignore
+  export { a, blockquote, code, h1, h2, h3, h4, h5, h6, hr, img, li, ol, p, pre, table, td, th, tr, ul } from '@svecodocs/kit'
+</script>
+
+<script lang="ts">
+  let { children } = $props();
+</script>
+
+{@render children?.()}
+
+=== 253 sites/docs/src/lib/components/demo-note.svelte	svelte
+<script lang="ts">
+  import type { Snippet } from "svelte";
+
+  let { children }: { children: Snippet } = $props();
+</script>
+
+<div
+  class="text-muted-foreground flex flex-col gap-1.5 text-center text-xs md:text-right"
+>
+  {@render children?.()}
+</div>
+
+=== 308 sites/docs/src/lib/components/demos/active-element.svelte	svelte
+<script lang="ts">
+  import { activeElement } from "runed";
+  import { DemoContainer } from "@svecodocs/kit";
+</script>
+
+<DemoContainer>
+  <p>
+    Currently active element:
+    <code class="font-bold">
+      {activeElement.current?.localName ?? "No active element found"}
+    </code>
+  </p>
+</DemoContainer>
+
+=== 2133 sites/docs/src/lib/components/demos/animation-frames.svelte	svelte
+<script lang="ts">
+  import { AnimationFrames } from "runed";
+  import { DemoContainer, Slider, Button } from "@svecodocs/kit";
+  import Pause from "phosphor-svelte/lib/Pause";
+  import Play from "phosphor-svelte/lib/Play";
+  import DemoNote from "../demo-note.svelte";
+
+  let frames = $state(0);
+  let fpsLimit = $state(10);
+  let delta = $state(0);
+  const animation = new AnimationFrames(
+    (args) => {
+      frames++;
+      delta = args.delta;
+    },
+    { fpsLimit: () => fpsLimit },
+  );
+
+  const sprites = 10;
+  const sheetCols = 3;
+  const sheetRows = Math.ceil(sprites / sheetCols);
+  const currentSprite = $derived(sprites - 1 - (frames % sprites));
+  const currentCol = $derived(currentSprite % sheetCols);
+  const currentRow = $derived(Math.floor(currentSprite / sheetCols));
+  const spriteSize = 64;
+
+  const stats = $derived(
+    `Frames: ${frames}\nFPS: ${animation.fps.toFixed(0)}\nDelta: ${delta.toFixed(0)}ms`,
+  );
+</script>
+
+<DemoContainer class="relative flex flex-col items-center gap-4">
+  <pre class="text-mono absolute left-2 top-2 m-0 p-2 text-xs">{stats}</pre>
+  <div
+    style="
+		width: {spriteSize}px;
+		height: {spriteSize}px;
+		background: url('/mouse_sprite.png');
+		background-size: {64 * sheetCols}px {64 * sheetRows}px;
+		background-position-x: {-currentCol * 64}px;
+		background-position-y: {-currentRow * 64}px;
+	"
+    aria-label="spinning ghost mouse"
+  ></div>
+  <Button variant="brand" class="gap-2" onclick={animation.toggle}>
+    {#if animation.running}
+      <Pause size={16} weight="fill" />
+    {:else}
+      <Play size={16} weight="fill" />
+    {/if}
+    {animation.running ? "Stop" : "Start"}
+  </Button>
+
+  <p class="m-0 text-center text-sm">
+    FPS limit: <b>{fpsLimit}</b><i>{fpsLimit === 0 ? " (not limited)" : ""}</i>
+  </p>
+  <Slider
+    class="w-[300px]"
+    value={[fpsLimit]}
+    onValueChange={(value) => (fpsLimit = value[0] ?? 0)}
+    min={0}
+    max={144}
+  />
+</DemoContainer>
+<DemoNote>
+  <p>
+    Mouse sprite extracted from <a
+      class="hover:text-foreground"
+      target="_blank"
+      href="https://www.animalwell.net/">Animal Well</a
+    >
+  </p>
+</DemoNote>
+
+=== 510 sites/docs/src/lib/components/demos/debounced.svelte	svelte
+<script lang="ts">
+  import { Debounced } from "runed";
+  import { DemoContainer, Input } from "@svecodocs/kit";
+
+  let search = $state("");
+  const debounced = new Debounced(() => search, 500);
+</script>
+
+<DemoContainer class="flex flex-col gap-4">
+  <Input
+    bind:value={search}
+    placeholder="Search the best utilities for Svelte 5"
+  />
+  <p>
+    {#if debounced.current}
+      You searched for: <b>{debounced.current}</b>
+    {:else}
+      Search for something above!
+    {/if}
+  </p>
+</DemoContainer>
+
+=== 508 sites/docs/src/lib/components/demos/element-rect.svelte	svelte
+<script lang="ts">
+  import { ElementRect } from "runed";
+  import { DemoContainer, Textarea } from "@svecodocs/kit";
+
+  let ref = $state<HTMLTextAreaElement>(null!);
+  const rect = new ElementRect(() => ref);
+  const text = $derived(
+    Object.entries(rect.current)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join("\n"),
+  );
+</script>
+
+<DemoContainer>
+  <Textarea
+    bind:ref
+    class="h-[330px] min-h-[300px] w-[300px] resize text-base"
+    value={text}
+    readonly
+  />
+</DemoContainer>
+
+=== 450 sites/docs/src/lib/components/demos/element-size.svelte	svelte
+<script lang="ts">
+  import { ElementSize } from "runed";
+  import { DemoContainer, Textarea } from "@svecodocs/kit";
+
+  let ref = $state<HTMLTextAreaElement>(null!);
+  const size = new ElementSize(() => ref);
+  const text = $derived(`Width: ${size.width}\nHeight: ${size.height}`);
+</script>
+
+<DemoContainer>
+  <Textarea
+    bind:ref
+    class="h-[200px] min-h-[100px] w-[300px] resize text-base"
+    value={text}
+    readonly
+  />
+</DemoContainer>
+
+=== 2151 sites/docs/src/lib/components/demos/finite-state-machine.svelte	svelte
+<script lang="ts">
+  import { FiniteStateMachine } from "runed";
+  import { DemoContainer, Button, Switch } from "@svecodocs/kit";
+  import Play from "phosphor-svelte/lib/Play";
+  import Pause from "phosphor-svelte/lib/Pause";
+
+  type myStates = "disabled" | "idle" | "running";
+  type myEvents = "toggleEnabled" | "start" | "stop";
+  const f = new FiniteStateMachine<myStates, myEvents>("disabled", {
+    disabled: {
+      toggleEnabled: "idle",
+    },
+    idle: {
+      toggleEnabled: "disabled",
+      start: "running",
+    },
+    running: {
+      _enter: () => {
+        f.debounce(2000, "stop");
+      },
+      stop: "idle",
+      toggleEnabled: "disabled",
+    },
+  });
+  const descriptionText = $derived.by(() => {
+    switch (f.current) {
+      case "disabled":
+        return "Toggle the switch to enable.";
+      case "idle":
+        return "Click the Run button to run for two seconds.";
+      case "running":
+        return "Running for two seconds. Click the Stop button or toggle the switch.";
+    }
+  });
+</script>
+
+<DemoContainer class="flex flex-col gap-4">
+  <h1 class="text-xl font-bold">
+    Now: <code>{f.current}</code>
+  </h1>
+  <p>{descriptionText}</p>
+  <div class="flex items-center gap-4">
+    <Switch
+      class="mt-0.5"
+      checked={f.current !== "disabled"}
+      onCheckedChange={() => f.send("toggleEnabled")}
+    />
+    <Button
+      variant="brand"
+      size="sm"
+      disabled={f.current === "disabled"}
+      onclick={() =>
+        f.current === "running" ? f.send("stop") : f.send("start")}
+      class="gap-2"
+    >
+      {#if f.current === "running"}
+        <Pause size={16} weight="fill" /> Stop
+      {:else}
+        <Play size={16} weight="fill" /> Run
+      {/if}
+    </Button>
+
+    {#if f.current === "running"}
+      <div class="bg-muted relative h-6 w-40 overflow-clip rounded-md">
+        <div class="progress bg-brand absolute h-full w-full"></div>
+      </div>
+    {/if}
+  </div>
+</DemoContainer>
+
+<style lang="postcss">
+  .progress {
+    animation: 2s linear progressAnimation;
+  }
+  @keyframes progressAnimation {
+    0% {
+      right: 100%;
+    }
+    100% {
+      right: 0;
+    }
+  }
+</style>
+
+=== 681 sites/docs/src/lib/components/demos/is-document-visible.svelte	svelte
+<script lang="ts">
+  import { IsDocumentVisible } from "runed";
+  import { DemoContainer } from "@svecodocs/kit";
+
+  const visible = new IsDocumentVisible();
+
+  // Count how many times visibility transitioned from hidden -> visible
+  let becameVisibleCount = $state(0);
+  let last: boolean | undefined = $state(undefined);
+
+  $effect(() => {
+    const current = visible.current;
+    if (last !== undefined && last === false && current === true) {
+      becameVisibleCount++;
+    }
+    last = current;
+  });
+</script>
+
+<DemoContainer>
+  <p>Document visible: <b>{visible.current ? "true" : "false"}</b></p>
+  <p>Became visible count: <b>{becameVisibleCount}</b></p>
+</DemoContainer>
+
+=== 1088 sites/docs/src/lib/components/demos/is-focus-within.svelte	svelte
+<script lang="ts">
+  import { IsFocusWithin } from "runed";
+  import { Input, Label, Button, DemoContainer } from "@svecodocs/kit";
+
+  let formElement = $state<HTMLFormElement>();
+  const formFocused = new IsFocusWithin(() => formElement);
+</script>
+
+<DemoContainer>
+  <form
+    onsubmit={(e) => {
+      e.preventDefault();
+      formElement?.reset();
+    }}
+    bind:this={formElement}
+    class="mx-auto flex max-w-[340px] flex-col gap-4 p-4"
+  >
+    <div class="flex flex-col gap-3">
+      <Label for="fname">First name</Label>
+      <Input id="fname" />
+    </div>
+    <div class="flex flex-col gap-3">
+      <Label for="lname">Last name</Label>
+      <Input id="lname" />
+    </div>
+    <div class="flex flex-col gap-3">
+      <Label for="email">Email</Label>
+      <Input id="email" type="email" />
+    </div>
+    <Button type="submit" variant="brand">Submit</Button>
+  </form>
+  <p class="mx-auto mt-6 text-center">
+    Focus is within form:
+    <b class={formFocused.current ? "text-emerald-500" : "text-destructive"}>
+      {formFocused.current}
+    </b>
+  </p>
+</DemoContainer>
+
+=== 875 sites/docs/src/lib/components/demos/is-idle.svelte	svelte
+<script lang="ts">
+  import { AnimationFrames, IsIdle } from "runed";
+  import { DemoContainer } from "@svecodocs/kit";
+  import DemoNote from "../demo-note.svelte";
+
+  const idle = new IsIdle({ timeout: 1000 });
+  let now = $state(Date.now());
+  new AnimationFrames(() => {
+    now = Date.now();
+  });
+
+  const secondsElapsed = $derived(Math.floor((now - idle.lastActive) / 1000));
+</script>
+
+<DemoContainer class="flex flex-col gap-3">
+  <p>
+    Idle: <span
+      class="font-medium {idle.current
+        ? 'text-green-600 dark:text-green-500'
+        : 'text-destructive'}">{idle.current}</span
+    >
+  </p>
+  <p>
+    Last active: <span class="font-medium">{secondsElapsed}s ago</span>
+  </p>
+</DemoContainer>
+<DemoNote>
+  <p>
+    By default, the time of inactivity before marking the user as idle is 1
+    minute.
+  </p>
+  <p>In this demo, it's 1 second.</p>
+</DemoNote>
+
+=== 763 sites/docs/src/lib/components/demos/is-in-viewport.svelte	svelte
+<script lang="ts">
+  import { IsInViewport } from "runed";
+  import { DemoContainer } from "@svecodocs/kit";
+
+  let targetNode = $state<HTMLElement>()!;
+  const inViewport = new IsInViewport(() => targetNode);
+</script>
+
+<DemoContainer>
+  <p bind:this={targetNode}>Target node</p>
+  <p class="text-muted-foreground text-sm italic">
+    Scroll down to observe the behavior
+  </p>
+</DemoContainer>
+
+<div
+  class="bg-background fixed bottom-8 right-8 z-20 flex items-center rounded-lg border p-4 text-sm"
+>
+  <p>
+    Target node is <span
+      class="font-medium text-red-500 data-[in-viewport]:text-green-500"
+      data-in-viewport={inViewport.current ? "" : undefined}
+    >
+      {inViewport.current ? " in " : " out of "}
+    </span>
+    viewport
+  </p>
+</div>
+
+=== 252 sites/docs/src/lib/components/demos/is-mounted.svelte	svelte
+<script lang="ts">
+  import { IsMounted } from "runed";
+  import { DemoContainer } from "@svecodocs/kit";
+
+  const isMounted = new IsMounted();
+</script>
+
+<DemoContainer>
+  <p>Mounted: <b>{isMounted.current ? "true" : "false"}</b></p>
+</DemoContainer>
+
+=== 1303 sites/docs/src/lib/components/demos/on-click-outside-dialog.svelte	svelte
+<script lang="ts">
+  import { Button, DemoContainer } from "@svecodocs/kit";
+  import { onClickOutside } from "runed";
+
+  let dialog = $state<HTMLDialogElement>()!;
+
+  const clickOutside = onClickOutside(
+    () => dialog,
+    () => {
+      dialog.close();
+      clickOutside.stop();
+    },
+    { immediate: false },
+  );
+
+  function openDialog() {
+    dialog.showModal();
+    clickOutside.start();
+  }
+
+  function closeDialog() {
+    dialog.close();
+    clickOutside.stop();
+  }
+</script>
+
+<DemoContainer>
+  <Button size="sm" onclick={openDialog}>Open Dialog</Button>
+  <dialog
+    bind:this={dialog}
+    class="bg-background fixed left-1/2 top-1/2 m-0 -translate-x-1/2 -translate-y-1/2 transform rounded-xl border-none p-0 shadow-lg backdrop:bg-black/50"
+  >
+    <div class="min-w-[360px] max-w-[400px] rounded-xl p-8">
+      <p class="mb-4">This is a dialog.</p>
+      <p class="mb-4">
+        Lorem, ipsum dolor sit amet consectetur adipisicing elit. Neque sunt aut
+        sit exercitationem deleniti doloremque quo quasi, expedita omnis dicta
+        eaque, eveniet nesciunt nobis sint atque? Praesentium facilis officiis
+        perferendis.
+      </p>
+
+      <Button size="sm" variant="outline" onclick={closeDialog}
+        >Close Dialog</Button
+      >
+    </div>
+  </dialog>
+</DemoContainer>
+
+=== 1392 sites/docs/src/lib/components/demos/on-click-outside.svelte	svelte
+<script lang="ts">
+  import { Button, DemoContainer } from "@svecodocs/kit";
+  import { onClickOutside } from "runed";
+
+  let containerText = $state("Has not clicked outside yet.");
+  let container = $state<HTMLElement>()!;
+
+  const clickOutside = onClickOutside(
+    () => container,
+    () => (containerText = "Clicked outside!"),
+  );
+</script>
+
+<DemoContainer>
+  <div
+    bind:this={container}
+    class="border-foreground relative mb-4 rounded-lg border p-4"
+  >
+    <span
+      class="bg-foreground text-background absolute right-0 top-0 select-none rounded-bl-md rounded-tr-md px-2.5 py-1 font-mono text-xs"
+    >
+      container
+    </span>
+    <p class="select-none pb-4">{containerText}</p>
+    <p class="mb-3 font-mono">
+      Status: <span
+        class={clickOutside.enabled ? "text-green-500" : "text-destructive"}
+        >{clickOutside.enabled ? "Enabled" : "Disabled"}</span
+      >
+    </p>
+    <div class="flex items-center gap-3">
+      <Button
+        disabled={clickOutside.enabled}
+        size="sm"
+        onclick={clickOutside.start}>Start</Button
+      >
+      <Button
+        disabled={!clickOutside.enabled}
+        size="sm"
+        onclick={clickOutside.stop}>Stop</Button
+      >
+      <Button
+        size="sm"
+        onclick={() => (containerText = "Has not clicked outside yet.")}
+      >
+        Reset
+      </Button>
+    </div>
+  </div>
+</DemoContainer>
+
+=== 691 sites/docs/src/lib/components/demos/persisted-state.svelte	svelte
+<script lang="ts">
+  import { PersistedState } from "runed";
+  import { Button, DemoContainer } from "@svecodocs/kit";
+
+  const count = new PersistedState("persisted-state-demo-count", 0);
+</script>
+
+<DemoContainer class="flex flex-col gap-4">
+  <div class="flex items-center gap-3">
+    <Button variant="brand" size="sm" onclick={() => count.current++}
+      >Increment</Button
+    >
+    <Button variant="brand" size="sm" onclick={() => count.current--}
+      >Decrement</Button
+    >
+    <Button variant="ghost" size="sm" onclick={() => (count.current = 0)}
+      >Reset</Button
+    >
+  </div>
+  <pre class="bg-transparent p-0 font-mono">Count: {`${count.current}`}</pre>
+</DemoContainer>
+
+=== 2618 sites/docs/src/lib/components/demos/pressed-keys.svelte	svelte
+<script lang="ts">
+  import { PressedKeys, watch } from "runed";
+  import { fade, scale } from "svelte/transition";
+  import { cn, DemoContainer } from "@svecodocs/kit";
+  import RunedIcon from "$lib/components/logos/runed-icon.svelte";
+
+  const keys = new PressedKeys();
+  const toPress = "Runed".split("");
+  const allPressed = $derived(keys.has(...toPress));
+
+  let guessedCorrectly = $state(false);
+  $effect(() => {
+    if (allPressed) {
+      guessedCorrectly = true;
+    }
+  });
+
+  let triedInputting = $state(false);
+
+  watch(
+    () => keys.all,
+    () => {
+      triedInputting = false;
+    },
+  );
+
+  // eslint-disable-next-line svelte/no-inspect
+  $inspect(guessedCorrectly);
+</script>
+
+<DemoContainer class="flex flex-col gap-4">
+  <div
+    class="relative mx-auto flex w-min items-center justify-center gap-2 transition-all duration-300
+		{allPressed ? 'translate-x-[1.625rem]' : ''}"
+  >
+    {#if allPressed}
+      <div
+        transition:scale={{ start: 0.75, duration: 300 }}
+        class="bg-background dark:bg-muted absolute left-0 top-1/2 -translate-y-1/2 translate-x-[calc(-100%-0.5rem)]"
+      >
+        <RunedIcon class="size-12" />
+      </div>
+    {/if}
+    {#each toPress as key, i (`key-${i}`)}
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class={cn(
+          "border-input bg-background dark:bg-muted ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          "grid size-12 place-items-center rounded-lg border-2 transition-all duration-200",
+          allPressed && "border-brand",
+        )}
+        onclick={() => (triedInputting = true)}
+      >
+        {#if keys.has(key)}
+          <span
+            class="text-foreground duration-250 text-xl font-bold transition-all"
+            transition:fade={{ duration: 100 }}
+          >
+            {key}
+          </span>
+        {/if}
+      </div>
+    {/each}
+  </div>
+  <p class="text-center">
+    {guessedCorrectly ? "You did it! 🎉" : "Try and guess the password 👀"}
+  </p>
+
+  {#if !guessedCorrectly && triedInputting}
+    <p
+      transition:fade={{ duration: 300 }}
+      class="text-muted-foreground absolute bottom-2 right-2 mb-0 text-center text-sm"
+    >
+      Press any key to start, no need to select anything
+    </p>
+  {/if}
+</DemoContainer>
+
+=== 409 sites/docs/src/lib/components/demos/previous.svelte	svelte
+<script lang="ts">
+  import { Previous } from "runed";
+  import { Button, DemoContainer } from "@svecodocs/kit";
+
+  let count = $state(0);
+  const previous = new Previous(() => count);
+</script>
+
+<DemoContainer>
+  <Button variant="brand" onclick={() => count++}>
+    Count: {count}
+  </Button>
+
+  <pre
+    class="m-0 mt-4 bg-transparent p-0 font-mono">Previous: {`${previous.current}`}</pre>
+</DemoContainer>
+
+=== 1435 sites/docs/src/lib/components/demos/resource.svelte	svelte
+<script lang="ts">
+  import { resource } from "runed";
+  import { DemoContainer, Button, Input } from "@svecodocs/kit";
+
+  let id = $state(1);
+
+  const searchResource = resource(
+    () => id,
+    async (id) => {
+      const response = await fetch(
+        `https://jsonplaceholder.typicode.com/posts?id=${id}`,
+      );
+      return response.json();
+    },
+    { debounce: 1000 },
+  );
+</script>
+
+<DemoContainer class="flex flex-col gap-4">
+  <div class="flex items-center gap-2 text-nowrap">
+    Post id: <Input
+      type="number"
+      bind:value={id}
+      placeholder="Type to search..."
+      class="w-full"
+    />
+  </div>
+
+  <div class="bg-card text-card-foreground rounded-md border p-4">
+    <div class="flex w-full flex-col gap-2 overflow-hidden">
+      <div class="text-muted-foreground text-sm">
+        Status: {searchResource.loading ? "Loading..." : "Ready"}
+      </div>
+      {#if searchResource.error}
+        <div class="text-destructive text-sm">
+          Error: {searchResource.error.message}
+        </div>
+      {/if}
+      <div class="flex w-[400px] flex-col gap-1 overflow-scroll">
+        {#each searchResource.current ?? [] as result, i (`result-${i}`)}
+          <pre>{JSON.stringify(result, null, 2)}</pre>
+        {/each}
+      </div>
+    </div>
+  </div>
+
+  <Button
+    onclick={() => searchResource.refetch()}
+    disabled={searchResource.loading}
+  >
+    Refetch Results
+  </Button>
+</DemoContainer>
+
+=== 5169 sites/docs/src/lib/components/demos/scroll-state.svelte	svelte
+<script lang="ts">
+  import { Button, Input, Label } from "@svecodocs/kit";
+  import { ScrollState } from "runed";
+  import { preventDefault } from "svelte/legacy";
+
+  let el = $state<HTMLElement>();
+  let behavior = $state("smooth");
+  const scroll = new ScrollState({
+    element: () => el,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- for some reason ScrollBehavior is not defined
+    behavior: () => behavior as any,
+  });
+
+  let x = $derived(scroll.x);
+  let y = $derived(scroll.y);
+</script>
+
+<div
+  class=" dark:bg-primary bg-background dark:ring-primary-hover dark:inset-shadow-muted/20 dark:inset-ring-muted/10 inset-ring-muted/20 ring-muted inset-shadow-muted/20 inset-ring inset-shadow-sm relative mb-4 mt-6 max-w-[760px] overflow-hidden rounded-xl ring"
+>
+  <!-- we can ditch these if you completely hate them if not remove this comment lol -->
+  <div
+    class="bg-background border-border absolute left-0 top-0 h-4 w-full border-b"
+  >
+    <div class="relative w-full">
+      <div class="h-4 bg-[#F64A00]" style="width: {scroll.progress.y}%;"></div>
+    </div>
+  </div>
+  <div
+    class="bg-background border-border absolute left-0 top-0 h-full w-4 border-b"
+  >
+    <div class="relative h-full">
+      <div class="w-4 bg-[#F64A00]" style="height: {scroll.progress.x}%;"></div>
+    </div>
+  </div>
+  <div class="h-[800px] overflow-scroll" bind:this={el}>
+    <div class="pattern size-[1200px]"></div>
+  </div>
+  <div
+    class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-lg font-semibold"
+  >
+    Scroll me
+  </div>
+  <div class="bg-muted absolute inset-4 !top-[unset] rounded-lg p-4">
+    <h2 class="font-bold">Controls & State</h2>
+    <div class="mt-2 flex items-center gap-2">
+      <form
+        class="flex flex-col gap-2"
+        onsubmit={preventDefault(() => (scroll.x = x))}
+      >
+        <Label for="x">X Position</Label>
+        <div class="flex items-center gap-2">
+          <Input bind:value={x} type="number" id="x" />
+          <Button disabled={x === scroll.x} type="submit">Set</Button>
+        </div>
+      </form>
+      <form
+        class="flex flex-col gap-2"
+        onsubmit={preventDefault(() => (scroll.y = y))}
+      >
+        <Label for="x">Y Position</Label>
+        <div class="flex items-center gap-2">
+          <Input bind:value={y} type="number" id="y" />
+          <Button disabled={y === scroll.y} type="submit">Set</Button>
+        </div>
+      </form>
+    </div>
+    {#snippet info(label: string, condition: boolean)}
+      <div class="flex items-baseline gap-2">
+        <span class="text-sm font-medium leading-none">{label}</span>
+        <span
+          class={[
+            "rounded-lg px-1.5 py-0.5  text-xs text-white ",
+            condition ? "bg-emerald-700" : "bg-red-900",
+          ]}
+        >
+          {condition ? "Yes" : "No"}
+        </span>
+      </div>
+    {/snippet}
+
+    <div class="mt-4 grid grid-cols-5 items-center gap-4">
+      <Label class="flex items-center gap-2">
+        <span>Smooth Scroll</span>
+        <input
+          type="checkbox"
+          bind:checked={
+            () => behavior === "smooth",
+            (c) => (behavior = c ? "smooth" : "instant")
+          }
+        />
+      </Label>
+      {@render info("isScrolling", scroll.isScrolling)}
+    </div>
+
+    <hr class="border-foreground/10 mt-2 h-px border" />
+
+    <h3 class="mt-2 text-sm font-semibold">Progress</h3>
+    <div class="mt-2 grid grid-cols-5 items-center gap-4">
+      <div class="flex place-items-center gap-2">
+        <span class="text-sm font-medium leading-none">x</span>
+        <span class="text-xs text-white">{scroll.progress.x.toFixed(0)}%</span>
+      </div>
+      <div class="flex place-items-center gap-2">
+        <span class="text-sm font-medium leading-none">y</span>
+        <span class="text-xs text-white">{scroll.progress.y.toFixed(0)}%</span>
+      </div>
+    </div>
+
+    <hr class="border-foreground/10 mt-2 h-px border" />
+
+    <h3 class="mt-2 text-sm font-semibold">Arrived</h3>
+    <div class="mt-2 grid grid-cols-5 items-center gap-4">
+      {@render info("top", scroll.arrived.top)}
+      {@render info("right", scroll.arrived.right)}
+      {@render info("bottom", scroll.arrived.bottom)}
+      {@render info("left", scroll.arrived.left)}
+    </div>
+
+    <hr class="border-foreground/10 mt-2 h-px border" />
+    <h3 class="mt-2 text-sm font-semibold">Directions</h3>
+    <div class="mt-2 grid grid-cols-5 items-center gap-4">
+      {@render info("top", scroll.directions.top)}
+      {@render info("right", scroll.directions.right)}
+      {@render info("bottom", scroll.directions.bottom)}
+      {@render info("left", scroll.directions.left)}
+    </div>
+  </div>
+</div>
+
+<style>
+  .pattern {
+    --bg: transparent;
+    --fg: #00000010;
+    --size: 1.5px;
+
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(var(--fg) var(--size), transparent var(--size)),
+      radial-gradient(var(--fg) var(--size), var(--bg) var(--size));
+    background-size: 20px 20px;
+    background-position:
+      0 0,
+      10px 10px;
+  }
+
+  :global(html.dark) .pattern {
+    --bg: transparent;
+    --fg: #ffffff20;
+  }
+</style>
+
+=== 1498 sites/docs/src/lib/components/demos/state-history.svelte	svelte
+<script lang="ts">
+  import { StateHistory } from "runed";
+  import { Button, DemoContainer } from "@svecodocs/kit";
+
+  let count = $state(0);
+  const history = new StateHistory(
+    () => count,
+    (c) => (count = c),
+    { capacity: 10 },
+  );
+
+  function format(ts: number) {
+    return new Date(ts).toLocaleString();
+  }
+</script>
+
+<DemoContainer class="flex flex-col gap-4">
+  <p class="mt-0">Count: {count}</p>
+  <div class="flex items-center gap-2">
+    <Button size="sm" variant="brand" onclick={() => count++}>Increment</Button>
+    <Button size="sm" variant="brand" onclick={() => count--}>Decrement</Button>
+    <span class="px-2"> / </span>
+    <Button
+      size="sm"
+      variant="ghost"
+      disabled={!history.canUndo}
+      onclick={history.undo}
+    >
+      Undo
+    </Button>
+    <Button
+      size="sm"
+      variant="ghost"
+      disabled={!history.canRedo}
+      onclick={history.redo}
+    >
+      Redo
+    </Button>
+  </div>
+
+  <div class="mt-4">
+    <p class="text-muted-foreground m-0 select-none">
+      History (limited to 10 records for demo)
+    </p>
+    <div class="bg-background-secondary mt-2 rounded-md border px-3 py-2">
+      {#each history.log.toReversed() as event, i (`${event}-${i}`)}
+        <div class="flex items-center gap-4 font-mono">
+          <span class="text-muted-foreground/75">{format(event.timestamp)}</span
+          >
+          <span>{`{ value: ${event.snapshot} }`}</span>
+        </div>
+      {/each}
+    </div>
+  </div>
+</DemoContainer>
+
+=== 594 sites/docs/src/lib/components/demos/textarea-autosize.svelte	svelte
+<script lang="ts">
+  import { TextareaAutosize } from "runed";
+  import { DemoContainer, Textarea } from "@svecodocs/kit";
+
+  let element = $state<HTMLTextAreaElement>(null!);
+  let input = $state("");
+  new TextareaAutosize({
+    element: () => element,
+    input: () => input,
+  });
+</script>
+
+<DemoContainer>
+  <label class="block" for="textarea-auto">
+    Behold, the growing textarea!
+  </label>
+  <Textarea
+    class="mt-2 min-h-2 resize-none"
+    id="textarea-auto"
+    bind:value={input}
+    bind:ref={element}
+    placeholder="Type a lot, and you'll see me grow"
+  />
+</DemoContainer>
+
+=== 860 sites/docs/src/lib/components/demos/throttled.svelte	svelte
+<script lang="ts">
+  import { Throttled } from "runed";
+  import { Label, Input, DemoContainer } from "@svecodocs/kit";
+
+  let search = $state("");
+  let durationMs = $state(1000);
+  const throttledSearch = new Throttled(
+    () => search,
+    () => durationMs,
+  );
+</script>
+
+<DemoContainer class="flex flex-col gap-4">
+  <div class="flex flex-col gap-1.5">
+    <Label for="duration">Throttle duration (ms)</Label>
+    <Input id="duration" type="number" bind:value={durationMs} />
+  </div>
+
+  <div class="flex flex-col gap-1.5">
+    <Label for="search">Search</Label>
+    <Input
+      bind:value={search}
+      placeholder="Search the best utilities for Svelte 5"
+    />
+  </div>
+
+  <p>
+    {#if throttledSearch.current}
+      You searched for: <b>{throttledSearch.current}</b>
+    {:else}
+      Search for something above!
+    {/if}
+  </p>
+</DemoContainer>
+
+=== 1339 sites/docs/src/lib/components/demos/use-debounce.svelte	svelte
+<script lang="ts">
+  import { useDebounce } from "runed";
+  import { Input, Label, Button, DemoContainer } from "@svecodocs/kit";
+
+  let count = $state(0);
+  let logged = $state("");
+  let isFirstTime = $state(true);
+  let durationMs = $state(1000);
+
+  const logCount = useDebounce(
+    () => {
+      if (isFirstTime) {
+        isFirstTime = false;
+        logged = `You pressed the button ${count} times!`;
+      } else {
+        logged = `You pressed the button ${count} times since last time!`;
+      }
+      count = 0;
+    },
+    () => durationMs,
+  );
+
+  function ding() {
+    count++;
+    logCount();
+  }
+</script>
+
+<DemoContainer class="flex flex-col gap-6">
+  <div class="flex flex-col gap-2.5">
+    <Label for="duration">Debounce duration (ms)</Label>
+    <Input id="duration" type="number" bind:value={durationMs} />
+  </div>
+  <div class="flex items-center gap-4">
+    <Button variant="brand" size="sm" onclick={ding}>DING DING DING</Button>
+    <Button
+      variant="ghost"
+      size="sm"
+      onclick={logCount.runScheduledNow}
+      disabled={!logCount.pending}>Run now</Button
+    >
+    <Button
+      variant="ghost"
+      size="sm"
+      onclick={logCount.cancel}
+      disabled={!logCount.pending}
+    >
+      Cancel message
+    </Button>
+  </div>
+  <p class="mt-2">{logged || "Press the button!"}</p>
+</DemoContainer>
+
+=== 363 sites/docs/src/lib/components/demos/use-event-listener.svelte	svelte
+<script lang="ts">
+  import { useEventListener } from "runed";
+  import { DemoContainer } from "@svecodocs/kit";
+
+  let count = $state(0);
+  useEventListener(
+    () => document.body,
+    "click",
+    () => count++,
+  );
+</script>
+
+<DemoContainer class="select-none">
+  <p>You've clicked the document {count} {count === 1 ? "time" : "times"}</p>
+</DemoContainer>
+
+=== 732 sites/docs/src/lib/components/demos/use-geolocation.svelte	svelte
+<script lang="ts">
+  import { useGeolocation } from "runed";
+  import { DemoContainer, Button } from "@svecodocs/kit";
+
+  const location = useGeolocation();
+</script>
+
+<DemoContainer class="flex flex-col gap-1">
+  <pre>Coords: {JSON.stringify(location.position.coords, null, 2)}</pre>
+  <pre>Located at: {location.position.timestamp}</pre>
+  <pre>Error: {JSON.stringify(location.error, null, 2)}</pre>
+  <pre>Is Supported: {location.isSupported}</pre>
+  <div class="mt-4 flex items-center gap-2">
+    <Button size="sm" onclick={location.pause} disabled={location.isPaused}
+      >Pause</Button
+    >
+    <Button size="sm" onclick={location.resume} disabled={!location.isPaused}
+      >Resume</Button
+    >
+  </div>
+</DemoContainer>
+
+=== 1487 sites/docs/src/lib/components/demos/use-intersection-observer.svelte	svelte
+<script lang="ts">
+  import { useIntersectionObserver } from "runed";
+  import { Checkbox, Label, DemoContainer } from "@svecodocs/kit";
+
+  let root = $state<HTMLElement>(null!);
+  let target = $state<HTMLElement>(null!);
+
+  let isVisible = $state(false);
+
+  const observer = useIntersectionObserver(
+    () => target,
+    ([entry]) => {
+      if (entry) {
+        isVisible = entry.isIntersecting;
+      } else {
+        isVisible = false;
+      }
+    },
+    {
+      root: () => root,
+    },
+  );
+</script>
+
+<DemoContainer class="flex flex-col gap-4 text-center">
+  <div class="flex items-center justify-center">
+    <Checkbox
+      id="enabled"
+      checked={observer.isActive}
+      onCheckedChange={(v) => {
+        if (v) {
+          observer.resume();
+        } else {
+          observer.pause();
+        }
+      }}
+    />
+    <Label for="enabled" class="pl-2">Enable</Label>
+  </div>
+  <div
+    bind:this={root}
+    class="border-border m-2 h-[200px] overflow-y-scroll border-2 border-dashed pt-4"
+  >
+    <p class="text-lg italic">Scroll down 👇</p>
+    <div
+      bind:this={target}
+      class="border-brand m-6 mt-96 max-h-[150px] border-2 p-2.5"
+    >
+      <p>I'm the target! 🎯</p>
+    </div>
+  </div>
+  <div class="text-center">
+    Element
+    <span
+      class="font-medium {isVisible
+        ? 'text-green-600 dark:text-green-500'
+        : 'text-destructive'}"
+    >
+      {isVisible ? "inside" : "outside"}
+    </span>
+    the viewport
+  </div>
+</DemoContainer>
+
+=== 1115 sites/docs/src/lib/components/demos/use-interval.svelte	svelte
+<script lang="ts">
+  import { useInterval } from "runed";
+  import { Input, Label, Button, DemoContainer } from "@svecodocs/kit";
+
+  let intervalMs = $state(500);
+
+  const interval = useInterval(() => intervalMs);
+</script>
+
+<DemoContainer class="flex flex-col gap-6">
+  <div class="flex flex-col gap-2.5">
+    <Label for="interval">Interval duration (ms)</Label>
+    <Input
+      id="interval"
+      type="number"
+      bind:value={intervalMs}
+      min="100"
+      step="100"
+    />
+  </div>
+
+  <div class="flex items-center gap-4">
+    <Button
+      variant="brand"
+      size="sm"
+      onclick={interval.pause}
+      disabled={!interval.isActive}>Pause</Button
+    >
+    <Button
+      variant="brand"
+      size="sm"
+      onclick={interval.resume}
+      disabled={interval.isActive}>Resume</Button
+    >
+    <Button variant="ghost" size="sm" onclick={interval.reset}
+      >Reset Counter</Button
+    >
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <p><strong>Counter:</strong> {interval.counter}</p>
+    <p><strong>Status:</strong> {interval.isActive ? "Running" : "Paused"}</p>
+  </div>
+</DemoContainer>
+
+=== 872 sites/docs/src/lib/components/demos/use-mutation-observer.svelte	svelte
+<script lang="ts">
+  import { useMutationObserver } from "runed";
+  import { DemoContainer } from "@svecodocs/kit";
+
+  let el = $state<HTMLElement | null>(null);
+  const messages = $state<string[]>([]);
+  let className = $state("");
+  let style = $state("");
+
+  useMutationObserver(
+    () => el,
+    (mutations) => {
+      const mutation = mutations[0];
+
+      if (!mutation) return;
+
+      messages.push(mutation.attributeName!);
+    },
+    { attributes: true },
+  );
+
+  setTimeout(() => {
+    className = "text-brand";
+  }, 1000);
+
+  setTimeout(() => {
+    style = "font-style: italic;";
+  }, 1500);
+</script>
+
+<DemoContainer>
+  <div bind:this={el} class={className} {style}>
+    {#each messages as text, i (`${text}-${i}`)}
+      <div>
+        Mutation Attribute: {text}
+      </div>
+    {:else}
+      <div>No mutations yet</div>
+    {/each}
+  </div>
+</DemoContainer>
+
+=== 587 sites/docs/src/lib/components/demos/use-resize-observer.svelte	svelte
+<script lang="ts">
+  import { useResizeObserver } from "runed";
+  import { Textarea, DemoContainer } from "@svecodocs/kit";
+
+  let ref = $state<HTMLElement>(null!);
+  let text = $state("");
+
+  useResizeObserver(
+    () => ref,
+    (entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+
+      const { width, height } = entry.contentRect;
+      text = `width: ${width}\nheight: ${height}`;
+    },
+  );
+</script>
+
+<DemoContainer>
+  <Textarea
+    readonly
+    value={text}
+    bind:ref
+    class="h-[200px] min-h-[100px] w-[300px]  resize text-base"
+  />
+</DemoContainer>
+
+=== 1621 sites/docs/src/lib/components/demos/use-search-params.svelte	svelte
+<script lang="ts">
+  import { useSearchParams, createSearchParamsSchema } from "runed/kit";
+  import { Button, DemoContainer, Input } from "@svecodocs/kit";
+  const params = useSearchParams(
+    createSearchParamsSchema({
+      fields: {
+        type: "object",
+        default: {},
+        objectType: {} as Record<string, string>,
+      },
+    }),
+  );
+  const newField = $state({ key: "", value: "" });
+  function addField() {
+    if (newField.key.trim() && newField.value.trim()) {
+      params.fields = { ...params.fields, [newField.key]: newField.value };
+      newField.key = "";
+      newField.value = "";
+    }
+  }
+  function removeField(key: string) {
+    const newFields = { ...params.fields };
+    delete newFields[key];
+    params.fields = newFields;
+  }
+</script>
+
+<DemoContainer class="flex flex-col gap-4">
+  {#each Object.entries(params.fields) as [key, _value] (key)}
+    <div class="flex items-center gap-3">
+      <Input class="flex-1" value={key} placeholder="Key" readonly />
+      <Input
+        class="flex-1"
+        bind:value={params.fields[key]}
+        placeholder="Value"
+      />
+      <Button class="shrink-0" variant="brand" onclick={() => removeField(key)}
+        >Remove</Button
+      >
+    </div>
+  {/each}
+  <form
+    class="flex items-center gap-3"
+    onsubmit={(e) => {
+      e.preventDefault();
+      addField();
+    }}
+  >
+    <Input class="flex-1" bind:value={newField.key} placeholder="Key" />
+    <Input class="flex-1" bind:value={newField.value} placeholder="Value" />
+    <Button variant="brand" class="shrink-0" type="submit">Add Field</Button>
+  </form>
+</DemoContainer>
+
+=== 1085 sites/docs/src/lib/components/demos/use-throttle.svelte	svelte
+<script lang="ts">
+  import { useThrottle } from "runed";
+  import { Label, Input, DemoContainer } from "@svecodocs/kit";
+
+  let search = $state("");
+  let throttledSearch = $state("");
+  let durationMs = $state(1000);
+
+  const setThrottledSearch = useThrottle(
+    () => (throttledSearch = search),
+    () => durationMs,
+  );
+</script>
+
+<DemoContainer class="flex flex-col gap-4">
+  <div class="flex flex-col gap-1.5">
+    <Label for="duration">Throttle duration (ms)</Label>
+    <Input id="duration" type="number" bind:value={durationMs} />
+  </div>
+
+  <div class="flex flex-col gap-1.5">
+    <Label for="search">Search</Label>
+    <Input
+      bind:value={
+        () => search,
+        (v) => {
+          search = v;
+          setThrottledSearch();
+        }
+      }
+      placeholder="Search the best utilities for Svelte 5"
+    />
+  </div>
+  <p>
+    {#if throttledSearch}
+      You searched for: <b>{throttledSearch}</b>
+    {:else}
+      Search for something above!
+    {/if}
+  </p>
+</DemoContainer>
+
+<!-- Hack to make it fill the container -->
+<div class="h-1 w-screen"></div>
+
+=== 6040 sites/docs/src/lib/components/logos/runed-dark.svelte	svelte
+<script lang="ts">
+  import type { SVGAttributes } from "svelte/elements";
+
+  let restProps: SVGAttributes<SVGElement> = $props();
+</script>
+
+<svg
+  width="442"
+  height="122"
+  viewBox="0 0 442 122"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+  {...restProps}
+>
+  <path
+    d="M413.234 95.1171C409.427 95.1171 405.979 94.1381 402.89 92.1803C399.822 90.2007 397.386 87.2966 395.581 83.4679C393.797 79.6175 392.905 74.8969 392.905 69.3062C392.905 63.5632 393.829 58.7882 395.678 54.9813C397.527 51.1526 399.986 48.292 403.053 46.3994C406.142 44.4851 409.525 43.5279 413.201 43.5279C416.007 43.5279 418.346 44.0065 420.217 44.9637C422.109 45.8991 423.632 47.0738 424.785 48.4878C425.96 49.88 426.852 51.2505 427.461 52.5993H427.885V27.4736H441.753V94.3013H428.048V86.2741H427.461C426.808 87.6664 425.884 89.0478 424.687 90.4182C423.512 91.767 421.979 92.8873 420.086 93.7792C418.215 94.6711 415.931 95.1171 413.234 95.1171ZM417.639 84.0553C419.879 84.0553 421.772 83.4461 423.317 82.2279C424.883 80.988 426.079 79.2585 426.906 77.0397C427.754 74.8208 428.179 72.2212 428.179 69.2409C428.179 66.2607 427.765 63.672 426.939 61.4748C426.112 59.2777 424.915 57.5809 423.349 56.3844C421.783 55.188 419.879 54.5897 417.639 54.5897C415.355 54.5897 413.429 55.2097 411.863 56.4497C410.297 57.6897 409.111 59.4082 408.306 61.6053C407.502 63.8025 407.099 66.3477 407.099 69.2409C407.099 72.1559 407.502 74.7338 408.306 76.9744C409.133 79.1933 410.319 80.9336 411.863 82.1953C413.429 83.4353 415.355 84.0553 417.639 84.0553Z"
+    fill="white"
+  />
+  <path
+    d="M366.364 95.2806C361.208 95.2806 356.771 94.2364 353.051 92.1481C349.353 90.0379 346.503 87.0577 344.502 83.2072C342.5 79.3351 341.5 74.7559 341.5 69.4697C341.5 64.3141 342.5 59.7893 344.502 55.8954C346.503 52.0014 349.32 48.9668 352.953 46.7914C356.608 44.616 360.893 43.5283 365.809 43.5283C369.116 43.5283 372.194 44.0613 375.044 45.1272C377.915 46.1714 380.417 47.7486 382.549 49.8587C384.703 51.9688 386.378 54.6228 387.574 57.8206C388.771 60.9966 389.369 64.7165 389.369 68.9803V72.7981H347.047V64.1835H376.284C376.284 62.1822 375.849 60.4093 374.979 58.8647C374.108 57.3202 372.901 56.1129 371.357 55.2427C369.834 54.3508 368.061 53.9049 366.038 53.9049C363.928 53.9049 362.057 54.3943 360.425 55.3733C358.816 56.3304 357.554 57.6248 356.64 59.2563C355.726 60.8661 355.259 62.6608 355.237 64.6404V72.8307C355.237 75.3106 355.694 77.4534 356.608 79.2589C357.543 81.0645 358.859 82.4567 360.556 83.4357C362.253 84.4146 364.265 84.904 366.593 84.904C368.137 84.904 369.551 84.6865 370.835 84.2514C372.118 83.8163 373.217 83.1637 374.13 82.2936C375.044 81.4234 375.74 80.3575 376.219 79.0958L389.075 79.9442C388.422 83.0332 387.085 85.7307 385.061 88.0366C383.06 90.3207 380.471 92.1045 377.295 93.388C374.141 94.6497 370.497 95.2806 366.364 95.2806Z"
+    fill="white"
+  />
+  <path
+    d="M303.938 65.3256V94.3017H290.037V44.1809H303.285V53.0238H303.873C304.982 50.1088 306.842 47.8029 309.452 46.1061C312.063 44.3876 315.228 43.5283 318.948 43.5283C322.429 43.5283 325.463 44.2897 328.052 45.8125C330.641 47.3352 332.653 49.5106 334.089 52.3386C335.524 55.1448 336.242 58.4949 336.242 62.3889V94.3017H322.341V64.8688C322.363 61.8015 321.58 59.4086 319.992 57.69C318.404 55.9497 316.218 55.0796 313.433 55.0796C311.562 55.0796 309.909 55.482 308.473 56.2869C307.059 57.0918 305.95 58.2665 305.145 59.811C304.362 61.3338 303.96 63.172 303.938 65.3256Z"
+    fill="white"
+  />
+  <path
+    d="M268.693 72.9609V44.1807H282.594V94.3014H269.248V85.1974H268.726C267.594 88.1342 265.713 90.4945 263.081 92.2783C260.47 94.0621 257.283 94.954 253.52 94.954C250.17 94.954 247.222 94.1926 244.677 92.6699C242.132 91.1471 240.141 88.9826 238.705 86.1764C237.291 83.3701 236.574 80.0092 236.552 76.0935V44.1807H250.452V73.6136C250.474 76.5721 251.268 78.9106 252.834 80.6291C254.401 82.3477 256.5 83.207 259.132 83.207C260.807 83.207 262.374 82.8263 263.831 82.0649C265.289 81.2818 266.463 80.1288 267.355 78.606C268.269 77.0833 268.715 75.2016 268.693 72.9609Z"
+    fill="white"
+  />
+  <path
+    d="M180.187 94.3013V27.4736H206.553C211.599 27.4736 215.907 28.3764 219.474 30.182C223.064 31.9658 225.794 34.5001 227.665 37.7849C229.557 41.048 230.504 44.8875 230.504 49.3036C230.504 53.7413 229.546 57.5591 227.632 60.7569C225.718 63.933 222.944 66.3694 219.311 68.0662C215.7 69.763 211.328 70.6114 206.194 70.6114H188.54V59.2559H203.91C206.607 59.2559 208.848 58.8861 210.631 58.1465C212.415 57.4069 213.742 56.2974 214.612 54.8182C215.504 53.3389 215.95 51.5007 215.95 49.3036C215.95 47.0847 215.504 45.2139 214.612 43.6911C213.742 42.1683 212.404 41.0154 210.599 40.2322C208.815 39.4273 206.563 39.0249 203.844 39.0249H194.316V94.3013H180.187ZM216.277 63.8895L232.886 94.3013H217.288L201.038 63.8895H216.277Z"
+    fill="white"
+  />
+  <g clip-path="url(#clip0_1126_241)">
+    <path
+      fill-rule="evenodd"
+      clip-rule="evenodd"
+      d="M22.9283 0.0488281C10.3824 0.0488281 0.211914 10.2193 0.211914 22.7652V98.8388C0.211914 111.385 10.3824 121.555 22.9283 121.555H99.0019C111.548 121.555 121.718 111.385 121.718 98.8388V22.7652C121.718 10.2193 111.548 0.0488281 99.0019 0.0488281H22.9283ZM48.8503 19.8848L78.112 36.4804L78.1128 36.4809C79.653 37.354 80.6271 38.9615 80.6955 40.7229L80.6955 40.7238C80.7635 42.4915 79.924 44.1603 78.4518 45.1532L53.7673 61.7974L79.5959 94.1047L79.5999 94.1097C81.3324 96.3008 81.004 99.5008 78.7906 101.27C77.8445 102.027 76.7107 102.385 75.6057 102.385C74.111 102.385 72.6281 101.733 71.6176 100.466L51.4347 75.2146V97.1469C51.4347 99.9677 49.1549 102.248 46.3341 102.248C43.5132 102.248 41.2334 99.9677 41.2334 97.1469V24.3196C41.2334 22.5131 42.1878 20.8302 43.7682 19.9158C45.3488 18.9921 47.2818 18.9982 48.8472 19.8831L48.8503 19.8848ZM51.4347 51.0765V33.0722L65.9324 41.2999L51.4347 51.0765Z"
+      fill="#F64A00"
+    />
+  </g>
+  <defs>
+    <clipPath id="clip0_1126_241">
+      <rect
+        width="121.506"
+        height="121.506"
+        fill="white"
+        transform="translate(0.211914 0.0488281)"
+      />
+    </clipPath>
+  </defs>
+</svg>
+
+=== 1442 sites/docs/src/lib/components/logos/runed-icon.svelte	svelte
+<script lang="ts">
+  import type { SVGAttributes } from "svelte/elements";
+
+  let { ...restProps }: SVGAttributes<SVGElement> = $props();
+</script>
+
+<svg
+  width="122"
+  height="122"
+  viewBox="0 0 122 122"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+  {...restProps}
+>
+  <mask
+    id="mask0_1_13"
+    style="mask-type:luminance"
+    maskUnits="userSpaceOnUse"
+    x="0"
+    y="0"
+    width="122"
+    height="122"
+  >
+    <path d="M121.506 0H0V121.506H121.506V0Z" fill="white" />
+  </mask>
+  <g mask="url(#mask0_1_13)">
+    <path
+      fill-rule="evenodd"
+      clip-rule="evenodd"
+      d="M22.7164 0C10.1705 0 0 10.1705 0 22.7164V98.79C0 111.335 10.1705 121.506 22.7164 121.506H98.79C111.336 121.506 121.506 111.335 121.506 98.79V22.7164C121.506 10.1705 111.336 0 98.79 0H22.7164ZM48.6384 19.836L77.9001 36.4316C79.4403 37.3047 80.4152 38.9127 80.4836 40.6741C80.5516 42.4418 79.7121 44.1115 78.2399 45.1044L53.5554 61.7486L79.384 94.0559L79.388 94.0609C81.1205 96.252 80.7921 99.452 78.5787 101.22C77.6326 101.977 76.4988 102.335 75.3938 102.335C73.8991 102.335 72.4162 101.684 71.4057 100.417L51.2228 75.1658V97.0981C51.2228 99.9185 48.943 102.198 46.1222 102.198C43.3013 102.198 41.0215 99.9185 41.0215 97.0981V24.2708C41.0215 22.4643 41.9759 20.7814 43.5563 19.867C45.1369 18.9433 47.0699 18.9494 48.6353 19.8343L48.6384 19.836ZM51.2228 51.0277V33.0234L65.7205 41.2511L51.2228 51.0277Z"
+      fill="#EC4F27"
+    />
+  </g>
+</svg>
+
+=== 6044 sites/docs/src/lib/components/logos/runed-light.svelte	svelte
+<script lang="ts">
+  import type { SVGAttributes } from "svelte/elements";
+
+  let restProps: SVGAttributes<SVGElement> = $props();
+</script>
+
+<svg
+  width="442"
+  height="123"
+  viewBox="0 0 442 123"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+  {...restProps}
+>
+  <path
+    d="M413.234 95.8866C409.427 95.8866 405.979 94.9077 402.89 92.9498C399.822 90.9702 397.386 88.0661 395.581 84.2374C393.797 80.387 392.905 75.6664 392.905 70.0757C392.905 64.3327 393.829 59.5578 395.678 55.7508C397.527 51.9222 399.986 49.0615 403.053 47.169C406.142 45.2546 409.525 44.2975 413.201 44.2975C416.007 44.2975 418.346 44.7761 420.217 45.7332C422.109 46.6686 423.632 47.8433 424.785 49.2573C425.96 50.6496 426.852 52.0201 427.461 53.3688H427.885V28.2432H441.753V95.0708H428.048V87.0437H427.461C426.808 88.4359 425.884 89.8173 424.687 91.1878C423.512 92.5365 421.979 93.6568 420.086 94.5487C418.215 95.4406 415.931 95.8866 413.234 95.8866ZM417.639 84.8248C419.879 84.8248 421.772 84.2157 423.317 82.9975C424.883 81.7575 426.079 80.0281 426.906 77.8092C427.754 75.5903 428.179 72.9907 428.179 70.0105C428.179 67.0302 427.765 64.4415 426.939 62.2443C426.112 60.0472 424.915 58.3504 423.349 57.154C421.783 55.9575 419.879 55.3593 417.639 55.3593C415.355 55.3593 413.429 55.9793 411.863 57.2192C410.297 58.4592 409.111 60.1777 408.306 62.3749C407.502 64.572 407.099 67.1172 407.099 70.0105C407.099 72.9255 407.502 75.5033 408.306 77.7439C409.133 79.9628 410.319 81.7031 411.863 82.9648C413.429 84.2048 415.355 84.8248 417.639 84.8248Z"
+    fill="#0F0F11"
+  />
+  <path
+    d="M366.364 96.0501C361.208 96.0501 356.771 95.0059 353.051 92.9176C349.353 90.8075 346.503 87.8272 344.502 83.9768C342.5 80.1046 341.5 75.5254 341.5 70.2392C341.5 65.0836 342.5 60.5588 344.502 56.6649C346.503 52.771 349.32 49.7363 352.953 47.5609C356.608 45.3855 360.893 44.2979 365.809 44.2979C369.116 44.2979 372.194 44.8308 375.044 45.8968C377.915 46.9409 380.417 48.5181 382.549 50.6282C384.703 52.7383 386.378 55.3923 387.574 58.5901C388.771 61.7661 389.369 65.486 389.369 69.7498V73.5676H347.047V64.9531H376.284C376.284 62.9517 375.849 61.1788 374.979 59.6343C374.108 58.0898 372.901 56.8824 371.357 56.0123C369.834 55.1204 368.061 54.6744 366.038 54.6744C363.928 54.6744 362.057 55.1639 360.425 56.1428C358.816 57.1 357.554 58.3943 356.64 60.0258C355.726 61.6356 355.259 63.4303 355.237 65.4099V73.6002C355.237 76.0801 355.694 78.2229 356.608 80.0285C357.543 81.834 358.859 83.2263 360.556 84.2052C362.253 85.1841 364.265 85.6736 366.593 85.6736C368.137 85.6736 369.551 85.456 370.835 85.021C372.118 84.5859 373.217 83.9333 374.13 83.0631C375.044 82.193 375.74 81.127 376.219 79.8653L389.075 80.7137C388.422 83.8027 387.085 86.5002 385.061 88.8061C383.06 91.0903 380.471 92.8741 377.295 94.1576C374.141 95.4193 370.497 96.0501 366.364 96.0501Z"
+    fill="#0F0F11"
+  />
+  <path
+    d="M303.938 66.0952V95.0712H290.037V44.9505H303.285V53.7934H303.873C304.982 50.8784 306.842 48.5725 309.452 46.8757C312.063 45.1571 315.228 44.2979 318.948 44.2979C322.429 44.2979 325.463 45.0592 328.052 46.582C330.641 48.1048 332.653 50.2801 334.089 53.1081C335.524 55.9144 336.242 59.2645 336.242 63.1584V95.0712H322.341V65.6383C322.363 62.571 321.58 60.1781 319.992 58.4596C318.404 56.7193 316.218 55.8491 313.433 55.8491C311.562 55.8491 309.909 56.2516 308.473 57.0564C307.059 57.8613 305.95 59.036 305.145 60.5806C304.362 62.1033 303.96 63.9415 303.938 66.0952Z"
+    fill="#0F0F11"
+  />
+  <path
+    d="M268.693 73.7305V44.9502H282.594V95.0709H269.248V85.967H268.726C267.594 88.9037 265.713 91.264 263.081 93.0478C260.47 94.8317 257.283 95.7236 253.52 95.7236C250.17 95.7236 247.222 94.9622 244.677 93.4394C242.132 91.9166 240.141 89.7521 238.705 86.9459C237.291 84.1397 236.574 80.7787 236.552 76.863V44.9502H250.452V74.3831C250.474 77.3416 251.268 79.6801 252.834 81.3987C254.401 83.1172 256.5 83.9765 259.132 83.9765C260.807 83.9765 262.374 83.5958 263.831 82.8344C265.289 82.0513 266.463 80.8983 267.355 79.3756C268.269 77.8528 268.715 75.9711 268.693 73.7305Z"
+    fill="#0F0F11"
+  />
+  <path
+    d="M180.187 95.0708V28.2432H206.553C211.599 28.2432 215.907 29.1459 219.474 30.9515C223.064 32.7353 225.794 35.2696 227.665 38.5545C229.557 41.8175 230.504 45.6571 230.504 50.0731C230.504 54.5109 229.546 58.3287 227.632 61.5265C225.718 64.7025 222.944 67.139 219.311 68.8357C215.7 70.5325 211.328 71.3809 206.194 71.3809H188.54V60.0255H203.91C206.607 60.0255 208.848 59.6556 210.631 58.916C212.415 58.1764 213.742 57.0669 214.612 55.5877C215.504 54.1084 215.95 52.2702 215.95 50.0731C215.95 47.8542 215.504 45.9834 214.612 44.4606C213.742 42.9379 212.404 41.7849 210.599 41.0018C208.815 40.1969 206.563 39.7944 203.844 39.7944H194.316V95.0708H180.187ZM216.277 64.659L232.886 95.0708H217.288L201.038 64.659H216.277Z"
+    fill="#0F0F11"
+  />
+  <g clip-path="url(#clip0_1126_249)">
+    <path
+      fill-rule="evenodd"
+      clip-rule="evenodd"
+      d="M22.9283 0.818359C10.3824 0.818359 0.211914 10.9888 0.211914 23.5348V99.6083C0.211914 112.154 10.3824 122.325 22.9283 122.325H99.0019C111.548 122.325 121.718 112.154 121.718 99.6083V23.5348C121.718 10.9888 111.548 0.818359 99.0019 0.818359H22.9283ZM48.8503 20.6543L78.112 37.25L78.1128 37.2504C79.653 38.1236 80.6271 39.731 80.6955 41.4925L80.6955 41.4933C80.7635 43.261 79.924 44.9299 78.4518 45.9227L53.7673 62.5669L79.5959 94.8742L79.5999 94.8792C81.3324 97.0704 81.004 100.27 78.7906 102.039C77.8445 102.796 76.7107 103.154 75.6057 103.154C74.111 103.154 72.6281 102.503 71.6176 101.235L51.4347 75.9841V97.9164C51.4347 100.737 49.1549 103.017 46.3341 103.017C43.5132 103.017 41.2334 100.737 41.2334 97.9164V25.0891C41.2334 23.2827 42.1878 21.5998 43.7682 20.6854C45.3488 19.7616 47.2818 19.7678 48.8472 20.6526L48.8503 20.6543ZM51.4347 51.846V33.8417L65.9324 42.0694L51.4347 51.846Z"
+      fill="#F64A00"
+    />
+  </g>
+  <defs>
+    <clipPath id="clip0_1126_249">
+      <rect
+        width="121.506"
+        height="121.506"
+        fill="white"
+        transform="translate(0.211914 0.818359)"
+      />
+    </clipPath>
+  </defs>
+</svg>
+
+=== 539 sites/docs/src/routes/(docs)/+layout.svelte	svelte
+<script lang="ts">
+  import RunedDark from "$lib/components/logos/runed-dark.svelte";
+  import RunedLight from "$lib/components/logos/runed-light.svelte";
+  import { DocsLayout } from "@svecodocs/kit";
+  import { navigation } from "$lib/config/navigation";
+
+  let { children } = $props();
+</script>
+
+<DocsLayout {navigation}>
+  {#snippet logo()}
+    <RunedDark class="hidden w-7 dark:block" />
+    <RunedLight class="block w-7 dark:hidden" />
+    <span class="sr-only">Svecodocs</span>
+  {/snippet}
+
+  {@render children?.()}
+</DocsLayout>
+
+=== 538 sites/docs/src/routes/(docs)/docs/+page.svelte	svelte
+<script lang="ts">
+  import { DocPage } from "@svecodocs/kit";
+  let { data } = $props();
+
+  const ogUrl = $derived(
+    `https://runed.dev/og?title=${encodeURIComponent(data.metadata.title)}&description=${encodeURIComponent(data.metadata.description)}`,
+  );
+</script>
+
+<svelte:head>
+  <title>{data.metadata.title}</title>
+  <meta name="description" content={data.metadata.description} />
+</svelte:head>
+<DocPage
+  component={data.component}
+  {...data.metadata}
+  metadata={{ ogImage: { url: ogUrl, width: "1200", height: "630" } }}
+/>
+
+=== 574 sites/docs/src/routes/(docs)/docs/[...slug]/+page.svelte	svelte
+<script lang="ts">
+  import { DocPage } from "@svecodocs/kit";
+  let { data } = $props();
+
+  const ogUrl = $derived(
+    `https://runed.dev/og?title=${encodeURIComponent(data.metadata.title)}&description=${encodeURIComponent(data.metadata.description)}`,
+  );
+</script>
+
+<svelte:head>
+  <title>{data.metadata.title}</title>
+  <meta name="description" content={data.metadata.description} />
+</svelte:head>
+
+<DocPage
+  component={data.component}
+  {...data.metadata}
+  contributors={data.contributors}
+  metadata={{ ogImage: { url: ogUrl, width: "1200", height: "630" } }}
+/>
+
+=== 452 sites/docs/src/routes/+layout.svelte	svelte
+<script lang="ts">
+  import "../app.css";
+  import { siteConfig } from "$lib/config/site";
+  import { useSiteConfig } from "@svecodocs/kit";
+  import { dev } from "$app/environment";
+
+  let { children } = $props();
+
+  useSiteConfig(() => siteConfig);
+</script>
+
+<svelte:head>
+  {#if !dev}
+    <script
+      defer
+      data-domain="runed.dev"
+      src="https://server.hj.run/js/script.js"
+    ></script>
+  {/if}
+</svelte:head>
+
+{@render children?.()}
+

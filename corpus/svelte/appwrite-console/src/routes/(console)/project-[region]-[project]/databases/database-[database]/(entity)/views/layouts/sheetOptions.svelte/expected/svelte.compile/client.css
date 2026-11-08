@@ -1,8 +1,0 @@
-
-    .action-menu-root.svelte-1plqp8i {
-        margin-inline-start: calc(var(--space-2) * -1);
-
-        & :first-child {
-            overflow: visible;
-        }
-    }

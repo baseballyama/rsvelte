@@ -1,0 +1,1316 @@
+# rsvelte pack 1
+=== 223 posts/entry-and-exit-css-transitions/examples/Dialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltecraft/sandbox' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 223 posts/entry-and-exit-css-transitions/examples/Discrete.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltecraft/sandbox' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 223 posts/entry-and-exit-css-transitions/examples/KeyframeToggle.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltecraft/sandbox' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 223 posts/entry-and-exit-css-transitions/examples/Keyframes.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltecraft/sandbox' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 223 posts/entry-and-exit-css-transitions/examples/TransitionToggle.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltecraft/sandbox' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 223 posts/entry-and-exit-css-transitions/examples/Transitions.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltecraft/sandbox' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 223 posts/entry-and-exit-css-transitions/examples/ViewTransition.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltecraft/sandbox' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 220 posts/learn-svelte/examples/accordion.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './accordion/index' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 42
+		},
+		"end": {
+			"line": 1,
+			"character": 61
+		}
+	}
+]
+
+=== 3 posts/learn-svelte/examples/accordion/accordion-item.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/accordion/accordion.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/attachment.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/attributes.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/counter.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/crossfade-flip.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/crossfade.svelte	json
+[]
+
+=== 637 posts/learn-svelte/examples/custom-transition.svelte	json
+[
+	{
+		"code": 2339,
+		"message": "Property 'duration' does not exist on type 'TransitionConfig | undefined'.",
+		"start": {
+			"line": 5,
+			"character": 10
+		},
+		"end": {
+			"line": 5,
+			"character": 18
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'delay' does not exist on type 'TransitionConfig | undefined'.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 32
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'easing' does not exist on type 'TransitionConfig | undefined'.",
+		"start": {
+			"line": 5,
+			"character": 38
+		},
+		"end": {
+			"line": 5,
+			"character": 44
+		}
+	}
+]
+
+=== 3 posts/learn-svelte/examples/derived-by.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/derived.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/dynamic-classes.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/editor.svelte	json
+[]
+
+=== 233 posts/learn-svelte/examples/example-loader.svelte	json
+[
+	{
+		"code": 2345,
+		"message": "Argument of type 'null' is not assignable to parameter of type 'Component<{}, {}, string>'.",
+		"start": {
+			"line": 6,
+			"character": 41
+		},
+		"end": {
+			"line": 6,
+			"character": 45
+		}
+	}
+]
+
+=== 3 posts/learn-svelte/examples/expressions.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/fade-transition.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/global-transitions.svelte	json
+[]
+
+=== 380 posts/learn-svelte/examples/gsap-box.svelte	json
+[
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'window'.",
+		"start": {
+			"line": 3,
+			"character": 16
+		},
+		"end": {
+			"line": 3,
+			"character": 22
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'gsap' does not exist on type 'Window & typeof globalThis'.",
+		"start": {
+			"line": 6,
+			"character": 21
+		},
+		"end": {
+			"line": 6,
+			"character": 25
+		}
+	}
+]
+
+=== 655 posts/learn-svelte/examples/gsap-flip.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'gsap'.",
+		"start": {
+			"line": 3,
+			"character": 1
+		},
+		"end": {
+			"line": 3,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Flip'.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 25
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Flip'.",
+		"start": {
+			"line": 11,
+			"character": 16
+		},
+		"end": {
+			"line": 11,
+			"character": 20
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Flip'.",
+		"start": {
+			"line": 15,
+			"character": 3
+		},
+		"end": {
+			"line": 15,
+			"character": 7
+		}
+	}
+]
+
+=== 3 posts/learn-svelte/examples/input-binding.svelte	json
+[]
+
+=== 218 posts/learn-svelte/examples/mouse-position.svelte	json
+[
+	{
+		"code": 2683,
+		"message": "'this' implicitly has type 'any' because it does not have a type annotation.",
+		"start": {
+			"line": 4,
+			"character": 15
+		},
+		"end": {
+			"line": 4,
+			"character": 19
+		}
+	}
+]
+
+=== 3 posts/learn-svelte/examples/pokemon-search.svelte	json
+[]
+
+=== 380 posts/learn-svelte/examples/reactive-events.svelte	json
+[
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'window'.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'gsap' does not exist on type 'Window & typeof globalThis'.",
+		"start": {
+			"line": 7,
+			"character": 21
+		},
+		"end": {
+			"line": 7,
+			"character": 25
+		}
+	}
+]
+
+=== 3 posts/learn-svelte/examples/reactive-map.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/readonly-bindings.svelte	json
+[]
+
+=== 218 posts/learn-svelte/examples/scramble-text.svelte	json
+[
+	{
+		"code": 2339,
+		"message": "Property 'duration' does not exist on type 'TransitionConfig | undefined'.",
+		"start": {
+			"line": 10,
+			"character": 10
+		},
+		"end": {
+			"line": 10,
+			"character": 18
+		}
+	}
+]
+
+=== 3 posts/learn-svelte/examples/single-file-component.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/spongebob-case.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/spring.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/svg-grid.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/todo-list.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/tween.svelte	json
+[]
+
+=== 3 posts/learn-svelte/examples/video-bindings.svelte	json
+[]
+
+=== 3 src/lib/components/card.svelte	json
+[]
+
+=== 3 src/lib/components/embed.svelte	json
+[]
+
+=== 645 src/lib/components/image.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/site/config' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 40
+		},
+		"end": {
+			"line": 3,
+			"character": 58
+		}
+	}
+]
+
+=== 213 src/lib/components/video.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	}
+]
+
+=== 3 src/lib/components/youtube.svelte	json
+[]
+
+=== 468 src/lib/embed/youtube.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'lite-youtube-embed/src/lite-yt-embed.css'.",
+		"start": {
+			"line": 1,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lite-youtube-embed' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 15
+		},
+		"end": {
+			"line": 5,
+			"character": 35
+		}
+	}
+]
+
+=== 3 src/lib/icons/arrow-right.svelte	json
+[]
+
+=== 3 src/lib/icons/bluesky.svelte	json
+[]
+
+=== 3 src/lib/icons/chevron-double-left.svelte	json
+[]
+
+=== 3 src/lib/icons/chevron-double-right.svelte	json
+[]
+
+=== 3 src/lib/icons/cog.svelte	json
+[]
+
+=== 3 src/lib/icons/envelope.svelte	json
+[]
+
+=== 3 src/lib/icons/eye.svelte	json
+[]
+
+=== 3 src/lib/icons/github.svelte	json
+[]
+
+=== 3 src/lib/icons/heart.svelte	json
+[]
+
+=== 3 src/lib/icons/mail.svelte	json
+[]
+
+=== 3 src/lib/icons/menu.svelte	json
+[]
+
+=== 3 src/lib/icons/pencil-square.svelte	json
+[]
+
+=== 3 src/lib/icons/rss.svelte	json
+[]
+
+=== 3 src/lib/icons/x.svelte	json
+[]
+
+=== 3 src/lib/icons/youtube.svelte	json
+[]
+
+=== 429 src/lib/ui/footer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 48
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/site/config' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	}
+]
+
+=== 766 src/lib/ui/header/header.svelte	json
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './logo.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-1S0fvM/src/lib/ui/header/logo.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './search' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 30
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/site/config' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 43
+		}
+	}
+]
+
+=== 3 src/lib/ui/header/logo.svelte	json
+[]
+
+=== 852 src/lib/ui/header/menu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@melt-ui/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 42
+		},
+		"end": {
+			"line": 2,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/sfx' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/site/config' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	}
+]
+
+=== 434 src/lib/ui/header/preferences/dyslexic.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@melt-ui/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 53
+		}
+	}
+]
+
+=== 636 src/lib/ui/header/preferences/index.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@melt-ui/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 42
+		},
+		"end": {
+			"line": 2,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/sfx' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 31
+		}
+	}
+]
+
+=== 3 src/lib/ui/header/preferences/reading.svelte	json
+[]
+
+=== 3 src/lib/ui/header/preferences/reset.svelte	json
+[]
+
+=== 434 src/lib/ui/header/preferences/themes.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@melt-ui/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	}
+]
+
+=== 3 src/lib/ui/header/search/search-icon.svelte	json
+[]
+
+=== 1799 src/lib/ui/header/search/search.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@melt-ui/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './search-icon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-1S0fvM/src/lib/ui/header/search/search-icon.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './search-worker?worker' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './search' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 29
+		},
+		"end": {
+			"line": 8,
+			"character": 39
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'searchWorker' is possibly 'undefined'.",
+		"start": {
+			"line": 25,
+			"character": 2
+		},
+		"end": {
+			"line": 25,
+			"character": 14
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'searchWorker' is possibly 'undefined'.",
+		"start": {
+			"line": 30,
+			"character": 2
+		},
+		"end": {
+			"line": 30,
+			"character": 14
+		}
+	}
+]
+
+=== 429 src/lib/ui/header/socials.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 42
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/site/config' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	}
+]
+
+=== 3 src/lib/ui/heading.svelte	json
+[]
+
+=== 213 src/lib/ui/newsletter.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 38
+		}
+	}
+]
+
+=== 423 src/lib/ui/posts.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 39
+		}
+	}
+]
+
+=== 214 src/routes/+error.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	}
+]
+
+=== 1328 src/routes/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui/header/header.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui/footer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/embed/youtube.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/analytics' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 30
+		},
+		"end": {
+			"line": 4,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 37
+		},
+		"end": {
+			"line": 5,
+			"character": 49
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../styles/styles.css'.",
+		"start": {
+			"line": 7,
+			"character": 8
+		},
+		"end": {
+			"line": 7,
+			"character": 30
+		}
+	}
+]
+
+=== 874 src/routes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui/newsletter.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui/posts.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/site/config' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	}
+]
+
+=== 429 src/routes/[slug]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/site/config' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	}
+]
+
+=== 213 src/routes/[slug]/card.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 61
+		}
+	}
+]
+
+=== 3 src/routes/[slug]/clipboard.svelte	json
+[]
+
+=== 213 src/routes/[slug]/toc.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 55
+		},
+		"end": {
+			"line": 3,
+			"character": 67
+		}
+	}
+]
+
+=== 225 src/routes/about/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui/heading.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	}
+]
+
+=== 225 src/routes/archive/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui/heading.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	}
+]
+
+=== 1082 src/routes/categories/[category]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui/heading.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui/posts.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/site/config' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 33
+		},
+		"end": {
+			"line": 5,
+			"character": 45
+		}
+	}
+]
+
+=== 225 src/routes/drafts/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui/heading.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	}
+]
+
+=== 429 src/routes/drafts/[slug]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/site/config' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	}
+]
+
+=== 450 src/routes/newsletter/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui/heading.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ui/newsletter.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	}
+]
+

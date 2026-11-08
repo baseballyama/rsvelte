@@ -29,11 +29,11 @@ Non-goals:
 
 - `corpus/` holds real Svelte 5 files under permissive licenses only (MIT, Apache-2.0, ISC,
   BSD-3-Clause or Unlicense). Expected output comes from the official tools; never edit it by
-  hand. `cargo test` compares every unit with it and records each verdict in the parity ratchet
-  (`corpus/_registry/parity.json`); a verdict that moves fails the test. To accept an intended
+  hand. `cargo test` compares every unit with it and records each verdict in the parity ledger
+  (`corpus/_registry/parity/`); a verdict that moves fails the test. To accept an intended
   change, run with `UPDATE_EXPECT=1`.
   See [corpus/README.md](corpus/README.md) and
-  [crates/language_independent/test_harness/README.md](crates/language_independent/test_harness/README.md).
+  [crates/language_independent/corpus/README.md](crates/language_independent/corpus/README.md).
 - Speed: compare the official tools, `main` and this rewrite. See
   [tools/performance/README.md](tools/performance/README.md).
 
@@ -41,8 +41,8 @@ Non-goals:
 F=tools/oracle/oracle.ts   # zsh does not split $F into words, so keep only the path
 mise exec -- node $F regen --task svelte.compile                # the official output
 cargo test -p rsvelte_command_line --test corpus                # every corpus unit
-FIXTURE_VERDICTS=<file> cargo test -p rsvelte_command_line --test corpus      # every file's verdict
-FIXTURE_ACTUAL=1 cargo test -p rsvelte_command_line --test corpus             # write corpus actual/
+CORPUS_MOVES=<file> cargo test -p rsvelte_command_line --test corpus   # every verdict that moved
+CORPUS_ACTUAL=1 cargo test -p rsvelte_command_line --test corpus       # write corpus actual/
 cargo fmt && cargo clippy --all-targets -- -D warnings && cargo test
 mise run structure
 pnpm install && pnpm run check    # the site and tools/: oxfmt, oxlint, knip, tsc, the English prose lint

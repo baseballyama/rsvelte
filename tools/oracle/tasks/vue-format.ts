@@ -17,10 +17,9 @@ const FORMAT_OPTIONS = {
 
 const task: Task = {
 	id: 'vue.format',
-	storage: 'committed',
 	oracles: ['prettier'],
 	variants: [{ id: 'default', options: {} }],
-	appliesTo: (unit) => unit.lang === 'vue' && unit.source === 'rsvelte',
+	appliesTo: (unit) => unit.lang === 'vue',
 	async run(unit, src) {
 		const text = await prettier.format(src, { ...FORMAT_OPTIONS, filepath: unit.path });
 		return { vue: { text, ext: 'vue', compare: 'text' } };

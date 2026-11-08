@@ -1,0 +1,317 @@
+# rsvelte pack 1
+=== 3 example/Example1.svelte	json
+[]
+
+=== 3 example/Example5.svelte	json
+[]
+
+=== 3 example/Example6.svelte	json
+[]
+
+=== 4983 example/Example8.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../src/SvelteTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../src/types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 50
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	},
+	{
+		"code": 7017,
+		"message": "Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.",
+		"start": {
+			"line": 3,
+			"character": 13
+		},
+		"end": {
+			"line": 3,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 15,
+			"character": 47
+		},
+		"end": {
+			"line": 15,
+			"character": 48
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'rowIndex' implicitly has an 'any' type.",
+		"start": {
+			"line": 15,
+			"character": 50
+		},
+		"end": {
+			"line": 15,
+			"character": 58
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'numRows' implicitly has an 'any' type.",
+		"start": {
+			"line": 18,
+			"character": 23
+		},
+		"end": {
+			"line": 18,
+			"character": 30
+		}
+	},
+	{
+		"code": 7017,
+		"message": "Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.",
+		"start": {
+			"line": 24,
+			"character": 33
+		},
+		"end": {
+			"line": 24,
+			"character": 38
+		}
+	},
+	{
+		"code": 7017,
+		"message": "Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.",
+		"start": {
+			"line": 25,
+			"character": 32
+		},
+		"end": {
+			"line": 25,
+			"character": 37
+		}
+	},
+	{
+		"code": 7017,
+		"message": "Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.",
+		"start": {
+			"line": 26,
+			"character": 29
+		},
+		"end": {
+			"line": 26,
+			"character": 34
+		}
+	},
+	{
+		"code": 7017,
+		"message": "Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.",
+		"start": {
+			"line": 27,
+			"character": 28
+		},
+		"end": {
+			"line": 27,
+			"character": 33
+		}
+	},
+	{
+		"code": 7017,
+		"message": "Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.",
+		"start": {
+			"line": 28,
+			"character": 30
+		},
+		"end": {
+			"line": 28,
+			"character": 35
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 47,
+			"character": 13
+		},
+		"end": {
+			"line": 47,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 49,
+			"character": 14
+		},
+		"end": {
+			"line": 49,
+			"character": 15
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'r' implicitly has an 'any' type.",
+		"start": {
+			"line": 49,
+			"character": 17
+		},
+		"end": {
+			"line": 49,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'c' implicitly has an 'any' type.",
+		"start": {
+			"line": 49,
+			"character": 20
+		},
+		"end": {
+			"line": 49,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 54,
+			"character": 13
+		},
+		"end": {
+			"line": 54,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 60,
+			"character": 13
+		},
+		"end": {
+			"line": 60,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 66,
+			"character": 13
+		},
+		"end": {
+			"line": 66,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 68,
+			"character": 14
+		},
+		"end": {
+			"line": 68,
+			"character": 15
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'r' implicitly has an 'any' type.",
+		"start": {
+			"line": 68,
+			"character": 17
+		},
+		"end": {
+			"line": 68,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'c' implicitly has an 'any' type.",
+		"start": {
+			"line": 68,
+			"character": 20
+		},
+		"end": {
+			"line": 68,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 76,
+			"character": 13
+		},
+		"end": {
+			"line": 76,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 82,
+			"character": 13
+		},
+		"end": {
+			"line": 82,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 88,
+			"character": 13
+		},
+		"end": {
+			"line": 88,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 94,
+			"character": 13
+		},
+		"end": {
+			"line": 94,
+			"character": 14
+		}
+	}
+]
+
+=== 3 example/example6/HelpButtonComponent.svelte	json
+[]
+

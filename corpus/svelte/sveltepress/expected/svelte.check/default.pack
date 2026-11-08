@@ -1,0 +1,1371 @@
+# rsvelte pack 1
+=== 3 packages/create/template-js/src/routes/+layout.svelte	json
+[]
+
+=== 3 packages/create/template-ts/src/routes/+layout.svelte	json
+[]
+
+=== 3 packages/docs-site-bn/src/routes/+layout.svelte	json
+[]
+
+=== 3 packages/docs-site-bn/src/routes/guide/markdown/svelte-in-markdown/Counter.svelte	json
+[]
+
+=== 3 packages/docs-site-zh/src/routes/guide/markdown/svelte-in-markdown/Counter.svelte	json
+[]
+
+=== 3 packages/docs-site/src/routes/guide/markdown/svelte-in-markdown/Counter.svelte	json
+[]
+
+=== 665 packages/docsearch/src/Search.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@docsearch/js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 38
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@docsearch/js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 39
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '@docsearch/css/dist/style.css'.",
+		"start": {
+			"line": 4,
+			"character": 9
+		},
+		"end": {
+			"line": 4,
+			"character": 40
+		}
+	}
+]
+
+=== 508 packages/example-blog/src/routes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltepress/theme-blog/components/MasonryGrid.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltepress/theme-blog/components/Pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 79
+		}
+	}
+]
+
+=== 512 packages/example-blog/src/routes/categories/[cat]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltepress/theme-blog/components/MasonryGrid.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltepress/theme-blog/components/TaxonomyHeader.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 87
+		}
+	}
+]
+
+=== 244 packages/example-blog/src/routes/posts/[slug]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltepress/theme-blog/PostLayout.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	}
+]
+
+=== 448 packages/example-blog/src/routes/tags/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtual:sveltepress/blog-tags-index' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	}
+]
+
+=== 512 packages/example-blog/src/routes/tags/[tag]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltepress/theme-blog/components/MasonryGrid.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltepress/theme-blog/components/TaxonomyHeader.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 87
+		}
+	}
+]
+
+=== 488 packages/example-blog/src/routes/timeline/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltepress/theme-blog/components/Timeline.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtual:sveltepress/blog-posts-meta' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 61
+		}
+	}
+]
+
+=== 610 packages/meilisearch/src/Search.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 54
+		},
+		"end": {
+			"line": 1,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'meilisearch' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'hit' implicitly has an 'any' type.",
+		"start": {
+			"line": 61,
+			"character": 29
+		},
+		"end": {
+			"line": 61,
+			"character": 32
+		}
+	}
+]
+
+=== 234 packages/theme-blog/src/components/AuthorCard.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtual:sveltepress/blog-config' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	}
+]
+
+=== 234 packages/theme-blog/src/components/AuthorProfile.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtual:sveltepress/blog-config' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	}
+]
+
+=== 234 packages/theme-blog/src/components/GiscusComments.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtual:sveltepress/blog-config' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 62
+		}
+	}
+]
+
+=== 2024 packages/theme-blog/src/components/GlobalLayout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtual:sveltepress/blog-config' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 62
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '@fontsource-variable/fraunces'.",
+		"start": {
+			"line": 9,
+			"character": 9
+		},
+		"end": {
+			"line": 9,
+			"character": 40
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '@fontsource/inter/400.css'.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 36
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '@fontsource/inter/500.css'.",
+		"start": {
+			"line": 11,
+			"character": 9
+		},
+		"end": {
+			"line": 11,
+			"character": 36
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '@fontsource/inter/600.css'.",
+		"start": {
+			"line": 12,
+			"character": 9
+		},
+		"end": {
+			"line": 12,
+			"character": 36
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '@fontsource/inter/700.css'.",
+		"start": {
+			"line": 13,
+			"character": 9
+		},
+		"end": {
+			"line": 13,
+			"character": 36
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'navigation' implicitly has an 'any' type.",
+		"start": {
+			"line": 38,
+			"character": 13
+		},
+		"end": {
+			"line": 38,
+			"character": 23
+		}
+	}
+]
+
+=== 214 packages/theme-blog/src/components/MasonryGrid.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	}
+]
+
+=== 3 packages/theme-blog/src/components/PageLayout.svelte	json
+[]
+
+=== 429 packages/theme-blog/src/components/Pagination.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../pagination.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 35
+		},
+		"end": {
+			"line": 2,
+			"character": 53
+		}
+	}
+]
+
+=== 424 packages/theme-blog/src/components/PostCardFeatured.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 424 packages/theme-blog/src/components/PostCardLarge.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 424 packages/theme-blog/src/components/PostCardSmall.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 424 packages/theme-blog/src/components/PostHero.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 655 packages/theme-blog/src/components/PostLayout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 46
+		},
+		"end": {
+			"line": 2,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtual:sveltepress/blog-config' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 62
+		}
+	}
+]
+
+=== 655 packages/theme-blog/src/components/PostMeta.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtual:sveltepress/blog-config' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 62
+		}
+	}
+]
+
+=== 424 packages/theme-blog/src/components/PostNav.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 3 packages/theme-blog/src/components/ReadingProgress.svelte	json
+[]
+
+=== 424 packages/theme-blog/src/components/RelatedPosts.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 820 packages/theme-blog/src/components/SearchModal.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../search-url.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 45
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 48,
+			"character": 6
+		},
+		"end": {
+			"line": 48,
+			"character": 50
+		}
+	}
+]
+
+=== 234 packages/theme-blog/src/components/SideRail.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtual:sveltepress/blog-config' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 62
+		}
+	}
+]
+
+=== 444 packages/theme-blog/src/components/Sidebar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtual:sveltepress/blog-config' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 62
+		}
+	}
+]
+
+=== 3 packages/theme-blog/src/components/TableOfContents.svelte	json
+[]
+
+=== 3 packages/theme-blog/src/components/TaxonomyHeader.svelte	json
+[]
+
+=== 3 packages/theme-blog/src/components/ThemeToggle.svelte	json
+[]
+
+=== 424 packages/theme-blog/src/components/Timeline.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 3 packages/theme-default/.sveltepress/live-code/LiveCode49474281849.svelte	json
+[]
+
+=== 3 packages/theme-default/.sveltepress/live-code/LiveCode5666bdf98c2.svelte	json
+[]
+
+=== 3 packages/theme-default/.sveltepress/live-code/LiveCode7bf64e1cddc.svelte	json
+[]
+
+=== 3 packages/theme-default/.sveltepress/live-code/LiveCode89fef1a4d71.svelte	json
+[]
+
+=== 3 packages/theme-default/.sveltepress/live-code/LiveCodebaa49804eec.svelte	json
+[]
+
+=== 3 packages/theme-default/__tests__/test.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/ActionButton.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/AjaxBar.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/Backdrop.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/CodeBlock.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/CopyCode.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/EditPage.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/Error.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/Expansion.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/GlobalLayout.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/GoogleAnalytics.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/Home.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/IconifyIcon.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/InstallPkg.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/LastUpdate.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/Link.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/Logo.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/MobileSubNav.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/NavItem.svelte	json
+[]
+
+=== 3495 packages/theme-default/src/components/Navbar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'virtual:sveltepress/theme-default' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 62
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './icons/Discord.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/icons/Discord.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 46
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './icons/Github.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/icons/Github.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 6,
+			"character": 21
+		},
+		"end": {
+			"line": 6,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './layout' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 34
+		},
+		"end": {
+			"line": 7,
+			"character": 44
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './Logo.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/Logo.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 8,
+			"character": 19
+		},
+		"end": {
+			"line": 8,
+			"character": 34
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './MobileSubNav.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/MobileSubNav.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 9,
+			"character": 27
+		},
+		"end": {
+			"line": 9,
+			"character": 50
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './NavbarMobile.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/NavbarMobile.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 10,
+			"character": 27
+		},
+		"end": {
+			"line": 10,
+			"character": 50
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './NavItem.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/NavItem.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 11,
+			"character": 22
+		},
+		"end": {
+			"line": 11,
+			"character": 40
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './ToggleDark.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-5FIlhf/packages/theme-default/src/components/ToggleDark.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 12,
+			"character": 25
+		},
+		"end": {
+			"line": 12,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltepress/docsearch/Search.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 39,
+			"character": 23
+		},
+		"end": {
+			"line": 39,
+			"character": 61
+		}
+	}
+]
+
+=== 3 packages/theme-default/src/components/NavbarMobile.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/PageLayout.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/PageSwitcher.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/Sidebar.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/SidebarGroup.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/TabPanel.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/Tabs.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/Toc.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/ToggleDark.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/home/Feature.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/home/HeroCode.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/home/HeroImage.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/ActionLeft.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/ActionRight.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Apple.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/ArrowDown.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Banana.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Close.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Copy.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/CopyDone.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Discord.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Edit.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/External.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Github.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Grapes.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Home.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Markdown.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Menu.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/MenuOpen.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Moon.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/More.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/NavArrowDown.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Next.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Peach.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/PointLeft.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/PointRight.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Prev.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Refresh.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Sun.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Svelte.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/SvelteWithColor.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/SystemDefault.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/TocClose.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/TocMenu.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Tomato.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Up.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/Watermelon.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/logos/Bun.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/logos/BunWithColor.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/logos/Npm.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/logos/NpmWithColor.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/logos/Pnpm.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/logos/PnpmWithColor.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/logos/Yarn.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/icons/logos/YarnWithColor.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/pwa/Btn.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/pwa/Prompt.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/pwa/Pwa.svelte	json
+[]
+
+=== 3 packages/theme-default/src/components/pwa/ReloadPrompt.svelte	json
+[]
+
+=== 3 packages/twoslash/__tests__/test-result.svelte	json
+[]
+
+=== 3 packages/twoslash/__tests__/test-ts.svelte	json
+[]
+
+=== 3 packages/twoslash/__tests__/test.svelte	json
+[]
+
+=== 1884 packages/twoslash/src/components/Floating.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './PropType.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@floating-ui/dom' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 61
+		},
+		"end": {
+			"line": 3,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../actions/teleport.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 23
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '@shikijs/twoslash/style-rich.css'.",
+		"start": {
+			"line": 6,
+			"character": 9
+		},
+		"end": {
+			"line": 6,
+			"character": 43
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'x' implicitly has an 'any' type.",
+		"start": {
+			"line": 33,
+			"character": 17
+		},
+		"end": {
+			"line": 33,
+			"character": 18
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'y' implicitly has an 'any' type.",
+		"start": {
+			"line": 33,
+			"character": 20
+		},
+		"end": {
+			"line": 33,
+			"character": 21
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'middlewareData' implicitly has an 'any' type.",
+		"start": {
+			"line": 33,
+			"character": 23
+		},
+		"end": {
+			"line": 33,
+			"character": 37
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'placement' implicitly has an 'any' type.",
+		"start": {
+			"line": 33,
+			"character": 39
+		},
+		"end": {
+			"line": 33,
+			"character": 48
+		}
+	}
+]
+
+=== 216 packages/twoslash/src/components/FloatingWrapper.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './PropType.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 3 packages/vite/__tests__/real-world.svelte	json
+[]
+

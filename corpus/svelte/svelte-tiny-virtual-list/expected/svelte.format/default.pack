@@ -1,0 +1,1334 @@
+# rsvelte pack 1
+=== 10782 src/lib/VirtualList.svelte	svelte
+<script>
+  import { untrack } from "svelte";
+  import SizeAndPositionManager from "./SizeAndPositionManager.js";
+  import {
+    ALIGNMENT,
+    DIRECTION,
+    SCROLL_CHANGE_REASON,
+    SCROLL_PROP,
+    SCROLL_PROP_LEGACY,
+  } from "./constants.js";
+  /** @import { VirtualListProps, VirtualListEvents, VirtualListSnippets } from './types.js'; */
+
+  /** @type {VirtualListProps & VirtualListEvents & VirtualListSnippets} */
+  let {
+    /* Props: */
+
+    height = "100%",
+    width = "100%",
+
+    itemCount,
+    itemSize,
+    estimatedItemSize: optEstimatedItemSize,
+    stickyIndices = [],
+    getKey,
+
+    scrollDirection = DIRECTION.VERTICAL,
+    scrollOffset,
+    scrollToIndex,
+    scrollToAlignment = ALIGNMENT.START,
+    scrollToBehaviour = "instant",
+
+    overscanCount = 3,
+
+    /* Events: */
+
+    onItemsUpdated: handleItemsUpdated,
+    onListItemsUpdate: handleListItemsUpdate, // DEPRECATED
+
+    onAfterScroll: handleAfterScroll,
+
+    /* Snippets: */
+
+    item: itemSnippet,
+    children: childrenSnippet, // DEPRECATED
+
+    header: headerSnippet,
+    footer: footerSnippet,
+  } = $props();
+
+  let estimatedItemSize = $derived(
+    optEstimatedItemSize || (typeof itemSize === "number" && itemSize) || 50,
+  );
+  const sizeAndPositionManager = new SizeAndPositionManager(
+    itemSize,
+    itemCount,
+    estimatedItemSize,
+  );
+
+  /** @type {HTMLDivElement} */
+  let wrapper;
+  let wrapperHeight = $state(400);
+  let wrapperWidth = $state(400);
+  /** @type {{ index: number, style: string }[]} */
+  let items = $state.raw([]);
+
+  /** @type {{ offset: number, changeReason: number }} */
+  let scroll = $state.raw({
+    offset:
+      scrollOffset ||
+      (scrollToIndex !== undefined && getOffsetForIndex(scrollToIndex)) ||
+      0,
+    changeReason: SCROLL_CHANGE_REASON.REQUESTED,
+  });
+  let prevScroll = $state.snapshot(scroll);
+
+  let heightNumber = $derived(
+    Number.isFinite(height) ? Number(height) : wrapperHeight,
+  );
+  let widthNumber = $derived(
+    Number.isFinite(width) ? Number(width) : wrapperWidth,
+  );
+  let prevProps = {
+    scrollToIndex: $state.snapshot(scrollToIndex),
+    scrollToAlignment: $state.snapshot(scrollToAlignment),
+    scrollOffset: $state.snapshot(scrollOffset),
+    itemCount: $state.snapshot(itemCount),
+    itemSize:
+      typeof itemSize === "function" ? itemSize : $state.snapshot(itemSize),
+    estimatedItemSize: $state.snapshot(estimatedItemSize),
+    heightNumber: $state.snapshot(heightNumber),
+    widthNumber: $state.snapshot(widthNumber),
+    stickyIndices: $state.snapshot(stickyIndices),
+  };
+
+  /** @type {Record<number, string>} */
+  let styleCache = $state({});
+  let wrapperStyle = $state.raw("");
+  let innerStyle = $state.raw("");
+
+  // Effect 0: Event listener
+  $effect(() => {
+    /** @type {number | undefined} */
+    let frame;
+    /** @param {Event} event */
+    const handleScrollAsync = (event) => {
+      if (frame !== undefined) {
+        cancelAnimationFrame(frame);
+      }
+      frame = requestAnimationFrame(() => {
+        handleScroll(event);
+        frame = undefined;
+      });
+    };
+
+    const options = { passive: true };
+    wrapper.addEventListener("scroll", handleScrollAsync, options);
+
+    return () => {
+      // @ts-expect-error because options is not really needed, but maybe in the future
+      wrapper.removeEventListener("scroll", handleScrollAsync, options);
+    };
+  });
+
+  // Effect 1: Update props from user provided props
+  $effect(() => {
+    scrollToIndex;
+    scrollToAlignment;
+    scrollOffset;
+    itemCount;
+    itemSize;
+    estimatedItemSize;
+    heightNumber;
+    widthNumber;
+    stickyIndices;
+
+    untrack(propsUpdated);
+  });
+
+  // Effect 2: Update scroll
+  $effect(() => {
+    scroll;
+
+    untrack(scrollUpdated);
+  });
+
+  function propsUpdated() {
+    const scrollPropsHaveChanged =
+      prevProps.scrollToIndex !== scrollToIndex ||
+      prevProps.scrollToAlignment !== scrollToAlignment;
+    const itemPropsHaveChanged =
+      prevProps.itemCount !== itemCount ||
+      prevProps.itemSize !== itemSize ||
+      prevProps.estimatedItemSize !== estimatedItemSize;
+
+    let forceRecomputeSizes = false;
+    if (itemPropsHaveChanged) {
+      sizeAndPositionManager.updateConfig(
+        itemSize,
+        itemCount,
+        estimatedItemSize,
+      );
+
+      forceRecomputeSizes = true;
+    }
+
+    if (prevProps.scrollOffset !== scrollOffset) {
+      scroll = {
+        offset: scrollOffset || 0,
+        changeReason: SCROLL_CHANGE_REASON.REQUESTED,
+      };
+    } else if (
+      typeof scrollToIndex === "number" &&
+      (scrollPropsHaveChanged || itemPropsHaveChanged)
+    ) {
+      scroll = {
+        offset: getOffsetForIndex(scrollToIndex),
+        changeReason: SCROLL_CHANGE_REASON.REQUESTED,
+      };
+    }
+
+    if (
+      forceRecomputeSizes ||
+      prevProps.heightNumber !== heightNumber ||
+      prevProps.widthNumber !== widthNumber ||
+      prevProps.stickyIndices.toString() !==
+        $state.snapshot(stickyIndices).toString()
+    ) {
+      recomputeSizes();
+    }
+
+    prevProps = {
+      scrollToIndex: $state.snapshot(scrollToIndex),
+      scrollToAlignment: $state.snapshot(scrollToAlignment),
+      scrollOffset: $state.snapshot(scrollOffset),
+      itemCount: $state.snapshot(itemCount),
+      itemSize:
+        typeof itemSize === "function" ? itemSize : $state.snapshot(itemSize),
+      estimatedItemSize: $state.snapshot(estimatedItemSize),
+      heightNumber: $state.snapshot(heightNumber),
+      widthNumber: $state.snapshot(widthNumber),
+      stickyIndices: $state.snapshot(stickyIndices),
+    };
+  }
+
+  function scrollUpdated() {
+    if (
+      prevScroll.offset !== scroll.offset ||
+      prevScroll.changeReason !== scroll.changeReason
+    ) {
+      refresh();
+    }
+
+    if (
+      prevScroll.offset !== scroll.offset &&
+      scroll.changeReason === SCROLL_CHANGE_REASON.REQUESTED
+    ) {
+      wrapper.scroll({
+        [SCROLL_PROP[scrollDirection]]: scroll.offset,
+        behavior: scrollToBehaviour,
+      });
+    }
+
+    prevScroll = $state.snapshot(scroll);
+  }
+
+  /**
+   * Recomputes the sizes of the items and updates the visible items.
+   */
+  function refresh() {
+    const containerSize =
+      scrollDirection === DIRECTION.VERTICAL ? heightNumber : widthNumber;
+    const totalSize = sizeAndPositionManager.getTotalSize();
+    const maxOffset = Math.max(0, totalSize - containerSize);
+    const clampedOffset = Math.min(scroll.offset, maxOffset);
+
+    const { start, end } = sizeAndPositionManager.getVisibleRange(
+      containerSize,
+      clampedOffset,
+      overscanCount,
+    );
+
+    /** @type {{ index: number, style: string }[]} */
+    const visibleItems = [];
+
+    const heightUnit = typeof height === "number" ? "px" : "";
+    const widthUnit = typeof width === "number" ? "px" : "";
+
+    wrapperStyle = `height:${height}${heightUnit};width:${width}${widthUnit};`;
+    if (scrollDirection === DIRECTION.VERTICAL) {
+      innerStyle = `flex-direction:column;height:${totalSize}px;`;
+    } else {
+      innerStyle = `min-height:100%;width:${totalSize}px;`;
+    }
+
+    const hasStickyIndices = stickyIndices.length > 0;
+    if (hasStickyIndices) {
+      for (const index of stickyIndices) {
+        visibleItems.push({
+          index,
+          style: getStyle(index, true),
+        });
+      }
+    }
+
+    if (start !== undefined && end !== undefined) {
+      for (let index = start; index <= end; index++) {
+        if (hasStickyIndices && stickyIndices.includes(index)) continue;
+
+        visibleItems.push({
+          index,
+          style: getStyle(index, false),
+        });
+      }
+
+      if (handleItemsUpdated) handleItemsUpdated({ start, end });
+      if (handleListItemsUpdate) handleListItemsUpdate({ start, end }); // DEPRECATED
+    }
+
+    items = visibleItems;
+  }
+
+  /**
+   * Recomputes the sizes of the items in the list.
+   */
+  export function recomputeSizes(startIndex = scrollToIndex) {
+    styleCache = {};
+    if (startIndex !== undefined && startIndex >= 0) {
+      sizeAndPositionManager.resetItem(startIndex);
+    }
+    refresh();
+  }
+
+  /**
+   * Calculates the offset for a given index based on the scroll direction and alignment.
+   * @param {number} index
+   */
+  function getOffsetForIndex(index) {
+    if (index < 0 || index >= itemCount) index = 0;
+
+    return sizeAndPositionManager.getUpdatedOffsetForIndex(
+      scrollToAlignment,
+      scrollDirection === DIRECTION.VERTICAL ? heightNumber : widthNumber,
+      scroll.offset || 0,
+      index,
+    );
+  }
+
+  /**
+   * Handles the scroll event on the wrapper element.
+   * @param {Event} event
+   */
+  function handleScroll(event) {
+    const offset = wrapper[SCROLL_PROP_LEGACY[scrollDirection]];
+
+    if (offset < 0 || scroll.offset === offset || event.target !== wrapper)
+      return;
+
+    scroll = { offset, changeReason: SCROLL_CHANGE_REASON.OBSERVED };
+
+    if (handleAfterScroll) handleAfterScroll({ offset, event });
+  }
+
+  /**
+   * Returns the style for a given item index.
+   * @param {number} index The index of the item
+   * @param {boolean} sticky Whether the item should be sticky or not
+   */
+  function getStyle(index, sticky) {
+    if (styleCache[index]) return styleCache[index];
+
+    const { size, offset } =
+      sizeAndPositionManager.getSizeAndPositionForIndex(index);
+
+    let style;
+    if (scrollDirection === DIRECTION.VERTICAL) {
+      style = `left:0;width:100%;height:${size}px;`;
+
+      if (sticky) {
+        style += `position:sticky;flex-grow:0;z-index:1;top:0;margin-top:${offset}px;margin-bottom:${-(offset + size)}px;`;
+      } else {
+        style += `position:absolute;top:${offset}px;`;
+      }
+    } else {
+      style = `top:0;width:${size}px;`;
+
+      if (sticky) {
+        style += `position:sticky;z-index:1;left:0;margin-left:${offset}px;margin-right:${-(offset + size)}px;`;
+      } else {
+        style += `position:absolute;height:100%;left:${offset}px;`;
+      }
+    }
+
+    styleCache[index] = style;
+    return styleCache[index];
+  }
+</script>
+
+<div
+  bind:this={wrapper}
+  bind:offsetHeight={wrapperHeight}
+  bind:offsetWidth={wrapperWidth}
+  class="virtual-list-wrapper"
+  style={wrapperStyle}
+>
+  {#if headerSnippet}
+    {@render headerSnippet()}
+  {/if}
+
+  <div class="virtual-list-inner" style={innerStyle}>
+    {#each items as item (getKey ? getKey(item.index) : item.index)}
+      {#if item.index < itemCount}
+        {@render (itemSnippet || childrenSnippet)({
+          style: item.style,
+          index: item.index,
+        })}
+      {/if}
+    {/each}
+  </div>
+
+  {#if footerSnippet}
+    {@render footerSnippet()}
+  {/if}
+</div>
+
+<style>
+  .virtual-list-wrapper {
+    overflow: auto;
+    will-change: transform;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .virtual-list-inner {
+    position: relative;
+    display: flex;
+    width: 100%;
+  }
+</style>
+
+=== 614 src/lib/VirtualList.test.svelte	svelte
+<script>
+  import VirtualList from "./VirtualList.svelte";
+
+  /** @type {{ data: { id: number, label: string }[], scrollOffset: number, onItemRender: (index: number) => void }} */
+  let { data = [], scrollOffset, onItemRender = () => {} } = $props();
+</script>
+
+<div style="height: 400px; width: 400px;">
+  <VirtualList
+    height="200px"
+    width={300}
+    scrollDirection="horizontal"
+    itemCount={data.length}
+    itemSize={50}
+    {scrollOffset}
+  >
+    {#snippet item({ index, style })}
+      {(onItemRender(index), "")}
+      <div {style}>{data[index]?.label}</div>
+    {/snippet}
+  </VirtualList>
+</div>
+
+=== 9234 src/routes/+layout.svelte	svelte
+<script>
+  import { asset, resolve } from "$app/paths";
+  import { page } from "$app/state";
+  import { browser } from "$app/environment";
+
+  if (browser) import("beercss");
+
+  let { children } = $props();
+
+  let darkMode = $state(true);
+  let mobileMenuOpen = $state(false);
+
+  function handleSwitchDarkMode() {
+    darkMode = !darkMode;
+
+    localStorage.setItem("theme", darkMode ? "dark" : "light");
+
+    darkMode
+      ? document.body.classList.add("dark")
+      : document.body.classList.remove("dark");
+  }
+
+  if (browser) {
+    if (
+      localStorage.theme === "dark" ||
+      (!("theme" in localStorage) &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches)
+    ) {
+      document.body.classList.add("dark");
+      darkMode = true;
+    } else {
+      document.body.classList.remove("dark");
+      darkMode = false;
+    }
+  }
+</script>
+
+<nav class="left drawer l">
+  <header class="fixed">
+    <nav>
+      <i aria-hidden="true">
+        <img
+          src={asset("/logo.svg")}
+          srcset="{asset('/logo.svg')} 2x"
+          alt="Logo"
+        />
+      </i>
+      <h6>svelte-tiny-virtual-list</h6>
+    </nav>
+  </header>
+
+  <a href={resolve("/")} class:active={page.route.id === "/"}>
+    <i aria-hidden="true">description</i>
+    <div>README</div>
+  </a>
+  <a
+    href="https://github.com/jonasgeiler/svelte-tiny-virtual-list"
+    target="_blank"
+  >
+    <i aria-hidden="true">
+      <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
+        />
+      </svg>
+    </i>
+    <div>GitHub <i aria-hidden="true" class="tiny">launch</i></div>
+  </a>
+  <a href="https://npmjs.com/package/svelte-tiny-virtual-list" target="_blank">
+    <i aria-hidden="true">
+      <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474c.977 0 1.763-.786 1.763-1.763V1.763C24 .786 23.214 0 22.237 0zM5.13 5.323l13.837.019-.009 13.836h-3.464l.01-10.382h-3.456L12.04 19.17H5.113z"
+        />
+      </svg>
+    </i>
+    <div>npm <i aria-hidden="true" class="tiny">launch</i></div>
+  </a>
+
+  <div class="small-divider"></div>
+  <label for="">Examples</label>
+  <a
+    href={resolve("/examples/elements-of-equal-height")}
+    class:active={page.route.id === "/examples/elements-of-equal-height"}
+  >
+    <i aria-hidden="true">view_headline</i>
+    <div>Elements of equal height</div>
+  </a>
+  <a
+    href={resolve("/examples/variable-heights")}
+    class:active={page.route.id === "/examples/variable-heights"}
+  >
+    <i aria-hidden="true">view_day</i>
+    <div>Variable heights</div>
+  </a>
+  <a
+    href={resolve("/examples/horizontal-list")}
+    class:active={page.route.id === "/examples/horizontal-list"}
+  >
+    <i aria-hidden="true">view_week</i>
+    <div>Horizontal list</div>
+  </a>
+  <a
+    href={resolve("/examples/scroll-to-index")}
+    class:active={page.route.id === "/examples/scroll-to-index"}
+  >
+    <i aria-hidden="true">pin</i>
+    <div>Scroll to index</div>
+  </a>
+  <a
+    href={resolve("/examples/controlled-scroll-offset")}
+    class:active={page.route.id === "/examples/controlled-scroll-offset"}
+  >
+    <i aria-hidden="true">unfold_more</i>
+    <div>Controlled scroll offset</div>
+  </a>
+
+  <div class="small-divider"></div>
+  <label for="">Demos</label>
+  <a
+    href={resolve("/demos/hacker-news")}
+    class:active={page.route.id === "/demos/hacker-news"}
+  >
+    <i aria-hidden="true">newspaper</i>
+    <div>Hacker News</div>
+  </a>
+
+  <div class="max"></div>
+  <button class="circle border" onclick={handleSwitchDarkMode}>
+    <i aria-hidden="true">{darkMode ? "light_mode" : "dark_mode"}</i>
+  </button>
+</nav>
+
+<nav class="top s m left-align">
+  <button class="circle transparent" onclick={() => (mobileMenuOpen = true)}>
+    <i aria-hidden="true">menu</i>
+  </button>
+  <i aria-hidden="true">
+    <img src={asset("/logo.svg")} srcset="{asset('/logo.svg')} 2x" alt="Logo" />
+  </i>
+  <h6 class="m">svelte-tiny-virtual-list</h6>
+  <div class="max"></div>
+  <button class="circle border" onclick={handleSwitchDarkMode}>
+    <i aria-hidden="true">{darkMode ? "light_mode" : "dark_mode"}</i>
+  </button>
+</nav>
+<dialog class="left s m" class:active={mobileMenuOpen}>
+  <header class="fixed">
+    <nav>
+      <i aria-hidden="true">
+        <img
+          src={asset("/logo.svg")}
+          srcset="{asset('/logo.svg')} 2x"
+          alt="Logo"
+        />
+      </i>
+      <h6 class="m">svelte-tiny-virtual-list</h6>
+      <div class="max"></div>
+      <button
+        class="transparent circle"
+        onclick={() => (mobileMenuOpen = false)}
+      >
+        <i aria-hidden="true">close</i>
+      </button>
+    </nav>
+  </header>
+
+  <nav class="drawer no-padding no-margin">
+    <a
+      href={resolve("/")}
+      class:active={page.route.id === "/"}
+      onclick={() => (mobileMenuOpen = false)}
+    >
+      <i aria-hidden="true">description</i>
+      <div>README</div>
+    </a>
+    <a
+      href="https://github.com/jonasgeiler/svelte-tiny-virtual-list"
+      target="_blank"
+    >
+      <i aria-hidden="true">
+        <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
+          />
+        </svg>
+      </i>
+      <div>GitHub <i aria-hidden="true" class="tiny">launch</i></div>
+    </a>
+    <a
+      href="https://npmjs.com/package/svelte-tiny-virtual-list"
+      target="_blank"
+    >
+      <i aria-hidden="true">
+        <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474c.977 0 1.763-.786 1.763-1.763V1.763C24 .786 23.214 0 22.237 0zM5.13 5.323l13.837.019-.009 13.836h-3.464l.01-10.382h-3.456L12.04 19.17H5.113z"
+          />
+        </svg>
+      </i>
+      <div>npm <i aria-hidden="true" class="tiny">launch</i></div>
+    </a>
+
+    <div class="small-divider"></div>
+    <label for="">Examples</label>
+    <a
+      href={resolve("/examples/elements-of-equal-height")}
+      class:active={page.route.id === "/examples/elements-of-equal-height"}
+      onclick={() => (mobileMenuOpen = false)}
+    >
+      <i aria-hidden="true">view_headline</i>
+      <div>Elements of equal height</div>
+    </a>
+    <a
+      href={resolve("/examples/variable-heights")}
+      class:active={page.route.id === "/examples/variable-heights"}
+      onclick={() => (mobileMenuOpen = false)}
+    >
+      <i aria-hidden="true">view_day</i>
+      <div>Variable heights</div>
+    </a>
+    <a
+      href={resolve("/examples/horizontal-list")}
+      class:active={page.route.id === "/examples/horizontal-list"}
+      onclick={() => (mobileMenuOpen = false)}
+    >
+      <i aria-hidden="true">view_week</i>
+      <div>Horizontal list</div>
+    </a>
+    <a
+      href={resolve("/examples/scroll-to-index")}
+      class:active={page.route.id === "/examples/scroll-to-index"}
+      onclick={() => (mobileMenuOpen = false)}
+    >
+      <i aria-hidden="true">pin</i>
+      <div>Scroll to index</div>
+    </a>
+    <a
+      href={resolve("/examples/controlled-scroll-offset")}
+      class:active={page.route.id === "/examples/controlled-scroll-offset"}
+      onclick={() => (mobileMenuOpen = false)}
+    >
+      <i aria-hidden="true">unfold_more</i>
+      <div>Controlled scroll offset</div>
+    </a>
+
+    <div class="small-divider"></div>
+    <label for="">Demos</label>
+    <a
+      href={resolve("/demos/hacker-news")}
+      class:active={page.route.id === "/demos/hacker-news"}
+      onclick={() => (mobileMenuOpen = false)}
+    >
+      <i aria-hidden="true">newspaper</i>
+      <div>Hacker News</div>
+    </a>
+  </nav>
+</dialog>
+
+<main id="content" class="responsive flex flex-column">
+  {@render children()}
+</main>
+
+<style global>
+  @import "../app.css";
+</style>
+
+=== 3201 src/routes/+page.svelte	svelte
+<script>
+  import readme from "../../README.md?raw";
+  import { marked } from "marked";
+  import { baseUrl } from "marked-base-url";
+  import { base } from "$app/paths";
+  import { gfmHeadingId } from "marked-gfm-heading-id";
+
+  marked.use(baseUrl(base));
+  marked.use(gfmHeadingId());
+  const readmeHtml = marked.parse(
+    readme
+      // eslint-disable-next-line no-misleading-character-class
+      .replace(/^[\u200B\u200C\u200D\u200E\u200F\uFEFF]/, "")
+      .replace(/.\/static\//g, "./"),
+  );
+</script>
+
+<svelte:head>
+  <title>svelte-tiny-virtual-list</title>
+</svelte:head>
+
+<div id="readme" class="docs-page markdown-body">
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+  {@html readmeHtml}
+</div>
+
+<style>
+  .markdown-body {
+    overflow: auto;
+    font-size: 1rem;
+    line-height: 1.5;
+    word-wrap: break-word;
+  }
+
+  /* Text */
+  :global(.markdown-body p),
+  :global(.markdown-body blockquote),
+  :global(.markdown-body ul),
+  :global(.markdown-body ol),
+  :global(.markdown-body dl),
+  :global(.markdown-body table),
+  :global(.markdown-body pre),
+  :global(.markdown-body details) {
+    margin-top: 0;
+    margin-bottom: 16px;
+  }
+
+  /* Lists */
+  :global(.markdown-body ul),
+  :global(.markdown-body ol) {
+    padding-left: 2em;
+  }
+  :global(.markdown-body ul ul),
+  :global(.markdown-body ul ol),
+  :global(.markdown-body ol ol),
+  :global(.markdown-body ol ul) {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  /* Headings */
+  :global(.markdown-body h1),
+  :global(.markdown-body h2),
+  :global(.markdown-body h3),
+  :global(.markdown-body h4),
+  :global(.markdown-body h5),
+  :global(.markdown-body h6) {
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  /* Links */
+  :global(.markdown-body a) {
+    text-decoration: underline;
+    text-underline-offset: 0.2rem;
+    color: var(--primary);
+  }
+
+  /* Code blocks */
+  :global(.markdown-body pre) {
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    line-height: 1.45;
+    color: var(--on-surface-variant);
+    background-color: var(--surface-variant);
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  :global(.markdown-body code),
+  :global(.markdown-body tt) {
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 85%;
+    white-space: break-spaces;
+    color: var(--on-surface-variant);
+    background-color: var(--surface-variant);
+    border-radius: 6px;
+  }
+  :global(.markdown-body pre code) {
+    padding: 0;
+    font-size: inherit;
+  }
+
+  /* Blockquotes */
+  :global(.markdown-body blockquote) {
+    padding: 0 1em;
+    border-left: 0.25em solid var(--primary);
+  }
+  :global(.markdown-body blockquote > :first-child) {
+    margin-top: 0;
+  }
+  :global(.markdown-body blockquote > :last-child) {
+    margin-bottom: 0;
+  }
+
+  /* Tables */
+  :global(.markdown-body table > tbody > tr:nth-child(2n + 1)) {
+    background-color: var(---stripes);
+  }
+  :global(.markdown-body table > tbody > tr:not(:last-child) > td) {
+    border-block-end: 0.0625rem solid var(--outline);
+  }
+
+  /* Fix title alignment */
+  :global(.markdown-body h2[align="center"]) {
+    display: block;
+    text-align: center;
+  }
+</style>
+
+=== 7469 src/routes/demos/hacker-news/+page.svelte	svelte
+<script>
+  import VirtualList from "$lib/VirtualList.svelte";
+  import InfiniteLoading from "svelte-infinite-loading";
+  import { asset } from "$app/paths";
+
+  const api =
+    "https://hn.algolia.com/api/v1/search_by_date" +
+    "?tags=story" +
+    `&numericFilters=created_at_i<=${Math.floor(Date.now() / 1000)}`;
+
+  let page = $state(1);
+  let listHeight = $state(0);
+  /** @type {{story_id: string, created_at: string, title: string, author: string, url: string, points: number, num_comments: number}[]} */
+  let list = $state([]);
+
+  /**
+   * @param {CustomEvent<{ loaded: () => void; complete: () => void; error: () => void }>} event
+   */
+  function infiniteHandler({ detail: { loaded, complete, error } }) {
+    fetch(`${api}&page=${page}`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.hits.length) {
+          page += 1;
+          list = [...list, ...data.hits];
+          loaded();
+        } else {
+          complete();
+        }
+      })
+      .catch(() => error());
+  }
+
+  /**
+   * @param {string} url
+   */
+  function formatSite(url) {
+    const domain = new URL(url).hostname;
+    return domain.startsWith("www.") ? domain.slice(4) : domain;
+  }
+
+  const dateFormatter = new Intl.RelativeTimeFormat("en", { style: "long" });
+
+  /**
+   * @param {string} createdAt
+   */
+  function formatCreatedAt(createdAt) {
+    const seconds = Math.floor(
+      (Date.now() - new Date(createdAt).getTime()) / 1000,
+    );
+    if (seconds <= 60) {
+      return dateFormatter.format(-seconds, "second");
+    } else if (seconds <= 3600) {
+      return dateFormatter.format(-Math.floor(seconds / 60), "minute");
+    } else if (seconds <= 86400) {
+      return dateFormatter.format(-Math.floor(seconds / 3600), "hour");
+    } else if (seconds <= 604800) {
+      return dateFormatter.format(-Math.floor(seconds / 86400), "day");
+    } else if (seconds <= 2592000) {
+      return dateFormatter.format(-Math.floor(seconds / 604800), "week");
+    } else if (seconds <= 31536000) {
+      return dateFormatter.format(-Math.floor(seconds / 2592000), "month");
+    } else {
+      return dateFormatter.format(-Math.floor(seconds / 31536000), "year");
+    }
+  }
+</script>
+
+<svelte:head>
+  <title>Hacker News | svelte-tiny-virtual-list</title>
+</svelte:head>
+
+<div id="hacker-news-demo" class="demo-page flex-1 flex flex-column">
+  <header class="primary">
+    <nav>
+      <i class="border white-border" aria-hidden="true">
+        <img src={asset("/y18.svg")} alt="Hacker News Logo" />
+      </i>
+      <h5>Hacker News</h5>
+    </nav>
+  </header>
+
+  <div class="flex-1" bind:clientHeight={listHeight}>
+    <VirtualList height={listHeight} itemSize={90} itemCount={list.length}>
+      {#snippet item({ style, index })}
+        <div {style}>
+          <article class="hacker-news-item margin" data-num={index + 1}>
+            <div class="truncate">
+              <a
+                class="inline link"
+                href={list[index].url ||
+                  `https://news.ycombinator.com/item?id=${list[index].story_id}`}
+                rel="external noopener noreferrer nofollow"
+                target="_blank"
+              >
+                {list[index].title}
+              </a>
+              {#if list[index].url}
+                (<a
+                  class="hacker-news-link"
+                  href="https://news.ycombinator.com/from?site={formatSite(
+                    list[index].url,
+                  )}"
+                  target="_blank">{formatSite(list[index].url)}</a
+                >)
+              {/if}
+            </div>
+            <div class="truncate">
+              {list[index].points} points by
+              <a
+                class="hacker-news-link"
+                href="https://news.ycombinator.com/user?id={list[index].author}"
+                target="_blank">{list[index].author}</a
+              >
+              <a
+                class="hacker-news-link"
+                title={list[index].created_at}
+                href="https://news.ycombinator.com/item?id={list[index]
+                  .story_id}"
+                target="_blank">{formatCreatedAt(list[index].created_at)}</a
+              >
+              |
+              <a
+                class="hacker-news-link"
+                target="_blank"
+                href="https://news.ycombinator.com/item?id={list[index]
+                  .story_id}">{list[index].num_comments} comments</a
+              >
+            </div>
+          </article>
+        </div>
+      {/snippet}
+
+      {#snippet footer()}
+        <div>
+          <InfiniteLoading on:infinite={infiniteHandler} />
+        </div>
+      {/snippet}
+    </VirtualList>
+  </div>
+</div>
+
+<style>
+  :global(body) #hacker-news-demo {
+    --primary: #a33e00;
+    --on-primary: #ffffff;
+    --primary-container: #ffdbcd;
+    --on-primary-container: #360f00;
+    --secondary: #77574a;
+    --on-secondary: #ffffff;
+    --secondary-container: #ffdbcd;
+    --on-secondary-container: #2c160c;
+    --tertiary: #675f30;
+    --on-tertiary: #ffffff;
+    --tertiary-container: #efe3a9;
+    --on-tertiary-container: #201c00;
+    --error: #ba1a1a;
+    --on-error: #ffffff;
+    --error-container: #ffdad6;
+    --on-error-container: #410002;
+    --background: #fffbff;
+    --on-background: #201a18;
+    --surface: #fff8f6;
+    --on-surface: #201a18;
+    --surface-variant: #f5ded5;
+    --on-surface-variant: #53443d;
+    --outline: #85736c;
+    --outline-variant: #d8c2ba;
+    --shadow: #000000;
+    --scrim: #000000;
+    --inverse-surface: #362f2c;
+    --inverse-on-surface: #fbeeea;
+    --inverse-primary: #ffb596;
+    --surface-dim: #e4d7d3;
+    --surface-bright: #fff8f6;
+    --surface-container-lowest: #ffffff;
+    --surface-container-low: #fef1ec;
+    --surface-container: #f8ebe7;
+    --surface-container-high: #f2e5e1;
+    --surface-container-highest: #ede0db;
+  }
+
+  :global(body.dark) #hacker-news-demo {
+    --primary: #ffb596;
+    --on-primary: #581e00;
+    --primary-container: #7c2e00;
+    --on-primary-container: #ffdbcd;
+    --secondary: #e6bead;
+    --on-secondary: #442a1f;
+    --secondary-container: #5d4034;
+    --on-secondary-container: #ffdbcd;
+    --tertiary: #d2c78f;
+    --on-tertiary: #373106;
+    --tertiary-container: #4e471b;
+    --on-tertiary-container: #efe3a9;
+    --error: #ffb4ab;
+    --on-error: #690005;
+    --error-container: #93000a;
+    --on-error-container: #ffb4ab;
+    --background: #201a18;
+    --on-background: #ede0db;
+    --surface: #181210;
+    --on-surface: #ede0db;
+    --surface-variant: #53443d;
+    --on-surface-variant: #d8c2ba;
+    --outline: #a08d85;
+    --outline-variant: #53443d;
+    --shadow: #000000;
+    --scrim: #000000;
+    --inverse-surface: #ede0db;
+    --inverse-on-surface: #362f2c;
+    --inverse-primary: #a33e00;
+    --surface-dim: #181210;
+    --surface-bright: #3f3835;
+    --surface-container-lowest: #120d0b;
+    --surface-container-low: #201a18;
+    --surface-container: #251e1c;
+    --surface-container-high: #2f2926;
+    --surface-container-highest: #3a3330;
+  }
+
+  .hacker-news-item {
+    ---padding: 0.5rem;
+    --number-width: 2.5rem;
+    padding-left: calc(var(---padding) + var(--number-width)) !important;
+  }
+
+  .hacker-news-item::before {
+    content: attr(data-num) ". ";
+    margin-left: calc(-1 * var(--number-width));
+    width: calc(var(--number-width) - var(---padding));
+    color: var(--on-surface);
+    float: left;
+    text-align: right;
+  }
+
+  .hacker-news-link:hover {
+    text-decoration: underline;
+  }
+</style>
+
+=== 1134 src/routes/examples/controlled-scroll-offset/+page.svelte	svelte
+<script>
+  import VirtualList from "$lib/VirtualList.svelte";
+
+  /** @type {number[]} */
+  let rowHeights = $state([]);
+
+  let scrollOffset = $state();
+
+  randomize();
+
+  function randomize() {
+    let newRowHeights = [];
+
+    for (let i = 0; i < 10000; i++) {
+      newRowHeights.push(Math.random() * (155 - 50) + 50);
+    }
+
+    rowHeights = newRowHeights;
+  }
+</script>
+
+<svelte:head>
+  <title>Controlled scroll offset | svelte-tiny-virtual-list</title>
+</svelte:head>
+
+<div id="controlled-scroll-offset-example" class="example-page">
+  <h3>Controlled scroll offset</h3>
+
+  <div class="field label border">
+    <input id="scroll-offset" type="number" bind:value={scrollOffset} />
+    <label for="scroll-offset">Scroll to offset...</label>
+  </div>
+
+  <article>
+    <VirtualList
+      height={500}
+      width="auto"
+      itemCount={10000}
+      itemSize={(index) => rowHeights[index]}
+      {scrollOffset}
+    >
+      {#snippet item({ style, index })}
+        <div {style} class="virtual-list-row">
+          Item #{index}
+        </div>
+      {/snippet}
+    </VirtualList>
+  </article>
+
+  <!-- TODO: Show example code -->
+</div>
+
+=== 887 src/routes/examples/elements-of-equal-height/+page.svelte	svelte
+<script>
+  import VirtualList from "$lib/VirtualList.svelte";
+
+  let itemSize = 50;
+</script>
+
+<svelte:head>
+  <title>Elements of equal height | svelte-tiny-virtual-list</title>
+</svelte:head>
+
+<div id="elements-of-equal-height-example" class="example-page">
+  <h3>Elements of equal height</h3>
+
+  <div class="range-field">
+    <label for="item-size">Item size</label>
+    <div class="slider">
+      <input
+        id="item-size"
+        type="range"
+        step="5"
+        min="50"
+        max="155"
+        bind:value={itemSize}
+      />
+      <span></span>
+    </div>
+  </div>
+
+  <article>
+    <VirtualList height={500} width="auto" itemCount={100000} {itemSize}>
+      {#snippet item({ style, index })}
+        <div {style} class="virtual-list-row">
+          Item #{index}
+        </div>
+      {/snippet}
+    </VirtualList>
+  </article>
+
+  <!-- TODO: Show example code -->
+</div>
+
+=== 735 src/routes/examples/horizontal-list/+page.svelte	svelte
+<script>
+  import VirtualList from "$lib/VirtualList.svelte";
+
+  let width = $state(500);
+</script>
+
+<svelte:head>
+  <title>Horizontal list | svelte-tiny-virtual-list</title>
+</svelte:head>
+
+<div id="horizontal-list-example" class="example-page">
+  <h3>Horizontal list</h3>
+
+  <article>
+    <div bind:clientWidth={width} class="row scroll">
+      <VirtualList
+        height="200px"
+        {width}
+        scrollDirection="horizontal"
+        itemCount={100000}
+        itemSize={150}
+      >
+        {#snippet item({ style, index })}
+          <div {style} class="virtual-list-col">
+            Item #{index}
+          </div>
+        {/snippet}
+      </VirtualList>
+    </div>
+  </article>
+
+  <!-- TODO: Show example code -->
+</div>
+
+=== 2159 src/routes/examples/scroll-to-index/+page.svelte	svelte
+<script>
+  import VirtualList from "$lib/VirtualList.svelte";
+
+  /** @type {number[]} */
+  let rowHeights = $state.raw([]);
+
+  let scrollToIndex = $state();
+  /** @type {'start' | 'center' | 'end' | 'auto'} */
+  let scrollToAlignment = $state("start");
+  /** @type {'auto' | 'smooth' | 'instant'} */
+  let scrollToBehaviour = $state("instant");
+
+  const NUM_ROWS = 10000;
+
+  function randomize() {
+    const newRowHeights = [];
+
+    for (let i = 0; i < NUM_ROWS; i++)
+      newRowHeights.push(Math.random() * (155 - 50) + 50);
+
+    rowHeights = newRowHeights;
+  }
+
+  randomize();
+</script>
+
+<svelte:head>
+  <title>Scroll to index | svelte-tiny-virtual-list</title>
+</svelte:head>
+
+<div id="scroll-to-index-example" class="example-page">
+  <h3>Scroll to index</h3>
+
+  <div class="field label border">
+    <input id="scroll-to-index" type="number" bind:value={scrollToIndex} />
+    <label for="scroll-to-index">Scroll to index...</label>
+  </div>
+
+  <div class="field label suffix border">
+    <select id="alignment" bind:value={scrollToAlignment}>
+      <option value="start">start</option>
+      <option value="center">center</option>
+      <option value="end">end</option>
+      <option value="auto">auto</option>
+    </select>
+    <label for="alignment">Alignment</label>
+    <i>arrow_drop_down</i>
+  </div>
+
+  <div class="field label suffix border">
+    <select id="behaviour" bind:value={scrollToBehaviour}>
+      <option value="auto">auto</option>
+      <option value="smooth">smooth</option>
+      <option value="instant">instant</option>
+    </select>
+    <label for="behaviour">Behaviour</label>
+    <i>arrow_drop_down</i>
+  </div>
+
+  <article>
+    <VirtualList
+      height={500}
+      width="auto"
+      itemCount={10000}
+      itemSize={(index) => rowHeights[index]}
+      {scrollToIndex}
+      {scrollToAlignment}
+      {scrollToBehaviour}
+    >
+      {#snippet item({ style, index })}
+        <div
+          {style}
+          class="virtual-list-row"
+          class:highlighted={index === scrollToIndex}
+        >
+          Item #{index}
+        </div>
+      {/snippet}
+    </VirtualList>
+  </article>
+
+  <!-- TODO: Show example code -->
+</div>
+
+=== 1005 src/routes/examples/variable-heights/+page.svelte	svelte
+<script>
+  import VirtualList from "$lib/VirtualList.svelte";
+
+  /** @type {number[]} */
+  let rowHeights = $state([]);
+
+  randomize();
+
+  function randomize() {
+    let newRowHeights = [];
+
+    for (let i = 0; i < 10000; i++) {
+      newRowHeights.push(Math.random() * (155 - 50) + 50);
+    }
+
+    rowHeights = newRowHeights;
+  }
+</script>
+
+<svelte:head>
+  <title>Variable heights | svelte-tiny-virtual-list</title>
+</svelte:head>
+
+<div id="variable-heights-example" class="example-page">
+  <h3>Variable heights</h3>
+
+  <button class="responsive margin" onclick={randomize}>
+    <i aria-hidden="true">shuffle</i>
+    <span>Randomize heights</span>
+  </button>
+
+  <article>
+    <VirtualList
+      height={500}
+      width="auto"
+      itemCount={10000}
+      itemSize={rowHeights}
+    >
+      {#snippet item({ style, index })}
+        <div {style} class="virtual-list-row">
+          Item #{index}
+        </div>
+      {/snippet}
+    </VirtualList>
+  </article>
+
+  <!-- TODO: Show example code -->
+</div>
+

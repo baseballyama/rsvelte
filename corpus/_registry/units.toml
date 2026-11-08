@@ -1,0 +1,17 @@
+# The hand-written part of corpus units, one table per "<family>/<source>/<path>". `skip` names a
+# task (or task/variant) whose official output cannot be the expected one, with the reason.
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-input.svelte".skip]
+"svelte.compile" = "svelte 5.57.1 emits an import declaration that is not at the top level, which does not parse"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-output.svelte".skip]
+"svelte.compile" = "svelte 5.57.1 emits an import declaration that is not at the top level, which does not parse"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-abstract-accessor-property-input.svelte".skip]
+"svelte.compile" = "svelte 5.57.1 leaves the TypeScript `abstract accessor` in the emitted JS, which does not parse"
+
+["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-abstract-accessor-property-output.svelte".skip]
+"svelte.compile" = "svelte 5.57.1 leaves the TypeScript `abstract accessor` in the emitted JS, which does not parse"
+
+["svelte/svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte".skip]
+"svelte.compile/client" = "svelte 5.57.1 emits invalid JS here (duplicate declaration of `foo`); the sample expects a compile error"

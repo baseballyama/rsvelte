@@ -78,22 +78,6 @@ function took(cmd: string, argv: string[], started: number) {
 	console.error(`  ${seconds} s: ${path.basename(cmd)} ${argv.slice(0, 6).join(' ')}`);
 }
 
-/** The corpus units (directories holding an `input.<ext>`) below `root`, in name order. */
-function units(root: string): string[] {
-	const found: string[] = [];
-	const visit = (dir: string) => {
-		const entries = fs.readdirSync(dir, { withFileTypes: true });
-		if (entries.some((e) => e.isFile() && e.name.startsWith('input.'))) {
-			found.push(dir);
-			return;
-		}
-		for (const e of entries.toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)))
-			if (e.isDirectory()) visit(path.join(dir, e.name));
-	};
-	visit(root);
-	return found;
-}
-
 export async function main(args: string[]): Promise<void> {
 	const ROOT = path.resolve(import.meta.dirname, '../..');
 	const BASELINE = path.join(ROOT, 'tools/performance/baseline.json');
@@ -189,18 +173,12 @@ export async function main(args: string[]): Promise<void> {
 	async function instructions(
 		rsvelte: string,
 	): Promise<{ warm: number; load: number; sample: Sample }> {
-		const all = POPULATION.flatMap((p) => units(path.join(ROOT, p)));
-		const sample = all
-			.filter((_, i) => i % INSTRUCTION_SAMPLE === 0)
-			.map((u) => path.relative(ROOT, u));
-		const sourceBytes = sample
-			.flatMap((u) =>
-				fs
-					.readdirSync(path.join(ROOT, u))
-					.filter((f) => f.startsWith('input.'))
-					.map((f) => fs.statSync(path.join(ROOT, u, f)).size),
-			)
-			.reduce((a, b) => a + b, 0);
+		const sample = [...POPULATION, `every=${INSTRUCTION_SAMPLE}`];
+		const counted = path.join(path.dirname(rsvelte), 'sample.json');
+		await start(rsvelte, ['performance', ...sample, 'rounds=0', `json=${counted}`]);
+		const { documents, source_bytes: sourceBytes } = JSON.parse(
+			fs.readFileSync(counted, 'utf8'),
+		) as Report;
 		const [load, one, two] = await Promise.all(
 			[0, 1, 2].map((rounds) => irefs(rsvelte, sample, rounds)),
 		);
@@ -212,7 +190,7 @@ export async function main(args: string[]): Promise<void> {
 		return {
 			warm,
 			load: load!,
-			sample: { every: INSTRUCTION_SAMPLE, documents: sample.length, source_bytes: sourceBytes },
+			sample: { every: INSTRUCTION_SAMPLE, documents, source_bytes: sourceBytes },
 		};
 	}
 

@@ -4,7 +4,6 @@ import type { Task } from '../types.ts';
 
 const task: Task = {
 	id: 'svelte.compileModule',
-	storage: 'committed',
 	oracles: ['svelte'],
 	variants: [
 		{ id: 'client', options: { generate: 'client' } },

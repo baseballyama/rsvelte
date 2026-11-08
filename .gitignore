@@ -10,7 +10,6 @@
 # Per-unit implementation output and cached snapshots. Original path segments with these names are
 # stored as `~actual` / `~cache` (tools/oracle/paths.ts), so the patterns reach only unit children.
 /corpus/**/actual/
-/corpus/**/cache/
 # rsvelte's output in crate fixture tests; `expected/` next to it is committed.
 /crates/**/tests/fixtures/**/actual/
 /crates/**/tests/rules/**/actual/

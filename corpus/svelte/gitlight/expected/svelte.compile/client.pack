@@ -1,0 +1,1641 @@
+# rsvelte pack 1
+=== 105 src/lib/components/common/DragRegion.svelte	css
+
+	.drag-region.svelte-tovx2c {
+		position: fixed;
+		z-index: 9999;
+		height: 28px;
+		inset: 0 0 auto;
+	}
+
+=== 283 src/lib/components/common/DragRegion.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div class="drag-region svelte-tovx2c" data-tauri-drag-region=""></div>`);
+
+export default function DragRegion($$anchor) {
+	var div = root();
+
+	$.append($$anchor, div);
+}
+=== 369 src/lib/components/common/DragRegion.svelte	warnings.json
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 1,
+			"column": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 1,
+			"column": 50,
+			"character": 50
+		}
+	}
+]
+
+=== 794 src/lib/components/dashboard/Banner.svelte	css
+
+	.banner.svelte-1gwi47l {
+		position: relative;
+		z-index: 1;
+		overflow: hidden;
+		height: 2.5rem;
+		border-bottom: 1px solid variables.$bg-3;
+		background-color: variables.$bg-1;
+		transition: background-color variables.$transition;
+
+		&:hover {
+			background-color: variables.$bg-2;
+		}
+
+		.content:where(.svelte-1gwi47l) {
+			@include typography.bold;
+
+			position: absolute;
+			display: flex;
+			width: 100%;
+			height: 2.5rem;
+			align-items: center;
+			justify-content: center;
+			gap: 0.5rem;
+			inset: 0;
+
+			svg {
+				height: 1.25rem;
+			}
+		}
+
+		.close:where(.svelte-1gwi47l) {
+			position: absolute;
+			padding: 0 0.5rem;
+			inset: 0 0 0 auto;
+			transition: color variables.$transition;
+
+			&:not(:hover) {
+				color: variables.$bg-5;
+			}
+
+			svg {
+				height: 1rem;
+			}
+		}
+	}
+
+=== 3140 src/lib/components/dashboard/Banner.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onDestroy, onMount } from 'svelte';
+import { cubicInOut } from 'svelte/easing';
+import { browser } from '$app/environment';
+import { page } from '$app/stores';
+import { storage } from '$lib/features';
+import { openDesktopApp } from '$lib/helpers';
+import { CrossIcon, ExclamationMarkIcon } from '$lib/icons';
+import { DownloadButton } from '../landing';
+
+var root = $.from_html(`<div class="banner svelte-1gwi47l"><button class="content svelte-1gwi47l"><!> Download or open the desktop app</button> <button class="close svelte-1gwi47l"><!></button></div>`);
+
+export default function Banner($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $page = () => $.store_get(page, '$page', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	let show = false;
+	let hasFocus = true;
+	let canDownload = false;
+
+	function slide(_) {
+		return {
+			delay: 0,
+			duration: 300,
+			css: (t) => `height: ${cubicInOut(t) * 2.5}rem`
+		};
+	}
+
+	function handleClick() {
+		const githubAccessToken = $page().data.session?.githubAccessToken;
+		const gitlabAccessToken = $page().data.session?.gitlabAccessToken;
+		const gitlabRefreshToken = storage.get('gitlab-refresh-token');
+		const gitlabExpiresIn = storage.get('gitlab-expires-in');
+		const gitlabUrl = storage.get('gitlab-url');
+		const gitlabPat = storage.get('gitlab-pat');
+
+		if (githubAccessToken || gitlabAccessToken) {
+			setTimeout(
+				() => {
+					if (hasFocus) {
+						canDownload = true;
+					}
+				},
+				500
+			);
+
+			// Open the app with the access token
+			openDesktopApp({
+				githubAccessToken,
+				gitlabAccessToken,
+				gitlabExpiresIn,
+				gitlabRefreshToken,
+				gitlabUrl,
+				gitlabPat
+			});
+		}
+	}
+
+	function handleClose() {
+		canDownload = false;
+		show = false;
+	}
+
+	function handleFocus() {
+		hasFocus = true;
+	}
+
+	function handleBlur() {
+		hasFocus = false;
+	}
+
+	onMount(() => {
+		show = !window.__TAURI__;
+		window.addEventListener('focus', handleFocus);
+		window.addEventListener('blur', handleBlur);
+	});
+
+	onDestroy(() => {
+		if (!browser) return;
+
+		window.removeEventListener('focus', handleFocus);
+		window.removeEventListener('blur', handleBlur);
+	});
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			DownloadButton($$anchor, {
+				get show() {
+					return canDownload;
+				},
+				position: 'bottom',
+				children: ($$anchor, $$slotProps) => {
+					var div = root();
+					var button = $.child(div);
+					var node_1 = $.child(button);
+
+					ExclamationMarkIcon(node_1, {});
+					$.next();
+					$.reset(button);
+
+					var button_1 = $.sibling(button, 2);
+					var node_2 = $.child(button_1);
+
+					CrossIcon(node_2, {});
+					$.reset(button_1);
+					$.reset(div);
+					$.event('click', button, handleClick);
+					$.event('click', button_1, handleClose);
+					$.transition(3, div, () => slide);
+					$.append($$anchor, div);
+				},
+				$$slots: { default: true }
+			});
+		};
+
+		$.if(node, ($$render) => {
+			if (show) $$render(consequent);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+	$$cleanup();
+}
+=== 1411 src/lib/components/dashboard/Banner.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 80,
+			"column": 27,
+			"character": 1923
+		},
+		"end": {
+			"line": 80,
+			"column": 49,
+			"character": 1945
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 84,
+			"column": 25,
+			"character": 2050
+		},
+		"end": {
+			"line": 84,
+			"column": 47,
+			"character": 2072
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`show` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 5,
+			"character": 396
+		},
+		"end": {
+			"line": 11,
+			"column": 9,
+			"character": 400
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`canDownload` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 5,
+			"character": 437
+		},
+		"end": {
+			"line": 13,
+			"column": 16,
+			"character": 448
+		}
+	}
+]
+
+=== 910 src/lib/components/dashboard/LoadingScreen.svelte	css
+
+	.container.svelte-xcf0tf {
+		position: fixed;
+		z-index: 999;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		background-color: variables.$bg-1;
+		gap: 2rem;
+		inset: 0;
+
+		.text-container:where(.svelte-xcf0tf) {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 0.5rem;
+
+			.title:where(.svelte-xcf0tf) {
+				@include typography.heading-2;
+			}
+
+			.subtitle:where(.svelte-xcf0tf) {
+				color: variables.$bg-5;
+			}
+		}
+
+		.loading-line:where(.svelte-xcf0tf) {
+			@keyframes svelte-xcf0tf-slide {
+				0% {
+					translate: -100%;
+				}
+
+				100% {
+					translate: 100%;
+				}
+			}
+
+			position: absolute;
+			height: 0.25rem;
+			animation: svelte-xcf0tf-slide 1s infinite forwards linear;
+			background-image: linear-gradient(to right, transparent, variables.$blue, transparent);
+			inset: auto 0 0;
+		}
+	}
+
+=== 753 src/lib/components/dashboard/LoadingScreen.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { AnimatedLogo, DragRegion } from '$lib/components';
+
+var root = $.from_html(`<!> <section class="container svelte-xcf0tf"><!> <div class="text-container svelte-xcf0tf"><h2 class="title svelte-xcf0tf">Loading your data...</h2> <p class="subtitle svelte-xcf0tf">This can take a bit of time.</p></div> <div class="loading-line svelte-xcf0tf"></div></section>`, 1);
+
+export default function LoadingScreen($$anchor) {
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	DragRegion(node, {});
+
+	var section = $.sibling(node, 2);
+	var node_1 = $.child(section);
+
+	AnimatedLogo(node_1, {});
+	$.next(4);
+	$.reset(section);
+	$.append($$anchor, fragment);
+}
+=== 374 src/lib/components/dashboard/LoadingScreen.svelte	warnings.json
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 12,
+			"column": 1,
+			"character": 292
+		},
+		"end": {
+			"line": 12,
+			"column": 29,
+			"character": 320
+		}
+	}
+]
+
+=== 103 src/lib/components/settings/accounts/Accounts.svelte	css
+
+	.accounts-wrapper.svelte-sf1dmd {
+		display: grid;
+		gap: 1rem;
+		grid-template-columns: 1fr 1fr;
+	}
+
+=== 1164 src/lib/components/settings/accounts/Accounts.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { page } from '$app/stores';
+import { GithubIcon, GitlabIcon } from '$lib/icons';
+import Account from './Account.svelte';
+
+var root = $.from_html(`<ul class="accounts-wrapper svelte-sf1dmd"><!> <!></ul>`);
+
+export default function Accounts($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $page = () => $.store_get(page, '$page', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	const githubUser = $page().data.session?.githubUser;
+	const gitlabUser = $page().data.session?.gitlabUser;
+	var ul = root();
+	var node = $.child(ul);
+
+	Account(node, {
+		title: 'GitHub',
+		provider: 'github',
+		get user() {
+			return githubUser;
+		},
+
+		$$slots: {
+			icon: ($$anchor, $$slotProps) => {
+				GithubIcon($$anchor, { slot: 'icon' });
+			}
+		}
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	Account(node_1, {
+		title: 'GitLab',
+		provider: 'gitlab',
+		get user() {
+			return gitlabUser;
+		},
+
+		$$slots: {
+			icon: ($$anchor, $$slotProps) => {
+				GitlabIcon($$anchor, { slot: 'icon' });
+			}
+		}
+	});
+
+	$.reset(ul);
+	$.append($$anchor, ul);
+	$.pop();
+	$$cleanup();
+}
+=== 201 src/lib/components/settings/gitlab-settings/GitlabSettings.svelte	css
+
+	.text.svelte-dljcew {
+		@include typography.base;
+
+		color: variables.$bg-5;
+
+		a:where(.svelte-dljcew) {
+			@include mixins.link;
+		}
+	}
+
+	.button-container.svelte-dljcew {
+		width: fit-content;
+	}
+
+=== 1820 src/lib/components/settings/gitlab-settings/GitlabSettings.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Button, Switch } from '$lib/components';
+import { ExternalLinkIcon } from '$lib/icons';
+import { settings } from '$lib/stores';
+import GitlabRepos from './GitlabRepos.svelte';
+
+var root = $.from_html(`<!> GitLab documentation`, 1);
+var root_1 = $.from_html(`<h3>GitLight settings</h3> <!> <span></span> <h3>Review applications</h3> <p class="text svelte-dljcew">You can review GitLight access <a href="https://gitlab.com/oauth/applications" target="_blank" class="svelte-dljcew">here</a>. More documentation:</p> <div class="button-container svelte-dljcew"><!></div> <span></span> <h3>Repositories</h3> <!>`, 1);
+
+export default function GitlabSettings($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $settings = () => $.store_get(settings, '$settings', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	var fragment = root_1();
+	var node = $.sibling($.first_child(fragment), 2);
+
+	Switch(node, {
+		label: 'Show only notifications in which you are involved',
+		get active() {
+			return $settings().gitlabOnlyInvolved;
+		},
+
+		set active($$value) {
+			$.store_mutate(settings, $.untrack($settings).gitlabOnlyInvolved = $$value, $.untrack($settings));
+		}
+	});
+
+	var div = $.sibling(node, 8);
+	var node_1 = $.child(div);
+
+	Button(node_1, {
+		href: 'https://docs.gitlab.com/ee/integration/oauth_provider.html',
+		external: true,
+		small: true,
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var node_2 = $.first_child(fragment_1);
+
+			ExternalLinkIcon(node_2, {});
+			$.next();
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div);
+
+	var node_3 = $.sibling(div, 6);
+
+	GitlabRepos(node_3, {});
+	$.append($$anchor, fragment);
+	$.pop();
+	$$cleanup();
+}
+=== 749 src/lib/components/settings/gitlab-settings/GitlabSettings.svelte	warnings.json
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<span ...></span>` rather than `<span ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 13,
+			"column": 0,
+			"character": 360
+		},
+		"end": {
+			"line": 13,
+			"column": 8,
+			"character": 368
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<span ...></span>` rather than `<span ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 26,
+			"column": 0,
+			"character": 737
+		},
+		"end": {
+			"line": 26,
+			"column": 8,
+			"character": 745
+		}
+	}
+]
+
+=== 938 src/lib/icons/AnsweredDiscussionIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 4H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h1a1 1 0 0 1 1 1v1.586c0 .89 1.077 1.337 1.707.707l3-3A1 1 0 0 1 9.414 13H13a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1Z" stroke="#9C73EF" stroke-width="1.5"></path><path fill-rule="evenodd" clip-rule="evenodd" d="m11.44 15.5 2.323 2.323c1.102 1.103 2.987.322 2.987-1.237V15a.25.25 0 0 1 .25-.25h1A1.75 1.75 0 0 0 19.75 13V6A1.75 1.75 0 0 0 18 4.25h-1.58c.052.242.08.493.08.75v.75H18a.25.25 0 0 1 .25.25v7a.25.25 0 0 1-.25.25h-1c-.294 0-.57.072-.814.2a3.51 3.51 0 0 1-.901 1.202 1.733 1.733 0 0 0-.035.348v1.586a.25.25 0 0 1-.427.177l-1.301-1.302c-.17.026-.345.039-.522.039h-1.56Z" fill="#9C73EF"></path></svg>`);
+
+export default function AnsweredDiscussionIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 503 src/lib/icons/ArrowRightIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 10H3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path><path d="m11 16 6-6-6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`);
+
+export default function ArrowRightIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 499 src/lib/icons/ArrowUpIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 3v14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path><path d="m16 9-6-6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`);
+
+export default function ArrowUpIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 413 src/lib/icons/CheckIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 5L7.5 14.5L3 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`);
+
+export default function CheckIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 474 src/lib/icons/ClosedIssueIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="7.25" stroke="#7E858F" stroke-width="1.5"></circle><path d="m12.828 7.172-5.656 5.656" stroke="#7E858F" stroke-width="1.5" stroke-linecap="round"></path></svg>`);
+
+export default function ClosedIssueIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 703 src/lib/icons/ClosedPullRequestIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="2" stroke="#CC5449" stroke-width="1.5"></circle><path d="M5 13a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 0V7" stroke="#CC5449" stroke-width="1.5"></path><path d="M15 13a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 0V9" stroke="#CC5449" stroke-width="1.5" stroke-linecap="round"></path><path d="m17 7-4-4m4 0-4 4" stroke="#CC5449" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`);
+
+export default function ClosedPullRequestIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 459 src/lib/icons/CommitIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="3.25" stroke="#64B75D" stroke-width="1.5"></circle><path d="M6 10H2m16 0h-4" stroke="#64B75D" stroke-width="1.5" stroke-linecap="round"></path></svg>`);
+
+export default function CommitIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 498 src/lib/icons/CompletedIssueIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="7.25" stroke="#9C73EF" stroke-width="1.5"></circle><path d="m13 8-4.071 4L7 10.105" stroke="#9C73EF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`);
+
+export default function CompletedIssueIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 390 src/lib/icons/CrossIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m4 4 12 12m0-12L4 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>`);
+
+export default function CrossIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 930 src/lib/icons/DiscussionIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 4H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h1a1 1 0 0 1 1 1v1.586c0 .89 1.077 1.337 1.707.707l3-3A1 1 0 0 1 9.414 13H13a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1Z" stroke="#64B75D" stroke-width="1.5"></path><path fill-rule="evenodd" clip-rule="evenodd" d="m11.44 15.5 2.323 2.323c1.102 1.103 2.987.322 2.987-1.237V15a.25.25 0 0 1 .25-.25h1A1.75 1.75 0 0 0 19.75 13V6A1.75 1.75 0 0 0 18 4.25h-1.58c.052.242.08.493.08.75v.75H18a.25.25 0 0 1 .25.25v7a.25.25 0 0 1-.25.25h-1c-.294 0-.57.072-.814.2a3.51 3.51 0 0 1-.901 1.202 1.733 1.733 0 0 0-.035.348v1.586a.25.25 0 0 1-.427.177l-1.301-1.302c-.17.026-.345.039-.522.039h-1.56Z" fill="#64B75D"></path></svg>`);
+
+export default function DiscussionIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 426 src/lib/icons/DoubleArrowIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m17 4-6 6 6 6M9 4l-6 6 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`);
+
+export default function DoubleArrowIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 718 src/lib/icons/DoubleCheckIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m14 5-8.143 8L2 9.21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M19.526 7.535a.75.75 0 1 0-1.052-1.07l1.052 1.07ZM10.857 15l-.525.535a.75.75 0 0 0 1.05 0L10.858 15Zm-.831-1.868-.535-.526-1.052 1.07.535.526 1.052-1.07Zm8.448-6.667-8.143 8 1.052 1.07 8.143-8-1.052-1.07Zm-7.091 8-1.357-1.333-1.052 1.07 1.357 1.333 1.052-1.07Z" fill="currentColor"></path></svg>`);
+
+export default function DoubleCheckIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 606 src/lib/icons/DraftPullRequestIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="2" stroke="#7E858F" stroke-width="1.5"></circle><path d="M5 13a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 0V7m12 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z" stroke="#7E858F" stroke-width="1.5"></path><circle cx="15" cy="9" r="1" fill="#7E858F"></circle><circle cx="15" cy="5" r="1" fill="#7E858F"></circle></svg>`);
+
+export default function DraftPullRequestIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 556 src/lib/icons/ExclamationMarkIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"></circle><path d="M10 11V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="10" cy="13.25" r=".75" fill="currentColor"></circle></svg>`);
+
+export default function ExclamationMarkIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 563 src/lib/icons/ExternalLinkIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 13 17 3m0 0v6m0-6h-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M7 5H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>`);
+
+export default function ExternalLinkIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 4193 src/lib/icons/GearIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m12.651 4.616-.332.673.332-.673Zm4.777 2.25-.65.375.65-.375Zm-1.44 2.738-.75.048.75-.048Zm.524-1.054-.375-.65.375.65Zm0 2.9-.375.65.375-.65Zm.916 1.684.65.375-.65-.375Zm-1 1.732-.65-.375.65.375Zm-3.092.122-.418-.623.418.623Zm-.685.396-.332-.673.332.673Zm-5.302 0-.332.673.332-.673Zm-2.411-.152.375.65-.375-.65Zm-2-3.464-.375-.65.375.65Zm1.075-1.372-.749.05.749-.05Zm-.525 1.054.375.65-.375-.65Zm3.86-6.834-.331-.673.332.673Zm7.164.47.375.65-.375-.65Zm-7.848 9.902-.417.623.417-.623Zm9.764-9.854.65-.375-.65.375Zm-1.366-.366-.375-.65.375.65ZM9 2.75h2v-1.5H9v1.5Zm-.25.884V3h-1.5v.634h1.5ZM7.082 5.635c.19-.128.39-.244.599-.346l-.664-1.346a6.675 6.675 0 0 0-.77.446l.835 1.246Zm-2.52-.218.551.318.75-1.299-.55-.318-.75 1.3Zm-1.34 1.824 1-1.732-1.3-.75-1 1.732 1.3.75Zm.641.66-.55-.318-.75 1.299.55.317.75-1.299ZM4.75 10c0-.117.004-.233.011-.348l-1.497-.097A6.55 6.55 0 0 0 3.25 10h1.5Zm.011.348A5.338 5.338 0 0 1 4.75 10h-1.5c0 .15.005.298.014.445l1.497-.097Zm-1.448 2.07.55-.318-.75-1.3-.55.318.75 1.3Zm.908 2.073-1-1.732-1.299.75 1 1.732 1.3-.75Zm.892-.226-.55.317.75 1.3.55-.318-.75-1.3Zm2.568.446a5.254 5.254 0 0 1-.6-.346l-.834 1.246c.245.165.503.314.77.446l.664-1.346ZM8.75 17v-.634h-1.5V17h1.5Zm2.25.25H9v1.5h2v-1.5Zm.25-.884V17h1.5v-.634h-1.5Zm1.668-2.001a5.251 5.251 0 0 1-.599.346l.664 1.346c.267-.132.525-.281.77-.446l-.835-1.246Zm2.52.217-.551-.317-.75 1.299.55.318.75-1.3Zm1.34-1.823-1 1.732 1.3.75 1-1.732-1.3-.75Zm-.641-.66.55.319.75-1.3-.55-.317-.75 1.299ZM15.25 10c0 .117-.004.233-.011.348l1.496.097A6.57 6.57 0 0 0 16.75 10h-1.5Zm-.011-.348c.007.115.011.231.011.348h1.5c0-.15-.005-.298-.015-.445l-1.496.097Zm1.448-2.07-.55.318.75 1.3.55-.318-.75-1.3ZM15.78 5.51l1 1.732 1.299-.75-1-1.732-1.3.75Zm-.892.226.55-.318-.75-1.299-.55.318.75 1.3ZM12.32 5.29c.208.102.408.218.6.346l.834-1.246a6.751 6.751 0 0 0-.77-.446L12.32 5.29ZM11.25 3v.634h1.5V3h-1.5Zm1.733.943c-.17-.084-.233-.219-.233-.309h-1.5c0 .758.48 1.364 1.07 1.655l.663-1.346Zm4.454 4.939a1.75 1.75 0 0 0 .64-2.391l-1.298.75a.25.25 0 0 1-.092.342l.75 1.299Zm-.702.673c-.012-.189.073-.31.152-.356l-.75-1.299c-.656.379-.941 1.096-.898 1.752l1.496-.097Zm.152 1.246c-.079-.046-.164-.167-.152-.356l-1.496-.097c-.043.656.242 1.373.898 1.752l.75-1.3Zm1.19 2.708a1.75 1.75 0 0 0-.64-2.39l-.75 1.299a.25.25 0 0 1 .092.341l1.299.75Zm-3.39 2.373a1.75 1.75 0 0 0 2.39-.641l-1.298-.75a.25.25 0 0 1-.342.091l-.75 1.3Zm-.934-.271c.158-.105.306-.092.384-.047l.75-1.3c-.656-.378-1.421-.266-1.969.1l.835 1.247Zm-1.003.755c0-.09.063-.225.233-.31l-.664-1.345c-.59.291-1.069.897-1.069 1.655h1.5ZM11 18.75A1.75 1.75 0 0 0 12.75 17h-1.5a.25.25 0 0 1-.25.25v1.5ZM7.25 17c0 .966.784 1.75 1.75 1.75v-1.5a.25.25 0 0 1-.25-.25h-1.5Zm-.233-.943c.17.084.233.219.233.309h1.5c0-.758-.48-1.364-1.07-1.655l-.663 1.346Zm-4.095-.816a1.75 1.75 0 0 0 2.39.64l-.75-1.299a.25.25 0 0 1-.34-.091l-1.3.75Zm-.36-4.123a1.75 1.75 0 0 0-.64 2.391l1.3-.75a.25.25 0 0 1 .09-.341l-.75-1.3Zm.702-.673c.013.189-.072.31-.15.356l.75 1.299c.655-.379.94-1.096.897-1.752l-1.497.097ZM3.114 9.2c.078.046.163.167.15.356l1.497.097c.043-.656-.242-1.373-.898-1.752l-.75 1.3ZM1.921 6.491a1.75 1.75 0 0 0 .64 2.39l.75-1.298a.25.25 0 0 1-.09-.342l-1.3-.75Zm3.39-2.373a1.75 1.75 0 0 0-2.39.641l1.3.75a.25.25 0 0 1 .34-.092l.75-1.299Zm.935.271c-.157.105-.306.092-.384.047l-.75 1.3c.656.378 1.421.266 1.969-.1l-.835-1.247Zm1.003-.755c0 .09-.063.225-.233.31l.664 1.345c.59-.291 1.069-.897 1.069-1.655h-1.5Zm6.887.802c-.078.045-.226.058-.384-.047l-.835 1.246c.548.367 1.313.48 1.969.1l-.75-1.299ZM11 2.75a.25.25 0 0 1 .25.25h1.5A1.75 1.75 0 0 0 11 1.25v1.5ZM5.863 15.564c.078-.045.226-.058.384.047l.835-1.246c-.548-.367-1.313-.48-1.969-.1l.75 1.299ZM17.078 4.759a1.75 1.75 0 0 0-2.39-.64l.75 1.298a.25.25 0 0 1 .34.092l1.3-.75ZM9 1.25A1.75 1.75 0 0 0 7.25 3h1.5A.25.25 0 0 1 9 2.75v-1.5Z" fill="currentColor"></path><circle cx="10" cy="10" r="2" stroke="currentColor" stroke-width="1.5"></circle></svg>`);
+
+export default function GearIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 988 src/lib/icons/GithubIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 1.667A8.333 8.333 0 0 0 1.667 10c0 3.683 2.391 6.808 5.7 7.917.416.066.55-.192.55-.417v-1.408c-2.309.5-2.8-1.117-2.8-1.117-.384-.967-.925-1.225-.925-1.225-.759-.517.058-.5.058-.5.833.058 1.275.858 1.275.858.725 1.267 1.95.892 2.425.692.075-.542.292-.908.525-1.117-1.85-.208-3.792-.925-3.792-4.1 0-.925.317-1.666.859-2.258-.084-.208-.375-1.075.083-2.2 0 0 .7-.225 2.292.85A7.851 7.851 0 0 1 10 5.7c.708 0 1.425.092 2.083.275 1.592-1.075 2.292-.85 2.292-.85.458 1.125.167 1.992.083 2.2.542.592.859 1.333.859 2.258 0 3.184-1.95 3.884-3.809 4.092.3.258.575.767.575 1.542V17.5c0 .225.134.492.559.417C15.95 16.8 18.333 13.683 18.333 10A8.333 8.333 0 0 0 10 1.667Z" fill="currentColor"></path></svg>`);
+
+export default function GithubIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 460 src/lib/icons/GitlabIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m10 17-8-6 1.333-3M10 17 5 3 3.333 8M10 17l5-14 1.667 5M10 17l8-6-1.333-3M3.333 8h13.334" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg>`);
+
+export default function GitlabIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 452 src/lib/icons/HeartIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 4a4 4 0 0 0-4 4c0 5.5 7 8 7 8s7-2.5 7-8a4 4 0 0 0-7-2.646A3.99 3.99 0 0 0 7 4Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg>`);
+
+export default function HeartIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 399 src/lib/icons/LightningIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 9V3l-6 8h4v6l6-8h-4Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg>`);
+
+export default function LightningIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 3426 src/lib/icons/LinuxIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.417 14.667c-.084-.167-.167-.334-.167-.5 0-.334-.167-.584-.417-.834-.083-.083-.25-.166-.333-.166.5-1.5-.25-3-1.083-4.084-.667-1-1.667-1.75-1.584-3.083 0-1.583.167-4.5-2.75-4.25-3 .167-2.166 3.25-2.25 4.333 0 .917-.416 1.834-1.083 2.584a2.532 2.532 0 0 0-.417.583c-.833 1-1.25 2.333-1.25 3.583-.166.167-.333.334-.416.5-.084.084-.167.167-.167.25-.083.084-.25.167-.417.25-.333.084-.583.25-.75.584-.083.25-.166.583-.083.916.083.167.083.334 0 .584-.167.333-.167.75 0 1.166.25.334.667.417 1.25.5.417 0 .917.167 1.333.334.417.25.917.416 1.417.416.25 0 .583-.083.833-.166.25-.167.417-.334.5-.584.334 0 .834-.166 1.417-.166.5 0 1 .166 1.667.083 0 .083 0 .167.083.25.167.417.583.75 1.083.833H13c.667-.083 1.333-.416 1.75-.916a3.47 3.47 0 0 1 1.167-.75c.5-.25.833-.417.916-.834.084-.583-.083-.916-.416-1.416ZM10.667 4c.5.083.916.5.833 1 0 .25-.083.5-.25.75h-.083c-.167-.083-.25-.083-.334-.167.084-.083.084-.25.167-.416 0-.334-.167-.584-.333-.584-.25 0-.417.25-.417.584v.083c-.083-.083-.25-.083-.333-.167V5c-.084-.417.25-.917.75-1Zm-.25 1.667c.083.083.25.166.333.166.083 0 .25.084.333.167.167.083.334.167.334.417 0 .25-.25.5-.75.666-.167.084-.25.084-.334.167-.25.167-.5.25-.833.25-.25 0-.5-.167-.667-.333a1.15 1.15 0 0 0-.333-.25c-.083-.084-.25-.25-.333-.5 0-.084.083-.167.166-.25.25-.167.334-.25.417-.334l.083-.083c.167-.25.5-.417.834-.417.25.084.5.167.75.334Zm-1.75-1.5c.333 0 .583.333.666.916v.167c-.083 0-.25.083-.333.167V5.25c0-.25-.167-.5-.333-.417-.167 0-.25.25-.25.5 0 .167.083.25.166.334 0 0-.083.083-.166.083-.167-.167-.334-.417-.334-.667 0-.5.25-.916.584-.916Zm-.834 13.416A2.03 2.03 0 0 1 6 17.417c-.5-.25-.917-.334-1.5-.334-.417-.083-.833-.083-.917-.25-.083-.166-.083-.416.084-.833.083-.25.083-.5 0-.75a.92.92 0 0 1 0-.667c.083-.25.25-.333.5-.416.25-.084.416-.167.583-.334.083-.083.167-.166.25-.333.25-.333.417-.5.667-.5.5.083.916.833 1.25 1.583.166.25.333.584.583.834.333.416.75 1 .75 1.333 0 .417-.167.667-.417.833Zm4.084-1.833c0 .083 0 .083-.084.167-1 .75-2.333.833-3.416.25l-.5-.75c.75-.084.583-1.084-1-2.084-1.667-1.083-.5-3.083.083-4 .083-.083.083 0-.25.667-.25.5-.75 1.75-.083 2.667 0-.667.166-1.334.416-2 .584-1.084 1-2.334 1.25-3.584.084.084.084.084.167.084.083.083.167.166.25.166.167.25.5.334.75.334h.083c.334 0 .667-.084.917-.334.083-.083.167-.166.333-.166.25-.084.5-.25.75-.5.334 1.083.667 2.083 1.167 3 .333.666.583 1.333.75 2.083.25 0 .583.083.833.25.667.333.917.583.834 1H15c0-.25-.167-.5-.75-.75s-1.083-.25-1.25.333c-.083 0-.167.084-.25.084-.667.333-.667 1.25-.75 2.166.083.334 0 .584-.083.917Zm3.833.5c-.5.167-.917.5-1.25.917-.333.5-.917.833-1.583.75a.8.8 0 0 1-.75-.584c-.084-.5-.084-1 .166-1.5.084-.333.167-.583.25-.916.084-1 .084-1.584.5-1.834 0 .417.25.667.584.834.416 0 .833-.084 1.166-.417H15c.25 0 .417 0 .583.167a.9.9 0 0 1 .25.583c0 .25.167.5.25.75.417.417.417.667.417.75-.083.167-.417.333-.75.5Zm-7.5-10c-.083 0-.083 0-.083.083 0 0 0 .084.083.084s.083.083.083.083c.25.333.667.5 1.167.583.417-.083.833-.166 1.25-.5l.5-.25c.083 0 .083-.083.083-.083 0-.083 0-.083-.083-.083-.167.083-.417.166-.583.25-.334.25-.75.416-1.167.416-.417 0-.75-.25-1-.5-.083 0-.167-.083-.25-.083Z" fill="currentColor"></path></svg>`);
+
+export default function LinuxIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 854 src/lib/icons/MacosIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.592 16.25c-.692 1.033-1.425 2.042-2.542 2.058-1.117.025-1.475-.658-2.742-.658-1.275 0-1.666.642-2.725.683-1.091.042-1.916-1.1-2.616-2.108-1.425-2.058-2.517-5.85-1.05-8.4.725-1.267 2.025-2.067 3.433-2.092 1.067-.016 2.083.725 2.742.725.65 0 1.883-.891 3.175-.758.541.025 2.058.217 3.033 1.65-.075.05-1.808 1.067-1.792 3.175.025 2.517 2.209 3.358 2.234 3.367-.025.058-.35 1.2-1.15 2.358ZM10.833 2.917c.609-.692 1.617-1.217 2.45-1.25.109.975-.283 1.958-.866 2.658-.575.708-1.525 1.258-2.459 1.183-.125-.958.342-1.958.875-2.591Z" fill="currentColor"></path></svg>`);
+
+export default function MacosIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 600 src/lib/icons/MergedPullRequestIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="2" stroke="#9C73EF" stroke-width="1.5"></circle><path d="M5 13a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 0V7m12 3a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z" stroke="#9C73EF" stroke-width="1.5"></path><path d="M13 10c-3 .5-6 .5-8-3" stroke="#9C73EF" stroke-width="1.5" stroke-linejoin="round"></path></svg>`);
+
+export default function MergedPullRequestIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 579 src/lib/icons/MuteIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 8A5 5 0 0 0 5 8" stroke="currentColor" stroke-width="1.5"></path><path d="M12 15a2 2 0 1 1-4 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"></path><path d="M5 8c0 5-1 6-1 6h12s-1-1-1-6" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg>`);
+
+export default function MuteIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 896 src/lib/icons/MutedIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M4.254 7.79c-.003.07-.004.14-.004.21 0 2.454-.246 3.88-.471 4.669a3.674 3.674 0 0 1-.281.737.917.917 0 0 1-.057.094A.75.75 0 0 0 4 14.75h3.25V15a2.75 2.75 0 0 0 5.284 1.07l-1.284-1.284V15a1.25 1.25 0 1 1-2.5 0v-.25h2.464l-1.5-1.5H5.171l.05-.169c.226-.791.438-1.997.506-3.818L4.254 7.789Zm10.126 3.054A28.11 28.11 0 0 1 14.25 8a4.25 4.25 0 0 0-6.388-3.674L6.775 3.24A5.75 5.75 0 0 1 15.75 8c0 2.455.246 3.882.471 4.67l.007.023-1.849-1.848Z" fill="currentColor"></path><path d="m4 4 12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>`);
+
+export default function MutedIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 426 src/lib/icons/OpenIssueIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="7.25" stroke="#64B75D" stroke-width="1.5"></circle><circle cx="10" cy="10" r="1.5" fill="#64B75D"></circle></svg>`);
+
+export default function OpenIssueIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 640 src/lib/icons/OpenPullRequestIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="2" stroke="#64B75D" stroke-width="1.5"></circle><path d="M5 13a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 0V7m10 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 0V9" stroke="#64B75D" stroke-width="1.5"></path><path d="m12 3-2 2m0 0 2 2m-2-2c3 0 5 0 5 4" stroke="#64B75D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`);
+
+export default function OpenPullRequestIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 471 src/lib/icons/PersonIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="7" r="3" stroke="currentColor" stroke-width="1.5"></circle><path d="M15 16a5 5 0 0 0-10 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>`);
+
+export default function PersonIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 617 src/lib/icons/PinIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 13V17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 13H5C5 10.9497 6.2341 9.1876 8 8.41604C8 6 6.66667 3.77736 6 3H14C13.3333 4.1107 12 6 12 8.41604C13.7659 9.1876 15 10.9497 15 13Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg>`);
+
+export default function PinIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 383 src/lib/icons/PlusIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 3v14m7-7H3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>`);
+
+export default function PlusIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 523 src/lib/icons/PriorityDownIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 16V4m9 0v9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path><path d="m12 11-5 5-5-5m11-4 3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`);
+
+export default function PriorityDownIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 518 src/lib/icons/PriorityIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 4v10m8 2V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path><path d="M10 8 6 4 2 8m16 4-4 4-4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`);
+
+export default function PriorityIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 520 src/lib/icons/PriorityUpIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 4v12m9 0V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path><path d="M12 9 7 4 2 9m11 4 3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`);
+
+export default function PriorityUpIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 582 src/lib/icons/RefreshIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 7h3V4m-7 9H5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M4 10a6 6 0 0 1 6-6c2.087 0 3.925 1.383 5 3m1 3a6 6 0 0 1-6 6c-2.087 0-3.925-1.383-5-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>`);
+
+export default function RefreshIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 547 src/lib/icons/ReleaseIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8.586V4a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293L13.5 7.5l3.793 3.793a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-8-8A1 1 0 0 1 3 8.586Z" stroke="#64B75D" stroke-width="1.5"></path><circle cx="5.75" cy="5.75" r=".75" fill="#64B75D"></circle></svg>`);
+
+export default function ReleaseIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 677 src/lib/icons/RepositoryIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 17a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-3" stroke="currentColor" stroke-width="1.5"></path><path d="M7 18.793V15.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5v3.293a.5.5 0 0 1-.854.353l-.792-.792a.5.5 0 0 0-.708 0l-.792.792A.5.5 0 0 1 7 18.793Z" fill="currentColor"></path><path d="M16 13H6a2 2 0 0 0-2 2" stroke="currentColor" stroke-width="1.5"></path></svg>`);
+
+export default function RepositoryIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 529 src/lib/icons/RestoreIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 7H5V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M4 10a6 6 0 1 0 6-6C7.913 4 6.075 5.383 5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>`);
+
+export default function RestoreIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 483 src/lib/icons/SearchIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"></circle><path d="m17 17-3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`);
+
+export default function SearchIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 403 src/lib/icons/SmallArrowIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 7H6a1 1 0 0 0-.8 1.6l4 5.333a1 1 0 0 0 1.6 0l4-5.333A1 1 0 0 0 14 7Z" fill="currentColor"></path></svg>`);
+
+export default function SmallArrowIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 773 src/lib/icons/SparklesIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m8 5 1.697 4.303L14 11l-4.303 1.697L8 17l-1.697-4.303L2 11l4.303-1.697L8 5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path><path fill-rule="evenodd" clip-rule="evenodd" d="M13.698 2.725a.75.75 0 0 0-1.396 0L11.046 5.91l.578 1.466h.002l.235-.093a.75.75 0 0 0 .422-.422L13 5.044l.716 1.817a.75.75 0 0 0 .423.422L15.956 8l-1.374.542.335.132c.47.186.86.503 1.136.9l2.222-.876a.75.75 0 0 0 0-1.396l-3.283-1.294-1.294-3.283Z" fill="currentColor"></path></svg>`);
+
+export default function SparklesIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 478 src/lib/icons/ThreeDotsIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="15.5" r="1.5" fill="currentColor"></circle><circle cx="10" cy="10" r="1.5" fill="currentColor"></circle><circle cx="10" cy="4.5" r="1.5" fill="currentColor"></circle></svg>`);
+
+export default function ThreeDotsIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 701 src/lib/icons/TrashIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M5 6c0 3.369.454 7.191.75 9.327A1.948 1.948 0 0 0 7.694 17h4.612c.977 0 1.81-.705 1.944-1.673.296-2.136.75-5.958.75-9.327" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path><path d="M7 6V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.5"></path></svg>`);
+
+export default function TrashIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 844 src/lib/icons/UnpinIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M5.675 9.21A5.728 5.728 0 0 0 4.25 13c0 .414.336.75.75.75h4.25V17a.75.75 0 0 0 1.5 0v-2.714L8.714 12.25H5.816c.132-.743.458-1.42.923-1.976L5.675 9.211Zm5.606-1.465c.148-1.616.804-2.986 1.386-3.995H7.416c.052.092.105.188.157.287L5.81 2.274A.75.75 0 0 1 6 2.25h8a.75.75 0 0 1 .643 1.136c-.07.118-.147.241-.225.37-.65 1.057-1.517 2.468-1.65 4.203a5.754 5.754 0 0 1 2.92 4.193l-4.407-4.407Z" fill="currentColor"></path><path d="m4 4 12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>`);
+
+export default function UnpinIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 528 src/lib/icons/UnreadIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="14" height="10" rx="1" stroke="currentColor" stroke-width="1.5"></rect><path d="m4 6 5.36 4.466a1 1 0 0 0 1.28 0L16 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`);
+
+export default function UnreadIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 480 src/lib/icons/WindowsIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m2.5 4.566 6.148-.847v5.94H2.5V4.565Zm0 10.868 6.148.848v-5.867H2.5v5.02Zm6.824.938 8.177 1.128v-7.085H9.324v5.957Zm0-12.744v6.03h8.177V2.5L9.324 3.628Z" fill="currentColor"></path></svg>`);
+
+export default function WindowsIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 392 src/lib/icons/WorkflowFailIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m4 4 12 12m0-12L4 16" stroke="#CC5449" stroke-width="1.5" stroke-linecap="round"></path></svg>`);
+
+export default function WorkflowFailIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 418 src/lib/icons/WorkflowSuccessIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 5L7.5 14.5L3 10" stroke="#64B75D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`);
+
+export default function WorkflowSuccessIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 525 src/lib/icons/XIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.331 8.928 16.543 3h-1.235l-4.524 5.147L7.169 3H3l5.466 7.784L3 17h1.235l4.778-5.436L12.831 17H17l-5.669-8.072Zm-1.69 1.924-.555-.775L4.68 3.91h1.897l3.555 4.977.554.775 4.623 6.47h-1.897l-3.772-5.28Z" fill="currentColor"></path></svg>`);
+
+export default function XIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 496 src/routes/(app)/deeplink/+page.svelte	css
+
+	.container.svelte-1571mmu {
+		display: flex;
+		height: 100vh;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		background-color: variables.$bg-1;
+		gap: 2rem;
+
+		.text-container:where(.svelte-1571mmu) {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 0.5rem;
+
+			.title:where(.svelte-1571mmu) {
+				@include typography.heading-2;
+			}
+
+			.link:where(.svelte-1571mmu) {
+				@include mixins.link;
+			}
+		}
+	}
+
+=== 1515 src/routes/(app)/deeplink/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onMount } from 'svelte';
+import { AnimatedLogo } from '$lib/components';
+import { storage } from '$lib/features';
+import { openDesktopApp } from '$lib/helpers';
+
+var root = $.from_html(`<section class="container svelte-1571mmu"><!> <div class="text-container svelte-1571mmu"><h2 class="title svelte-1571mmu">Redirecting you to the GitLight app...</h2> <a class="link svelte-1571mmu" href="/dashboard">Or continue in the browser</a></div></section>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	onMount(() => {
+		const githubAccessToken = storage.get('github-access-token');
+		const gitlabAccessToken = storage.get('gitlab-access-token');
+		const gitlabRefreshToken = storage.get('gitlab-refresh-token');
+		const gitlabExpiresIn = storage.get('gitlab-expires-in');
+		const gitlabUrl = storage.get('gitlab-url');
+		const gitlabPat = storage.get('gitlab-pat');
+
+		if (githubAccessToken || gitlabAccessToken && gitlabRefreshToken && gitlabExpiresIn || gitlabUrl && gitlabPat) {
+			openDesktopApp({
+				githubAccessToken,
+				gitlabAccessToken,
+				gitlabRefreshToken,
+				gitlabExpiresIn,
+				gitlabUrl,
+				gitlabPat
+			});
+		}
+	});
+
+	var section = root();
+
+	$.head('1571mmu', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'GitLight';
+		});
+	});
+
+	var node = $.child(section);
+
+	AnimatedLogo(node, {});
+	$.next(2);
+	$.reset(section);
+	$.append($$anchor, section);
+	$.pop();
+}
+=== 76 src/routes/(tray)/tray/+page.svelte	css
+
+	html {
+		font-size: 15px;
+	}
+
+	.main.svelte-15f85af {
+		height: 100vh;
+	}
+
+=== 2402 src/routes/(tray)/tray/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { listen } from '@tauri-apps/api/event';
+import { onDestroy, onMount, SvelteComponent } from 'svelte';
+import { browser } from '$app/environment';
+import { NotificationList, ScrollbarContainer } from '$lib/components';
+import { settings, theme } from '$lib/stores';
+import 'overlayscrollbars/overlayscrollbars.css';
+
+var root = $.from_html(`<main class="main svelte-15f85af"><!></main>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $settings = () => $.store_get(settings, '$settings', $$stores);
+	const $theme = () => $.store_get(theme, '$theme', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	let notifications = [];
+	let scrollContainer;
+	let unlistenNotification = () => null;
+	let unlistenSettings = () => null;
+	let unlistenTheme = () => null;
+
+	function scrollToTop() {
+		setTimeout(
+			() => {
+				scrollContainer?.scrollTo({ top: 0 });
+			},
+			10
+		);
+	}
+
+	onMount(async () => {
+		if (window.__TAURI__) {
+			window.addEventListener('blur', scrollToTop);
+
+			const [a, b, c] = await Promise.all([
+				listen('notifications', (event) => {
+					notifications = event.payload.notifications;
+				}),
+
+				listen('settings', (event) => {
+					$.store_set(settings, event.payload.settings);
+				}),
+
+				listen('theme', (event) => {
+					$.store_set(theme, event.payload.theme);
+					document.documentElement.setAttribute('data-theme', $theme());
+				})
+			]);
+
+			unlistenNotification = a;
+			unlistenSettings = b;
+			unlistenTheme = c;
+
+			const baseTheme = document.documentElement.getAttribute('data-theme');
+
+			if (baseTheme == 'light' || baseTheme == 'dark') {
+				$.store_set(theme, baseTheme);
+			}
+		}
+	});
+
+	onDestroy(() => {
+		if (browser && window.__TAURI__) {
+			window.removeEventListener('blur', scrollToTop);
+			unlistenNotification();
+			unlistenSettings();
+			unlistenTheme();
+		}
+	});
+
+	var main = root();
+	var node = $.child(main);
+
+	$.bind_this(
+		ScrollbarContainer(node, {
+			margin: '1rem 0.25rem',
+			children: ($$anchor, $$slotProps) => {
+				NotificationList($$anchor, {
+					get notifications() {
+						return notifications;
+					}
+				});
+			},
+			$$slots: { default: true }
+		}),
+		($$value) => scrollContainer = $$value,
+		() => scrollContainer
+	);
+
+	$.reset(main);
+	$.append($$anchor, main);
+	$.pop();
+	$$cleanup();
+}
+=== 359 src/routes/(tray)/tray/+page.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`notifications` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 5,
+			"character": 435
+		},
+		"end": {
+			"line": 11,
+			"column": 38,
+			"character": 468
+		}
+	}
+]
+
+=== 4324 src/routes/+page.svelte	css
+
+	[data-slide].svelte-1uha8ag {
+		@keyframes svelte-1uha8ag-slide {
+			from {
+				opacity: 0;
+				translate: 0 0.5rem;
+			}
+
+			to {
+				opacity: 1;
+				translate: 0;
+			}
+		}
+		--stagger: 1;
+
+		animation: svelte-1uha8ag-slide 0.3s calc(var(--stagger) * 0.1s) ease-in-out backwards;
+	}
+
+	.wrapper.svelte-1uha8ag {
+		position: relative;
+		display: flex;
+		overflow: hidden;
+		height: 100vh;
+		flex-direction: column;
+		align-items: center;
+		padding: 0 2rem;
+
+		@include screens.mobile {
+			height: 100svh;
+			padding: 0 1.5rem 2rem;
+		}
+	}
+
+	.header.svelte-1uha8ag {
+		display: flex;
+		width: min(64rem, 100%);
+		align-items: center;
+		justify-content: space-between;
+		padding-top: 2rem;
+
+		.title-container:where(.svelte-1uha8ag) {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+
+			.logo:where(.svelte-1uha8ag) {
+				width: 2rem;
+				height: 2rem;
+			}
+
+			.title:where(.svelte-1uha8ag) {
+				@include typography.heading-1;
+			}
+		}
+
+		.links:where(.svelte-1uha8ag) {
+			display: flex;
+			align-items: center;
+			gap: 1rem;
+
+			.icon-link:where(.svelte-1uha8ag) {
+				transition: opacity variables.$transition;
+
+				&:hover {
+					opacity: 0.75;
+				}
+
+				svg {
+					height: 1.5rem;
+				}
+			}
+		}
+	}
+
+	.main.svelte-1uha8ag {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2rem;
+
+		@include screens.mobile {
+			width: 100vw;
+			padding: 0 1.5rem;
+			margin-top: 4rem;
+		}
+
+		@include screens.desktop {
+			padding-top: 10vh;
+
+			@media (height >= 1000px) {
+				padding-top: 16vh;
+			}
+		}
+
+		.hero-container:where(.svelte-1uha8ag) {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+
+			.hero:where(.svelte-1uha8ag) {
+				@include typography.bold;
+
+				padding-bottom: 1rem;
+				-webkit-background-clip: text;
+				-moz-background-clip: text;
+				background-clip: text;
+				background-image: linear-gradient(variables.$bg-6, transparent 175%);
+				font-size: 2.5rem;
+				text-align: center;
+				-webkit-text-fill-color: transparent;
+				-moz-text-fill-color: transparent;
+
+				@include screens.desktop {
+					max-width: 45rem;
+					font-size: 3rem;
+				}
+			}
+
+			.subhero:where(.svelte-1uha8ag) {
+				color: variables.$bg-5;
+				font-size: 1.25rem;
+				text-align: center;
+			}
+		}
+
+		.buttons-container:where(.svelte-1uha8ag) {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+			gap: 1rem;
+		}
+
+		.separator:where(.svelte-1uha8ag) {
+			width: 20rem;
+			height: 1px;
+			background-image: linear-gradient(to right, transparent, variables.$blue, transparent);
+		}
+
+		.features-list:where(.svelte-1uha8ag) {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+
+			@include screens.mobile {
+				gap: 2rem;
+			}
+
+			.feature:where(.svelte-1uha8ag) {
+				display: flex;
+				width: 16rem;
+				flex-direction: column;
+				align-items: center;
+				gap: 0.5rem;
+
+				svg {
+					height: 2rem;
+					color: variables.$light-blue;
+				}
+
+				.title:where(.svelte-1uha8ag) {
+					@include typography.bold;
+				}
+
+				.description:where(.svelte-1uha8ag) {
+					color: variables.$bg-5;
+				}
+			}
+		}
+
+		.image-container:where(.svelte-1uha8ag) {
+			@include screens.mobile {
+				display: none;
+			}
+
+			@keyframes svelte-1uha8ag-slide-3d {
+				from {
+					opacity: 0;
+					transform: perspective(500px) rotate3d(1, 0, 0, 10deg);
+					translate: 0 4rem;
+				}
+
+				to {
+					opacity: 1;
+					transform: perspective(500px) rotate3d(1, 0, 0, 2deg);
+					translate: 0;
+				}
+			}
+
+			position: relative;
+			overflow: hidden;
+			border-radius: 0.8rem;
+			margin-top: 2rem;
+			animation: svelte-1uha8ag-slide-3d 1.5s cubic-bezier(0.8, 0, 0.2, 1) both;
+			box-shadow:
+				0 0 8rem rgba(variables.$blue, 0.25),
+				0 0 2rem rgba(variables.$light-blue, 0.25);
+
+			@media (height >= 1000px) {
+				margin-top: 4rem;
+			}
+
+			.image:where(.svelte-1uha8ag) {
+				max-width: unset;
+			}
+
+			&::before {
+				@keyframes svelte-1uha8ag-reflect-appear {
+					0% {
+						opacity: 0;
+						translate: -40% 90%;
+					}
+
+					100% {
+						opacity: 1;
+						translate: -30% 100%;
+					}
+				}
+
+				position: absolute;
+				width: 150%;
+				height: 20rem;
+				animation: svelte-1uha8ag-reflect-appear 1.5s cubic-bezier(0.8, 0, 0.2, 1) both;
+				background-image: linear-gradient(transparent, rgba(white, 0.03));
+				content: '';
+				inset: 0;
+				rotate: 135deg;
+			}
+		}
+	}
+
+=== 4980 src/routes/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onDestroy, onMount } from 'svelte';
+import { browser } from '$app/environment';
+import { Button, DownloadButton } from '$lib/components';
+
+import {
+	ArrowRightIcon,
+	GithubIcon,
+	HeartIcon,
+	LightningIcon,
+	SparklesIcon,
+	XIcon
+} from '$lib/icons';
+
+var root = $.from_html(`<meta name="description" content="Better GitHub and GitLab notifications as a free, open-source desktop app."/>`);
+var root_1 = $.from_html(`<!> Download the app`, 1);
+var root_2 = $.from_html(`<div class="wrapper svelte-1uha8ag"><header class="header svelte-1uha8ag"><div class="title-container svelte-1uha8ag"><img class="logo svelte-1uha8ag" src="/images/logo.webp" alt="" height="32" width="32"/> <h1 class="title svelte-1uha8ag"><strong>GitLight</strong></h1></div> <div class="links svelte-1uha8ag"><a href="https://x.com/colinlienard" target="_blank" rel="noreferrer" class="icon-link svelte-1uha8ag" aria-label="Colin Lienard X account"><!></a> <a href="https://github.com/colinlienard/gitlight" target="_blank" rel="noreferrer" class="icon-link svelte-1uha8ag" aria-label="GitLight GitHub repository"><!></a></div></header> <main class="main svelte-1uha8ag"><div class="hero-container svelte-1uha8ag"><h2 class="hero svelte-1uha8ag" data-slide="" style="--stagger: 0"><strong>GitHub and GitLab notifications on your desktop</strong></h2> <h3 class="subhero svelte-1uha8ag" data-slide="" style="--stagger: 1">Never miss a pull request, issue, commit, review...</h3></div> <div class="buttons-container svelte-1uha8ag" data-slide="" style="--stagger: 2"><!> <!></div> <span class="separator svelte-1uha8ag" data-slide="" style="--stagger: 3"></span> <ul class="features-list svelte-1uha8ag" data-slide="" style="--stagger: 4"><li class="feature svelte-1uha8ag"><!> <h4 class="title svelte-1uha8ag">Filter and monitor events</h4> <p class="description svelte-1uha8ag"><strong>Kanban</strong> style interface.</p></li> <li class="feature svelte-1uha8ag"><!> <h4 class="title svelte-1uha8ag"><strong>Free</strong> and <strong>open source</strong></h4> <p class="description svelte-1uha8ag">Contribute on GitHub!</p></li> <li class="feature svelte-1uha8ag"><!> <h4 class="title svelte-1uha8ag">Made for performance</h4> <p class="description svelte-1uha8ag">Built with <strong>Tauri</strong> and <strong>SvelteKit</strong>.</p></li></ul> <article class="image-container svelte-1uha8ag"><picture class="svelte-1uha8ag"><source class="image svelte-1uha8ag" srcset="/images/gitlight-dark.webp" media="(prefers-color-scheme: dark)" width="1024" height="640"/> <img class="image svelte-1uha8ag" src="/images/gitlight-light.webp" alt="" width="1024" height="640"/></picture></article></main></div>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	function onThemeChange({ matches }) {
+		document.documentElement.setAttribute('data-theme', matches ? 'dark' : 'light');
+	}
+
+	onMount(() => {
+		window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', onThemeChange);
+	});
+
+	onDestroy(() => {
+		if (!browser) return;
+
+		window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', onThemeChange);
+	});
+
+	var div = root_2();
+
+	$.head('1uha8ag', ($$anchor) => {
+		var meta = root();
+
+		$.effect(() => {
+			$.document.title = 'GitLight • GitHub and GitLab notifications on your desktop';
+		});
+
+		$.append($$anchor, meta);
+	});
+
+	var header = $.child(div);
+	var div_1 = $.sibling($.child(header), 2);
+	var a = $.child(div_1);
+	var node = $.child(a);
+
+	XIcon(node, {});
+	$.reset(a);
+
+	var a_1 = $.sibling(a, 2);
+	var node_1 = $.child(a_1);
+
+	GithubIcon(node_1, {});
+	$.reset(a_1);
+	$.reset(div_1);
+	$.reset(header);
+
+	var main = $.sibling(header, 2);
+	var div_2 = $.sibling($.child(main), 2);
+	var node_2 = $.child(div_2);
+
+	DownloadButton(node_2, {
+		children: ($$anchor, $$slotProps) => {
+			Button($$anchor, {
+				children: ($$anchor, $$slotProps) => {
+					var fragment_1 = root_1();
+					var node_3 = $.first_child(fragment_1);
+
+					ArrowRightIcon(node_3, {});
+					$.next();
+					$.append($$anchor, fragment_1);
+				},
+				$$slots: { default: true }
+			});
+		},
+		$$slots: { default: true }
+	});
+
+	var node_4 = $.sibling(node_2, 2);
+
+	Button(node_4, {
+		secondary: true,
+		href: '/login',
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text = $.text('or use in the browser');
+
+			$.append($$anchor, text);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_2);
+
+	var ul = $.sibling(div_2, 4);
+	var li = $.child(ul);
+	var node_5 = $.child(li);
+
+	SparklesIcon(node_5, {});
+	$.next(4);
+	$.reset(li);
+
+	var li_1 = $.sibling(li, 2);
+	var node_6 = $.child(li_1);
+
+	HeartIcon(node_6, {});
+	$.next(4);
+	$.reset(li_1);
+
+	var li_2 = $.sibling(li_1, 2);
+	var node_7 = $.child(li_2);
+
+	LightningIcon(node_7, {});
+	$.next(4);
+	$.reset(li_2);
+	$.reset(ul);
+	$.next(2);
+	$.reset(main);
+	$.reset(div);
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 379 src/routes/+page.svelte	warnings.json
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<span ...></span>` rather than `<span ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 81,
+			"column": 2,
+			"character": 2136
+		},
+		"end": {
+			"line": 81,
+			"column": 60,
+			"character": 2194
+		}
+	}
+]
+

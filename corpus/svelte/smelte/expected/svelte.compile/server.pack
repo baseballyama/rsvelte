@@ -1,0 +1,2800 @@
+# rsvelte pack 1
+=== 143 src/components/Util/Spacer.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Spacer($$renderer) {
+	$$renderer.push(`<div class="flex-grow"></div>`);
+}
+=== 369 src/components/Util/Spacer.svelte	warnings.json
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 1,
+			"column": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 1,
+			"column": 25,
+			"character": 25
+		}
+	}
+]
+
+=== 1140 src/routes/breakpoints.svelte	js
+import * as $ from 'svelte/internal/server';
+import Code from "docs/Code.svelte";
+
+export default function Breakpoints($$renderer) {
+	$$renderer.push(`<div><h4 class="pb-8">Breakpoints helper store</h4> <p>Sometimes it's useful to know about your current window breakpoint size to
+    order to make any adjustments when browser window gets resized. Smelte comes
+    with a helper store just for that.</p> <p>For instance, navigation drawer on this page should hide programmatically
+    after hitting small window size breakpoint.</p> `);
+
+	Code($$renderer, {
+		code: `
+    import breakpoints from "smelte/breakpoints";
+
+    const bp = breakpoints();
+    $: show = $bp !== "sm";
+
+    {#if show}
+      ...
+    {/if}
+  `
+	});
+
+	$$renderer.push(`<!----> <p><span class="code-inline">breakpoints</span> accepts one function argument which returns breakpoint name. `);
+
+	Code($$renderer, {
+		code: `
+  function defaultCalc(width) {
+    if (width > 1279) {
+      return "xl";
+    }
+    if (width > 1023) {
+      return "lg";
+    }
+    if (width > 767) {
+      return "md";
+    }
+    return "sm";
+  }`
+	});
+
+	$$renderer.push(`<!----></p></div>`);
+}
+=== 1968 src/routes/color.svelte	js
+import * as $ from 'svelte/internal/server';
+import TextField from "components/TextField";
+import Code from "docs/Code.svelte";
+
+export default function Color($$renderer) {
+	$$renderer.push(`<h4 class="pb-8">Color helper classes</h4> <p>Right now Smelte adds very little to what Tailwind <a class="a" href="https://tailwindcss.com/docs/background-color/">has</a> <a class="a" href="https://tailwindcss.com/docs/text-color/">to offer</a> dealing with color except for porting the Material design color <a class="a" href="https://material.io/design/color/#tools-for-picking-colors">palette</a> and adding a few extra utilities like caret color on inputs or colored ripple
+  animation effect. Colors themselves are configured in <a class="a" href="https://github.com/matyunya/smelte/blob/master/tailwind.config.js">tailwind.config.js</a> .</p> <h5 class="mt-6 mb-2">Background</h5> <span class="code-inline">.bg-{color}-{variant}</span> gives element appropriate background color: `);
+
+	Code($$renderer, {
+		code: '<div class="bg-deep-purple-500 text-white p-4">This div is deep purple.</div>'
+	});
+
+	$$renderer.push(`<!----> <div class="bg-deep-purple-500 text-white p-4">This div is deep purple.</div> <h5 class="mt-6 mb-2">Text</h5> <span class="code-inline">.text-{color}-{variant}</span> changes text color accordingly: `);
+	Code($$renderer, { code: '<h4 class="text-error-500">This header is error</h4>' });
+	$$renderer.push(`<!----> <h4 class="text-error-500">This header is error color</h4> <h5 class="mt-6 mb-2">Border</h5> Same principle applies to border, but there are also border width <span class="code-inline">border-{n}</span> and type <span class="code-inline">border-{solid|dashed|dotted|none}</span> helpers. `);
+
+	Code($$renderer, {
+		code: '<div class="border-2 border-secondary-600 p-4">This div has secondary border</div>'
+	});
+
+	$$renderer.push(`<!----> <div class="border-2 border-secondary-600 p-4">This div has secondary color border</div>`);
+}
+=== 5105 src/routes/components/buttons.svelte	js
+import * as $ from 'svelte/internal/server';
+import Button from "components/Button";
+import Icon from "components/Icon";
+import Code from "docs/Code.svelte";
+import PropsTable from "docs/PropsTable.svelte";
+import buttons from "examples/buttons.txt";
+
+export default function Buttons($$renderer) {
+	$$renderer.push(`<blockquote class="pl-8 mt-2 mb-10 border-l-8 border-primary-300 text-lg" cite="https://material.io/components/buttons/"><p>Buttons allow users to take actions, and make choices, with a single tap.</p></blockquote> <h6 class="mb-3 mt-6">Basic</h6> <div class="py-2">`);
+
+	Button($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Button`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div> <h6 class="mb-3 mt-6">Light</h6> <div class="py-2">`);
+
+	Button($$renderer, {
+		light: true,
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Button`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div> <h6 class="mb-3 mt-6">Dark</h6> <div class="py-2">`);
+
+	Button($$renderer, {
+		dark: true,
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Button`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div> <h6 class="mb-3 mt-6">Block</h6> <div class="py-2">`);
+
+	Button($$renderer, {
+		color: 'alert',
+		dark: true,
+		block: true,
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Button`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div> `);
+
+	PropsTable($$renderer, {
+		data: [
+			{
+				prop: "value",
+				description: "Bound boolean value",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "color",
+				description: "Color variant, accepts any of the main colors described in Tailwind config",
+				type: "String",
+				default: "primary"
+			},
+
+			{
+				prop: "outlined",
+				description: "Outlined variant",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "text",
+				description: "Text button variant (transparent background)",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "block",
+				description: "Full block width button",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "disabled",
+				description: "Disabled state",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "icon",
+				description: "Icon button variant",
+				type: "String",
+				default: "null"
+			},
+
+			{
+				prop: "small",
+				description: "Smaller size",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "light",
+				description: "Lighter variant",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "dark",
+				description: "Darker variant",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "flat",
+				description: "Flat variant",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "iconClass",
+				description: "List of classes to pass down to icon",
+				type: "String",
+				default: "empty string"
+			},
+
+			{
+				prop: "href",
+				description: "Link URL",
+				type: "String",
+				default: "null"
+			},
+
+			{
+				prop: "add",
+				description: "List of classes to add to the component",
+				type: "String",
+				default: "empty string"
+			},
+
+			{
+				prop: "remove",
+				description: "List of classes to remove from the component",
+				type: "String",
+				default: "empty string"
+			},
+
+			{
+				prop: "replace",
+				description: "List of classes to replace in the component",
+				type: "Object",
+				default: "{}"
+			}
+		]
+	});
+
+	$$renderer.push(`<!----> <h6 class="mb-3 mt-6">Outlined</h6> <div class="py-2">`);
+
+	Button($$renderer, {
+		color: 'secondary',
+		light: true,
+		block: true,
+		outlined: true,
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Button`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div> <h6 class="mb-3 mt-6">As anchor</h6> <div class="py-2">`);
+
+	Button($$renderer, {
+		color: 'secondary',
+		light: true,
+		block: true,
+		outlined: true,
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Button`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div> <h6 class="mb-3 mt-6">Text</h6> <div class="py-2">`);
+
+	Button($$renderer, {
+		text: true,
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Button`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div> <h6 class="mb-3 mt-6">Disabled</h6> <div class="py-2">`);
+
+	Button($$renderer, {
+		block: true,
+		disabled: true,
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Button`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div> <h6 class="mb-3 mt-6">FAB <a class="a" href="https://material.io/components/buttons-floating-action-button/">(Floating action button)</a></h6> <div class="py-2">`);
+	Button($$renderer, { color: 'alert', icon: 'change_history' });
+	$$renderer.push(`<!----></div> <h6 class="mb-3 mt-6">Fab flat</h6> <div class="py-2">`);
+
+	Button($$renderer, {
+		color: 'error',
+		icon: 'change_history',
+		text: true,
+		light: true,
+		flat: true
+	});
+
+	$$renderer.push(`<!----></div> `);
+	Code($$renderer, { code: buttons });
+	$$renderer.push(`<!---->`);
+}
+=== 2829 src/routes/components/cards.svelte	js
+import * as $ from 'svelte/internal/server';
+import Card from "../../components/Card";
+import Button from "../../components/Button";
+import Image from "../../components/Image";
+import Code from "docs/Code.svelte";
+import PropsTable from "docs/PropsTable.svelte";
+import card from "examples/card.txt";
+
+export default function Cards($$renderer) {
+	if (Card.Card) {
+		$$renderer.push('<!--[-->');
+
+		Card.Card($$renderer, {
+			class: 'dark:bg-gray-200',
+			$$slots: {
+				title: ($$renderer) => {
+					$$renderer.push(`<div slot="title">`);
+
+					if (Card.Title) {
+						$$renderer.push('<!--[-->');
+
+						Card.Title($$renderer, {
+							class: 'dark:text-black',
+							title: 'The three little kittens',
+							subheader: 'A kitten poem',
+							avatar: 'https://placekitten.com/64/64'
+						});
+
+						$$renderer.push('<!--]-->');
+					} else {
+						$$renderer.push('<!--[!-->');
+						$$renderer.push('<!--]-->');
+					}
+
+					$$renderer.push(`</div>`);
+				},
+
+				media: ($$renderer) => {
+					$$renderer.push(`<div slot="media">`);
+
+					Image($$renderer, {
+						class: 'w-full',
+						src: 'https://placekitten.com/300/200',
+						alt: 'kitty'
+					});
+
+					$$renderer.push(`<!----></div>`);
+				},
+
+				text: ($$renderer) => {
+					$$renderer.push(`<div slot="text" class="p-5 pb-0 pt-3 text-gray-700 body-2">The three little kittens, they lost their mittens, <br/> And they began to cry, <br/> "Oh, mother dear, we sadly fear, <br/> That we have lost our mittens."</div>`);
+				},
+
+				actions: ($$renderer) => {
+					$$renderer.push(`<div slot="actions"><div class="p-2">`);
+
+					Button($$renderer, {
+						text: true,
+						children: ($$renderer) => {
+							$$renderer.push(`<!---->OK`);
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----> `);
+
+					Button($$renderer, {
+						text: true,
+						children: ($$renderer) => {
+							$$renderer.push(`<!---->Meow`);
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----></div></div>`);
+				}
+			}
+		});
+
+		$$renderer.push('<!--]-->');
+	} else {
+		$$renderer.push('<!--[!-->');
+		$$renderer.push('<!--]-->');
+	}
+
+	$$renderer.push(` `);
+
+	PropsTable($$renderer, {
+		data: [
+			{
+				prop: "hover",
+				default: "true",
+				description: "Enable hover elevation",
+				type: "Boolean"
+			},
+
+			{
+				prop: "elevation",
+				default: "1",
+				description: "Default elevation value",
+				type: "Number"
+			},
+
+			{
+				prop: "hoverElevation",
+				default: "8",
+				description: "Hover elevation value",
+				type: "Number"
+			},
+
+			{
+				prop: "classes",
+				default: `rounded inline-flex flex-col overflow-hidden duration-200 ease-in`,
+				description: "String of root element classes",
+				type: "String"
+			}
+		]
+	});
+
+	$$renderer.push(`<!----> `);
+	Code($$renderer, { code: card });
+	$$renderer.push(`<!---->`);
+}
+=== 3405 src/routes/components/chips.svelte	js
+import * as $ from 'svelte/internal/server';
+import Chip from "components/Chip";
+import Button from "components/Button";
+import Snackbar from "components/Snackbar";
+import Code from "docs/Code.svelte";
+import chip from "examples/chip.txt";
+import chipOutlined from "examples/chip-outlined.txt";
+
+export default function Chips($$renderer) {
+	let closed = false;
+	let clicked = false;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		$$renderer.push(`<h5 class="mt-6 mb-2">Basic</h5> `);
+
+		Chip($$renderer, {
+			icon: 'face',
+			selectable: true,
+			children: ($$renderer) => {
+				$$renderer.push(`<!---->test`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> <div class="my-4">`);
+		Code($$renderer, { code: chip });
+		$$renderer.push(`<!----></div> <h5 class="mt-6 mb-2">Outlined</h5> `);
+
+		Chip($$renderer, {
+			icon: 'pan_tool',
+			outlined: true,
+			removable: true,
+			selectable: true,
+			children: ($$renderer) => {
+				$$renderer.push(`<!---->Cats`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Chip($$renderer, {
+			icon: 'print',
+			outlined: true,
+			removable: true,
+			selectable: true,
+			color: 'blue',
+			children: ($$renderer) => {
+				$$renderer.push(`<!---->Dogs`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Chip($$renderer, {
+			icon: 'pageview',
+			outlined: true,
+			removable: true,
+			selectable: true,
+			color: 'alert',
+			children: ($$renderer) => {
+				$$renderer.push(`<!---->Plants`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Chip($$renderer, {
+			icon: 'pets',
+			outlined: true,
+			removable: true,
+			selectable: true,
+			color: 'secondary',
+			children: ($$renderer) => {
+				$$renderer.push(`<!---->Parents`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> <div class="my-4">`);
+		Code($$renderer, { lang: 'javascript', code: chipOutlined });
+		$$renderer.push(`<!----></div> `);
+
+		Snackbar($$renderer, {
+			get value() {
+				return closed;
+			},
+
+			set value($$value) {
+				closed = $$value;
+				$$settled = false;
+			},
+
+			children: ($$renderer) => {
+				$$renderer.push(`<!---->Chip was removed successfully.`);
+			},
+
+			$$slots: {
+				default: true,
+				action: ($$renderer) => {
+					$$renderer.push(`<div slot="action">`);
+
+					Button($$renderer, {
+						text: true,
+						children: ($$renderer) => {
+							$$renderer.push(`<!---->Dismiss`);
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----></div>`);
+				}
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Snackbar($$renderer, {
+			get value() {
+				return clicked;
+			},
+
+			set value($$value) {
+				clicked = $$value;
+				$$settled = false;
+			},
+
+			children: ($$renderer) => {
+				$$renderer.push(`<!---->Chip was clicked successfully.`);
+			},
+
+			$$slots: {
+				default: true,
+				action: ($$renderer) => {
+					$$renderer.push(`<div slot="action">`);
+
+					Button($$renderer, {
+						text: true,
+						children: ($$renderer) => {
+							$$renderer.push(`<!---->Dismiss`);
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----></div>`);
+				}
+			}
+		});
+
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 702 src/routes/components/chips.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`closed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 6,
+			"character": 279
+		},
+		"end": {
+			"line": 10,
+			"column": 12,
+			"character": 285
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`clicked` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 6,
+			"character": 301
+		},
+		"end": {
+			"line": 11,
+			"column": 13,
+			"character": 308
+		}
+	}
+]
+
+=== 1557 src/routes/components/data-tables.svelte	js
+import * as $ from 'svelte/internal/server';
+import DataTable from "components/DataTable";
+import Image from "components/Image";
+import Code from "docs/Code.svelte";
+import table from "examples/table.txt";
+
+export default function Data_tables($$renderer) {
+	let data = [];
+	let loading = true;
+
+	async function getData() {
+		if (typeof window === "undefined") return;
+
+		loading = true;
+
+		const res = await fetch("data.json");
+		const body = await res.json();
+
+		data = body._embedded.episodes;
+		setTimeout(() => loading = false, 500);
+	}
+
+	getData();
+	$$renderer.push(`<div class="overflow-auto p-1">`);
+
+	DataTable($$renderer, {
+		data,
+		loading,
+		columns: [
+			{ label: "ID", field: "id", class: "md:w-10" },
+			{
+				label: "Ep.",
+				value: (v) => `S${v.season}E${v.number}`,
+				class: "md:w-10",
+				editable: false
+			},
+			{ field: "name", class: "md:w-10" },
+			{
+				field: "summary",
+				textarea: true,
+				value: (v) => v && v.summary ? v.summary : "",
+				add: "text-sm text-gray-700 caption md:w-full sm:w-64",
+				remove: "text-right",
+				headerRemove: "justify-end",
+				iconAfter: true
+			},
+
+			{
+				field: "thumbnail",
+				component: Image,
+				componentProps: (v) => v && v.image
+					? {
+						src: v.image.medium.replace("http", "https"),
+						class: 'h-full',
+						height: 100,
+						alt: v.name
+					}
+					: {},
+				class: "w-48",
+				sortable: false,
+				editable: false,
+				headerRemove: "justify-end"
+			}
+		]
+	});
+
+	$$renderer.push(`<!----> `);
+	Code($$renderer, { code: table });
+	$$renderer.push(`<!----></div>`);
+}
+=== 696 src/routes/components/data-tables.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`data` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 185
+		},
+		"end": {
+			"line": 7,
+			"column": 10,
+			"character": 189
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`loading` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 202
+		},
+		"end": {
+			"line": 8,
+			"column": 13,
+			"character": 209
+		}
+	}
+]
+
+=== 507 src/routes/components/date-pickers.svelte	js
+import * as $ from 'svelte/internal/server';
+import DatePicker from "components/DatePicker";
+import Code from "docs/Code.svelte";
+import datepickers from "examples/date-pickers.txt";
+
+export default function Date_pickers($$renderer) {
+	let selected;
+
+	$$renderer.push(`<div><small>I selected ${$.escape(selected ? selected.toLocaleDateString() : "nothing")}</small></div> `);
+	DatePicker($$renderer, {});
+	$$renderer.push(`<!----> `);
+	Code($$renderer, { code: datepickers });
+	$$renderer.push(`<!---->`);
+}
+=== 352 src/routes/components/date-pickers.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 160
+		},
+		"end": {
+			"line": 6,
+			"column": 14,
+			"character": 168
+		}
+	}
+]
+
+=== 3034 src/routes/components/dialogs.svelte	js
+import * as $ from 'svelte/internal/server';
+import Button from "components/Button";
+import Dialog from "components/Dialog";
+import Code from "docs/Code.svelte";
+import dialog from "examples/dialog.txt";
+
+export default function Dialogs($$renderer) {
+	let showDialog = false;
+	let showDialog2 = false;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Dialog($$renderer, {
+			get value() {
+				return showDialog;
+			},
+
+			set value($$value) {
+				showDialog = $$value;
+				$$settled = false;
+			},
+
+			children: ($$renderer) => {
+				$$renderer.push(`<div class="text-gray-700 dark:text-gray-100">I'm not sure about today's weather.</div>`);
+			},
+
+			$$slots: {
+				default: true,
+				title: ($$renderer) => {
+					$$renderer.push(`<h5 slot="title">What do you think?</h5>`);
+				},
+
+				actions: ($$renderer) => {
+					$$renderer.push(`<div slot="actions">`);
+
+					Button($$renderer, {
+						text: true,
+						children: ($$renderer) => {
+							$$renderer.push(`<!---->Disagree`);
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----> `);
+
+					Button($$renderer, {
+						text: true,
+						children: ($$renderer) => {
+							$$renderer.push(`<!---->Agree`);
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----></div>`);
+				}
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Dialog($$renderer, {
+			persistent: true,
+			get value() {
+				return showDialog2;
+			},
+
+			set value($$value) {
+				showDialog2 = $$value;
+				$$settled = false;
+			},
+
+			children: ($$renderer) => {
+				$$renderer.push(`<div class="text-gray-700 dark:text-gray-100">Doubt it.</div>`);
+			},
+
+			$$slots: {
+				default: true,
+				title: ($$renderer) => {
+					$$renderer.push(`<h5 slot="title">Do you think you can close me by clicking outside?</h5>`);
+				},
+
+				actions: ($$renderer) => {
+					$$renderer.push(`<div slot="actions">`);
+
+					Button($$renderer, {
+						text: true,
+						children: ($$renderer) => {
+							$$renderer.push(`<!---->Yes`);
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----> `);
+
+					Button($$renderer, {
+						text: true,
+						children: ($$renderer) => {
+							$$renderer.push(`<!---->No`);
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----></div>`);
+				}
+			}
+		});
+
+		$$renderer.push(`<!----> <div class="py-2">`);
+
+		Button($$renderer, {
+			children: ($$renderer) => {
+				$$renderer.push(`<!---->Show dialog`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----></div> <div class="py-2">`);
+
+		Button($$renderer, {
+			color: 'secondary',
+			children: ($$renderer) => {
+				$$renderer.push(`<!---->Show persistent dialog`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----></div> `);
+		Code($$renderer, { code: dialog });
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 706 src/routes/components/dialogs.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`showDialog` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 183
+		},
+		"end": {
+			"line": 7,
+			"column": 16,
+			"character": 193
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showDialog2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 209
+		},
+		"end": {
+			"line": 8,
+			"column": 17,
+			"character": 220
+		}
+	}
+]
+
+=== 1058 src/routes/components/images.svelte	js
+import * as $ from 'svelte/internal/server';
+import Image from "components/Image";
+import Code from "docs/Code.svelte";
+import images from "examples/images.txt";
+
+export default function Images($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const range = [...new Array(50)];
+
+		$$renderer.push(`<p>Smelte includes convenience image component which is useful for lazyloading, but generally we recommend
+  using <a class="a" href="https://github.com/matyunya/svelte-image">Svelte Image</a>.</p> `);
+
+		Code($$renderer, { code: images });
+		$$renderer.push(`<!----> <!--[-->`);
+
+		const each_array = $.ensure_array_like(range);
+
+		for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+			let _ = each_array[i];
+
+			$$renderer.push(`<div class="my-8">`);
+
+			Image($$renderer, {
+				src: `https://placeimg.com/${$.stringify(400 + i)}/${$.stringify(300 + i)}/animals`,
+				alt: `Kitty ${$.stringify(i)}`,
+				height: 400 + 1,
+				width: 300 + 1
+			});
+
+			$$renderer.push(`<!----></div>`);
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}
+=== 3077 src/routes/components/index.svelte	js
+import * as $ from 'svelte/internal/server';
+import Button from "components/Button";
+import Code from "docs/Code.svelte";
+
+export default function Components($$renderer) {
+	$$renderer.push(`<h4 class="pb-8">Smelte components</h4> <p>Smelte components are built almost exclusively using Tailwind's utility classes
+  keeping CSS bundle size as minimal as possible. UI frameworks are notorious for
+  being hard to customize and we're still looking for appropriate solution given
+  utility-first nature of Tailwind. So for the most part components expose all of
+  their elements' classes as strings like, for instance, Button component has
+  "disabledClasses" prop defaulting to<br/> <span class="code-inline">bg-gray-300 text-gray-500 dark:bg-dark-400 pointer-events-none hover:bg-gray-300 cursor-default</span></p> `);
+
+	Code($$renderer, { code: '<Button disabled>Disabled button</Button>' });
+	$$renderer.push(`<!----> <div class="pt-8 pb-16">`);
+
+	Button($$renderer, {
+		disabled: true,
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Disabled button`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div> <p>Say you need to adjust that background color, you may the "disabledClasses" prop<br/> <span class="code-inline">bg-gray-100 text-gray-700 dark:bg-dark-100 pointer-events-none hover:bg-gray-300 cursor-default</span></p> `);
+
+	Code($$renderer, {
+		code: `<Button
+  disabledClasses="bg-gray-100 text-gray-500 dark:bg-dark-100 pointer-events-none hover:bg-gray-300 cursor-default"
+  disabled>Disabled button
+</Button>`
+	});
+
+	$$renderer.push(`<!----> <div class="pt-8 pb-16">`);
+
+	Button($$renderer, {
+		disabledClasses: 'bg-gray-100 text-gray-500 dark:bg-dark-100 pointer-events-none hover:bg-gray-300 cursor-default',
+		disabled: true,
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Disabled button`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div> <p>This feels bulky to say the least but may still be the case if you need to modify those classes heavily.
+  Same prop also allows you to pass a function which accepts the same string as argument and returns your modified classes string:</p> `);
+
+	Code($$renderer, {
+		code: `<Button
+  disabledClasses={i => i.replace(/(3|4)00/g, "100")}
+  disabled>Disabled button
+</Button>`
+	});
+
+	$$renderer.push(`<!----> <div class="pt-8 pb-16">`);
+
+	Button($$renderer, {
+		disabledClasses: (i) => i.replace(/(3|4)00/g, "100"),
+		disabled: true,
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Disabled button`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----></div> <p>Using this approach Smelte is also able to imply which classes are actually being used
+  even dynamically which helps Purge CSS to get rid of unused classes at build time automatically.
+  Still it feels like this is a rather naive way of customizing components so please create an <a href="https://github.com/matyunya/smelte/issues/new">issue</a> on Github or <a href="mailto:matyunya@gmail.com">contact me directly</a> if you have an idea how to improve on this.</p>`);
+}
+=== 6678 src/routes/components/lists.svelte	js
+import * as $ from 'svelte/internal/server';
+import Code from "docs/Code.svelte";
+import List from "components/List";
+import Icon from "components/Icon";
+import Tabs, { Tab } from "components/Tabs";
+import { darkMode } from "../../dark";
+import lists from "examples/lists.txt";
+import customLists from "examples/custom-lists.txt";
+import PropsTable from "docs/PropsTable.svelte";
+
+export default function Lists($$renderer) {
+	let selected;
+
+	const listOneLine = [
+		{ text: "Item 1", icon: "favorite" },
+		{ text: "Item 2", icon: "favorite" },
+		{ text: "Item 3", icon: "favorite" }
+	];
+
+	const listTwoLines = [
+		{ text: "Item 1", icon: "favorite", subheading: "Subheading 1" },
+		{ text: "Item 2", icon: "favorite", subheading: "Subheading 2" },
+		{ text: "Item 3", icon: "favorite", subheading: "Subheading 3" }
+	];
+
+	let selectedItem = false;
+
+	const menu = [
+		{ to: "/components/text-fields", text: "Text fields" },
+		{ to: "/components/buttons", text: "Buttons" },
+		{
+			to: "/components/selection-controls#checkboxes",
+			text: "Checkboxes"
+		},
+
+		{
+			to: "/components/selection-controls#radio-buttons",
+			text: "Radio buttons"
+		},
+
+		{
+			to: "/components/selection-controls#switches",
+			text: "Switches"
+		},
+		{ to: "/components/lists", text: "Lists" }
+	];
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Tabs($$renderer, {
+			selected: '1',
+			class: 'shadow mt-6 rounded-t-lg bg-dark-600',
+			notSelectedColor: 'white',
+			color: 'primary',
+			items: [
+				{ id: '1', text: 'List props', icon: 'list' },
+				{ id: '2', text: 'List item props', icon: 'code' }
+			],
+			$$slots: {
+				content: ($$renderer) => {
+					$$renderer.push(`<div slot="content" class="flex items-center content-center overflow-hidden w-full bg-white h-full shadow-sm">`);
+
+					Tab($$renderer, {
+						id: '1',
+						selected,
+						children: ($$renderer) => {
+							PropsTable($$renderer, {
+								class: 'my-0 w-full',
+								data: [
+									{
+										prop: "value",
+										description: "Selected item value",
+										type: "String",
+										default: "empty string"
+									},
+
+									{
+										prop: "items",
+										description: "List items (item has id, value, to and text props)",
+										type: "Array",
+										default: "[]"
+									},
+
+									{
+										prop: "dense",
+										description: "Dense variant",
+										type: "Boolean",
+										default: "false"
+									},
+
+									{
+										prop: "navigation",
+										description: "Is navigation drawer list",
+										default: "false",
+										type: "Boolean"
+									},
+
+									{
+										prop: "select",
+										description: "Is dropdown selet",
+										default: "false",
+										type: "Boolean"
+									}
+								]
+							});
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----> `);
+
+					Tab($$renderer, {
+						id: '2',
+						selected,
+						children: ($$renderer) => {
+							PropsTable($$renderer, {
+								class: 'my-0 w-full',
+								data: [
+									{
+										prop: "icon",
+										description: "Prepend item with icon",
+										type: "String",
+										default: "empty string"
+									},
+
+									{
+										prop: "id",
+										description: "Item id",
+										type: "String",
+										default: "empty string"
+									},
+
+									{
+										prop: "value",
+										description: "Selected item value",
+										type: "String",
+										default: "empty string"
+									},
+
+									{
+										prop: "text",
+										description: "Item text",
+										type: "String",
+										default: "empty string"
+									},
+
+									{
+										prop: "subheading",
+										description: "Item subheading",
+										type: "String",
+										default: "empty string"
+									},
+
+									{
+										prop: "disabled",
+										description: "Disabled state",
+										type: "Boolean",
+										default: false
+									},
+
+									{
+										prop: "dense",
+										description: "Dense variant",
+										type: "Boolean",
+										default: false
+									},
+
+									{
+										prop: "navigation",
+										description: "Is navigation item",
+										type: "Boolean",
+										default: false
+									},
+
+									{
+										prop: "selected",
+										description: "Is selected",
+										type: "Boolean",
+										default: false
+									},
+
+									{
+										prop: "tabindex",
+										description: "Tab index",
+										type: "Number",
+										default: null
+									},
+
+									{
+										prop: "classes",
+										description: "Item wrapper classes",
+										type: "String",
+										default: "hover:bg-gray-transDark relative overflow-hidden duration-200 ease-in p-4 cursor-pointer text-gray-700 flex items-center z-10"
+									},
+
+									{
+										prop: "itemClasses",
+										description: "Additional item classes",
+										type: "String",
+										default: "empty string"
+									},
+
+									{
+										prop: "selectedClasses",
+										description: "Selected item classes",
+										type: "String",
+										default: "bg-gray-200 hover:bg-primary-transDark"
+									}
+								]
+							});
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----></div>`);
+				}
+			}
+		});
+
+		$$renderer.push(`<!----> <h6 class="mb-3 mt-6">One-line</h6> `);
+		List($$renderer, { items: listOneLine });
+		$$renderer.push(`<!----> <h6 class="mb-3 mt-6">Two-line</h6> `);
+		List($$renderer, { items: listTwoLines });
+		$$renderer.push(`<!----> <h6 class="mb-3 mt-6">Dense</h6> `);
+		List($$renderer, { dense: true, items: listTwoLines });
+		$$renderer.push(`<!----> `);
+		Code($$renderer, { code: lists });
+		$$renderer.push(`<!----> <h6 class="mb-3 mt-6">Custom list element using let:slots</h6> <small>I selected ${$.escape(selectedItem || "nothing")}.</small> `);
+
+		List($$renderer, {
+			items: menu,
+			dense: true,
+			navigation: true,
+			get value() {
+				return selectedItem;
+			},
+
+			set value($$value) {
+				selectedItem = $$value;
+				$$settled = false;
+			},
+
+			$$slots: {
+				item: ($$renderer, { item }) => {
+					$$renderer.push(`<li slot="item"><div${$.attr_class('cursor-pointer p-4 border-secondary-50 border my-2 border-solid duration-200 ease-in', void 0, { 'bg-secondary-50': selectedItem === item.text })}>${$.escape(selectedItem === item.text ? '👌' : '🙅‍')} ${$.escape(item.text)}</div></li>`);
+				}
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+		Code($$renderer, { code: customLists });
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1520 src/routes/components/lists.svelte	warnings.json
+[
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<div>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 128,
+			"column": 4,
+			"character": 4432
+		},
+		"end": {
+			"line": 133,
+			"column": 10,
+			"character": 4716
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 128,
+			"column": 4,
+			"character": 4432
+		},
+		"end": {
+			"line": 133,
+			"column": 10,
+			"character": 4716
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 130,
+			"column": 6,
+			"character": 4542
+		},
+		"end": {
+			"line": 130,
+			"column": 49,
+			"character": 4585
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedItem` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 47,
+			"column": 6,
+			"character": 894
+		},
+		"end": {
+			"line": 47,
+			"column": 18,
+			"character": 906
+		}
+	}
+]
+
+=== 1687 src/routes/components/menus.svelte	js
+import * as $ from 'svelte/internal/server';
+import Button from "components/Button";
+import Menu from "components/Menu";
+import List from "components/List";
+import Select from "components/Select";
+import Icon from "components/Icon";
+import TextField from "components/TextField";
+import Slider from "components/Slider";
+import Code from "docs/Code.svelte";
+import menus from "examples/menus.txt";
+
+export default function Menus($$renderer) {
+	let open = false;
+	let open2 = false;
+	let selected = "";
+
+	const items = [
+		{ value: 1, text: "One" },
+		{ value: 2, text: "Two" },
+		{ value: 3, text: "Three" },
+		{ value: 4, text: "Four" },
+		{ value: 5, text: "Five" }
+	];
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		$$renderer.push(`<small>Selected: ${$.escape(selected || 'nothing')}</small><br/> `);
+
+		Menu($$renderer, {
+			items,
+			get open() {
+				return open;
+			},
+
+			set open($$value) {
+				open = $$value;
+				$$settled = false;
+			},
+
+			get value() {
+				return selected;
+			},
+
+			set value($$value) {
+				selected = $$value;
+				$$settled = false;
+			},
+
+			$$slots: {
+				activator: ($$renderer) => {
+					$$renderer.push(`<div slot="activator">`);
+
+					Button($$renderer, {
+						children: ($$renderer) => {
+							$$renderer.push(`<!---->A menu`);
+						},
+						$$slots: { default: true }
+					});
+
+					$$renderer.push(`<!----></div>`);
+				}
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+		Code($$renderer, { code: menus });
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 701 src/routes/components/menus.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 6,
+			"character": 386
+		},
+		"end": {
+			"line": 13,
+			"column": 10,
+			"character": 390
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 6,
+			"character": 427
+		},
+		"end": {
+			"line": 15,
+			"column": 14,
+			"character": 435
+		}
+	}
+]
+
+=== 1804 src/routes/components/navigation-drawers.svelte	js
+import * as $ from 'svelte/internal/server';
+import Checkbox from "components/Checkbox";
+import Code from "docs/Code.svelte";
+import { right, elevation, persistent, showNav } from "stores.js";
+import drawers from "examples/navigation-drawers.txt";
+
+export default function Navigation_drawers($$renderer) {
+	var $$store_subs;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Checkbox($$renderer, {
+			label: 'Show drawer',
+			get checked() {
+				return $.store_get($$store_subs ??= {}, '$showNav', showNav);
+			},
+
+			set checked($$value) {
+				$.store_set(showNav, $$value);
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Checkbox($$renderer, {
+			label: 'With elevation',
+			get checked() {
+				return $.store_get($$store_subs ??= {}, '$elevation', elevation);
+			},
+
+			set checked($$value) {
+				$.store_set(elevation, $$value);
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Checkbox($$renderer, {
+			label: 'Placed on the right',
+			get checked() {
+				return $.store_get($$store_subs ??= {}, '$right', right);
+			},
+
+			set checked($$value) {
+				$.store_set(right, $$value);
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Checkbox($$renderer, {
+			label: 'Persistent',
+			get checked() {
+				return $.store_get($$store_subs ??= {}, '$persistent', persistent);
+			},
+
+			set checked($$value) {
+				$.store_set(persistent, $$value);
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+		Code($$renderer, { code: drawers });
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+
+	if ($$store_subs) $.unsubscribe_stores($$store_subs);
+}
+=== 1218 src/routes/components/progress-indicators.svelte	js
+import * as $ from 'svelte/internal/server';
+import ProgressLinear from "components/ProgressLinear";
+import ProgressCircular from "components/ProgressCircular";
+import Code from "docs/Code.svelte";
+import indicators from "examples/progress-indicators.txt";
+
+export default function Progress_indicators($$renderer) {
+	let progress = 0;
+
+	function next() {
+		setTimeout(
+			() => {
+				if (progress === 100) {
+					progress = 0;
+				}
+
+				progress += 1;
+				next();
+			},
+			100
+		);
+	}
+
+	next();
+	$$renderer.push(`<h5 class="pb-4">Indefinite linear progress indicator</h5> `);
+	ProgressLinear($$renderer, {});
+	$$renderer.push(`<!----> <h5 class="pt-6 pb-4">Definite linear progress indicator</h5> <small class="mb-3">${$.escape(progress)}%</small> `);
+	ProgressLinear($$renderer, { progress });
+	$$renderer.push(`<!----> <h5 class="pt-6 pb-4">Indefinite circular progress indicator</h5> `);
+	ProgressCircular($$renderer, {});
+	$$renderer.push(`<!----> <h5 class="pt-6 pb-4">Definite circular progress indicator</h5> <small class="mb-3">${$.escape(progress)}%</small> `);
+	ProgressCircular($$renderer, { progress });
+	$$renderer.push(`<!----> `);
+	Code($$renderer, { code: indicators });
+	$$renderer.push(`<!---->`);
+}
+=== 352 src/routes/components/progress-indicators.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`progress` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 237
+		},
+		"end": {
+			"line": 8,
+			"column": 14,
+			"character": 245
+		}
+	}
+]
+
+=== 4752 src/routes/components/selection-controls.svelte	js
+import * as $ from 'svelte/internal/server';
+import Checkbox from "components/Checkbox";
+import { RadioButtonGroup } from "components/RadioButton";
+import Switch from "components/Switch";
+import Icon from "components/Icon";
+import Code from "docs/Code.svelte";
+import code from "examples/checkboxes.txt";
+import PropsTable from "docs/PropsTable.svelte";
+
+export default function Selection_controls($$renderer) {
+	$$renderer.push(`<blockquote class="pl-8 mt-2 mb-10 border-l-8 border-primary-300 text-lg" cite="https://material.io/components/selection-controls/"><p>Selection controls allow the user to select options.</p></blockquote> <h5 class="pb-8 pt-10" id="checkboxes">Checkboxes</h5> `);
+	Checkbox($$renderer, { label: 'A checkbox' });
+	$$renderer.push(`<!----> `);
+	Checkbox($$renderer, { color: 'secondary', label: 'A colored checkbox' });
+	$$renderer.push(`<!----> `);
+	Checkbox($$renderer, { disabled: true, label: 'A disabled checkbox' });
+	$$renderer.push(`<!----> `);
+
+	PropsTable($$renderer, {
+		data: [
+			{
+				prop: "value",
+				description: "Input value",
+				type: "Boolean",
+				default: "null"
+			},
+
+			{
+				prop: "color",
+				description: "Color variant, accepts any of the main colors described in Tailwind config",
+				type: "String",
+				default: "primary"
+			},
+
+			{
+				prop: "label",
+				description: "Input label",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "checked",
+				description: "Checked state",
+				default: false,
+				type: "Boolean"
+			},
+
+			{
+				prop: "disabled",
+				description: "Disabled state",
+				default: false,
+				type: "Boolean"
+			},
+
+			{
+				prop: "classes",
+				description: "Classes to pass down to checkbox wrapper",
+				default: "inline-flex items-center mb-2 cursor-pointer z-10",
+				type: "String"
+			}
+		]
+	});
+
+	$$renderer.push(`<!----> <h5 class="pb-8 pt-10" id="radio-buttons">Radio buttons</h5> `);
+
+	RadioButtonGroup($$renderer, {
+		name: 'test',
+		items: [{ value: 1, label: 'One' }, { value: 2, label: 'Two' }]
+	});
+
+	$$renderer.push(`<!----> `);
+
+	RadioButtonGroup($$renderer, {
+		name: 'Colored test',
+		color: 'blue',
+		items: [{ value: 1, label: 'One' }, { value: 2, label: 'Two' }]
+	});
+
+	$$renderer.push(`<!----> `);
+
+	RadioButtonGroup($$renderer, {
+		name: 'test-disabled',
+		disabled: true,
+		items: [{ value: 1, label: 'One' }, { value: 2, label: 'Two' }]
+	});
+
+	$$renderer.push(`<!----> `);
+
+	PropsTable($$renderer, {
+		data: [
+			{
+				prop: "value",
+				description: "Input value",
+				type: "Boolean",
+				default: "null"
+			},
+
+			{
+				prop: "color",
+				description: "Color variant, accepts any of the main colors described in Tailwind config",
+				type: "String",
+				default: "primary"
+			},
+
+			{
+				prop: "label",
+				description: "Input label",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "selected",
+				description: "Selected state",
+				default: false,
+				type: "Boolean"
+			},
+
+			{
+				prop: "disabled",
+				description: "Disabled state",
+				default: false,
+				type: "Boolean"
+			},
+
+			{
+				prop: "classes",
+				description: "Classes to pass down to radio button wrapper",
+				default: "inline-flex block items-center mb-2 cursor-pointer z-0",
+				type: "String"
+			}
+		]
+	});
+
+	$$renderer.push(`<!----> <h5 class="pb-8 pt-10" id="switches">Switches</h5> `);
+	Switch($$renderer, {});
+	$$renderer.push(`<!----> `);
+	Switch($$renderer, { color: 'error' });
+	$$renderer.push(`<!----> `);
+
+	PropsTable($$renderer, {
+		data: [
+			{
+				prop: "value",
+				description: "Input value",
+				type: "Boolean",
+				default: "null"
+			},
+
+			{
+				prop: "color",
+				description: "Color variant, accepts any of the main colors described in Tailwind config",
+				type: "String",
+				default: "primary"
+			},
+
+			{
+				prop: "label",
+				description: "Input label",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "disabled",
+				description: "Disabled state",
+				default: false,
+				type: "Boolean"
+			},
+
+			{
+				prop: "classes",
+				description: "Classes to pass down to checkbox wrapper",
+				default: "inline-flex block items-center mb-2 cursor-pointer z-0",
+				type: "String"
+			},
+
+			{
+				prop: "trackClasses",
+				description: "Track classes",
+				default: "relative w-10 h-auto z-0 rounded-full overflow-visible flex items-center justify-center",
+				type: "String"
+			},
+
+			{
+				prop: "thumbClasses",
+				description: "Thumb classes",
+				default: "rounded-full p-2 w-5 h-5 absolute shadow duration-100",
+				type: "String"
+			},
+
+			{
+				prop: "labelClasses",
+				description: "Tabel classes",
+				default: "pl-2 cursor-pointer",
+				type: "String"
+			}
+		]
+	});
+
+	$$renderer.push(`<!----> `);
+	Code($$renderer, { code });
+	$$renderer.push(`<!---->`);
+}
+=== 1820 src/routes/components/sliders.svelte	js
+import * as $ from 'svelte/internal/server';
+import Slider from "components/Slider";
+import Checkbox from "components/Checkbox";
+import Code from "docs/Code.svelte";
+import sliders from "examples/sliders.txt";
+
+export default function Sliders($$renderer) {
+	let value = 0;
+	let value2 = 0;
+	let value3 = 0;
+	let disabled = false;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		$$renderer.push(`<div class="my-4">`);
+
+		Checkbox($$renderer, {
+			label: 'Disabled',
+			get checked() {
+				return disabled;
+			},
+
+			set checked($$value) {
+				disabled = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----></div> <h6>Basic</h6> <small>Value: ${$.escape(value)}</small> `);
+
+		Slider($$renderer, {
+			min: '0',
+			max: '100',
+			disabled,
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <h6 class="mt-8">With color prop</h6> <small>Value: ${$.escape(value3)}</small> `);
+
+		Slider($$renderer, {
+			color: 'secondary',
+			min: '0',
+			max: '100',
+			disabled,
+			get value() {
+				return value3;
+			},
+
+			set value($$value) {
+				value3 = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <h6 class="mt-8">With steps</h6> <small>Value: ${$.escape(value2)}</small> `);
+
+		Slider($$renderer, {
+			min: '0',
+			step: '20',
+			max: '100',
+			disabled,
+			get value() {
+				return value2;
+			},
+
+			set value($$value) {
+				value2 = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+		Code($$renderer, { code: sliders });
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 1394 src/routes/components/sliders.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 189
+		},
+		"end": {
+			"line": 7,
+			"column": 11,
+			"character": 194
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`value2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 206
+		},
+		"end": {
+			"line": 8,
+			"column": 12,
+			"character": 212
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`value3` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 224
+		},
+		"end": {
+			"line": 9,
+			"column": 12,
+			"character": 230
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`disabled` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 6,
+			"character": 242
+		},
+		"end": {
+			"line": 10,
+			"column": 14,
+			"character": 250
+		}
+	}
+]
+
+=== 5001 src/routes/components/snackbars.svelte	js
+import * as $ from 'svelte/internal/server';
+import Snackbar, { notifier, Notifications } from "components/Snackbar";
+import Button from "components/Button";
+import TextField from "components/TextField";
+import Code from "docs/Code.svelte";
+import snackbars from "examples/snackbars.txt";
+
+export default function Snackbars($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let showSnackbar = false;
+		let showSnackbarTop = false;
+		let showSnackbarBottomLeft = false;
+
+		function notify() {
+			notifier.notify(message);
+			message = "";
+		}
+
+		function alert() {
+			notifier.alert(message);
+			message = "";
+		}
+
+		function error() {
+			notifier.error(message);
+			message = "";
+		}
+
+		let message = "";
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			$$renderer.push(`<blockquote class="pl-8 mt-2 mb-10 border-l-8 border-primary-300 text-lg" cite="https://material.io/components/snackbars/#usage"><p>Snackbars inform users of a process that an app has performed or will perform. They appear temporarily, towards the bottom of the screen. They shouldn’t interrupt the user experience, and they don’t require user input to disappear.</p> <h6 class="mt-8">Frequency</h6> <p>Only one snackbar may be displayed at a time.</p> <h6 class="mt-8">Actions</h6> <p>A snackbar can contain a single action. Because they disappear automatically, the action shouldn’t be “Dismiss” or “Cancel.”</p></blockquote> `);
+
+			Snackbar($$renderer, {
+				get value() {
+					return showSnackbar;
+				},
+
+				set value($$value) {
+					showSnackbar = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					$$renderer.push(`<div>Have a nice day.</div>`);
+				},
+
+				$$slots: {
+					default: true,
+					action: ($$renderer) => {
+						$$renderer.push(`<div slot="action">`);
+
+						Button($$renderer, {
+							text: true,
+							children: ($$renderer) => {
+								$$renderer.push(`<!---->Do something`);
+							},
+							$$slots: { default: true }
+						});
+
+						$$renderer.push(`<!----></div>`);
+					}
+				}
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Snackbar($$renderer, {
+				color: 'alert',
+				top: true,
+				get value() {
+					return showSnackbarTop;
+				},
+
+				set value($$value) {
+					showSnackbarTop = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					$$renderer.push(`<div>Have a nice day.</div>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Snackbar($$renderer, {
+				noAction: true,
+				color: 'error',
+				timeout: 2000,
+				left: true,
+				get value() {
+					return showSnackbarBottomLeft;
+				},
+
+				set value($$value) {
+					showSnackbarBottomLeft = $$value;
+					$$settled = false;
+				},
+
+				children: ($$renderer) => {
+					$$renderer.push(`<div>Something happened!</div>`);
+				},
+
+				$$slots: {
+					default: true,
+					action: ($$renderer) => {
+						$$renderer.push(`<div slot="action"></div>`);
+					}
+				}
+			});
+
+			$$renderer.push(`<!----> <div class="py-2">`);
+
+			Button($$renderer, {
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->Show snackbar`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----></div> <div class="py-2">`);
+
+			Button($$renderer, {
+				color: 'secondary',
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->Show snackbar on top`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----></div> <div class="py-2">`);
+
+			Button($$renderer, {
+				color: 'alert',
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->Show snackbar on the bottom left`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----></div> <p class="mt-10">Also Smelte comes with a simple notification queue implementation.</p> `);
+
+			TextField($$renderer, {
+				label: 'Message text',
+				get value() {
+					return message;
+				},
+
+				set value($$value) {
+					message = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Button($$renderer, {
+				disabled: !message,
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->Add Notification to queue`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Button($$renderer, {
+				disabled: !message,
+				color: 'alert',
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->Alert message`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Button($$renderer, {
+				disabled: !message,
+				color: 'error',
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->Error message`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+			Notifications($$renderer, {});
+			$$renderer.push(`<!----> `);
+			Code($$renderer, { code: snackbars });
+			$$renderer.push(`<!---->`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 1802 src/routes/components/snackbars.svelte	warnings.json
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 61,
+			"column": 2,
+			"character": 1692
+		},
+		"end": {
+			"line": 61,
+			"column": 23,
+			"character": 1713
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showSnackbar` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 271
+		},
+		"end": {
+			"line": 9,
+			"column": 18,
+			"character": 283
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showSnackbarTop` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 6,
+			"character": 299
+		},
+		"end": {
+			"line": 10,
+			"column": 21,
+			"character": 314
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showSnackbarBottomLeft` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 6,
+			"character": 330
+		},
+		"end": {
+			"line": 11,
+			"column": 28,
+			"character": 352
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`message` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 28,
+			"column": 6,
+			"character": 594
+		},
+		"end": {
+			"line": 28,
+			"column": 13,
+			"character": 601
+		}
+	}
+]
+
+=== 2531 src/routes/components/tabs.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Tab, Tabs } from "components/Tabs";
+import Image from "components/Image";
+import Code from "docs/Code.svelte";
+import tabs from "examples/tabs.txt";
+import tabsWithContent from "examples/tabs-with-content.txt";
+
+export default function Tabs_1($$renderer) {
+	let loading = false;
+
+	$$renderer.push(`<p>Tabs can be used as navigation elements like the ones you see on the top
+  right. You need to bind current pathname as value prop for active indicator to
+  work correctly.</p> `);
+
+	Code($$renderer, { code: tabs });
+
+	$$renderer.push(`<!----> <blockquote class="pl-8 mt-16 mb-10 border-l-8 border-primary-300 text-lg" cite="https://material.io/design/components/tabs.html#usage">Tabs organize and allow navigation between groups of content that are related
+  and at the same level of hierarchy.</blockquote> <div style="max-width: 400px">`);
+
+	Tabs($$renderer, {
+		selected: '1',
+		class: 'bg-black shadow-sm mt-6 text-white',
+		color: 'secondary',
+		loading,
+		items: [
+			{ id: '1', text: 'Cats', icon: 'alarm_on' },
+			{ id: '2', text: 'Kittens', icon: 'bug_report' },
+			{ id: '3', text: 'Kitties', icon: 'eject' }
+		],
+		$$slots: {
+			content: ($$renderer) => {
+				$$renderer.push(`<div slot="content" class="flex items-center content-center overflow-hidden w-full bg-gray-900 shadow h-full" style="height: 250px">`);
+
+				Tab($$renderer, {
+					id: '1',
+					selected,
+					children: ($$renderer) => {
+						Image($$renderer, {
+							alt: 'kitten 1',
+							class: 'w-full',
+							src: 'https://placekitten.com/400/250',
+							width: '400',
+							height: '250'
+						});
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----> `);
+
+				Tab($$renderer, {
+					id: '2',
+					selected,
+					children: ($$renderer) => {
+						Image($$renderer, {
+							alt: 'kitten 1',
+							class: 'w-full',
+							src: 'https://placekitten.com/400/251',
+							width: '400',
+							height: '250'
+						});
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----> `);
+
+				Tab($$renderer, {
+					id: '3',
+					selected,
+					children: ($$renderer) => {
+						Image($$renderer, {
+							alt: 'kitten 3',
+							class: 'w-full',
+							src: 'https://placekitten.com/400/253',
+							width: '400',
+							height: '250'
+						});
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----></div>`);
+			}
+		}
+	});
+
+	$$renderer.push(`<!----></div> `);
+	Code($$renderer, { code: tabsWithContent });
+	$$renderer.push(`<!---->`);
+}
+=== 5338 src/routes/components/text-fields.svelte	js
+import * as $ from 'svelte/internal/server';
+import TextField, { Label } from "components/TextField";
+import DataTable from "components/DataTable";
+import Code from "docs/Code.svelte";
+import PropsTable from "docs/PropsTable.svelte";
+import textFields from "examples/text-fields.txt";
+
+export default function Text_fields($$renderer) {
+	$$renderer.push(`<blockquote class="pl-8 mt-2 mb-10 border-l-8 border-primary-300 text-lg" cite="https://material.io/components/text-fields/#"><p>Text fields let users enter and edit text.</p></blockquote> <h6 class="mb-3 mt-6">Basic</h6> `);
+	TextField($$renderer, { label: 'Test label' });
+
+	$$renderer.push(`<!----> <h6>Props</h6> <p class="mb-5 mt-3">Inputs accept any props that a normal input element can take,
+like <span class="code-inline">max-length</span> or <span class="code-inline">type</span>.</p> `);
+
+	PropsTable($$renderer, {
+		data: [
+			{
+				prop: "value",
+				description: "Input value",
+				type: "Boolean",
+				default: "null"
+			},
+
+			{
+				prop: "color",
+				description: "Color variant, accepts any of the main colors described in Tailwind config",
+				type: "String",
+				default: "primary"
+			},
+
+			{
+				prop: "label",
+				description: "Input label",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "placeholder",
+				description: "Input placeholder",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "outlined",
+				description: "Outlined variant",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "hint",
+				description: "Hint text appearing under the input",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "error",
+				description: "Error text under the input",
+				type: "String | Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "append",
+				description: "Append icon name",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "prepend",
+				description: "Prepend icon name",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "persistentHint",
+				description: "Always show hint, not only on focus",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "textarea",
+				description: "Whether text field is textarea",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "rows",
+				description: "Rows count for textarea",
+				type: "Integer",
+				default: 5
+			},
+
+			{
+				prop: "select",
+				description: "Whether text field is select",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "autocomplete",
+				description: "Whether select field is autocomplete",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "noUnderline",
+				description: "Hide focus underline element",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "appendReverse",
+				description: "Reverse appended icon",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "prependReverse",
+				description: "Reverse prepended icon",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "bgColor",
+				description: "Background color to match for outlined elevated label",
+				type: "String",
+				default: "white"
+			},
+
+			{
+				prop: "iconClasses",
+				description: "Classes to pass down to icon component",
+				type: "String",
+				default: "Empty&nbsp;string"
+			}
+		]
+	});
+
+	$$renderer.push(`<!----> <h6 class="mb-3 mt-6">With hint</h6> `);
+
+	TextField($$renderer, {
+		label: 'Test label',
+		hint: 'Test hint',
+		persistentHint: true,
+		color: 'blue'
+	});
+
+	$$renderer.push(`<!----> <h6 class="mb-3 mt-6">With hint (dense)</h6> `);
+
+	TextField($$renderer, {
+		label: 'Test label',
+		hint: 'Test hint',
+		persistentHint: true,
+		color: 'blue',
+		dense: true
+	});
+
+	$$renderer.push(`<!----> <h6 class="mb-3 mt-6">With error</h6> `);
+	TextField($$renderer, { label: 'Test label', error: 'Test error' });
+	$$renderer.push(`<!----> <h6 class="mb-3 mt-6">Outlined</h6> `);
+	TextField($$renderer, { label: 'Test label', outlined: true });
+	$$renderer.push(`<!----> <h6 class="mb-3 mt-6">Outlined with hint</h6> `);
+	TextField($$renderer, { label: 'Test label', outlined: true, hint: 'Test hint' });
+	$$renderer.push(`<!----> <h6 class="mb-3 mt-6">Outlined with error</h6> `);
+	TextField($$renderer, { label: 'Test label', outlined: true, error: 'Test error' });
+	$$renderer.push(`<!----> <h6 class="mb-3 mt-6">Outlined textarea</h6> `);
+
+	TextField($$renderer, {
+		label: 'Test label',
+		textarea: true,
+		rows: '5',
+		outlined: true
+	});
+
+	$$renderer.push(`<!----> <h6 class="mb-3 mt-6">With basic validation (type="number" min="10" max="100")</h6> `);
+
+	TextField($$renderer, {
+		label: 'Test label',
+		outlined: true,
+		type: 'number',
+		min: '10',
+		max: '100'
+	});
+
+	$$renderer.push(`<!----> <h6 class="mb-3 mt-6">With icon</h6> `);
+	TextField($$renderer, { prepend: 'search', label: 'Icon before' });
+	$$renderer.push(`<!----> `);
+	TextField($$renderer, { append: 'search', label: 'Icon after' });
+	$$renderer.push(`<!----> <h6 class="mb-3 mt-6">Disabled</h6> `);
+	TextField($$renderer, { disabled: true, prepend: 'search', label: 'Icon before' });
+	$$renderer.push(`<!----> `);
+	TextField($$renderer, { disabled: true, append: 'search', label: 'Icon after' });
+	$$renderer.push(`<!----> `);
+	Code($$renderer, { code: textFields });
+	$$renderer.push(`<!---->`);
+}
+=== 775 src/routes/components/tooltips.svelte	js
+import * as $ from 'svelte/internal/server';
+import Tooltip from "components/Tooltip";
+import Button from "components/Button";
+import Code from "docs/Code.svelte";
+import tooltip from "examples/tooltip.txt";
+
+export default function Tooltips($$renderer) {
+	Tooltip($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->How are you doing?`);
+		},
+
+		$$slots: {
+			default: true,
+			activator: ($$renderer) => {
+				$$renderer.push(`<div slot="activator">`);
+
+				Button($$renderer, {
+					children: ($$renderer) => {
+						$$renderer.push(`<!---->Hover me`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----></div>`);
+			}
+		}
+	});
+
+	$$renderer.push(`<!----> `);
+	Code($$renderer, { code: tooltip });
+	$$renderer.push(`<!---->`);
+}
+=== 1078 src/routes/components/treeviews.svelte	js
+import * as $ from 'svelte/internal/server';
+import Treeview from "components/Treeview";
+import Code from "docs/Code.svelte";
+import treeview from "examples/treeview.txt";
+
+export default function Treeviews($$renderer) {
+	let selected = 'nothing';
+
+	$$renderer.push(`<small>I selected ${$.escape(selected)}</small> `);
+
+	Treeview($$renderer, {
+		items: [
+			{
+				text: "test",
+				items: [
+					{ text: "subtest" },
+					{ text: "subtest2" },
+					{ text: "subtest3" },
+					{
+						text: "subtest4",
+						items: [
+							{ text: "subtest" },
+							{ text: "subtest2" },
+							{ text: "subtest3" },
+							{ text: "subtest4" }
+						]
+					}
+				]
+			},
+
+			{
+				text: "test2",
+				items: [
+					{ text: "subtest" },
+					{ text: "subtest2" },
+					{ text: "subtest3" },
+					{ text: "subtest4" }
+				]
+			},
+
+			{
+				text: "test3",
+				items: [
+					{ text: "subtest" },
+					{ text: "subtest2" },
+					{ text: "subtest3" },
+					{ text: "subtest4" }
+				]
+			}
+		]
+	});
+
+	$$renderer.push(`<!----> `);
+	Code($$renderer, { code: treeview });
+	$$renderer.push(`<!---->`);
+}
+=== 352 src/routes/components/treeviews.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 149
+		},
+		"end": {
+			"line": 6,
+			"column": 14,
+			"character": 157
+		}
+	}
+]
+
+=== 1768 src/routes/dark-mode.svelte	js
+import * as $ from 'svelte/internal/server';
+import Code from "docs/Code.svelte";
+import { darkMode } from "dark";
+
+export default function Dark_mode($$renderer) {
+	var $$store_subs;
+
+	$$renderer.push(`<h4 class="pb-8">Dark mode</h4> <p>Smelte uses css pseudo-class variant <a class="a" href="https://tailwindcss.com/docs/configuring-variants/">feature</a> of Tailwind to enable dark mode. Basic dark mode switch looks like this:</p> `);
+
+	Code($$renderer, {
+		code: `<button bind:value={$darkMode}>Toggle dark mode</button>`
+	});
+
+	$$renderer.push(`<!----> <p>This will append <span class="code-inline">mode-dark</span> class to the document body which will enable all generated classes preceded by
+  pseudo-class "dark:". By default smelte generates following variants:</p> `);
+
+	Code($$renderer, {
+		code: `
+backgroundColor: ["dark", "dark-hover", "hover"],
+borderColor: ["dark", "dark-focus"],
+textColor: ["dark", "dark-hover", "dark-active"]
+`
+	});
+
+	$$renderer.push(`<!----> <p>Now you can use dark theme classes like <span class="code-inline">dark:bg-white</span> (try using the theme toggle on the top right).</p> <div class="duration-200 ease-in p-10 my-10 bg-black dark:bg-white text-white dark:text-black">I am a ${$.escape($.store_get($$store_subs ??= {}, '$darkMode', darkMode) ? 'dark' : 'light')} div.</div> `);
+
+	Code($$renderer, {
+		code: `
+<div class="duration-200 ease-in p-10 my-10 bg-black dark:bg-white text-white dark:text-black">
+  I am a {$darkMode ? "dark" : "light"} div.
+</div>
+`
+	});
+
+	$$renderer.push(`<!----> <p>If you don't need dark mode at all, you can pass <span class="code-inline">darkMode: false</span> to the smelte-rollup-plugin and it will generate no extra CSS.</p>`);
+
+	if ($$store_subs) $.unsubscribe_stores($$store_subs);
+}
+=== 3588 src/routes/index.svelte	js
+import * as $ from 'svelte/internal/server';
+import Code from "docs/Code.svelte";
+
+export default function Routes($$renderer) {
+	$$renderer.push(`<h2>Hi</h2> <p class="pb-4">Smelte is a UI framework built on top of Svelte and <a class="a" href="https://tailwindcss.com">Tailwind CSS</a> using Material Design spec. It comes with many components and utility
+  functions making it easy to build beautiful responsive layouts while keeping
+  bundle size and performance at check all thanks to Svelte. The project was
+  initially inspired by <a class="a" href="https://vuetifyjs.com">Vuetify,</a> but comes at much lower price. The website you're viewing is only a fraction
+  of both JS (670 vs 40 Kb) and CSS (110 vs 10 Kb) payloads of even the most <a class="a" href="https://vuetifyjs.com/en/examples/layouts/baseline">basic Vuetify example layout)</a> , and of course has <a class="a" href="dark-mode">dark mode.</a></p> <p class="pb-4">Tailwind resets much of CSS whereas Smelte tries to bring sensible Material
+  design defaults in <a class="a" href="/typography">typography</a> and <a class="a" href="/color">color.</a></p> <p>Hit up the components <a class="a" href="/components">introduction</a> or please join our <a class="a" href="https://discord.com/invite/nZc64MMdkU">Discord chat</a> for a lovely chat!</p> <h4 id="installation" class="mt-8 pb-4">Installation</h4> To get you started you need to add Smelte to your dependencies with your
+favorite package manager. `);
+
+	Code($$renderer, { code: '$ npm install smelte or yarn add smelte' });
+
+	$$renderer.push(`<!----> Then add the Smelte Rollup plugin (after svelte but before css). Webpack support
+coming soon. `);
+
+	Code($$renderer, {
+		code: `const smelte=require("smelte/rollup-plugin-smelte");
+
+plugins=[ 
+  ...your plugins, 
+  smelte({ 
+    purge: production,
+    output: "public/global.css", // it defaults to static/global.css which is probably what you expect in Sapper 
+    postcss: [], // Your PostCSS plugins
+    whitelist: [], // Array of classnames whitelisted from purging
+    whitelistPatterns: [], // Same as above, but list of regexes
+    tailwind: { 
+      colors: { 
+        primary: "#b027b0",
+        secondary: "#009688",
+        error: "#f44336",
+        success: "#4caf50",
+        alert: "#ff9800",
+        blue: "#2196f3",
+        dark: "#212121" 
+      }, // Object of colors to generate a palette from, and then all the utility classes
+      darkMode: true, 
+    }, 
+    // Any other props will be applied on top of default Smelte tailwind.config.js
+  }),
+]`
+	});
+
+	$$renderer.push(`<!----> Then you should add Tailwind utilites CSS in your app component. `);
+	Code($$renderer, { code: `import "smelte/src/tailwind.css" ;` });
+	$$renderer.push(`<!----> You might also need to include material icons in your template's if you use any: `);
+
+	Code($$renderer, {
+		code: `<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">`
+	});
+
+	$$renderer.push(`<!----> Or ship them along with Roboto if you would like to use default material font: `);
+
+	Code($$renderer, {
+		code: `<link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500|Material+Icons&display=swap"
+    rel="stylesheet" />`
+	});
+
+	$$renderer.push(`<!----> And you're good to go and have all the Tailwind CSS power all to yourself! For
+treeshaking to work it is recommended to import each component on its own like
+this: `);
+
+	Code($$renderer, {
+		code: `import Button from "smelte/src/components/Button";
+import Treeview from "smelte/src/components/Treeview";`
+	});
+
+	$$renderer.push(`<!---->`);
+}
+=== 791 src/routes/typography.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Typography($$renderer) {
+	$$renderer.push(`<div><h4 class="pb-8">Typography defaults and helper classes</h4> <p>H1-h6, subtitle, body and caption as well as their respected classes (.h1,
+    .h2...) use Material design <a class="a" href="https://material.io/design/typography/the-type-system.html#type-scale">type scale</a></p> <div class="bg-gray-200 dark:bg-dark-700 p-4 my-4"><h1>.h1 header 1</h1> <h2>.h2 header 2</h2> <h3>.h3 header 3</h3> <h4>.h4 header 4</h4> <h5>.h5 header 5</h5> <h6 class="mb-3 mt-6">.h6 header 6</h6> <div class="subtitle-1">.subtitle-1</div> <div class="subtitle-2">.subtitle-2</div> <div class="body-1">.body-1</div> <div class="body-2">.body-2</div> <small>.caption</small></div></div>`);
+}

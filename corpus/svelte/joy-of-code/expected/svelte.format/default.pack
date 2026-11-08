@@ -1,0 +1,4841 @@
+# rsvelte pack 1
+=== 2129 posts/entry-and-exit-css-transitions/examples/Dialog.svelte	svelte
+<script lang="ts">
+  import { Sandbox } from "@sveltecraft/sandbox";
+</script>
+
+<div class="sandbox">
+  <Sandbox
+    height={400}
+    code={{
+      html: `
+				<button class="show">
+					Open Modal
+				</button>
+
+				<dialog>
+					<img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExenhpdjk1c3lybTI5cjVuYWEzaDYxNnc1NDA2eXpzMXdtNnY1YnpkNyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/lgcUUCXgC8mEo/giphy.gif" />
+					<button class="close">Close</button>
+				</dialog>
+			`,
+      css: `
+				body {
+					display: grid;
+					place-content: center;
+				}
+
+				button {
+					margin: 0;
+					padding: 1rem;
+					font-weight: 600;
+					color: #fff;
+					background: #1d1f24;
+					border: 1px solid #2c2e33;
+					border-radius: 0.5rem;
+
+					&.close {
+						margin-top: 1rem;
+					}
+				}
+
+				dialog {
+					margin: auto;
+					padding: 1rem;
+					border-radius: 0.5rem;
+					color: #fff;
+					background: #191a1f;
+					border: 1px solid #2c2e33;
+
+					translate: 0 100svh;
+					transition:
+						translate 1s,
+						overlay 1s allow-discrete,
+						display 1s allow-discrete;
+
+					img {
+						border-radius: 0.5rem;
+					}
+				}
+
+				dialog:open {
+					translate: 0 0;
+
+					@starting-style {
+						translate: 0 -100svh;
+					}
+				}
+
+				dialog::backdrop {
+					background-color: transparent;
+					transition:
+						display 1s allow-discrete,
+						overlay 1s allow-discrete,
+						background-color 1s;
+				}
+
+				dialog:open::backdrop {
+					background-color: oklch(0% 0 0 / 50%);
+				}
+
+				@starting-style {
+					dialog:open::backdrop {
+						background-color: transparent;
+					}
+				}
+			`,
+      script: `
+				const show = document.querySelector('.show');
+				const close = document.querySelector('.close');
+				const dialog = document.querySelector('dialog');
+
+				show.addEventListener('click', () => {
+					dialog.showModal();
+				});
+
+				close.addEventListener('click', () => {
+					dialog.close();
+				});
+
+				dialog.addEventListener('click', (e) => {
+					if (e.target === dialog) {
+						dialog.close();
+					}
+				});
+			`,
+    }}
+  />
+</div>
+
+<style>
+  .sandbox {
+    margin-bottom: var(--spacing-32);
+  }
+</style>
+
+=== 1370 posts/entry-and-exit-css-transitions/examples/Discrete.svelte	svelte
+<script lang="ts">
+  import { Sandbox } from "@sveltecraft/sandbox";
+</script>
+
+<div class="sandbox">
+  <Sandbox
+    height={400}
+    code={{
+      html: `
+				<p>click a box to remove it</p>
+
+				<div class="boxes">
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+				</div>
+			`,
+      css: `
+				body {
+					display: grid;
+					place-content: center;
+					text-align: center;
+				}
+
+				.boxes {
+					display: flex;
+					gap: 0.5rem;
+
+					.box {
+						width: clamp(60px, 20dvw, 100px);
+						height: clamp(60px, 20dvw, 100px);
+						background: #00ffcc;
+						border-radius: 0.5rem;
+						transition:
+							opacity 0.5s,
+							translate 0.5s,
+							background 0.5s,
+							display 0.5s allow-discrete;
+						transition-delay: calc(0.1s * sibling-index());
+
+						@starting-style {
+							opacity: 0;
+							translate: 0 20px;
+						}
+
+						&[hidden] {
+							display: none;
+							opacity: 0;
+							translate: 0 20px;
+						}
+					}
+				}
+			`,
+      script: `
+				document
+					.querySelector('.boxes')
+					.addEventListener('click', (e) => {
+						const box = e.target.closest('.box');
+						if (!box) return;
+						box.hidden = true;
+						box.ontransitionend = () => box.remove();
+					});
+			`,
+    }}
+  />
+</div>
+
+<style>
+  .sandbox {
+    margin-bottom: var(--spacing-32);
+  }
+</style>
+
+=== 1641 posts/entry-and-exit-css-transitions/examples/KeyframeToggle.svelte	svelte
+<script lang="ts">
+  import { Sandbox } from "@sveltecraft/sandbox";
+</script>
+
+<div class="sandbox">
+  <Sandbox
+    height={400}
+    code={{
+      html: `
+				<div class="toggle">
+					<input type="checkbox" id="toggle" checked />
+					<label for="toggle">
+						<span>Toggle Keyframes</span>
+					</label>
+				</div>
+
+				<div class="boxes">
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+				</div>
+			`,
+      css: `
+				body {
+					display: grid;
+					place-content: center;
+				}
+
+				body:has(#toggle:checked) .box {
+					animation: fadeIn 0.8s forwards;
+					animation-delay: calc(0.1s * sibling-index());
+				}
+
+				.toggle {
+					display: grid;
+					place-content: center;
+					margin-bottom: 2rem;
+
+					input[type="checkbox"] {
+						display: none;
+					}
+
+					#toggle:checked + label {
+						color: #000;
+						background: #00ffcc;
+					}
+
+					label {
+						display: flex;
+						align-items: center;
+						padding: 1rem;
+						font-weight: 600;
+						color: #fff;
+						background: #1d1f24;
+						border: 1px solid #2c2e33;
+						border-radius: 0.5rem;
+						transition: color 0.4s, background 0.4s;
+					}
+				}
+
+				.boxes {
+					display: flex;
+					gap: 0.5rem;
+
+					.box {
+						width: clamp(60px, 20dvw, 100px);
+						height: clamp(60px, 20dvw, 100px);
+						background: #00ffcc;
+						border-radius: 0.5rem;
+						opacity: 0;
+						translate: 0 20px;
+					}
+				}
+
+				@keyframes fadeIn {
+					to {
+						opacity: 1;
+						translate: 0 0;
+					}
+				}
+			`,
+    }}
+  />
+</div>
+
+<style>
+  .sandbox {
+    margin-bottom: var(--spacing-32);
+  }
+</style>
+
+=== 972 posts/entry-and-exit-css-transitions/examples/Keyframes.svelte	svelte
+<script lang="ts">
+  import { Sandbox } from "@sveltecraft/sandbox";
+</script>
+
+<div class="sandbox">
+  <Sandbox
+    height={400}
+    code={{
+      html: `
+				<h2>@keyframes</h2>
+
+				<div class="boxes">
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+				</div>
+			`,
+      css: `
+				body {
+					display: grid;
+					place-content: center;
+				}
+
+				@keyframes fadeIn {
+					from {
+						opacity: 0;
+						translate: 0 20px;
+					}
+					to {
+						opacity: 1;
+						translate: 0 0;
+					}
+				}
+
+				.boxes {
+					display: flex;
+					gap: 0.5rem;
+
+					.box {
+						width: clamp(60px, 20dvw, 100px);
+						height: clamp(60px, 20dvw, 100px);
+						background: #00ffcc;
+						border-radius: 0.5rem;
+						animation: fadeIn 0.8s backwards;
+						animation-delay: calc(0.3s * sibling-index());
+					}
+				}
+			`,
+    }}
+  />
+</div>
+
+<style>
+  .sandbox {
+    margin-bottom: var(--spacing-32);
+  }
+</style>
+
+=== 1682 posts/entry-and-exit-css-transitions/examples/TransitionToggle.svelte	svelte
+<script lang="ts">
+  import { Sandbox } from "@sveltecraft/sandbox";
+</script>
+
+<div class="sandbox">
+  <Sandbox
+    height={400}
+    code={{
+      html: `
+				<div class="toggle">
+					<input type="checkbox" id="toggle" checked />
+					<label for="toggle">
+						<span>Toggle Transition</span>
+					</label>
+				</div>
+
+				<div class="boxes">
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+				</div>
+			`,
+      css: `
+				body {
+					display: grid;
+					place-content: center;
+				}
+
+				body:has(#toggle:checked) .box {
+					opacity: 1;
+					translate: 0 0;
+				}
+
+				.toggle {
+					display: grid;
+					place-content: center;
+					margin-bottom: 2rem;
+
+					input[type="checkbox"] {
+						display: none;
+					}
+
+					#toggle:checked + label {
+						color: #000;
+						background: #ffff00;
+					}
+
+					label {
+						display: flex;
+						align-items: center;
+						padding: 1rem;
+						font-weight: 600;
+						color: #fff;
+						background: #1d1f24;
+						border: 1px solid #2c2e33;
+						border-radius: 0.5rem;
+						transition: color 0.4s, background 0.4s;
+					}
+				}
+
+				.boxes {
+					display: flex;
+					gap: 0.5rem;
+
+					.box {
+						width: clamp(60px, 20dvw, 100px);
+						height: clamp(60px, 20dvw, 100px);
+						background: #ffff00;
+						border-radius: 0.5rem;
+						opacity: 0;
+						translate: 0 20px;
+						transition: opacity 0.8s, translate 0.8s;
+						transition-delay: calc(0.1s * sibling-index());
+
+						@starting-style {
+							opacity: 0;
+							translate: 0 20px;
+						}
+					}
+				}
+			`,
+    }}
+  />
+</div>
+
+<style>
+  .sandbox {
+    margin-bottom: var(--spacing-32);
+  }
+</style>
+
+=== 914 posts/entry-and-exit-css-transitions/examples/Transitions.svelte	svelte
+<script lang="ts">
+  import { Sandbox } from "@sveltecraft/sandbox";
+</script>
+
+<div class="sandbox">
+  <Sandbox
+    height={400}
+    code={{
+      html: `
+				<h2>@starting-style</h2>
+
+				<div class="boxes">
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+				</div>
+			`,
+      css: `
+				body {
+					display: grid;
+					place-content: center;
+				}
+
+				.boxes {
+					display: flex;
+					gap: 0.5rem;
+
+					.box {
+						width: clamp(60px, 20dvw, 100px);
+						height: clamp(60px, 20dvw, 100px);
+						background: #ffff00;
+						border-radius: 0.5rem;
+						transition: opacity 0.8s, translate 0.8s;
+						transition-delay: calc(0.3s * sibling-index());
+
+						@starting-style {
+							opacity: 0;
+							translate: 0 20px;
+						}
+					}
+				}
+			`,
+    }}
+  />
+</div>
+
+<style>
+  .sandbox {
+    margin-bottom: var(--spacing-32);
+  }
+</style>
+
+=== 1607 posts/entry-and-exit-css-transitions/examples/ViewTransition.svelte	svelte
+<script lang="ts">
+  import { Sandbox } from "@sveltecraft/sandbox";
+</script>
+
+<div class="sandbox">
+  <Sandbox
+    height={400}
+    code={{
+      html: `
+				<p>click a box to remove it</p>
+
+				<div class="boxes">
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+					<div class="box"></div>
+				</div>
+			`,
+      css: `
+				body {
+					display: grid;
+					place-content: center;
+					text-align: center;
+				}
+
+				.boxes {
+					display: flex;
+					gap: 0.5rem;
+
+					.box {
+						width: clamp(60px, 20dvw, 100px);
+						height: clamp(60px, 20dvw, 100px);
+						background: #00ffcc;
+						border-radius: 0.5rem;
+					}
+				}
+
+				::view-transition-group(.box) {
+					animation-delay: 0.3s;
+				}
+
+				::view-transition-new(enter) {
+					animation: enter 0.5s;
+				}
+
+				::view-transition-old(leave) {
+					animation: leave 0.5s forwards;
+				}
+
+				@keyframes enter {
+					from { opacity: 0; translate: 0 20px; }
+					to { opacity: 1; translate: 0 0; }
+				}
+
+				@keyframes leave {
+					to { opacity: 0; translate: 0 20px; }
+				}
+			`,
+      script: `
+				document.querySelector('.boxes').addEventListener('click', (e) => {
+					const box = e.target.closest('.box');
+					if (!box) return;
+
+					document.querySelectorAll('.box').forEach((b, i) => {
+						const name = b === box ? 'leave' : \`box-\${i}\`;
+						b.style.viewTransitionName = name;
+						b.style.viewTransitionClass = 'box';
+					});
+
+					document.startViewTransition(() => box.remove());
+				});
+			`,
+    }}
+  />
+</div>
+
+<style>
+  .sandbox {
+    margin-bottom: var(--spacing-32);
+  }
+</style>
+
+=== 453 posts/learn-svelte/examples/accordion.svelte	svelte
+<script lang="ts">
+  import { Accordion, AccordionItem } from "./accordion/index";
+</script>
+
+<div class="container">
+  <Accordion>
+    <AccordionItem title="Item A">Content A</AccordionItem>
+    <AccordionItem title="Item B">Content A</AccordionItem>
+    <AccordionItem title="Item C">Content A</AccordionItem>
+    <AccordionItem title="Item D">Content A</AccordionItem>
+  </Accordion>
+</div>
+
+<style>
+  .container {
+    text-align: left;
+  }
+</style>
+
+=== 1023 posts/learn-svelte/examples/accordion/accordion-item.svelte	svelte
+<script lang="ts">
+  import type { Snippet } from "svelte";
+  import { slide } from "svelte/transition";
+
+  interface Props {
+    title: string;
+    children: Snippet;
+  }
+
+  let { title, children }: Props = $props();
+
+  let open = $state(false);
+
+  function toggle() {
+    open = !open;
+  }
+</script>
+
+<div class="accordion-item">
+  <button onclick={toggle} class="accordion-heading">
+    <div>{title}</div>
+    <div class="accordion-trigger" class:open>👈️</div>
+  </button>
+
+  {#if open}
+    <div transition:slide class="accordion-content">
+      {@render children?.()}
+    </div>
+  {/if}
+</div>
+
+<style>
+  .accordion-item {
+    &:not(:last-child) {
+      margin-bottom: var(--spacing-24);
+    }
+
+    .accordion-heading {
+      display: flex;
+      gap: var(--spacing-32);
+      padding: 0px;
+      border: none;
+    }
+
+    .accordion-trigger {
+      transition: rotate 0.2s ease;
+
+      &.open {
+        rotate: -90deg;
+      }
+    }
+
+    .accordion-content {
+      margin-top: var(--spacing-8);
+    }
+  }
+</style>
+
+=== 117 posts/learn-svelte/examples/accordion/accordion.svelte	svelte
+<script lang="ts">
+  let { children } = $props();
+</script>
+
+<div class="accordion">
+  {@render children?.()}
+</div>
+
+=== 288 posts/learn-svelte/examples/attachment.svelte	svelte
+<div class="container">
+  <div
+    class="box"
+    {@attach (box) => {
+      window.gsap.to(box, { rotation: 360, x: 200, duration: 2 });
+    }}
+  ></div>
+</div>
+
+<style>
+  .box {
+    width: 100px;
+    height: 100px;
+    background-color: orangered;
+    border-radius: 1rem;
+  }
+</style>
+
+=== 166 posts/learn-svelte/examples/attributes.svelte	svelte
+<script lang="ts">
+  let src = "https://svelte.dev/tutorial/image.gif";
+  let alt = "Person dancing";
+</script>
+
+<div class="container">
+  <img {src} {alt} />
+</div>
+
+=== 157 posts/learn-svelte/examples/counter.svelte	svelte
+<script lang="ts">
+  let count = $state(0);
+</script>
+
+<div class="container">
+  <button onclick={() => (count += 1)}>
+    Count: {count}
+  </button>
+</div>
+
+=== 2856 posts/learn-svelte/examples/crossfade-flip.svelte	svelte
+<script lang="ts">
+  import { flip } from "svelte/animate";
+  import { crossfade } from "svelte/transition";
+
+  const [send, receive] = crossfade({});
+
+  interface Post {
+    id: number;
+    title: string;
+    description: string;
+    published: boolean;
+  }
+
+  let posts = $state<Post[]>([
+    {
+      id: 1,
+      title: "Post A",
+      description: "Content",
+      published: true,
+    },
+    {
+      id: 2,
+      title: "Post B",
+      description: "Content",
+      published: true,
+    },
+    {
+      id: 3,
+      title: "Post C",
+      description: "Content",
+      published: true,
+    },
+    {
+      id: 4,
+      title: "Post D",
+      description: "Content",
+      published: true,
+    },
+  ]);
+
+  function togglePublished(post: Post) {
+    const index = posts.findIndex((p) => p.id === post.id);
+    posts[index].published = !posts[index].published;
+  }
+
+  function removePost(post: Post) {
+    const index = posts.findIndex((p) => p.id === post.id);
+    posts.splice(index, 1);
+  }
+</script>
+
+<div class="container">
+  <div>
+    <div class="posts">
+      <div>
+        <section>
+          {#each posts.filter((posts) => posts.published) as post (post)}
+            <article
+              animate:flip={{ duration: 200 }}
+              in:receive={{ key: post }}
+              out:send={{ key: post }}
+            >
+              <h3>{post.title}</h3>
+              <p>{post.description}</p>
+              <div>
+                <button>✏️</button>
+                <button onclick={() => togglePublished(post)}>💾</button>
+                <button onclick={() => removePost(post)}>❌</button>
+              </div>
+            </article>
+          {:else}
+            <p>There are no posts.</p>
+          {/each}
+        </section>
+      </div>
+
+      <div class="archive">
+        <section>
+          {#each posts.filter((posts) => !posts.published) as post (post)}
+            <article
+              animate:flip={{ duration: 200 }}
+              in:receive={{ key: post }}
+              out:send={{ key: post }}
+            >
+              <h3>{post.title}</h3>
+              <div>
+                <button onclick={() => togglePublished(post)}>♻️</button>
+              </div>
+            </article>
+          {:else}
+            <p>Archived items go here.</p>
+          {/each}
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .container {
+    text-align: left;
+  }
+
+  .posts {
+    display: flex;
+
+    section {
+      display: grid;
+      grid-template-columns: repeat(2, 240px);
+      gap: var(--spacing-32);
+    }
+  }
+
+  .archive {
+    section {
+      display: block;
+      width: 200px;
+      margin-top: 1rem;
+
+      article:not(:last-child) {
+        margin-bottom: var(--spacing-16);
+      }
+    }
+  }
+
+  p {
+    margin-bottom: var(--spacing-8);
+  }
+
+  button {
+    padding: var(--spacing-4);
+  }
+</style>
+
+=== 2639 posts/learn-svelte/examples/crossfade.svelte	svelte
+<script lang="ts">
+  import { crossfade } from "svelte/transition";
+
+  const [send, receive] = crossfade({});
+
+  interface Post {
+    id: number;
+    title: string;
+    description: string;
+    published: boolean;
+  }
+
+  let posts = $state<Post[]>([
+    {
+      id: 1,
+      title: "Post A",
+      description: "Content",
+      published: true,
+    },
+    {
+      id: 2,
+      title: "Post B",
+      description: "Content",
+      published: true,
+    },
+    {
+      id: 3,
+      title: "Post C",
+      description: "Content",
+      published: true,
+    },
+    {
+      id: 4,
+      title: "Post D",
+      description: "Content",
+      published: true,
+    },
+  ]);
+
+  function togglePublished(post: Post) {
+    const index = posts.findIndex((p) => p.id === post.id);
+    posts[index].published = !posts[index].published;
+  }
+
+  function removePost(post: Post) {
+    const index = posts.findIndex((p) => p.id === post.id);
+    posts.splice(index, 1);
+  }
+</script>
+
+<div class="container">
+  <div>
+    <div class="posts">
+      <div>
+        <section>
+          {#each posts.filter((posts) => posts.published) as post (post)}
+            <article in:receive={{ key: post }} out:send={{ key: post }}>
+              <h3>{post.title}</h3>
+              <p>{post.description}</p>
+              <div>
+                <button>✏️</button>
+                <button onclick={() => togglePublished(post)}>💾</button>
+                <button onclick={() => removePost(post)}>❌</button>
+              </div>
+            </article>
+          {:else}
+            <p>There are no posts.</p>
+          {/each}
+        </section>
+      </div>
+
+      <div class="archive">
+        <section>
+          {#each posts.filter((posts) => !posts.published) as post (post)}
+            <article in:receive={{ key: post }} out:send={{ key: post }}>
+              <h3>{post.title}</h3>
+              <div>
+                <button onclick={() => togglePublished(post)}>♻️</button>
+              </div>
+            </article>
+          {:else}
+            <p>Archived items go here.</p>
+          {/each}
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .container {
+    text-align: left;
+  }
+
+  .posts {
+    display: flex;
+
+    section {
+      display: grid;
+      grid-template-columns: repeat(2, 240px);
+      gap: var(--spacing-32);
+    }
+  }
+
+  .archive {
+    section {
+      display: block;
+      width: 200px;
+      margin-top: 1rem;
+
+      article:not(:last-child) {
+        margin-bottom: var(--spacing-16);
+      }
+    }
+  }
+
+  p {
+    margin-bottom: var(--spacing-8);
+  }
+
+  button {
+    padding: var(--spacing-4);
+  }
+</style>
+
+=== 924 posts/learn-svelte/examples/custom-transition.svelte	svelte
+<script lang="ts">
+  import { elasticOut } from "svelte/easing";
+  import type { TransitionConfig } from "svelte/transition";
+
+  function customTransition(node: HTMLElement, options?: TransitionConfig) {
+    const { duration = 2000, delay = 0, easing = elasticOut } = options;
+
+    return {
+      duration,
+      delay,
+      easing,
+      css: (t: number) => `
+				color: hsl(${360 * t} , 100%, 80%);
+				transform: scale(${t});
+			`,
+    };
+  }
+
+  let play = $state(false);
+  let replay = $state(false);
+
+  $effect(() => {
+    play = true;
+  });
+</script>
+
+<div class="container">
+  {#if play}
+    {#key replay}
+      <div in:customTransition class="text">Whoooo!</div>
+    {/key}
+  {/if}
+
+  <button onclick={() => (replay = !replay)}>Replay</button>
+</div>
+
+<style>
+  .text {
+    font-size: var(--font-48);
+  }
+
+  button {
+    margin-inline: auto;
+    justify-self: start;
+    margin-top: var(--spacing-32);
+  }
+</style>
+
+=== 878 posts/learn-svelte/examples/derived-by.svelte	svelte
+<script lang="ts">
+  let cart = $state([
+    { item: "🍎", total: 10 },
+    { item: "🍌", total: 10 },
+  ]);
+  let total = $derived.by(() => {
+    let sum = 0;
+    for (let item of cart) {
+      sum += item.total;
+    }
+    return sum;
+  });
+  let price = $state((Math.random() * 100).toFixed());
+</script>
+
+<div class="container">
+  <div>
+    <h2>Random Item</h2>
+    <p>Price: {price}€</p>
+    <button
+      onclick={() => {
+        cart.push({ item: "🍌", total: +price });
+        price = (Math.random() * 100).toFixed();
+      }}
+    >
+      Add to cart
+    </button>
+  </div>
+
+  <hr />
+
+  <b>Total: {total}€</b>
+</div>
+
+<style>
+  .container {
+    text-align: left;
+  }
+
+  div {
+    display: grid;
+    justify-items: start;
+    gap: var(--spacing-16);
+
+    > * {
+      margin: 0;
+    }
+  }
+
+  hr {
+    width: 100%;
+    margin-top: var(--spacing-24);
+  }
+</style>
+
+=== 429 posts/learn-svelte/examples/derived.svelte	svelte
+<script lang="ts">
+  let count = $state(0);
+  let factor = $state(2);
+  let result = $derived(count * factor);
+</script>
+
+<div class="container">
+  <div>
+    <p>{count} * {factor} = {result}</p>
+
+    <button onclick={() => count++}>Count: {count}</button>
+    <button onclick={() => factor++}>Factor: {factor}</button>
+  </div>
+</div>
+
+<style>
+  p {
+    font-size: var(--font-32);
+    margin-top: var(--spacing-24);
+  }
+</style>
+
+=== 429 posts/learn-svelte/examples/dynamic-classes.svelte	svelte
+<script lang="ts">
+  let open = $state(false);
+</script>
+
+<div class="container">
+  <button onclick={() => (open = !open)}>
+    <span>Accordion</span>
+    <span class="trigger {open ? 'open' : ''}">👈️</span>
+  </button>
+</div>
+
+<style>
+  .container {
+    button {
+      border: none;
+    }
+  }
+
+  .trigger {
+    display: inline-block;
+    transition: rotate 0.2s ease;
+
+    &.open {
+      rotate: -90deg;
+    }
+  }
+</style>
+
+=== 520 posts/learn-svelte/examples/editor.svelte	svelte
+<script lang="ts">
+  let editor = $state({
+    theme: "dark",
+    content: "<h1>Svelte</h1>",
+  });
+</script>
+
+<div class="container editor">
+  <textarea
+    value={editor.content}
+    oninput={(e) => (editor.content = (e.target as HTMLTextAreaElement).value)}
+    spellcheck="false"></textarea>
+
+  {@html editor.content}
+</div>
+
+<style>
+  .editor {
+    text-align: left;
+
+    textarea {
+      width: 600px;
+      height: 200px;
+      padding: var(--spacing-8);
+      border-radius: var(--rounded-4);
+    }
+  }
+</style>
+
+=== 1773 posts/learn-svelte/examples/example-loader.svelte	svelte
+<script lang="ts">
+  import { fade } from "svelte/transition";
+  import type { Component as SvelteComponent } from "svelte";
+
+  let { name } = $props();
+  let status = $state<"load" | "loaded">("load");
+  let Component = $state<SvelteComponent>(null);
+
+  // @ts-ignore
+  const modules = import.meta.glob("./*.svelte");
+
+  async function load() {
+    const module = modules[`./${name}.svelte`];
+    if (module) {
+      Component = (await module()).default;
+      status = "loaded";
+    } else {
+      console.error(`${name}.svelte not found`);
+    }
+  }
+</script>
+
+<svelte:head>
+  <script
+    src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"
+  ></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js"
+  ></script>
+</svelte:head>
+
+<div class="example">
+  {#if status === "load"}
+    <div class="container">
+      <button onclick={load}>Show example</button>
+    </div>
+  {:else}
+    <div class="content" transition:fade>
+      <Component />
+    </div>
+  {/if}
+</div>
+
+<style>
+  .example {
+    accent-color: orangered;
+
+    height: 400px;
+    margin-bottom: var(--spacing-32);
+    background: var(--clr-code-bg);
+    border-radius: var(--rounded-20);
+    text-align: center;
+    box-shadow: var(--shadow-md);
+    overflow: hidden auto;
+
+    .content {
+      height: 100%;
+    }
+
+    :global {
+      .container {
+        height: 100%;
+        display: grid;
+        place-content: center;
+        padding: var(--spacing-24);
+      }
+
+      button {
+        padding: var(--spacing-16);
+        border: 4px solid var(--clr-primary);
+        border-radius: var(--rounded-20);
+        text-transform: capitalize;
+        transition: scale 0.15s ease-out;
+
+        &:active {
+          scale: 0.9;
+        }
+      }
+    }
+  }
+</style>
+
+=== 434 posts/learn-svelte/examples/expressions.svelte	svelte
+<script lang="ts">
+  let banana = $state(1);
+</script>
+
+<div class="container">
+  <div class="example">
+    <button onclick={() => banana--} disabled={banana === 0}>-</button>
+    <span>There's {banana} {banana === 1 ? "banana" : "bananas"} left</span>
+    <button onclick={() => banana++}>+</button>
+  </div>
+</div>
+
+<style>
+  .example {
+    display: flex;
+    align-items: center;
+
+    span {
+      width: 240px;
+    }
+  }
+</style>
+
+=== 463 posts/learn-svelte/examples/fade-transition.svelte	svelte
+<script lang="ts">
+  import { fade } from "svelte/transition";
+
+  let play = $state(false);
+
+  $effect(() => {
+    play = true;
+  });
+
+  setInterval(() => (play = !play), 2000);
+</script>
+
+<div class="container">
+  {#if play}
+    <div class="message">
+      <span transition:fade={{ duration: 600 }}>Hello</span>
+      <span transition:fade={{ delay: 600 }}>World</span>
+    </div>
+  {/if}
+</div>
+
+<style>
+  .message {
+    font-size: var(--font-48);
+  }
+</style>
+
+=== 734 posts/learn-svelte/examples/global-transitions.svelte	svelte
+<script lang="ts">
+  import { fade } from "svelte/transition";
+
+  let play = $state(false);
+  let replay = $state(false);
+
+  $effect(() => {
+    play = true;
+  });
+</script>
+
+<div class="container">
+  {#if play}
+    {#key replay}
+      <div class="items">
+        {#each Array(50), i}
+          <div in:fade|global={{ delay: i * 100 }}>
+            {i + 1}
+          </div>
+        {/each}
+      </div>
+    {/key}
+  {/if}
+
+  <button onclick={() => (replay = !replay)}>Replay</button>
+</div>
+
+<style>
+  .items {
+    width: 400px;
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: var(--spacing-16);
+  }
+
+  button {
+    margin-top: var(--spacing-32);
+    margin-inline: auto;
+    justify-self: start;
+  }
+</style>
+
+=== 509 posts/learn-svelte/examples/gsap-box.svelte	svelte
+<script lang="ts">
+  import { onMount } from "svelte";
+
+  let animation: window.gsap.core.Tween;
+
+  onMount(() => {
+    animation = window.gsap.to(".box", { rotation: 180, x: 100, duration: 1 });
+  });
+</script>
+
+<div class="container">
+  <div class="box"></div>
+  <button onclick={() => animation.restart()}>Replay</button>
+</div>
+
+<style>
+  .box {
+    width: 100px;
+    height: 100px;
+    background-color: orangered;
+    border-radius: 1rem;
+  }
+
+  button {
+    margin-top: var(--spacing-32);
+  }
+</style>
+
+=== 1272 posts/learn-svelte/examples/gsap-flip.svelte	svelte
+<script lang="ts">
+  import { tick } from "svelte";
+
+  gsap.registerPlugin(Flip);
+
+  let items = $state([...Array(10).keys()]);
+
+  $effect.pre(() => {
+    // track `items` as a dependency
+    items;
+    // measure elements before the DOM updates
+    const state = Flip.getState(".item");
+    // wait for the DOM update
+    tick().then(() => {
+      // do the FLIP animation
+      Flip.from(state, { duration: 1, stagger: 0.01, ease: "power1.inOut" });
+    });
+  });
+
+  function shuffle() {
+    items = items.toSorted(() => Math.random() - 0.5);
+  }
+</script>
+
+<div class="container">
+  <div>
+    <div class="items">
+      {#each items as item (item)}
+        <div class="item">{item}</div>
+      {/each}
+    </div>
+
+    <button onclick={shuffle}>Shuffle</button>
+  </div>
+</div>
+
+<style>
+  .items {
+    width: 600px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--spacing-8);
+    color: orangered;
+    font-size: var(--font-32);
+    font-weight: 700;
+    text-shadow: 2px 2px 0px #000;
+
+    .item {
+      display: grid;
+      place-content: center;
+      aspect-ratio: 1;
+      background-color: #222;
+      border: 1px solid #333;
+      border-radius: var(--rounded-20);
+    }
+  }
+
+  button {
+    margin-top: var(--spacing-24);
+  }
+</style>
+
+=== 751 posts/learn-svelte/examples/input-binding.svelte	svelte
+<script lang="ts">
+  let list = $state(["Angular", "React", "Solid", "Svelte", "Vue", "Qwik"]);
+  let filteredList = $derived(
+    list.filter((item) => item.toLowerCase().includes(search.toLowerCase())),
+  );
+  let search = $state("");
+</script>
+
+<div class="container">
+  <input
+    type="search"
+    placeholder="Search"
+    value={search}
+    oninput={(e) => (search = (e.target as HTMLInputElement).value)}
+  />
+
+  <ul>
+    {#each filteredList as item}
+      <li>{item}</li>
+    {:else}
+      <p>No results</p>
+    {/each}
+  </ul>
+</div>
+
+<style>
+  .container {
+    text-align: left;
+  }
+
+  input {
+    color: #000;
+    padding: var(--spacing-16);
+    border-radius: var(--rounded-20);
+  }
+
+  ul {
+    margin-top: var(--spacing-32);
+  }
+</style>
+
+=== 409 posts/learn-svelte/examples/mouse-position.svelte	svelte
+<script lang="ts">
+  let mouse = $state({ x: 0, y: 0 });
+
+  function onmousemove(e: MouseEvent) {
+    const rect = this.getBoundingClientRect();
+    mouse.x = e.clientX - rect.left;
+    mouse.y = e.clientY - rect.top;
+  }
+</script>
+
+<div class="container" {onmousemove}>
+  The mouse position is {mouse.x.toFixed()} x {mouse.y.toFixed()}
+</div>
+
+<style>
+  div {
+    width: 100%;
+    height: 100%;
+  }
+</style>
+
+=== 998 posts/learn-svelte/examples/pokemon-search.svelte	svelte
+<script lang="ts">
+  import { getAbortSignal } from "svelte";
+
+  let pokemon = $state("charizard");
+  let image = $state("");
+
+  async function getPokemon(pokemon: string) {
+    const baseUrl = "https://pokeapi.co/api/v2/pokemon";
+    const response = await fetch(`${baseUrl}/${pokemon}`, {
+      signal: getAbortSignal(),
+    });
+    if (!response.ok) throw new Error("💣️ oops!");
+    return response.json();
+  }
+
+  $effect(() => {
+    getPokemon(pokemon).then((data) => {
+      image = data.sprites.front_default;
+    });
+  });
+</script>
+
+<div class="container">
+  <div>
+    <input
+      type="search"
+      placeholder="Enter Pokemon name"
+      oninput={(e) => (pokemon = (e.target as HTMLInputElement).value)}
+    />
+    <img src={image} alt={pokemon} />
+  </div>
+</div>
+
+<style>
+  input {
+    padding: var(--spacing-16);
+    color: #000;
+    border-radius: var(--rounded-20);
+  }
+
+  img {
+    width: 200px;
+    margin-top: var(--spacing-24);
+    image-rendering: pixelated;
+  }
+</style>
+
+=== 1501 posts/learn-svelte/examples/reactive-events.svelte	svelte
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { createSubscriber } from "svelte/reactivity";
+
+  type Tween = [string | HTMLElement, window.gsap.TweenVars];
+
+  class Timeline {
+    #timeline = window.gsap.timeline();
+    #subscribe;
+
+    constructor(tweens: Tween[]) {
+      this.populateTimeline(tweens);
+      this.#subscribe = createSubscriber((update) => {
+        this.#timeline.eventCallback("onUpdate", update);
+        return () => this.#timeline.eventCallback("onUpdate", null);
+      });
+    }
+
+    populateTimeline(tweens: Tween[]) {
+      onMount(() => {
+        tweens.forEach(([element, vars]) => {
+          this.#timeline.to(element, vars);
+        });
+      });
+    }
+
+    get time() {
+      // makes it reactive when read inside an effect
+      this.#subscribe();
+      return this.#timeline.time();
+    }
+
+    set time(v) {
+      this.#timeline.seek(v);
+    }
+  }
+
+  const tl = new Timeline([
+    [".box1", { x: 200, duration: 1 }],
+    [".box2", { x: 200, duration: 1 }],
+  ]);
+</script>
+
+<div class="container">
+  <div class="box box1"></div>
+  <div class="box box2"></div>
+
+  <label>
+    <span>Time:</span>
+    <input bind:value={tl.time} type="range" min={0} max={2} step={0.01} />
+  </label>
+</div>
+
+<style>
+  .box {
+    aspect-ratio: 1;
+    width: 100px;
+    margin-bottom: var(--spacing-8);
+    background-color: orangered;
+    border-radius: 1rem;
+  }
+
+  label {
+    display: flex;
+    gap: var(--spacing-8);
+    margin-top: var(--spacing-32);
+  }
+</style>
+
+=== 1495 posts/learn-svelte/examples/reactive-map.svelte	svelte
+<script lang="ts">
+  import { getAbortSignal } from "svelte";
+  import { SvelteMap } from "svelte/reactivity";
+
+  let name = $state("");
+
+  const pokemon = new SvelteMap<string, unknown>();
+
+  async function getPokemon() {
+    if (!name || pokemon.has(name)) return;
+
+    const baseUrl = "https://pokeapi.co/api/v2/pokemon";
+    const response = await fetch(`${baseUrl}/${name}`, {
+      signal: getAbortSignal(),
+    });
+    if (!response.ok) throw new Error("💣️ oops!");
+    const data = await response.json();
+
+    pokemon.set(name, data);
+  }
+
+  $effect(() => {
+    getPokemon();
+  });
+</script>
+
+<div class="container">
+  <div style:width="400px">
+    <input type="search" bind:value={name} placeholder="Enter Pokemon name" />
+
+    <div class="pokemon">
+      {#each pokemon as [name, details]}
+        <details>
+          <summary>{name}</summary>
+          <div class="data">
+            <pre>{JSON.stringify(details, null, 2)}</pre>
+          </div>
+        </details>
+      {/each}
+    </div>
+
+    <button onclick={() => pokemon.clear()}>🧹 Clear</button>
+  </div>
+</div>
+
+<style>
+  .container {
+    text-align: left;
+  }
+
+  input,
+  button {
+    width: 100%;
+  }
+
+  input {
+    margin-bottom: var(--spacing-32);
+    padding: var(--spacing-16);
+    color: #000;
+    border-radius: var(--rounded-20);
+  }
+
+  summary {
+    text-transform: capitalize;
+  }
+
+  details {
+    overflow: hidden;
+    margin-bottom: var(--spacing-32);
+
+    .data {
+      height: 200px;
+    }
+  }
+</style>
+
+=== 718 posts/learn-svelte/examples/readonly-bindings.svelte	svelte
+<script lang="ts">
+  let width = $state();
+  let height = $state();
+</script>
+
+<div class="container">
+  <div class="example" bind:clientWidth={width} bind:clientHeight={height}>
+    <div class="text" contenteditable>Edit this text</div>
+    <div class="size">{width} x {height}</div>
+  </div>
+</div>
+
+<style>
+  .example {
+    position: relative;
+    display: inline-block;
+    padding: 0.5rem;
+    border: 1px solid orangered;
+
+    .text {
+      font-size: 2rem;
+    }
+
+    .size {
+      position: absolute;
+      left: 50%;
+      bottom: 0px;
+      padding: 0.5rem;
+      translate: -50% 100%;
+      color: black;
+      background-color: orangered;
+      font-weight: 700;
+      white-space: pre;
+    }
+  }
+</style>
+
+=== 1128 posts/learn-svelte/examples/scramble-text.svelte	svelte
+<script lang="ts">
+  import type { TransitionConfig } from "svelte/transition";
+
+  const chars = "!@#$%&*1234567890-=_+[]{}|;:,.<>/?";
+
+  function getRandomCharacter() {
+    return chars[Math.floor(Math.random() * chars.length)];
+  }
+
+  function scrambleText(node: HTMLElement, options?: TransitionConfig) {
+    const { duration = 4000 } = options;
+    const finalText = node.textContent;
+    const length = finalText.length;
+
+    return {
+      duration,
+      tick: (t: number) => {
+        let output = "";
+        for (let i = 0; i < length; i++) {
+          if (t > i / length) {
+            output += finalText[i];
+          } else {
+            output += getRandomCharacter();
+          }
+        }
+        node.textContent = output;
+      },
+    };
+  }
+
+  let play = $state(false);
+</script>
+
+<div class="container">
+  {#key play}
+    <p in:scrambleText>Scrambling Text Effect</p>
+  {/key}
+
+  <button onclick={() => (play = !play)}>Scramble text</button>
+</div>
+
+<style>
+  p {
+    font-family: "JetBrains Mono";
+    font-size: var(--font-32);
+  }
+
+  button {
+    margin-inline: auto;
+    align-self: start;
+  }
+</style>
+
+=== 155 posts/learn-svelte/examples/single-file-component.svelte	svelte
+<script lang="ts">
+  let title = "Svelte";
+</script>
+
+<div class="container">
+  <h1>{title}</h1>
+</div>
+
+<style>
+  h1 {
+    color: orangered;
+  }
+</style>
+
+=== 565 posts/learn-svelte/examples/spongebob-case.svelte	svelte
+<script lang="ts">
+  let text = $state("I love Svelte");
+
+  function toSpongeBobCase(text: string) {
+    return text
+      .split("")
+      .map((c, i) => (i % 2 === 1 ? c.toUpperCase() : c.toLowerCase()))
+      .join("");
+  }
+</script>
+
+<div class="container">
+  <textarea
+    value={toSpongeBobCase(text)}
+    oninput={(e) => {
+      text = toSpongeBobCase((e.target as HTMLInputElement).value);
+    }}></textarea>
+</div>
+
+<style>
+  textarea {
+    width: 600px;
+    height: 300px;
+    padding: var(--spacing-16);
+    border-radius: var(--rounded-4);
+  }
+</style>
+
+=== 568 posts/learn-svelte/examples/spring.svelte	svelte
+<script lang="ts">
+  import { Spring } from "svelte/motion";
+
+  const size = new Spring(50, {
+    stiffness: 0.1,
+    damping: 0.25,
+    precision: 0.1,
+  });
+
+  function onmousedown() {
+    size.target = 150;
+  }
+
+  function onmouseup() {
+    size.target = 50;
+  }
+</script>
+
+<div class="container">
+  <svg width="400" height="400" viewBox="0 0 400 400">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <circle
+      {onmousedown}
+      {onmouseup}
+      cx="200"
+      cy="200"
+      r={size.current}
+      fill="orangered"
+    />
+  </svg>
+</div>
+
+=== 772 posts/learn-svelte/examples/svg-grid.svelte	svelte
+<script lang="ts">
+  let size = 300;
+  let tiles = $state(8);
+</script>
+
+<div class="container">
+  <svg width={size} height={size}>
+    {#each Array(tiles), col}
+      {#each Array(tiles), row}
+        {@const tile = size / tiles}
+        {@const x = col * tile}
+        {@const y = row * tile}
+        {@const width = tile}
+        {@const height = tile}
+        {@const fill = (col + row) % 2 === 0 ? "orangered" : "white"}
+        <rect {x} {y} {width} {height} {fill} />
+      {/each}
+    {/each}
+  </svg>
+
+  <label>
+    <span>{tiles} tiles:</span>
+    <input type="range" bind:value={tiles} min={1} max={40} />
+  </label>
+</div>
+
+<style>
+  label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-8);
+    margin-top: var(--spacing-16);
+  }
+</style>
+
+=== 2097 posts/learn-svelte/examples/todo-list.svelte	svelte
+<script lang="ts">
+  import { slide } from "svelte/transition";
+
+  type Todo = { id: string; text: string; completed: boolean };
+  type Filter = "all" | "active" | "completed";
+
+  let todo = $state("");
+  let todos = $state<Todo[]>([]);
+  let filter = $state<Filter>("all");
+  let filteredTodos = $derived(filterTodos());
+  let remaining = $derived(remainingTodos());
+
+  function addTodo(e: SubmitEvent) {
+    e.preventDefault();
+    todos.push({
+      id: crypto.randomUUID(),
+      text: todo,
+      completed: false,
+    });
+    todo = "";
+  }
+
+  function removeTodo(todo: Todo) {
+    todos = todos.filter((t) => t.id !== todo.id);
+  }
+
+  function filterTodos() {
+    return todos.filter((todo) => {
+      if (filter === "all") return true;
+      if (filter === "active") return !todo.completed;
+      if (filter === "completed") return todo.completed;
+    });
+  }
+
+  function setFilter(newFilter: Filter) {
+    filter = newFilter;
+  }
+
+  function remainingTodos() {
+    return todos.filter((todo) => !todo.completed).length;
+  }
+
+  function clearCompleted() {
+    todos = todos.filter((todo) => !todo.completed);
+  }
+</script>
+
+<div class="container">
+  <form onsubmit={addTodo}>
+    <input type="text" bind:value={todo} placeholder="Add todo" />
+  </form>
+
+  <ul>
+    {#each filteredTodos as todo (todo.id)}
+      <li transition:slide>
+        <input type="checkbox" bind:checked={todo.completed} />
+        <input type="text" bind:value={todo.text} />
+        <button onclick={() => removeTodo(todo)}>🗙</button>
+      </li>
+    {/each}
+  </ul>
+
+  <div>
+    <p>{remaining} {remaining === 1 ? "item" : "items"} left</p>
+
+    {#each ["all", "active", "completed"] as const as filter}
+      <button onclick={() => setFilter(filter)}>{filter}</button>
+    {/each}
+
+    <button onclick={clearCompleted}>Clear completed</button>
+  </div>
+</div>
+
+<style>
+  .container {
+    text-align: left;
+  }
+
+  ul {
+    margin-block: var(--spacing-24);
+  }
+
+  ul li::before {
+    content: "";
+  }
+
+  input {
+    padding: var(--spacing-16);
+    color: #000;
+    border-radius: var(--rounded-20);
+  }
+</style>
+
+=== 585 posts/learn-svelte/examples/tween.svelte	svelte
+<script lang="ts">
+  import { Tween } from "svelte/motion";
+  import { cubicInOut } from "svelte/easing";
+
+  const size = new Tween(50, { duration: 300, easing: cubicInOut });
+
+  function onmousedown() {
+    size.target = 150;
+  }
+
+  function onmouseup() {
+    size.target = 50;
+  }
+</script>
+
+<div class="container">
+  <svg width="400" height="400" viewBox="0 0 400 400">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <circle
+      {onmousedown}
+      {onmouseup}
+      cx="200"
+      cy="200"
+      r={size.current}
+      fill="orangered"
+    />
+  </svg>
+</div>
+
+=== 993 posts/learn-svelte/examples/video-bindings.svelte	svelte
+<script lang="ts">
+  let clip =
+    "https://5ad4a01a-eb56-49a7-b0a7-a9e4bed9c1aa.mdnplay.dev/shared-assets/videos/flower.webm";
+  let currentTime = $state(0);
+  let duration = $state(0);
+  let paused = $state(true);
+</script>
+
+<div class="container">
+  <div class="example">
+    <!-- svelte-ignore a11y_media_has_caption -->
+    <video src={clip} bind:currentTime bind:duration bind:paused></video>
+
+    <div class="controls">
+      <button onclick={() => (paused = !paused)}>
+        {paused ? "▶️" : "⏸️"}
+      </button>
+      <span>{currentTime.toFixed(1)}/{duration.toFixed(1)}</span>
+      <input type="range" bind:value={currentTime} max={duration} step={0.1} />
+    </div>
+  </div>
+</div>
+
+<style>
+  .example {
+    width: 500px;
+
+    video {
+      margin-bottom: var(--spacing-8);
+      border-radius: 0.5rem;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+
+      input[type="range"] {
+        flex-grow: 1;
+      }
+    }
+  }
+</style>
+
+=== 2275 src/lib/components/card.svelte	svelte
+<script lang="ts">
+  import type { Snippet } from "svelte";
+
+  type Props = {
+    children: Snippet;
+    type: "danger" | "info" | "warning";
+  };
+
+  let { children, type }: Props = $props();
+</script>
+
+{#if type === "danger"}
+  <div class="card danger">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="icon"
+    >
+      <circle cx="12" cy="12" r="10" /><path d="m15 9-6 6" />
+      <path d="m9 9 6 6" />
+    </svg>
+    {@render children()}
+  </div>
+{/if}
+
+{#if type === "info"}
+  <div class="card info">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="icon"
+    >
+      <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" />
+      <path d="M12 8h.01" />
+    </svg>
+    {@render children()}
+  </div>
+{/if}
+
+{#if type === "warning"}
+  <div class="card warning">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="icon"
+    >
+      <path
+        d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"
+      />
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+    </svg>
+    {@render children()}
+  </div>
+{/if}
+
+<style>
+  .card {
+    position: relative;
+    margin-block-end: var(--spacing-32);
+    padding: var(--spacing-32);
+    background: none;
+    border: 4px solid var(--border-color, #fff);
+    border-radius: var(--rounded-20, #fff);
+
+    .icon {
+      width: 48px;
+      height: 48px;
+      padding: var(--spacing-4);
+      position: absolute;
+      left: 0px;
+      top: 0px;
+      translate: -50% -50%;
+      color: var(--icon-color);
+      background: var(--clr-bg);
+    }
+
+    &.info {
+      --icon-color: #00b5ff;
+      --border-color: #00b5ff;
+    }
+
+    &.warning {
+      --icon-color: #f6ff00;
+      --border-color: #f6ff00;
+    }
+
+    &.danger {
+      --icon-color: #ff0000;
+      --border-color: #ff0000;
+    }
+  }
+</style>
+
+=== 1074 src/lib/components/embed.svelte	svelte
+<script lang="ts">
+  type Props = {
+    src: string;
+    title: string;
+  };
+
+  let { src, title }: Props = $props();
+
+  let loaded = $state(false);
+</script>
+
+<p class="embed example">
+  {#if !loaded}
+    <button onclick={() => (loaded = !loaded)}>
+      <svg
+        viewBox="0 0 24 24"
+        width="24"
+        height="24"
+        fill="none"
+        stroke="var(--clr-primary)"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polygon points="5 3 19 12 5 21 5 3" />
+      </svg>
+      Load {title}
+    </button>
+  {:else}
+    <iframe {title} {src} loading="lazy" allowfullscreen></iframe>
+  {/if}
+</p>
+
+<style>
+  .embed {
+    aspect-ratio: 16/9;
+    place-content: center;
+    background: var(--clr-footer-bg);
+    border: 1px solid var(--clr-menu-border);
+    border-radius: var(--rounded-20);
+    overflow: hidden;
+
+    button {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-inline: auto;
+      text-shadow: var(--shadow-sm);
+    }
+  }
+
+  iframe {
+    height: 100%;
+  }
+</style>
+
+=== 430 src/lib/components/image.svelte	svelte
+<script lang="ts">
+  import { page } from "$app/state";
+  import { dev } from "$app/environment";
+  import { imagesLocal, imagesUrl } from "$lib/site/config";
+
+  type Props = {
+    alt: string;
+    src: string;
+    slug: string;
+  };
+
+  let { src, alt }: Props = $props();
+
+  const images = dev ? imagesLocal : imagesUrl;
+  const slug = page.params.slug;
+</script>
+
+<img src="{images}/{slug}/images/{src}" {alt} loading="lazy" />
+
+=== 417 src/lib/components/video.svelte	svelte
+<script lang="ts">
+  import { page } from "$app/state";
+
+  type Props = {
+    src: string;
+    slug: string;
+  };
+
+  let { src }: Props = $props();
+
+  const images = `https://raw.githubusercontent.com/mattcroat/joy-of-code/main/posts`;
+  const slug = page.params.slug;
+</script>
+
+<!-- svelte-ignore a11y_media_has_caption -->
+<video controls>
+  <source src="{images}/{slug}/images/{src}" type="video/mp4" />
+</video>
+
+=== 203 src/lib/components/youtube.svelte	svelte
+<script lang="ts">
+  type Props = {
+    id: string;
+    title: string;
+  };
+
+  let { id, title }: Props = $props();
+</script>
+
+<div>
+  <lite-youtube videoid={id} playlabel={title}></lite-youtube>
+</div>
+
+=== 169 src/lib/embed/youtube.svelte	svelte
+<script lang="ts">
+  import "lite-youtube-embed/src/lite-yt-embed.css";
+
+  // @ts-ignore
+  $effect(async () => {
+    await import("lite-youtube-embed");
+  });
+</script>
+
+=== 321 src/lib/icons/arrow-right.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  stroke-width="1.5"
+  stroke="currentColor"
+  fill="none"
+  {...rest}
+>
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3"
+  />
+</svg>
+
+=== 844 src/lib/icons/bluesky.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 600 600"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="30"
+  {...rest}
+>
+  <path
+    d="m135.72 44.03c66.496 49.921 138.02 151.14 164.28 205.46 26.262-54.316 97.782-155.54 164.28-205.46 47.98-36.021 125.72-63.892 125.72 24.795 0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.511-189.63-71.766-2.514-7.3797-3.6904-10.832-3.7077-7.8964-0.0174-2.9357-1.1937 0.51669-3.7077 7.8964-13.714 40.255-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.26 82.697-152.22-67.108 11.421-142.55-7.4491-163.25-81.433-5.9562-21.282-16.111-152.36-16.111-170.07 0-88.687 77.742-60.816 125.72-24.795z"
+  />
+</svg>
+
+=== 329 src/lib/icons/chevron-double-left.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  stroke-width="2"
+  stroke="currentColor"
+  fill="none"
+  {...rest}
+>
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5"
+  />
+</svg>
+
+=== 327 src/lib/icons/chevron-double-right.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  stroke-width="2"
+  stroke="currentColor"
+  fill="none"
+  {...rest}
+>
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5"
+  />
+</svg>
+
+=== 1451 src/lib/icons/cog.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  stroke-width="2"
+  stroke="currentColor"
+  fill="none"
+  {...rest}
+>
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z"
+  />
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+  />
+</svg>
+
+=== 525 src/lib/icons/envelope.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  stroke-width="2"
+  stroke="currentColor"
+  fill="none"
+  {...rest}
+>
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+  />
+</svg>
+
+=== 570 src/lib/icons/eye.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  stroke-width="2"
+  stroke="currentColor"
+  fill="none"
+  {...rest}
+>
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
+  />
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+  />
+</svg>
+
+=== 587 src/lib/icons/github.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  {...rest}
+>
+  <path
+    d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"
+  />
+  <path d="M9 18c-4.51 2-5-2-7-2" />
+</svg>
+
+=== 436 src/lib/icons/heart.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  stroke-width="2"
+  stroke="currentColor"
+  fill="none"
+  {...rest}
+>
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
+  />
+</svg>
+
+=== 390 src/lib/icons/mail.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  {...rest}
+>
+  <rect width="20" height="16" x="2" y="4" rx="2" />
+  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+</svg>
+
+=== 312 src/lib/icons/menu.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  stroke="currentColor"
+  fill="none"
+  {...rest}
+>
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="2"
+    d="M4 6h16M4 12h8m-8 6h16"
+  >
+  </path>
+</svg>
+
+=== 524 src/lib/icons/pencil-square.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  stroke-width="2"
+  stroke="currentColor"
+  fill="none"
+  {...rest}
+>
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
+  />
+</svg>
+
+=== 387 src/lib/icons/rss.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  {...rest}
+>
+  <path d="M4 11a9 9 0 0 1 9 9" />
+  <path d="M4 4a16 16 0 0 1 16 16" />
+  <circle cx="5" cy="19" r="1" />
+</svg>
+
+=== 456 src/lib/icons/x.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  {...rest}
+>
+  <path
+    d="M 2.8671875 3 L 9.7363281 12.818359 L 2.734375 21 L 5.3808594 21 L 10.919922 14.509766 L 15.460938 21 L 21.371094 21 L 14.173828 10.697266 L 20.744141 3 L 18.138672 3 L 12.996094 9.0097656 L 8.7988281 3 L 2.8671875 3 z"
+  ></path>
+</svg>
+
+=== 506 src/lib/icons/youtube.svelte	svelte
+<script lang="ts">
+  let { ...rest } = $props();
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  {...rest}
+>
+  <path
+    d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"
+  />
+  <path d="m10 15 5-3-5-3z" />
+</svg>
+
+=== 2378 src/lib/ui/footer.svelte	svelte
+<script lang="ts">
+  import { Bluesky, Mail, RSS, X, YouTube } from "$lib/icons";
+  import * as config from "$lib/site/config";
+</script>
+
+<footer>
+  <div class="follow">
+    <p>Follow</p>
+    <ul>
+      <li>
+        <a href="/newsletter">
+          <Mail width={20} height={20} aria-hidden={true} />
+          <span>Newsletter</span>
+        </a>
+      </li>
+      <li>
+        <a href={config.youtube} target="_blank" rel="noreferrer">
+          <YouTube width={20} height={20} aria-hidden={true} />
+          <span>YouTube</span>
+        </a>
+      </li>
+      <li>
+        <a href={config.twitter} target="_blank" rel="noreferrer">
+          <X width={20} height={20} aria-hidden={true} />
+          <span>Twitter</span>
+        </a>
+      </li>
+      <li>
+        <a href={config.bluesky} target="_blank" rel="noreferrer">
+          <Bluesky width={20} height={20} aria-hidden={true} />
+          <span>Bluesky</span>
+        </a>
+      </li>
+      <li>
+        <a href="/rss.xml" target="_blank">
+          <RSS width={20} height={20} aria-hidden={true} />
+          <span>RSS</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <div class="other">
+    <p>Other</p>
+    <ul>
+      <li><a href="/about">About</a></li>
+      <li>
+        <a href={config.uses} target="_blank" rel="noreferrer">Uses</a>
+      </li>
+    </ul>
+  </div>
+</footer>
+
+<style>
+  footer {
+    --gap: var(--spacing-64);
+
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    margin-block-start: var(--spacing-64);
+    padding: var(--spacing-32);
+    background-color: var(--clr-footer-bg);
+    border: 1px solid var(--clr-menu-border);
+    border-radius: var(--rounded-20) var(--rounded-20) 0px 0px;
+
+    @media (width >= 600px) {
+      --gap: var(--spacing-128);
+      flex-direction: row;
+      padding-inline: var(--spacing-128);
+    }
+
+    p {
+      font-weight: 700;
+    }
+
+    ul {
+      width: max-content;
+      display: grid;
+      grid-template-rows: repeat(5, 1fr);
+      grid-auto-flow: column;
+      column-gap: var(--spacing-32);
+      row-gap: var(--spacing-16);
+      margin-top: var(--spacing-16);
+
+      li a {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-8);
+      }
+    }
+
+    li a {
+      font-weight: inherit;
+      color: var(--clr-footer-txt);
+
+      &:hover {
+        color: var(--clr-primary);
+      }
+    }
+  }
+</style>
+
+=== 1621 src/lib/ui/header/header.svelte	svelte
+<script lang="ts">
+  import Logo from "./logo.svelte";
+  import Search from "./search";
+  import Socials from "./socials.svelte";
+  import Preferences from "./preferences/index.svelte";
+  import Menu from "./menu.svelte";
+  import * as config from "$lib/site/config";
+
+  let scrollY = $state(0);
+  let scrolled = $derived(scrollY > 0);
+</script>
+
+<svelte:window bind:scrollY />
+
+<header class:scrolled>
+  <div class="container">
+    <div class="logo">
+      <Logo />
+      <a href="/">{config.siteName}</a>
+    </div>
+
+    <Search />
+    <Socials />
+
+    <nav>
+      <Preferences />
+      <Menu />
+    </nav>
+  </div>
+</header>
+
+<style>
+  header {
+    position: sticky;
+    top: 10px;
+    width: 90%;
+    max-width: 800px;
+    margin-inline: auto;
+    padding: var(--spacing-16) var(--spacing-24);
+    font-size: var(--font-18);
+    border-radius: 10px;
+    z-index: 20;
+    view-transition-name: header;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease,
+      box-shadow 0.3s ease,
+      backdrop-filter 0.3s ease;
+
+    &.scrolled {
+      background-color: var(--clr-header-bg);
+      color: var(--clr-primary);
+      box-shadow: 1px 1px 10px hsl(0 0% 0% / 40%);
+      backdrop-filter: blur(20px);
+    }
+  }
+
+  .container {
+    max-inline-size: 1200px;
+    display: flex;
+    justify-content: space-between;
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-8);
+
+      a {
+        text-box: trim-both cap alphabetic;
+      }
+
+      a::before {
+        content: none;
+      }
+    }
+
+    nav {
+      display: flex;
+      gap: var(--spacing-8);
+    }
+  }
+</style>
+
+=== 720 src/lib/ui/header/logo.svelte	svelte
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="20"
+  height="20"
+  viewBox="0 0 24 24"
+  fill="none"
+>
+  <defs>
+    <linearGradient
+      id="gradient"
+      x1="12"
+      y1="1"
+      x2="12"
+      y2="23"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#fabd2d" />
+      <stop offset="1" stop-color="#ed40da" />
+    </linearGradient>
+  </defs>
+  <g>
+    <path
+      d="M12 24C18.6274 24 24 18.6274 24 12C24 5.37258 18.6274 0 12 0C5.37258 0 0 5.37258 0 12C0 18.6274 5.37258 24 12 24Z"
+      fill="#6E0C41"
+    />
+    <path
+      d="M12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23Z"
+      fill="url(#gradient)"
+    />
+  </g>
+</svg>
+
+=== 1973 src/lib/ui/header/menu.svelte	svelte
+<script lang="ts">
+  import { fade } from "svelte/transition";
+  import { createDropdownMenu, melt } from "@melt-ui/svelte";
+  import { Menu } from "$lib/icons";
+  import { sfx } from "$lib/sfx";
+  import * as config from "$lib/site/config";
+
+  const {
+    elements: { trigger, menu, item, arrow },
+    states: { open },
+  } = createDropdownMenu({ arrowSize: 16 });
+</script>
+
+<button use:melt={$trigger} onclick={() => sfx.click()} aria-label="Categories">
+  <Menu width={24} height={24} aria-hidden={true} />
+</button>
+
+{#if open}
+  <div class="menu" use:melt={$menu} transition:fade={{ duration: 100 }}>
+    <div use:melt={$arrow}></div>
+    <span class="title">Categories</span>
+    <ul>
+      {#each Object.entries(config.categories) as [slug, category]}
+        <li use:melt={$item}>
+          <a href="/categories/{slug}">{category}</a>
+        </li>
+      {/each}
+    </ul>
+  </div>
+{/if}
+
+<style>
+  .menu {
+    position: relative;
+    padding: var(--spacing-24);
+    font-size: var(--font-18);
+    background: var(--clr-menu-bg);
+    border: 1px solid var(--clr-menu-border);
+    border-radius: var(--rounded-20);
+    box-shadow: var(--shadow-lg);
+    z-index: 20;
+
+    [data-melt-dropdown-menu-arrow] {
+      border-top: 1px solid var(--clr-menu-border);
+      border-left: 1px solid var(--clr-menu-border);
+    }
+
+    .title {
+      display: block;
+      padding-bottom: var(--spacing-24);
+      font-size: var(--font-24);
+      line-height: 32px;
+      border-bottom: 1px solid var(--clr-menu-border);
+    }
+
+    a {
+      font-weight: inherit;
+      color: var(--clr-menu-text);
+
+      &:hover {
+        color: var(--clr-primary);
+      }
+    }
+
+    ul {
+      display: grid;
+      grid-template-rows: repeat(6, 1fr);
+      row-gap: var(--spacing-24);
+      column-gap: var(--spacing-64);
+      grid-auto-flow: column;
+      margin-top: var(--spacing-24);
+
+      @media (width >= 480px) {
+        grid-template-rows: repeat(4, 1fr);
+      }
+    }
+  }
+</style>
+
+=== 1913 src/lib/ui/header/preferences/dyslexic.svelte	svelte
+<script lang="ts">
+  import { browser } from "$app/environment";
+  import { createSwitch, melt } from "@melt-ui/svelte";
+  import { preferences } from "./preferences.svelte";
+
+  let enabled = false;
+
+  if (browser) {
+    localStorage.font ? (enabled = true) : (enabled = false);
+  }
+
+  function handleChange() {
+    const html = document.documentElement;
+    enabled = !enabled;
+
+    if (enabled) {
+      localStorage.font = "dyslexic";
+      html.dataset.font = "dyslexic";
+    }
+
+    if (!enabled) {
+      localStorage.removeItem("font");
+      delete html.dataset.font;
+    }
+  }
+
+  const {
+    elements: { root, input },
+    states: { checked },
+  } = createSwitch();
+
+  $effect(() => {
+    preferences.resetTheme;
+    checked.set(false);
+    enabled = false;
+  });
+</script>
+
+<form>
+  <div class="container">
+    <label for="dyslexic-font">Use font for dyslexia</label>
+
+    <button
+      onclick={handleChange}
+      use:melt={$root}
+      class="toggle"
+      aria-labelledby="dyslexic-font"
+    >
+      <span class="thumb"></span>
+    </button>
+
+    <input use:melt={$input} use:input id="dyslexic-font" />
+  </div>
+</form>
+
+<style>
+  .container {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .toggle {
+    --width: 68px;
+    --padding: 10px;
+    --background: var(--clr-switch-off-bg);
+
+    width: var(--width);
+    height: 36px;
+    background-color: var(--background);
+    border-radius: 9999px;
+    transition: background-color 0.15s ease;
+
+    .thumb {
+      --size: 34px;
+
+      display: block;
+      width: var(--size);
+      height: var(--size);
+      background-color: var(--clr-primary);
+      border-radius: 50%;
+      transition: translate 0.15s ease;
+    }
+
+    &[data-state="checked"] {
+      --background: var(--clr-switch-on-bg);
+
+      .thumb {
+        translate: calc(var(--width) - var(--size)) 0px;
+      }
+    }
+  }
+</style>
+
+=== 2338 src/lib/ui/header/preferences/index.svelte	svelte
+<script lang="ts">
+  import { fade } from "svelte/transition";
+  import { createDropdownMenu, melt } from "@melt-ui/svelte";
+  import { Cog } from "$lib/icons";
+  import { sfx } from "$lib/sfx";
+
+  import Themes from "./themes.svelte";
+  import Reading from "./reading.svelte";
+  import Dyslexic from "./dyslexic.svelte";
+  import Reset from "./reset.svelte";
+
+  const {
+    elements: { trigger, menu, arrow },
+    states: { open },
+  } = createDropdownMenu({ arrowSize: 16 });
+</script>
+
+<button
+  use:melt={$trigger}
+  onclick={() => sfx.click()}
+  aria-label="Preferences"
+>
+  <Cog width={24} height={24} aria-hidden={true} />
+</button>
+
+{#if open}
+  <div class="menu" use:melt={$menu} transition:fade={{ duration: 100 }}>
+    <div use:melt={$arrow}></div>
+    <div class="preferences">
+      <span class="title">Preferences</span>
+      <div class="options">
+        <Themes />
+        <Reading />
+        <Dyslexic />
+        <Reset />
+      </div>
+    </div>
+  </div>
+{/if}
+
+<style>
+  .menu {
+    position: relative;
+    background: var(--clr-menu-bg);
+    z-index: 20;
+
+    [data-melt-dropdown-menu-arrow] {
+      border-top: 1px solid var(--clr-menu-border);
+      border-left: 1px solid var(--clr-menu-border);
+    }
+  }
+
+  .preferences {
+    position: relative;
+    padding: var(--spacing-24);
+    font-size: var(--font-18);
+    background: var(--clr-menu-bg);
+    border: 1px solid var(--clr-menu-border);
+    border-radius: var(--rounded-20);
+    box-shadow: var(--shadow-lg);
+
+    @media (width >= 480px) {
+      width: 420px;
+    }
+
+    .title {
+      display: block;
+      padding-bottom: var(--spacing-24);
+      font-size: var(--font-24);
+      line-height: 32px;
+      border-bottom: 1px solid var(--clr-menu-border);
+    }
+
+    .options {
+      color: var(--clr-menu-text);
+
+      :global {
+        > * {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: var(--spacing-32);
+          padding: var(--spacing-24) 0;
+
+          @media (width >= 480px) {
+            gap: var(--spacing-64);
+          }
+        }
+
+        > *:not(:last-child) {
+          border-bottom: 1px solid var(--clr-menu-border);
+        }
+
+        > *:last-child {
+          padding-bottom: 0;
+        }
+
+        span {
+          max-width: 180px;
+        }
+      }
+    }
+  }
+</style>
+
+=== 1853 src/lib/ui/header/preferences/reading.svelte	svelte
+<script lang="ts">
+  import { preferences } from "./preferences.svelte";
+</script>
+
+<div class="reading-size">
+  <label for="text-size">
+    <span>Reading size</span>
+  </label>
+  <div class="slider">
+    <span>{preferences.textSize}px</span>
+    <input
+      bind:value={preferences.textSize}
+      type="range"
+      name="text-size"
+      id="text-size"
+      min="16"
+      max="24"
+      step="2"
+    />
+  </div>
+</div>
+
+<div class="reading-length">
+  <label for="text-length">
+    <span>Reading length</span>
+  </label>
+  <div class="slider">
+    <span>{preferences.textLength}ch</span>
+    <input
+      bind:value={preferences.textLength}
+      type="range"
+      name="text-length"
+      id="text-length"
+      min="60"
+      max="100"
+      step="10"
+    />
+  </div>
+</div>
+
+<div class="reading-height">
+  <label for="text-height">
+    <span>Reading line height</span>
+  </label>
+  <div class="slider">
+    <span>{preferences.textHeight}px</span>
+    <input
+      bind:value={preferences.textHeight}
+      type="range"
+      name="text-height"
+      id="text-height"
+      min="32"
+      max="48"
+      step="8"
+    />
+  </div>
+</div>
+
+<style>
+  .slider {
+    display: grid;
+    justify-items: center;
+    row-gap: var(--spacing-16);
+  }
+
+  input[type="range"] {
+    appearance: none;
+    height: 4px;
+    background-color: hsl(0 0% 24%);
+    border-radius: var(--rounded-20);
+
+    &::-webkit-slider-thumb {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background-color: var(--clr-primary);
+      border-radius: 50%;
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+    }
+
+    &::-moz-range-thumb {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background-color: var(--clr-primary);
+      border-radius: 50%;
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+    }
+  }
+</style>
+
+=== 470 src/lib/ui/header/preferences/reset.svelte	svelte
+<script lang="ts">
+  import { preferences } from "./preferences.svelte";
+</script>
+
+<div class="reset-preferences">
+  <span>Use default settings</span>
+  <button onclick={() => preferences.reset()}>Reset</button>
+</div>
+
+<style>
+  button {
+    padding: var(--spacing-8) var(--spacing-16);
+    font-weight: 700;
+    color: var(--clr-input-txt);
+    background-color: var(--clr-primary);
+    border-radius: var(--rounded-4);
+    box-shadow: var(--shadow-sm);
+  }
+</style>
+
+=== 3198 src/lib/ui/header/preferences/themes.svelte	svelte
+<script lang="ts">
+  import { fade } from "svelte/transition";
+  import { createSelect, melt } from "@melt-ui/svelte";
+  import { browser } from "$app/environment";
+  import { preferences } from "./preferences.svelte";
+
+  type Themes = { name: keyof typeof themes };
+
+  function getTheme() {
+    if (!browser) return;
+
+    const html = document.documentElement;
+    const userTheme: Themes["name"] = localStorage.theme;
+    const prefersDarkMode = window.matchMedia(
+      "prefers-color-scheme: dark",
+    ).matches;
+    const prefersLightMode = window.matchMedia(
+      "prefers-color-scheme: light",
+    ).matches;
+
+    // check if the user set a theme
+    if (userTheme) {
+      html.dataset.theme = userTheme;
+      return themes[userTheme];
+    }
+
+    // otherwise check for user preference
+    if (!userTheme && prefersDarkMode) {
+      html.dataset.theme = "🌛 Night";
+      localStorage.theme = "🌛 Night";
+    }
+    if (!userTheme && prefersLightMode) {
+      html.dataset.theme = "☀️ Daylight";
+      localStorage.theme = "☀️ Daylight";
+    }
+
+    // if nothing is set default to dark mode
+    if (!userTheme && !prefersDarkMode && !prefersLightMode) {
+      html.dataset.theme = "🌛 Night";
+      localStorage.theme = "🌛 Night";
+    }
+
+    return themes[userTheme];
+  }
+
+  function updateTheme(theme: string) {
+    if (!browser || !theme) return;
+    const htmlElement = document.documentElement;
+    htmlElement.dataset.theme = theme;
+    localStorage.theme = theme;
+  }
+
+  const themes = {
+    "🌛 Night": { name: "🌛 Night" },
+    "☀️ Daylight": { name: "☀️ Daylight" },
+    "🐺 Night Howl": { name: "🐺 Night Howl" },
+    "🧠 Night Mind": { name: "🧠 Night Mind" },
+  } as const;
+
+  const selectedTheme = getTheme() ?? themes["🌛 Night"];
+
+  const {
+    elements: { trigger, menu, option, label },
+    states: { open, selected, selectedLabel },
+  } = createSelect();
+
+  $effect(() => {
+    updateTheme($selectedLabel);
+  });
+
+  $effect(() => {
+    preferences.resetTheme;
+    selected.set({ value: "🌛 Night", label: "🌛 Night" });
+  });
+</script>
+
+<div class="select">
+  <!-- svelte-ignore a11y_label_has_associated_control -->
+  <label use:melt={$label}>Theme</label>
+  <button use:melt={$trigger} class="trigger" aria-label="Theme">
+    {$selectedLabel || selectedTheme.name}
+  </button>
+  {#if $open}
+    <div use:melt={$menu} class="menu" transition:fade={{ duration: 100 }}>
+      {#each Object.entries(themes) as [key, theme] (key)}
+        <div use:melt={$option({ value: theme.name, label: theme.name })}>
+          {theme.name}
+        </div>
+      {/each}
+    </div>
+  {/if}
+</div>
+
+<style>
+  .trigger,
+  .menu {
+    background-color: var(--clr-primary);
+    color: var(--clr-theme-txt);
+    border-radius: var(--rounded-4);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .trigger {
+    width: 180px;
+    padding: var(--spacing-16) var(--spacing-24);
+    font-weight: 700;
+  }
+
+  .menu {
+    display: grid;
+    overflow: hidden;
+    z-index: 1000;
+
+    > * {
+      padding: var(--spacing-16);
+      transition: background 0.1s ease;
+
+      &:hover {
+        background-color: #fff;
+        cursor: pointer;
+      }
+    }
+  }
+</style>
+
+=== 297 src/lib/ui/header/search/search-icon.svelte	svelte
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="20"
+  height="20"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <title>Search</title>
+  <circle cx="11" cy="11" r="8" />
+  <path d="m21 21-4.3-4.3" />
+</svg>
+
+=== 4747 src/lib/ui/header/search/search.svelte	svelte
+<script lang="ts">
+  import { createDialog, melt } from "@melt-ui/svelte";
+  import { fade } from "svelte/transition";
+  import { onNavigate } from "$app/navigation";
+  import { browser } from "$app/environment";
+
+  import SearchIcon from "./search-icon.svelte";
+  import SearchWorker from "./search-worker?worker";
+  import type { Result } from "./search";
+
+  const {
+    elements: { trigger, portalled, overlay, content },
+    states: { open },
+  } = createDialog();
+  const platform = browser && window.navigator.platform;
+
+  let search: "idle" | "load" | "ready" = $state("idle");
+  let searchTerm = $state("");
+  let results: Result[] = $state([]);
+  let searchWorker: Worker | undefined = $state();
+
+  function initialize() {
+    if (search === "ready") return;
+    search = "load";
+    searchWorker = new SearchWorker();
+    searchWorker.addEventListener("message", (e) => {
+      const { type, payload } = e.data;
+      type === "ready" && (search = "ready");
+      type === "results" && (results = payload.results);
+    });
+    searchWorker.postMessage({ type: "load" });
+  }
+
+  onNavigate(() => {
+    $open = false;
+  });
+
+  $effect(() => {
+    if (search === "ready") {
+      searchWorker?.postMessage({ type: "search", payload: { searchTerm } });
+    }
+  });
+
+  $effect(() => {
+    if (searchTerm && !$open) {
+      searchTerm = "";
+    }
+  });
+</script>
+
+<svelte:window
+  onkeydown={(e) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === "k" || e.key === "K") {
+        e.preventDefault();
+        if (search === "idle") initialize();
+        $open = !$open;
+      }
+    }
+  }}
+/>
+
+<button use:melt={$trigger} onclick={initialize} class="open-search">
+  <SearchIcon />
+  <span>Search</span>
+  <div class="shortcut">
+    <kbd>{platform === "MacIntel" ? "⌘" : "Ctrl"}</kbd> + <kbd>K</kbd>
+  </div>
+</button>
+
+<div use:melt={$portalled}>
+  {#if $open}
+    <div in:fade={{ duration: 200 }} use:melt={$overlay} class="overlay"></div>
+    <div use:melt={$content} class="content">
+      <input
+        bind:value={searchTerm}
+        placeholder="Search"
+        autocomplete="off"
+        spellcheck="false"
+        type="search"
+      />
+      {#if results.length > 0}
+        <div class="results">
+          {#if search === "load"}
+            <p>Loading...</p>
+          {/if}
+
+          <ul>
+            {#each results as result}
+              {#if result.content.length > 0}
+                <li>
+                  <a href="/{result.slug}">{@html result.title}</a>
+                  <ol>
+                    {#each result.content as content}
+                      <li>{@html content}</li>
+                    {/each}
+                  </ol>
+                </li>
+              {/if}
+            {/each}
+          </ul>
+        </div>
+      {/if}
+    </div>
+  {/if}
+</div>
+
+<style>
+  .overlay {
+    position: fixed;
+    inset: 0px;
+    background-color: hsl(0 0% 0% / 80%);
+    backdrop-filter: blur(4px);
+    z-index: 30;
+  }
+
+  .content {
+    width: 90vw;
+    max-width: 600px;
+    position: fixed;
+    left: 50%;
+    top: 20%;
+    translate: -50% -0%;
+    border-radius: var(--rounded-4);
+    box-shadow: 0px 0px 20px hsl(0 0% 0% / 40%);
+    overflow: hidden;
+    z-index: 40;
+
+    input {
+      width: 100%;
+      padding: var(--spacing-16);
+      color: var(--clr-search-input-txt);
+      background-color: var(--clr-search-input-bg);
+
+      &:focus {
+        box-shadow: none;
+        border-radius: 0px;
+      }
+    }
+  }
+
+  .results {
+    max-height: 60vh;
+    padding: var(--spacing-16);
+    background-color: var(--clr-search-results-bg);
+    overflow-y: auto;
+    scrollbar-width: thin;
+
+    ol {
+      margin-block-start: var(--spacing-8);
+    }
+
+    li:not(:last-child) {
+      margin-block-end: var(--spacing-16);
+      padding-block-end: var(--spacing-16);
+      border-bottom: 1px solid var(--clr-results-border);
+    }
+
+    a {
+      display: block;
+      font-size: var(--font-24);
+    }
+
+    :global(mark) {
+      background-color: var(--clr-primary);
+    }
+  }
+
+  .open-search {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-8);
+    padding: var(--spacing-8) var(--spacing-16);
+    color: var(--clr-search-txt);
+    background-color: var(--clr-search-bg);
+    border: 1px solid var(--clr-search-border);
+    border-radius: var(--rounded-20);
+    transition: color 0.3s ease;
+
+    &:hover {
+      color: var(--clr-primary);
+    }
+
+    span,
+    .shortcut {
+      display: none;
+
+      @media (width >= 600px) {
+        display: block;
+      }
+    }
+
+    kbd {
+      padding: 4px 8px;
+      color: var(--clr-search-kbd-txt);
+      background-color: var(--clr-search-kbd-bg);
+      border: 1px solid var(--clr-search-kbd-border);
+      border-radius: var(--rounded-4);
+    }
+  }
+</style>
+
+=== 811 src/lib/ui/header/socials.svelte	svelte
+<script lang="ts">
+  import { Bluesky, RSS, X, YouTube } from "$lib/icons";
+  import * as config from "$lib/site/config";
+</script>
+
+<div class="socials">
+  <a href={config.youtube} target="_blank" rel="noreferrer">
+    <YouTube width={24} height={24} aria-label="YouTube" />
+  </a>
+  <a href={config.twitter} target="_blank" rel="noreferrer">
+    <X width={24} height={24} aria-label="Twitter" />
+  </a>
+  <a href={config.bluesky} target="_blank" rel="noreferrer">
+    <Bluesky width={20} height={20} aria-label="Bluesky" />
+  </a>
+  <a href="/rss.xml" target="_blank">
+    <RSS width={24} height={24} aria-label="RSS feed" />
+  </a>
+</div>
+
+<style>
+  .socials {
+    display: none;
+
+    @media (width >= 768px) {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-16);
+    }
+  }
+</style>
+
+=== 388 src/lib/ui/heading.svelte	svelte
+<script lang="ts">
+  let props = $props();
+</script>
+
+<h1>
+  {@render props.children?.()}
+</h1>
+
+<style>
+  h1 {
+    margin: var(--spacing-64) 0;
+    font-size: clamp(var(--font-48), 8vw, var(--font-96));
+    line-height: clamp(48px, 10vw, 112px);
+    color: var(--clr-primary);
+    text-align: center;
+
+    @media (width >= 860px) {
+      margin: var(--spacing-128) 0;
+    }
+  }
+</style>
+
+=== 2470 src/lib/ui/newsletter.svelte	svelte
+<script lang="ts">
+  import { fade } from "svelte/transition";
+  import { Envelope } from "$lib/icons";
+
+  let email = $state("");
+  let error = $state("");
+  let success = $state("");
+
+  async function onsubmit(e: SubmitEvent) {
+    e.preventDefault();
+
+    const response = await fetch("/api/subscribe", {
+      method: "post",
+      body: JSON.stringify(email),
+      headers: { "Content-Type": "application/json" },
+    });
+    const subscribe = await response.json();
+
+    if (subscribe.error) {
+      success = "";
+      error = subscribe.error;
+    }
+
+    if (subscribe.success) {
+      error = "";
+      success = subscribe.success;
+    }
+  }
+</script>
+
+<form {onsubmit}>
+  <label for="email" class="sr-only">Enter your email</label>
+  <input
+    bind:value={email}
+    type="email"
+    id="email"
+    name="email"
+    placeholder="your@email.com"
+    autocomplete="on"
+  />
+  <button type="submit">
+    <Envelope width={24} height={24} aria-hidden={true} />
+    <span>Subscribe</span>
+  </button>
+</form>
+
+<div class="message">
+  {#if error}
+    <span in:fade class="error">{error}</span>
+  {/if}
+
+  {#if success}
+    <span in:fade class="success">{success}</span>
+  {/if}
+</div>
+
+<style>
+  form {
+    display: flex;
+    max-width: 360px;
+    height: 48px;
+    margin: var(--spacing-16) 0;
+    border-radius: var(--rounded-4);
+    border: 1px solid var(--clr-input-border);
+    box-shadow: var(--shadow-sm);
+
+    input {
+      width: 100%;
+      padding: var(--spacing-8) var(--spacing-16);
+      background-color: var(--clr-input-bg);
+      border-radius: var(--rounded-4) 0 0 var(--rounded-4);
+      flex: 1;
+
+      &::placeholder {
+        color: var(--clr-input-placeholder-txt);
+      }
+    }
+
+    button {
+      padding: var(--spacing-8);
+      color: var(--clr-input-txt);
+      background-color: var(--clr-primary);
+      border-radius: 0 var(--rounded-4) var(--rounded-4) 0;
+
+      span {
+        font-size: var(--font-16);
+        font-weight: 700;
+        text-box: trim-both cap alphabetic;
+      }
+
+      @media (width >= 860px) {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-4);
+      }
+
+      :global(svg) {
+        display: none;
+
+        @media (width >= 860px) {
+          display: block;
+        }
+      }
+    }
+  }
+
+  .message {
+    margin-bottom: var(--spacing-16);
+    font-weight: 700;
+
+    .error {
+      color: hsl(9 100% 64%);
+    }
+
+    .success {
+      color: var(--clr-primary);
+    }
+  }
+</style>
+
+=== 2033 src/lib/ui/posts.svelte	svelte
+<script lang="ts">
+  import type { Snippet } from "svelte";
+  import { fade } from "svelte/transition";
+
+  import { formatDate } from "$lib/utils";
+  import type { Post } from "$lib/types";
+
+  type Props = {
+    posts: Post[];
+    title?: Snippet;
+    more?: Snippet;
+  };
+
+  let { posts, title, more }: Props = $props();
+</script>
+
+<section>
+  {@render title?.()}
+
+  <div class="cards">
+    {#each posts as post, i}
+      <div
+        in:fade={{
+          duration: 300,
+          delay: i < 4 ? 100 * i : 100 * 4,
+        }}
+      >
+        <article class="card">
+          <a href="/{post.slug}">
+            <div class="title" style:view-transition-name={post.slug}>
+              {post.title}
+            </div>
+          </a>
+          <div class="published">Published {formatDate(post.published)}</div>
+          <p class="description">{post.description}</p>
+        </article>
+      </div>
+    {/each}
+  </div>
+
+  {@render more?.()}
+</section>
+
+<style>
+  section {
+    max-width: 960px;
+    margin-inline: auto;
+    margin-top: var(--spacing-64);
+  }
+
+  .card {
+    padding-block: var(--spacing-32);
+    border-bottom: 1px solid var(--clr-menu-border);
+
+    a {
+      --color: inherit;
+      display: inline-block;
+    }
+
+    :global(html[data-font="dyslexic"]) & .title {
+      font-family: var(--font-dyslexic);
+      font-size: var(--font-24);
+      line-height: 32px;
+    }
+
+    .title {
+      font-family: var(--font-serif);
+      font-size: clamp(var(--font-24), 4vw, var(--font-32));
+      line-height: 40px;
+      text-transform: capitalize;
+      text-wrap: balance;
+    }
+
+    .published {
+      margin-block-start: var(--spacing-4);
+      font-size: var(--font-18);
+      color: var(--clr-card-txt);
+    }
+
+    .description {
+      max-width: 60ch;
+      margin-top: var(--spacing-16);
+      font-size: var(--font-20);
+      color: var(--clr-card-txt);
+    }
+  }
+
+  :global(a[href="/archive"]) {
+    width: max-content;
+    display: flex;
+    gap: var(--spacing-4);
+    margin-top: var(--spacing-32);
+  }
+</style>
+
+=== 420 src/routes/+error.svelte	svelte
+<script lang="ts">
+  import { page } from "$app/stores";
+</script>
+
+<div class="error">
+  <h1>{$page.status}: {$page?.error?.message}</h1>
+</div>
+
+<style>
+  .error {
+    height: 100%;
+    display: grid;
+    place-content: center;
+
+    h1 {
+      margin-top: var(--spacing-64);
+      font-family: var(--font-sans);
+      font-size: var(--font-32);
+      text-align: center;
+      text-transform: none;
+    }
+  }
+</style>
+
+=== 948 src/routes/+layout.svelte	svelte
+<script lang="ts">
+  import Header from "$lib/ui/header/header.svelte";
+  import Footer from "$lib/ui/footer.svelte";
+  import LiteYouTubeEmbed from "$lib/embed/youtube.svelte";
+  import { useAnalytics } from "$lib/analytics";
+  import { setupViewTransition } from "$lib/utils";
+
+  import "../styles/styles.css";
+
+  useAnalytics();
+  setupViewTransition();
+
+  let { children } = $props();
+</script>
+
+<LiteYouTubeEmbed />
+
+<div class="container">
+  <Header />
+
+  <div class="layout">
+    {@render children?.()}
+
+    <Footer />
+  </div>
+</div>
+
+<style>
+  .container {
+    min-height: 100%;
+    padding-block-start: var(--spacing-24);
+  }
+
+  .layout {
+    height: 100%;
+    max-inline-size: 1200px;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    gap: var(--spacing-24);
+    margin-inline: auto;
+
+    @media (width >= 300px) {
+      padding: 0px var(--spacing-16);
+    }
+
+    @media (width >= 1240px) {
+      padding: 0px;
+    }
+  }
+</style>
+
+=== 3390 src/routes/+page.svelte	svelte
+<script lang="ts">
+  import Newsletter from "$lib/ui/newsletter.svelte";
+  import Posts from "$lib/ui/posts.svelte";
+  import { ArrowRight } from "$lib/icons";
+  import * as config from "$lib/site/config";
+
+  let { data } = $props();
+
+  const { posts } = $derived(data);
+</script>
+
+<svelte:head>
+  <title>{config.siteTitle}</title>
+
+  <meta content={config.siteDescription} name="description" />
+
+  <meta content={config.siteTitle} property="og:title" />
+  <meta content={config.siteImage} property="og:image" />
+  <meta content={config.siteUrl} property="og:url" />
+  <meta content={config.siteDescription} property="og:description" />
+  <meta content={config.siteName} property="og:site_name" />
+
+  <meta content={config.twitterHandle} name="twitter:creator" />
+  <meta content="summary_large_image" name="twitter:card" />
+  <meta content={config.siteTitle} name="twitter:title" />
+  <meta content={config.siteDescription} name="twitter:description" />
+  <meta content={config.siteImage} name="twitter:image" />
+</svelte:head>
+
+<main>
+  <section class="hero">
+    <div class="latest-post">
+      <h1 class="title">{posts[0].title}</h1>
+      <p class="description">{posts[0].description}</p>
+      <a class="continue-reading" href={posts[0].slug}>
+        <span>Continue reading</span>
+        <ArrowRight width={24} height={24} aria-hidden={true} />
+      </a>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="newsletter">
+      <h2>Subscribe for updates</h2>
+      <Newsletter />
+    </div>
+  </section>
+
+  <Posts {posts}>
+    {#snippet title()}
+      <h3 class="latest">Latest</h3>
+    {/snippet}
+
+    {#snippet more()}
+      <a href="/archive">
+        <span>See more posts</span>
+        <ArrowRight width="24" height="24" aria-hidden="true" />
+      </a>
+    {/snippet}
+  </Posts>
+</main>
+
+<style>
+  .hero {
+    margin-block-start: var(--spacing-64);
+    padding: var(--spacing-32) var(--spacing-24);
+    background: var(--clr-footer-bg);
+    border: 1px solid var(--clr-menu-border);
+    border-radius: var(--rounded-20);
+    box-shadow: var(--shadow-sm);
+
+    @media (width >= 860px) {
+      display: grid;
+      grid-template-columns: repeat(12, [column-start] 1fr);
+      column-gap: var(--spacing-24);
+    }
+
+    .divider {
+      border-bottom: 1px solid var(--clr-menu-border);
+      margin: var(--spacing-32) 0;
+
+      @media (width >= 860px) {
+        grid-column: column-start 7 / span 1;
+        justify-self: center;
+        margin: 0;
+        border-left: 1px solid var(--clr-menu-border);
+        border-bottom: none;
+      }
+    }
+  }
+
+  .latest-post {
+    @media (width >= 860px) {
+      grid-column: column-start 2 / span 5;
+    }
+
+    .title {
+      padding-block: var(--spacing-16);
+      font-size: clamp(var(--font-24), 4vw, 40px);
+    }
+
+    .description {
+      font-size: var(--font-20);
+      color: var(--clr-card-txt);
+    }
+
+    .continue-reading {
+      width: max-content;
+      display: flex;
+      align-items: center;
+      margin-top: var(--spacing-32);
+    }
+
+    a {
+      display: flex;
+      gap: var(--spacing-4);
+    }
+  }
+
+  .newsletter {
+    @media (width >= 860px) {
+      display: grid;
+      place-content: center;
+      grid-auto-rows: min-content;
+      grid-column: column-start 8 / span 4;
+    }
+
+    h2 {
+      font-size: var(--font-32);
+      line-height: 32px;
+    }
+  }
+
+  .latest {
+    font-weight: 700;
+  }
+</style>
+
+=== 2015 src/routes/[slug]/+page.svelte	svelte
+<script lang="ts">
+  import { formatDate } from "$lib/utils";
+  import * as config from "$lib/site/config";
+
+  import Card from "./card.svelte";
+  import Clipboard from "./clipboard.svelte";
+  import TableOfContents from "./toc.svelte";
+
+  let { data } = $props();
+
+  let editUrl = $derived(
+    `${config.fileUrl}/${data.frontmatter.slug}/${data.frontmatter.slug}.md`,
+  );
+  let image = $derived(
+    `${config.postImage}${encodeURIComponent(data.frontmatter.title)}.png`,
+  );
+</script>
+
+<svelte:head>
+  <title>{data.frontmatter.title}</title>
+
+  <meta content={data.frontmatter.description} name="description" />
+
+  <meta content={data.frontmatter.title} property="og:title" />
+  <meta content={image} property="og:image" />
+  <meta content={config.siteUrl} property="og:url" />
+  <meta content={data.frontmatter.description} property="og:description" />
+  <meta content={config.siteName} property="og:site_name" />
+
+  <meta content={config.twitterHandle} name="twitter:creator" />
+  <meta content="summary_large_image" name="twitter:card" />
+  <meta content={data.frontmatter.title} name="twitter:title" />
+  <meta content={data.frontmatter.description} name="twitter:description" />
+  <meta content={image} name="twitter:image" />
+</svelte:head>
+
+<Clipboard />
+
+<main>
+  <TableOfContents />
+
+  <article class="prose">
+    <header>
+      <h1 class="title" style:view-transition-name={data.frontmatter.slug}>
+        {data.frontmatter.title}
+      </h1>
+      <p class="published">
+        Published {formatDate(data.frontmatter.published)}
+      </p>
+    </header>
+
+    <data.component />
+  </article>
+
+  <div class="cards">
+    <Card preset="support" />
+    <Card preset="edit" {editUrl} />
+  </div>
+</main>
+
+<style>
+  .cards {
+    display: grid;
+    row-gap: var(--spacing-32);
+    max-width: var(--post-txt-length);
+    margin: var(--spacing-64) 0;
+    margin-inline: auto;
+  }
+
+  .title {
+    width: fit-content;
+    margin-inline: auto;
+  }
+
+  .published {
+    margin-top: var(--spacing-24);
+  }
+</style>
+
+=== 2208 src/routes/[slug]/card.svelte	svelte
+<script lang="ts">
+  import { ArrowRight, PencilSquare, Heart } from "$lib/icons";
+
+  interface Props {
+    preset: "support" | "edit";
+    editUrl?: string;
+  }
+
+  let { preset, editUrl = "" }: Props = $props();
+</script>
+
+{#if preset === "support"}
+  <div class="card">
+    <div class="decorative">
+      <Heart width={24} height={24} aria-hidden={true} />
+    </div>
+    <span class="title">Support</span>
+    <p class="text">You can support my work on Patreon.</p>
+    <a
+      class="link"
+      href="https://www.patreon.com/joyofcode"
+      target="_blank"
+      rel="noreferrer"
+    >
+      <span>Patreon</span>
+      <ArrowRight width={24} height={24} aria-hidden={true} />
+    </a>
+  </div>
+{/if}
+
+{#if preset === "edit"}
+  <div class="card">
+    <div class="decorative">
+      <PencilSquare width={24} height={24} aria-hidden={true} />
+    </div>
+    <span class="title">Found a mistake?</span>
+    <p class="text">
+      Every post is a Markdown file so contributing is simple as following the
+      link below and pressing the pencil icon inside GitHub to edit it.
+    </p>
+    <a class="link" href={editUrl} target="_blank" rel="noreferrer">
+      <span>Edit on GitHub</span>
+      <ArrowRight width={24} height={24} aria-hidden={true} />
+    </a>
+  </div>
+{/if}
+
+<style>
+  .card {
+    position: relative;
+    padding: var(--spacing-32);
+    border: 4px solid var(--clr-primary);
+    border-radius: var(--rounded-20);
+
+    .decorative {
+      display: grid;
+      place-content: center;
+      width: 48px;
+      height: 48px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: translateX(-50%) translateY(-50%);
+      border-radius: 50%;
+      background-color: var(--clr-bg);
+
+      :global(svg) {
+        color: var(--clr-primary);
+      }
+    }
+
+    .title {
+      font-size: var(--font-24);
+      font-weight: 700;
+      line-height: 32px;
+    }
+
+    .text {
+      color: var(--clr-card-txt);
+      margin-top: var(--spacing-8);
+      margin-bottom: var(--spacing-32);
+    }
+
+    .link {
+      width: max-content;
+      display: flex;
+      gap: var(--spacing-16);
+    }
+
+    :global(form) {
+      margin: var(--spacing-16) 0;
+      background: red;
+    }
+  }
+</style>
+
+=== 1294 src/routes/[slug]/clipboard.svelte	svelte
+<script lang="ts">
+  function copyToClipboard(event: Event) {
+    const buttonEl = event.currentTarget as HTMLButtonElement;
+    const codeTitleEl = buttonEl.parentElement;
+    const text = codeTitleEl?.nextElementSibling?.textContent;
+    text && navigator.clipboard.writeText(text);
+    showCopiedMessage(buttonEl);
+  }
+
+  function showCopiedMessage(el: HTMLElement) {
+    let contents = el.innerHTML;
+    el.innerHTML = "Copied";
+    setTimeout(() => (el.innerHTML = contents), 1000);
+  }
+
+  $effect(() => {
+    const copyBtnEl = document.querySelectorAll(".copy");
+
+    copyBtnEl.forEach((btn) => {
+      btn.innerHTML = `
+        <span class="sr-only">Copy</span>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="lucide lucide-copy"
+				>
+					<rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+					<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+				</svg>
+      `;
+      btn.addEventListener("click", copyToClipboard);
+    });
+
+    return () =>
+      copyBtnEl.forEach((btn) => {
+        btn.removeEventListener("click", copyToClipboard);
+      });
+  });
+</script>
+
+=== 4178 src/routes/[slug]/toc.svelte	svelte
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { fly } from "svelte/transition";
+  import { ChevronDoubleLeft, ChevronDoubleRight } from "$lib/icons";
+
+  type TableOfContentsItem = {
+    active: boolean;
+    title: string;
+    href: string;
+  };
+
+  const TABLE_OF_CONTENTS = "#table-of-contents + ul";
+
+  let tableOfContents = $state<TableOfContentsItem[]>([]);
+  let showSidebar = $state(false);
+
+  onMount(() => {
+    const toc = document.querySelector(TABLE_OF_CONTENTS) as HTMLUListElement;
+    if (!toc) return;
+
+    tableOfContents = [...toc.querySelectorAll("a")].map((a, i) => ({
+      title: a.textContent!,
+      href: a.getAttribute("href")!,
+      active: false,
+    }));
+
+    if (window.innerWidth >= 1440) {
+      const observer = new IntersectionObserver(([entry]) => {
+        showSidebar = entry.boundingClientRect.bottom < 0;
+      });
+      observer.observe(toc);
+      return () => observer.unobserve(toc);
+    }
+  });
+
+  onMount(() => {
+    const headings = document.querySelectorAll("h2");
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          tableOfContents.forEach((i) => (i.active = false));
+          const title = entry.target.textContent;
+          const index = tableOfContents.findIndex((i) => i.title === title);
+          if (index >= 0) tableOfContents[index].active = true;
+        }
+      },
+      {
+        rootMargin: "0px 0px -90% 0px",
+      },
+    );
+    headings.forEach((heading) => observer.observe(heading));
+    return () => observer.disconnect();
+  });
+
+  function toggleSidebar() {
+    showSidebar = !showSidebar;
+  }
+</script>
+
+{#if tableOfContents}
+  <aside>
+    <section>
+      {#if showSidebar}
+        <div
+          transition:fly={{ x: "100%", duration: 300 }}
+          class="table-of-contents"
+        >
+          <button onclick={toggleSidebar} aria-label="Hide table of contents">
+            <ChevronDoubleRight width={24} height={24} aria-hidden={true} />
+            <h2 class="table-of-contents-title">Sections</h2>
+          </button>
+
+          <ul>
+            {#each tableOfContents as { active, title, href }}
+              <li>
+                <a {href} data-active={active}>{title}</a>
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {:else}
+        <button
+          in:fly={{ x: "100%", duration: 300, delay: 300 }}
+          onclick={toggleSidebar}
+          class="sidebar-toggle"
+          aria-label="Show table of contents"
+        >
+          <ChevronDoubleLeft width={24} height={24} aria-hidden={true} />
+        </button>
+      {/if}
+    </section>
+  </aside>
+{/if}
+
+<style>
+  aside {
+    max-width: 400px;
+    position: fixed;
+    top: 50%;
+    right: 8px;
+    translate: 0% -50%;
+    z-index: 10;
+  }
+
+  .sidebar-toggle,
+  .table-of-contents {
+    padding: var(--spacing-16);
+    background-color: var(--clr-footer-bg);
+    border: 1px solid var(--clr-menu-border);
+    border-radius: var(--rounded-20);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .table-of-contents {
+    counter-reset: section;
+
+    button {
+      padding-block: var(--spacing-8);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-4);
+    }
+
+    ul {
+      max-height: 400px;
+      padding: var(--spacing-4);
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+
+    li {
+      padding-block: var(--spacing-16);
+      font-size: var(--font-18);
+
+      &:not(:last-of-type) {
+        border-bottom: 0.5px solid var(--clr-menu-border);
+      }
+    }
+
+    a {
+      display: inline-block;
+      font-weight: 400;
+
+      &[data-active="true"] {
+        color: var(--clr-primary);
+      }
+
+      &::before {
+        all: unset;
+        counter-increment: section;
+        content: counter(section) ". ";
+      }
+    }
+  }
+
+  .table-of-contents-title {
+    font-size: var(--font-24);
+  }
+
+  :global {
+    [data-theme="🌛 Night"] .table-of-contents a {
+      --color: hsl(224 28% 78%);
+    }
+
+    [data-theme="☀️ Daylight"] .table-of-contents a {
+      --color: hsl(0 0% 40%);
+    }
+
+    [data-theme="🧠 Night Mind"] .table-of-contents a {
+      --color: hsl(280 20% 80%);
+    }
+  }
+</style>
+
+=== 1070 src/routes/about/+page.svelte	svelte
+<script lang="ts">
+  import Heading from "$lib/ui/heading.svelte";
+</script>
+
+<svelte:head>
+  <title>About</title>
+</svelte:head>
+
+<Heading>About</Heading>
+
+<main>
+  <p>Hey! 👋</p>
+  <p>
+    I'm <b>Matia</b> from 🇭🇷 <b>Croatia</b> and I'm infinitely curious at how
+    things work but I'm mostly passionate about ☕
+    <b>JavaScript and</b>
+    🎨
+    <b>UI/UX design</b>.
+  </p>
+  <p>
+    I created <b>Joy of Code</b> because I think a lot of tutorials don't help you
+    learn how to solve problems but just read the documentation to you and go from
+    point A to point B.
+  </p>
+  <p>
+    <strong>I want to show you steps between A and B</strong> by sharing what I learn
+    and how I think about solving problems.
+  </p>
+  <p>
+    I'm trying to create something I wish existed — it's more like having a
+    friend help you out instead of someone talking over your head.
+  </p>
+</main>
+
+<style>
+  main {
+    max-width: 50ch;
+    margin-inline: auto;
+    display: grid;
+    row-gap: var(--spacing-32);
+    margin-bottom: var(--spacing-64);
+  }
+</style>
+
+=== 1855 src/routes/archive/+page.svelte	svelte
+<script lang="ts">
+  import Heading from "$lib/ui/heading.svelte";
+  import { fade } from "svelte/transition";
+
+  let { data } = $props();
+</script>
+
+<svelte:head>
+  <title>Archive</title>
+  <meta content="List of {data.posts.length} posts." name="description" />
+</svelte:head>
+
+<Heading>Archive</Heading>
+
+<section>
+  <div class="container">
+    <h3>Posts</h3>
+    <div>
+      <span class="results">{data.posts.length}</span> results
+    </div>
+  </div>
+
+  <div class="posts">
+    {#each data.posts as post, i}
+      <div
+        in:fade={{
+          duration: 300,
+          delay: i < 10 ? 100 * i : 100 * 4,
+        }}
+      >
+        <a href="/{post.slug}">
+          <article class="post">
+            <div class="details">
+              <span class="title" style:--view-transition-name={post.slug}>
+                {post.title}
+              </span>
+            </div>
+          </article>
+        </a>
+      </div>
+    {/each}
+  </div>
+</section>
+
+<style>
+  section {
+    max-width: 740px;
+    margin-inline: auto;
+    margin-block-start: var(--spacing-64);
+
+    .container {
+      display: flex;
+      justify-content: space-between;
+
+      .results {
+        font-weight: 700;
+      }
+    }
+  }
+
+  .posts {
+    margin-top: var(--spacing-64);
+
+    a::before {
+      content: none;
+    }
+
+    .post {
+      margin-block-start: var(--spacing-32);
+      padding-block-end: var(--spacing-32);
+      border-bottom: 1px solid var(--clr-menu-border);
+
+      :global(html[data-font="dyslexic"]) & .title {
+        font-family: var(--font-dyslexic);
+        font-size: var(--font-24);
+        line-height: 32px;
+      }
+
+      .title {
+        font-family: var(--font-sans);
+        font-size: clamp(var(--font-24), 4vw, var(--font-32));
+        font-weight: 500;
+        line-height: 40px;
+        text-transform: capitalize;
+      }
+    }
+  }
+</style>
+
+=== 1163 src/routes/categories/[category]/+page.svelte	svelte
+<script lang="ts">
+  import { page } from "$app/stores";
+  import Heading from "$lib/ui/heading.svelte";
+  import Posts from "$lib/ui/posts.svelte";
+  import * as config from "$lib/site/config";
+  import type { Categories } from "$lib/types";
+
+  let { data } = $props();
+
+  const { posts } = $derived(data);
+  const category = $page.params.category as Categories;
+</script>
+
+<svelte:head>
+  <title>{config.categories[category]}</title>
+  <meta content="{config.categories[category]} category." name="description" />
+</svelte:head>
+
+<Heading>{config.categories[category]}</Heading>
+
+<Posts {posts}>
+  {#snippet title()}
+    <div class="container">
+      <div>
+        <span class="tag">{category}</span>
+      </div>
+      <div>
+        <span class="results">{posts.length}</span> results
+      </div>
+    </div>
+  {/snippet}
+</Posts>
+
+<style>
+  .container {
+    display: flex;
+    justify-content: space-between;
+
+    .tag {
+      padding: var(--spacing-16);
+      font-weight: 700;
+      background-color: var(--clr-bg);
+      border-radius: var(--rounded-20);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .results {
+      font-weight: 700;
+    }
+  }
+</style>
+
+=== 1788 src/routes/drafts/+page.svelte	svelte
+<script lang="ts">
+  import { fade } from "svelte/transition";
+  import Heading from "$lib/ui/heading.svelte";
+
+  let { data } = $props();
+</script>
+
+<svelte:head>
+  <title>Drafts</title>
+  <meta content="List of {data.posts.length} posts." name="description" />
+</svelte:head>
+
+<Heading>Drafts</Heading>
+
+<section>
+  <div class="container">
+    <h3>Drafts</h3>
+    <div>
+      <span class="results">{data.posts.length}</span> results
+    </div>
+  </div>
+
+  <div class="posts">
+    {#each data.posts as post, i}
+      <div
+        in:fade={{
+          duration: 300,
+          delay: i < 10 ? 100 * i : 100 * 4,
+        }}
+      >
+        <a href="/drafts/{post.slug}">
+          <article class="post">
+            <div class="details">
+              <span class="title">{post.title}</span>
+            </div>
+          </article>
+        </a>
+      </div>
+    {/each}
+  </div>
+</section>
+
+<style>
+  section {
+    max-width: 740px;
+    margin-inline: auto;
+    margin-block-start: var(--spacing-64);
+
+    .container {
+      display: flex;
+      justify-content: space-between;
+
+      .results {
+        font-weight: 700;
+      }
+    }
+  }
+
+  .posts {
+    margin-top: var(--spacing-64);
+
+    a::before {
+      content: none;
+    }
+
+    .post {
+      margin-block-start: var(--spacing-32);
+      padding-block-end: var(--spacing-32);
+      border-bottom: 1px solid var(--clr-menu-border);
+
+      :global(html[data-font="dyslexic"]) & .title {
+        font-family: var(--font-dyslexic);
+        font-size: var(--font-24);
+        line-height: 32px;
+      }
+
+      .title {
+        font-family: var(--font-sans);
+        font-size: clamp(var(--font-24), 4vw, var(--font-32));
+        font-weight: 500;
+        line-height: 40px;
+        text-transform: capitalize;
+      }
+    }
+  }
+</style>
+
+=== 1979 src/routes/drafts/[slug]/+page.svelte	svelte
+<script lang="ts">
+  import { formatDate } from "$lib/utils";
+  import * as config from "$lib/site/config";
+
+  import Card from "../../[slug]/card.svelte";
+  import Clipboard from "../../[slug]/clipboard.svelte";
+  import TableOfContents from "../../[slug]/toc.svelte";
+
+  let { data } = $props();
+
+  let editUrl = $derived(
+    `${config.fileUrl}/${data.frontmatter.slug}/${data.frontmatter.slug}.md`,
+  );
+  let image = $derived(
+    `${config.postImage}${encodeURIComponent(data.frontmatter.title)}.png`,
+  );
+</script>
+
+<svelte:head>
+  <title>{data.frontmatter.title}</title>
+
+  <meta content={data.frontmatter.description} name="description" />
+
+  <meta content={data.frontmatter.title} property="og:title" />
+  <meta content={image} property="og:image" />
+  <meta content={config.siteUrl} property="og:url" />
+  <meta content={data.frontmatter.description} property="og:description" />
+  <meta content={config.siteName} property="og:site_name" />
+
+  <meta content={config.twitterHandle} name="twitter:creator" />
+  <meta content="summary_large_image" name="twitter:card" />
+  <meta content={data.frontmatter.title} name="twitter:title" />
+  <meta content={data.frontmatter.description} name="twitter:description" />
+  <meta content={image} name="twitter:image" />
+</svelte:head>
+
+<Clipboard />
+
+<main>
+  <TableOfContents />
+
+  <article class="prose">
+    <header>
+      <h1 class="title">{data.frontmatter.title}</h1>
+      <p class="published">
+        Published {formatDate(data.frontmatter.published)}
+      </p>
+    </header>
+
+    <data.component />
+  </article>
+
+  <div class="cards">
+    <Card preset="support" />
+    <Card preset="edit" {editUrl} />
+  </div>
+</main>
+
+<style>
+  .cards {
+    display: grid;
+    row-gap: var(--spacing-32);
+    max-width: var(--post-txt-length);
+    margin: var(--spacing-64) 0;
+    margin-inline: auto;
+  }
+
+  .title {
+    max-width: 600px;
+    margin-inline: auto;
+  }
+
+  .published {
+    margin-top: var(--spacing-24);
+  }
+</style>
+
+=== 590 src/routes/newsletter/+page.svelte	svelte
+<script lang="ts">
+  import Heading from "$lib/ui/heading.svelte";
+  import Newsletter from "$lib/ui/newsletter.svelte";
+</script>
+
+<svelte:head>
+  <title>Newsletter</title>
+  <meta
+    content="Subscribe for updates and tasty web development treats."
+    name="description"
+  />
+</svelte:head>
+
+<Heading>Newsletter</Heading>
+
+<div class="newsletter">
+  <Newsletter />
+</div>
+
+<style>
+  .newsletter {
+    display: grid;
+    justify-items: center;
+
+    @media (min-width: 860px) {
+      display: grid;
+      justify-items: center;
+      margin-bottom: var(--spacing-128);
+    }
+  }
+</style>
+

@@ -1,0 +1,5167 @@
+# rsvelte pack 1
+=== 3 packages/language-server/test/plugins/svelte/testfiles/diagnostics-module.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/svelte/testfiles/svelte-anchor-missing-attribute-code-action-rel.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/svelte/testfiles/svelte-anchor-missing-attribute-code-action.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-code-action-ts.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-code-action.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-correct-script-placement.svelte	json
+[]
+
+=== 465 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	json
+[
+	{
+		"code": 2345,
+		"message": "Argument of type '\"bar\"' is not assignable to parameter of type 'keyof $$Events'.",
+		"start": {
+			"line": 7,
+			"character": 11
+		},
+		"end": {
+			"line": 7,
+			"character": 14
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 7,
+			"character": 37
+		},
+		"end": {
+			"line": 7,
+			"character": 54
+		}
+	}
+]
+
+=== 438 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	json
+[
+	{
+		"code": 2345,
+		"message": "Argument of type 'boolean' is not assignable to parameter of type 'string'.",
+		"start": {
+			"line": 12,
+			"character": 20
+		},
+		"end": {
+			"line": 12,
+			"character": 24
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type '\"click\"' is not assignable to parameter of type '\"foo\"'.",
+		"start": {
+			"line": 13,
+			"character": 13
+		},
+		"end": {
+			"line": 13,
+			"character": 20
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$generic-filter-out-unused/input.svelte	json
+[]
+
+=== 232 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$props-usage/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../$$props-valid/input.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	}
+]
+
+=== 219 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$props/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './$$props.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	}
+]
+
+=== 959 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots-usage/input.svelte	json
+[
+	{
+		"code": 2339,
+		"message": "Property 'invalidProp1' does not exist on type '{ valid1: boolean; validPropWrongType1: string; }'.",
+		"start": {
+			"line": 4,
+			"character": 46
+		},
+		"end": {
+			"line": 4,
+			"character": 58
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 6,
+			"character": 5
+		},
+		"end": {
+			"line": 6,
+			"character": 33
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'invalidProp2' does not exist on type '{ valid2: boolean; validPropWrongType2: string; }'.",
+		"start": {
+			"line": 8,
+			"character": 59
+		},
+		"end": {
+			"line": 8,
+			"character": 71
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 37
+		}
+	}
+]
+
+=== 1190 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots/input.svelte	json
+[
+	{
+		"code": 2322,
+		"message": "Type 'boolean' is not assignable to type 'string'.",
+		"start": {
+			"line": 13,
+			"character": 20
+		},
+		"end": {
+			"line": 13,
+			"character": 39
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"invalidProp1\"' does not exist in type '{ valid1: boolean; validPropWrongType1: string; }'.",
+		"start": {
+			"line": 14,
+			"character": 20
+		},
+		"end": {
+			"line": 14,
+			"character": 32
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'boolean' is not assignable to type 'string'.",
+		"start": {
+			"line": 15,
+			"character": 31
+		},
+		"end": {
+			"line": 15,
+			"character": 50
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"invalidProp2\"' does not exist in type '{ valid2: boolean; validPropWrongType2: string; }'.",
+		"start": {
+			"line": 16,
+			"character": 31
+		},
+		"end": {
+			"line": 16,
+			"character": 43
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type '\"invalid\"' is not assignable to parameter of type 'keyof $$Slots'.",
+		"start": {
+			"line": 17,
+			"character": 12
+		},
+		"end": {
+			"line": 17,
+			"character": 19
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$bindable-reassign.v5/input.svelte	json
+[]
+
+=== 597 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-bind/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './components' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'number' is not assignable to type 'boolean'.",
+		"start": {
+			"line": 17,
+			"character": 24
+		},
+		"end": {
+			"line": 17,
+			"character": 34
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'number' is not assignable to type 'boolean'.",
+		"start": {
+			"line": 19,
+			"character": 24
+		},
+		"end": {
+			"line": 19,
+			"character": 41
+		}
+	}
+]
+
+=== 1353 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-control-flow/input.svelte	json
+[
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 15,
+			"character": 40
+		},
+		"end": {
+			"line": 15,
+			"character": 57
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'string' is not assignable to type 'boolean'.",
+		"start": {
+			"line": 21,
+			"character": 12
+		},
+		"end": {
+			"line": 21,
+			"character": 16
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 28,
+			"character": 46
+		},
+		"end": {
+			"line": 28,
+			"character": 69
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 35,
+			"character": 41
+		},
+		"end": {
+			"line": 35,
+			"character": 58
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'string' is not assignable to type 'boolean'.",
+		"start": {
+			"line": 40,
+			"character": 13
+		},
+		"end": {
+			"line": 40,
+			"character": 17
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 47,
+			"character": 47
+		},
+		"end": {
+			"line": 47,
+			"character": 70
+		}
+	}
+]
+
+=== 423 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-undefined/input.svelte	json
+[
+	{
+		"code": 18048,
+		"message": "'$interfaceStore' is possibly 'undefined'.",
+		"start": {
+			"line": 8,
+			"character": 2
+		},
+		"end": {
+			"line": 8,
+			"character": 17
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.",
+		"start": {
+			"line": 9,
+			"character": 36
+		},
+		"end": {
+			"line": 9,
+			"character": 64
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-uninitialized/input.svelte	json
+[]
+
+=== 3770 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-wrong-usage/input.svelte	json
+[
+	{
+		"code": 2769,
+		"message": "Cannot use 'noStoreModule' as a store. 'noStoreModule' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.",
+		"start": {
+			"line": 8,
+			"character": 0
+		},
+		"end": {
+			"line": 8,
+			"character": 14
+		}
+	},
+	{
+		"code": 2769,
+		"message": "Cannot use 'noStoreModule' as a store. 'noStoreModule' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.",
+		"start": {
+			"line": 15,
+			"character": 1
+		},
+		"end": {
+			"line": 15,
+			"character": 15
+		}
+	},
+	{
+		"code": 2769,
+		"message": "Cannot use 'store' as a store. 'store' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.",
+		"start": {
+			"line": 6,
+			"character": 0
+		},
+		"end": {
+			"line": 6,
+			"character": 6
+		}
+	},
+	{
+		"code": 2769,
+		"message": "Cannot use 'store' as a store. 'store' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.",
+		"start": {
+			"line": 7,
+			"character": 3
+		},
+		"end": {
+			"line": 7,
+			"character": 9
+		}
+	},
+	{
+		"code": 2769,
+		"message": "Cannot use 'store' as a store. 'store' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.",
+		"start": {
+			"line": 11,
+			"character": 1
+		},
+		"end": {
+			"line": 11,
+			"character": 7
+		}
+	},
+	{
+		"code": 2769,
+		"message": "Cannot use 'store' as a store. 'store' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.",
+		"start": {
+			"line": 12,
+			"character": 5
+		},
+		"end": {
+			"line": 12,
+			"character": 11
+		}
+	}
+]
+
+=== 629 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-enhance-types/input.svelte	json
+[
+	{
+		"code": 2322,
+		"message": "Type 'number' is not assignable to type 'string'.",
+		"start": {
+			"line": 25,
+			"character": 16
+		},
+		"end": {
+			"line": 25,
+			"character": 19
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type '(e: CustomEvent<string>) => void' is not assignable to type '(e: CustomEvent<boolean>) => void'.\n  Types of parameters 'e' and 'e' are incompatible.\n    Type 'CustomEvent<boolean>' is not assignable to type 'CustomEvent<string>'.\n      Type 'boolean' is not assignable to type 'string'.",
+		"start": {
+			"line": 26,
+			"character": 31
+		},
+		"end": {
+			"line": 26,
+			"character": 34
+		}
+	}
+]
+
+=== 221 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bind-union/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './Component.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/Runes.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/RunesGeneric.svelte	json
+[]
+
+=== 2449 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './Legacy.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Cannot use 'bind:' with this property. It is declared as non-bindable inside the component.\nTo mark a property as bindable: 'let { readonly = $bindable() } = $props()'",
+		"start": {
+			"line": 26,
+			"character": 7
+		},
+		"end": {
+			"line": 26,
+			"character": 20
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'only_bind' does not exist in type '$$ComponentProps'.",
+		"start": {
+			"line": 27,
+			"character": 12
+		},
+		"end": {
+			"line": 27,
+			"character": 21
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Cannot use 'bind:' with this property. It is declared as non-bindable inside the component.\nTo mark a property as bindable: 'let { only_bind = $bindable() } = $props()'",
+		"start": {
+			"line": 27,
+			"character": 7
+		},
+		"end": {
+			"line": 27,
+			"character": 21
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'only_bind' does not exist in type '$$ComponentProps'.",
+		"start": {
+			"line": 28,
+			"character": 8
+		},
+		"end": {
+			"line": 28,
+			"character": 17
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Cannot use 'bind:' with this property. It is declared as non-bindable inside the component.\nTo mark a property as bindable: 'let { readonly = $bindable() } = $props()'",
+		"start": {
+			"line": 30,
+			"character": 14
+		},
+		"end": {
+			"line": 30,
+			"character": 27
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'only_bind' does not exist in type '$$ComponentProps'.",
+		"start": {
+			"line": 31,
+			"character": 19
+		},
+		"end": {
+			"line": 31,
+			"character": 28
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Cannot use 'bind:' with this property. It is declared as non-bindable inside the component.\nTo mark a property as bindable: 'let { only_bind = $bindable() } = $props()'",
+		"start": {
+			"line": 31,
+			"character": 14
+		},
+		"end": {
+			"line": 31,
+			"character": 28
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'only_bind' does not exist in type '$$ComponentProps'.",
+		"start": {
+			"line": 32,
+			"character": 15
+		},
+		"end": {
+			"line": 32,
+			"character": 24
+		}
+	}
+]
+
+=== 221 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/boolean-literal-props/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './Component.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/component-props-js/input.svelte	json
+[]
+
+=== 459 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/component-props-ts/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../props_to-import-ts.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../props_to-import-js.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/each-anytype/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs/no-script-tag/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/imported.svelte	json
+[]
+
+=== 1007 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/input.svelte	json
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './imported.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/imported.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './components' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 62
+		},
+		"end": {
+			"line": 2,
+			"character": 76
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 13,
+			"character": 51
+		},
+		"end": {
+			"line": 13,
+			"character": 52
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-slot-prop-in-snippet.v5/input.svelte	json
+[]
+
+=== 818 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/const-tag-if/input.svelte	json
+[
+	{
+		"code": 2551,
+		"message": "Property 'toFixed' does not exist on type 'string'. Did you mean 'fixed'?",
+		"start": {
+			"line": 25,
+			"character": 19
+		},
+		"end": {
+			"line": 25,
+			"character": 26
+		}
+	},
+	{
+		"code": 2551,
+		"message": "Property 'toFixed' does not exist on type 'string'. Did you mean 'fixed'?",
+		"start": {
+			"line": 25,
+			"character": 40
+		},
+		"end": {
+			"line": 25,
+			"character": 47
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'substring' does not exist on type 'number'.",
+		"start": {
+			"line": 27,
+			"character": 11
+		},
+		"end": {
+			"line": 27,
+			"character": 20
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'toFixed' does not exist on type 'boolean'.",
+		"start": {
+			"line": 29,
+			"character": 11
+		},
+		"end": {
+			"line": 29,
+			"character": 18
+		}
+	}
+]
+
+=== 1241 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/const-tag/input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'doesntExist'.",
+		"start": {
+			"line": 29,
+			"character": 21
+		},
+		"end": {
+			"line": 29,
+			"character": 32
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 31,
+			"character": 5
+		},
+		"end": {
+			"line": 31,
+			"character": 17
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'doesntExist'.",
+		"start": {
+			"line": 33,
+			"character": 21
+		},
+		"end": {
+			"line": 33,
+			"character": 32
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 35,
+			"character": 5
+		},
+		"end": {
+			"line": 35,
+			"character": 17
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'doesntExist'.",
+		"start": {
+			"line": 39,
+			"character": 21
+		},
+		"end": {
+			"line": 39,
+			"character": 32
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.",
+		"start": {
+			"line": 41,
+			"character": 5
+		},
+		"end": {
+			"line": 41,
+			"character": 16
+		}
+	}
+]
+
+=== 2961 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/custom-types/input.svelte	json
+[
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"owntypefromold\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 3,
+			"character": 5
+		},
+		"end": {
+			"line": 3,
+			"character": 19
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"on:ownclickfromold\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 4,
+			"character": 8
+		},
+		"end": {
+			"line": 4,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 27
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"owntype\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 11,
+			"character": 5
+		},
+		"end": {
+			"line": 11,
+			"character": 12
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"on:ownclick\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 12,
+			"character": 8
+		},
+		"end": {
+			"line": 12,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 12,
+			"character": 19
+		},
+		"end": {
+			"line": 12,
+			"character": 20
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"owntype\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 19,
+			"character": 5
+		},
+		"end": {
+			"line": 19,
+			"character": 12
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"owntypefromold\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 20,
+			"character": 5
+		},
+		"end": {
+			"line": 20,
+			"character": 19
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"on:ownclick\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 21,
+			"character": 8
+		},
+		"end": {
+			"line": 21,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 21,
+			"character": 19
+		},
+		"end": {
+			"line": 21,
+			"character": 20
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"on:ownclickfromold\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 22,
+			"character": 8
+		},
+		"end": {
+			"line": 22,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 22,
+			"character": 26
+		},
+		"end": {
+			"line": 22,
+			"character": 27
+		}
+	}
+]
+
+=== 863 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/declaration-tag.v5/input.svelte	json
+[
+	{
+		"code": 2322,
+		"message": "Type 'string' is not assignable to type 'number'.",
+		"start": {
+			"line": 11,
+			"character": 9
+		},
+		"end": {
+			"line": 11,
+			"character": 14
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'number' is not assignable to type 'string'.",
+		"start": {
+			"line": 12,
+			"character": 11
+		},
+		"end": {
+			"line": 12,
+			"character": 18
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'number' have no overlap.",
+		"start": {
+			"line": 14,
+			"character": 8
+		},
+		"end": {
+			"line": 14,
+			"character": 21
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.",
+		"start": {
+			"line": 14,
+			"character": 24
+		},
+		"end": {
+			"line": 14,
+			"character": 41
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/deprecated-unused-hints/input.svelte	json
+[]
+
+=== 529 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/each/input.svelte	json
+[
+	{
+		"code": 2345,
+		"message": "Argument of type '{}' is not assignable to parameter of type 'ArrayLike<unknown> | Iterable<unknown> | null | undefined'.",
+		"start": {
+			"line": 29,
+			"character": 7
+		},
+		"end": {
+			"line": 29,
+			"character": 24
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'number' is not assignable to parameter of type 'ArrayLike<unknown> | Iterable<unknown> | null | undefined'.",
+		"start": {
+			"line": 33,
+			"character": 7
+		},
+		"end": {
+			"line": 33,
+			"character": 24
+		}
+	}
+]
+
+=== 538 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-attributes/input.svelte	json
+[
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"this-is\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 9,
+			"character": 5
+		},
+		"end": {
+			"line": 9,
+			"character": 12
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'bar' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 10,
+			"character": 6
+		},
+		"end": {
+			"line": 10,
+			"character": 9
+		}
+	}
+]
+
+=== 518 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-events/input.svelte	json
+[
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"on:wat\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 10,
+			"character": 8
+		},
+		"end": {
+			"line": 10,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'asd' does not exist on type 'MouseEvent & { currentTarget: EventTarget & HTMLDivElement; }'.",
+		"start": {
+			"line": 11,
+			"character": 22
+		},
+		"end": {
+			"line": 11,
+			"character": 25
+		}
+	}
+]
+
+=== 628 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/exports-map-svelte/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'package' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'package/x' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'package/y' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 38
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics-runes.v5/ValueComponent.svelte	json
+[]
+
+=== 193 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics-runes.v5/input.svelte	json
+[
+	{
+		"code": 2322,
+		"message": "Type 'number' is not assignable to type 'string'.",
+		"start": {
+			"line": 10,
+			"character": 24
+		},
+		"end": {
+			"line": 10,
+			"character": 36
+		}
+	}
+]
+
+=== 586 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './generics.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 55
+		},
+		"end": {
+			"line": 5,
+			"character": 56
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 10,
+			"character": 51
+		},
+		"end": {
+			"line": 10,
+			"character": 52
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/component-with-getters.svelte	json
+[]
+
+=== 447 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/input.svelte	json
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './component-with-getters.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/component-with-getters.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/diagnostics-if-control-flow-imported.svelte	json
+[]
+
+=== 1108 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/input.svelte	json
+[
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 13,
+			"character": 5
+		},
+		"end": {
+			"line": 13,
+			"character": 15
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'boolean' is not assignable to type 'string'.",
+		"start": {
+			"line": 17,
+			"character": 9
+		},
+		"end": {
+			"line": 17,
+			"character": 16
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'a' does not exist on type 'boolean'.",
+		"start": {
+			"line": 23,
+			"character": 15
+		},
+		"end": {
+			"line": 23,
+			"character": 16
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'a' does not exist on type 'string | boolean'.\n  Property 'a' does not exist on type 'string'.",
+		"start": {
+			"line": 29,
+			"character": 15
+		},
+		"end": {
+			"line": 29,
+			"character": 16
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 31,
+			"character": 17
+		},
+		"end": {
+			"line": 31,
+			"character": 24
+		}
+	}
+]
+
+=== 2054 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './diagnostics-if-control-flow-imported.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 14,
+			"character": 5
+		},
+		"end": {
+			"line": 14,
+			"character": 15
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 17,
+			"character": 9
+		},
+		"end": {
+			"line": 17,
+			"character": 19
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 21,
+			"character": 9
+		},
+		"end": {
+			"line": 21,
+			"character": 19
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'b' is possibly 'undefined'.",
+		"start": {
+			"line": 34,
+			"character": 13
+		},
+		"end": {
+			"line": 34,
+			"character": 14
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'boolean' and 'string' have no overlap.",
+		"start": {
+			"line": 36,
+			"character": 17
+		},
+		"end": {
+			"line": 36,
+			"character": 26
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'string' and 'boolean' have no overlap.",
+		"start": {
+			"line": 45,
+			"character": 13
+		},
+		"end": {
+			"line": 45,
+			"character": 25
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'string | boolean' is not assignable to type 'string'.\n  Type 'boolean' is not assignable to type 'string'.",
+		"start": {
+			"line": 54,
+			"character": 1
+		},
+		"end": {
+			"line": 54,
+			"character": 8
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'aNestedPromise' is possibly 'null'.",
+		"start": {
+			"line": 56,
+			"character": 8
+		},
+		"end": {
+			"line": 56,
+			"character": 22
+		}
+	}
+]
+
+=== 887 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ignore-generated-code/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './diagnostics-ignore-generated-imported.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 69
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 4,
+			"character": 12
+		},
+		"end": {
+			"line": 4,
+			"character": 13
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 5,
+			"character": 5
+		},
+		"end": {
+			"line": 5,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 9,
+			"character": 9
+		},
+		"end": {
+			"line": 9,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 10
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/implicit-snippet.v5/SnippetParent.svelte	json
+[]
+
+=== 517 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/implicit-snippet.v5/input.svelte	json
+[
+	{
+		"code": 2741,
+		"message": "Property 'required' is missing in type '{ children: () => any; foo: (this: void, a: \"\") => any; }' but required in type '$$ComponentProps'.",
+		"start": {
+			"line": 4,
+			"character": 1
+		},
+		"end": {
+			"line": 4,
+			"character": 14
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types '\"\"' and '\"b\"' have no overlap.",
+		"start": {
+			"line": 6,
+			"character": 9
+		},
+		"end": {
+			"line": 6,
+			"character": 18
+		}
+	}
+]
+
+=== 1813 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './a.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	},
+	{
+		"code": 1192,
+		"message": "Module '\"/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/b.svelte\"' has no default export.",
+		"start": {
+			"line": 2,
+			"character": 11
+		},
+		"end": {
+			"line": 2,
+			"character": 12
+		}
+	},
+	{
+		"code": 6263,
+		"message": "Module './c.svelte' was resolved to '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/c.d.svelte.ts', but '--allowArbitraryExtensions' is not set.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 34
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './d.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/d.svelte.js' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 30
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './d.svelte.js'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/d.svelte.js' implicitly has an 'any' type.",
+		"start": {
+			"line": 6,
+			"character": 22
+		},
+		"end": {
+			"line": 6,
+			"character": 37
+		}
+	}
+]
+
+=== 445 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/invalid-import/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './doesnt-exist.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './valid-import.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	}
+]
+
+=== 222 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/js-untyped/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './untyped-js.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	}
+]
+
+=== 192 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/modulescript-boolean-not-assignable-to-string/input.svelte	json
+[
+	{
+		"code": 2322,
+		"message": "Type 'boolean' is not assignable to type 'string'.",
+		"start": {
+			"line": 0,
+			"character": 41
+		},
+		"end": {
+			"line": 0,
+			"character": 44
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/no-typechecks-for-js/input.svelte	json
+[]
+
+=== 416 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/node16/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './bar.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 32
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './bar' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 29
+		}
+	}
+]
+
+=== 416 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/node16/other.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './bar.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 32
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './bar' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 29
+		}
+	}
+]
+
+=== 575 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/nested/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'hi2' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 28
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'num' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 8
+		},
+		"end": {
+			"line": 3,
+			"character": 11
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'string' is not assignable to type 'number'.",
+		"start": {
+			"line": 6,
+			"character": 8
+		},
+		"end": {
+			"line": 6,
+			"character": 9
+		}
+	}
+]
+
+=== 573 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/paths/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'hi' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'num' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 4
+		},
+		"end": {
+			"line": 3,
+			"character": 7
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'string' is not assignable to type 'number'.",
+		"start": {
+			"line": 6,
+			"character": 4
+		},
+		"end": {
+			"line": 6,
+			"character": 5
+		}
+	}
+]
+
+=== 222 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/props-untyped/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './untyped-ts.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	}
+]
+
+=== 602 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '.' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 22
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '.' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 30
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'boolean' is not assignable to type 'string | number'.",
+		"start": {
+			"line": 4,
+			"character": 9
+		},
+		"end": {
+			"line": 4,
+			"character": 10
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte	json
+[]
+
+=== 192 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/script-boolean-not-assignable-to-string/input.svelte	json
+[
+	{
+		"code": 2322,
+		"message": "Type 'boolean' is not assignable to type 'string'.",
+		"start": {
+			"line": 0,
+			"character": 24
+		},
+		"end": {
+			"line": 0,
+			"character": 27
+		}
+	}
+]
+
+=== 585 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/slot-typechecks/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './diagnostics-slots-imported.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'defaultSlotProp'.",
+		"start": {
+			"line": 4,
+			"character": 33
+		},
+		"end": {
+			"line": 4,
+			"character": 48
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'namedSlotProp'.",
+		"start": {
+			"line": 12,
+			"character": 3
+		},
+		"end": {
+			"line": 12,
+			"character": 16
+		}
+	}
+]
+
+=== 456 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-js.v5/input.svelte	json
+[
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 18
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type '\"c\"' is not assignable to parameter of type 'TypeA'.",
+		"start": {
+			"line": 16,
+			"character": 12
+		},
+		"end": {
+			"line": 16,
+			"character": 15
+		}
+	}
+]
+
+=== 170 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-scope.v5/input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'nested1'.",
+		"start": {
+			"line": 15,
+			"character": 9
+		},
+		"end": {
+			"line": 15,
+			"character": 16
+		}
+	}
+]
+
+=== 978 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/input.svelte	json
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './strictEvents.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/strictEvents.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 40
+		},
+		"end": {
+			"line": 5,
+			"character": 41
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 7,
+			"character": 22
+		},
+		"end": {
+			"line": 7,
+			"character": 23
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/strictEvents.svelte	json
+[]
+
+=== 485 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/style-directive/input.svelte	json
+[
+	{
+		"code": 2345,
+		"message": "Argument of type 'true' is not assignable to parameter of type 'String | Number | null | undefined'.",
+		"start": {
+			"line": 16,
+			"character": 11
+		},
+		"end": {
+			"line": 16,
+			"character": 16
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'true' is not assignable to parameter of type 'String | Number | null | undefined'.",
+		"start": {
+			"line": 17,
+			"character": 18
+		},
+		"end": {
+			"line": 17,
+			"character": 23
+		}
+	}
+]
+
+=== 560 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	json
+[
+	{
+		"code": 2740,
+		"message": "Type 'HTMLDivElement' is missing the following properties from type 'HTMLAnchorElement': charset, coords, download, hreflang, and 21 more.",
+		"start": {
+			"line": 22,
+			"character": 38
+		},
+		"end": {
+			"line": 22,
+			"character": 51
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"cellpadding\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 23,
+			"character": 27
+		},
+		"end": {
+			"line": 23,
+			"character": 38
+		}
+	}
+]
+
+=== 1096 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-native/input.svelte	json
+[
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"horizontalalignment\"' does not exist in type 'HTMLProps<\"label\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"text\"' does not exist in type 'HTMLProps<\"span\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 34
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"text\"' does not exist in type 'HTMLProps<\"span\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 22
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"asd\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 7,
+			"character": 9
+		},
+		"end": {
+			"line": 7,
+			"character": 12
+		}
+	}
+]
+
+=== 197 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-ts-file/input.svelte	json
+[
+	{
+		"code": 2305,
+		"message": "Module '\"./foo.svelte\"' has no exported member 'bar'.",
+		"start": {
+			"line": 1,
+			"character": 11
+		},
+		"end": {
+			"line": 1,
+			"character": 14
+		}
+	}
+]
+
+=== 217 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/sveltekit-autotypings-arrow/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 217 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/sveltekit-autotypings/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/tags-without-attrs/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/transition-options/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ts-ignore-attribute.v5/input.svelte	json
+[]
+
+=== 182 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/typechecks-js-with-ts-check/input.svelte	json
+[
+	{
+		"code": 2339,
+		"message": "Property 'bla' does not exist on type '1'.",
+		"start": {
+			"line": 3,
+			"character": 4
+		},
+		"end": {
+			"line": 3,
+			"character": 7
+		}
+	}
+]
+
+=== 349 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/undeclared-component/input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Component'.",
+		"start": {
+			"line": 2,
+			"character": 1
+		},
+		"end": {
+			"line": 2,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'SomeLongComponentName'.",
+		"start": {
+			"line": 3,
+			"character": 1
+		},
+		"end": {
+			"line": 3,
+			"character": 22
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-catch/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-peding-catch/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-only/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-then-catch/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-then/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then-catch-shorthand/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then-catch/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-block/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-else/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-keyed/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/if-block/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/key-block/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/script/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/$$slots/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/$store/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/action/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/animation/input.svelte	json
+[]
+
+=== 761 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/component-handler/input.svelte	json
+[
+	{
+		"code": 2454,
+		"message": "Variable 'Component' is used before being assigned.",
+		"start": {
+			"line": 8,
+			"character": 1
+		},
+		"end": {
+			"line": 8,
+			"character": 10
+		}
+	},
+	{
+		"code": 2454,
+		"message": "Variable 'Component' is used before being assigned.",
+		"start": {
+			"line": 8,
+			"character": 22
+		},
+		"end": {
+			"line": 8,
+			"character": 31
+		}
+	},
+	{
+		"code": 2454,
+		"message": "Variable 'Component' is used before being assigned.",
+		"start": {
+			"line": 9,
+			"character": 1
+		},
+		"end": {
+			"line": 9,
+			"character": 10
+		}
+	},
+	{
+		"code": 2454,
+		"message": "Variable 'Component' is used before being assigned.",
+		"start": {
+			"line": 9,
+			"character": 36
+		},
+		"end": {
+			"line": 9,
+			"character": 45
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/disable-argument-name-match/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/disable-type-name-match/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/each/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/element-handler/input.svelte	json
+[]
+
+=== 382 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/function-call-in-props/input.svelte	json
+[
+	{
+		"code": 2454,
+		"message": "Variable 'Component' is used before being assigned.",
+		"start": {
+			"line": 7,
+			"character": 1
+		},
+		"end": {
+			"line": 7,
+			"character": 10
+		}
+	},
+	{
+		"code": 2454,
+		"message": "Variable 'Component' is used before being assigned.",
+		"start": {
+			"line": 7,
+			"character": 27
+		},
+		"end": {
+			"line": 7,
+			"character": 36
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/property-declaration/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/snippet.v5/input.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/transition/input.svelte	json
+[]
+
+=== 209 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/another-ref-format-date.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './util' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 209 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/call-hierarchy-import.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './util' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/outgoing-component.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/code-actions/check-js/codeaction-custom-fix-all-component3.svelte	json
+[]
+
+=== 189 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-checkJs-module.svelte	json
+[
+	{
+		"code": 2322,
+		"message": "Type 'string' is not assignable to type 'number'.",
+		"start": {
+			"line": 3,
+			"character": 4
+		},
+		"end": {
+			"line": 3,
+			"character": 5
+		}
+	}
+]
+
+=== 165 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-component-import.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Empty'.",
+		"start": {
+			"line": 4,
+			"character": 1
+		},
+		"end": {
+			"line": 4,
+			"character": 6
+		}
+	}
+]
+
+=== 348 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'FixAllImported'.",
+		"start": {
+			"line": 4,
+			"character": 1
+		},
+		"end": {
+			"line": 4,
+			"character": 15
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'FixAllImported2'.",
+		"start": {
+			"line": 5,
+			"character": 1
+		},
+		"end": {
+			"line": 5,
+			"character": 16
+		}
+	}
+]
+
+=== 349 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component2.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'FixAllImported3'.",
+		"start": {
+			"line": 2,
+			"character": 4
+		},
+		"end": {
+			"line": 2,
+			"character": 19
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'FixAllImported2'.",
+		"start": {
+			"line": 5,
+			"character": 1
+		},
+		"end": {
+			"line": 5,
+			"character": 16
+		}
+	}
+]
+
+=== 523 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component3.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'FixAllImported2'.",
+		"start": {
+			"line": 4,
+			"character": 1
+		},
+		"end": {
+			"line": 4,
+			"character": 16
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'FixAllImported3'.",
+		"start": {
+			"line": 5,
+			"character": 1
+		},
+		"end": {
+			"line": 5,
+			"character": 16
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'FixAllImported3'.",
+		"start": {
+			"line": 5,
+			"character": 20
+		},
+		"end": {
+			"line": 5,
+			"character": 35
+		}
+	}
+]
+
+=== 348 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component4.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'FixAllImported'.",
+		"start": {
+			"line": 4,
+			"character": 1
+		},
+		"end": {
+			"line": 4,
+			"character": 15
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'FixAllImported2'.",
+		"start": {
+			"line": 5,
+			"character": 1
+		},
+		"end": {
+			"line": 5,
+			"character": 16
+		}
+	}
+]
+
+=== 348 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component5.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'FixAllImported'.",
+		"start": {
+			"line": 4,
+			"character": 1
+		},
+		"end": {
+			"line": 4,
+			"character": 15
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'FixAllImported2'.",
+		"start": {
+			"line": 5,
+			"character": 1
+		},
+		"end": {
+			"line": 5,
+			"character": 16
+		}
+	}
+]
+
+=== 470 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component6.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './importing/FixAllImported.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './importing/FixAllImported2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	}
+]
+
+=== 1473 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeactions.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'blubb' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 16
+		},
+		"end": {
+			"line": 1,
+			"character": 23
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bla' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 16
+		},
+		"end": {
+			"line": 2,
+			"character": 21
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bla' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 16
+		},
+		"end": {
+			"line": 3,
+			"character": 21
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'd' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 16
+		},
+		"end": {
+			"line": 4,
+			"character": 19
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'abc'.",
+		"start": {
+			"line": 9,
+			"character": 0
+		},
+		"end": {
+			"line": 9,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'abc'.",
+		"start": {
+			"line": 11,
+			"character": 1
+		},
+		"end": {
+			"line": 11,
+			"character": 4
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Empty'.",
+		"start": {
+			"line": 12,
+			"character": 1
+		},
+		"end": {
+			"line": 12,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'handleClick'.",
+		"start": {
+			"line": 13,
+			"character": 23
+		},
+		"end": {
+			"line": 13,
+			"character": 34
+		}
+	}
+]
+
+=== 173 packages/language-server/test/plugins/typescript/testfiles/code-actions/fix-missing-function-element.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'handleClick'.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 29
+		}
+	}
+]
+
+=== 855 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-import-all-remove.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './importing/a' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './importing/a' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 48
+		},
+		"end": {
+			"line": 2,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './importing/a' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 49
+		},
+		"end": {
+			"line": 4,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './importing/a' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 49
+		},
+		"end": {
+			"line": 5,
+			"character": 64
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-group.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-leading-comment.svelte	json
+[]
+
+=== 216 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-snippet.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './importing/a' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 39
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-unchanged1.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-unchanged2.svelte	json
+[]
+
+=== 612 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-with-module.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './c' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 23
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './B' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 16
+		},
+		"end": {
+			"line": 6,
+			"character": 21
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './A' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 16
+		},
+		"end": {
+			"line": 7,
+			"character": 21
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/code-actions/remove-imports-inline.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/codelens/importing.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/codelens/references.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/ScndImport.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/UpperCase/dirCasing.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion-ts-def.svelte	json
+[]
+
+=== 593 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion.svelte	json
+[
+	{
+		"code": 2322,
+		"message": "Type 'string' is not assignable to type 'never'.",
+		"start": {
+			"line": 5,
+			"character": 12
+		},
+		"end": {
+			"line": 5,
+			"character": 15
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type '\"a\"' is not assignable to parameter of type 'keyof $$Events'.",
+		"start": {
+			"line": 5,
+			"character": 10
+		},
+		"end": {
+			"line": 5,
+			"character": 11
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'true' is not assignable to type 'never'.",
+		"start": {
+			"line": 6,
+			"character": 7
+		},
+		"end": {
+			"line": 6,
+			"character": 9
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-event-dispatcher.svelte	json
+[]
+
+=== 182 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-interface.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'ac' implicitly has an 'any' type.",
+		"start": {
+			"line": 7,
+			"character": 8
+		},
+		"end": {
+			"line": 7,
+			"character": 10
+		}
+	}
+]
+
+=== 432 packages/language-server/test/plugins/typescript/testfiles/completions/component-props-completion-rune.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './ComponentDef' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2741,
+		"message": "Property 'a' is missing in type '{}' but required in type '$$ComponentProps'.",
+		"start": {
+			"line": 5,
+			"character": 1
+		},
+		"end": {
+			"line": 5,
+			"character": 19
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/component-props-rune.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/element-events-completion.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/emptytext-importer.svelte	json
+[]
+
+=== 381 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-2nd-import.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './to-import' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'ScndImpor'.",
+		"start": {
+			"line": 2,
+			"character": 4
+		},
+		"end": {
+			"line": 2,
+			"character": 13
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-new-line.svelte	json
+[]
+
+=== 652 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-text.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Comp'.",
+		"start": {
+			"line": 8,
+			"character": 1
+		},
+		"end": {
+			"line": 8,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Comp'.",
+		"start": {
+			"line": 9,
+			"character": 3
+		},
+		"end": {
+			"line": 9,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Comp'.",
+		"start": {
+			"line": 10,
+			"character": 1
+		},
+		"end": {
+			"line": 10,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Comp'.",
+		"start": {
+			"line": 10,
+			"character": 8
+		},
+		"end": {
+			"line": 10,
+			"character": 12
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions1.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions2.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions7.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions8.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions9.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/jsdoc-completions.svelte	json
+[]
+
+=== 431 packages/language-server/test/plugins/typescript/testfiles/completions/namespaced.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './ComponentDef' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ComponentDef' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 49
+		},
+		"end": {
+			"line": 2,
+			"character": 65
+		}
+	}
+]
+
+=== 908 packages/language-server/test/plugins/typescript/testfiles/completions/object-member.svelte	json
+[
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'h' does not exist in type 'SayHi'.",
+		"start": {
+			"line": 6,
+			"character": 8
+		},
+		"end": {
+			"line": 6,
+			"character": 9
+		}
+	},
+	{
+		"code": 18004,
+		"message": "No value exists in scope for the shorthand property 'h'. Either declare one or provide an initializer.",
+		"start": {
+			"line": 6,
+			"character": 8
+		},
+		"end": {
+			"line": 6,
+			"character": 9
+		}
+	},
+	{
+		"code": 2420,
+		"message": "Class 'A' incorrectly implements interface 'SayHi'.\n  Property 'hi' is missing in type 'A' but required in type 'SayHi'.",
+		"start": {
+			"line": 9,
+			"character": 10
+		},
+		"end": {
+			"line": 9,
+			"character": 11
+		}
+	},
+	{
+		"code": 7008,
+		"message": "Member 'h' implicitly has an 'any' type.",
+		"start": {
+			"line": 10,
+			"character": 8
+		},
+		"end": {
+			"line": 10,
+			"character": 9
+		}
+	}
+]
+
+=== 234 packages/language-server/test/plugins/typescript/testfiles/completions/string-completion.svelte	json
+[
+	{
+		"code": 2345,
+		"message": "Argument of type '\"@\"' is not assignable to parameter of type '\"hi\" | \"@hi\" | \"~hi\"'.",
+		"start": {
+			"line": 1,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"character": 11
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/completions/ts-directive-comment.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/declaration-map/import-from-base64-sourcemap.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/declaration-map/importing.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/definition/definition-rune.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/definition/imported-rune.svelte	json
+[]
+
+=== 438 packages/language-server/test/plugins/typescript/testfiles/definitions.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './definitions' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './imported-file.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	}
+]
+
+=== 217 packages/language-server/test/plugins/typescript/testfiles/diagnostics/diagnostics-imported-js-update.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './empty-export' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	}
+]
+
+=== 192 packages/language-server/test/plugins/typescript/testfiles/diagnostics/diagnostics.svelte	json
+[
+	{
+		"code": 2322,
+		"message": "Type 'boolean' is not assignable to type 'string'.",
+		"start": {
+			"line": 0,
+			"character": 24
+		},
+		"end": {
+			"line": 0,
+			"character": 27
+		}
+	}
+]
+
+=== 439 packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './shared-comp.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './shared-ts-file' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	}
+]
+
+=== 441 packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service/different-ts-service.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shared-comp.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shared-ts-file' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	}
+]
+
+=== 219 packages/language-server/test/plugins/typescript/testfiles/diagnostics/unresolvedimport.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './doesntexistyet' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	}
+]
+
+=== 226 packages/language-server/test/plugins/typescript/testfiles/diagnostics/unresolvedimport2.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './doesntexistyet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/document-highlight/document-highlight.svelte	json
+[]
+
+=== 377 packages/language-server/test/plugins/typescript/testfiles/documentation.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './documentation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'fo'.",
+		"start": {
+			"line": 3,
+			"character": 4
+		},
+		"end": {
+			"line": 3,
+			"character": 6
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/documentsymbols-no-final-newline.svelte	json
+[]
+
+=== 1202 packages/language-server/test/plugins/typescript/testfiles/documentsymbols-snippets.v5/input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Component'.",
+		"start": {
+			"line": 12,
+			"character": 1
+		},
+		"end": {
+			"line": 12,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Child'.",
+		"start": {
+			"line": 14,
+			"character": 9
+		},
+		"end": {
+			"line": 14,
+			"character": 14
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Component'.",
+		"start": {
+			"line": 16,
+			"character": 2
+		},
+		"end": {
+			"line": 16,
+			"character": 11
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Component'.",
+		"start": {
+			"line": 18,
+			"character": 1
+		},
+		"end": {
+			"line": 18,
+			"character": 10
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'data' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 25
+		},
+		"end": {
+			"line": 19,
+			"character": 29
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Child'.",
+		"start": {
+			"line": 20,
+			"character": 9
+		},
+		"end": {
+			"line": 20,
+			"character": 14
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Component'.",
+		"start": {
+			"line": 22,
+			"character": 2
+		},
+		"end": {
+			"line": 22,
+			"character": 11
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte	json
+[]
+
+=== 1740 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	json
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 67
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 28
+		},
+		"end": {
+			"line": 5,
+			"character": 70
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 7,
+			"character": 9
+		},
+		"end": {
+			"line": 7,
+			"character": 51
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 35
+		},
+		"end": {
+			"line": 14,
+			"character": 77
+		}
+	}
+]
+
+=== 437 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent2.svelte	json
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './find-component-references-child.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-7swhPk/packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 67
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/find-file-references-parent.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/find-references-$store-other.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/find-references-$store.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/find-references-ignore-generated.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/hover/hover-$store.svelte	json
+[]
+
+=== 182 packages/language-server/test/plugins/typescript/testfiles/hover/hover-events-interface.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'c' implicitly has an 'any' type.",
+		"start": {
+			"line": 10,
+			"character": 8
+		},
+		"end": {
+			"line": 10,
+			"character": 9
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/hover/hoverinfo.svelte	json
+[]
+
+=== 981 packages/language-server/test/plugins/typescript/testfiles/performance.svelte	json
+[
+	{
+		"code": 2345,
+		"message": "Argument of type 'boolean' is not assignable to parameter of type 'string'.",
+		"start": {
+			"line": 11,
+			"character": 18
+		},
+		"end": {
+			"line": 11,
+			"character": 22
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'NonExistentComponent'.",
+		"start": {
+			"line": 21,
+			"character": 1
+		},
+		"end": {
+			"line": 21,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'evt' implicitly has an 'any' type.",
+		"start": {
+			"line": 23,
+			"character": 15
+		},
+		"end": {
+			"line": 23,
+			"character": 18
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'boolean' is not assignable to parameter of type 'string'.",
+		"start": {
+			"line": 24,
+			"character": 46
+		},
+		"end": {
+			"line": 24,
+			"character": 51
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'NonExistentComponent'.",
+		"start": {
+			"line": 29,
+			"character": 2
+		},
+		"end": {
+			"line": 29,
+			"character": 22
+		}
+	}
+]
+
+=== 377 packages/language-server/test/plugins/typescript/testfiles/preferences/code-action-outside-root.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../definitions' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'blu'.",
+		"start": {
+			"line": 2,
+			"character": 4
+		},
+		"end": {
+			"line": 2,
+			"character": 7
+		}
+	}
+]
+
+=== 171 packages/language-server/test/plugins/typescript/testfiles/preferences/code-action.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'definition'.",
+		"start": {
+			"line": 1,
+			"character": 4
+		},
+		"end": {
+			"line": 1,
+			"character": 14
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/preferences/imports.svelte	json
+[]
+
+=== 492 packages/language-server/test/plugins/typescript/testfiles/preferences/module-specifier-js.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'hi'.",
+		"start": {
+			"line": 1,
+			"character": 4
+		},
+		"end": {
+			"line": 1,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Imports'.",
+		"start": {
+			"line": 4,
+			"character": 1
+		},
+		"end": {
+			"line": 4,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Imports'.",
+		"start": {
+			"line": 4,
+			"character": 11
+		},
+		"end": {
+			"line": 4,
+			"character": 18
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/preferences/with-context-module.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/rename/rename-runes-importer.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/rename/rename-runes.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/rename/rename-slot-events-importer.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/rename/rename-slot-let.svelte	json
+[]
+
+=== 434 packages/language-server/test/plugins/typescript/testfiles/rename/rename2.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './rename.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './rename3.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 38
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/rename/rename4.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/rename/rename5.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/rename/rename6.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/selection-range/selection-range-import.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/selection-range/selection-range.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/semantic-tokens/jsToken.svelte	json
+[]
+
+=== 453 packages/language-server/test/plugins/typescript/testfiles/signature-help/signature-help.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../documentation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2355,
+		"message": "A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.",
+		"start": {
+			"line": 11,
+			"character": 49
+		},
+		"end": {
+			"line": 11,
+			"character": 55
+		}
+	}
+]
+
+=== 215 packages/language-server/test/plugins/typescript/testfiles/typedefinition/typedefinition.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './some-class' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 38
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/update-imports/+page.svelte	json
+[]
+
+=== 3 packages/language-server/test/plugins/typescript/testfiles/update-imports/updateimports.svelte	json
+[]
+
+=== 548 packages/language-server/test/plugins/typescript/testfiles/workspace-symbols/workspace-symbols.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './imported' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Component'.",
+		"start": {
+			"line": 6,
+			"character": 1
+		},
+		"end": {
+			"line": 6,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Component'.",
+		"start": {
+			"line": 6,
+			"character": 13
+		},
+		"end": {
+			"line": 6,
+			"character": 22
+		}
+	}
+]
+
+=== 1065 packages/svelte-check/test-error/Index.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './Jsdoc.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './relative' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../outside' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 36
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'string' is not assignable to type 'number'.",
+		"start": {
+			"line": 5,
+			"character": 8
+		},
+		"end": {
+			"line": 5,
+			"character": 13
+		}
+	},
+	{
+		"code": 2367,
+		"message": "This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.",
+		"start": {
+			"line": 8,
+			"character": 4
+		},
+		"end": {
+			"line": 9,
+			"character": 11
+		}
+	}
+]
+
+=== 3 packages/svelte-check/test-success/Index.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/action/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/animation/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/await-block/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/bind/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/class-directive/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/component-docs/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/const/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/debug/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/each-block/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/element-namespace/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/elements/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/handler/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/if-block/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/key-block/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/namespaced-component/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/props/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/script-coffee/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/script-context-lang/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/script-type-no-semicolon/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/script-type-single-line/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/style-directive/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/style-less/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/style-postcss/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/style-props/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/style-scss/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/style-src/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/style/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/template-pug/input.svelte	json
+[]
+
+=== 3 packages/svelte-vscode/test/grammar/samples/transition/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/repl/index.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/emitDts/samples/javascript-runes.v5/src/TestRunes.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/emitDts/samples/javascript/src/TestNoScript.svelte	json
+[]
+
+=== 218 packages/svelte2tsx/test/emitDts/samples/typescript-imports-outside-lib-root.v5/src/Component.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../utils/helper' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	}
+]
+
+=== 235 packages/svelte2tsx/test/emitDts/samples/typescript-runes-generics.v5/src/TestRunes.svelte	json
+[
+	{
+		"code": 2355,
+		"message": "A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 28
+		}
+	}
+]
+
+=== 206 packages/svelte2tsx/test/emitDts/samples/typescript-runes.v5/src/TestRunes2.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './x' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 32
+		}
+	}
+]
+
+=== 3 packages/svelte2tsx/test/emitDts/samples/typescript/src/Interfaces.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/action-bare/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/action-nested/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/action-params/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/action-svelte-body/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/attachments.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-bare/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-data/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-element/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-foreign-ns/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-multiline/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-nullish-coalescing/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-number/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-optional-chaining/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-quoted/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-shorthand/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-text/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-value-escape/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/auto-closing-tag/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-basic-catch/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-basic/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-array/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-default/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-object/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-rest/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-no-then/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-parentheses/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-pending-catch/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-pending/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-catch-no-var/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-catch/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-then-no-var/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/binding-get-set.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-component/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-get-set.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-body/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-component/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-self/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/blocks-without-whitespace-inbetween/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/class-bare/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/class-parentheses/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/class/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/comment/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/comments-around-if/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-empty/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-let-destructure/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-let/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/component-multi-slot/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/component-name-dot/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/component-named-slot/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/component-no-slots/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-attribute-as-prop.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-infer-props/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-shadowed-prop/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-attribute/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-builtin-attribute/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/debug-block/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/doctype/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-basic-sequence/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-basic/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-index/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-key-else/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-key/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-nullish-coalescing/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-optional-chaining/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-without-as.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/element-only/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-bare/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component-bare/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component-infer-props/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-customname/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-modifiers/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-quoted/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-svelte-component/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/expression-nullish-coalescing-optional-chaining/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/html-block/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-block-const/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-block/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-comma-block/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-block-nested/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-block/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-block/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-nullish-coalescing/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-optional-chaining/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block-shadowed/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-each-block-shadowed/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-each-block/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-slot-let-shadowed/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-slot-let/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/mustache-tag-object-literal/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/namespaced-attributes/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/nested-if-else-if-and-each-block/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/nested-snippet.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/quotes-inside-quotes/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/sapper-noscroll/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/sapper-prefetch/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/simple-expression/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/snippet.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/style-directive/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/svelte-boundary.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/svelte-fragment/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/sveltehead-title/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/sveltekit-anchor-attrs/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/svg-attributes/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/tokens-not-allowed-in-jsx/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/transition-bare/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/transition-modifiers/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/transition-params/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/htmlx2jsx/samples/void-elements/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/sourcemaps/samples/each-block/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/sourcemaps/samples/property-shorthand/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/sourcemaps/samples/simple-element/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/sourcemaps/samples/slot-let/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/sourcemaps/samples/slots/input.svelte	json
+[]
+
+=== 334 packages/svelte2tsx/test/svelte2tsx/samples/$store-assign/input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'writable'.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 26
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'hello'.",
+		"start": {
+			"line": 12,
+			"character": 4
+		},
+		"end": {
+			"line": 12,
+			"character": 9
+		}
+	}
+]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/$store-no-instance-only-module-script/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/$store-prop-init/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/attributes-foreign-ns/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/await-with-$store/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/circle-drawer-example/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/commented-out-script/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-default-slot/input.svelte	json
+[]
+
+=== 183 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-constant/input.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member '[C]' implicitly has an 'any' type.",
+		"start": {
+			"line": 9,
+			"character": 8
+		},
+		"end": {
+			"line": 9,
+			"character": 11
+		}
+	}
+]
+
+=== 180 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-dispatcher/input.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'c' implicitly has an 'any' type.",
+		"start": {
+			"line": 9,
+			"character": 8
+		},
+		"end": {
+			"line": 9,
+			"character": 9
+		}
+	}
+]
+
+=== 183 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-string-literals/input.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member ''c'' implicitly has an 'any' type.",
+		"start": {
+			"line": 7,
+			"character": 8
+		},
+		"end": {
+			"line": 7,
+			"character": 11
+		}
+	}
+]
+
+=== 180 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface/input.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'c' implicitly has an 'any' type.",
+		"start": {
+			"line": 7,
+			"character": 8
+		},
+		"end": {
+			"line": 7,
+			"character": 9
+		}
+	}
+]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-events-strictEvents/input.svelte	json
+[]
+
+=== 180 packages/svelte2tsx/test/svelte2tsx/samples/component-events-type/input.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'c' implicitly has an 'any' type.",
+		"start": {
+			"line": 7,
+			"character": 8
+		},
+		"end": {
+			"line": 7,
+			"character": 9
+		}
+	}
+]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-multiple-slots/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-$$slot-interface/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-$$slot-type/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-crazy-attributes/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-fallback/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-forward-with-props/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-inside-await/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-inside-each/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-let-forward-named-slot/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-let-forward/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-nest-scope/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-no-space/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-var-shadowing/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-with-documentation/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-with-indented-multiline-documentation/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/component-with-multiline-documentation/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/creates-no-script-dts/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/doctype-script/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/event-and-forwarded-event/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component-multi/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component-with-props/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-element/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-svelte-element/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatcher-events-alias/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatcher-events/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatchers/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/export-class/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/export-const-array-destructuring/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/export-const-object-destructuring/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/export-list-runes.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/export-list/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/generics-attribute.v5/input.svelte	json
+[]
+
+=== 423 packages/svelte2tsx/test/svelte2tsx/samples/import-leading-comment/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './a.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 30
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './c.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 36
+		}
+	}
+]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/import-single-quote/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/imports-module-instance/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/js-jsdoc-before-first-import/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-runes.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-sveltekit-autotypes-runes.v5/+page.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-various.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/module-snippet-component-instance-reference.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-destructured.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-not-$props-init.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-spread.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports-runes.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/rewrite-imports/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/runes-best-effort-types.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/runes-bindable-reserved-name.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/runes-bindable.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/runes-looking-like-stores.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/runes-only-export.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/runes-with-slots.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/runes.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/script-in-rawhtml/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/script-inside-head-after-toplevel-script/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/script-style-like-component/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/script-tag-in-style-comment-with-real-script/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/script-with-src/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/self-closing-component/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/single-element/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/snippet-instance-script.v5/input.svelte	json
+[]
+
+=== 1106 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-1.v5/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './x' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'bar' implicitly has an 'any' type.",
+		"start": {
+			"line": 13,
+			"character": 21
+		},
+		"end": {
+			"line": 13,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'foo' implicitly has an 'any' type.",
+		"start": {
+			"line": 21,
+			"character": 21
+		},
+		"end": {
+			"line": 21,
+			"character": 24
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'global'.",
+		"start": {
+			"line": 38,
+			"character": 10
+		},
+		"end": {
+			"line": 38,
+			"character": 16
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'HTMLAttributes'.",
+		"start": {
+			"line": 41,
+			"character": 28
+		},
+		"end": {
+			"line": 41,
+			"character": 42
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'foo' implicitly has an 'any' type.",
+		"start": {
+			"line": 45,
+			"character": 22
+		},
+		"end": {
+			"line": 45,
+			"character": 25
+		}
+	}
+]
+
+=== 206 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-2.v5/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './x' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	}
+]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-4.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-5.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-6.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-7.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/store-derived-import/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/store-from-module/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/store-import/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/store-property-access/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/stores-looking-like-runes/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/style-after-selfclosing-iframe/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/style-attribute-bare/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/style-attribute/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/style-in-script/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/style-tag-in-script-comment-with-real-style/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/style/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/svelte-element/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/svelte-self-forward-event/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes-$props-rune-no-changes.v5/+page.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes-$props-rune.v5/+page.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-$$Props-interface-only-props/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-declaration-tag.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatcher-typed-non-literal/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-bindable.v5/input.svelte	json
+[]
+
+=== 544 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-generics.v5/input.svelte	json
+[
+	{
+		"code": 2345,
+		"message": "Argument of type 'number' is not assignable to parameter of type 'T'.\n  'T' could be instantiated with an arbitrary type which could be unrelated to 'number'.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 23
+		}
+	},
+	{
+		"code": 2362,
+		"message": "The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 22
+		}
+	}
+]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-1.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-2.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-4.v5/input.svelte	json
+[]
+
+=== 206 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-5.v5/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './X' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 23
+		}
+	}
+]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-6.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-7.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-8.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-1.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-10.v5/input.svelte	json
+[]
+
+=== 288 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-11.v5/input.svelte	json
+[
+	{
+		"code": 2713,
+		"message": "Cannot access 'A.Abc' because 'A' is a type, but not a namespace. Did you mean to retrieve the type of the property 'Abc' in 'A' with 'A[\"Abc\"]'?",
+		"start": {
+			"line": 8,
+			"character": 9
+		},
+		"end": {
+			"line": 8,
+			"character": 14
+		}
+	}
+]
+
+=== 222 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-12.v5/input.svelte	json
+[
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 3,
+			"character": 0
+		},
+		"end": {
+			"line": 3,
+			"character": 9
+		}
+	}
+]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-13.v5/input.svelte	json
+[]
+
+=== 208 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-15.v5/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './foo' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 29
+		}
+	}
+]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-2.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-3.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-4.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-5.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-6.v5/input.svelte	json
+[]
+
+=== 193 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-7.v5/input.svelte	json
+[
+	{
+		"code": 2339,
+		"message": "Property 'destructured' does not exist on type '{}'.",
+		"start": {
+			"line": 1,
+			"character": 7
+		},
+		"end": {
+			"line": 1,
+			"character": 19
+		}
+	}
+]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-8.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-9.v5/input.svelte	json
+[]
+
+=== 544 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-with-slot.v5/input.svelte	json
+[
+	{
+		"code": 2345,
+		"message": "Argument of type 'number' is not assignable to parameter of type 'T'.\n  'T' could be instantiated with an arbitrary type which could be unrelated to 'number'.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 23
+		}
+	},
+	{
+		"code": 2362,
+		"message": "The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 22
+		}
+	}
+]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes.v5/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune.v5/+page.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/ts-type-assertion/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/typeof-$store/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots-script/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots/input.svelte	json
+[]
+
+=== 225 packages/svelte2tsx/test/svelte2tsx/samples/uses-$property/input.svelte	json
+[
+	{
+		"code": 2564,
+		"message": "Property '$bla' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 8,
+			"character": 3
+		},
+		"end": {
+			"line": 8,
+			"character": 7
+		}
+	}
+]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-assignment-operators/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-increments/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-unary-operators/input.svelte	json
+[]
+
+=== 3 packages/svelte2tsx/test/svelte2tsx/samples/uses-svelte-components-let-forward/input.svelte	json
+[]
+

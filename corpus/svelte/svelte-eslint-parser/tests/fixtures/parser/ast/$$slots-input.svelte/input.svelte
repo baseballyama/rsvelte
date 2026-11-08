@@ -1,2 +1,0 @@
-{#if $$slots.labelText}
-{/if}

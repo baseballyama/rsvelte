@@ -1,0 +1,884 @@
+# rsvelte pack 1
+=== 1357 src/lib/components/CheckmarkIcon.svelte	svelte	runes	runes
+<!-- Adapted from https://github.com/timolins/react-hot-toast -->
+<script lang="ts">
+	import type { IconTheme } from '../core/types';
+
+	interface Props {
+		primary?: IconTheme['primary'];
+		secondary?: IconTheme['secondary'];
+	}
+
+	let { primary = '#61d345', secondary = '#fff' }: Props = $props();
+</script>
+
+<div style:--primary={primary} style:--secondary={secondary}></div>
+
+<style>
+	div {
+		width: 20px;
+		opacity: 0;
+		height: 20px;
+		border-radius: 10px;
+		background: var(--primary, #61d345);
+		position: relative;
+		transform: rotate(45deg);
+		animation: circleAnimation 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+		animation-delay: 100ms;
+	}
+
+	div::after {
+		content: '';
+		box-sizing: border-box;
+		animation: checkmarkAnimation 0.2s ease-out forwards;
+		opacity: 0;
+		animation-delay: 200ms;
+		position: absolute;
+		border-right: 2px solid;
+		border-bottom: 2px solid;
+		border-color: var(--secondary, #fff);
+		bottom: 6px;
+		left: 6px;
+		height: 10px;
+		width: 6px;
+	}
+
+	@keyframes circleAnimation {
+		from {
+			transform: scale(0) rotate(45deg);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1) rotate(45deg);
+			opacity: 1;
+		}
+	}
+
+	@keyframes checkmarkAnimation {
+		0% {
+			height: 0;
+			width: 0;
+			opacity: 0;
+		}
+		40% {
+			height: 0;
+			width: 6px;
+			opacity: 1;
+		}
+		100% {
+			opacity: 1;
+			height: 10px;
+		}
+	}
+</style>
+
+=== 1557 src/lib/components/ErrorIcon.svelte	svelte	runes	runes
+<!-- Adapted from https://github.com/timolins/react-hot-toast -->
+<script lang="ts">
+	import type { IconTheme } from '../core/types';
+
+	interface Props {
+		primary?: IconTheme['primary'];
+		secondary?: IconTheme['secondary'];
+	}
+
+	let { primary = '#ff4b4b', secondary = '#fff' }: Props = $props();
+</script>
+
+<div style:--primary={primary} style:--secondary={secondary}></div>
+
+<style>
+	div {
+		width: 20px;
+		opacity: 0;
+		height: 20px;
+		border-radius: 10px;
+		background: var(--primary, #ff4b4b);
+		position: relative;
+		transform: rotate(45deg);
+		animation: circleAnimation 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+		animation-delay: 100ms;
+	}
+
+	div::after,
+	div::before {
+		content: '';
+		animation: firstLineAnimation 0.15s ease-out forwards;
+		animation-delay: 150ms;
+		position: absolute;
+		border-radius: 3px;
+		opacity: 0;
+		background: var(--secondary, #fff);
+		bottom: 9px;
+		left: 4px;
+		height: 2px;
+		width: 12px;
+	}
+
+	div:before {
+		animation: secondLineAnimation 0.15s ease-out forwards;
+		animation-delay: 180ms;
+		transform: rotate(90deg);
+	}
+
+	@keyframes circleAnimation {
+		from {
+			transform: scale(0) rotate(45deg);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1) rotate(45deg);
+			opacity: 1;
+		}
+	}
+
+	@keyframes firstLineAnimation {
+		from {
+			transform: scale(0);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
+
+	@keyframes secondLineAnimation {
+		from {
+			transform: scale(0) rotate(90deg);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1) rotate(90deg);
+			opacity: 1;
+		}
+	}
+</style>
+
+=== 746 src/lib/components/LoaderIcon.svelte	svelte	runes	runes
+<!-- Adapted from https://github.com/timolins/react-hot-toast -->
+<script lang="ts">
+	import type { IconTheme } from '../core/types';
+
+	interface Props {
+		primary?: IconTheme['primary'];
+		secondary?: IconTheme['secondary'];
+	}
+
+	let { primary = '#616161', secondary = '#e0e0e0' }: Props = $props();
+</script>
+
+<div style:--primary={primary} style:--secondary={secondary}></div>
+
+<style>
+	div {
+		width: 12px;
+		height: 12px;
+		box-sizing: border-box;
+		border: 2px solid;
+		border-radius: 100%;
+		border-color: var(--secondary, #e0e0e0);
+		border-right-color: var(--primary, #616161);
+		animation: rotate 1s linear infinite;
+	}
+
+	@keyframes rotate {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
+	}
+</style>
+
+=== 2903 src/lib/components/ToastBar.svelte	svelte	runes	runes
+<script lang="ts">
+	import type { Component as ComponentType, Snippet } from 'svelte';
+	import type { Toast, ToastPosition } from '../core/types';
+	import { prefersReducedMotion } from '../core/utils';
+	import ToastIcon from './ToastIcon.svelte';
+	import ToastMessage from './ToastMessage.svelte';
+
+	interface Props {
+		toast: Toast;
+		position?: ToastPosition | undefined;
+		style?: string;
+		Component?: ComponentType<Record<string, unknown>> | undefined;
+		children?: Snippet<
+			[{ ToastIcon: typeof ToastIcon; ToastMessage: typeof ToastMessage; toast: Toast }]
+		>;
+	}
+
+	let {
+		toast,
+		position = undefined,
+		style = '',
+		Component = undefined,
+		children
+	}: Props = $props();
+
+	let factor: number | undefined = $derived.by(() => {
+		const top = (toast.position || position || 'top-center').includes('top');
+		return top ? 1 : -1;
+	});
+	let animation: string | undefined = $derived.by(() => {
+		const [enter, exit] = prefersReducedMotion()
+			? ['_sft-fadeIn', '_sft-fadeOut']
+			: ['_sft-enter', '_sft-exit'];
+		return toast.visible ? enter : exit;
+	});
+</script>
+
+<div
+	class="_sft-base {toast.height ? animation : '_sft-transparent'} {toast.className || ''}"
+	style="{style}; {toast.style}"
+	style:--factor={factor}
+>
+	{#if Component}
+		<Component>
+			{#snippet icon()}
+				<ToastIcon {toast} />
+			{/snippet}
+			{#snippet message()}
+				<ToastMessage {toast} />
+			{/snippet}
+		</Component>
+	{:else if children}{@render children({ ToastIcon, ToastMessage, toast })}{:else}
+		<ToastIcon {toast} />
+		<ToastMessage {toast} />
+	{/if}
+</div>
+
+<style>
+	@keyframes enterAnimation {
+		0% {
+			transform: translate3d(0, calc(var(--factor) * -200%), 0) scale(0.6);
+			opacity: 0.5;
+		}
+		100% {
+			transform: translate3d(0, 0, 0) scale(1);
+			opacity: 1;
+		}
+	}
+
+	@keyframes exitAnimation {
+		0% {
+			transform: translate3d(0, 0, -1px) scale(1);
+			opacity: 1;
+		}
+		100% {
+			transform: translate3d(0, calc(var(--factor) * -150%), -1px) scale(0.6);
+			opacity: 0;
+		}
+	}
+
+	@keyframes fadeInAnimation {
+		0% {
+			opacity: 0;
+		}
+		100% {
+			opacity: 1;
+		}
+	}
+
+	@keyframes fadeOutAnimation {
+		0% {
+			opacity: 1;
+		}
+		100% {
+			opacity: 0;
+		}
+	}
+
+	._sft-base {
+		display: flex;
+		align-items: center;
+		background: #fff;
+		color: #363636;
+		line-height: 1.3;
+		will-change: transform;
+		box-shadow:
+			0 3px 10px rgba(0, 0, 0, 0.1),
+			0 3px 3px rgba(0, 0, 0, 0.05);
+		max-width: 350px;
+		pointer-events: auto;
+		padding: 8px 10px;
+		border-radius: 8px;
+	}
+
+	._sft-transparent {
+		opacity: 0;
+	}
+
+	._sft-enter {
+		animation: enterAnimation 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+	}
+
+	._sft-exit {
+		animation: exitAnimation 0.4s cubic-bezier(0.06, 0.71, 0.55, 1) forwards;
+	}
+
+	._sft-fadeIn {
+		animation: fadeInAnimation 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+	}
+
+	._sft-fadeOut {
+		animation: fadeOutAnimation 0.4s cubic-bezier(0.06, 0.71, 0.55, 1) forwards;
+	}
+</style>
+
+=== 1328 src/lib/components/ToastIcon.svelte	svelte	runes	runes
+<script lang="ts">
+	import type { Toast } from '../core/types';
+	import CheckmarkIcon from './CheckmarkIcon.svelte';
+	import ErrorIcon from './ErrorIcon.svelte';
+	import LoaderIcon from './LoaderIcon.svelte';
+
+	interface Props {
+		toast: Toast;
+	}
+
+	let { toast }: Props = $props();
+	let { type, icon, iconTheme } = $derived(toast);
+</script>
+
+{#if typeof icon === 'string'}
+	<div class="_sft-animated">{icon}</div>
+{:else if typeof icon !== 'undefined'}
+	{@const IconComponent = icon}
+	<IconComponent />
+{:else if type !== 'blank'}
+	<div class="_sft-indicator">
+		<LoaderIcon {...iconTheme} />
+		{#if type !== 'loading'}
+			<div class="_sft-status">
+				{#if type === 'error'}
+					<ErrorIcon {...iconTheme} />
+				{:else}
+					<CheckmarkIcon {...iconTheme} />
+				{/if}
+			</div>
+		{/if}
+	</div>
+{/if}
+
+<style>
+	._sft-indicator {
+		position: relative;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		min-width: 20px;
+		min-height: 20px;
+	}
+
+	._sft-status {
+		position: absolute;
+	}
+
+	._sft-animated {
+		position: relative;
+		transform: scale(0.6);
+		opacity: 0.4;
+		min-width: 20px;
+		animation: enter 0.3s 0.12s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+	}
+
+	@keyframes enter {
+		from {
+			transform: scale(0.6);
+			opacity: 0.4;
+		}
+		to {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
+</style>
+
+=== 516 src/lib/components/ToastMessage.svelte	svelte	runes	runes
+<script lang="ts">
+	import type { Toast } from '../core/types';
+
+	interface Props {
+		toast: Toast;
+	}
+
+	let { toast }: Props = $props();
+</script>
+
+<div class="_sft-message" {...toast.ariaProps}>
+	{#if typeof toast.message === 'string'}
+		{toast.message}
+	{:else}
+		{@const Message = toast.message}
+		<Message {toast} {...toast.props} />
+	{/if}
+</div>
+
+<style>
+	._sft-message {
+		display: flex;
+		justify-content: center;
+		margin: 4px 10px;
+		color: inherit;
+		flex: 1 1 auto;
+		white-space: pre-line;
+	}
+</style>
+
+=== 1778 src/lib/components/ToastWrapper.svelte	svelte	runes	runes
+<script lang="ts">
+	import { onMount, type Snippet } from 'svelte';
+
+	import type { DOMToast } from '../core/types';
+	import { prefersReducedMotion } from '../core/utils';
+	import ToastBar from './ToastBar.svelte';
+	import ToastMessage from './ToastMessage.svelte';
+
+	interface Props {
+		toast: DOMToast;
+		setHeight: (height: number) => void;
+		children?: Snippet<[{ toast: DOMToast }]>;
+	}
+
+	let { toast, setHeight, children }: Props = $props();
+
+	let clientHeight: number | undefined = $state();
+
+	onMount(() => {
+		if (clientHeight === undefined) return;
+		setHeight(clientHeight);
+	});
+
+	let top = $derived(toast.position?.includes('top') ? 0 : null);
+	let bottom = $derived(toast.position?.includes('bottom') ? 0 : null);
+	let factor = $derived(toast.position?.includes('top') ? 1 : -1);
+	let justifyContent = $derived(
+		(toast.position?.includes('center') && 'center') ||
+			((toast.position?.includes('right') || toast.position?.includes('end')) && 'flex-end') ||
+			null
+	);
+</script>
+
+<div
+	bind:clientHeight
+	class="_sft-wrapper"
+	class:_sft-active={toast.visible}
+	class:_sft-transition={!prefersReducedMotion()}
+	style:--factor={factor}
+	style:--offset={toast.offset}
+	style:top
+	style:bottom
+	style:justify-content={justifyContent}
+>
+	{#if toast.type === 'custom'}
+		<ToastMessage {toast} />
+	{:else if children}{@render children({ toast })}{:else}
+		<ToastBar {toast} position={toast.position} />
+	{/if}
+</div>
+
+<style>
+	._sft-wrapper {
+		left: 0;
+		right: 0;
+		display: flex;
+		position: absolute;
+		transform: translateY(calc(var(--offset, 16px) * var(--factor) * 1px));
+	}
+
+	._sft-transition {
+		transition: all 230ms cubic-bezier(0.21, 1.02, 0.73, 1);
+	}
+
+	._sft-active {
+		z-index: 9999;
+	}
+
+	._sft-active > :global(*) {
+		pointer-events: auto;
+	}
+</style>
+
+=== 1478 src/lib/components/Toaster.svelte	svelte	runes	runes
+<script lang="ts">
+	import type { DOMToast, ToastOptions, ToastPosition } from '../core/types';
+	import useToaster from '../core/use-toaster';
+	import ToastWrapper from './ToastWrapper.svelte';
+
+	interface Props {
+		reverseOrder?: boolean;
+		position?: ToastPosition;
+		toastOptions?: ToastOptions | undefined;
+		gutter?: number;
+		containerStyle?: string | undefined;
+		containerClassName?: string | undefined;
+	}
+
+	let {
+		reverseOrder = false,
+		position = 'top-center',
+		toastOptions = undefined,
+		gutter = 8,
+		containerStyle = undefined,
+		containerClassName = undefined
+	}: Props = $props();
+
+	const { toasts, handlers } = useToaster(toastOptions);
+
+	let _toasts: DOMToast[] = $derived(
+		$toasts.map((toast) => ({
+			...toast,
+			position: toast.position || position,
+			offset: handlers.calculateOffset(toast, $toasts, {
+				reverseOrder,
+				gutter,
+				defaultPosition: position
+			})
+		}))
+	);
+</script>
+
+<div
+	class="_sft-toaster {containerClassName || ''}"
+	style={containerStyle}
+	onmouseenter={handlers.startPause}
+	onmouseleave={handlers.endPause}
+	role="alert"
+>
+	{#each _toasts as toast (toast.id)}
+		<ToastWrapper {toast} setHeight={(height) => handlers.updateHeight(toast.id, height)} />
+	{/each}
+</div>
+
+<style>
+	._sft-toaster {
+		--default-offset: 16px;
+
+		position: fixed;
+		z-index: 9999;
+		top: var(--default-offset);
+		left: var(--default-offset);
+		right: var(--default-offset);
+		bottom: var(--default-offset);
+		pointer-events: none;
+	}
+</style>
+
+=== 1353 src/routes/+layout.svelte	svelte	runes	runes
+<script lang="ts">
+	import '../app.css';
+	interface Props {
+		children?: import('svelte').Snippet;
+	}
+
+	let { children }: Props = $props();
+</script>
+
+<svelte:head>
+	<title>Svelte French Toast</title>
+	<meta name="title" content="Svelte French Toast" />
+	<meta
+		name="description"
+		content="Buttery smooth toast notifications for Svelte. Lightweight, customizable, and beautiful by default."
+	/>
+
+	<!-- Open Graph / Facebook -->
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://svelte-french-toast.com/" />
+	<meta property="og:title" content="Svelte French Toast" />
+	<meta
+		property="og:description"
+		content="Buttery smooth toast notifications for Svelte. Lightweight, customizable, and beautiful by default."
+	/>
+	<meta property="og:image" content="https://svelte-french-toast.com/og-image.png" />
+
+	<!-- Twitter -->
+	<meta property="twitter:card" content="summary_large_image" />
+	<meta property="twitter:url" content="https://svelte-french-toast.com/" />
+	<meta property="twitter:title" content="Svelte French Toast" />
+	<meta
+		property="twitter:description"
+		content="Buttery smooth toast notifications for Svelte. Lightweight, customizable, and beautiful by default."
+	/>
+	<meta property="twitter:image" content="https://svelte-french-toast.com/og-image.png" />
+</svelte:head>
+{@render children?.()}
+
+=== 6143 src/routes/+page.svelte	svelte	runes	runes
+<script lang="ts">
+	import toast, { Toaster } from '../lib';
+	import 'prismjs';
+	import 'prism-svelte';
+	import demoCode from '../www/demo-code';
+	import Copy from '../www/Copy.svelte';
+	import Examples from '../www/Examples.svelte';
+	import pkg from '../../package.json';
+
+	function launchToast() {
+		toast.promise(
+			new Promise((resolve, reject) => {
+				setTimeout(Math.random() < 0.8 ? resolve : reject, 1000);
+			}),
+			{ loading: 'Toasting bread...', success: 'Here’s your toast!', error: 'Your toast burned :(' }
+		);
+	}
+
+	const installers = [
+		{ name: 'NPM', cmd: 'npm install svelte-french-toast' },
+		{ name: 'PNPM', cmd: 'pnpm install svelte-french-toast' },
+		{ name: 'Yarn', cmd: 'yarn add svelte-french-toast' },
+		{ name: 'Bun', cmd: 'bun add svelte-french-toast' }
+	];
+	let installer = $state(installers[0].name);
+</script>
+
+<Toaster />
+
+<div class="py-24 bg-[#faf6f4] border-b-4">
+	<div class="container max-w-xl flex flex-col items-center mx-auto text-center">
+		<img class="h-16 mb-10" src="favicon.png" alt="" />
+		<div
+			class="flex flex-col md:flex-row items-center space-y-3 md:space-y-0 md:space-x-3 mb-10 text-white"
+		>
+			<div
+				class="p-4 text-xl md:text-2xl font-extrabold bg-[#322f35] uppercase tracking-widest rounded-xl -rotate-2 shadow-lg"
+			>
+				Svelte
+			</div>
+			<div
+				class="p-4 text-xl md:text-2xl font-extrabold bg-[#fd6819] uppercase tracking-widest rounded-xl rotate-3 shadow-lg"
+			>
+				French
+			</div>
+			<div
+				class="p-4 text-xl md:text-2xl font-extrabold bg-[#322f35] uppercase tracking-widest rounded-xl -rotate-2 shadow-lg"
+			>
+				Toast
+			</div>
+		</div>
+		<h1 class="font-bold text-3xl md:text-5xl">Buttery smooth toast notifications.</h1>
+		<p class="mt-10 text-lg md:text-xl max-w-prose">
+			Lightweight, customizable, and beautiful by default.<br />Inspired by
+			<a
+				href="https://react-hot-toast.com"
+				class="font-medium underline decoration-dotted underline-offset-4"
+				>React&nbsp;Hot&nbsp;Toast</a
+			>.
+		</p>
+		<div class="flex items-center mt-10 space-x-4">
+			<button
+				onclick={launchToast}
+				class="flex items-center space-x-2 text-lg py-2 font-bold px-5 rounded-xl bg-amber-300 border-2 border-amber-400 shadow"
+			>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					class="h-5 w-5"
+					viewBox="0 0 20 20"
+					fill="currentColor"
+				>
+					<path
+						fill-rule="evenodd"
+						d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z"
+						clip-rule="evenodd"
+					/>
+				</svg>
+				<span>Launch toast</span>
+			</button>
+			<a
+				href="https://github.com/kbrgl/svelte-french-toast"
+				class="flex items-center space-x-2 text-gray-500"
+			>
+				<svg class="h-5 w-5" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+					><title>GitHub</title><path
+						fill="currentColor"
+						d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
+					/></svg
+				>
+				<span>Source</span>
+			</a>
+		</div>
+		<p class="mt-5 text-sm border rounded-full px-2 py-1 text-gray-500">
+			<a href="https://npmjs.com/package/svelte-french-toast">Version {pkg.version}</a>
+		</p>
+		<div class="grid grid-cols-2 md:grid-cols-3 gap-4 self-stretch mt-10 font-medium">
+			{#each ['Emoji Support', 'Customizable', 'Promise API', 'Pause on hover', 'Accessible', 'Headless use'] as feature}
+				<div class="flex space-x-2">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="24"
+						height="24"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="#55aa88"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg
+					>
+					<p>{feature}</p>
+				</div>
+			{/each}
+		</div>
+	</div>
+</div>
+<div class="container mx-auto max-w-2xl py-10">
+	<section>
+		<div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
+			<p class="text-xl font-bold">1. Install</p>
+			<div class="space-x-1">
+				{#each installers as i}
+					<label for={i.name} class:checked={i.name === installer}>
+						<input
+							type="radio"
+							id={i.name}
+							name="installers"
+							value={i.name}
+							bind:group={installer}
+						/>
+						{i.name}
+					</label>
+				{/each}
+			</div>
+		</div>
+		{#each installers as i}
+			<div class:hidden={installer !== i.name}>
+				<code class="language-shell">
+					{i.cmd}
+				</code>
+				<Copy text={i.cmd} />
+			</div>
+		{/each}
+	</section>
+	<section class="mt-10">
+		<p class="text-xl font-bold mb-4">2. Mount and use</p>
+		<pre class="language-html"><code>{demoCode}</code></pre>
+		<Copy text={demoCode} />
+	</section>
+	<hr class="my-10" />
+	<h1 class="text-4xl font-bold mb-5">Examples</h1>
+	<Examples />
+	<p class="mt-24 mb-2 text-center">
+		<a href="https://github.com/kbrgl/svelte-french-toast" class="underline">GitHub</a>
+	</p>
+	<p class="text-center text-gray-500">
+		© 2022 svelte-french-toast · Built by <a class="text-gray-800" href="https://kabirgoel.com"
+			>Kabir Goel</a
+		>
+	</p>
+</div>
+
+<style lang="postcss">
+	:not(pre) > code,
+	pre {
+		@apply p-5 block;
+	}
+
+	input[type='radio'] {
+		@apply appearance-none hidden;
+	}
+	label {
+		cursor: pointer;
+		@apply px-3 py-1 rounded-full;
+	}
+	label.checked {
+		@apply bg-gray-200 font-bold;
+	}
+</style>
+
+=== 730 src/www/Copy.svelte	svelte	runes	runes
+<script lang="ts">
+	import toast from '../lib';
+
+	function copy(text: string) {
+		const promise = navigator.clipboard.writeText(text);
+		toast.promise(promise, { loading: 'Copying...', success: 'Copied!', error: 'Could not copy' });
+	}
+
+	interface Props {
+		text: string;
+	}
+
+	let { text }: Props = $props();
+</script>
+
+<button
+	type="button"
+	class="text-sm mt-2 text-blue-600 font-medium space-x-1 flex items-center"
+	onclick={() => copy(text)}
+>
+	<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+		<path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" />
+		<path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h8a2 2 0 00-2-2H5z" />
+	</svg>
+	<span>Copy</span>
+</button>
+
+=== 1275 src/www/Examples.svelte	svelte	runes	runes
+<script lang="ts">
+	import Copy from './Copy.svelte';
+	import examples, { type Example } from './examples';
+
+	let selected: Example['title'] | null = $state('Success');
+</script>
+
+<div class="grid grid-cols-2 md:grid-cols-3 gap-4 rounded-xl mb-5">
+	{#each examples as example (example.title)}
+		<label
+			for={example.title}
+			class="cursor-pointer p-2 bg-gray-100 hover:border-blue-500 rounded-xl transition-colors border-2 border-transparent"
+			class:_sft-checked={example.title === selected}
+		>
+			<input
+				type="radio"
+				id={example.title}
+				name="examples"
+				value={example.title}
+				onchange={() => {
+					example.action();
+				}}
+				bind:group={selected}
+			/>
+			<span class="mr-1">{example.emoji}</span>
+			<span class="font-medium">{example.title}</span>
+		</label>
+	{/each}
+</div>
+{#each examples as example}
+	<div class:hidden={example.title !== selected}>
+		<div class="overflow-auto">
+			<pre class="language-{example.html ? 'svelte' : 'javascript'} h-80 table w-full"><code
+					class="table-cell align-middle">{example.snippet}</code
+				></pre>
+		</div>
+		<Copy text={example.snippet} />
+	</div>
+{/each}
+
+<style lang="postcss">
+	input[type='radio'] {
+		@apply appearance-none;
+	}
+	._sft-checked {
+		@apply border-blue-500 font-bold;
+	}
+</style>
+
+=== 314 src/www/RichContent.svelte	svelte	runes	runes
+<script lang="ts">
+	import toast_, { type Toast } from '../lib';
+
+	interface Props {
+		toast: Toast;
+		someProp: string;
+	}
+
+	let { toast, someProp }: Props = $props();
+</script>
+
+<span>
+	Custom and <b>bold</b> with props like {someProp}!
+	<button onclick={() => toast_.dismiss(toast.id)}>Dismiss</button>
+</span>
+

@@ -1,0 +1,1537 @@
+# rsvelte pack 1
+=== 3 packages/avatar/src/Avatar.svelte	json
+[]
+
+=== 3 packages/preprocess-markdown/src/enhance-code-block/ButtonCollapse.svelte	json
+[]
+
+=== 219 packages/preprocess-markdown/src/enhance-code-block/ButtonCopy.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/copy' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	}
+]
+
+=== 3 packages/preprocess-markdown/src/enhance-code-block/ButtonFullScreen.svelte	json
+[]
+
+=== 221 packages/preprocess-markdown/src/enhance-code-block/CodeBlock.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/copy' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 22
+		},
+		"end": {
+			"line": 28,
+			"character": 40
+		}
+	}
+]
+
+=== 3 packages/preprocess-markdown/src/enhance-code-block/CodeBlockGroup.svelte	json
+[]
+
+=== 3 packages/preprocess-markdown/src/enhance-code-block/FileIcon.svelte	json
+[]
+
+=== 3 packages/qr/src/img/QR.svelte	json
+[]
+
+=== 3 packages/qr/src/svg/QR.svelte	json
+[]
+
+=== 1768 sites/docs/src/lib/components/color-scheme-menu/ColorSchemeMenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/clickoutside' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 31
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/settings/context.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 33
+		},
+		"end": {
+			"line": 5,
+			"character": 63
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'App'.",
+		"start": {
+			"line": 28,
+			"character": 23
+		},
+		"end": {
+			"line": 28,
+			"character": 26
+		}
+	},
+	{
+		"code": 7053,
+		"message": "Element implicitly has an 'any' type because expression of type 'App.ColorScheme' can't be used to index type '{ light: string; dark: string; system: string; }'.",
+		"start": {
+			"line": 29,
+			"character": 17
+		},
+		"end": {
+			"line": 29,
+			"character": 37
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'App'.",
+		"start": {
+			"line": 19,
+			"character": 20
+		},
+		"end": {
+			"line": 19,
+			"character": 23
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'App'.",
+		"start": {
+			"line": 25,
+			"character": 20
+		},
+		"end": {
+			"line": 25,
+			"character": 23
+		}
+	},
+	{
+		"code": 7053,
+		"message": "Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ light: string; dark: string; system: string; }'.",
+		"start": {
+			"line": 70,
+			"character": 31
+		},
+		"end": {
+			"line": 70,
+			"character": 45
+		}
+	}
+]
+
+=== 3 sites/docs/src/lib/components/connected-list/ConnectedList.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/components/connected-list/ConnectedListItem.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/components/menu-label/MenuLabel.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/components/page-load-indicator/PageLoadIndicator.svelte	json
+[]
+
+=== 1087 sites/docs/src/lib/components/runes/Runes.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/popover' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/popover/compute' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 22,
+			"character": 22
+		},
+		"end": {
+			"line": 22,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 28,
+			"character": 6
+		},
+		"end": {
+			"line": 28,
+			"character": 10
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"inline-src\"' does not exist in type 'HTMLProps<\"svg\", SVGAttributes<any>>'.",
+		"start": {
+			"line": 45,
+			"character": 7
+		},
+		"end": {
+			"line": 45,
+			"character": 17
+		}
+	}
+]
+
+=== 485 sites/docs/src/lib/components/status-badge/StatusBadge.svelte	json
+[
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'App'.",
+		"start": {
+			"line": 9,
+			"character": 18
+		},
+		"end": {
+			"line": 9,
+			"character": 21
+		}
+	},
+	{
+		"code": 7053,
+		"message": "Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ beta: string; dev: string; new: string; flux: string; stable: string; }'.",
+		"start": {
+			"line": 19,
+			"character": 27
+		},
+		"end": {
+			"line": 19,
+			"character": 48
+		}
+	}
+]
+
+=== 429 sites/docs/src/lib/notifications/components/BaseNotification.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/async-stack' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'item' does not exist on type 'BaseNotificationProps'.",
+		"start": {
+			"line": 18,
+			"character": 7
+		},
+		"end": {
+			"line": 18,
+			"character": 11
+		}
+	}
+]
+
+=== 562 sites/docs/src/lib/notifications/components/NotificationPortal.svelte	json
+[
+	{
+		"code": 7006,
+		"message": "Parameter 'acc' implicitly has an 'any' type.",
+		"start": {
+			"line": 81,
+			"character": 41
+		},
+		"end": {
+			"line": 81,
+			"character": 44
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 81,
+			"character": 46
+		},
+		"end": {
+			"line": 81,
+			"character": 50
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 116,
+			"character": 22
+		},
+		"end": {
+			"line": 116,
+			"character": 23
+		}
+	}
+]
+
+=== 651 sites/docs/src/lib/notifications/components/Svelte5.svelte	json
+[
+	{
+		"code": 2339,
+		"message": "Property 'item' does not exist on type 'ToastProps'.",
+		"start": {
+			"line": 11,
+			"character": 7
+		},
+		"end": {
+			"line": 11,
+			"character": 11
+		}
+	},
+	{
+		"code": 2590,
+		"message": "Expression produces a union type that is too complex to represent.",
+		"start": {
+			"line": 19,
+			"character": 16
+		},
+		"end": {
+			"line": 19,
+			"character": 77
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'item' does not exist in type 'BaseNotificationProps'.",
+		"start": {
+			"line": 19,
+			"character": 63
+		},
+		"end": {
+			"line": 19,
+			"character": 67
+		}
+	}
+]
+
+=== 3 sites/docs/src/lib/notifications/components/Toast.svelte	json
+[]
+
+=== 237 sites/docs/src/packages/async-stack/_page/examples/await.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './comprehensive/notification-stack' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 63
+		}
+	}
+]
+
+=== 424 sites/docs/src/packages/async-stack/_page/examples/comprehensive/Notification.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/async-stack' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'item' does not exist on type 'NotificationProps'.",
+		"start": {
+			"line": 15,
+			"character": 2
+		},
+		"end": {
+			"line": 15,
+			"character": 6
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/async-stack/_page/examples/comprehensive/NotificationPortal.svelte	json
+[]
+
+=== 223 sites/docs/src/packages/async-stack/_page/examples/comprehensive/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './notification-stack' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	}
+]
+
+=== 226 sites/docs/src/packages/async-stack/_page/examples/interactive/InteractiveNotification.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/async-stack' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/async-stack/_page/examples/interactive/usage.svelte	json
+[]
+
+=== 442 sites/docs/src/packages/async-stack/_page/examples/modal/ConfirmationModal.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/async-stack' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './enhance-dialog' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/async-stack/_page/examples/modal/ModalPortal.svelte	json
+[]
+
+=== 216 sites/docs/src/packages/async-stack/_page/examples/modal/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './modal-stack' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	}
+]
+
+=== 418 sites/docs/src/packages/async-stack/_page/examples/toast/Toast.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/async-stack' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'item' does not exist on type 'ToastProps'.",
+		"start": {
+			"line": 19,
+			"character": 7
+		},
+		"end": {
+			"line": 19,
+			"character": 11
+		}
+	}
+]
+
+=== 769 sites/docs/src/packages/async-stack/_page/examples/toast/ToastPortal.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './toast' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 37
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'acc' implicitly has an 'any' type.",
+		"start": {
+			"line": 79,
+			"character": 41
+		},
+		"end": {
+			"line": 79,
+			"character": 44
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 79,
+			"character": 46
+		},
+		"end": {
+			"line": 79,
+			"character": 50
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 115,
+			"character": 22
+		},
+		"end": {
+			"line": 115,
+			"character": 23
+		}
+	}
+]
+
+=== 210 sites/docs/src/packages/async-stack/_page/examples/toast/usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './toast' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 32
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/avatar/_page/examples/custom.markup.svelte	json
+[]
+
+=== 235 sites/docs/src/packages/avatar/_page/examples/custom.styling.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/avatar/Avatar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/avatar/_page/examples/direct-url.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/avatar/_page/examples/gravatar.helper.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/avatar/_page/examples/gravatar.minimal.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/avatar/_page/examples/gravatar.verbose.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/avatar/_page/examples/multiple.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/avatar/_page/examples/uiAvatar.helper.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/avatar/_page/examples/uiAvatar.minimal.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/avatar/_page/examples/uiAvatar.verbose.svelte	json
+[]
+
+=== 227 sites/docs/src/packages/clickoutside/_page/examples/demo.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/clickoutside' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 227 sites/docs/src/packages/clickoutside/_page/examples/exclude.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/clickoutside' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 227 sites/docs/src/packages/clickoutside/_page/examples/quick-start.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/clickoutside' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 637 sites/docs/src/packages/cloudflare-turnstile/_page/examples/quick-start.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/cloudflare-turnstile' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$env/static/public' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 54
+		},
+		"end": {
+			"line": 4,
+			"character": 74
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 18,
+			"character": 15
+		},
+		"end": {
+			"line": 18,
+			"character": 16
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/copy/_page/examples/custom-event.svelte	json
+[]
+
+=== 219 sites/docs/src/packages/copy/_page/examples/custom-text.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/copy' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 46
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	}
+]
+
+=== 219 sites/docs/src/packages/copy/_page/examples/custom-trigger.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/copy' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 57
+		}
+	}
+]
+
+=== 219 sites/docs/src/packages/copy/_page/examples/no-parameters.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/copy' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 39
+		},
+		"end": {
+			"line": 3,
+			"character": 57
+		}
+	}
+]
+
+=== 219 sites/docs/src/packages/copy/_page/examples/synthetic-copy.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/copy' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/dragscroll/_page/examples/limitation-scroll-snap.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/dragscroll/_page/examples/no-parameters.svelte	json
+[]
+
+=== 225 sites/docs/src/packages/dragscroll/_page/examples/option-axis.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/dragscroll' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 55
+		},
+		"end": {
+			"line": 1,
+			"character": 79
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/inline-svg/_page/examples/action.svelte	json
+[]
+
+=== 224 sites/docs/src/packages/intersect/_page/examples/event-intersect.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/intersect' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 72
+		}
+	}
+]
+
+=== 224 sites/docs/src/packages/intersect/_page/examples/event-intersectonce.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/intersect' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/intersect/_page/examples/initialization-options.svelte	json
+[]
+
+=== 224 sites/docs/src/packages/intersect/_page/examples/quick-start.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/intersect' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 49
+		},
+		"end": {
+			"line": 2,
+			"character": 72
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/lockscroll/_page/examples/quick-start.svelte	json
+[]
+
+=== 225 sites/docs/src/packages/lockscroll/_page/examples/scroll-container.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/lockscroll' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/lockscroll/_page/examples/svelte-rune.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/modal/docs.md.svelte	json
+[]
+
+=== 222 sites/docs/src/packages/movable/_page/examples/handle.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/movable' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/movable/_page/examples/ignore.svelte	json
+[]
+
+=== 222 sites/docs/src/packages/movable/_page/examples/limit-ancestor.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/movable' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/movable/_page/examples/limit-delta.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/movable/_page/examples/limit-screen.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/movable/_page/examples/limit-single-axis.svelte	json
+[]
+
+=== 222 sites/docs/src/packages/movable/_page/examples/quick-start.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/movable' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/popover/_page/examples/quick-start.svelte	json
+[]
+
+=== 1020 sites/docs/src/packages/popover/_page/examples/tooltip/HintedText.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/popover' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './compute' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 36
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of './tooltip.css'.",
+		"start": {
+			"line": 6,
+			"character": 8
+		},
+		"end": {
+			"line": 6,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 21
+		},
+		"end": {
+			"line": 25,
+			"character": 22
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 5
+		},
+		"end": {
+			"line": 31,
+			"character": 9
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/popover/_page/examples/tooltip/usage.svelte	json
+[]
+
+=== 224 sites/docs/src/packages/preaction/_page/examples/demo.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/preaction' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/qr/_page/examples/img-action.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/qr/_page/examples/img-background-fill.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/qr/_page/examples/img-component-with-snippet.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/qr/_page/examples/img-component.svelte	json
+[]
+
+=== 217 sites/docs/src/packages/qr/_page/examples/img-headless.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/qr' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 51
+		},
+		"end": {
+			"line": 1,
+			"character": 67
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/qr/_page/examples/svg-action.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/qr/_page/examples/svg-component-with-snippet.svelte	json
+[]
+
+=== 3 sites/docs/src/packages/qr/_page/examples/svg-component.svelte	json
+[]
+
+=== 217 sites/docs/src/packages/qr/_page/examples/svg-headless.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/qr' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 70
+		},
+		"end": {
+			"line": 1,
+			"character": 86
+		}
+	}
+]
+
+=== 439 sites/docs/src/packages/resize/_page/examples/example.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/resize' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/resize' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 35
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	}
+]
+
+=== 223 sites/docs/src/packages/swipeable/_page/examples/demo.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/swipeable' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 8,
+			"character": 31
+		}
+	}
+]
+
+=== 3 sites/docs/src/packages/tooltip/docs.md.svelte	json
+[]
+
+=== 3072 sites/docs/src/routes/(site)/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svelte-put/toc' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 34
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/color-scheme-menu' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 33
+		},
+		"end": {
+			"line": 6,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/menu-label' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 27
+		},
+		"end": {
+			"line": 7,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/page-load-indicator/' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 35
+		},
+		"end": {
+			"line": 8,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/status-badge' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 29
+		},
+		"end": {
+			"line": 9,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 30
+		},
+		"end": {
+			"line": 10,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/notifications/components/NotificationPortal.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 32
+		},
+		"end": {
+			"line": 11,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/notifications/components/Svelte5.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 21
+		},
+		"end": {
+			"line": 12,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/notifications/context.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 37
+		},
+		"end": {
+			"line": 13,
+			"character": 72
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"inline-src\"' does not exist in type 'HTMLProps<\"svg\", SVGAttributes<any>>'.",
+		"start": {
+			"line": 66,
+			"character": 34
+		},
+		"end": {
+			"line": 66,
+			"character": 44
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"inline-src\"' does not exist in type 'HTMLProps<\"svg\", SVGAttributes<any>>'.",
+		"start": {
+			"line": 77,
+			"character": 9
+		},
+		"end": {
+			"line": 77,
+			"character": 19
+		}
+	}
+]
+
+=== 3 sites/docs/src/routes/(site)/docs/+page.md.svelte	json
+[]
+
+=== 716 sites/docs/src/routes/(site)/docs/[id=pkg]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/runes' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/badge' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 8
+		},
+		"end": {
+			"line": 11,
+			"character": 26
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"inline-src\"' does not exist in type 'HTMLProps<\"svg\", SVGAttributes<any>>'.",
+		"start": {
+			"line": 32,
+			"character": 7
+		},
+		"end": {
+			"line": 32,
+			"character": 17
+		}
+	}
+]
+
+=== 3 sites/docs/src/routes/(site)/docs/architecture/+page.md.svelte	json
+[]
+
+=== 3 sites/docs/src/routes/(site)/docs/contributing/+page.md.svelte	json
+[]
+
+=== 1488 sites/docs/src/routes/(site)/search/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@pagefind' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 29
+		},
+		"end": {
+			"line": 8,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'sanitize-html' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 29
+		},
+		"end": {
+			"line": 9,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@pagefind' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 32
+		},
+		"end": {
+			"line": 11,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@pagefind' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 26
+		},
+		"end": {
+			"line": 17,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'sanitize-html' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 27
+		},
+		"end": {
+			"line": 18,
+			"character": 42
+		}
+	}
+]
+
+=== 1126 sites/docs/src/routes/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$env/static/public' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/images/svelte-put-og.jpg?url' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/settings/context.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 33
+		},
+		"end": {
+			"line": 4,
+			"character": 63
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '$lib/styles/app.css'.",
+		"start": {
+			"line": 5,
+			"character": 8
+		},
+		"end": {
+			"line": 5,
+			"character": 29
+		}
+	}
+]
+
+=== 491 sites/docs/src/routes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"inline-src\"' does not exist in type 'HTMLProps<\"svg\", SVGAttributes<any>>'.",
+		"start": {
+			"line": 6,
+			"character": 34
+		},
+		"end": {
+			"line": 6,
+			"character": 44
+		}
+	}
+]
+
+=== 3 sites/docs/src/routes/design/+page.svelte	json
+[]
+
+=== 3 sites/docs/src/routes/design/button/+page.svelte	json
+[]
+
+=== 3 sites/docs/src/routes/design/callout/+page.svelte	json
+[]
+

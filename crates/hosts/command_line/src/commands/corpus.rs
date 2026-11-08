@@ -31,16 +31,16 @@ pub(crate) fn corpus(reg: &Registry, roots: &[&Path], tasks: &[&str]) -> ExitCod
     // set.
     let ran =
         rsvelte_kernel::computation::pipeline::run_each(reg, &docs, &options, &|i, result| {
-            let actual = dirs[i].join("actual");
+            let actual = &dirs[i];
             // Absent on a unit's first run.
-            drop(std::fs::remove_dir_all(&actual));
+            drop(std::fs::remove_dir_all(actual));
             if let Some(p) = &result.panic {
                 panics.fetch_add(1, Relaxed);
                 eprintln!("panic: {}: {p}", docs[i].path);
                 return;
             }
             let mut f = 0;
-            match write_outputs(&docs[i], &actual, &result, &mut f) {
+            match write_outputs(&docs[i], actual, &result, &mut f) {
                 Ok(written) => {
                     files.fetch_add(written, Relaxed);
                 }

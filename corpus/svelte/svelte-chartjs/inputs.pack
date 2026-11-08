@@ -1,0 +1,2277 @@
+# rsvelte pack 1
+=== 96 sandboxes/bar/App.svelte	svelte	runes	neutral
+<script>
+  import Chart from './components/Chart.svelte';
+</script>
+
+<main>
+  <Chart />
+</main>
+
+=== 385 sandboxes/bar/components/Chart.svelte	svelte	runes	neutral
+<script>
+  import { Bar } from 'svelte-chartjs';
+  import { data } from './data.js';
+
+  import {
+    Chart,
+    Title,
+    Tooltip,
+    Legend,
+    BarElement,
+    CategoryScale,
+    LinearScale,
+  } from 'chart.js';
+
+  Chart.register(
+    Title,
+    Tooltip,
+    Legend,
+    BarElement,
+    CategoryScale,
+    LinearScale
+  );
+</script>
+
+<Bar {data} options={{ responsive: true }} />
+
+=== 346 sandboxes/bubble/components/Chart.svelte	svelte	runes	neutral
+<script>
+  import { Bubble } from 'svelte-chartjs';
+  import { data } from './data.js';
+
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    PointElement,
+    LinearScale,
+  } from 'chart.js';
+
+  ChartJS.register(Title, Tooltip, Legend, PointElement, LinearScale);
+</script>
+
+<Bubble {data} options={{ responsive: true }} />
+
+=== 350 sandboxes/doughnut/components/Chart.svelte	svelte	runes	neutral
+<script>
+  import { Doughnut } from 'svelte-chartjs';
+  import { data } from './data.js';
+
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+    CategoryScale,
+  } from 'chart.js';
+
+  ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale);
+</script>
+
+<Doughnut {data} options={{ responsive: true }} />
+
+=== 1405 sandboxes/events/components/Chart.svelte	svelte	runes	neutral
+<script>
+  import {
+    Chart,
+    getDatasetAtEvent,
+    getElementAtEvent,
+    getElementsAtEvent,
+  } from 'svelte-chartjs';
+  import { data, options } from './data.js';
+
+  import {
+    Chart as ChartJS,
+    Tooltip,
+    Legend,
+    BarElement,
+    PointElement,
+    LineElement,
+    CategoryScale,
+    LinearScale,
+    LineController,
+    BarController,
+  } from 'chart.js';
+
+  ChartJS.register(
+    LinearScale,
+    CategoryScale,
+    BarElement,
+    PointElement,
+    LineElement,
+    Legend,
+    Tooltip,
+    LineController,
+    BarController
+  );
+
+  function printDatasetAtEvent(dataset) {
+    if (!dataset.length) return;
+
+    const datasetIndex = dataset[0].datasetIndex;
+
+    console.log(data.datasets[datasetIndex].label);
+  }
+
+  function printElementAtEvent(element) {
+    if (!element.length) return;
+
+    const { datasetIndex, index } = element[0];
+
+    console.log(data.labels[index], data.datasets[datasetIndex].data[index]);
+  }
+
+  function printElementsAtEvent(elements) {
+    if (!elements.length) return;
+
+    console.log(elements.length);
+  }
+
+  let chart;
+
+  function onClick(event) {
+    if (!chart) {
+      return;
+    }
+
+    printDatasetAtEvent(getDatasetAtEvent(chart, event));
+    printElementAtEvent(getElementAtEvent(chart, event));
+    printElementsAtEvent(getElementsAtEvent(chart, event));
+  }
+</script>
+
+<Chart bind:chart type="bar" onclick={onClick} {data} {options} />
+
+=== 438 sandboxes/line/components/Chart.svelte	svelte	runes	neutral
+<script>
+  import { Line } from 'svelte-chartjs';
+  import { data } from './data.js';
+
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    LineElement,
+    LinearScale,
+    PointElement,
+    CategoryScale,
+  } from 'chart.js';
+
+  ChartJS.register(
+    Title,
+    Tooltip,
+    Legend,
+    LineElement,
+    LinearScale,
+    PointElement,
+    CategoryScale
+  );
+</script>
+
+<Line {data} options={{ responsive: true }} />
+
+=== 340 sandboxes/pie/components/Chart.svelte	svelte	runes	neutral
+<script>
+  import { Pie } from 'svelte-chartjs';
+  import { data } from './data.js';
+
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+    CategoryScale,
+  } from 'chart.js';
+
+  ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale);
+</script>
+
+<Pie {data} options={{ responsive: true }} />
+
+=== 360 sandboxes/polar/components/Chart.svelte	svelte	runes	neutral
+<script>
+  import { PolarArea } from 'svelte-chartjs';
+  import { data } from './data.js';
+
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+    RadialLinearScale,
+  } from 'chart.js';
+
+  ChartJS.register(Title, Tooltip, Legend, ArcElement, RadialLinearScale);
+</script>
+
+<PolarArea {data} options={{ responsive: true }} />
+
+=== 414 sandboxes/radar/components/Chart.svelte	svelte	runes	neutral
+<script>
+  import { Radar } from 'svelte-chartjs';
+  import { data } from './data.js';
+
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    PointElement,
+    RadialLinearScale,
+    LineElement,
+  } from 'chart.js';
+
+  ChartJS.register(
+    Title,
+    Tooltip,
+    Legend,
+    PointElement,
+    RadialLinearScale,
+    LineElement
+  );
+</script>
+
+<Radar {data} options={{ responsive: true }} />
+
+=== 1286 sandboxes/ref/components/Chart.svelte	svelte	runes	neutral
+<script>
+  import { onMount } from 'svelte';
+  import { Chart } from 'svelte-chartjs';
+  import { data, options } from './data.js';
+
+  import {
+    Chart as ChartJS,
+    Tooltip,
+    Legend,
+    BarElement,
+    PointElement,
+    LineElement,
+    CategoryScale,
+    LinearScale,
+    LineController,
+    BarController,
+  } from 'chart.js';
+
+  ChartJS.register(
+    LinearScale,
+    CategoryScale,
+    BarElement,
+    PointElement,
+    LineElement,
+    Legend,
+    Tooltip,
+    LineController,
+    BarController
+  );
+
+  function triggerTooltip(chart) {
+    const tooltip = chart && chart.tooltip;
+
+    if (!tooltip) {
+      return;
+    }
+
+    if (tooltip.getActiveElements().length > 0) {
+      tooltip.setActiveElements([], { x: 0, y: 0 });
+    } else {
+      const { chartArea } = chart;
+
+      tooltip.setActiveElements(
+        [
+          {
+            datasetIndex: 0,
+            index: 2,
+          },
+          {
+            datasetIndex: 1,
+            index: 2,
+          },
+        ],
+        {
+          x: (chartArea.left + chartArea.right) / 2,
+          y: (chartArea.top + chartArea.bottom) / 2,
+        }
+      );
+    }
+
+    chart.update();
+  }
+
+  let chart;
+
+  onMount(() => {
+    triggerTooltip(chart);
+  });
+</script>
+
+<Chart bind:chart type="bar" {data} {options} />
+
+=== 444 sandboxes/scatter/components/Chart.svelte	svelte	runes	neutral
+<script>
+  import { Scatter } from 'svelte-chartjs';
+  import { data } from './data.js';
+
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    LineElement,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+  } from 'chart.js';
+
+  ChartJS.register(
+    Title,
+    Tooltip,
+    Legend,
+    LineElement,
+    CategoryScale,
+    LinearScale,
+    PointElement
+  );
+</script>
+
+<Scatter {data} options={{ responsive: true }} />
+
+=== 3312 sites/docs/src/lib/components/Header.svelte	svelte	runes	runes
+<script>
+  import { base } from '$app/paths';
+  import ThemeToggle from './ThemeToggle.svelte';
+  let { onToggleSidebar = () => {} } = $props();
+</script>
+
+<header>
+  <div class="left">
+    <button class="menu-btn" onclick={onToggleSidebar} aria-label="Toggle menu">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M3 5h14M3 10h14M3 15h14"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+        />
+      </svg>
+    </button>
+    <a href={`${base}/`} class="logo">
+      <img
+        src={`${base}/favicon.png`}
+        alt="svelte-chartjs"
+        width="28"
+        height="28"
+      />
+      <span>svelte-chartjs</span>
+    </a>
+  </div>
+  <nav>
+    <a
+      href="https://github.com/SauravKanchan/svelte-chartjs"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="GitHub"
+    >
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+        <path
+          d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+        />
+      </svg>
+      <span class="link-label">GitHub</span>
+    </a>
+    <a
+      href="https://www.npmjs.com/package/svelte-chartjs"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="npm"
+    >
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+        <path
+          d="M0 0v16h16V0H0zm13.2 13.2H9.6V4.4H6.4v8.8H2.8V2.8h10.4v10.4z"
+        />
+      </svg>
+      <span class="link-label">npm</span>
+    </a>
+    <ThemeToggle />
+  </nav>
+</header>
+
+<style>
+  header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    z-index: 100;
+  }
+
+  .left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--color-text);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+  }
+
+  .menu-btn:hover {
+    background: var(--color-bg-secondary);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--color-text);
+  }
+
+  .logo:hover {
+    text-decoration: none;
+  }
+
+  nav {
+    display: flex;
+    gap: 1rem;
+  }
+
+  nav a {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+  }
+
+  nav a:hover {
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  @media (max-width: 768px) {
+    .menu-btn {
+      display: flex;
+    }
+
+    .link-label {
+      display: none;
+    }
+  }
+</style>
+
+=== 3455 sites/docs/src/lib/components/Sidebar.svelte	svelte	runes	runes
+<script>
+  import { page } from '$app/state';
+  import { base } from '$app/paths';
+
+  let { open = $bindable(false) } = $props();
+
+  const charts = [
+    { href: '/charts/bar', label: 'Bar' },
+    { href: '/charts/line', label: 'Line' },
+    { href: '/charts/pie', label: 'Pie' },
+    { href: '/charts/doughnut', label: 'Doughnut' },
+    { href: '/charts/radar', label: 'Radar' },
+    { href: '/charts/polar', label: 'Polar Area' },
+    { href: '/charts/bubble', label: 'Bubble' },
+    { href: '/charts/scatter', label: 'Scatter' },
+  ];
+
+  const examples = [
+    { href: '/examples/ref', label: 'Chart Instance' },
+    { href: '/examples/events', label: 'Events' },
+    { href: '/examples/horizontal-bar', label: 'Horizontal Bar' },
+    { href: '/examples/stacked-bar', label: 'Stacked Bar' },
+    { href: '/examples/multitype', label: 'Mixed Chart' },
+    { href: '/examples/gradient', label: 'Gradient' },
+  ];
+
+  const guides = [{ href: '/guides/reactivity', label: 'Reactive Data' }];
+
+  function closeOnMobile() {
+    open = false;
+  }
+</script>
+
+{#if open}
+  <div
+    class="overlay"
+    onclick={closeOnMobile}
+    onkeydown={closeOnMobile}
+    role="button"
+    tabindex="-1"
+  ></div>
+{/if}
+
+<aside class:open>
+  <nav>
+    <a
+      href={`${base}/`}
+      class:active={page.url.pathname === `${base}/`}
+      onclick={closeOnMobile}>Home</a
+    >
+
+    <h4>Charts</h4>
+    {#each charts as { href, label }}
+      <a
+        href={`${base}${href}`}
+        class:active={page.url.pathname === `${base}${href}`}
+        onclick={closeOnMobile}>{label}</a
+      >
+    {/each}
+
+    <h4>Examples</h4>
+    {#each examples as { href, label }}
+      <a
+        href={`${base}${href}`}
+        class:active={page.url.pathname === `${base}${href}`}
+        onclick={closeOnMobile}>{label}</a
+      >
+    {/each}
+
+    <h4>Guides</h4>
+    {#each guides as { href, label }}
+      <a
+        href={`${base}${href}`}
+        class:active={page.url.pathname === `${base}${href}`}
+        onclick={closeOnMobile}>{label}</a
+      >
+    {/each}
+
+    <h4>Reference</h4>
+    <a
+      href={`${base}/api`}
+      class:active={page.url.pathname === `${base}/api`}
+      onclick={closeOnMobile}>API</a
+    >
+  </nav>
+</aside>
+
+<style>
+  .overlay {
+    display: none;
+  }
+
+  aside {
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    bottom: 0;
+    width: var(--sidebar-width);
+    border-right: 1px solid var(--color-border);
+    background: var(--color-bg-secondary);
+    overflow-y: auto;
+    padding: 1.25rem 0;
+    z-index: 90;
+  }
+
+  nav {
+    display: flex;
+    flex-direction: column;
+  }
+
+  h4 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    padding: 0.75rem 1.25rem 0.25rem;
+    margin: 0;
+  }
+
+  a {
+    padding: 0.35rem 1.25rem;
+    color: var(--color-text);
+    font-size: 0.9rem;
+    border-left: 3px solid transparent;
+  }
+
+  a:hover {
+    background: var(--color-border);
+    text-decoration: none;
+  }
+
+  a.active {
+    color: var(--color-primary);
+    border-left-color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  @media (max-width: 768px) {
+    .overlay {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 89;
+    }
+
+    aside {
+      transform: translateX(-100%);
+      transition: transform 0.2s ease;
+    }
+
+    aside.open {
+      transform: translateX(0);
+    }
+  }
+</style>
+
+=== 2442 sites/docs/src/lib/components/TableOfContents.svelte	svelte	runes	runes
+<script>
+  import { onMount } from 'svelte';
+
+  /** @type {{ article: HTMLElement }} */
+  let { article } = $props();
+
+  let headings = $state([]);
+  let activeId = $state('');
+
+  onMount(() => {
+    if (!article) return;
+
+    const nodes = article.querySelectorAll('h2[id], h3[id]');
+    headings = Array.from(nodes).map(el => ({
+      id: el.id,
+      text: el.textContent ?? '',
+      level: el.tagName === 'H3' ? 3 : 2,
+    }));
+
+    if (headings.length < 2) {
+      headings = [];
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      entries => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            activeId = entry.target.id;
+          }
+        }
+      },
+      { rootMargin: '-80px 0px -60% 0px' }
+    );
+
+    for (const node of nodes) {
+      observer.observe(node);
+    }
+
+    return () => observer.disconnect();
+  });
+</script>
+
+{#if headings.length >= 2}
+  <nav class="toc" aria-label="Table of contents">
+    <h4 class="toc-title">On this page</h4>
+    <ul>
+      {#each headings as heading}
+        <li class:indent={heading.level === 3}>
+          <a href="#{heading.id}" class:active={activeId === heading.id}>
+            {heading.text}
+          </a>
+        </li>
+      {/each}
+    </ul>
+  </nav>
+{/if}
+
+<style>
+  .toc {
+    position: sticky;
+    top: calc(var(--header-height) + 2rem);
+    align-self: flex-start;
+    width: var(--toc-width);
+    flex-shrink: 0;
+    max-height: calc(100vh - var(--header-height) - 4rem);
+    overflow-y: auto;
+  }
+
+  .toc-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    margin: 0 0 0.75rem 0;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-left: 1px solid var(--color-border);
+  }
+
+  li {
+    margin: 0;
+  }
+
+  li.indent {
+    padding-left: 0.75rem;
+  }
+
+  a {
+    display: block;
+    padding: 0.25rem 0 0.25rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    margin-left: -1px;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
+  }
+
+  a:hover {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  a.active {
+    color: var(--color-primary);
+    border-left-color: var(--color-primary);
+  }
+
+  @media (max-width: 1280px) {
+    .toc {
+      display: none;
+    }
+  }
+</style>
+
+=== 2156 sites/docs/src/lib/components/ThemeToggle.svelte	svelte	runes	runes
+<script>
+  let theme = $state('light');
+
+  function getSystemTheme() {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
+  }
+
+  function applyTheme(t) {
+    theme = t;
+    document.documentElement.setAttribute('data-theme', t);
+  }
+
+  $effect(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light' || saved === 'dark') {
+      theme = saved;
+    } else {
+      theme = getSystemTheme();
+    }
+  });
+
+  function toggle() {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    localStorage.setItem('theme', next);
+  }
+</script>
+
+<button onclick={toggle} class="theme-toggle" aria-label="Toggle theme">
+  {#if theme === 'dark'}
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <circle cx="12" cy="12" r="5" />
+      <line x1="12" y1="1" x2="12" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="23" />
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+      <line x1="1" y1="12" x2="3" y2="12" />
+      <line x1="21" y1="12" x2="23" y2="12" />
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    </svg>
+  {:else}
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  {/if}
+</button>
+
+<style>
+  .theme-toggle {
+    background: none;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 0.35rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      color 0.15s,
+      background 0.15s;
+  }
+
+  .theme-toggle:hover {
+    color: var(--color-primary);
+    background: var(--color-bg-secondary);
+  }
+</style>
+
+=== 1090 sites/docs/src/lib/demos/BarDemo.svelte	svelte	runes	neutral
+<script>
+  import { Bar } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    BarElement,
+    CategoryScale,
+    LinearScale,
+  } from 'chart.js';
+
+  ChartJS.register(
+    Title,
+    Tooltip,
+    Legend,
+    BarElement,
+    CategoryScale,
+    LinearScale
+  );
+
+  const data = {
+    labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+    datasets: [
+      {
+        label: '% of Votes',
+        data: [12, 19, 3, 5, 2, 3],
+        backgroundColor: [
+          'rgba(255, 134,159,0.4)',
+          'rgba(98,  182, 239,0.4)',
+          'rgba(255, 218, 128,0.4)',
+          'rgba(113, 205, 205,0.4)',
+          'rgba(170, 128, 252,0.4)',
+          'rgba(255, 177, 101,0.4)',
+        ],
+        borderWidth: 2,
+        borderColor: [
+          'rgba(255, 134, 159, 1)',
+          'rgba(98,  182, 239, 1)',
+          'rgba(255, 218, 128, 1)',
+          'rgba(113, 205, 205, 1)',
+          'rgba(170, 128, 252, 1)',
+          'rgba(255, 177, 101, 1)',
+        ],
+      },
+    ],
+  };
+</script>
+
+<Bar {data} options={{ responsive: true }} />
+
+=== 852 sites/docs/src/lib/demos/BubbleDemo.svelte	svelte	runes	neutral
+<script>
+  import { Bubble } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    PointElement,
+    LinearScale,
+  } from 'chart.js';
+
+  ChartJS.register(Title, Tooltip, Legend, PointElement, LinearScale);
+
+  const data = {
+    labels: 'Bubble',
+    datasets: [
+      {
+        label: 'John',
+        data: [{ x: 3, y: 7, r: 10 }],
+        backgroundColor: '#ff6384',
+        hoverBackgroundColor: '#ff6384',
+      },
+      {
+        label: 'Peter',
+        data: [{ x: 3.2, y: 7, r: 10 }],
+        backgroundColor: '#44e4ee',
+        hoverBackgroundColor: '#44e4ee',
+      },
+      {
+        label: 'Donald',
+        data: [{ x: 3.4, y: 7, r: 10 }],
+        backgroundColor: '#62088A',
+        hoverBackgroundColor: '#62088A',
+      },
+    ],
+  };
+</script>
+
+<Bubble {data} options={{ responsive: true }} />
+
+=== 767 sites/docs/src/lib/demos/DoughnutDemo.svelte	svelte	runes	neutral
+<script>
+  import { Doughnut } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+    CategoryScale,
+  } from 'chart.js';
+
+  ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale);
+
+  const data = {
+    labels: ['Red', 'Green', 'Yellow', 'Grey', 'Dark Grey'],
+    datasets: [
+      {
+        data: [300, 50, 100, 40, 120],
+        backgroundColor: [
+          '#F7464A',
+          '#46BFBD',
+          '#FDB45C',
+          '#949FB1',
+          '#4D5360',
+        ],
+        hoverBackgroundColor: [
+          '#FF5A5E',
+          '#5AD3D1',
+          '#FFC870',
+          '#A8B3C5',
+          '#616774',
+        ],
+      },
+    ],
+  };
+</script>
+
+<Doughnut {data} options={{ responsive: true }} />
+
+=== 2280 sites/docs/src/lib/demos/EventsDemo.svelte	svelte	runes	runes
+<script>
+  import {
+    Chart,
+    getDatasetAtEvent,
+    getElementAtEvent,
+    getElementsAtEvent,
+  } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Tooltip,
+    Legend,
+    BarElement,
+    PointElement,
+    LineElement,
+    CategoryScale,
+    LinearScale,
+    LineController,
+    BarController,
+  } from 'chart.js';
+
+  ChartJS.register(
+    LinearScale,
+    CategoryScale,
+    BarElement,
+    PointElement,
+    LineElement,
+    Legend,
+    Tooltip,
+    LineController,
+    BarController
+  );
+
+  const labels = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+  ];
+
+  const data = {
+    labels,
+    datasets: [
+      {
+        type: 'line',
+        label: 'Dataset 1',
+        borderColor: 'rgb(255, 99, 132)',
+        borderWidth: 2,
+        fill: false,
+        data: labels.map(() => Math.random() * 1000),
+      },
+      {
+        type: 'bar',
+        label: 'Dataset 2',
+        backgroundColor: 'rgb(75, 192, 192)',
+        data: labels.map(() => Math.random() * 1000),
+        borderColor: 'white',
+        borderWidth: 2,
+      },
+      {
+        type: 'bar',
+        label: 'Dataset 3',
+        backgroundColor: 'rgb(53, 162, 235)',
+        data: labels.map(() => Math.random() * 1000),
+      },
+    ],
+  };
+
+  const options = {
+    scales: {
+      y: {
+        beginAtZero: true,
+      },
+    },
+  };
+
+  let chart = $state(null);
+  let lastEvent = $state('Click the chart to see event data');
+
+  function onClick(event) {
+    if (!chart) return;
+
+    const dataset = getDatasetAtEvent(chart, event);
+    const element = getElementAtEvent(chart, event);
+    const elements = getElementsAtEvent(chart, event);
+
+    if (element.length > 0) {
+      const { datasetIndex, index } = element[0];
+      lastEvent = `Clicked: ${data.labels[index]} — ${data.datasets[datasetIndex].label} (${elements.length} element(s) at index)`;
+    }
+  }
+</script>
+
+<Chart bind:chart type="bar" onclick={onClick} {data} {options} />
+<p class="event-output">{lastEvent}</p>
+
+<style>
+  .event-output {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+</style>
+
+=== 1405 sites/docs/src/lib/demos/GradientDemo.svelte	svelte	runes	runes
+<script>
+  import { onMount } from 'svelte';
+  import { Line } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    LineElement,
+    LinearScale,
+    PointElement,
+    CategoryScale,
+    Filler,
+  } from 'chart.js';
+
+  ChartJS.register(
+    Title,
+    Tooltip,
+    Legend,
+    LineElement,
+    LinearScale,
+    PointElement,
+    CategoryScale,
+    Filler
+  );
+
+  let chart = $state(null);
+
+  const labels = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+  ];
+
+  let data = $state({
+    labels,
+    datasets: [
+      {
+        label: 'Sales',
+        data: [65, 59, 80, 81, 56, 55, 40],
+        fill: true,
+        borderColor: 'rgb(75, 192, 192)',
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        tension: 0.4,
+      },
+    ],
+  });
+
+  onMount(() => {
+    if (!chart) return;
+
+    const ctx = chart.ctx;
+    const gradient = ctx.createLinearGradient(0, 0, 0, chart.chartArea.bottom);
+    gradient.addColorStop(0, 'rgba(75, 192, 192, 0.6)');
+    gradient.addColorStop(1, 'rgba(75, 192, 192, 0.0)');
+
+    data = {
+      ...data,
+      datasets: [
+        {
+          ...data.datasets[0],
+          backgroundColor: gradient,
+        },
+      ],
+    };
+  });
+</script>
+
+<Line
+  bind:chart
+  {data}
+  options={{
+    responsive: true,
+    plugins: { title: { display: true, text: 'Gradient Fill' } },
+  }}
+/>
+
+=== 1103 sites/docs/src/lib/demos/HorizontalBarDemo.svelte	svelte	runes	neutral
+<script>
+  import { Bar } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    BarElement,
+    CategoryScale,
+    LinearScale,
+  } from 'chart.js';
+
+  ChartJS.register(
+    Title,
+    Tooltip,
+    Legend,
+    BarElement,
+    CategoryScale,
+    LinearScale
+  );
+
+  const data = {
+    labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+    datasets: [
+      {
+        label: 'Dataset 1',
+        data: [65, 59, 80, 81, 56, 55, 40],
+        backgroundColor: 'rgba(255, 99, 132, 0.5)',
+        borderColor: 'rgb(255, 99, 132)',
+        borderWidth: 1,
+      },
+      {
+        label: 'Dataset 2',
+        data: [28, 48, 40, 19, 86, 27, 90],
+        backgroundColor: 'rgba(53, 162, 235, 0.5)',
+        borderColor: 'rgb(53, 162, 235)',
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const options = {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+      title: {
+        display: true,
+        text: 'Horizontal Bar Chart',
+      },
+    },
+  };
+</script>
+
+<Bar {data} {options} />
+
+=== 1942 sites/docs/src/lib/demos/LineDemo.svelte	svelte	runes	neutral
+<script>
+  import { Line } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    LineElement,
+    LinearScale,
+    PointElement,
+    CategoryScale,
+  } from 'chart.js';
+
+  ChartJS.register(
+    Title,
+    Tooltip,
+    Legend,
+    LineElement,
+    LinearScale,
+    PointElement,
+    CategoryScale
+  );
+
+  const data = {
+    labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+    datasets: [
+      {
+        label: 'My First dataset',
+        fill: true,
+        lineTension: 0.3,
+        backgroundColor: 'rgba(225, 204,230, .3)',
+        borderColor: 'rgb(205, 130, 158)',
+        borderCapStyle: 'butt',
+        borderDash: [],
+        borderDashOffset: 0.0,
+        borderJoinStyle: 'miter',
+        pointBorderColor: 'rgb(205, 130,1 58)',
+        pointBackgroundColor: 'rgb(255, 255, 255)',
+        pointBorderWidth: 10,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: 'rgb(0, 0, 0)',
+        pointHoverBorderColor: 'rgba(220, 220, 220,1)',
+        pointHoverBorderWidth: 2,
+        pointRadius: 1,
+        pointHitRadius: 10,
+        data: [65, 59, 80, 81, 56, 55, 40],
+      },
+      {
+        label: 'My Second dataset',
+        fill: true,
+        lineTension: 0.3,
+        backgroundColor: 'rgba(184, 185, 210, .3)',
+        borderColor: 'rgb(35, 26, 136)',
+        borderCapStyle: 'butt',
+        borderDash: [],
+        borderDashOffset: 0.0,
+        borderJoinStyle: 'miter',
+        pointBorderColor: 'rgb(35, 26, 136)',
+        pointBackgroundColor: 'rgb(255, 255, 255)',
+        pointBorderWidth: 10,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: 'rgb(0, 0, 0)',
+        pointHoverBorderColor: 'rgba(220, 220, 220, 1)',
+        pointHoverBorderWidth: 2,
+        pointRadius: 1,
+        pointHitRadius: 10,
+        data: [28, 48, 40, 19, 86, 27, 90],
+      },
+    ],
+  };
+</script>
+
+<Line {data} options={{ responsive: true }} />
+
+=== 1600 sites/docs/src/lib/demos/MultitypeDemo.svelte	svelte	runes	neutral
+<script>
+  import { Chart } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Tooltip,
+    Legend,
+    BarElement,
+    PointElement,
+    LineElement,
+    CategoryScale,
+    LinearScale,
+    LineController,
+    BarController,
+  } from 'chart.js';
+
+  ChartJS.register(
+    Tooltip,
+    Legend,
+    BarElement,
+    PointElement,
+    LineElement,
+    CategoryScale,
+    LinearScale,
+    LineController,
+    BarController
+  );
+
+  const labels = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+  ];
+
+  const data = {
+    labels,
+    datasets: [
+      {
+        type: 'line',
+        label: 'Line Dataset',
+        borderColor: 'rgb(255, 99, 132)',
+        backgroundColor: 'rgba(255, 99, 132, 0.5)',
+        borderWidth: 2,
+        fill: false,
+        data: [65, 59, 80, 81, 56, 55, 40],
+      },
+      {
+        type: 'bar',
+        label: 'Bar Dataset 1',
+        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+        borderColor: 'rgb(75, 192, 192)',
+        borderWidth: 1,
+        data: [28, 48, 40, 19, 86, 27, 90],
+      },
+      {
+        type: 'bar',
+        label: 'Bar Dataset 2',
+        backgroundColor: 'rgba(53, 162, 235, 0.5)',
+        borderColor: 'rgb(53, 162, 235)',
+        borderWidth: 1,
+        data: [45, 25, 60, 36, 72, 43, 58],
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    plugins: {
+      title: {
+        display: true,
+        text: 'Mixed Chart (Line + Bar)',
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+      },
+    },
+  };
+</script>
+
+<Chart type="bar" {data} {options} />
+
+=== 799 sites/docs/src/lib/demos/PieDemo.svelte	svelte	runes	neutral
+<script>
+  import { Pie } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+    CategoryScale,
+  } from 'chart.js';
+
+  ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale);
+
+  const data = {
+    labels: ['Red', 'Green', 'Yellow', 'Grey', 'Dark Grey'],
+    datasets: [
+      {
+        data: [300, 50, 100, 40, 120],
+        backgroundColor: [
+          '#F7464A',
+          '#46BFBD',
+          '#FDB45C',
+          '#949FB1',
+          '#4D5360',
+          '#AC64AD',
+        ],
+        hoverBackgroundColor: [
+          '#FF5A5E',
+          '#5AD3D1',
+          '#FFC870',
+          '#A8B3C5',
+          '#616774',
+          '#DA92DB',
+        ],
+      },
+    ],
+  };
+</script>
+
+<Pie {data} options={{ responsive: true }} />
+
+=== 736 sites/docs/src/lib/demos/PolarDemo.svelte	svelte	runes	neutral
+<script>
+  import { PolarArea } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+    RadialLinearScale,
+  } from 'chart.js';
+
+  ChartJS.register(Title, Tooltip, Legend, ArcElement, RadialLinearScale);
+
+  const data = {
+    datasets: [
+      {
+        data: [300, 50, 100, 40, 120],
+        backgroundColor: [
+          'rgba(247, 70, 74, 0.5)',
+          'rgba(70, 191, 189, 0.5)',
+          'rgba(253, 180, 92, 0.5)',
+          'rgba(148, 159, 177, 0.5)',
+          'rgba(77, 83, 96, 0.5)',
+        ],
+        label: 'My dataset',
+      },
+    ],
+    labels: ['Red', 'Green', 'Yellow', 'Grey', 'Dark Grey'],
+  };
+</script>
+
+<PolarArea {data} options={{ responsive: true }} />
+
+=== 949 sites/docs/src/lib/demos/RadarDemo.svelte	svelte	runes	neutral
+<script>
+  import { Radar } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    PointElement,
+    RadialLinearScale,
+    LineElement,
+  } from 'chart.js';
+
+  ChartJS.register(
+    Title,
+    Tooltip,
+    Legend,
+    PointElement,
+    RadialLinearScale,
+    LineElement
+  );
+
+  const data = {
+    labels: [
+      'Eating',
+      'Drinking',
+      'Sleeping',
+      'Designing',
+      'Coding',
+      'Cycling',
+      'Running',
+    ],
+    datasets: [
+      {
+        label: 'My First dataset',
+        backgroundColor: 'rgba(194, 116, 161, 0.5)',
+        borderColor: 'rgb(194, 116, 161)',
+        data: [65, 59, 90, 81, 56, 55, 40],
+      },
+      {
+        label: 'My Second dataset',
+        backgroundColor: 'rgba(71, 225, 167, 0.5)',
+        borderColor: 'rgb(71, 225, 167)',
+        data: [28, 48, 40, 19, 96, 27, 100],
+      },
+    ],
+  };
+</script>
+
+<Radar {data} options={{ responsive: true }} />
+
+=== 3109 sites/docs/src/lib/demos/ReactiveDemo.svelte	svelte	runes	runes
+<script>
+  import { Line } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    LineElement,
+    LinearScale,
+    PointElement,
+    CategoryScale,
+  } from 'chart.js';
+
+  ChartJS.register(
+    Title,
+    Tooltip,
+    Legend,
+    LineElement,
+    LinearScale,
+    PointElement,
+    CategoryScale
+  );
+
+  const COLORS = [
+    'rgb(255, 99, 132)',
+    'rgb(75, 192, 192)',
+    'rgb(53, 162, 235)',
+    'rgb(255, 205, 86)',
+    'rgb(153, 102, 255)',
+  ];
+
+  let nextLabel = $state(7);
+
+  let data = $state({
+    labels: ['1', '2', '3', '4', '5', '6'],
+    datasets: [
+      {
+        label: 'Dataset 1',
+        data: [65, 59, 80, 81, 56, 55],
+        borderColor: COLORS[0],
+        backgroundColor: COLORS[0],
+        tension: 0.3,
+      },
+    ],
+  });
+
+  function randomValue() {
+    return Math.floor(Math.random() * 100);
+  }
+
+  function addDataPoint() {
+    data = {
+      ...data,
+      labels: [...data.labels, String(nextLabel)],
+      datasets: data.datasets.map(ds => ({
+        ...ds,
+        data: [...ds.data, randomValue()],
+      })),
+    };
+    nextLabel++;
+  }
+
+  function removeDataPoint() {
+    if (data.labels.length <= 1) return;
+    data = {
+      ...data,
+      labels: data.labels.slice(0, -1),
+      datasets: data.datasets.map(ds => ({
+        ...ds,
+        data: ds.data.slice(0, -1),
+      })),
+    };
+  }
+
+  function randomizeData() {
+    data = {
+      ...data,
+      datasets: data.datasets.map(ds => ({
+        ...ds,
+        data: ds.data.map(() => randomValue()),
+      })),
+    };
+  }
+
+  function addDataset() {
+    const colorIndex = data.datasets.length % COLORS.length;
+    data = {
+      ...data,
+      datasets: [
+        ...data.datasets,
+        {
+          label: `Dataset ${data.datasets.length + 1}`,
+          data: data.labels.map(() => randomValue()),
+          borderColor: COLORS[colorIndex],
+          backgroundColor: COLORS[colorIndex],
+          tension: 0.3,
+        },
+      ],
+    };
+  }
+
+  function removeDataset() {
+    if (data.datasets.length <= 1) return;
+    data = {
+      ...data,
+      datasets: data.datasets.slice(0, -1),
+    };
+  }
+
+  const options = {
+    responsive: true,
+    plugins: {
+      title: {
+        display: true,
+        text: 'Reactive Data Demo',
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+      },
+    },
+  };
+</script>
+
+<div class="controls">
+  <button onclick={addDataPoint}>Add Data</button>
+  <button onclick={removeDataPoint}>Remove Data</button>
+  <button onclick={randomizeData}>Randomize</button>
+  <button onclick={addDataset}>Add Dataset</button>
+  <button onclick={removeDataset}>Remove Dataset</button>
+</div>
+
+<Line {data} {options} />
+
+<style>
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  button {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-bg-secondary);
+    color: var(--color-text);
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+
+  button:hover {
+    background: var(--color-border);
+  }
+</style>
+
+=== 2031 sites/docs/src/lib/demos/RefDemo.svelte	svelte	runes	runes
+<script>
+  import { onMount } from 'svelte';
+  import { Chart } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Tooltip,
+    Legend,
+    BarElement,
+    PointElement,
+    LineElement,
+    CategoryScale,
+    LinearScale,
+    LineController,
+    BarController,
+  } from 'chart.js';
+
+  ChartJS.register(
+    LinearScale,
+    CategoryScale,
+    BarElement,
+    PointElement,
+    LineElement,
+    Legend,
+    Tooltip,
+    LineController,
+    BarController
+  );
+
+  const labels = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+  ];
+
+  const data = {
+    labels,
+    datasets: [
+      {
+        type: 'line',
+        label: 'Dataset 1',
+        borderColor: 'rgb(255, 99, 132)',
+        borderWidth: 2,
+        fill: false,
+        data: labels.map(() => Math.random() * 1000),
+      },
+      {
+        type: 'bar',
+        label: 'Dataset 2',
+        backgroundColor: 'rgb(75, 192, 192)',
+        data: labels.map(() => Math.random() * 1000),
+        borderColor: 'white',
+        borderWidth: 2,
+      },
+      {
+        type: 'bar',
+        label: 'Dataset 3',
+        backgroundColor: 'rgb(53, 162, 235)',
+        data: labels.map(() => Math.random() * 1000),
+      },
+    ],
+  };
+
+  const options = {
+    scales: {
+      y: {
+        beginAtZero: true,
+      },
+    },
+  };
+
+  function triggerTooltip(chart) {
+    const tooltip = chart && chart.tooltip;
+    if (!tooltip) return;
+
+    if (tooltip.getActiveElements().length > 0) {
+      tooltip.setActiveElements([], { x: 0, y: 0 });
+    } else {
+      const { chartArea } = chart;
+      tooltip.setActiveElements(
+        [
+          { datasetIndex: 0, index: 2 },
+          { datasetIndex: 1, index: 2 },
+        ],
+        {
+          x: (chartArea.left + chartArea.right) / 2,
+          y: (chartArea.top + chartArea.bottom) / 2,
+        }
+      );
+    }
+    chart.update();
+  }
+
+  let chart = $state(null);
+
+  onMount(() => {
+    triggerTooltip(chart);
+  });
+</script>
+
+<Chart bind:chart type="bar" {data} {options} />
+
+=== 1734 sites/docs/src/lib/demos/ScatterDemo.svelte	svelte	runes	neutral
+<script>
+  import { Scatter } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    LineElement,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+  } from 'chart.js';
+
+  ChartJS.register(
+    Title,
+    Tooltip,
+    Legend,
+    LineElement,
+    CategoryScale,
+    LinearScale,
+    PointElement
+  );
+
+  const data = {
+    labels: ['Scatter'],
+    datasets: [
+      {
+        borderColor: 'rgba(99,0,125, .2)',
+        backgroundColor: 'rgba(99,0,125, .5)',
+        label: 'V(node2)',
+        data: [
+          { x: 1, y: -1.711e-2 },
+          { x: 1.26, y: -2.708e-2 },
+          { x: 1.58, y: -4.285e-2 },
+          { x: 2.0, y: -6.772e-2 },
+          { x: 2.51, y: -1.068e-1 },
+          { x: 3.16, y: -1.681e-1 },
+          { x: 3.98, y: -2.635e-1 },
+          { x: 5.01, y: -4.106e-1 },
+          { x: 6.31, y: -6.339e-1 },
+          { x: 7.94, y: -9.659e-1 },
+          { x: 10.0, y: -1.445 },
+          { x: 12.6, y: -2.11 },
+          { x: 15.8, y: -2.992 },
+          { x: 20.0, y: -4.102 },
+          { x: 25.1, y: -5.429 },
+          { x: 31.6, y: -6.944 },
+          { x: 39.8, y: -8.607 },
+          { x: 50.1, y: -1.038e1 },
+          { x: 63.1, y: -1.223e1 },
+          { x: 79.4, y: -1.413e1 },
+          { x: 100.0, y: -1.607e1 },
+          { x: 126, y: -1.803e1 },
+          { x: 158, y: -2e1 },
+          { x: 200, y: -2.199e1 },
+          { x: 251, y: -2.398e1 },
+          { x: 316, y: -2.597e1 },
+          { x: 398, y: -2.797e1 },
+          { x: 501, y: -2.996e1 },
+          { x: 631, y: -3.196e1 },
+          { x: 794, y: -3.396e1 },
+          { x: 1000, y: -3.596e1 },
+        ],
+      },
+    ],
+  };
+</script>
+
+<Scatter {data} options={{ responsive: true }} />
+
+=== 1179 sites/docs/src/lib/demos/StackedBarDemo.svelte	svelte	runes	neutral
+<script>
+  import { Bar } from 'svelte-chartjs';
+  import {
+    Chart as ChartJS,
+    Title,
+    Tooltip,
+    Legend,
+    BarElement,
+    CategoryScale,
+    LinearScale,
+  } from 'chart.js';
+
+  ChartJS.register(
+    Title,
+    Tooltip,
+    Legend,
+    BarElement,
+    CategoryScale,
+    LinearScale
+  );
+
+  const labels = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+  ];
+
+  const data = {
+    labels,
+    datasets: [
+      {
+        label: 'Dataset 1',
+        data: [65, 59, 80, 81, 56, 55, 40],
+        backgroundColor: 'rgb(255, 99, 132)',
+      },
+      {
+        label: 'Dataset 2',
+        data: [28, 48, 40, 19, 86, 27, 90],
+        backgroundColor: 'rgb(75, 192, 192)',
+      },
+      {
+        label: 'Dataset 3',
+        data: [45, 25, 60, 36, 72, 43, 58],
+        backgroundColor: 'rgb(53, 162, 235)',
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    plugins: {
+      title: {
+        display: true,
+        text: 'Stacked Bar Chart',
+      },
+    },
+    scales: {
+      x: {
+        stacked: true,
+      },
+      y: {
+        stacked: true,
+      },
+    },
+  };
+</script>
+
+<Bar {data} {options} />
+
+=== 1704 sites/docs/src/lib/layouts/DocPage.svelte	svelte	runes	runes
+<script>
+  import { page } from '$app/state';
+  import { base } from '$app/paths';
+  import TableOfContents from '$lib/components/TableOfContents.svelte';
+
+  let { title = '', description = '', children } = $props();
+
+  let articleEl = $state(null);
+
+  const editUrl = $derived(() => {
+    const pathname = page.url.pathname.replace(base, '') || '/';
+    return `https://github.com/SauravKanchan/svelte-chartjs/edit/master/sites/docs/src/routes${pathname}/+page.md`;
+  });
+</script>
+
+<svelte:head>
+  <title>{title ? `${title} | svelte-chartjs` : 'svelte-chartjs'}</title>
+  {#if description}
+    <meta name="description" content={description} />
+  {/if}
+</svelte:head>
+
+<div class="doc-layout">
+  <article bind:this={articleEl}>
+    {@render children()}
+
+    <footer class="edit-link">
+      <a href={editUrl()} target="_blank" rel="noopener noreferrer"
+        >Edit this page on GitHub</a
+      >
+    </footer>
+  </article>
+
+  {#if articleEl}
+    <TableOfContents article={articleEl} />
+  {/if}
+</div>
+
+<style>
+  .doc-layout {
+    display: flex;
+    gap: 2rem;
+    margin: 0 auto;
+    max-width: calc(var(--content-max-width) + var(--toc-width) + 2rem);
+  }
+
+  article {
+    flex: 1;
+    min-width: 0;
+    max-width: var(--content-max-width);
+  }
+
+  @media (max-width: 1280px) {
+    .doc-layout {
+      max-width: var(--content-max-width);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .doc-layout {
+      max-width: 100%;
+    }
+  }
+
+  .edit-link {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .edit-link a {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+  }
+
+  .edit-link a:hover {
+    color: var(--color-primary);
+  }
+</style>
+
+=== 816 sites/docs/src/routes/+layout.svelte	svelte	runes	runes
+<script>
+  import '../app.css';
+  import Sidebar from '$lib/components/Sidebar.svelte';
+  import Header from '$lib/components/Header.svelte';
+
+  let { children } = $props();
+  let sidebarOpen = $state(false);
+
+  function toggleSidebar() {
+    sidebarOpen = !sidebarOpen;
+  }
+</script>
+
+<Header onToggleSidebar={toggleSidebar} />
+<div class="shell">
+  <Sidebar bind:open={sidebarOpen} />
+  <main>
+    {@render children()}
+  </main>
+</div>
+
+<style>
+  .shell {
+    display: flex;
+    min-height: calc(100vh - var(--header-height));
+  }
+
+  main {
+    flex: 1;
+    min-width: 0;
+    padding: 2rem 3rem;
+    margin-top: var(--header-height);
+    margin-left: var(--sidebar-width);
+  }
+
+  @media (max-width: 768px) {
+    main {
+      padding: 1.5rem 1rem;
+      margin-left: 0;
+      overflow-x: hidden;
+    }
+  }
+</style>
+
+=== 507 src/Bar.svelte	svelte	runes	runes
+<script lang="ts" generics="TData = DefaultDataPoint<'bar'>, TLabel = unknown">
+  import type { DefaultDataPoint } from 'chart.js';
+  import { Chart as ChartJS, BarController } from 'chart.js';
+  import type { ChartBaseProps } from './types/index.js';
+  import Chart from './Chart.svelte';
+
+  ChartJS.register(BarController);
+
+  let {
+    chart = $bindable(null),
+    ...restProps
+  }: Omit<ChartBaseProps<'bar', TData, TLabel>, 'type'> = $props();
+</script>
+
+<Chart bind:chart type="bar" {...restProps} />
+
+=== 527 src/Bubble.svelte	svelte	runes	runes
+<script
+  lang="ts"
+  generics="TData = DefaultDataPoint<'bubble'>, TLabel = unknown"
+>
+  import type { DefaultDataPoint } from 'chart.js';
+  import { Chart as ChartJS, BubbleController } from 'chart.js';
+  import type { ChartBaseProps } from './types/index.js';
+  import Chart from './Chart.svelte';
+
+  ChartJS.register(BubbleController);
+
+  let {
+    chart = $bindable(null),
+    ...restProps
+  }: Omit<ChartBaseProps<'bubble', TData, TLabel>, 'type'> = $props();
+</script>
+
+<Chart bind:chart type="bubble" {...restProps} />
+
+=== 1416 src/Chart.svelte	svelte	runes	runes
+<script
+  lang="ts"
+  generics="TType extends ChartType = ChartType, TData = DefaultDataPoint<TType>, TLabel = unknown"
+>
+  import { onMount, onDestroy, untrack } from 'svelte';
+  import type { ChartType, DefaultDataPoint } from 'chart.js';
+  import { Chart as ChartJS } from 'chart.js';
+  import type { ChartBaseProps } from './types/index.js';
+
+  let {
+    type,
+    data,
+    options,
+    plugins,
+    updateMode,
+    chart = $bindable(null),
+    ...restProps
+  }: ChartBaseProps<TType, TData, TLabel> = $props();
+
+  let canvasRef: HTMLCanvasElement;
+
+  /** Removes svelte deep reactivity from an object */
+  function freeze<T>(value: T) {
+    return $state.snapshot(value) as T;
+  }
+
+  onMount(() => {
+    chart = new ChartJS(
+      canvasRef,
+      freeze({
+        type,
+        data,
+        options,
+        plugins,
+      })
+    );
+  });
+
+  $effect(() => {
+    const frozenData = freeze(data);
+    const frozenOptions = freeze(options);
+    const frozenUpdateMode = freeze(updateMode);
+
+    const currentChart = untrack(() => chart);
+    if (!currentChart) return;
+
+    currentChart.data = frozenData;
+    if (currentChart.options && frozenOptions) {
+      Object.assign(currentChart.options, frozenOptions);
+    }
+    currentChart.update(frozenUpdateMode);
+  });
+
+  onDestroy(() => {
+    if (chart) chart.destroy();
+    chart = null;
+  });
+</script>
+
+<canvas bind:this={canvasRef} {...restProps}></canvas>
+
+=== 537 src/Doughnut.svelte	svelte	runes	runes
+<script
+  lang="ts"
+  generics="TData = DefaultDataPoint<'doughnut'>, TLabel = unknown"
+>
+  import type { DefaultDataPoint } from 'chart.js';
+  import { Chart as ChartJS, DoughnutController } from 'chart.js';
+  import type { ChartBaseProps } from './types/index.js';
+  import Chart from './Chart.svelte';
+
+  ChartJS.register(DoughnutController);
+
+  let {
+    chart = $bindable(null),
+    ...restProps
+  }: Omit<ChartBaseProps<'doughnut', TData, TLabel>, 'type'> = $props();
+</script>
+
+<Chart bind:chart type="doughnut" {...restProps} />
+
+=== 512 src/Line.svelte	svelte	runes	runes
+<script lang="ts" generics="TData = DefaultDataPoint<'line'>, TLabel = unknown">
+  import type { DefaultDataPoint } from 'chart.js';
+  import { Chart as ChartJS, LineController } from 'chart.js';
+  import type { ChartBaseProps } from './types/index.js';
+  import Chart from './Chart.svelte';
+
+  ChartJS.register(LineController);
+
+  let {
+    chart = $bindable(null),
+    ...restProps
+  }: Omit<ChartBaseProps<'line', TData, TLabel>, 'type'> = $props();
+</script>
+
+<Chart bind:chart type="line" {...restProps} />
+
+=== 507 src/Pie.svelte	svelte	runes	runes
+<script lang="ts" generics="TData = DefaultDataPoint<'pie'>, TLabel = unknown">
+  import type { DefaultDataPoint } from 'chart.js';
+  import { Chart as ChartJS, PieController } from 'chart.js';
+  import type { ChartBaseProps } from './types/index.js';
+  import Chart from './Chart.svelte';
+
+  ChartJS.register(PieController);
+
+  let {
+    chart = $bindable(null),
+    ...restProps
+  }: Omit<ChartBaseProps<'pie', TData, TLabel>, 'type'> = $props();
+</script>
+
+<Chart bind:chart type="pie" {...restProps} />
+
+=== 542 src/PolarArea.svelte	svelte	runes	runes
+<script
+  lang="ts"
+  generics="TData = DefaultDataPoint<'polarArea'>, TLabel = unknown"
+>
+  import type { DefaultDataPoint } from 'chart.js';
+  import { Chart as ChartJS, PolarAreaController } from 'chart.js';
+  import type { ChartBaseProps } from './types/index.js';
+  import Chart from './Chart.svelte';
+
+  ChartJS.register(PolarAreaController);
+
+  let {
+    chart = $bindable(null),
+    ...restProps
+  }: Omit<ChartBaseProps<'polarArea', TData, TLabel>, 'type'> = $props();
+</script>
+
+<Chart bind:chart type="polarArea" {...restProps} />
+
+=== 522 src/Radar.svelte	svelte	runes	runes
+<script
+  lang="ts"
+  generics="TData = DefaultDataPoint<'radar'>, TLabel = unknown"
+>
+  import type { DefaultDataPoint } from 'chart.js';
+  import { Chart as ChartJS, RadarController } from 'chart.js';
+  import type { ChartBaseProps } from './types/index.js';
+  import Chart from './Chart.svelte';
+
+  ChartJS.register(RadarController);
+
+  let {
+    chart = $bindable(null),
+    ...restProps
+  }: Omit<ChartBaseProps<'radar', TData, TLabel>, 'type'> = $props();
+</script>
+
+<Chart bind:chart type="radar" {...restProps} />
+
+=== 532 src/Scatter.svelte	svelte	runes	runes
+<script
+  lang="ts"
+  generics="TData = DefaultDataPoint<'scatter'>, TLabel = unknown"
+>
+  import type { DefaultDataPoint } from 'chart.js';
+  import { Chart as ChartJS, ScatterController } from 'chart.js';
+  import type { ChartBaseProps } from './types/index.js';
+  import Chart from './Chart.svelte';
+
+  ChartJS.register(ScatterController);
+
+  let {
+    chart = $bindable(null),
+    ...restProps
+  }: Omit<ChartBaseProps<'scatter', TData, TLabel>, 'type'> = $props();
+</script>
+
+<Chart bind:chart type="scatter" {...restProps} />
+

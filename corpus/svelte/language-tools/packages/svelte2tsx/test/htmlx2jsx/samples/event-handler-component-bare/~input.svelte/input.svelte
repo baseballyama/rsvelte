@@ -1,1 +1,0 @@
-<Component on:click />

@@ -1,0 +1,1897 @@
+# rsvelte pack 1
+=== 921 example/src/routes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+export default function _page($$renderer) {
+	const url = 'https://orefalo.github.io/svelte-splitpanes/';
+
+	$$renderer.push(`<h1>Welcome to Svelte-Splitpanes Minimal Demo!</h1> <p>Visit <a${$.attr('href', url)}>https://orefalo.github.io/svelte-splitpanes/</a> to read the documentation and for more examples.</p> `);
+
+	Splitpanes($$renderer, {
+		style: 'height: 400px;',
+		children: ($$renderer) => {
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->First Pane`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					$$renderer.push(`<!---->Second Pane`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!---->`);
+}
+=== 372 src/lib/internal/GatheringRound.svelte	js
+import * as $ from 'svelte/internal/server';
+import { setContext } from 'svelte';
+
+export const gatheringKey = {};
+
+export default function GatheringRound($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		setContext(gatheringKey, true);
+		$$renderer.push(`<!--[-->`);
+		$.slot($$renderer, $$props, 'default', {}, null);
+		$$renderer.push(`<!--]-->`);
+	});
+}
+=== 646 src/lib/internal/GatheringRound.svelte	warnings.json
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 18,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"column": 34,
+			"character": 34
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 11,
+			"column": 0,
+			"character": 185
+		},
+		"end": {
+			"line": 11,
+			"column": 8,
+			"character": 193
+		}
+	}
+]
+
+=== 2155 src/routes/+layout.svelte	css
+
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    color: rgba(116, 103, 103);
+    margin: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  }
+
+  h1 h2 {
+    color: #000;
+  }
+
+  p {
+    color: #999;
+    font-size: medium;
+    padding-top: 1em;
+    padding-bottom: 1em;
+    font-style: italic;
+  }
+
+  .splitpanes__pane {
+    justify-content: center;
+    align-items: center;
+    color: rgba(106, 106, 106, 0.6);
+    display: flex;
+    position: relative;
+    font-size: 3em;
+  }
+
+  em.specs {
+    font-size: 0.2em;
+    line-height: 1;
+    position: absolute;
+    color: #bbb;
+    bottom: 0.5em;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 0.5em;
+  }
+
+  /* additional styling to the code area */
+  code.hljs {
+    tab-size: 4;
+  }
+
+  .page-container.svelte-12qhfyh {
+    display: table;
+    font-size: 14px;
+    width: 100%;
+  }
+
+  main.svelte-12qhfyh {
+    max-width: 1150px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 10px;
+    overflow-x: auto;
+  }
+
+  .rtl-containers.svelte-12qhfyh .splitpanes {
+    direction: rtl;
+  }
+
+  .toc-container-space.svelte-12qhfyh {
+    display: none;
+  }
+
+  .toc-container.svelte-12qhfyh {
+    display: flex;
+    flex-flow: column-reverse nowrap;
+    background: rgb(247, 250, 253);
+    color: rgb(65, 65, 72);
+  }
+
+  .toc-head.svelte-12qhfyh {
+    display: flex;
+    flex-flow: row nowrap;
+    gap: 8px;
+    padding-left: 10px;
+  }
+
+  @media (min-width: 832px) {
+    .page-container.svelte-12qhfyh {
+      display: flex;
+      flex-flow: row nowrap;
+    }
+
+    .toc-container-space.svelte-12qhfyh {
+      display: block;
+      min-width: 300px;
+      width: 300px;
+      height: 100vh;
+      margin: auto 0;
+    }
+
+    main.svelte-12qhfyh {
+      flex-grow: 1;
+    }
+
+    .toc-container.svelte-12qhfyh {
+      flex-direction: column;
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 300px;
+      height: 100vh;
+    }
+
+    .toc-contents-wrap.svelte-12qhfyh {
+      overflow-x: hidden;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+      padding: 10px;
+    }
+  }
+
+=== 3453 src/routes/+layout.svelte	js
+import * as $ from 'svelte/internal/server';
+import { page } from '$app/state';
+import theme from 'svelte-highlight/styles/night-owl';
+import Contents from '$comp/Contents.svelte';
+import RTLToggle from '$comp/RTLToggle.svelte';
+import { pathIsCurrent } from './pathUtils';
+import { asset } from '$app/paths';
+
+export default function _layout($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let isRTL = false;
+
+		const sections = [
+			{
+				title: 'Getting started',
+				pages: [{ title: 'Introduction', path: '' }]
+			},
+
+			{
+				title: 'General Examples',
+				pages: [
+					{ title: 'Min-Max', path: 'examples/min-max' },
+					{ title: 'Default Size', path: 'examples/default-size' },
+					{
+						title: 'Disable Double Click',
+						path: 'examples/disable-dbl-click'
+					},
+					{ title: 'Lock Layout', path: 'examples/lock-layout' },
+					{ title: 'Push Other Panes', path: 'examples/push-other-panes' },
+					{ title: 'Add Remove Panes', path: 'examples/add-remove-panes' },
+					{ title: 'Reordering Panes', path: 'examples/reordering-panes' },
+					{
+						title: 'ChangeOrientation',
+						path: 'examples/change-orientation'
+					},
+					{ title: 'Prog Resize', path: 'examples/prog-resize' },
+					{ title: 'Toggle Panes', path: 'examples/toggle-panes' },
+					{ title: 'Listen To Events', path: 'examples/listen-to-events' }
+				]
+			},
+
+			{
+				title: 'Snap',
+				pages: [
+					{ title: 'Simple Snap', path: 'examples/snap/simple' },
+					{ title: 'Middle Snap', path: 'examples/snap/middle' },
+					{ title: 'Min-Max Snap', path: 'examples/snap/min-max' }
+				]
+			},
+
+			{
+				title: 'Styling',
+				pages: [
+					{ title: 'Style Splitters', path: 'examples/styling/splitters' },
+					{ title: 'App Layout', path: 'examples/styling/app-layout' }
+				]
+			}
+		];
+
+		const pages = sections.map((section) => section.pages).flat();
+		const pageIdx = pages.findIndex(({ path }) => pathIsCurrent(path, page));
+		const curPage = pageIdx >= 0 ? pages[pageIdx] : undefined;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			$.head('12qhfyh', $$renderer, ($$renderer) => {
+				$$renderer.title(($$renderer) => {
+					$$renderer.push(`<title>Svelte-Splitpanes${$.escape(curPage ? ` - ${curPage.title}` : '')}</title>`);
+				});
+
+				$$renderer.push(`<meta name="description" content="A Fantastic pane splitter for Svelte"/> ${$.html(theme)}`);
+			});
+
+			$$renderer.push(`<div class="page-container svelte-12qhfyh"><div role="presentation" class="toc-container-space svelte-12qhfyh"></div> <main${$.attr_class('svelte-12qhfyh', void 0, { 'rtl-containers': isRTL })}><!--[-->`);
+			$.slot($$renderer, $$props, 'default', {}, null);
+			$$renderer.push(`<!--]--></main> <div class="toc-container svelte-12qhfyh"><div role="presentation" class="toc-contents-wrap svelte-12qhfyh"><h1 class="toc-head svelte-12qhfyh"><img${$.attr('src', asset('/favicon.svg'))} alt="Icon" width="30" height="30"/> Svelte-Splitpane</h1> `);
+			Contents($$renderer, { contents: sections });
+			$$renderer.push(`<!----></div> `);
+
+			RTLToggle($$renderer, {
+				get isRTL() {
+					return isRTL;
+				},
+
+				set isRTL($$value) {
+					isRTL = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----></div></div>`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 681 src/routes/+layout.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 66,
+			"column": 4,
+			"character": 2468
+		},
+		"end": {
+			"line": 66,
+			"column": 12,
+			"character": 2476
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`isRTL` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 321
+		},
+		"end": {
+			"line": 9,
+			"column": 11,
+			"character": 326
+		}
+	}
+]
+
+=== 1328 src/routes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import { asset, resolve } from '$app/paths';
+import { page } from '$app/state';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const origin = page.url.origin;
+
+		$$renderer.push(`<h1>Welcome to Svelte-Splitpane demo!</h1> <a href="https://github.com/orefalo/svelte-splitpanes">https://github.com/orefalo/svelte-splitpanes</a> <h2>Features</h2> <a${$.attr('href', origin + resolve('/minified-size'))}><img alt="Minified Size"${$.attr('src', origin + asset('/minified-size-badge.svg'))}/></a> <ul><li>Support both dynamic horizontal and vertical splits</li> <li>Support defaults, min and max sizes</li> <li>Support multiple splits</li> <li>Support lifecyle events</li> <li>Support custom divider size or overlay</li> <li>Support splitter pane pushing</li> <li>Support RTL rendering with auto-detection</li> <li>Support first splitter on/off</li> <li>Support pane toggle</li> <li>Support edge snapping</li> <li>Support programmatic resizing and two-way size binding</li> <li>Support programmatic panes add/remove</li> <li>Support programmatic panes reordering by Svelte keyed each blocks</li> <li>Support for legacy browser such as IE 11</li> <li>Support for touch devices</li> <li>Sveltekit &amp; Typescript friendly</li></ul>`);
+	});
+}
+=== 330 src/routes/examples/add-remove-panes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Adding and removing panes programmatically</h2> `);
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 626 src/routes/examples/change-orientation/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Change orientation &amp; first splitter</h2> <p>When changing direction, all the panes current width or height will flip to adapt to the new
+  layout.</p> <p>Showing the first splitter is an option which allows user to double click the splitter to maximize
+  the next pane. <br/> The first splitter does not allow to resize the next pane.</p> `);
+
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 1278 src/routes/examples/change-orientation/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+import Button from '$comp/Button.svelte';
+
+export default function Code($$renderer) {
+	let horizontal = false;
+	let firstSplitter = false;
+
+	Button($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->${$.escape(horizontal ? 'Turn to Vertical' : 'Turn to Horizontal')}`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----> `);
+
+	Button($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->${$.escape(firstSplitter ? 'Hide first splitter' : 'Show first Splitter')}`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----> `);
+
+	Splitpanes($$renderer, {
+		style: 'height: 400px',
+		firstSplitter,
+		horizontal,
+		children: ($$renderer) => {
+			$$renderer.push(`<!--[-->`);
+
+			const each_array = $.ensure_array_like({ length: 3 });
+
+			for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+				let _ = each_array[i];
+
+				Pane($$renderer, {
+					minSize: 5,
+					children: ($$renderer) => {
+						$$renderer.push(`<span>${$.escape(i + 1)}</span>`);
+					},
+					$$slots: { default: true }
+				});
+			}
+
+			$$renderer.push(`<!--]-->`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!---->`);
+}
+=== 708 src/routes/examples/change-orientation/code.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`horizontal` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 117
+		},
+		"end": {
+			"line": 6,
+			"column": 16,
+			"character": 127
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`firstSplitter` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 143
+		},
+		"end": {
+			"line": 7,
+			"column": 19,
+			"character": 156
+		}
+	}
+]
+
+=== 745 src/routes/examples/default-size/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Default pane size</h2> <p>Provide dimension of your panes when they first load (will be used for the width or height
+  respectively for the vertical or horizontal layout). <br/> <b>If you provide a default size, make sure you provide it for all the panes for a total equals to
+    100%. If a pane is missing a default size, then all the panes will have the same size.</b> <br/> Note that setting a default value is different than setting a min or max value.</p> `);
+
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 925 src/routes/examples/default-size/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+export default function Code($$renderer) {
+	Splitpanes($$renderer, {
+		horizontal: true,
+		style: 'height: 400px',
+		children: ($$renderer) => {
+			Pane($$renderer, {
+				size: 65,
+				children: ($$renderer) => {
+					$$renderer.push(`<span>1</span> <p>Default size of 65%</p>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				size: 10,
+				children: ($$renderer) => {
+					$$renderer.push(`<span>2</span> <p>Default size of 10%</p>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				size: 25,
+				children: ($$renderer) => {
+					$$renderer.push(`<span>3</span> <p>Default size of 25%</p>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 450 src/routes/examples/disable-dbl-click/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Disable double click</h2> <p>By default, double clicking the splitter will expand its nearest pane. In this example, we
+  demonstrate how to turn this feature OFF</p> `);
+
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 914 src/routes/examples/disable-dbl-click/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+export default function Code($$renderer) {
+	Splitpanes($$renderer, {
+		horizontal: true,
+		style: 'height: 400px',
+		dblClickSplitter: false,
+		children: ($$renderer) => {
+			Pane($$renderer, {
+				size: 33,
+				children: ($$renderer) => {
+					$$renderer.push(`<span>1</span>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				size: 33,
+				children: ($$renderer) => {
+					$$renderer.push(`<p>Note how double clicking has no resizing effects..</p>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				size: 34,
+				children: ($$renderer) => {
+					$$renderer.push(`<span>3</span>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 1441 src/routes/examples/listen-to-events/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Listening to emitted events</h2> <p>Here is the list of events that are emitted from splitpanes:</p> <ul><li>ready has no parameter and fires when splitpanes is ready</li> <li>resize fires while resizing (on mousemove/touchmove) and returns an array of all the panes
+    objects with their dimensions</li> <li>resized fires once when the resizing stops after user drag (on mouseup/touchend). it returns an
+    array of all the panes objects with their dimensions. The event also fires after adding or
+    removing a pane.</li> <li>pane-click returns the clicked pane object with its dimensions.</li> <li>pane-maximize returns the maximized pane object with its dimensions.</li> <li>pane-add returns an object containing the index of the added pane and the new array of panes
+    after resize.</li> <li>pane-remove returns an object containing the removed pane and an array of all the remaining
+    panes objects with their dimensions after resize.</li> <li>splitter-click returns the next pane object (with its dimensions) directly after the clicked
+    splitter. This event is only emitted if dragging did not occur between mousedown and mouseup.</li></ul> `);
+
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 1521 src/routes/examples/listen-to-events/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+import TextArea from '$comp/TextAreaAutosize.svelte';
+
+export default function Code($$renderer) {
+	let val = '// Event name: Event params   (Last event at the top)';
+
+	function handleMessage(event) {
+		if (event.detail) val = event.type + ' ' + JSON.stringify(event.detail) + '\n' + val; else val = event.type + '\n' + val;
+	}
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Splitpanes($$renderer, {
+			style: 'height: 400px',
+			children: ($$renderer) => {
+				$$renderer.push(`<!--[-->`);
+
+				const each_array = $.ensure_array_like({ length: 3 });
+
+				for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+					let _ = each_array[i];
+
+					Pane($$renderer, {
+						minSize: 10,
+						children: ($$renderer) => {
+							$$renderer.push(`<span>${$.escape(i + 1)}</span>`);
+						},
+						$$slots: { default: true }
+					});
+				}
+
+				$$renderer.push(`<!--]-->`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> <p>Try resizing panes and check the logs bellow.</p> `);
+
+		TextArea($$renderer, {
+			minRows: 4,
+			maxRows: 40,
+			get value() {
+				return val;
+			},
+
+			set value($$value) {
+				val = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 346 src/routes/examples/listen-to-events/code.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`val` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 139
+		},
+		"end": {
+			"line": 6,
+			"column": 9,
+			"character": 142
+		}
+	}
+]
+
+=== 333 src/routes/examples/lock-layout/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Locking layout by prevent pushing other panes</h2> `);
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 1690 src/routes/examples/lock-layout/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+export default function Code($$renderer) {
+	Splitpanes($$renderer, {
+		horizontal: true,
+		style: 'height: 400px',
+		pushOtherPanes: false,
+		children: ($$renderer) => {
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					$$renderer.push(`<span>1</span> <p>Try grabbing to very bottom splitter, note how it stops on the bounderies of this panel</p>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					Splitpanes($$renderer, {
+						children: ($$renderer) => {
+							Pane($$renderer, {
+								children: ($$renderer) => {
+									$$renderer.push(`<span>2</span>`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Pane($$renderer, {
+								children: ($$renderer) => {
+									$$renderer.push(`<span>3</span>`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Pane($$renderer, {
+								children: ($$renderer) => {
+									$$renderer.push(`<span>4</span>`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!---->`);
+						},
+						$$slots: { default: true }
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					$$renderer.push(`<span>5</span> <p>Try grabbing to very top splitter, note how it stops on the bounderies of this panel</p>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 555 src/routes/examples/min-max/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Horizontal layout, push other panes, min &amp; max use, doubleclick</h2> <p>You can double click a splitter to maximize the next pane! <br/> If you want to disable the 'double click splitter to maximize' behavior, you can add this attribute:
+  dblClickSplitter=false.</p> `);
+
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 989 src/routes/examples/min-max/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+export default function Code($$renderer) {
+	Splitpanes($$renderer, {
+		horizontal: true,
+		style: 'height: 400px',
+		children: ($$renderer) => {
+			Pane($$renderer, {
+				minSize: 20,
+				maxSize: 70,
+				children: ($$renderer) => {
+					$$renderer.push(`<span>1 <br/> <em class="specs">I have a min height of 20% &amp; max height of 70%</em></span>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					$$renderer.push(`<span>2</span>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				maxSize: 70,
+				children: ($$renderer) => {
+					$$renderer.push(`<span>3 <br/> <em class="specs">I have a max height of 70%</em></span>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 579 src/routes/examples/prog-resize/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Programmatic resizing</h2> <p>This example shows the programmatic way of resizing panes with two-way data biding. And how it
+  works both ways. <br/> Changing programmatically the size one pane, will shrink/expand the other panes that have no specified
+  size, as you can see in the example.</p> `);
+
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 1407 src/routes/examples/prog-resize/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+import RangeSlider from 'svelte-range-slider-pips';
+
+export default function Code($$renderer) {
+	let value = [50];
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		RangeSlider($$renderer, {
+			float: true,
+			min: 0,
+			step: 0.01,
+			max: 100,
+			get values() {
+				return value;
+			},
+
+			set values($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Splitpanes($$renderer, {
+			style: 'height: 400px',
+			children: ($$renderer) => {
+				Pane($$renderer, {
+					get size() {
+						return value[0];
+					},
+
+					set size($$value) {
+						value[0] = $$value;
+						$$settled = false;
+					},
+
+					children: ($$renderer) => {
+						$$renderer.push(`<span>${$.escape(Math.round(value[0]))}%</span>`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!----> `);
+
+				Pane($$renderer, {
+					children: ($$renderer) => {
+						$$renderer.push(`<span>Auto-Calculated</span>`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!---->`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!---->`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 349 src/routes/examples/prog-resize/code.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 127
+		},
+		"end": {
+			"line": 6,
+			"column": 11,
+			"character": 132
+		}
+	}
+]
+
+=== 363 src/routes/examples/push-other-panes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Lots of splitters &amp; push other panes - all panes have a min width of 5%</h2> `);
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 704 src/routes/examples/push-other-panes/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+export default function Code($$renderer) {
+	Splitpanes($$renderer, {
+		style: 'height: 400px',
+		children: ($$renderer) => {
+			$$renderer.push(`<!--[-->`);
+
+			const each_array = $.ensure_array_like({ length: 8 });
+
+			for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+				let _ = each_array[i];
+
+				Pane($$renderer, {
+					minSize: 5,
+					children: ($$renderer) => {
+						$$renderer.push(`<span>${$.escape(i + 1)}</span> <p>Double click splitter -></p>`);
+					},
+					$$slots: { default: true }
+				});
+			}
+
+			$$renderer.push(`<!--]-->`);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 304 src/routes/examples/reordering-panes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Reordering Panes</h2> `);
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 1027 src/routes/examples/reordering-panes/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+import Button from '$comp/Button.svelte';
+
+export default function Code($$renderer) {
+	const ordered = [{ color: 'red' }, { color: 'blue' }];
+
+	Button($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->Switch`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----> `);
+
+	Splitpanes($$renderer, {
+		style: 'height: 400px',
+		children: ($$renderer) => {
+			$$renderer.push(`<!--[-->`);
+
+			const each_array = $.ensure_array_like(ordered);
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let val = each_array[$$index];
+
+				Pane($$renderer, {
+					minSize: 10,
+					children: ($$renderer) => {
+						$$renderer.push(`<span${$.attr_style('', { color: val.color })}>${$.escape(val.color)}</span>`);
+					},
+					$$slots: { default: true }
+				});
+			}
+
+			$$renderer.push(`<!--]-->`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!---->`);
+}
+=== 299 src/routes/examples/snap/middle/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Middle snap</h2> `);
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 615 src/routes/examples/snap/middle/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+export default function Code($$renderer) {
+	Splitpanes($$renderer, {
+		style: 'height: 400px',
+		children: ($$renderer) => {
+			Pane($$renderer, {});
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				snapSize: 10,
+				children: ($$renderer) => {
+					$$renderer.push(`<p>Try shrinking my size, note how I snap below 10% size</p>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+			Pane($$renderer, {});
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 375 src/routes/examples/snap/min-max/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Min &amp; max with snap</h2> <p>You can also snap to the panel maximum and minimum size.</p> `);
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 714 src/routes/examples/snap/min-max/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+export default function Code($$renderer) {
+	Splitpanes($$renderer, {
+		style: 'height: 400px',
+		children: ($$renderer) => {
+			Pane($$renderer, {});
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				snapSize: 10,
+				minSize: 10,
+				maxSize: 70,
+				children: ($$renderer) => {
+					$$renderer.push(`<span style="font-size: 20px;">I have a snap size of 10% <br/> I have a min size of 10% <br/> I have a max size of 70%</span>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+			Pane($$renderer, {});
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 384 src/routes/examples/snap/simple/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Simple snap</h2> <p>Using snapSize on a pane makes it snap to his adjacent splitters and borders.</p> `);
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 557 src/routes/examples/snap/simple/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+export default function Code($$renderer) {
+	Splitpanes($$renderer, {
+		style: 'height: 400px',
+		children: ($$renderer) => {
+			Pane($$renderer, {
+				snapSize: 10,
+				children: ($$renderer) => {
+					$$renderer.push(`<p>Try shrinking my size, note how I snap below 10% size</p>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+			Pane($$renderer, {});
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 455 src/routes/examples/styling/app-layout/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Styling Splitters - Modern</h2> <p>This examples uses CSS styles to pixel size panes and lock them in place. applied to panes in
+  order to achieve the desired layout.</p> `);
+
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 1448 src/routes/examples/styling/app-layout/code.svelte	css
+
+  /* (empty) .splitpanes.modern-theme {
+    .splitpanes__pane {
+      background-color: #f8f8f8;
+    }
+    .splitpanes__splitter {
+      background-color: #ccc;
+      position: relative;
+
+      &:before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        transition: opacity 0.4s;
+        background-color: #2db9d2;
+        opacity: 0;
+        z-index: 1;
+      }
+      &:hover:before {
+        opacity: 1;
+      }
+      &.splitpanes__splitter__active {
+        z-index: 2; /* Fix an issue of overlap fighting with a near hovered splitter *\/
+      }
+    }
+  }*/
+  /* (empty) .modern-theme {
+    &.splitpanes--vertical > .splitpanes__splitter:before {
+      left: -3px;
+      right: -3px;
+      height: 100%;
+      cursor: col-resize;
+    }
+    &.splitpanes--horizontal > .splitpanes__splitter:before {
+      top: -3px;
+      bottom: -3px;
+      width: 100%;
+      cursor: row-resize;
+    }
+  }*/
+
+  /* (empty) .splitpanes.no-splitter {
+    .splitpanes__pane {
+      background-color: #f8f8f8;
+    }
+    .splitpanes__splitter {
+      background-color: #ccc;
+      position: relative;
+    }
+  }*/
+  /* (empty) .no-splitter {
+    &.splitpanes--horizontal > .splitpanes__splitter:before {
+      width: 0.125rem;
+      pointer-events: none;
+      cursor: none;
+    }
+    &.splitpanes--vertical > .splitpanes__splitter:before {
+      height: 0.125rem;
+      pointer-events: none;
+      cursor: none;
+    }
+  }*/
+
+=== 2095 src/routes/examples/styling/app-layout/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+export default function Code($$renderer) {
+	Splitpanes($$renderer, {
+		theme: 'no-splitter',
+		horizontal: true,
+		style: 'height: 400px',
+		dblClickSplitter: false,
+		children: ($$renderer) => {
+			Pane($$renderer, {
+				size: 6,
+				minSize: 6,
+				maxSize: 6,
+				children: ($$renderer) => {
+					$$renderer.push(`<p>MenuBar - This is a splitpane, note how the splitters made static using CSS</p>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				size: 6,
+				minSize: 6,
+				maxSize: 6,
+				children: ($$renderer) => {
+					$$renderer.push(`<p>ToolBar - This is another fixed size, locked splitpane</p>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					Splitpanes($$renderer, {
+						theme: 'modern-theme',
+						children: ($$renderer) => {
+							Pane($$renderer, {
+								children: ($$renderer) => {
+									$$renderer.push(`<p>Folder <br/> You can move those --></p>`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Pane($$renderer, {
+								children: ($$renderer) => {
+									$$renderer.push(`<p>Sample content</p>`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Pane($$renderer, {
+								children: ($$renderer) => {
+									$$renderer.push(`<p>Details <br/> &lt;-- You can move those</p>`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!---->`);
+						},
+						$$slots: { default: true }
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				size: 6,
+				minSize: 6,
+				maxSize: 6,
+				children: ($$renderer) => {
+					$$renderer.push(`<p>statusbar - and yet, another splitpane, same technique</p>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 4331 src/routes/examples/styling/app-layout/code.svelte	warnings.json
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".splitpanes.modern-theme\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 39,
+			"column": 2,
+			"character": 963
+		},
+		"end": {
+			"line": 39,
+			"column": 26,
+			"character": 987
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".splitpanes__pane\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 40,
+			"column": 4,
+			"character": 994
+		},
+		"end": {
+			"line": 40,
+			"column": 21,
+			"character": 1011
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".splitpanes__splitter\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 43,
+			"column": 4,
+			"character": 1057
+		},
+		"end": {
+			"line": 43,
+			"column": 25,
+			"character": 1078
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&:before\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 47,
+			"column": 6,
+			"character": 1144
+		},
+		"end": {
+			"line": 47,
+			"column": 14,
+			"character": 1152
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&:hover:before\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 57,
+			"column": 6,
+			"character": 1360
+		},
+		"end": {
+			"line": 57,
+			"column": 20,
+			"character": 1374
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&.splitpanes__splitter__active\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 60,
+			"column": 6,
+			"character": 1411
+		},
+		"end": {
+			"line": 60,
+			"column": 36,
+			"character": 1441
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".modern-theme\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 65,
+			"column": 2,
+			"character": 1552
+		},
+		"end": {
+			"line": 65,
+			"column": 15,
+			"character": 1565
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&.splitpanes--vertical > .splitpanes__splitter:before\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 66,
+			"column": 4,
+			"character": 1572
+		},
+		"end": {
+			"line": 66,
+			"column": 57,
+			"character": 1625
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&.splitpanes--horizontal > .splitpanes__splitter:before\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 72,
+			"column": 4,
+			"character": 1721
+		},
+		"end": {
+			"line": 72,
+			"column": 59,
+			"character": 1776
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".splitpanes.no-splitter\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 80,
+			"column": 2,
+			"character": 1874
+		},
+		"end": {
+			"line": 80,
+			"column": 25,
+			"character": 1897
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".splitpanes__pane\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 81,
+			"column": 4,
+			"character": 1904
+		},
+		"end": {
+			"line": 81,
+			"column": 21,
+			"character": 1921
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".splitpanes__splitter\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 84,
+			"column": 4,
+			"character": 1967
+		},
+		"end": {
+			"line": 84,
+			"column": 25,
+			"character": 1988
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".no-splitter\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 89,
+			"column": 2,
+			"character": 2059
+		},
+		"end": {
+			"line": 89,
+			"column": 14,
+			"character": 2071
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&.splitpanes--horizontal > .splitpanes__splitter:before\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 90,
+			"column": 4,
+			"character": 2078
+		},
+		"end": {
+			"line": 90,
+			"column": 59,
+			"character": 2133
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&.splitpanes--vertical > .splitpanes__splitter:before\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 95,
+			"column": 4,
+			"character": 2217
+		},
+		"end": {
+			"line": 95,
+			"column": 57,
+			"character": 2270
+		}
+	}
+]
+
+=== 1448 src/routes/examples/styling/splitters/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import Highlighted from '$comp/Highlighted.svelte';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+import defaultTheme from 'svelte-splitpanes/internal/default-theme.scss?example';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		$$renderer.push(`<h2>Styling Splitters</h2> <p>Styling splitters is fully customizable using CSS (or SCSS), the \`theme\` property is used to
+  select the proper styling class and apply it to the Splitpanes component. <br/> The default style is called \`default-theme\`, its SCSS definition can be found below ( <b>warning</b> : This is for reference only! If you decide to copy this CSS code, you must rename the ".default-theme"
+  specifier to something else, so it wouldn't conflict the library theme CSS definition):</p> `);
+
+		Highlighted($$renderer, { lang: 'scss', highlighted: defaultTheme.highlightedHTML });
+		$$renderer.push(`<!----> <p>Alternatively, here is the default theme compiled to CSS:</p> `);
+		Highlighted($$renderer, { lang: 'scss', highlighted: defaultTheme.cssHighlightedHTML });
+
+		$$renderer.push(`<!----> <p>By altering the above styles, it is possible to achieve neat visual adjustments. Please note how
+  each Splitpanes references our new \`theme="my-theme"\`</p> `);
+
+		ExampleArea($$renderer, { example });
+		$$renderer.push(`<!---->`);
+	});
+}
+=== 946 src/routes/examples/styling/splitters/code.svelte	css
+
+  /* (empty) .splitpanes.my-theme {
+    .splitpanes__pane {
+      background-color: #f8f8f8;
+    }
+    .splitpanes__splitter {
+      background-color: #ccc;
+      position: relative;
+      &:before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        transition: opacity 0.4s;
+        background-color: rgba(255, 0, 0, 0.3);
+        opacity: 0;
+        z-index: 1;
+      }
+      &:hover:before {
+        opacity: 1;
+      }
+      &.splitpanes__splitter__active {
+        z-index: 2; /* Fix an issue of overlap fighting with a near hovered splitter *\/
+      }
+    }
+  }*/
+  /* (empty) .my-theme {
+    &.splitpanes--vertical > .splitpanes__splitter:before {
+      left: -30px;
+      right: -30px;
+      height: 100%;
+      cursor: col-resize;
+    }
+    &.splitpanes--horizontal > .splitpanes__splitter:before {
+      top: -30px;
+      bottom: -30px;
+      width: 100%;
+      cursor: row-resize;
+    }
+  }*/
+
+=== 1482 src/routes/examples/styling/splitters/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+export default function Code($$renderer) {
+	Splitpanes($$renderer, {
+		theme: 'my-theme',
+		horizontal: true,
+		style: 'height: 400px',
+		children: ($$renderer) => {
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					Splitpanes($$renderer, {
+						theme: 'my-theme',
+						children: ($$renderer) => {
+							Pane($$renderer, {
+								children: ($$renderer) => {
+									$$renderer.push(`<span>1</span>`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Pane($$renderer, {
+								children: ($$renderer) => {
+									$$renderer.push(`<span>2</span>`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!----> `);
+
+							Pane($$renderer, {
+								children: ($$renderer) => {
+									$$renderer.push(`<span>3</span>`);
+								},
+								$$slots: { default: true }
+							});
+
+							$$renderer.push(`<!---->`);
+						},
+						$$slots: { default: true }
+					});
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					$$renderer.push(`<em class="specs"><p>In this example the splitters are thin lines but the reactive touch zone is spread to 30
+        pixels all around!</p></em>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 2571 src/routes/examples/styling/splitters/code.svelte	warnings.json
+[
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".splitpanes.my-theme\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 30,
+			"column": 2,
+			"character": 601
+		},
+		"end": {
+			"line": 30,
+			"column": 22,
+			"character": 621
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".splitpanes__pane\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 31,
+			"column": 4,
+			"character": 628
+		},
+		"end": {
+			"line": 31,
+			"column": 21,
+			"character": 645
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".splitpanes__splitter\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 34,
+			"column": 4,
+			"character": 691
+		},
+		"end": {
+			"line": 34,
+			"column": 25,
+			"character": 712
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&:before\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 37,
+			"column": 6,
+			"character": 777
+		},
+		"end": {
+			"line": 37,
+			"column": 14,
+			"character": 785
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&:hover:before\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 47,
+			"column": 6,
+			"character": 1006
+		},
+		"end": {
+			"line": 47,
+			"column": 20,
+			"character": 1020
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&.splitpanes__splitter__active\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 50,
+			"column": 6,
+			"character": 1057
+		},
+		"end": {
+			"line": 50,
+			"column": 36,
+			"character": 1087
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".my-theme\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 55,
+			"column": 2,
+			"character": 1198
+		},
+		"end": {
+			"line": 55,
+			"column": 11,
+			"character": 1207
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&.splitpanes--vertical > .splitpanes__splitter:before\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 56,
+			"column": 4,
+			"character": 1214
+		},
+		"end": {
+			"line": 56,
+			"column": 57,
+			"character": 1267
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \"&.splitpanes--horizontal > .splitpanes__splitter:before\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 62,
+			"column": 4,
+			"character": 1365
+		},
+		"end": {
+			"line": 62,
+			"column": 59,
+			"character": 1420
+		}
+	}
+]
+
+=== 308 src/routes/examples/toggle-panes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import ExampleArea from '$comp/ExampleArea.svelte';
+import example from './code.svelte?example';
+
+export default function _page($$renderer) {
+	$$renderer.push(`<h2>Toggle a pane on/off</h2> `);
+	ExampleArea($$renderer, { example });
+	$$renderer.push(`<!---->`);
+}
+=== 1228 src/routes/examples/toggle-panes/code.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+import Button from '$comp/Button.svelte';
+
+export default function Code($$renderer) {
+	function onClick() {
+		visible = !visible;
+	}
+
+	let visible = true;
+
+	Button($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->${$.escape(visible ? 'Hide' : 'Show')}`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!----> `);
+
+	Splitpanes($$renderer, {
+		style: 'height: 400px',
+		children: ($$renderer) => {
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					$$renderer.push(`<span>1</span>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			if (visible) {
+				$$renderer.push('<!--[0-->');
+
+				Pane($$renderer, {
+					children: ($$renderer) => {
+						$$renderer.push(`<span>2</span>`);
+					},
+					$$slots: { default: true }
+				});
+			} else {
+				$$renderer.push('<!--[-1-->');
+			}
+
+			$$renderer.push(`<!--]--> `);
+
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					$$renderer.push(`<span>3</span>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+
+	$$renderer.push(`<!---->`);
+}
+=== 353 src/routes/examples/toggle-panes/code.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`visible` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 6,
+			"character": 169
+		},
+		"end": {
+			"line": 10,
+			"column": 13,
+			"character": 176
+		}
+	}
+]
+
+=== 450 src/routes/minified-size/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import { asset } from '$app/paths';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		$$renderer.push(`<img alt="Minified Size"${$.attr('src', asset('/minified-size-badge.svg'))}/> <p>The badge above shows the minimized size of the library when all features are used. <br/> Please note, the size includes type definitions, styles and components.</p>`);
+	});
+}
+=== 1025 src/routes/test/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pane, Splitpanes } from 'svelte-splitpanes';
+
+export default function _page($$renderer) {
+	Splitpanes($$renderer, {
+		id: 'mysplitpane',
+		horizontal: true,
+		style: 'height: 400px',
+		children: ($$renderer) => {
+			Pane($$renderer, {
+				size: 65,
+				children: ($$renderer) => {
+					$$renderer.push(`<span>1</span>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				size: 10,
+				children: ($$renderer) => {
+					$$renderer.push(`<span>2</span>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					$$renderer.push(`<span>3</span>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!----> `);
+
+			Pane($$renderer, {
+				children: ($$renderer) => {
+					$$renderer.push(`<span>4</span>`);
+				},
+				$$slots: { default: true }
+			});
+
+			$$renderer.push(`<!---->`);
+		},
+		$$slots: { default: true }
+	});
+}

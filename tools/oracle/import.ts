@@ -1,25 +1,27 @@
-// Hard-copies admitted files from local checkouts of the registered sources into corpus/<family>/.
-// The checkouts are only read; after an import the fixture set is self-contained.
+// Copies admitted files from local checkouts of the registered sources into each source's
+// inputs.pack. The checkouts are only read; after an import the corpus is self-contained.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { loadSources, readSourceUnits, writeMeta } from './manifest.ts';
+import { loadSources, readSourceUnits, unitAttributes, unitKey } from './manifest.ts';
 import { languageOf, FAMILIES } from './languages.ts';
 import {
-	unitDir,
-	inputFile,
-	fixtureFile,
-	sourceDir,
+	inputsPack,
 	licensesDir,
 	IMPORT_REPORT_FILE,
 	SOURCES_FILE,
+	UNITS_FILE,
 	rel,
 } from './paths.ts';
-import { writeIfChanged, stableStringify, pruneEmptyDirs } from './files.ts';
+import { writeIfChanged, stableStringify } from './files.ts';
+import { writePack, type Entry } from './pack.ts';
+import { parse as parseToml } from 'smol-toml';
 import { parseArgs } from 'node:util';
 
 const LICENSE_NAME = /^(licen[cs]e|copying)(\.(md|txt))?$/i;
+const sha256 = (text: string): string => crypto.createHash('sha256').update(text).digest('hex');
+
 const ACCEPTED_NESTED: [RegExp, string][] = [
 	[/Permission is hereby granted, free of charge/i, 'MIT'],
 	[/Apache License[\s\S]*Version 2\.0/i, 'Apache-2.0'],
@@ -84,6 +86,9 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 		: {};
 	const seen = new Map<string, string>();
 	const orphans: string[] = [];
+	const handWritten = new Set(
+		fs.existsSync(UNITS_FILE) ? Object.keys(parseToml(fs.readFileSync(UNITS_FILE, 'utf8'))) : [],
+	);
 	let registryChanged = false;
 
 	for (const source of sources) {
@@ -91,7 +96,7 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 		if (only && !only.includes(source.id)) {
 			// Earlier sources claim duplicates first, so a partial import dedups exactly like a full one.
 			for (const u of readSourceUnits(source.id))
-				if (!seen.has(u.sha256)) seen.set(u.sha256, `${source.id}/${u.path}`);
+				if (!seen.has(sha256(u.src))) seen.set(sha256(u.src), `${source.id}/${u.path}`);
 			continue;
 		}
 		const root = path.resolve(from, source.checkout);
@@ -114,6 +119,7 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 		} = { claimed: 0, admitted: 0, duplicate: 0 };
 		const bump = (reason: string) => (counts[reason] = (counts[reason] ?? 0) + 1);
 		const kept = new Set<string>();
+		const packs = new Map<string, Entry[]>(FAMILIES.map((f) => [f, []]));
 		const licenseCache = new Map<string, string | null>();
 		const rootLicense = path.join(root, source.license.file);
 		const nestedLicenses = new Set<string>();
@@ -136,8 +142,8 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 			}
 
 			const src = fs.readFileSync(file, 'utf8');
-			const sha256 = crypto.createHash('sha256').update(src).digest('hex');
-			if (seen.has(sha256)) {
+			const hash = sha256(src);
+			if (seen.has(hash)) {
 				counts.duplicate++;
 				continue;
 			}
@@ -146,31 +152,22 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 				bump(admission.reason);
 				continue;
 			}
-			seen.set(sha256, `${source.id}/${relPath}`);
+			seen.set(hash, `${source.id}/${relPath}`);
 			counts.admitted++;
-			const unit = {
-				family: lang.family,
-				source: source.id,
-				path: relPath,
-				lang: lang.id,
-				sha256,
-				...admission.fields,
-			};
-			kept.add(`${unit.family}/${unit.path}`);
-			writeIfChanged(inputFile(unit, lang.ext), src);
-			writeMeta(unit);
+			const meta = { lang: lang.id, ...admission.fields };
+			kept.add(`${lang.family}/${relPath}`);
+			packs.get(lang.family)!.push({ path: relPath, attributes: unitAttributes(meta), body: src });
 		}
 
-		// A unit that left the source loses its directory, unless it carries a hand-written fixture.toml.
+		// A unit that left the source is dropped, unless units.toml has a hand-written table for it.
 		for (const old of previous) {
-			if (kept.has(`${old.family}/${old.path}`)) continue;
-			if (fs.existsSync(fixtureFile(old))) {
-				orphans.push(`${old.family}/${source.id}/${old.path}`);
-				continue;
-			}
-			fs.rmSync(unitDir(old), { recursive: true, force: true });
+			if (kept.has(`${old.family}/${old.path}`) || !handWritten.has(unitKey(old))) continue;
+			orphans.push(unitKey(old));
+			packs
+				.get(old.family)!
+				.push({ path: old.path, attributes: unitAttributes(old), body: old.src });
 		}
-		for (const family of FAMILIES) pruneEmptyDirs(sourceDir(family, source.id));
+		for (const [family, entries] of packs) writePack(inputsPack(family, source.id), entries);
 
 		fs.rmSync(licensesDir(source.id), { recursive: true, force: true });
 		for (const lic of [rootLicense, ...nestedLicenses]) {
@@ -191,7 +188,7 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 	writeIfChanged(IMPORT_REPORT_FILE, stableStringify(ordered) + '\n');
 	if (orphans.length) {
 		console.log(
-			`units gone from their source but carrying a fixture.toml (kept; resolve by hand): ${orphans.length}`,
+			`units gone from their source but named in units.toml (kept; resolve by hand): ${orphans.length}`,
 		);
 		for (const o of orphans) console.log(`  ${o}`);
 	}

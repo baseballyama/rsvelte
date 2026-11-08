@@ -14,9 +14,9 @@ Show the result of each phase. Fix only what the user approves. `--quick` skips 
 1. **Why.** Read the PR, issues and commits. Does it solve the problem in the simplest way? Is
    it outside the non-goals in AGENTS.md?
 2. **Design.** Check P1–P7 and the non-goals. Check the evidence: every number has a command
-   that makes it. Check the corpus: expected files come only from `regen`, every parity.json
-   change comes with an explanation, and every license is permissive. Check that no abstraction
-   serves a need that does not exist yet.
+   that makes it. Check the corpus: expected files come only from `regen`, every change to the
+   ledger (`corpus/_registry/parity/`) comes with an explanation, and every license is
+   permissive. Check that no abstraction serves a need that does not exist yet.
 3. **Code.** For each chunk, run one read-only reviewer subagent (`general-purpose`, foreground)
    with the prompt below. With `--codex`, also run
    `codex exec --sandbox read-only --cd "$(pwd)" "<prompt>"`. Fix approved findings and review

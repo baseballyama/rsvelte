@@ -1,2 +1,0 @@
-[skip]
-"svelte.compile" = "svelte 5.57.1 leaves the TypeScript `abstract accessor` in the emitted JS, which does not parse"

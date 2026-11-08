@@ -18,6 +18,7 @@ toml = "1.1.5"
 libloading = "0.9.0"
 rsvelte_lint_runner = { path = "crates/language_independent/lint_runner" }
 rsvelte_kernel = { path = "crates/language_independent/kernel" }
+rsvelte_corpus = { path = "crates/language_independent/corpus" }
 rsvelte_test_harness = { path = "crates/language_independent/test_harness" }
 rsvelte_document_printer = { path = "crates/language_independent/document_printer" }
 rsvelte_typescript_syntax = { path = "crates/languages/typescript/syntax" }

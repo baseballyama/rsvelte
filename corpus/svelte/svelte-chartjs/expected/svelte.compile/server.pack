@@ -1,0 +1,2380 @@
+# rsvelte pack 1
+=== 224 sandboxes/bar/App.svelte	js
+import * as $ from 'svelte/internal/server';
+import Chart from './components/Chart.svelte';
+
+export default function App($$renderer) {
+	$$renderer.push(`<main>`);
+	Chart($$renderer, {});
+	$$renderer.push(`<!----></main>`);
+}
+=== 467 sandboxes/bar/components/Chart.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Bar } from 'svelte-chartjs';
+import { data } from './data.js';
+
+import {
+	Chart,
+	Title,
+	Tooltip,
+	Legend,
+	BarElement,
+	CategoryScale,
+	LinearScale
+} from 'chart.js';
+
+export default function Chart_1($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		Chart.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale);
+		Bar($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 457 sandboxes/bubble/components/Chart.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Bubble } from 'svelte-chartjs';
+import { data } from './data.js';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	PointElement,
+	LinearScale
+} from 'chart.js';
+
+export default function Chart($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, PointElement, LinearScale);
+		Bubble($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 461 sandboxes/doughnut/components/Chart.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Doughnut } from 'svelte-chartjs';
+import { data } from './data.js';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	ArcElement,
+	CategoryScale
+} from 'chart.js';
+
+export default function Chart($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale);
+		Doughnut($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 1837 sandboxes/events/components/Chart.svelte	js
+import * as $ from 'svelte/internal/server';
+
+import {
+	Chart,
+	getDatasetAtEvent,
+	getElementAtEvent,
+	getElementsAtEvent
+} from 'svelte-chartjs';
+
+import { data, options } from './data.js';
+
+import {
+	Chart as ChartJS,
+	Tooltip,
+	Legend,
+	BarElement,
+	PointElement,
+	LineElement,
+	CategoryScale,
+	LinearScale,
+	LineController,
+	BarController
+} from 'chart.js';
+
+export default function Chart_1($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(LinearScale, CategoryScale, BarElement, PointElement, LineElement, Legend, Tooltip, LineController, BarController);
+
+		function printDatasetAtEvent(dataset) {
+			if (!dataset.length) return;
+
+			const datasetIndex = dataset[0].datasetIndex;
+
+			console.log(data.datasets[datasetIndex].label);
+		}
+
+		function printElementAtEvent(element) {
+			if (!element.length) return;
+
+			const { datasetIndex, index } = element[0];
+
+			console.log(data.labels[index], data.datasets[datasetIndex].data[index]);
+		}
+
+		function printElementsAtEvent(elements) {
+			if (!elements.length) return;
+
+			console.log(elements.length);
+		}
+
+		let chart;
+
+		function onClick(event) {
+			if (!chart) {
+				return;
+			}
+
+			printDatasetAtEvent(getDatasetAtEvent(chart, event));
+			printElementAtEvent(getElementAtEvent(chart, event));
+			printElementsAtEvent(getElementsAtEvent(chart, event));
+		}
+
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Chart($$renderer, {
+				type: 'bar',
+				onclick: onClick,
+				data,
+				options,
+				get chart() {
+					return chart;
+				},
+
+				set chart($$value) {
+					chart = $$value;
+					$$settled = false;
+				}
+			});
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 353 sandboxes/events/components/Chart.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`chart` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 57,
+			"column": 6,
+			"character": 1072
+		},
+		"end": {
+			"line": 57,
+			"column": 11,
+			"character": 1077
+		}
+	}
+]
+
+=== 511 sandboxes/line/components/Chart.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Line } from 'svelte-chartjs';
+import { data } from './data.js';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	LineElement,
+	LinearScale,
+	PointElement,
+	CategoryScale
+} from 'chart.js';
+
+export default function Chart($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, LineElement, LinearScale, PointElement, CategoryScale);
+		Line($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 451 sandboxes/pie/components/Chart.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pie } from 'svelte-chartjs';
+import { data } from './data.js';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	ArcElement,
+	CategoryScale
+} from 'chart.js';
+
+export default function Chart($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale);
+		Pie($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 471 sandboxes/polar/components/Chart.svelte	js
+import * as $ from 'svelte/internal/server';
+import { PolarArea } from 'svelte-chartjs';
+import { data } from './data.js';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	ArcElement,
+	RadialLinearScale
+} from 'chart.js';
+
+export default function Chart($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, ArcElement, RadialLinearScale);
+		PolarArea($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 494 sandboxes/radar/components/Chart.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Radar } from 'svelte-chartjs';
+import { data } from './data.js';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	PointElement,
+	RadialLinearScale,
+	LineElement
+} from 'chart.js';
+
+export default function Chart($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, PointElement, RadialLinearScale, LineElement);
+		Radar($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 1584 sandboxes/ref/components/Chart.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+import { Chart } from 'svelte-chartjs';
+import { data, options } from './data.js';
+
+import {
+	Chart as ChartJS,
+	Tooltip,
+	Legend,
+	BarElement,
+	PointElement,
+	LineElement,
+	CategoryScale,
+	LinearScale,
+	LineController,
+	BarController
+} from 'chart.js';
+
+export default function Chart_1($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(LinearScale, CategoryScale, BarElement, PointElement, LineElement, Legend, Tooltip, LineController, BarController);
+
+		function triggerTooltip(chart) {
+			const tooltip = chart && chart.tooltip;
+
+			if (!tooltip) {
+				return;
+			}
+
+			if (tooltip.getActiveElements().length > 0) {
+				tooltip.setActiveElements([], { x: 0, y: 0 });
+			} else {
+				const { chartArea } = chart;
+
+				tooltip.setActiveElements([{ datasetIndex: 0, index: 2 }, { datasetIndex: 1, index: 2 }], {
+					x: (chartArea.left + chartArea.right) / 2,
+					y: (chartArea.top + chartArea.bottom) / 2
+				});
+			}
+
+			chart.update();
+		}
+
+		let chart;
+
+		onMount(() => {
+			triggerTooltip(chart);
+		});
+
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Chart($$renderer, {
+				type: 'bar',
+				data,
+				options,
+				get chart() {
+					return chart;
+				},
+
+				set chart($$value) {
+					chart = $$value;
+					$$settled = false;
+				}
+			});
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 353 sandboxes/ref/components/Chart.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`chart` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 64,
+			"column": 6,
+			"character": 1167
+		},
+		"end": {
+			"line": 64,
+			"column": 11,
+			"character": 1172
+		}
+	}
+]
+
+=== 517 sandboxes/scatter/components/Chart.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Scatter } from 'svelte-chartjs';
+import { data } from './data.js';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	LineElement,
+	CategoryScale,
+	LinearScale,
+	PointElement
+} from 'chart.js';
+
+export default function Chart($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, LineElement, CategoryScale, LinearScale, PointElement);
+		Scatter($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 1422 sites/docs/src/lib/components/Header.svelte	css
+
+  header.svelte-u9ccss {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    z-index: 100;
+  }
+
+  .left.svelte-u9ccss {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .menu-btn.svelte-u9ccss {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--color-text);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+  }
+
+  .menu-btn.svelte-u9ccss:hover {
+    background: var(--color-bg-secondary);
+  }
+
+  .logo.svelte-u9ccss {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--color-text);
+  }
+
+  .logo.svelte-u9ccss:hover {
+    text-decoration: none;
+  }
+
+  nav.svelte-u9ccss {
+    display: flex;
+    gap: 1rem;
+  }
+
+  nav.svelte-u9ccss a:where(.svelte-u9ccss) {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+  }
+
+  nav.svelte-u9ccss a:where(.svelte-u9ccss):hover {
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  @media (max-width: 768px) {
+    .menu-btn.svelte-u9ccss {
+      display: flex;
+    }
+
+    .link-label.svelte-u9ccss {
+      display: none;
+    }
+  }
+
+=== 2052 sites/docs/src/lib/components/Header.svelte	js
+import * as $ from 'svelte/internal/server';
+import { base } from '$app/paths';
+import ThemeToggle from './ThemeToggle.svelte';
+
+export default function Header($$renderer, $$props) {
+	let { onToggleSidebar = () => {} } = $$props;
+
+	$$renderer.push(`<header class="svelte-u9ccss"><div class="left svelte-u9ccss"><button class="menu-btn svelte-u9ccss" aria-label="Toggle menu"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button> <a${$.attr('href', `${base}/`)} class="logo svelte-u9ccss"><img${$.attr('src', `${base}/favicon.png`)} alt="svelte-chartjs" width="28" height="28"/> <span>svelte-chartjs</span></a></div> <nav class="svelte-u9ccss"><a href="https://github.com/SauravKanchan/svelte-chartjs" target="_blank" rel="noopener noreferrer" aria-label="GitHub" class="svelte-u9ccss"><svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg> <span class="link-label svelte-u9ccss">GitHub</span></a> <a href="https://www.npmjs.com/package/svelte-chartjs" target="_blank" rel="noopener noreferrer" aria-label="npm" class="svelte-u9ccss"><svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M0 0v16h16V0H0zm13.2 13.2H9.6V4.4H6.4v8.8H2.8V2.8h10.4v10.4z"></path></svg> <span class="link-label svelte-u9ccss">npm</span></a> `);
+	ThemeToggle($$renderer, {});
+	$$renderer.push(`<!----></nav></header>`);
+}
+=== 1375 sites/docs/src/lib/components/Sidebar.svelte	css
+
+  .overlay.svelte-1b25erl {
+    display: none;
+  }
+
+  aside.svelte-1b25erl {
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    bottom: 0;
+    width: var(--sidebar-width);
+    border-right: 1px solid var(--color-border);
+    background: var(--color-bg-secondary);
+    overflow-y: auto;
+    padding: 1.25rem 0;
+    z-index: 90;
+  }
+
+  nav.svelte-1b25erl {
+    display: flex;
+    flex-direction: column;
+  }
+
+  h4.svelte-1b25erl {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    padding: 0.75rem 1.25rem 0.25rem;
+    margin: 0;
+  }
+
+  a.svelte-1b25erl {
+    padding: 0.35rem 1.25rem;
+    color: var(--color-text);
+    font-size: 0.9rem;
+    border-left: 3px solid transparent;
+  }
+
+  a.svelte-1b25erl:hover {
+    background: var(--color-border);
+    text-decoration: none;
+  }
+
+  a.active.svelte-1b25erl {
+    color: var(--color-primary);
+    border-left-color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  @media (max-width: 768px) {
+    .overlay.svelte-1b25erl {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 89;
+    }
+
+    aside.svelte-1b25erl {
+      transform: translateX(-100%);
+      transition: transform 0.2s ease;
+    }
+
+    aside.open.svelte-1b25erl {
+      transform: translateX(0);
+    }
+  }
+
+=== 3174 sites/docs/src/lib/components/Sidebar.svelte	js
+import * as $ from 'svelte/internal/server';
+import { page } from '$app/state';
+import { base } from '$app/paths';
+
+export default function Sidebar($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { open = false } = $$props;
+
+		const charts = [
+			{ href: '/charts/bar', label: 'Bar' },
+			{ href: '/charts/line', label: 'Line' },
+			{ href: '/charts/pie', label: 'Pie' },
+			{ href: '/charts/doughnut', label: 'Doughnut' },
+			{ href: '/charts/radar', label: 'Radar' },
+			{ href: '/charts/polar', label: 'Polar Area' },
+			{ href: '/charts/bubble', label: 'Bubble' },
+			{ href: '/charts/scatter', label: 'Scatter' }
+		];
+
+		const examples = [
+			{ href: '/examples/ref', label: 'Chart Instance' },
+			{ href: '/examples/events', label: 'Events' },
+			{ href: '/examples/horizontal-bar', label: 'Horizontal Bar' },
+			{ href: '/examples/stacked-bar', label: 'Stacked Bar' },
+			{ href: '/examples/multitype', label: 'Mixed Chart' },
+			{ href: '/examples/gradient', label: 'Gradient' }
+		];
+
+		const guides = [{ href: '/guides/reactivity', label: 'Reactive Data' }];
+
+		function closeOnMobile() {
+			open = false;
+		}
+
+		if (open) {
+			$$renderer.push(`<!--[0--><div class="overlay svelte-1b25erl" role="button" tabindex="-1"></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> <aside${$.attr_class('svelte-1b25erl', void 0, { 'open': open })}><nav class="svelte-1b25erl"><a${$.attr('href', `${base}/`)}${$.attr_class('svelte-1b25erl', void 0, { 'active': page.url.pathname === `${base}/` })}>Home</a> <h4 class="svelte-1b25erl">Charts</h4> <!--[-->`);
+
+		const each_array = $.ensure_array_like(charts);
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let { href, label } = each_array[$$index];
+
+			$$renderer.push(`<a${$.attr('href', `${base}${href}`)}${$.attr_class('svelte-1b25erl', void 0, { 'active': page.url.pathname === `${base}${href}` })}>${$.escape(label)}</a>`);
+		}
+
+		$$renderer.push(`<!--]--> <h4 class="svelte-1b25erl">Examples</h4> <!--[-->`);
+
+		const each_array_1 = $.ensure_array_like(examples);
+
+		for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+			let { href, label } = each_array_1[$$index_1];
+
+			$$renderer.push(`<a${$.attr('href', `${base}${href}`)}${$.attr_class('svelte-1b25erl', void 0, { 'active': page.url.pathname === `${base}${href}` })}>${$.escape(label)}</a>`);
+		}
+
+		$$renderer.push(`<!--]--> <h4 class="svelte-1b25erl">Guides</h4> <!--[-->`);
+
+		const each_array_2 = $.ensure_array_like(guides);
+
+		for (let $$index_2 = 0, $$length = each_array_2.length; $$index_2 < $$length; $$index_2++) {
+			let { href, label } = each_array_2[$$index_2];
+
+			$$renderer.push(`<a${$.attr('href', `${base}${href}`)}${$.attr_class('svelte-1b25erl', void 0, { 'active': page.url.pathname === `${base}${href}` })}>${$.escape(label)}</a>`);
+		}
+
+		$$renderer.push(`<!--]--> <h4 class="svelte-1b25erl">Reference</h4> <a${$.attr('href', `${base}/api`)}${$.attr_class('svelte-1b25erl', void 0, { 'active': page.url.pathname === `${base}/api` })}>API</a></nav></aside>`);
+		$.bind_props($$props, { open });
+	});
+}
+=== 1280 sites/docs/src/lib/components/TableOfContents.svelte	css
+
+  .toc.svelte-1240kco {
+    position: sticky;
+    top: calc(var(--header-height) + 2rem);
+    align-self: flex-start;
+    width: var(--toc-width);
+    flex-shrink: 0;
+    max-height: calc(100vh - var(--header-height) - 4rem);
+    overflow-y: auto;
+  }
+
+  .toc-title.svelte-1240kco {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    margin: 0 0 0.75rem 0;
+  }
+
+  ul.svelte-1240kco {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-left: 1px solid var(--color-border);
+  }
+
+  li.svelte-1240kco {
+    margin: 0;
+  }
+
+  li.indent.svelte-1240kco {
+    padding-left: 0.75rem;
+  }
+
+  a.svelte-1240kco {
+    display: block;
+    padding: 0.25rem 0 0.25rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    margin-left: -1px;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
+  }
+
+  a.svelte-1240kco:hover {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  a.active.svelte-1240kco {
+    color: var(--color-primary);
+    border-left-color: var(--color-primary);
+  }
+
+  @media (max-width: 1280px) {
+    .toc.svelte-1240kco {
+      display: none;
+    }
+  }
+
+=== 1770 sites/docs/src/lib/components/TableOfContents.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+
+export default function TableOfContents($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		/** @type {{ article: HTMLElement }} */
+		let { article } = $$props;
+
+		let headings = [];
+		let activeId = '';
+
+		onMount(() => {
+			if (!article) return;
+
+			const nodes = article.querySelectorAll('h2[id], h3[id]');
+
+			headings = Array.from(nodes).map((el) => ({
+				id: el.id,
+				text: el.textContent ?? '',
+				level: el.tagName === 'H3' ? 3 : 2
+			}));
+
+			if (headings.length < 2) {
+				headings = [];
+
+				return;
+			}
+
+			const observer = new IntersectionObserver(
+				(entries) => {
+					for (const entry of entries) {
+						if (entry.isIntersecting) {
+							activeId = entry.target.id;
+						}
+					}
+				},
+				{ rootMargin: '-80px 0px -60% 0px' }
+			);
+
+			for (const node of nodes) {
+				observer.observe(node);
+			}
+
+			return () => observer.disconnect();
+		});
+
+		if (headings.length >= 2) {
+			$$renderer.push(`<!--[0--><nav class="toc svelte-1240kco" aria-label="Table of contents"><h4 class="toc-title svelte-1240kco">On this page</h4> <ul class="svelte-1240kco"><!--[-->`);
+
+			const each_array = $.ensure_array_like(headings);
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let heading = each_array[$$index];
+
+				$$renderer.push(`<li${$.attr_class('svelte-1240kco', void 0, { 'indent': heading.level === 3 })}><a${$.attr('href', `#${$.stringify(heading.id)}`)}${$.attr_class('svelte-1240kco', void 0, { 'active': activeId === heading.id })}>${$.escape(heading.text)}</a></li>`);
+			}
+
+			$$renderer.push(`<!--]--></ul></nav>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}
+=== 460 sites/docs/src/lib/components/ThemeToggle.svelte	css
+
+  .theme-toggle.svelte-8xukvy {
+    background: none;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 0.35rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      color 0.15s,
+      background 0.15s;
+  }
+
+  .theme-toggle.svelte-8xukvy:hover {
+    color: var(--color-primary);
+    background: var(--color-bg-secondary);
+  }
+
+=== 1591 sites/docs/src/lib/components/ThemeToggle.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function ThemeToggle($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let theme = 'light';
+
+		function getSystemTheme() {
+			return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+		}
+
+		function applyTheme(t) {
+			theme = t;
+			document.documentElement.setAttribute('data-theme', t);
+		}
+
+		function toggle() {
+			const next = theme === 'dark' ? 'light' : 'dark';
+
+			applyTheme(next);
+			localStorage.setItem('theme', next);
+		}
+
+		$$renderer.push(`<button class="theme-toggle svelte-8xukvy" aria-label="Toggle theme">`);
+
+		if (theme === 'dark') {
+			$$renderer.push(`<!--[0--><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`);
+		} else {
+			$$renderer.push(`<!--[-1--><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`);
+		}
+
+		$$renderer.push(`<!--]--></button>`);
+	});
+}
+=== 1095 sites/docs/src/lib/demos/BarDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Bar } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	BarElement,
+	CategoryScale,
+	LinearScale
+} from 'chart.js';
+
+export default function BarDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale);
+
+		const data = {
+			labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+			datasets: [
+				{
+					label: '% of Votes',
+					data: [12, 19, 3, 5, 2, 3],
+					backgroundColor: [
+						'rgba(255, 134,159,0.4)',
+						'rgba(98,  182, 239,0.4)',
+						'rgba(255, 218, 128,0.4)',
+						'rgba(113, 205, 205,0.4)',
+						'rgba(170, 128, 252,0.4)',
+						'rgba(255, 177, 101,0.4)'
+					],
+					borderWidth: 2,
+					borderColor: [
+						'rgba(255, 134, 159, 1)',
+						'rgba(98,  182, 239, 1)',
+						'rgba(255, 218, 128, 1)',
+						'rgba(113, 205, 205, 1)',
+						'rgba(170, 128, 252, 1)',
+						'rgba(255, 177, 101, 1)'
+					]
+				}
+			]
+		};
+
+		Bar($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 918 sites/docs/src/lib/demos/BubbleDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Bubble } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	PointElement,
+	LinearScale
+} from 'chart.js';
+
+export default function BubbleDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, PointElement, LinearScale);
+
+		const data = {
+			labels: 'Bubble',
+			datasets: [
+				{
+					label: 'John',
+					data: [{ x: 3, y: 7, r: 10 }],
+					backgroundColor: '#ff6384',
+					hoverBackgroundColor: '#ff6384'
+				},
+
+				{
+					label: 'Peter',
+					data: [{ x: 3.2, y: 7, r: 10 }],
+					backgroundColor: '#44e4ee',
+					hoverBackgroundColor: '#44e4ee'
+				},
+
+				{
+					label: 'Donald',
+					data: [{ x: 3.4, y: 7, r: 10 }],
+					backgroundColor: '#62088A',
+					hoverBackgroundColor: '#62088A'
+				}
+			]
+		};
+
+		Bubble($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 748 sites/docs/src/lib/demos/DoughnutDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Doughnut } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	ArcElement,
+	CategoryScale
+} from 'chart.js';
+
+export default function DoughnutDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale);
+
+		const data = {
+			labels: ['Red', 'Green', 'Yellow', 'Grey', 'Dark Grey'],
+			datasets: [
+				{
+					data: [300, 50, 100, 40, 120],
+					backgroundColor: ['#F7464A', '#46BFBD', '#FDB45C', '#949FB1', '#4D5360'],
+					hoverBackgroundColor: ['#FF5A5E', '#5AD3D1', '#FFC870', '#A8B3C5', '#616774']
+				}
+			]
+		};
+
+		Doughnut($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 255 sites/docs/src/lib/demos/EventsDemo.svelte	css
+
+  .event-output.svelte-rttpc5 {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+
+=== 2398 sites/docs/src/lib/demos/EventsDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+
+import {
+	Chart,
+	getDatasetAtEvent,
+	getElementAtEvent,
+	getElementsAtEvent
+} from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Tooltip,
+	Legend,
+	BarElement,
+	PointElement,
+	LineElement,
+	CategoryScale,
+	LinearScale,
+	LineController,
+	BarController
+} from 'chart.js';
+
+export default function EventsDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(LinearScale, CategoryScale, BarElement, PointElement, LineElement, Legend, Tooltip, LineController, BarController);
+
+		const labels = [
+			'January',
+			'February',
+			'March',
+			'April',
+			'May',
+			'June',
+			'July'
+		];
+
+		const data = {
+			labels,
+			datasets: [
+				{
+					type: 'line',
+					label: 'Dataset 1',
+					borderColor: 'rgb(255, 99, 132)',
+					borderWidth: 2,
+					fill: false,
+					data: labels.map(() => Math.random() * 1000)
+				},
+
+				{
+					type: 'bar',
+					label: 'Dataset 2',
+					backgroundColor: 'rgb(75, 192, 192)',
+					data: labels.map(() => Math.random() * 1000),
+					borderColor: 'white',
+					borderWidth: 2
+				},
+
+				{
+					type: 'bar',
+					label: 'Dataset 3',
+					backgroundColor: 'rgb(53, 162, 235)',
+					data: labels.map(() => Math.random() * 1000)
+				}
+			]
+		};
+
+		const options = { scales: { y: { beginAtZero: true } } };
+		let chart = null;
+		let lastEvent = 'Click the chart to see event data';
+
+		function onClick(event) {
+			if (!chart) return;
+
+			const dataset = getDatasetAtEvent(chart, event);
+			const element = getElementAtEvent(chart, event);
+			const elements = getElementsAtEvent(chart, event);
+
+			if (element.length > 0) {
+				const { datasetIndex, index } = element[0];
+
+				lastEvent = `Clicked: ${data.labels[index]} — ${data.datasets[datasetIndex].label} (${elements.length} element(s) at index)`;
+			}
+		}
+
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Chart($$renderer, {
+				type: 'bar',
+				onclick: onClick,
+				data,
+				options,
+				get chart() {
+					return chart;
+				},
+
+				set chart($$value) {
+					chart = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <p class="event-output svelte-rttpc5">${$.escape(lastEvent)}</p>`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 1758 sites/docs/src/lib/demos/GradientDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+import { Line } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	LineElement,
+	LinearScale,
+	PointElement,
+	CategoryScale,
+	Filler
+} from 'chart.js';
+
+export default function GradientDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, LineElement, LinearScale, PointElement, CategoryScale, Filler);
+
+		let chart = null;
+
+		const labels = [
+			'January',
+			'February',
+			'March',
+			'April',
+			'May',
+			'June',
+			'July'
+		];
+
+		let data = {
+			labels,
+			datasets: [
+				{
+					label: 'Sales',
+					data: [65, 59, 80, 81, 56, 55, 40],
+					fill: true,
+					borderColor: 'rgb(75, 192, 192)',
+					backgroundColor: 'rgba(75, 192, 192, 0.2)',
+					tension: 0.4
+				}
+			]
+		};
+
+		onMount(() => {
+			if (!chart) return;
+
+			const ctx = chart.ctx;
+			const gradient = ctx.createLinearGradient(0, 0, 0, chart.chartArea.bottom);
+
+			gradient.addColorStop(0, 'rgba(75, 192, 192, 0.6)');
+			gradient.addColorStop(1, 'rgba(75, 192, 192, 0.0)');
+
+			data = {
+				...data,
+				datasets: [{ ...data.datasets[0], backgroundColor: gradient }]
+			};
+		});
+
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Line($$renderer, {
+				data,
+				options: {
+					responsive: true,
+					plugins: { title: { display: true, text: 'Gradient Fill' } }
+				},
+
+				get chart() {
+					return chart;
+				},
+
+				set chart($$value) {
+					chart = $$value;
+					$$settled = false;
+				}
+			});
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 1139 sites/docs/src/lib/demos/HorizontalBarDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Bar } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	BarElement,
+	CategoryScale,
+	LinearScale
+} from 'chart.js';
+
+export default function HorizontalBarDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale);
+
+		const data = {
+			labels: [
+				'January',
+				'February',
+				'March',
+				'April',
+				'May',
+				'June',
+				'July'
+			],
+			datasets: [
+				{
+					label: 'Dataset 1',
+					data: [65, 59, 80, 81, 56, 55, 40],
+					backgroundColor: 'rgba(255, 99, 132, 0.5)',
+					borderColor: 'rgb(255, 99, 132)',
+					borderWidth: 1
+				},
+
+				{
+					label: 'Dataset 2',
+					data: [28, 48, 40, 19, 86, 27, 90],
+					backgroundColor: 'rgba(53, 162, 235, 0.5)',
+					borderColor: 'rgb(53, 162, 235)',
+					borderWidth: 1
+				}
+			]
+		};
+
+		const options = {
+			indexAxis: 'y',
+			responsive: true,
+			plugins: {
+				legend: { position: 'top' },
+				title: { display: true, text: 'Horizontal Bar Chart' }
+			}
+		};
+
+		Bar($$renderer, { data, options });
+	});
+}
+=== 1927 sites/docs/src/lib/demos/LineDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Line } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	LineElement,
+	LinearScale,
+	PointElement,
+	CategoryScale
+} from 'chart.js';
+
+export default function LineDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, LineElement, LinearScale, PointElement, CategoryScale);
+
+		const data = {
+			labels: [
+				'January',
+				'February',
+				'March',
+				'April',
+				'May',
+				'June',
+				'July'
+			],
+			datasets: [
+				{
+					label: 'My First dataset',
+					fill: true,
+					lineTension: 0.3,
+					backgroundColor: 'rgba(225, 204,230, .3)',
+					borderColor: 'rgb(205, 130, 158)',
+					borderCapStyle: 'butt',
+					borderDash: [],
+					borderDashOffset: 0.0,
+					borderJoinStyle: 'miter',
+					pointBorderColor: 'rgb(205, 130,1 58)',
+					pointBackgroundColor: 'rgb(255, 255, 255)',
+					pointBorderWidth: 10,
+					pointHoverRadius: 5,
+					pointHoverBackgroundColor: 'rgb(0, 0, 0)',
+					pointHoverBorderColor: 'rgba(220, 220, 220,1)',
+					pointHoverBorderWidth: 2,
+					pointRadius: 1,
+					pointHitRadius: 10,
+					data: [65, 59, 80, 81, 56, 55, 40]
+				},
+
+				{
+					label: 'My Second dataset',
+					fill: true,
+					lineTension: 0.3,
+					backgroundColor: 'rgba(184, 185, 210, .3)',
+					borderColor: 'rgb(35, 26, 136)',
+					borderCapStyle: 'butt',
+					borderDash: [],
+					borderDashOffset: 0.0,
+					borderJoinStyle: 'miter',
+					pointBorderColor: 'rgb(35, 26, 136)',
+					pointBackgroundColor: 'rgb(255, 255, 255)',
+					pointBorderWidth: 10,
+					pointHoverRadius: 5,
+					pointHoverBackgroundColor: 'rgb(0, 0, 0)',
+					pointHoverBorderColor: 'rgba(220, 220, 220, 1)',
+					pointHoverBorderWidth: 2,
+					pointRadius: 1,
+					pointHitRadius: 10,
+					data: [28, 48, 40, 19, 86, 27, 90]
+				}
+			]
+		};
+
+		Line($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 1525 sites/docs/src/lib/demos/MultitypeDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Chart } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Tooltip,
+	Legend,
+	BarElement,
+	PointElement,
+	LineElement,
+	CategoryScale,
+	LinearScale,
+	LineController,
+	BarController
+} from 'chart.js';
+
+export default function MultitypeDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Tooltip, Legend, BarElement, PointElement, LineElement, CategoryScale, LinearScale, LineController, BarController);
+
+		const labels = [
+			'January',
+			'February',
+			'March',
+			'April',
+			'May',
+			'June',
+			'July'
+		];
+
+		const data = {
+			labels,
+			datasets: [
+				{
+					type: 'line',
+					label: 'Line Dataset',
+					borderColor: 'rgb(255, 99, 132)',
+					backgroundColor: 'rgba(255, 99, 132, 0.5)',
+					borderWidth: 2,
+					fill: false,
+					data: [65, 59, 80, 81, 56, 55, 40]
+				},
+
+				{
+					type: 'bar',
+					label: 'Bar Dataset 1',
+					backgroundColor: 'rgba(75, 192, 192, 0.5)',
+					borderColor: 'rgb(75, 192, 192)',
+					borderWidth: 1,
+					data: [28, 48, 40, 19, 86, 27, 90]
+				},
+
+				{
+					type: 'bar',
+					label: 'Bar Dataset 2',
+					backgroundColor: 'rgba(53, 162, 235, 0.5)',
+					borderColor: 'rgb(53, 162, 235)',
+					borderWidth: 1,
+					data: [45, 25, 60, 36, 72, 43, 58]
+				}
+			]
+		};
+
+		const options = {
+			responsive: true,
+			plugins: { title: { display: true, text: 'Mixed Chart (Line + Bar)' } },
+			scales: { y: { beginAtZero: true } }
+		};
+
+		Chart($$renderer, { type: 'bar', data, options });
+	});
+}
+=== 841 sites/docs/src/lib/demos/PieDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Pie } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	ArcElement,
+	CategoryScale
+} from 'chart.js';
+
+export default function PieDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale);
+
+		const data = {
+			labels: ['Red', 'Green', 'Yellow', 'Grey', 'Dark Grey'],
+			datasets: [
+				{
+					data: [300, 50, 100, 40, 120],
+					backgroundColor: [
+						'#F7464A',
+						'#46BFBD',
+						'#FDB45C',
+						'#949FB1',
+						'#4D5360',
+						'#AC64AD'
+					],
+					hoverBackgroundColor: [
+						'#FF5A5E',
+						'#5AD3D1',
+						'#FFC870',
+						'#A8B3C5',
+						'#616774',
+						'#DA92DB'
+					]
+				}
+			]
+		};
+
+		Pie($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 812 sites/docs/src/lib/demos/PolarDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { PolarArea } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	ArcElement,
+	RadialLinearScale
+} from 'chart.js';
+
+export default function PolarDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, ArcElement, RadialLinearScale);
+
+		const data = {
+			datasets: [
+				{
+					data: [300, 50, 100, 40, 120],
+					backgroundColor: [
+						'rgba(247, 70, 74, 0.5)',
+						'rgba(70, 191, 189, 0.5)',
+						'rgba(253, 180, 92, 0.5)',
+						'rgba(148, 159, 177, 0.5)',
+						'rgba(77, 83, 96, 0.5)'
+					],
+					label: 'My dataset'
+				}
+			],
+			labels: ['Red', 'Green', 'Yellow', 'Grey', 'Dark Grey']
+		};
+
+		PolarArea($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 983 sites/docs/src/lib/demos/RadarDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Radar } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	PointElement,
+	RadialLinearScale,
+	LineElement
+} from 'chart.js';
+
+export default function RadarDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, PointElement, RadialLinearScale, LineElement);
+
+		const data = {
+			labels: [
+				'Eating',
+				'Drinking',
+				'Sleeping',
+				'Designing',
+				'Coding',
+				'Cycling',
+				'Running'
+			],
+			datasets: [
+				{
+					label: 'My First dataset',
+					backgroundColor: 'rgba(194, 116, 161, 0.5)',
+					borderColor: 'rgb(194, 116, 161)',
+					data: [65, 59, 90, 81, 56, 55, 40]
+				},
+
+				{
+					label: 'My Second dataset',
+					backgroundColor: 'rgba(71, 225, 167, 0.5)',
+					borderColor: 'rgb(71, 225, 167)',
+					data: [28, 48, 40, 19, 96, 27, 100]
+				}
+			]
+		};
+
+		Radar($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 434 sites/docs/src/lib/demos/ReactiveDemo.svelte	css
+
+  .controls.svelte-13cablb {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  button.svelte-13cablb {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-bg-secondary);
+    color: var(--color-text);
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+
+  button.svelte-13cablb:hover {
+    background: var(--color-border);
+  }
+
+=== 2580 sites/docs/src/lib/demos/ReactiveDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Line } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	LineElement,
+	LinearScale,
+	PointElement,
+	CategoryScale
+} from 'chart.js';
+
+export default function ReactiveDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, LineElement, LinearScale, PointElement, CategoryScale);
+
+		const COLORS = [
+			'rgb(255, 99, 132)',
+			'rgb(75, 192, 192)',
+			'rgb(53, 162, 235)',
+			'rgb(255, 205, 86)',
+			'rgb(153, 102, 255)'
+		];
+
+		let nextLabel = 7;
+
+		let data = {
+			labels: ['1', '2', '3', '4', '5', '6'],
+			datasets: [
+				{
+					label: 'Dataset 1',
+					data: [65, 59, 80, 81, 56, 55],
+					borderColor: COLORS[0],
+					backgroundColor: COLORS[0],
+					tension: 0.3
+				}
+			]
+		};
+
+		function randomValue() {
+			return Math.floor(Math.random() * 100);
+		}
+
+		function addDataPoint() {
+			data = {
+				...data,
+				labels: [...data.labels, String(nextLabel)],
+				datasets: data.datasets.map((ds) => ({ ...ds, data: [...ds.data, randomValue()] }))
+			};
+
+			nextLabel++;
+		}
+
+		function removeDataPoint() {
+			if (data.labels.length <= 1) return;
+
+			data = {
+				...data,
+				labels: data.labels.slice(0, -1),
+				datasets: data.datasets.map((ds) => ({ ...ds, data: ds.data.slice(0, -1) }))
+			};
+		}
+
+		function randomizeData() {
+			data = {
+				...data,
+				datasets: data.datasets.map((ds) => ({ ...ds, data: ds.data.map(() => randomValue()) }))
+			};
+		}
+
+		function addDataset() {
+			const colorIndex = data.datasets.length % COLORS.length;
+
+			data = {
+				...data,
+				datasets: [
+					...data.datasets,
+					{
+						label: `Dataset ${data.datasets.length + 1}`,
+						data: data.labels.map(() => randomValue()),
+						borderColor: COLORS[colorIndex],
+						backgroundColor: COLORS[colorIndex],
+						tension: 0.3
+					}
+				]
+			};
+		}
+
+		function removeDataset() {
+			if (data.datasets.length <= 1) return;
+
+			data = { ...data, datasets: data.datasets.slice(0, -1) };
+		}
+
+		const options = {
+			responsive: true,
+			plugins: { title: { display: true, text: 'Reactive Data Demo' } },
+			scales: { y: { beginAtZero: true } }
+		};
+
+		$$renderer.push(`<div class="controls svelte-13cablb"><button class="svelte-13cablb">Add Data</button> <button class="svelte-13cablb">Remove Data</button> <button class="svelte-13cablb">Randomize</button> <button class="svelte-13cablb">Add Dataset</button> <button class="svelte-13cablb">Remove Dataset</button></div> `);
+		Line($$renderer, { data, options });
+		$$renderer.push(`<!---->`);
+	});
+}
+=== 2293 sites/docs/src/lib/demos/RefDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+import { Chart } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Tooltip,
+	Legend,
+	BarElement,
+	PointElement,
+	LineElement,
+	CategoryScale,
+	LinearScale,
+	LineController,
+	BarController
+} from 'chart.js';
+
+export default function RefDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(LinearScale, CategoryScale, BarElement, PointElement, LineElement, Legend, Tooltip, LineController, BarController);
+
+		const labels = [
+			'January',
+			'February',
+			'March',
+			'April',
+			'May',
+			'June',
+			'July'
+		];
+
+		const data = {
+			labels,
+			datasets: [
+				{
+					type: 'line',
+					label: 'Dataset 1',
+					borderColor: 'rgb(255, 99, 132)',
+					borderWidth: 2,
+					fill: false,
+					data: labels.map(() => Math.random() * 1000)
+				},
+
+				{
+					type: 'bar',
+					label: 'Dataset 2',
+					backgroundColor: 'rgb(75, 192, 192)',
+					data: labels.map(() => Math.random() * 1000),
+					borderColor: 'white',
+					borderWidth: 2
+				},
+
+				{
+					type: 'bar',
+					label: 'Dataset 3',
+					backgroundColor: 'rgb(53, 162, 235)',
+					data: labels.map(() => Math.random() * 1000)
+				}
+			]
+		};
+
+		const options = { scales: { y: { beginAtZero: true } } };
+
+		function triggerTooltip(chart) {
+			const tooltip = chart && chart.tooltip;
+
+			if (!tooltip) return;
+
+			if (tooltip.getActiveElements().length > 0) {
+				tooltip.setActiveElements([], { x: 0, y: 0 });
+			} else {
+				const { chartArea } = chart;
+
+				tooltip.setActiveElements([{ datasetIndex: 0, index: 2 }, { datasetIndex: 1, index: 2 }], {
+					x: (chartArea.left + chartArea.right) / 2,
+					y: (chartArea.top + chartArea.bottom) / 2
+				});
+			}
+
+			chart.update();
+		}
+
+		let chart = null;
+
+		onMount(() => {
+			triggerTooltip(chart);
+		});
+
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Chart($$renderer, {
+				type: 'bar',
+				data,
+				options,
+				get chart() {
+					return chart;
+				},
+
+				set chart($$value) {
+					chart = $$value;
+					$$settled = false;
+				}
+			});
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 1667 sites/docs/src/lib/demos/ScatterDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Scatter } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	LineElement,
+	CategoryScale,
+	LinearScale,
+	PointElement
+} from 'chart.js';
+
+export default function ScatterDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, LineElement, CategoryScale, LinearScale, PointElement);
+
+		const data = {
+			labels: ['Scatter'],
+			datasets: [
+				{
+					borderColor: 'rgba(99,0,125, .2)',
+					backgroundColor: 'rgba(99,0,125, .5)',
+					label: 'V(node2)',
+					data: [
+						{ x: 1, y: -1.711e-2 },
+						{ x: 1.26, y: -2.708e-2 },
+						{ x: 1.58, y: -4.285e-2 },
+						{ x: 2.0, y: -6.772e-2 },
+						{ x: 2.51, y: -1.068e-1 },
+						{ x: 3.16, y: -1.681e-1 },
+						{ x: 3.98, y: -2.635e-1 },
+						{ x: 5.01, y: -4.106e-1 },
+						{ x: 6.31, y: -6.339e-1 },
+						{ x: 7.94, y: -9.659e-1 },
+						{ x: 10.0, y: -1.445 },
+						{ x: 12.6, y: -2.11 },
+						{ x: 15.8, y: -2.992 },
+						{ x: 20.0, y: -4.102 },
+						{ x: 25.1, y: -5.429 },
+						{ x: 31.6, y: -6.944 },
+						{ x: 39.8, y: -8.607 },
+						{ x: 50.1, y: -1.038e1 },
+						{ x: 63.1, y: -1.223e1 },
+						{ x: 79.4, y: -1.413e1 },
+						{ x: 100.0, y: -1.607e1 },
+						{ x: 126, y: -1.803e1 },
+						{ x: 158, y: -2e1 },
+						{ x: 200, y: -2.199e1 },
+						{ x: 251, y: -2.398e1 },
+						{ x: 316, y: -2.597e1 },
+						{ x: 398, y: -2.797e1 },
+						{ x: 501, y: -2.996e1 },
+						{ x: 631, y: -3.196e1 },
+						{ x: 794, y: -3.396e1 },
+						{ x: 1000, y: -3.596e1 }
+					]
+				}
+			]
+		};
+
+		Scatter($$renderer, { data, options: { responsive: true } });
+	});
+}
+=== 1133 sites/docs/src/lib/demos/StackedBarDemo.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Bar } from 'svelte-chartjs';
+
+import {
+	Chart as ChartJS,
+	Title,
+	Tooltip,
+	Legend,
+	BarElement,
+	CategoryScale,
+	LinearScale
+} from 'chart.js';
+
+export default function StackedBarDemo($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale);
+
+		const labels = [
+			'January',
+			'February',
+			'March',
+			'April',
+			'May',
+			'June',
+			'July'
+		];
+
+		const data = {
+			labels,
+			datasets: [
+				{
+					label: 'Dataset 1',
+					data: [65, 59, 80, 81, 56, 55, 40],
+					backgroundColor: 'rgb(255, 99, 132)'
+				},
+
+				{
+					label: 'Dataset 2',
+					data: [28, 48, 40, 19, 86, 27, 90],
+					backgroundColor: 'rgb(75, 192, 192)'
+				},
+
+				{
+					label: 'Dataset 3',
+					data: [45, 25, 60, 36, 72, 43, 58],
+					backgroundColor: 'rgb(53, 162, 235)'
+				}
+			]
+		};
+
+		const options = {
+			responsive: true,
+			plugins: { title: { display: true, text: 'Stacked Bar Chart' } },
+			scales: { x: { stacked: true }, y: { stacked: true } }
+		};
+
+		Bar($$renderer, { data, options });
+	});
+}
+=== 834 sites/docs/src/lib/layouts/DocPage.svelte	css
+
+  .doc-layout.svelte-1wur4sp {
+    display: flex;
+    gap: 2rem;
+    margin: 0 auto;
+    max-width: calc(var(--content-max-width) + var(--toc-width) + 2rem);
+  }
+
+  article.svelte-1wur4sp {
+    flex: 1;
+    min-width: 0;
+    max-width: var(--content-max-width);
+  }
+
+  @media (max-width: 1280px) {
+    .doc-layout.svelte-1wur4sp {
+      max-width: var(--content-max-width);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .doc-layout.svelte-1wur4sp {
+      max-width: 100%;
+    }
+  }
+
+  .edit-link.svelte-1wur4sp {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .edit-link.svelte-1wur4sp a:where(.svelte-1wur4sp) {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+  }
+
+  .edit-link.svelte-1wur4sp a:where(.svelte-1wur4sp):hover {
+    color: var(--color-primary);
+  }
+
+=== 1543 sites/docs/src/lib/layouts/DocPage.svelte	js
+import * as $ from 'svelte/internal/server';
+import { page } from '$app/state';
+import { base } from '$app/paths';
+import TableOfContents from '$lib/components/TableOfContents.svelte';
+
+export default function DocPage($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { title = '', description = '', children } = $$props;
+		let articleEl = null;
+
+		const editUrl = $.derived(() => () => {
+			const pathname = page.url.pathname.replace(base, '') || '/';
+
+			return `https://github.com/SauravKanchan/svelte-chartjs/edit/master/sites/docs/src/routes${pathname}/+page.md`;
+		});
+
+		$.head('1wur4sp', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(title ? `${title} | svelte-chartjs` : 'svelte-chartjs')}</title>`);
+			});
+
+			if (description) {
+				$$renderer.push(`<!--[0--><meta name="description"${$.attr('content', description)}/>`);
+			} else {
+				$$renderer.push('<!--[-1-->');
+			}
+
+			$$renderer.push(`<!--]-->`);
+		});
+
+		$$renderer.push(`<div class="doc-layout svelte-1wur4sp"><article class="svelte-1wur4sp">`);
+		children($$renderer);
+		$$renderer.push(`<!----> <footer class="edit-link svelte-1wur4sp"><a${$.attr('href', editUrl()())} target="_blank" rel="noopener noreferrer" class="svelte-1wur4sp">Edit this page on GitHub</a></footer></article> `);
+
+		if (articleEl) {
+			$$renderer.push('<!--[0-->');
+			TableOfContents($$renderer, { article: articleEl });
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+	});
+}
+=== 406 sites/docs/src/routes/+layout.svelte	css
+
+  .shell.svelte-12evr8a {
+    display: flex;
+    min-height: calc(100vh - var(--header-height));
+  }
+
+  main.svelte-12evr8a {
+    flex: 1;
+    min-width: 0;
+    padding: 2rem 3rem;
+    margin-top: var(--header-height);
+    margin-left: var(--sidebar-width);
+  }
+
+  @media (max-width: 768px) {
+    main.svelte-12evr8a {
+      padding: 1.5rem 1rem;
+      margin-left: 0;
+      overflow-x: hidden;
+    }
+  }
+
+=== 1009 sites/docs/src/routes/+layout.svelte	js
+import * as $ from 'svelte/internal/server';
+import '../app.css';
+import Sidebar from '$lib/components/Sidebar.svelte';
+import Header from '$lib/components/Header.svelte';
+
+export default function _layout($$renderer, $$props) {
+	let { children } = $$props;
+	let sidebarOpen = false;
+
+	function toggleSidebar() {
+		sidebarOpen = !sidebarOpen;
+	}
+
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		Header($$renderer, { onToggleSidebar: toggleSidebar });
+		$$renderer.push(`<!----> <div class="shell svelte-12evr8a">`);
+
+		Sidebar($$renderer, {
+			get open() {
+				return sidebarOpen;
+			},
+
+			set open($$value) {
+				sidebarOpen = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> <main class="svelte-12evr8a">`);
+		children($$renderer);
+		$$renderer.push(`<!----></main></div>`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
+=== 866 src/Bar.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Chart as ChartJS, BarController } from 'chart.js';
+import Chart from './Chart.svelte';
+
+export default function Bar($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(BarController);
+
+		let { chart = null, $$slots, $$events, ...restProps } = $$props;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Chart($$renderer, $.spread_props([
+				{ type: 'bar' },
+				restProps,
+				{
+					get chart() {
+						return chart;
+					},
+
+					set chart($$value) {
+						chart = $$value;
+						$$settled = false;
+					}
+				}
+			]));
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+		$.bind_props($$props, { chart });
+	});
+}
+=== 878 src/Bubble.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Chart as ChartJS, BubbleController } from 'chart.js';
+import Chart from './Chart.svelte';
+
+export default function Bubble($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(BubbleController);
+
+		let { chart = null, $$slots, $$events, ...restProps } = $$props;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Chart($$renderer, $.spread_props([
+				{ type: 'bubble' },
+				restProps,
+				{
+					get chart() {
+						return chart;
+					},
+
+					set chart($$value) {
+						chart = $$value;
+						$$settled = false;
+					}
+				}
+			]));
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+		$.bind_props($$props, { chart });
+	});
+}
+=== 804 src/Chart.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount, onDestroy, untrack } from 'svelte';
+import { Chart as ChartJS } from 'chart.js';
+
+export default function Chart($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let {
+			type,
+			data,
+			options,
+			plugins,
+			updateMode,
+			chart = null,
+			$$slots,
+			$$events,
+			...restProps
+		} = $$props;
+
+		let canvasRef;
+
+		/** Removes svelte deep reactivity from an object */
+		function freeze(value) {
+			return $.snapshot(value);
+		}
+
+		onMount(() => {
+			chart = new ChartJS(canvasRef, freeze({ type, data, options, plugins }));
+		});
+
+		onDestroy(() => {
+			if (chart) chart.destroy();
+
+			chart = null;
+		});
+
+		$$renderer.push(`<canvas${$.attributes({ ...restProps })}></canvas>`);
+		$.bind_props($$props, { chart });
+	});
+}
+=== 886 src/Doughnut.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Chart as ChartJS, DoughnutController } from 'chart.js';
+import Chart from './Chart.svelte';
+
+export default function Doughnut($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(DoughnutController);
+
+		let { chart = null, $$slots, $$events, ...restProps } = $$props;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Chart($$renderer, $.spread_props([
+				{ type: 'doughnut' },
+				restProps,
+				{
+					get chart() {
+						return chart;
+					},
+
+					set chart($$value) {
+						chart = $$value;
+						$$settled = false;
+					}
+				}
+			]));
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+		$.bind_props($$props, { chart });
+	});
+}
+=== 870 src/Line.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Chart as ChartJS, LineController } from 'chart.js';
+import Chart from './Chart.svelte';
+
+export default function Line($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(LineController);
+
+		let { chart = null, $$slots, $$events, ...restProps } = $$props;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Chart($$renderer, $.spread_props([
+				{ type: 'line' },
+				restProps,
+				{
+					get chart() {
+						return chart;
+					},
+
+					set chart($$value) {
+						chart = $$value;
+						$$settled = false;
+					}
+				}
+			]));
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+		$.bind_props($$props, { chart });
+	});
+}
+=== 866 src/Pie.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Chart as ChartJS, PieController } from 'chart.js';
+import Chart from './Chart.svelte';
+
+export default function Pie($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(PieController);
+
+		let { chart = null, $$slots, $$events, ...restProps } = $$props;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Chart($$renderer, $.spread_props([
+				{ type: 'pie' },
+				restProps,
+				{
+					get chart() {
+						return chart;
+					},
+
+					set chart($$value) {
+						chart = $$value;
+						$$settled = false;
+					}
+				}
+			]));
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+		$.bind_props($$props, { chart });
+	});
+}
+=== 890 src/PolarArea.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Chart as ChartJS, PolarAreaController } from 'chart.js';
+import Chart from './Chart.svelte';
+
+export default function PolarArea($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(PolarAreaController);
+
+		let { chart = null, $$slots, $$events, ...restProps } = $$props;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Chart($$renderer, $.spread_props([
+				{ type: 'polarArea' },
+				restProps,
+				{
+					get chart() {
+						return chart;
+					},
+
+					set chart($$value) {
+						chart = $$value;
+						$$settled = false;
+					}
+				}
+			]));
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+		$.bind_props($$props, { chart });
+	});
+}
+=== 874 src/Radar.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Chart as ChartJS, RadarController } from 'chart.js';
+import Chart from './Chart.svelte';
+
+export default function Radar($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(RadarController);
+
+		let { chart = null, $$slots, $$events, ...restProps } = $$props;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Chart($$renderer, $.spread_props([
+				{ type: 'radar' },
+				restProps,
+				{
+					get chart() {
+						return chart;
+					},
+
+					set chart($$value) {
+						chart = $$value;
+						$$settled = false;
+					}
+				}
+			]));
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+		$.bind_props($$props, { chart });
+	});
+}
+=== 882 src/Scatter.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Chart as ChartJS, ScatterController } from 'chart.js';
+import Chart from './Chart.svelte';
+
+export default function Scatter($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		ChartJS.register(ScatterController);
+
+		let { chart = null, $$slots, $$events, ...restProps } = $$props;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Chart($$renderer, $.spread_props([
+				{ type: 'scatter' },
+				restProps,
+				{
+					get chart() {
+						return chart;
+					},
+
+					set chart($$value) {
+						chart = $$value;
+						$$settled = false;
+					}
+				}
+			]));
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+		$.bind_props($$props, { chart });
+	});
+}

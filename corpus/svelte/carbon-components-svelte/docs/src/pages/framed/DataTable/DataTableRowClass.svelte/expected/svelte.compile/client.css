@@ -1,8 +1,0 @@
-
-  .selected {
-    outline: 2px solid var(--cds-focus);
-  }
-
-  :not(.bx--data-table--selected) .expanded {
-    border-left: 3px solid var(--cds-interactive-01);
-  }

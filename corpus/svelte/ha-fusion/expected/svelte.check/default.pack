@@ -1,0 +1,588 @@
+# rsvelte pack 1
+=== 213 src/lib/Components/CustomJs.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	}
+]
+
+=== 214 src/lib/Components/Loader.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 1537 src/lib/Drawer/AppearanceButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-modals' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-ripple' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@iconify/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Modal/AppearanceConfig.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 25
+		},
+		"end": {
+			"line": 13,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Modal/AppearanceConfig.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 15
+		},
+		"end": {
+			"line": 20,
+			"character": 51
+		}
+	}
+]
+
+=== 1315 src/lib/Drawer/CodeButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-modals' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-ripple' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 20
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@iconify/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Modal/CodeConfig.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 25
+		},
+		"end": {
+			"line": 10,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Modal/CodeConfig.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 15
+		},
+		"end": {
+			"line": 17,
+			"character": 45
+		}
+	}
+]
+
+=== 642 src/lib/Drawer/SayButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 68
+		},
+		"end": {
+			"line": 5,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@iconify/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 18
+		},
+		"end": {
+			"line": 8,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-ripple' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 20
+		},
+		"end": {
+			"line": 9,
+			"character": 35
+		}
+	}
+]
+
+=== 3 src/lib/Drawer/Separator.svelte	json
+[]
+
+=== 852 src/lib/Drawer/SidebarButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-ripple' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@iconify/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Utils' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 40
+		}
+	}
+]
+
+=== 1039 src/lib/Drawer/ViewButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-ripple' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 20
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@iconify/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Utils' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 28
+		},
+		"end": {
+			"line": 5,
+			"character": 40
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'view' implicitly has an 'any' type.",
+		"start": {
+			"line": 21,
+			"character": 32
+		},
+		"end": {
+			"line": 21,
+			"character": 36
+		}
+	}
+]
+
+=== 218 src/lib/Main/Camera/Broken.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@iconify/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	}
+]
+
+=== 429 src/lib/Main/DragIndicator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@iconify/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 35
+		}
+	}
+]
+
+=== 443 src/lib/Settings/CustomJs.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Components/Toggle.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	}
+]
+
+=== 870 src/lib/Settings/Logout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-modals' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-ripple' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Modal/ConfirmAlert.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 57
+		}
+	}
+]
+
+=== 214 src/lib/Settings/Token.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	}
+]
+
+=== 637 src/lib/Settings/Version.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-ripple' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	}
+]
+
+=== 889 src/routes/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-modals' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 36
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Components/Loader.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 51
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '@fontsource-variable/inter'.",
+		"start": {
+			"line": 5,
+			"character": 8
+		},
+		"end": {
+			"line": 5,
+			"character": 36
+		}
+	}
+]
+
