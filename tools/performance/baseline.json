@@ -20,8 +20,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 34058752,
-	"alloc_bytes": 3449136872,
+	"allocs": 33985190,
+	"alloc_bytes": 3447874320,
 	"peak_live_growth_bytes": 420767794,
 	"phases": {
 		"js.print": {
@@ -61,8 +61,8 @@
 		},
 		"svelte.format/default": {
 			"calls": 19503,
-			"allocs": 1331147,
-			"alloc_bytes": 56583944
+			"allocs": 1257585,
+			"alloc_bytes": 55321392
 		},
 		"svelte.lint.parents": {
 			"calls": 19415,
@@ -181,10 +181,10 @@
 		}
 	},
 	"instructions": {
-		"arm64-linux": 3888410080
+		"arm64-linux": 3881113920
 	},
 	"load_instructions": {
-		"arm64-linux": 33168951
+		"arm64-linux": 33171297
 	},
 	"instruction_sample": {
 		"every": 20,

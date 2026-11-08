@@ -54,6 +54,7 @@ enum LineKind {
 
 #[derive(Clone, Copy, Debug)]
 enum Node {
+    /// Printable ASCII only, so its width is its length.
     Static(&'static str),
     Text {
         start: u32,
@@ -91,16 +92,57 @@ enum Node {
     FlatOnly(LayoutInstructionIdentifier),
 }
 
+/// What a node's parents need to know about it, in one word so that making a list reads each
+/// child once: whether it forces a break (Prettier's `willBreak`), and its width printed flat.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct Measure(u32);
+
+impl Measure {
+    const BREAKING: Self = Self(Self::BREAKS | Self::UNKNOWN);
+    const BREAKS: u32 = 1 << 31;
+    /// The width of a node that forces a break or follows a named group: the printer walks it.
+    const UNKNOWN: u32 = Self::BREAKS - 1;
+    const WALKED: Self = Self(Self::UNKNOWN);
+
+    const fn flat(width: u32) -> Self {
+        Self(if width < Self::UNKNOWN {
+            width
+        } else {
+            Self::UNKNOWN
+        })
+    }
+
+    const fn breaks(self) -> bool {
+        self.0 & Self::BREAKS != 0
+    }
+
+    const fn width(self) -> Option<u32> {
+        let width = self.0 & !Self::BREAKS;
+        if width == Self::UNKNOWN {
+            None
+        } else {
+            Some(width)
+        }
+    }
+
+    /// Of `self` followed by `next`. A break makes the width unknown, so the sum saturates there.
+    fn then(self, next: Self) -> Self {
+        let width = ((self.0 & !Self::BREAKS) + (next.0 & !Self::BREAKS)).min(Self::UNKNOWN);
+        Self(((self.0 | next.0) & Self::BREAKS) | width)
+    }
+}
+
 /// The document arena. Its buffers come from and go back to
 /// [`rsvelte_kernel::performance::buffer_pool`], so a worker processing one file after another
 /// reuses their capacity.
 #[derive(Debug)]
 pub struct LayoutInstructions {
     nodes: Vec<Node>,
-    /// Per node, Prettier's `willBreak`: it holds a hard line, a break-parent or a group built
-    /// broken. A node only refers to nodes made before it, so this is known when it is made, and
-    /// it is also what Prettier's `propagateBreaks` leaves in a group's `break`.
-    breaks: Vec<bool>,
+    /// Per node, Prettier's `willBreak` (it holds a hard line, a break-parent or a group built
+    /// broken) and its flat width. A node only refers to nodes made before it, so both are known
+    /// when it is made: `willBreak` is what Prettier's `propagateBreaks` leaves in a group's
+    /// `break`, and the width lets `fits` pass a subtree in one step.
+    measures: Vec<Measure>,
     children: Vec<LayoutInstructionIdentifier>,
     buffer: String,
     groups: u32,
@@ -134,7 +176,7 @@ impl Default for LayoutInstructions {
     fn default() -> Self {
         Self {
             nodes: buffer_pool::take_keyed::<Self, _>(),
-            breaks: buffer_pool::take_keyed::<Self, _>(),
+            measures: buffer_pool::take_keyed::<Self, _>(),
             children: buffer_pool::take_keyed::<Self, _>(),
             buffer: buffer_pool::take_string::<Self>(),
             groups: 0,
@@ -146,7 +188,7 @@ impl Drop for LayoutInstructions {
     fn drop(&mut self) {
         buffer_pool::give_string::<Self>(std::mem::take(&mut self.buffer));
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.children));
-        buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.breaks));
+        buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.measures));
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.nodes));
     }
 }

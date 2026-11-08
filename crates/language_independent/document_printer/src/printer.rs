@@ -4,7 +4,7 @@ use rsvelte_kernel::performance::buffer_pool;
 
 use crate::{
     GroupDecision, GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions, LineKind,
-    Node, PrintOptions, Refused, TraceEvent, TraceMode, string_width,
+    Node, PrintOptions, Refused, TraceEvent, TraceMode,
 };
 
 impl LayoutInstructions {
@@ -171,7 +171,7 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
             };
             match self.docs.nodes[identifier.0 as usize] {
                 Node::Static(s) => {
-                    self.position += string_width(s);
+                    self.position += s.len();
                     self.out.push_str(s);
                 }
                 n @ Node::Text { width, .. } => {
@@ -442,8 +442,14 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                     continue;
                 }
             };
+            if mode == Mode::Flat
+                && let Some(width) = self.docs.measure(identifier).width()
+            {
+                remaining -= width as isize;
+                continue;
+            }
             match self.docs.nodes[identifier.0 as usize] {
-                Node::Static(s) => remaining -= string_width(s) as isize,
+                Node::Static(s) => remaining -= s.len() as isize,
                 Node::Text { width, .. } => remaining -= width as isize,
                 Node::Line(kind) => {
                     if mode == Mode::Break || matches!(kind, LineKind::Hard | LineKind::Literal) {

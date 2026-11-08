@@ -60,12 +60,8 @@ impl LayoutInstructions {
         }
     }
 
-    fn replace_parts(
-        &mut self,
-        owner: LayoutInstructionIdentifier,
-        parts: &[LayoutInstructionIdentifier],
-    ) {
-        let (s, l) = self.list(parts);
+    /// Narrows a list to `children[start..start + len]`, a part of its old range.
+    fn set_parts(&mut self, owner: LayoutInstructionIdentifier, s: u32, l: u32) {
         match &mut self.nodes[owner.0 as usize] {
             Node::Concat { start, len }
             | Node::Fill { start, len }
@@ -75,12 +71,9 @@ impl LayoutInstructions {
             }
             _ => unreachable!("only lists have parts"),
         }
-        // Removing parts can only clear a break, and trims run innermost first, so the parts'
-        // answers are already current.
+        // Trims run innermost first, so the parts' answers are already current.
         let i = owner.0 as usize;
-        if self.breaks[i] {
-            self.breaks[i] = self.breaks_of(self.nodes[i]);
-        }
+        self.measures[i] = self.measure_of(self.nodes[i]);
     }
 
     /// prettier-plugin-svelte's `trim`: removes leading and trailing docs matching `ws`, descending
@@ -99,22 +92,11 @@ impl LayoutInstructions {
         docs: &mut Vec<LayoutInstructionIdentifier>,
         ws: fn(&Self, LayoutInstructionIdentifier) -> bool,
     ) {
-        let first = docs
-            .iter()
-            .position(|&d| !self.is_empty(d) && !ws(self, d))
-            .unwrap_or(docs.len());
-        if first > 0 {
-            let removed: Vec<LayoutInstructionIdentifier> = docs.drain(..first).collect();
-            if removed.iter().all(|&d| self.is_empty(d)) {
-                self.trim_left(docs, ws);
-            }
-        } else if let Some(&d) = docs.first()
-            && let Some((start, len)) = self.parts(d)
-        {
-            let mut inner = self.children(start, len).to_vec();
-            self.trim_left(&mut inner, ws);
-            self.replace_parts(d, &inner);
-        }
+        let (start, len) = self.list(docs);
+        let dropped = self.trim_left_range(start, len, ws);
+        // The trim only narrows ranges, so nothing after `start` was added.
+        self.children.truncate(start as usize);
+        docs.drain(..dropped as usize);
     }
 
     pub fn trim_right(
@@ -122,21 +104,54 @@ impl LayoutInstructions {
         docs: &mut Vec<LayoutInstructionIdentifier>,
         ws: fn(&Self, LayoutInstructionIdentifier) -> bool,
     ) {
-        let keep = docs
+        let (start, len) = self.list(docs);
+        let kept = self.trim_right_range(start, len, ws);
+        self.children.truncate(start as usize);
+        docs.truncate(kept as usize);
+    }
+
+    /// Trims the head of `children[start..start + len]` and returns how many items it drops.
+    fn trim_left_range(
+        &mut self,
+        start: u32,
+        len: u32,
+        ws: fn(&Self, LayoutInstructionIdentifier) -> bool,
+    ) -> u32 {
+        let items = self.children(start, len);
+        let first = items
+            .iter()
+            .position(|&d| !self.is_empty(d) && !ws(self, d))
+            .unwrap_or(items.len());
+        // A removed whitespace doc ends the trim; removed empty docs do not.
+        if first < items.len() && items[..first].iter().all(|&d| self.is_empty(d)) {
+            let d = items[first];
+            if let Some((s, l)) = self.parts(d) {
+                let dropped = self.trim_left_range(s, l, ws);
+                self.set_parts(d, s + dropped, l - dropped);
+            }
+        }
+        first as u32
+    }
+
+    /// Trims the tail of `children[start..start + len]` and returns how many items it keeps.
+    fn trim_right_range(
+        &mut self,
+        start: u32,
+        len: u32,
+        ws: fn(&Self, LayoutInstructionIdentifier) -> bool,
+    ) -> u32 {
+        let items = self.children(start, len);
+        let keep = items
             .iter()
             .rposition(|&d| !self.is_empty(d) && !ws(self, d))
             .map_or(0, |i| i + 1);
-        if keep < docs.len() {
-            let removed: Vec<LayoutInstructionIdentifier> = docs.drain(keep..).collect();
-            if removed.iter().all(|&d| self.is_empty(d)) {
-                self.trim_right(docs, ws);
+        if keep > 0 && items[keep..].iter().all(|&d| self.is_empty(d)) {
+            let d = items[keep - 1];
+            if let Some((s, l)) = self.parts(d) {
+                let kept = self.trim_right_range(s, l, ws);
+                self.set_parts(d, s, kept);
             }
-        } else if let Some(&d) = docs.last()
-            && let Some((start, len)) = self.parts(d)
-        {
-            let mut inner = self.children(start, len).to_vec();
-            self.trim_right(&mut inner, ws);
-            self.replace_parts(d, &inner);
         }
+        keep as u32
     }
 }

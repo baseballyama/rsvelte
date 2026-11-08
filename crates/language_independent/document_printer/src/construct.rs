@@ -2,8 +2,10 @@
 
 use std::num::NonZeroU32;
 
+use crate::width::is_printable_ascii;
 use crate::{
-    GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions, LineKind, Node, string_width,
+    GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions, LineKind, Measure, Node,
+    string_width,
 };
 
 impl LayoutInstructions {
@@ -12,9 +14,14 @@ impl LayoutInstructions {
         Self::default()
     }
 
+    #[expect(
+        clippy::inline_always,
+        reason = "inlined into each constructor, `measure_of` folds to that constructor's node kind"
+    )]
+    #[inline(always)]
     pub(crate) fn push(&mut self, n: Node) -> LayoutInstructionIdentifier {
-        let breaks = self.breaks_of(n);
-        self.breaks.push(breaks);
+        let measure = self.measure_of(n);
+        self.measures.push(measure);
         self.nodes.push(n);
         LayoutInstructionIdentifier(self.nodes.len() as u32 - 1)
     }
@@ -24,24 +31,48 @@ impl LayoutInstructions {
         reason = "out of line from `push`, which every constructor runs, it cost 0.37%"
     )]
     #[inline(always)]
-    pub(crate) fn breaks_of(&self, n: Node) -> bool {
-        let any =
-            |children: &[LayoutInstructionIdentifier]| children.iter().any(|&k| self.will_break(k));
+    pub(crate) fn measure_of(&self, n: Node) -> Measure {
+        let list = |children: &[LayoutInstructionIdentifier]| {
+            children
+                .iter()
+                .fold(Measure::flat(0), |m, &k| m.then(self.measure(k)))
+        };
         match n {
-            Node::Line(LineKind::Hard | LineKind::Literal) | Node::BreakParent => true,
-            Node::Static(_) | Node::Text { .. } | Node::Line(_) => false,
-            Node::Indent(d) | Node::Dedent(d) | Node::FlatOnly(d) => self.will_break(d),
-            Node::IndentIfBreak { document, .. } => self.will_break(document),
-            Node::IfBreak { broken, flat, .. } => self.will_break(broken) || self.will_break(flat),
+            Node::Line(LineKind::Hard | LineKind::Literal) | Node::BreakParent => Measure::BREAKING,
+            Node::Static(s) => Measure::flat(s.len() as u32),
+            Node::Text { width, .. } => Measure::flat(width),
+            Node::Line(LineKind::Normal) => Measure::flat(1),
+            Node::Line(LineKind::Soft) => Measure::flat(0),
+            Node::Indent(d) | Node::Dedent(d) | Node::FlatOnly(d) => self.measure(d),
+            Node::IndentIfBreak { document, .. } => self.measure(document),
+            Node::IfBreak {
+                broken,
+                flat,
+                group,
+            } => {
+                if self.will_break(broken) || self.will_break(flat) {
+                    Measure::BREAKING
+                } else if group.is_some() {
+                    Measure::WALKED
+                } else {
+                    self.measure(flat)
+                }
+            }
             Node::Concat { start, len } | Node::Fill { start, len } => {
-                any(self.children(start, len))
+                list(self.children(start, len))
             }
             Node::Group {
                 start,
                 len,
                 breaks_line,
                 ..
-            } => breaks_line || any(self.children(start, len)),
+            } => {
+                if breaks_line {
+                    Measure::BREAKING
+                } else {
+                    list(self.children(start, len))
+                }
+            }
         }
     }
 
@@ -56,7 +87,11 @@ impl LayoutInstructions {
     }
 
     pub fn lit(&mut self, s: &'static str) -> LayoutInstructionIdentifier {
-        self.push(Node::Static(s))
+        if is_printable_ascii(s) {
+            self.push(Node::Static(s))
+        } else {
+            self.text(s)
+        }
     }
 
     /// [`LayoutInstructions::text`] of `parts` written one after another, without building the

@@ -1,6 +1,6 @@
 //! Read-only questions about a document.
 
-use crate::{LayoutInstructionIdentifier, LayoutInstructions, Node};
+use crate::{LayoutInstructionIdentifier, LayoutInstructions, Measure, Node};
 
 impl LayoutInstructions {
     pub(crate) fn children(&self, start: u32, len: u32) -> &[LayoutInstructionIdentifier] {
@@ -42,7 +42,11 @@ impl LayoutInstructions {
     /// If `d` was made by another [`LayoutInstructions`].
     #[must_use]
     pub fn will_break(&self, d: LayoutInstructionIdentifier) -> bool {
-        self.breaks[d.0 as usize]
+        self.measure(d).breaks()
+    }
+
+    pub(crate) fn measure(&self, d: LayoutInstructionIdentifier) -> Measure {
+        self.measures[d.0 as usize]
     }
 
     #[must_use]
