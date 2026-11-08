@@ -16,7 +16,7 @@ impl OutputIdentity {
     pub fn build_with_configuration(
         input: &ComponentInput<'_>,
         configuration: &crate::Configuration,
-    ) -> Result<Self, rsvelte_kernel::computation::functions::CallError> {
+    ) -> Result<Self, rsvelte_plugin_interface::CallError> {
         let mut identity = Self::build(input);
         if let (Some(style), Some(function)) = (input.style, &configuration.css_hash) {
             let hash = function.call(crate::CssHashInput {
@@ -25,7 +25,7 @@ impl OutputIdentity {
                 css: style.content.text(input.source_text),
             })?;
             if !is_valid_class_name(&hash) {
-                return Err(rsvelte_kernel::computation::functions::CallError(
+                return Err(rsvelte_plugin_interface::CallError(
                     "CSS hash must be a nonempty ASCII CSS identifier".into(),
                 ));
             }

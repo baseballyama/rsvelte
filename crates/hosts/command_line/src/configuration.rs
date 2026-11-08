@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use rsvelte_configuration_loading::{JsonLoader, LoadedConfiguration, Loader};
-use rsvelte_kernel::computation::functions::CallError;
+use rsvelte_plugin_interface::CallError;
 
 #[derive(Debug, Default)]
 pub(crate) struct Options {

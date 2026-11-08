@@ -5,14 +5,16 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use rsvelte_kernel::computation::functions::CallError;
 use rsvelte_kernel::computation::pipeline::Registry;
 use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 
 mod functions;
 
-pub use functions::{FunctionReference, FunctionResolver, NoFunctions, TextContract, TextFunction};
+pub use functions::{
+    CallError, Contract, Function, FunctionReference, FunctionResolver, NoFunctions, TextContract,
+    TextFunction,
+};
 
 /// A plugin as a host installs it.
 #[derive(Debug)]

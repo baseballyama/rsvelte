@@ -3,7 +3,7 @@ use std::io::Read;
 use std::io::Write;
 use std::path::Path;
 
-use rsvelte_kernel::computation::functions::CallError;
+use rsvelte_plugin_interface::CallError;
 
 pub(crate) const MAX_MESSAGE_BYTES: usize = 16 * 1024 * 1024;
 

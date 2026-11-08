@@ -7,9 +7,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use libloading::Library;
-use rsvelte_kernel::computation::functions::CallError;
-
-use rsvelte_plugin_interface::{FunctionReference, FunctionResolver, TextContract, TextFunction};
+use rsvelte_plugin_interface::{
+    CallError, FunctionReference, FunctionResolver, TextContract, TextFunction,
+};
 
 const ABI_VERSION: u32 = 1;
 const THREAD_SAFE: u32 = 1;

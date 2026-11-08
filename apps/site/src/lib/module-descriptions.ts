@@ -56,15 +56,6 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		summary:
 			'依存関係が正しくなければ、二つの実行の入口がどちらも処理を始める前に止まることを確かめます。',
 	},
-	'kernel/computation/functions': {
-		title: '型を決めた関数',
-		summary: '入力と出力の型、名前、版を決めた関数を表し、呼び出しの失敗をエラーとして返します。',
-	},
-	'kernel/computation/functions/tests': {
-		title: '型を決めた関数のテスト',
-		summary:
-			'借用した入力を受け取れること、関数を持つ値が生き続けること、エラーがそのまま返ることを確かめます。',
-	},
 	'kernel/computation/plugins': {
 		title: 'プラグインの依存関係の検査',
 		summary:

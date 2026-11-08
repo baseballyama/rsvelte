@@ -225,12 +225,6 @@ export const sharedParts: SharedPart[] = [
 		href: '/learn/kernel/layers',
 	},
 	{
-		id: 'functions',
-		label: '型を決めた関数',
-		module: 'kernel/computation/functions',
-		href: '/learn/kernel#modules',
-	},
-	{
 		id: 'diagnostics',
 		label: '診断',
 		module: 'kernel/diagnostics/diagnostic',
