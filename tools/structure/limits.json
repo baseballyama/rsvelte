@@ -4,14 +4,6 @@
 		"apps/site/src/lib/widgets/PipelinePlayground.svelte": {
 			"maxLines": 915,
 			"reason": "Grew past the limit when oxfmt first wrapped its long lines; keep its size until it is split."
-		},
-		"apps/site/src/routes/learn/kernel/layers/+page.svelte": {
-			"maxLines": 647,
-			"reason": "Grew past the limit when oxfmt first wrapped its long lines; keep its size until it is split."
-		},
-		"apps/site/src/routes/learn/polish/+page.svelte": {
-			"maxLines": 627,
-			"reason": "Grew past the limit when oxfmt first wrapped its long lines; keep its size until it is split."
 		}
 	}
 }
