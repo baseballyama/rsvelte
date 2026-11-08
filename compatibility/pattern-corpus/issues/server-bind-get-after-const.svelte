@@ -32,7 +32,7 @@
 {/each}
 
 <div>
-	{const doubled = items.length * 2}
+	{const doubled = 2}
 	<Child bind:value={() => doubled, (v) => (items[0] = v)} />
 </div>
 
