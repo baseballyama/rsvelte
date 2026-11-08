@@ -1,4 +1,4 @@
-use rsvelte_svelte_compile::{CompileInput, Target, compile};
+use rsvelte_svelte_compile::{CompileInput, Target, compile_input};
 use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 
 #[test]
@@ -48,7 +48,7 @@ fn invalid_special_attributes_are_refused_on_both_targets() {
         let resolution = resolve::resolve(&component.javascript, component.program, &tree);
         let analysis = analyze::analyze(&input, &resolution);
         for target in [Target::Client, Target::Server] {
-            let error = compile(&CompileInput::from(input), &resolution, &analysis, target)
+            let error = compile_input(&CompileInput::from(input), &resolution, &analysis, target)
                 .expect_err("invalid attributes");
             assert_eq!(error.code, code, "{source} on {target:?}");
         }

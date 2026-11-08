@@ -43,7 +43,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/plugins',
 		source: {
 			path: 'crates/languages/svelte/compile/src/task.rs',
-			line: 32,
+			line: 33,
 			text: '.task(Compile {',
 		},
 		box: { x: 32, y: 162, w: 188, h: height },

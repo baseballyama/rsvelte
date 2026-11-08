@@ -3,7 +3,7 @@
 //! svue reads the Vue plugin's artifacts ([`rsvelte_vue_syntax::Parsed`],
 //! [`rsvelte_vue_semantic::Lowered`], [`rsvelte_vue_semantic::Resolved`]) and writes what the
 //! Svelte compiler reads: a runes instance program and a Svelte HIR ([`Translation`]).
-//! [`rsvelte_svelte_compile::compile`] then lowers it, so the module has the shape
+//! [`rsvelte_svelte_compile::compile_input`] then lowers it, so the module has the shape
 //! `svelte/compiler` emits and imports only `svelte`, `svelte/*`, `vue` and `@vue/*`. The tasks are
 //! `svue.compile/client` and `svue.compile/server`, on `.vue` documents; the oracle is the
 //! component's DOM under Vue itself (`tools/oracle/behaviour`).

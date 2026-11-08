@@ -22,6 +22,8 @@ static STYLESHEET_HASH: TextContract = TextContract {
 struct Options {
     #[serde(default, rename = "cssHash")]
     stylesheet_hash: Option<FunctionReference>,
+    #[serde(default, rename = "preserveWhitespace")]
+    preserve_whitespace: bool,
 }
 
 fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallError> {
@@ -44,6 +46,7 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
         registry,
         Configuration {
             css_hash: stylesheet_hash,
+            preserve_whitespace: options.value.preserve_whitespace,
         },
     );
     Ok(())

@@ -21,4 +21,5 @@ impl Contract for CssHash {
 #[derive(Clone, Debug, Default)]
 pub struct Configuration {
     pub css_hash: Option<Function<CssHash>>,
+    pub preserve_whitespace: bool,
 }

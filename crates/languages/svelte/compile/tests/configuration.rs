@@ -40,6 +40,7 @@ fn client_server_and_stylesheet_share_one_stylesheet_hash_call() {
             assert_eq!(input.css, "button { color: red; }");
             Ok("custom-scope".into())
         })),
+        preserve_whitespace: false,
     };
     let result = run_with(
         "<button>Hi</button><style>button { color: red; }</style>",
@@ -71,6 +72,7 @@ fn components_without_styles_do_not_call_the_hash_function() {
         css_hash: Some(Function::<CssHash>::new(|_| {
             Err(CallError("must not run".into()))
         })),
+        preserve_whitespace: false,
     };
     let result = run_with("<button>Hi</button>", configuration);
     assert!(result.panic.is_none());
@@ -92,6 +94,7 @@ fn failed_or_invalid_hashes_are_diagnostics_and_never_fall_back() {
     ] {
         let configuration = Configuration {
             css_hash: Some(Function::<CssHash>::new(move |_| result.clone())),
+            preserve_whitespace: false,
         };
         let result = run_with(
             "<button>Hi</button><style>button { color: red; }</style>",

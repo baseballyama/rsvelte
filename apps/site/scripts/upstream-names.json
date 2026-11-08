@@ -58,5 +58,23 @@
 		"name": "NodeKind::Html",
 		"upstream": "type: 'HtmlTag';",
 		"reason": "The `{@html}` tag"
+	},
+	{
+		"file": "languages/svelte/compile/src/compiler.rs",
+		"name": "CompileOptions::css_hash",
+		"upstream": "cssHash?: CssHashGetter;",
+		"reason": "The `cssHash` compile option"
+	},
+	{
+		"file": "languages/svelte/compile/src/compiler.rs",
+		"name": "CompileResult::js",
+		"upstream": "\t\tjs: {\n\t\t\t/** The generated code */",
+		"reason": "The `js` field of the compile result"
+	},
+	{
+		"file": "languages/svelte/compile/src/compiler.rs",
+		"name": "CompileResult::css",
+		"upstream": "\t\tcss: null | {",
+		"reason": "The `css` field of the compile result"
 	}
 ]

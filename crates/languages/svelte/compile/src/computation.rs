@@ -12,10 +12,22 @@ impl Artifact for Planned {
     const NAME: &'static str = "svelte.render_plan";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        Some(crate::render_plan::RenderPlan::build(
-            &component_input(context)?.into(),
-        ))
+        Some(crate::render_plan::RenderPlan::build(&compile_input(
+            context,
+        )?))
     }
+}
+
+/// The document's component with the host's compile options.
+pub(crate) fn compile_input<'a>(
+    context: &'a DocumentContext<'_>,
+) -> Option<crate::CompileInput<'a>> {
+    Some(crate::CompileInput {
+        component: component_input(context)?,
+        preserve_whitespace: context
+            .facet::<CompileConfiguration>()
+            .is_some_and(|configuration| configuration.preserve_whitespace),
+    })
 }
 
 #[derive(Debug)]
