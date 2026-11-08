@@ -1,6 +1,5 @@
-//! Source positions, names, tokens, typed indices, and hashes.
+//! Source positions, names, tokens, and typed indices.
 
-pub mod hashing;
 pub mod index;
 pub mod interning;
 pub mod positions;

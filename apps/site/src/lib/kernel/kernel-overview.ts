@@ -225,12 +225,6 @@ export const sharedParts: SharedPart[] = [
 		href: '/learn/kernel/layers',
 	},
 	{
-		id: 'hashing',
-		label: 'ハッシュ値',
-		module: 'kernel/source/hashing',
-		href: '/learn/kernel#modules',
-	},
-	{
 		id: 'functions',
 		label: '型を決めた関数',
 		module: 'kernel/computation/functions',

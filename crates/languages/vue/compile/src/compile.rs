@@ -96,8 +96,8 @@ const OPTIONS_OWNED_BY_MACROS: &[&str] = &["props", "emits", "expose", "slots"];
 /// `@vitejs/plugin-vue`'s scope identifier: the first 8 hex digits of the SHA-256 of the path.
 #[must_use]
 pub fn scope_identifier(path: &str) -> String {
-    let digest = rsvelte_kernel::source::hashing::sha256(path.as_bytes());
-    rsvelte_kernel::source::hashing::hex(&digest[..4])
+    let digest = crate::hashing::sha256(path.as_bytes());
+    crate::hashing::hex(&digest[..4])
 }
 
 /// # Errors

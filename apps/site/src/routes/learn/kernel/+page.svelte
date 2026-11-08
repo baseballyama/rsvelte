@@ -173,8 +173,8 @@
 	</div>
 	{#snippet caption()}矢印は依存の向き。役割は crate のパスで決まり、<code>tools/structure</code> のテストが依存の向きを確かめる。言語の中核はカーネルと他の言語の中核だけに、言語を知らない部品はカーネルだけに依存する。設定ファイルを読む
 		rsvelte_configuration_loading には、ホストだけが依存できる。rsvelte_svue と rsvelte_svelte_compile_vapor
-		は Svelte と Vue の両方の中核に依存する。カーネルが依存する外部の crate は rayon、semver、rustc-hash、sha2
-		の四つ。{/snippet}
+		は Svelte と Vue の両方の中核に依存する。カーネルが依存する外部の crate は rayon、semver、rustc-hash
+		の三つ。{/snippet}
 </Figure>
 
 <div class="prose-learn">

@@ -1,5 +1,6 @@
 //! Vue compilation tasks.
 
+mod hashing;
 mod task;
 pub use task::*;
 

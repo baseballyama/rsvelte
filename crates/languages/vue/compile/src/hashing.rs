@@ -17,7 +17,7 @@ const H0: [u32; 8] = [
 ];
 
 #[must_use]
-pub fn sha256(data: &[u8]) -> [u8; 32] {
+pub(crate) fn sha256(data: &[u8]) -> [u8; 32] {
     let mut h = H0;
     let bit_len = (data.len() as u64).wrapping_mul(8);
     // Keep short paths and their padding in one compression call.
@@ -48,7 +48,7 @@ pub fn sha256(data: &[u8]) -> [u8; 32] {
 
 /// Lowercase hex of `bytes`.
 #[must_use]
-pub fn hex(bytes: &[u8]) -> String {
+pub(crate) fn hex(bytes: &[u8]) -> String {
     const DIGITS: &[u8; 16] = b"0123456789abcdef";
     let mut s = String::with_capacity(bytes.len() * 2);
     for b in bytes {

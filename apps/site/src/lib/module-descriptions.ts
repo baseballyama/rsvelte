@@ -116,10 +116,6 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: '作業用メモリの再利用',
 		summary: '処理が終わった配列の保存領域を、次の文書の処理で使い回します。',
 	},
-	'kernel/source/hashing': {
-		title: 'ハッシュ値の計算',
-		summary: '入力文字列から、公式ツールと同じ識別用のハッシュ値を作ります。',
-	},
 };
 
 export function moduleDescription(key: string) {
