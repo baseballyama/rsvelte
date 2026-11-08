@@ -7,8 +7,10 @@
 //! The rule fires on a `$derived.by(fn)` call whose single argument is a
 //! parameter-less, non-async, non-generator arrow/function expression that
 //! merely returns a single expression — either a concise arrow body or a block
-//! body containing exactly one `return <expr>;`. It autofixes the whole call to
-//! `$derived(<expr>)`, splicing the returned expression's source text verbatim.
+//! body containing exactly one `return <expr>;`. The autofix removes `.by`, the
+//! function head and the block tail and keeps everything else in place (so a
+//! return type moves to `$derived<T>`), and is withheld when that would change
+//! the code or drop a comment.
 //!
 //! Dual-registered: upstream lints one `Program` spanning the whole component,
 //! so [`ScriptRule`] covers the `<script>` blocks and standalone modules while
@@ -19,6 +21,7 @@ use serde_json::Value;
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::js_tokens::{Token, TokenKind, tokenize};
 use crate::script::{
     ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
 };
@@ -162,8 +165,8 @@ fn returned_expression(arg: &Value, kind: &str, source: &str) -> Option<Value> {
     None
 }
 
-/// `(call_start, call_end, expr_start, expr_end)` for one reportable call.
-type Report = (u32, u32, u32, u32);
+/// One reportable call: its range and the fix edits, if the fix is safe.
+type Report = (u32, u32, Option<Vec<TextEdit>>);
 
 fn collect(node: &Value, source: &str, reports: &mut Vec<Report>) {
     if node_type(node) != Some("CallExpression") {
@@ -191,27 +194,304 @@ fn collect(node: &Value, source: &str, reports: &mut Vec<Report>) {
     let (Some(call_start), Some(call_end)) = (node_start(node), node_end(node)) else {
         return;
     };
-    let (Some(expr_start), Some(expr_end)) = (node_start(&expr), node_end(&expr)) else {
-        return;
+    let edits = fix_edits(node, callee, arg, &expr, source);
+    reports.push((call_start, call_end, edits));
+}
+
+fn present<'a>(node: &'a Value, key: &str) -> Option<&'a Value> {
+    node.get(key).filter(|v| !v.is_null())
+}
+
+fn span(node: &Value) -> Option<(u32, u32)> {
+    Some((node_start(node)?, node_end(node)?))
+}
+
+/// A token of the call's source with its absolute offsets.
+struct Tok<'a> {
+    start: u32,
+    end: u32,
+    token: Token<'a>,
+}
+
+impl Tok<'_> {
+    fn is_punct(&self, text: &str) -> bool {
+        self.token.kind == TokenKind::Punctuator && self.token.text == text
+    }
+}
+
+fn tokens_of(source: &str, start: u32, end: u32) -> Option<Vec<Tok<'_>>> {
+    let text = source.get(start as usize..end as usize)?;
+    let base = text.as_ptr() as usize;
+    tokenize(text)
+        .into_iter()
+        .map(|token| {
+            let offset = u32::try_from(token.text.as_ptr() as usize - base).ok()?;
+            let len = u32::try_from(token.text.len()).ok()?;
+            Some(Tok {
+                start: start + offset,
+                end: start + offset + len,
+                token,
+            })
+        })
+        .collect()
+}
+
+/// `getParenthesizedRange`: widen `range` over each `( … )` pair whose opening
+/// paren is not before `parent_start`.
+fn parenthesized_range(tokens: &[Tok<'_>], range: (u32, u32), parent_start: u32) -> (u32, u32) {
+    let mut range = range;
+    loop {
+        let before = tokens
+            .iter()
+            .rev()
+            .find(|t| !t.token.is_comment() && t.end <= range.0);
+        let after = tokens
+            .iter()
+            .find(|t| !t.token.is_comment() && t.start >= range.1);
+        match (before, after) {
+            (Some(b), Some(a)) if b.is_punct("(") && a.is_punct(")") && b.start >= parent_start => {
+                range = (b.start, a.end);
+            }
+            _ => return range,
+        }
+    }
+}
+
+type Visitor<'a, 'f> = dyn FnMut(&'a Value, Option<(&'a Value, &str)>) -> bool + 'f;
+
+/// Visit `node` and every node under it with the parent and key it hangs
+/// from, not descending below a node for which `f` returns `false`.
+fn visit<'a>(node: &'a Value, f: &mut Visitor<'a, '_>) {
+    fn children<'a>(node: &'a Value, f: &mut Visitor<'a, '_>) {
+        let Some(obj) = node.as_object() else {
+            return;
+        };
+        for (key, value) in obj {
+            if key == "loc" {
+                continue;
+            }
+            let items: &[Value] = match value {
+                Value::Array(items) => items,
+                Value::Object(_) => std::slice::from_ref(value),
+                _ => continue,
+            };
+            for child in items {
+                if node_type(child).is_some() && f(child, Some((node, key.as_str()))) {
+                    children(child, f);
+                }
+            }
+        }
+    }
+    if f(node, None) {
+        children(node, f);
+    }
+}
+
+fn is_plain_function(node: &Value) -> bool {
+    matches!(
+        node_type(node),
+        Some("FunctionExpression" | "FunctionDeclaration")
+    )
+}
+
+/// `usesThisOrNewTarget`: `this` / `new.target` outside any nested non-arrow
+/// function.
+fn uses_this_or_new_target(body: &Value) -> bool {
+    let mut found = false;
+    visit(body, &mut |node, _| {
+        if found {
+            return false;
+        }
+        match node_type(node) {
+            Some("ThisExpression") => found = true,
+            Some("MetaProperty") if node.get("meta").and_then(ident_name) == Some("new") => {
+                found = true;
+            }
+            _ => {}
+        }
+        !found && !is_plain_function(node)
+    });
+    found
+}
+
+/// Whether an `Identifier` hanging from `parent.key` reads a binding.
+fn is_reference(parent: Option<(&Value, &str)>) -> bool {
+    let Some((parent, key)) = parent else {
+        return true;
     };
-    reports.push((call_start, call_end, expr_start, expr_end));
+    let computed = parent.get("computed").and_then(Value::as_bool) == Some(true);
+    match (node_type(parent), key) {
+        (Some("MemberExpression"), "property")
+        | (
+            Some("Property" | "MethodDefinition" | "PropertyDefinition" | "AccessorProperty"),
+            "key",
+        ) => computed,
+        (Some("MetaProperty"), _)
+        | (Some("LabeledStatement" | "BreakStatement" | "ContinueStatement"), "label")
+        | (
+            Some(
+                "VariableDeclarator"
+                | "FunctionDeclaration"
+                | "FunctionExpression"
+                | "ClassDeclaration"
+                | "ClassExpression",
+            ),
+            "id",
+        ) => false,
+        _ => true,
+    }
+}
+
+/// Whether `body` references `name`. With `stop_at_functions`, nested
+/// non-arrow functions (which bind their own `arguments`) are not entered.
+/// Inner bindings that shadow `name` are not resolved, so a shadowed use also
+/// counts.
+fn references(body: &Value, name: &str, stop_at_functions: bool) -> bool {
+    let mut found = false;
+    visit(body, &mut |node, parent| {
+        if found {
+            return false;
+        }
+        if ident_name(node) == Some(name) && is_reference(parent) {
+            found = true;
+        }
+        !found && !(stop_at_functions && is_plain_function(node))
+    });
+    found
+}
+
+/// `usesOwnBindings`: `arguments`, the function's own name, `this` or
+/// `new.target`, each of which `$derived()` would rebind.
+fn uses_own_bindings(function: &Value) -> bool {
+    let Some(body) = function.get("body") else {
+        return false;
+    };
+    if references(body, "arguments", true) {
+        return true;
+    }
+    if let Some(name) = present(function, "id").and_then(ident_name)
+        && references(body, name, false)
+    {
+        return true;
+    }
+    uses_this_or_new_target(body)
+}
+
+/// Port of upstream's `fix(fixer)`; `None` where upstream returns `null`.
+fn fix_edits(
+    call: &Value,
+    callee: &Value,
+    arg: &Value,
+    expr: &Value,
+    source: &str,
+) -> Option<Vec<TextEdit>> {
+    let text = |node: &Value| -> Option<&str> {
+        let (start, end) = span(node)?;
+        source.get(start as usize..end as usize)
+    };
+    let type_arguments = present(call, "typeArguments").or_else(|| present(call, "typeParameters"));
+    // typescript-eslint has no `TSParenthesizedType`; its type node is the inner one.
+    let return_type = present(arg, "returnType").map(|rt| {
+        let mut ty = present(rt, "typeAnnotation").unwrap_or(rt);
+        while node_type(ty) == Some("TSParenthesizedType") {
+            match present(ty, "typeAnnotation") {
+                Some(inner) => ty = inner,
+                None => break,
+            }
+        }
+        ty
+    });
+    if present(arg, "typeParameters").is_some()
+        || return_type.is_some_and(|rt| node_type(rt) == Some("TSTypePredicate"))
+    {
+        return None;
+    }
+    if let (Some(type_arguments), Some(return_type)) = (type_arguments, return_type)
+        && text(type_arguments)? != format!("<{}>", text(return_type)?)
+    {
+        return None;
+    }
+    if node_type(arg) == Some("FunctionExpression") && uses_own_bindings(arg) {
+        return None;
+    }
+
+    let (call_start, call_end) = span(call)?;
+    let tokens = tokens_of(source, call_start, call_end)?;
+    let (arg_start, arg_end) = span(arg)?;
+    let body = arg.get("body")?;
+    let block = node_type(body) == Some("BlockStatement");
+    let expr_range = span(expr)?;
+    // The kept text starts at the first token or comment after the `return`
+    // keyword (the first token of the expression's parent) or after the arrow
+    // of a concise body.
+    let (before_end, expr_parent_start) = if block {
+        let stmt_start = node_start(body.get("body")?.as_array()?.first()?)?;
+        let keyword = tokens.iter().find(|t| t.start >= stmt_start)?;
+        (keyword.end, stmt_start)
+    } else {
+        let body_start = node_start(body)?;
+        let arrow = tokens
+            .iter()
+            .rev()
+            .find(|t| t.end <= body_start && t.start >= arg_start && t.is_punct("=>"))?;
+        (arrow.end, arg_start)
+    };
+    let kept_start = tokens.iter().find(|t| t.start >= before_end)?.start;
+    let kept_end = if block {
+        parenthesized_range(&tokens, expr_range, expr_parent_start).1
+    } else {
+        arg_end
+    };
+    let type_text = match (type_arguments, return_type) {
+        (None, Some(rt)) => format!("<{}>", text(rt)?),
+        _ => String::new(),
+    };
+    let removed = [
+        (node_end(callee.get("object")?)?, node_end(callee)?),
+        (arg_start, kept_start),
+        (kept_end, arg_end),
+    ];
+    let kept_type_range = if type_text.is_empty() {
+        None
+    } else {
+        return_type.and_then(span)
+    };
+    let loses_comment = tokens.iter().filter(|t| t.token.is_comment()).any(|c| {
+        !kept_type_range.is_some_and(|(s, e)| s <= c.start && c.end <= e)
+            && removed.iter().any(|&(s, e)| s <= c.start && c.end <= e)
+    });
+    if loses_comment {
+        return None;
+    }
+    // A sequence expression would otherwise become multiple arguments.
+    let needs_parens = node_type(expr) == Some("SequenceExpression")
+        && parenthesized_range(&tokens, expr_range, expr_parent_start).0 == expr_range.0;
+    let edit = |(start, end): (u32, u32), new_text: &str| TextEdit {
+        start,
+        end,
+        new_text: new_text.to_string(),
+    };
+    Some(vec![
+        edit(removed[0], &type_text),
+        edit(removed[1], if needs_parens { "(" } else { "" }),
+        edit(removed[2], if needs_parens { ")" } else { "" }),
+    ])
 }
 
 fn emit(ctx: &mut LintContext, mut reports: Vec<Report>) {
-    reports.sort_unstable();
-    reports.dedup();
-    for (call_start, call_end, expr_start, expr_end) in reports {
-        let expr_text = ctx.slice(expr_start, expr_end);
-        let new_text = format!("$derived({expr_text})");
-        let fix = Fix {
-            message: MESSAGE.to_string(),
-            edits: vec![TextEdit {
-                start: call_start,
-                end: call_end,
-                new_text,
-            }],
-        };
-        ctx.report_with_fix(call_start, call_end, MESSAGE, fix);
+    reports.sort_unstable_by_key(|r| (r.0, r.1));
+    reports.dedup_by_key(|r| (r.0, r.1));
+    for (call_start, call_end, edits) in reports {
+        match edits {
+            Some(edits) => {
+                let fix = Fix {
+                    message: MESSAGE.to_string(),
+                    edits,
+                };
+                ctx.report_with_fix(call_start, call_end, MESSAGE, fix);
+            }
+            None => ctx.report(call_start, call_end, MESSAGE),
+        }
     }
 }
 
@@ -430,5 +710,154 @@ mod tests {
         let block = json!({ "type": "BlockStatement", "start": 6, "end": 32 });
         let stmt = json!({ "type": "ReturnStatement", "start": 16, "end": 25 });
         assert!(!block_has_hidden_statements(commented, &block, &stmt));
+    }
+
+    fn fixed(source: &str) -> String {
+        let config = crate::LintConfig::empty().with_override(META.name, Severity::Error);
+        crate::runner::fix_source_at(source, &config, "Comp.svelte").output
+    }
+
+    /// `(input, eslint-plugin-svelte 3.24.1 --fix output)` per declaration.
+    const JS_CASES: &[(&str, &str)] = &[
+        ("$derived.by(() => ({ x: a }))", "$derived(({ x: a }))"),
+        ("$derived.by(() => { return (a, b); })", "$derived((a, b))"),
+        ("$derived.by(() => { return a, b; })", "$derived((a, b))"),
+        ("$derived.by(() => (a, b))", "$derived((a, b))"),
+        ("$derived.by(() => /* keep */ a)", "$derived(/* keep */ a)"),
+        (
+            "$derived.by(() => { return /* keep */ a; })",
+            "$derived(/* keep */ a)",
+        ),
+        (
+            "$derived.by(() => { return a; /* lost */ })",
+            "$derived.by(() => { return a; /* lost */ })",
+        ),
+        (
+            "$derived /* lost */ .by(() => a)",
+            "$derived /* lost */ .by(() => a)",
+        ),
+        (
+            "$derived.by(function () { return this; })",
+            "$derived.by(function () { return this; })",
+        ),
+        (
+            "$derived.by(function () { return arguments.length; })",
+            "$derived.by(function () { return arguments.length; })",
+        ),
+        (
+            "$derived.by(function f() { return f; })",
+            "$derived.by(function f() { return f; })",
+        ),
+        (
+            "$derived.by(function () { return () => this; })",
+            "$derived.by(function () { return () => this; })",
+        ),
+        (
+            "$derived.by(function () { return function () { return this; }; })",
+            "$derived(function () { return this; })",
+        ),
+        (
+            "$derived.by(function () { return ((a)); })",
+            "$derived(((a)))",
+        ),
+        (
+            "$derived.by(() => { return ((a + b)) })",
+            "$derived(((a + b)))",
+        ),
+        ("$derived.by(function g() { return a; })", "$derived(a)"),
+        (
+            "$derived.by(function () { return new.target; })",
+            "$derived.by(function () { return new.target; })",
+        ),
+        (
+            "$derived.by(function () { return { arguments: 1 }.arguments; })",
+            "$derived({ arguments: 1 }.arguments)",
+        ),
+        (
+            "$derived.by(function () { return function () { return arguments; }; })",
+            "$derived(function () { return arguments; })",
+        ),
+        (
+            "$derived.by(() => { return a // trailing\n\t})",
+            "$derived.by(() => { return a // trailing\n\t})",
+        ),
+        (
+            "$derived.by(() => {\n\t\t/* only a comment */\n\t\treturn a;\n\t})",
+            "$derived.by(() => {\n\t\t/* only a comment */\n\t\treturn a;\n\t})",
+        ),
+    ];
+
+    const TS_CASES: &[(&str, &str)] = &[
+        (
+            "$derived.by((): number => a as number)",
+            "$derived<number>(a as number)",
+        ),
+        (
+            "$derived.by(() => a satisfies number)",
+            "$derived(a satisfies number)",
+        ),
+        (
+            "$derived.by<number>((): number => a)",
+            "$derived<number>(a)",
+        ),
+        (
+            "$derived.by<string>((): number => a)",
+            "$derived.by<string>((): number => a)",
+        ),
+        (
+            "$derived.by(<T,>(): number => a)",
+            "$derived.by(<T,>(): number => a)",
+        ),
+        (
+            "$derived.by((): a is number => true)",
+            "$derived.by((): a is number => true)",
+        ),
+        (
+            "$derived.by((): /* c */ number => a)",
+            "$derived.by((): /* c */ number => a)",
+        ),
+        (
+            "$derived.by(function (): number { return a; })",
+            "$derived<number>(a)",
+        ),
+        ("$derived.by<number>(() => a)", "$derived<number>(a)"),
+        (
+            "$derived.by((): Array<number> => [a])",
+            "$derived<Array<number>>([a])",
+        ),
+        (
+            "$derived.by((): (() => number) => () => a)",
+            "$derived<() => number>(() => a)",
+        ),
+    ];
+
+    fn check(lang: &str, cases: &[(&str, &str)]) {
+        for (input, expected) in cases {
+            let wrap = |call: &str| {
+                format!(
+                    "<script{lang}>\n\tlet a = $state(1);\n\tlet b = $state(2);\n\tlet v = {call};\n</script>\n"
+                )
+            };
+            assert_eq!(fixed(&wrap(input)), wrap(expected), "{input}");
+        }
+    }
+
+    #[test]
+    fn autofix_matches_upstream_js() {
+        check("", JS_CASES);
+    }
+
+    #[test]
+    fn autofix_matches_upstream_ts() {
+        check(" lang=\"ts\"", TS_CASES);
+    }
+
+    #[test]
+    fn template_sequence_keeps_its_parens() {
+        let src = "<script>\n\tlet a = $state(1);\n\tlet b = $state(2);\n</script>\n\n{$derived.by(() => (a, b))}\n";
+        assert_eq!(
+            fixed(src),
+            "<script>\n\tlet a = $state(1);\n\tlet b = $state(2);\n</script>\n\n{$derived((a, b))}\n"
+        );
     }
 }

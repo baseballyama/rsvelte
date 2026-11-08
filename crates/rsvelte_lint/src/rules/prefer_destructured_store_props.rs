@@ -19,19 +19,18 @@
 //! Suggestions are suppressed:
 //! - for **computed** accesses (`$foo[bar]`, `$foo['qux']`);
 //! - for `fixUseDestructuring` when there is **no main `<script>` block** (no
-//!   instance script, or only a `<script context="module">`).
+//!   instance script, or only a `<script module>` / `<script context="module">`).
 
 use std::collections::HashSet;
 
 use rsvelte_core::ast::arena::with_serialize_arena;
-use rsvelte_core::ast::template::{
-    AttributeValue, AttributeValuePart, Root, Script, ScriptContext,
-};
+use rsvelte_core::ast::template::{Root, Script, ScriptContext};
 use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::shared::module_script::is_module_script;
 use crate::rules::store_refs::{handled_by_template_pass, scope_binding_names};
 use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
 
@@ -225,31 +224,16 @@ fn compute_var_name(prop_name: &str, top_level: &HashSet<String>) -> String {
 }
 
 /// Upstream's `mainScript`: the last `<script>` element in document order that
-/// carries no literal `context="module"` attribute. It tests that attribute
-/// alone, so the Svelte 5 `<script module>` shorthand reads as the main script.
+/// is not a module script.
 fn main_script<'a>(root: &'a Root<'a>) -> Option<&'a Script<'a>> {
     let mut scripts: Vec<&Script<'a>> = [root.instance.as_ref(), root.module.as_ref()]
         .into_iter()
         .flatten()
         .map(std::convert::AsRef::as_ref)
-        .filter(|s| !has_context_module_attribute(s))
+        .filter(|s| !is_module_script(s))
         .collect();
     scripts.sort_by_key(|s| s.start);
     scripts.pop()
-}
-
-/// `findAttribute(node, 'context')` with a single `SvelteLiteral` value `module`.
-fn has_context_module_attribute(script: &Script<'_>) -> bool {
-    script.attributes.iter().any(|attr| {
-        attr.name == "context"
-            && match &attr.value {
-                AttributeValue::Sequence(parts) => matches!(
-                    parts.as_slice(),
-                    [AttributeValuePart::Text(text)] if text.data == "module"
-                ),
-                _ => false,
-            }
-    })
 }
 
 /// Names bound by the scopes enclosing a node. Upstream resolves
