@@ -37,7 +37,7 @@ oxc_span = "0.149"
 [dev-dependencies]
 # Rust's `regex` rejects JS-style escapes inside a character class, which the
 # official server's word pattern uses; only the test needs to evaluate it.
-fancy-regex = { version = "0.19", default-features = false, features = ["std", "perf", "unicode"] }
+fancy-regex = { version = "0.20", default-features = false, features = ["std", "perf", "unicode"] }
 url = "2"
 
 [lints]

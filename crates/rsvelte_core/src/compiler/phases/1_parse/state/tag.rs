@@ -36,6 +36,84 @@ fn leftover_token_offset(content: &str, ts: bool) -> Option<usize> {
     })
 }
 
+/// Upstream's `match_bracket` (`1-parse/utils/bracket.js`): the index after the
+/// bracket that closes the one at `start`. `pointy` selects `pointy_bois`
+/// (`<` / `>` only) over the default `()`, `[]`, `{}` set. Quotes are skipped,
+/// comments and regexes are not.
+fn match_bracket(template: &[u8], start: usize, pointy: bool) -> ParseResult<usize> {
+    let closer = |open: u8| match open {
+        b'<' => b'>',
+        b'(' => b')',
+        b'[' => b']',
+        _ => b'}',
+    };
+    let mut stack = Vec::new();
+    let mut i = start;
+    while i < template.len() {
+        let c = template[i];
+        i += 1;
+        if matches!(c, b'\'' | b'"' | b'`') {
+            i = match_quote(template, i, c)?;
+            continue;
+        }
+        let (is_open, is_close) = if pointy {
+            (c == b'<', c == b'>')
+        } else {
+            (
+                matches!(c, b'(' | b'[' | b'{'),
+                matches!(c, b')' | b']' | b'}'),
+            )
+        };
+        if is_open {
+            stack.push(c);
+        } else if is_close {
+            let expected = closer(stack.pop().unwrap_or(b'{'));
+            if c != expected {
+                return Err(crate::error::ParseError::expected_token(
+                    &char::from(expected).to_string(),
+                    i - 1,
+                ));
+            }
+            if stack.is_empty() {
+                return Ok(i);
+            }
+        }
+    }
+    Err(crate::error::ParseError::svelte(
+        "unexpected_eof",
+        "Unexpected end of input",
+        (template.len(), template.len()),
+    ))
+}
+
+/// Upstream's `match_quote`: the index after the closing `quote`.
+fn match_quote(template: &[u8], start: usize, quote: u8) -> ParseResult<usize> {
+    let mut is_escaped = false;
+    let mut i = start;
+    while i < template.len() {
+        let c = template[i];
+        i += 1;
+        if is_escaped {
+            is_escaped = false;
+            continue;
+        }
+        if c == quote {
+            return Ok(i);
+        }
+        if c == b'\\' {
+            is_escaped = true;
+        }
+        if quote == b'`' && c == b'$' && template.get(i) == Some(&b'{') {
+            i = match_bracket(template, i, false)?;
+        }
+    }
+    Err(crate::error::ParseError::svelte(
+        "unterminated_string_constant",
+        "Unterminated string constant",
+        (start, start),
+    ))
+}
+
 /// A `{:…}` continuation clause. Upstream's `next()` rejects a second one of
 /// any kind in the same block with `block_duplicate_clause`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -2029,53 +2107,27 @@ impl<'a> Parser<'a> {
             self.expression_line_offsets(),
         );
 
-        // Parse optional type parameters (between < and >). Upstream gates the
-        // whole scan on TypeScript mode, so a `<` after the name is not a type
-        // parameter list in a component without `lang="ts"`.
+        self.skip_whitespace();
+        // Upstream's `parse_expression_at` reads the header from here, type
+        // parameters included.
+        let header_start = self.index;
+
+        // Upstream gates the type parameter scan on TypeScript mode, so a `<`
+        // after the name is not a type parameter list without `lang="ts"`.
         let mut type_params = None;
-        if self.ts && self.eat_optional("<") {
-            let type_params_start = self.index;
-            let mut depth = 1;
-            while !self.is_eof() && depth > 0 {
-                let c = self.current_char();
-                // Skip string literals
-                if c == '\'' || c == '"' {
-                    let quote = c;
-                    self.advance();
-                    while !self.is_eof() && self.current_char() != quote {
-                        if self.current_char() == '\\' {
-                            self.advance();
-                        }
-                        self.advance();
+        if self.ts && self.match_str("<") {
+            let template = &self.source.as_bytes()[..self.content_end];
+            match match_bracket(template, self.index, true) {
+                Ok(end) => {
+                    let type_params_content = &self.source[self.index + 1..end - 1];
+                    if !type_params_content.is_empty() {
+                        type_params = Some(CompactString::from(type_params_content));
                     }
-                    if !self.is_eof() {
-                        self.advance(); // consume closing quote
-                    }
-                    continue;
+                    self.index = end;
                 }
-                if c == '<' {
-                    depth += 1;
-                } else if c == '>' {
-                    depth -= 1;
-                }
-                if depth > 0 {
-                    self.advance();
-                }
+                Err(error) if !self.options.loose => return Err(error),
+                Err(_) => self.index = self.source.len(),
             }
-            // Upstream reads this with `match_bracket`, which reports
-            // `unexpected_eof` at the end of the input for a list that never closes.
-            if depth > 0 && !self.options.loose {
-                return Err(crate::error::ParseError::svelte(
-                    "unexpected_eof",
-                    "Unexpected end of input",
-                    (self.source.len(), self.source.len()),
-                ));
-            }
-            let type_params_content = &self.source[type_params_start..self.index];
-            if !type_params_content.trim_ws().is_empty() {
-                type_params = Some(CompactString::from(type_params_content.trim_ws()));
-            }
-            self.eat_optional(">"); // consume closing >
         }
 
         // Parse parameters (inside parentheses). Upstream's `eat('(', true,
@@ -2095,25 +2147,10 @@ impl<'a> Parser<'a> {
         if opened {
             let params_start = self.index;
 
-            // Find matching closing paren, accounting for nested parens and strings
+            // Upstream counts parentheses only: no string or comment awareness.
             let mut depth = 1;
             while !self.is_eof() && depth > 0 {
                 let c = self.current_char();
-                // Skip string literals
-                if c == '\'' || c == '"' {
-                    let quote = c;
-                    self.advance();
-                    while !self.is_eof() && self.current_char() != quote {
-                        if self.current_char() == '\\' {
-                            self.advance();
-                        }
-                        self.advance();
-                    }
-                    if !self.is_eof() {
-                        self.advance(); // consume closing quote
-                    }
-                    continue;
-                }
                 if c == '(' {
                     depth += 1;
                 } else if c == ')' {
@@ -2137,38 +2174,31 @@ impl<'a> Parser<'a> {
             let params_end = self.index;
             let params_content = &self.source[params_start..params_end];
 
+            // Upstream parses `${header} => {}` with `parse_expression_at` in
+            // the file's `parser.ts` mode, where `header` runs from the type
+            // parameters through the `)` the paren count stopped at. In TS mode
+            // acorn-typescript accepts headers OXC rejects (`c?: number = 5`),
+            // so there only a header that cannot be read at all — the count
+            // stopped inside a string, template, regex or comment — is rejected
+            // here; the lenient parameter parser below handles the rest.
+            if !self.options.loose
+                && depth == 0
+                && let Some((msg, pos)) =
+                    super::super::read::expression::check_snippet_header_parse_error(
+                        &self.source[header_start..=params_end],
+                        self.ts,
+                    )
+            {
+                let abs = header_start + pos;
+                return Err(crate::error::ParseError::svelte(
+                    "js_parse_error",
+                    msg,
+                    (abs, abs),
+                ));
+            }
+
             // Parse parameters with TypeScript type annotations
             if !params_content.trim_ws().is_empty() {
-                // Upstream parses `${params} => {}` with `parse_expression_at`
-                // in the file's `parser.ts` mode (1-parse/state/tag.js), so
-                // TS annotations without `lang="ts"` raise `js_parse_error`.
-                // Probe (JS-only) before the lenient TS-stripping param
-                // parser below. Only probe when:
-                // - the file is NOT TypeScript: in TS mode acorn-typescript
-                //   is more lenient than OXC (it accepts `c?: number = 5`,
-                //   which OXC rejects), so an OXC probe would reject params
-                //   upstream compiles — keep the lenient path there;
-                // - the closing `)` was actually found (`depth == 0`): an
-                //   unclosed param list (`{#snippet a(hi{/snippet}`) surfaces
-                //   as `expected_token` downstream, matching upstream's
-                //   `parser.eat(')', true)`.
-                if !self.options.loose
-                    && !self.ts
-                    && depth == 0
-                    && let Some((msg, pos)) =
-                        super::super::read::expression::check_params_parse_error(
-                            params_content,
-                            false,
-                        )
-                {
-                    let abs = params_start + pos;
-                    return Err(crate::error::ParseError::svelte(
-                        "js_parse_error",
-                        msg,
-                        (abs, abs),
-                    ));
-                }
-
                 (parameters, parameter_parens) = super::super::expression::parse_typescript_params(
                     &self.arena,
                     params_content,

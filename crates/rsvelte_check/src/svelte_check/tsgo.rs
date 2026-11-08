@@ -93,6 +93,52 @@ pub struct TsgoBinary {
     pub args_prefix: Vec<String>,
 }
 
+/// The major version of the TypeScript `binary` runs, read from the package
+/// that ships it. `None` when the binary cannot be traced to a package (a bare
+/// name on `$PATH`, a `TSGO_BIN` outside any `node_modules`).
+#[must_use]
+pub fn typescript_major(binary: &TsgoBinary) -> Option<u32> {
+    if !binary.args_prefix.is_empty() {
+        // Only `resolve_ts7_native` launches through `node`, and it accepts major >= 7 only.
+        return Some(7);
+    }
+    let program = Path::new(&binary.program);
+    if program
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.starts_with("tsgo"))
+    {
+        return Some(7);
+    }
+    let from_package = |dir: &Path| -> Option<u32> {
+        let raw = std::fs::read_to_string(dir.join("package.json")).ok()?;
+        let parsed: serde_json::Value = serde_json::from_str(&raw).ok()?;
+        let name = parsed.get("name")?.as_str()?;
+        if name != "typescript" && !name.starts_with("@typescript/native") {
+            return None;
+        }
+        parsed
+            .get("version")?
+            .as_str()?
+            .split('.')
+            .next()?
+            .parse()
+            .ok()
+    };
+    // npm links `.bin/tsc` to `typescript/bin/tsc`; pnpm writes a shell script
+    // there instead, which leaves the sibling `typescript` package to read.
+    if let Ok(real) = program.canonicalize()
+        && let Some(major) = real.ancestors().skip(1).find_map(from_package)
+    {
+        return Some(major);
+    }
+    let bin_dir = program.parent()?;
+    if bin_dir.file_name()? != ".bin" {
+        return None;
+    }
+    from_package(&bin_dir.parent()?.join("typescript"))
+}
+
 /// Locate a TypeScript compiler binary.
 ///
 /// `$TSGO_BIN` is always honoured first as an explicit override.
@@ -524,6 +570,47 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(&dir);
         Some(dir)
+    }
+
+    #[test]
+    fn typescript_major_reads_the_package_behind_the_binary() {
+        let Some(dir) = scratch("major") else { return };
+        let bin = dir.join("node_modules/.bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        // pnpm's `.bin/tsc` is a script, not a link into the package.
+        std::fs::write(bin.join("tsc"), "#!/bin/sh\n").unwrap();
+        let tsc = TsgoBinary {
+            program: bin.join("tsc").display().to_string(),
+            args_prefix: Vec::new(),
+        };
+        assert_eq!(typescript_major(&tsc), None, "no package to read");
+        let pkg = dir.join("node_modules/typescript");
+        std::fs::create_dir_all(&pkg).unwrap();
+        std::fs::write(
+            pkg.join("package.json"),
+            r#"{"name":"typescript","version":"5.9.3"}"#,
+        )
+        .unwrap();
+        assert_eq!(typescript_major(&tsc), Some(5));
+        std::fs::write(
+            pkg.join("package.json"),
+            r#"{"name":"typescript","version":"6.0.3"}"#,
+        )
+        .unwrap();
+        assert_eq!(typescript_major(&tsc), Some(6));
+
+        let tsgo = TsgoBinary {
+            program: bin.join("tsgo").display().to_string(),
+            args_prefix: Vec::new(),
+        };
+        assert_eq!(typescript_major(&tsgo), Some(7));
+        let native = TsgoBinary {
+            program: "node".into(),
+            args_prefix: vec!["bin/tsc".into()],
+        };
+        assert_eq!(typescript_major(&native), Some(7));
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
