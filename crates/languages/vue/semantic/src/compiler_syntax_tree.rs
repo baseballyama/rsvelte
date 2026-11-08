@@ -94,7 +94,7 @@ impl Text {
 
     /// `raw` with its character references decoded.
     #[must_use]
-    pub fn decoded(raw: Span, source_text: &str) -> Self {
+    pub(crate) fn decoded(raw: Span, source_text: &str) -> Self {
         Self {
             raw,
             cooked: match rsvelte_markup_syntax::decode_text(raw.text(source_text)) {
@@ -197,14 +197,6 @@ impl CompilerSyntaxTree {
     #[must_use]
     pub fn root(&self) -> &[CompilerNodeIdentifier] {
         self.children(self.root)
-    }
-
-    #[must_use]
-    pub const fn heap_bytes(&self) -> usize {
-        self.nodes.capacity() * size_of::<Node>()
-            + self.props.capacity() * size_of::<Property>()
-            + self.origin.capacity() * size_of::<TemplateNodeIdentifier>()
-            + self.children.capacity() * size_of::<CompilerNodeIdentifier>()
     }
 }
 

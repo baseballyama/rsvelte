@@ -87,7 +87,7 @@ impl LayoutInstructions {
         self.trim_right(docs, ws);
     }
 
-    pub fn trim_left(
+    pub(crate) fn trim_left(
         &mut self,
         docs: &mut Vec<LayoutInstructionIdentifier>,
         ws: fn(&Self, LayoutInstructionIdentifier) -> bool,

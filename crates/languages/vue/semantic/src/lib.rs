@@ -9,5 +9,5 @@ pub mod compiler_syntax_tree;
 pub mod expressions;
 pub mod resolve;
 
-pub mod computation;
+pub(crate) mod computation;
 pub use computation::{Lowered, PLUGIN, Resolved, register};

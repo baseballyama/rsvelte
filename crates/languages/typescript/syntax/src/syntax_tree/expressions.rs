@@ -4,7 +4,7 @@ use super::{
 };
 
 impl SyntaxTree {
-    pub fn ident_atom(
+    pub(crate) fn ident_atom(
         &mut self,
         atom: Atom,
         source_location: impl Into<SourceLocation>,

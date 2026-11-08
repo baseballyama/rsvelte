@@ -86,7 +86,7 @@ const REFUSED_ELEMENTS: &[&str] = &[
 /// # Errors
 ///
 /// A `vuelte_unsupported` diagnostic at the first construct outside the mapping.
-pub fn check(
+pub(crate) fn check(
     compiler_syntax_tree: &CompilerSyntaxTree,
     javascript: &SyntaxTree,
     resolution: &Resolution,

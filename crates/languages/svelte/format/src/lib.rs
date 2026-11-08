@@ -1,7 +1,6 @@
 //! Svelte format.
 
-pub mod format;
-pub use format::*;
+pub(crate) mod format;
 
 mod task;
 pub use task::{Format, PLUGIN, register};

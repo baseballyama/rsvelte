@@ -26,7 +26,7 @@ fn run(source_text: &str, server: bool) -> Result<String, String> {
         "A.svelte",
     )
     .map_err(|d| d.message)?;
-    compile(&t, source_text, "A.svelte").map_err(|d| d.message)
+    Ok(compile(&t, source_text))
 }
 
 fn both(source_text: &str) -> (String, String) {

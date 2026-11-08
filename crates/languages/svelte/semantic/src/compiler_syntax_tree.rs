@@ -9,7 +9,7 @@ pub use lower::lower;
 use rsvelte_kernel::index::{IndexRange, IndexVector};
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::positions::Span;
-pub use rsvelte_svelte_syntax::names::is_component_name;
+pub(crate) use rsvelte_svelte_syntax::names::is_component_name;
 pub use rsvelte_svelte_syntax::syntax_tree::Part;
 use rsvelte_svelte_syntax::syntax_tree::{TemplateNodeIdentifier, decode_text};
 use rsvelte_typescript_syntax::NodeIdentifier;
@@ -133,7 +133,7 @@ impl Await {
     const THEN: u8 = 2;
 
     #[must_use]
-    pub fn new(
+    pub(crate) fn new(
         expression: NodeIdentifier,
         value: NodeIdentifier,
         error: NodeIdentifier,
@@ -178,12 +178,12 @@ impl Await {
     }
 
     #[must_use]
-    pub const fn value(&self) -> Option<NodeIdentifier> {
+    pub(crate) const fn value(&self) -> Option<NodeIdentifier> {
         some(self.value)
     }
 
     #[must_use]
-    pub const fn error(&self) -> Option<NodeIdentifier> {
+    pub(crate) const fn error(&self) -> Option<NodeIdentifier> {
         some(self.error)
     }
 
@@ -435,7 +435,7 @@ impl Modifiers {
     pub const CAPTURE: Self = Self(1 << 3);
     pub const GLOBAL: Self = Self(1 << 9);
     pub const IMPORTANT: Self = Self(1 << 11);
-    pub const LOCAL: Self = Self(1 << 10);
+    pub(crate) const LOCAL: Self = Self(1 << 10);
     pub const NONPASSIVE: Self = Self(1 << 6);
     pub const ONCE: Self = Self(1 << 4);
     pub const PASSIVE: Self = Self(1 << 5);
@@ -447,7 +447,7 @@ impl Modifiers {
 
     /// The modifier a name stands for, if any.
     #[must_use]
-    pub fn parse(name: &str) -> Option<Self> {
+    pub(crate) fn parse(name: &str) -> Option<Self> {
         Some(match name {
             "preventDefault" => Self::PREVENT_DEFAULT,
             "stopPropagation" => Self::STOP_PROPAGATION,
@@ -471,13 +471,8 @@ impl Modifiers {
     }
 
     #[must_use]
-    pub const fn with(self, other: Self) -> Self {
+    pub(crate) const fn with(self, other: Self) -> Self {
         Self(self.0 | other.0)
-    }
-
-    #[must_use]
-    pub const fn is_empty(self) -> bool {
-        self.0 == 0
     }
 }
 
@@ -561,16 +556,6 @@ impl CompilerSyntaxTree {
                 NodeKind::Element(el) => Some((identifier, el)),
                 _ => None,
             })
-    }
-
-    #[must_use]
-    pub const fn heap_bytes(&self) -> usize {
-        self.nodes.capacity() * size_of::<Node>()
-            + self.attributes.capacity() * size_of::<Attribute>()
-            + self.origin.capacity() * size_of::<TemplateNodeIdentifier>()
-            + self.children.capacity() * size_of::<CompilerNodeIdentifier>()
-            + self.branches.capacity() * size_of::<Branch>()
-            + self.javascript_lists.capacity() * size_of::<NodeIdentifier>()
     }
 }
 

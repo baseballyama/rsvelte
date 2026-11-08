@@ -104,10 +104,10 @@ impl Gen<'_> {
     }
 }
 
-pub use rsvelte_typescript_semantic::number::number;
+pub(crate) use rsvelte_typescript_semantic::number::number;
 
 /// Single-quoted JS string literal.
-pub fn quote(out: &mut String, v: &str) {
+pub(crate) fn quote(out: &mut String, v: &str) {
     out.push('\'');
     for c in v.chars() {
         match c {

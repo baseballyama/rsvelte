@@ -125,7 +125,7 @@ impl RenderPlan {
     }
 
     #[must_use]
-    pub fn namespace(
+    pub(crate) fn namespace(
         &self,
         node: rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier,
     ) -> Namespace {

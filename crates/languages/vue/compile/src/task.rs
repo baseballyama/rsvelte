@@ -8,7 +8,7 @@ use rsvelte_kernel::source::document::Document;
 use rsvelte_vue_semantic::{Lowered, Resolved};
 use rsvelte_vue_syntax::Parsed;
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "vue.compile",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
@@ -24,7 +24,7 @@ pub fn register(registry: &mut Registry) {
 }
 
 #[derive(Debug)]
-pub struct Compile;
+pub(crate) struct Compile;
 
 impl Task for Compile {
     fn identifier(&self) -> &'static str {

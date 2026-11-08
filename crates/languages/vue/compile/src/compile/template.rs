@@ -29,7 +29,7 @@ use rustc_hash::FxHashMap;
 type R<T> = Result<T, Unsupported>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Helper {
+pub(crate) enum Helper {
     Fragment,
     OpenBlock,
     CreateElementBlock,
@@ -54,7 +54,7 @@ pub enum Helper {
 impl Helper {
     /// The name `vue` exports it under (`helperNameMap`).
     #[must_use]
-    pub const fn name(self) -> &'static str {
+    pub(crate) const fn name(self) -> &'static str {
         match self {
             Self::Fragment => "Fragment",
             Self::OpenBlock => "openBlock",
@@ -276,7 +276,7 @@ fn reference_table(res: &Resolution) -> FxHashMap<NodeIdentifier, RefInfo> {
 
 /// A compiled template, ready for [`Compiled::generate`].
 #[derive(Debug)]
-pub struct Compiled {
+pub(crate) struct Compiled {
     tree: Vec<Node>,
     cg: Vec<Cg>,
     root_codegen: Option<Cid>,
@@ -304,7 +304,7 @@ struct Transform<'a> {
 /// # Errors
 ///
 /// [`Unsupported`] for a template construct the port does not cover.
-pub fn transform(
+pub(crate) fn transform(
     javascript: &SyntaxTree,
     compiler_syntax_tree: &CompilerSyntaxTree,
     source_text: &str,

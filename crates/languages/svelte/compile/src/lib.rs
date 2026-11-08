@@ -1,7 +1,7 @@
 //! Svelte compilation tasks.
 
-pub mod computation;
-pub mod input;
+pub(crate) mod computation;
+pub(crate) mod input;
 pub mod lower;
 pub mod render_plan;
 pub mod stylesheet;

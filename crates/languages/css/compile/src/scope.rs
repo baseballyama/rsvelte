@@ -12,28 +12,6 @@ pub enum RenderMode {
 }
 
 #[must_use]
-pub fn render(source: &str, sheet: &StyleSheet, used: &[bool], hash: &str) -> String {
-    render_with_facts(
-        source,
-        sheet,
-        used,
-        &vec![true; sheet.relative_count as usize],
-        hash,
-    )
-}
-
-#[must_use]
-pub fn render_with_facts(
-    source: &str,
-    sheet: &StyleSheet,
-    used: &[bool],
-    scoped: &[bool],
-    hash: &str,
-) -> String {
-    render_with_mode(source, sheet, used, scoped, hash, RenderMode::Preserve)
-}
-
-#[must_use]
 pub fn render_with_mode(
     source: &str,
     sheet: &StyleSheet,

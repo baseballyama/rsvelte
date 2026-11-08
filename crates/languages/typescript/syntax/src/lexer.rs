@@ -48,7 +48,7 @@ impl rsvelte_kernel::source::tokens::TokenKind for T {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct LexedToken {
+pub(crate) struct LexedToken {
     pub t: T,
     pub span: Span,
     /// A line terminator appeared between the previous token and this one (for ASI).
@@ -56,21 +56,21 @@ pub struct LexedToken {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct LexedRegex {
+pub(crate) struct LexedRegex {
     pub token: LexedToken,
     pub pattern: Span,
     pub flags: Span,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Lexer<'a> {
+pub(crate) struct Lexer<'a> {
     source_text: &'a [u8],
     pub position: usize,
     end: usize,
 }
 
 #[derive(Debug)]
-pub struct LexicalError {
+pub(crate) struct LexicalError {
     pub message: String,
     pub span: Span,
 }
@@ -87,7 +87,7 @@ const fn is_identifier_continue(b: u8) -> bool {
 
 impl<'a> Lexer<'a> {
     #[must_use]
-    pub const fn new(source_text: &'a str, start: usize, end: usize) -> Self {
+    pub(crate) const fn new(source_text: &'a str, start: usize, end: usize) -> Self {
         Lexer {
             source_text: source_text.as_bytes(),
             position: start,
@@ -166,7 +166,7 @@ impl<'a> Lexer<'a> {
     ///
     /// [`LexicalError`] on an unexpected character, an unterminated comment, string or template, or
     /// an unsupported literal.
-    pub fn next(&mut self, comments: &mut Vec<Span>) -> R<LexedToken> {
+    pub(crate) fn next(&mut self, comments: &mut Vec<Span>) -> R<LexedToken> {
         let newline_before = self.skip_trivia(comments)?;
         let start_offset = self.position;
         let mk = |t, end_offset: usize| LexedToken {
@@ -387,7 +387,7 @@ impl<'a> Lexer<'a> {
     /// # Errors
     ///
     /// [`LexicalError`] if the template is not terminated.
-    pub fn template_continue(&mut self, rbrace: Span) -> R<LexedToken> {
+    pub(crate) fn template_continue(&mut self, rbrace: Span) -> R<LexedToken> {
         self.position = rbrace.end_offset as usize;
         let tail = self.template_chars()?;
         Ok(LexedToken {
@@ -402,7 +402,7 @@ impl<'a> Lexer<'a> {
     /// # Errors
     ///
     /// [`LexicalError`] if the literal is not terminated before the end of its line.
-    pub fn regex(&mut self, slash: Span) -> R<LexedRegex> {
+    pub(crate) fn regex(&mut self, slash: Span) -> R<LexedRegex> {
         const UNICODE_MODES: u8 = (1 << 5) | (1 << 6);
         let start_offset = slash.start_offset as usize;
         self.position = start_offset + 1;

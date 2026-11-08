@@ -26,7 +26,7 @@ use rsvelte_vue_syntax::syntax_tree::{
 use rustc_hash::FxHashMap;
 
 #[derive(Debug)]
-pub enum Projection {
+pub(crate) enum Projection {
     /// Not type-checked: a `<script setup>` without `lang="ts"` makes the virtual file JavaScript,
     /// and vue-tsc reports no semantic diagnostics for it (`checkJavaScript` is offset).
     JavaScript,
@@ -43,7 +43,11 @@ const INSTANCE: &str = "import('vue').ComponentPublicInstance";
 /// # Errors
 ///
 /// [`Unsupported`] if the component holds a construct the projection does not handle yet.
-pub fn project(c: &SingleFileComponent, source_text: &str, res: &Resolution) -> R<Projection> {
+pub(crate) fn project(
+    c: &SingleFileComponent,
+    source_text: &str,
+    res: &Resolution,
+) -> R<Projection> {
     if c.script.is_some() && !c.typescript {
         return Ok(Projection::JavaScript);
     }

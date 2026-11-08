@@ -23,7 +23,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TagAttributes, TemplateNode,
     TemplateNodeIdentifier,
 };
-pub use rsvelte_typescript_format::Unsupported;
+pub(crate) use rsvelte_typescript_format::Unsupported;
 use rsvelte_typescript_format::{Formatter, Options as JavaScriptOptions};
 
 type R<T> = Result<T, Unsupported>;
@@ -36,7 +36,7 @@ const TAB_WIDTH: usize = 2;
 /// [`Unsupported`] if the component holds a construct this formatter does not print, or a
 /// flat-only layout that does not fit.
 /// `lines` is `source_text`'s, which the pipeline builds once per document.
-pub fn format(c: &Component, source_text: &str, lines: &LineIndex) -> R<String> {
+pub(crate) fn format(c: &Component, source_text: &str, lines: &LineIndex) -> R<String> {
     let mut docs = LayoutInstructions::new();
     let javascript = Formatter::new(
         &c.javascript,

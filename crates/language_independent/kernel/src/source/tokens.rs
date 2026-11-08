@@ -15,7 +15,7 @@ use crate::performance::buffer_pool;
 use crate::source::positions::Span;
 
 pub trait TokenKind: Copy + Eq + Debug + 'static {
-    /// Whitespace and comments: skipped by [`Tokens::before`] and [`Tokens::after`].
+    /// Whitespace and comments: skipped by [`Tokens::after`].
     fn is_trivia(self) -> bool;
 }
 
@@ -98,11 +98,6 @@ impl<K: TokenKind> Tokens<K> {
         self.tokens.is_empty()
     }
 
-    #[must_use]
-    pub fn get(&self, identifier: TokenIdentifier) -> &Token<K> {
-        &self.tokens[identifier]
-    }
-
     pub fn iter(&self) -> impl DoubleEndedIterator<Item = &Token<K>> + ExactSizeIterator {
         self.tokens.iter()
     }
@@ -116,24 +111,6 @@ impl<K: TokenKind> Tokens<K> {
     #[must_use]
     pub fn since(&self, n: usize) -> &[Token<K>] {
         &self.tokens.raw()[n..]
-    }
-
-    /// The token containing `offset`.
-    #[must_use]
-    pub fn at(&self, offset: u32) -> Option<TokenIdentifier> {
-        let raw = self.tokens.raw();
-        let i = raw.partition_point(|t| t.span.end_offset <= offset);
-        (i < raw.len() && raw[i].span.start_offset <= offset).then(|| TokenIdentifier::new(i))
-    }
-
-    /// The last non-trivia token that ends at or before `offset`.
-    pub fn before(&self, offset: u32) -> Option<TokenIdentifier> {
-        let raw = self.tokens.raw();
-        let end = raw.partition_point(|t| t.span.end_offset <= offset);
-        raw[..end]
-            .iter()
-            .rposition(|t| !t.kind.is_trivia())
-            .map(TokenIdentifier::new)
     }
 
     /// The first non-trivia token that starts at or after `offset`.

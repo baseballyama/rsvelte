@@ -3,5 +3,5 @@
 pub mod parse;
 pub mod syntax_tree;
 
-pub mod computation;
+pub(crate) mod computation;
 pub use computation::{PLUGIN, Parsed, matches, register};

@@ -37,7 +37,7 @@ use crate::script::{Plan, prop_member, walk};
 use crate::{R, unsupported};
 
 #[derive(Debug)]
-pub struct Built {
+pub(crate) struct Built {
     pub compiler_syntax_tree: vue::CompilerSyntaxTree,
     /// The helpers the template calls, sorted.
     pub helpers: Vec<Helper>,
@@ -53,7 +53,7 @@ const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];
 
 /// What [`build`] reads.
 #[derive(Clone, Copy, Debug)]
-pub struct Input<'a> {
+pub(crate) struct Input<'a> {
     pub compiler_syntax_tree: &'a CompilerSyntaxTree,
     pub resolution: &'a Resolution,
     pub analysis: &'a Analysis,
@@ -72,7 +72,7 @@ pub struct Input<'a> {
 /// # Panics
 ///
 /// If resolution does not include the snippet bindings.
-pub fn build(input: Input<'_>, to: &mut SyntaxTree) -> R<Built> {
+pub(crate) fn build(input: Input<'_>, to: &mut SyntaxTree) -> R<Built> {
     let compiler_syntax_tree = input.compiler_syntax_tree;
     let mut snippet_names = FxHashMap::default();
     let mut declarations = Vec::new();
@@ -243,9 +243,9 @@ use properties::{
 };
 
 mod check;
-pub use check::check;
+pub(crate) use check::check;
 pub(crate) use options::copy_options;
-pub use options::{CssMode, CustomElement, Options};
+pub(crate) use options::{CssMode, CustomElement, Options};
 
 mod attributes;
 mod await_block;

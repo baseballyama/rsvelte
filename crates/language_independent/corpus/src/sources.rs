@@ -34,7 +34,7 @@ impl Source {
 
     /// `<dir>/<kind>/<task>/<variant>.pack`.
     #[must_use]
-    pub fn pack(&self, kind: &str, task: &str) -> PathBuf {
+    pub(crate) fn pack(&self, kind: &str, task: &str) -> PathBuf {
         let (task, variant) = rsvelte_kernel::task_files::location(task);
         self.dir
             .join(kind)

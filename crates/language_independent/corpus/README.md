@@ -1,8 +1,8 @@
-# rsvelte_corpus
+# The corpus comparison
 
-Compares rsvelte with the official tools over [the corpus](../../../corpus/README.md).
-`crates/hosts/command_line/tests/corpus.rs` is the one test that uses it: each unit is read and
-parsed once, every task runs on it, and each output is compared as soon as it is final.
+This crate compares rsvelte with the official tools over [the corpus](../../../corpus/README.md).
+One test uses it: `crates/hosts/command_line/tests/corpus.rs`. The test reads and parses each unit
+once and runs every task on it. It compares each output as soon as the output is final.
 
 ```sh
 cargo test -p rsvelte_command_line --test corpus                    # compare with the ledger
@@ -12,12 +12,13 @@ CORPUS_ACTUAL=1 cargo test -p rsvelte_command_line --test corpus    # write actu
 CORPUS_MOVES=<file> cargo test -p rsvelte_command_line --test corpus
 ```
 
-`CORPUS_MOVES` writes every move to the file; the run prints only the first ones per task.
+`CORPUS_MOVES` writes every move to the file. The run itself prints only the first moves per task.
 
 ## Verdicts
 
-Each unit gets one verdict per task and variant. The official files are paired with rsvelte's by
-name; `warnings.json` is paired with rsvelte's diagnostics and `lint.txt` with `lint.json`.
+Each unit gets one verdict per task and variant. The test pairs each official file with the
+rsvelte file of the same name. Two names differ: `warnings.json` pairs with rsvelte's diagnostics,
+and `lint.txt` pairs with `lint.json`.
 
 | Verdict       | Meaning                                                                      |
 | ------------- | ---------------------------------------------------------------------------- |
@@ -29,14 +30,14 @@ name; `warnings.json` is paired with rsvelte's diagnostics and `lint.txt` with `
 | `refused`     | rsvelte rejected a unit the official tool accepted                           |
 | `panicked`    | a task panicked                                                              |
 
-A unit's verdict is that of its worst file: the lowest row of the table that applies. JavaScript
-is compared as a syntax tree (comments, layout and the spelling of literals are ignored), lint
-findings only for the rules rsvelte ran, JSON as values, and the rest as bytes. When both tools
-reject a unit, the compile error must be the same.
+A unit takes the verdict of its worst file: the lowest row of the table that applies. The test
+compares JavaScript as a syntax tree, so comments, layout and the spelling of literals do not
+count. It compares lint findings only for the rules rsvelte ran. JSON counts as values and
+everything else as bytes. When both tools reject a unit, the compile errors must agree.
 
 ## The ledger
 
-`corpus/_registry/parity/<task>/<variant>.txt` lists every unit that does not match, under a
-header that counts the matches. A verdict that moves in either direction fails the test until it
-is recorded, so a fix is kept and a regression is seen. `UPDATE_EXPECT=1` refuses a filtered run,
-since the count would be wrong.
+`corpus/_registry/parity/<task>/<variant>.txt` lists every unit that does not match. Its header
+counts the matches. A verdict that moves in either direction fails the test until you record it.
+That way a fix stays, and a regression shows. `UPDATE_EXPECT=1` refuses a filtered run, because
+the count would then be wrong.

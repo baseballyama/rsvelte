@@ -4,7 +4,7 @@ mod custom_element;
 pub(crate) use custom_element::copy_options;
 
 #[derive(Clone, Debug)]
-pub struct CustomElement {
+pub(crate) struct CustomElement {
     pub tag: Option<String>,
     pub shadow_root: bool,
     pub shadow: Option<super::NodeIdentifier>,
@@ -13,14 +13,14 @@ pub struct CustomElement {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum CssMode {
+pub(crate) enum CssMode {
     #[default]
     External,
     Injected,
 }
 
 #[derive(Debug, Default)]
-pub struct Options {
+pub(crate) struct Options {
     pub preserve_whitespace: bool,
     pub css_mode: CssMode,
     pub custom_element: Option<CustomElement>,

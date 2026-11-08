@@ -1,6 +1,6 @@
 //! TypeScript check.
 
-pub mod check;
+pub(crate) mod check;
 pub use check::*;
 
 mod extension;

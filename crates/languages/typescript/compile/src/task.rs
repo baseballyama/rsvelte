@@ -9,7 +9,7 @@ use rsvelte_typescript_syntax::syntax_tree::TypeScriptFeature;
 
 use crate::codegen;
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "typescript.compile",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
@@ -25,7 +25,7 @@ pub fn register(registry: &mut Registry) {
 }
 
 #[derive(Debug)]
-pub struct Compile;
+pub(crate) struct Compile;
 
 impl Task for Compile {
     fn identifier(&self) -> &'static str {

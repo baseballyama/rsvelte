@@ -1,7 +1,6 @@
 //! Vue check.
 
-pub mod project;
-pub use project::*;
+pub(crate) mod project;
 
 mod configuration;
 mod extension;

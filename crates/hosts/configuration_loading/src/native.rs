@@ -38,13 +38,13 @@ struct Descriptor {
 }
 
 #[derive(Debug)]
-pub struct Resolver {
+pub(crate) struct Resolver {
     directory: PathBuf,
 }
 
 impl Resolver {
     #[must_use]
-    pub fn new(directory: &Path) -> Self {
+    pub(crate) fn new(directory: &Path) -> Self {
         Self {
             directory: directory.to_owned(),
         }

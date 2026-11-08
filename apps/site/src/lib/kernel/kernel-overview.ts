@@ -141,7 +141,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel/database',
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/database.rs',
-			line: 197,
+			line: 192,
 			text: 'pub fn get<A: Artifact>(&self) -> &A::Output {',
 		},
 		box: { x: left, y: 262, w: width, h: height },
@@ -395,7 +395,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [496, 318],
 		source: {
 			path: 'crates/language_independent/kernel/src/computation/database.rs',
-			line: 219,
+			line: 214,
 			text: 'pub fn facet<F: Facet>(&self) -> Option<&F::Output> {',
 		},
 	},

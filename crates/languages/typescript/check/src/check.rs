@@ -23,11 +23,11 @@ use rsvelte_kernel::source::positions::{LineIndex, Span};
 
 /// What a type checker must accept: rsvelte runs it in a directory with a generated
 /// `tsconfig.json` (with `contentMappers`) and reads the report it prints.
-pub const CONTRACT: &str = "a type checker with the command line of TypeScript 7.1 or later: \
+pub(crate) const CONTRACT: &str = "a type checker with the command line of TypeScript 7.1 or later: \
      `-p <dir> --pretty true --runExternalCode`, `contentMappers` in tsconfig.json, and its report";
 
 /// A type checker: `tsc` of TypeScript 7.1, or any product with the same command line
-/// ([`CONTRACT`]).
+/// (`CONTRACT`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TypeChecker {
     /// An absolute path, or a name looked up in `PATH`.
@@ -37,21 +37,13 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
-    #[must_use]
-    pub fn new(program: impl Into<PathBuf>) -> Self {
-        Self {
-            program: program.into(),
-            arguments: Vec::new(),
-        }
-    }
-
     /// What `--version` prints, such as `Version 7.1.0`, so a result can name the checker that
     /// made it. Fails, saying what to change, when the checker cannot run or is a `tsc` older than
     /// 7.1.
     ///
     /// # Errors
     /// The checker is missing, cannot run, fails, or is too old.
-    pub fn identify(&self) -> Result<String, String> {
+    pub(crate) fn identify(&self) -> Result<String, String> {
         let output = match Command::new(&self.program)
             .args(&self.arguments)
             .arg("--version")
@@ -127,7 +119,7 @@ pub struct Tsc {
 }
 
 #[derive(Default, Debug)]
-pub struct CheckRequest {
+pub(crate) struct CheckRequest {
     /// Generated TypeScript, one per document.
     pub files: Vec<String>,
     pub mapped_files: Vec<Option<ContentMappedInput>>,
@@ -141,7 +133,7 @@ pub struct CheckRequest {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct TypeScriptDiagnostic {
+pub(crate) struct TypeScriptDiagnostic {
     /// Index into [`CheckRequest::files`].
     pub file: usize,
     pub code: u32,
@@ -198,7 +190,7 @@ impl TypeScriptEnv {
     ///
     /// A message naming a declaration file or module specifier the two environments define
     /// differently.
-    pub fn merge(&mut self, other: &Self) -> Result<(), String> {
+    pub(crate) fn merge(&mut self, other: &Self) -> Result<(), String> {
         if let Some(mapper) = &other.content_mapper {
             match &self.content_mapper {
                 None => self.content_mapper = Some(mapper.clone()),
@@ -235,12 +227,12 @@ impl TypeScriptEnv {
 ///
 /// Plain generated inputs use this policy. Content-mapped inputs use native TypeScript's mapping.
 /// `None` drops a generated finding with no original counterpart.
-pub type MapBack = fn(&Emitter, Span) -> Option<Span>;
+pub(crate) type MapBack = fn(&Emitter, Span) -> Option<Span>;
 
 /// Type checking over matching documents whose plugins provide [`TypeScriptView`].
 ///
 /// Each document is projected on its worker, then one `tsc` checks them all. Writes each document's
-/// findings as svelte-check and vue-tsc report them (`json`, see [`render_findings`]).
+/// findings as svelte-check and vue-tsc report them (`json`, see `render_findings`).
 #[derive(Debug)]
 pub struct Check {
     pub identifier: &'static str,
@@ -430,7 +422,7 @@ fn byte_order_mark(source: &str) -> u32 {
 
 /// Findings as svelte-check and vue-tsc report them: `code`, the flattened `message`, and 0-based
 /// lines with UTF-16 characters, in document order.
-pub fn render_findings(lines: &LineIndex, found: &mut [(Span, u32, String)]) -> String {
+pub(crate) fn render_findings(lines: &LineIndex, found: &mut [(Span, u32, String)]) -> String {
     found.sort_by_key(|(span, ..)| span.start_offset);
     let mut w = StructuredDataWriter::new(true);
     w.begin_array();
@@ -463,7 +455,7 @@ impl Tsc {
     ///
     /// A message if the temporary project cannot be written, `tsc` cannot be run, or its report
     /// cannot be parsed.
-    pub fn check(&self, req: &CheckRequest) -> Result<Vec<TypeScriptDiagnostic>, String> {
+    pub(crate) fn check(&self, req: &CheckRequest) -> Result<Vec<TypeScriptDiagnostic>, String> {
         if !req.mapped_files.is_empty() && req.mapped_files.len() != req.files.len() {
             return Err("mapped inputs must match the projection population".into());
         }
@@ -587,7 +579,7 @@ impl Tsc {
 mod report;
 use report::{parse_report, strip_ansi};
 mod mapped;
-pub use mapped::ContentMappedInput;
+pub(crate) use mapped::ContentMappedInput;
 
 #[cfg(test)]
 mod tests;

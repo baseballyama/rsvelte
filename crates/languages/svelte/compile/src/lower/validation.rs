@@ -16,7 +16,7 @@ use super::{
 ///
 /// An `unsupported` [`Diagnostic`] at the element's name.
 #[expect(clippy::too_many_lines, reason = "one case per foreign element name")]
-pub fn check_foreign_element(source_text: &str, name: Span) -> Result<(), Diagnostic> {
+pub(crate) fn check_foreign_element(source_text: &str, name: Span) -> Result<(), Diagnostic> {
     let text = name.text(source_text);
     if matches!(
         text,

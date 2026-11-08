@@ -16,7 +16,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::helpers::{self, Helper};
 use crate::{R, unsupported};
 
-/// What [`plan`] found: the script's runes and the names the template needs.
+/// What `plan` found: the script's runes and the names the template needs.
 #[derive(Debug, Default)]
 pub struct Plan {
     constructors: constructors::Plan,
@@ -78,7 +78,7 @@ const VUE_HELPERS: &[&str] = &[
 
 /// `@vue/shared` `GLOBALS_ALLOWED`: a template name outside the list and the component's bindings
 /// is read from `_ctx`, which a Svelte global is not; a prop key in it would be read as a prop.
-pub const VUE_GLOBALS: &[&str] = &[
+pub(crate) const VUE_GLOBALS: &[&str] = &[
     "Infinity",
     "undefined",
     "NaN",
@@ -134,7 +134,7 @@ fn is_internal(name: &str) -> bool {
 /// # Panics
 ///
 /// If the resolution does not match the input tree.
-pub fn plan(c: &Component, resolution: &Resolution, source_text: &str) -> R<Plan> {
+pub(crate) fn plan(c: &Component, resolution: &Resolution, source_text: &str) -> R<Plan> {
     let mut plan = Plan::default();
     let javascript = &c.javascript;
     check_names(javascript, resolution)?;
@@ -381,7 +381,7 @@ fn check_writes(javascript: &SyntaxTree, resolution: &Resolution) -> R<()> {
 /// # Errors
 ///
 /// The first error `f` returns.
-pub fn walk(
+pub(crate) fn walk(
     javascript: &SyntaxTree,
     root: NodeIdentifier,
     f: &mut impl FnMut(NodeIdentifier) -> R<()>,
@@ -526,7 +526,7 @@ mod module;
 mod patterns;
 pub(crate) mod runes;
 pub(crate) use emit::rune_value;
-pub use emit::{emit, prop_member};
+pub(crate) use emit::{emit, prop_member};
 pub(crate) use patterns::declaration as pattern_declaration;
 
 pub(crate) fn prop_cell(

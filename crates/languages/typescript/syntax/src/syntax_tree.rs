@@ -125,24 +125,24 @@ pub mod flag {
     pub const VAR: u8 = 0;
     pub const LET: u8 = 1;
     pub const CONST: u8 = 2;
-    pub const ASYNC: u8 = 1;
+    pub(crate) const ASYNC: u8 = 1;
     pub const GENERATOR: u8 = 4;
-    pub const EXPRESSION_BODY: u8 = 2;
+    pub(crate) const EXPRESSION_BODY: u8 = 2;
     pub const SHORTHAND: u8 = 1;
     pub const COMPUTED: u8 = 2;
     pub const METHOD: u8 = 4;
     pub const GETTER: u8 = 8;
     pub const SETTER: u8 = 16;
-    pub const OPTIONAL: u8 = 1;
-    pub const PREFIX: u8 = 0x80;
+    pub(crate) const OPTIONAL: u8 = 1;
+    pub(crate) const PREFIX: u8 = 0x80;
     /// String: value lives in `strings`, not in the source.
     pub const OWNED: u8 = 1;
     pub const TAIL: u8 = 2;
     /// Call/New: annotated `/* @__PURE__ */`.
-    pub const PURE: u8 = 4;
+    pub(crate) const PURE: u8 = 4;
     /// Import/Export: `import type` / `export type` (erased).
     pub const TYPE_ONLY: u8 = 8;
-    pub const IMPORT_ATTRIBUTES: u8 = 16;
+    pub(crate) const IMPORT_ATTRIBUTES: u8 = 16;
 }
 
 /// A decoded view of one node. Lists borrow the `extra` column directly.

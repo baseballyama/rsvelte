@@ -3,5 +3,5 @@
 pub mod number;
 pub mod scope;
 
-pub mod computation;
+pub(crate) mod computation;
 pub use computation::{PLUGIN, Resolved, register};

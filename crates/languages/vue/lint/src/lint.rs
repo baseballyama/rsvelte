@@ -18,7 +18,7 @@ use rsvelte_vue_syntax::syntax_tree::{
 };
 
 #[derive(Debug)]
-pub struct RuleContext<'a> {
+pub(crate) struct RuleContext<'a> {
     pub c: &'a SingleFileComponent,
     pub source_text: &'a str,
     /// The document's path: some rules read the file name.
@@ -38,18 +38,18 @@ static RULES: &[&VueRule] = &[
 ];
 
 #[must_use]
-pub fn lint(context: &RuleContext<'_>) -> Vec<Diagnostic> {
+pub(crate) fn lint(context: &RuleContext<'_>) -> Vec<Diagnostic> {
     let mut f = Findings::new();
     f.run(RULES.iter().copied(), context);
     f.finish()
 }
 
-pub fn rule_identifiers() -> impl Iterator<Item = &'static str> + Clone {
+pub(crate) fn rule_identifiers() -> impl Iterator<Item = &'static str> + Clone {
     RULES.iter().map(|r| r.identifier())
 }
 
 #[derive(Debug)]
-pub struct NoUnusedVariables;
+pub(crate) struct NoUnusedVariables;
 
 impl<'a> Rule<RuleContext<'a>> for NoUnusedVariables {
     fn identifier(&self) -> &'static str {
@@ -69,7 +69,7 @@ impl<'a> Rule<RuleContext<'a>> for NoUnusedVariables {
 /// With the default options (no `ignorePattern`). The template has no component tags yet, so
 /// upstream's `isUsedAsComponentTag` has nothing to find.
 #[derive(Debug)]
-pub struct VueNoUnusedVariables;
+pub(crate) struct VueNoUnusedVariables;
 
 impl<'a> Rule<RuleContext<'a>> for VueNoUnusedVariables {
     fn identifier(&self) -> &'static str {
@@ -154,7 +154,7 @@ fn pattern_bindings(
 /// lowercases them in HTML. The parser refuses a directive without an expression, so upstream's
 /// empty `:type` branch has no input yet.
 #[derive(Debug)]
-pub struct MarkupButtonHasType;
+pub(crate) struct MarkupButtonHasType;
 
 impl<'a> Rule<RuleContext<'a>> for MarkupButtonHasType {
     fn identifier(&self) -> &'static str {
@@ -215,7 +215,7 @@ const fn value_node(v: Span, quoted: bool) -> Span {
 /// With the default options. A `<script setup>` component has no `name` option to read (the
 /// parser has no `defineOptions`), so the name is always the file's.
 #[derive(Debug)]
-pub struct MultiWordComponentNames;
+pub(crate) struct MultiWordComponentNames;
 
 /// eslint-plugin-vue's `VUE3_BUILTIN_COMPONENT_NAMES`.
 const BUILTIN: &[&str] = &[

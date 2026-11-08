@@ -46,7 +46,7 @@ impl Artifact for Printed {
     }
 }
 
-pub static PLUGIN: Plugin = Plugin {
+pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "svelte.typescript_projection",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {

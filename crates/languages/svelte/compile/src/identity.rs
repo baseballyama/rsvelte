@@ -13,7 +13,7 @@ pub struct OutputIdentity {
 impl OutputIdentity {
     /// # Errors
     /// The configured hash function failed or returned an invalid CSS identifier.
-    pub fn build_with_configuration(
+    pub(crate) fn build_with_configuration(
         input: &ComponentInput<'_>,
         configuration: &crate::Configuration,
     ) -> Result<Self, rsvelte_plugin_interface::CallError> {

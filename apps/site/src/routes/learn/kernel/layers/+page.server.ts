@@ -23,7 +23,7 @@ export const load = () => ({
 		indexVec: 'kernel/index/IndexVector',
 		fromElem: 'kernel/index/IndexVector::from_element_n',
 		lossless: 'kernel/source/tokens/Tokens::check_lossless',
-		before: 'kernel/source/tokens/Tokens::before',
+		after: 'kernel/source/tokens/Tokens::after',
 		tk: 'svelte/syntax/syntax_tree/TokenType',
 		resolution: 'svelte/semantic/resolve/Resolution',
 		resolve: 'svelte/semantic/resolve/resolve',

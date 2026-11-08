@@ -44,7 +44,7 @@ pub fn copy<R: Rewrite + ?Sized>(
         .unwrap_or_else(|| copy_node(from, to, r, identifier))
 }
 
-pub fn copy_opt<R: Rewrite + ?Sized>(
+pub(crate) fn copy_opt<R: Rewrite + ?Sized>(
     from: &SyntaxTree,
     to: &mut SyntaxTree,
     r: &mut R,
@@ -53,7 +53,7 @@ pub fn copy_opt<R: Rewrite + ?Sized>(
     identifier.map(|i| copy(from, to, r, i))
 }
 
-pub fn copy_all<R: Rewrite + ?Sized>(
+pub(crate) fn copy_all<R: Rewrite + ?Sized>(
     from: &SyntaxTree,
     to: &mut SyntaxTree,
     r: &mut R,

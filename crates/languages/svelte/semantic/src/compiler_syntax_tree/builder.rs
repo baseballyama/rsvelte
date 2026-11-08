@@ -38,7 +38,7 @@ impl<'s> CompilerSyntaxTreeBuilder<'s> {
             .push(Node { kind, span, parent })
     }
 
-    pub fn component_reference(
+    pub(crate) fn component_reference(
         &mut self,
         identifier: CompilerNodeIdentifier,
         reference: NodeIdentifier,
@@ -50,11 +50,6 @@ impl<'s> CompilerSyntaxTreeBuilder<'s> {
 
     pub fn set_kind(&mut self, identifier: CompilerNodeIdentifier, kind: NodeKind) {
         self.compiler_syntax_tree.nodes[identifier].kind = kind;
-    }
-
-    /// For a node whose extent is known only after its children (a chain of branches).
-    pub fn set_span(&mut self, identifier: CompilerNodeIdentifier, span: Span) {
-        self.compiler_syntax_tree.nodes[identifier].span = span;
     }
 
     /// Records the attributes of the element `owner` will be; returns their range.
@@ -81,7 +76,7 @@ impl<'s> CompilerSyntaxTreeBuilder<'s> {
         }
     }
 
-    pub fn javascript_list(&mut self, nodes: &[NodeIdentifier]) -> NodeList {
+    pub(crate) fn javascript_list(&mut self, nodes: &[NodeIdentifier]) -> NodeList {
         let start = self.compiler_syntax_tree.javascript_lists.len() as u32;
         self.compiler_syntax_tree.javascript_lists.extend(nodes);
         NodeList {

@@ -1,8 +1,8 @@
 mod asynchronous;
-pub mod helpers;
+pub(crate) mod helpers;
 mod patterns;
-pub mod script;
-pub mod template;
+pub(crate) mod script;
+pub(crate) mod template;
 mod vapor;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -16,7 +16,7 @@ use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 /// The translated component: one JavaScript tree holding the `<script setup>` program and every
 /// template expression, and the template's Vue HIR.
 #[derive(Debug)]
-pub struct Translation {
+pub(crate) struct Translation {
     pub javascript: SyntaxTree,
     pub script: NodeIdentifier,
     pub module_script: Option<NodeIdentifier>,
@@ -57,7 +57,7 @@ pub(crate) fn unsupported(what: impl std::fmt::Display, span: Span) -> Diagnosti
 /// # Errors
 ///
 /// A `vuelte_unsupported` [`Diagnostic`] for a construct outside the mapping.
-pub fn check(
+pub(crate) fn check(
     c: &Component,
     compiler_syntax_tree: &CompilerSyntaxTree,
     resolution: &Resolution,
@@ -101,7 +101,7 @@ pub fn check(
     clippy::too_many_arguments,
     reason = "translation reads one file's trees and facts"
 )]
-pub fn translate(
+pub(crate) fn translate(
     c: &Component,
     compiler_syntax_tree: &CompilerSyntaxTree,
     resolution: &Resolution,
@@ -183,11 +183,7 @@ pub fn translate(
 }
 
 /// Emits a Vapor client module or a Vue SSR compatibility module.
-///
-/// # Errors
-///
-/// The Vue port's refusal, as a `vuelte_unsupported` [`Diagnostic`].
-pub fn compile(t: &Translation, source_text: &str, _path: &str) -> R<String> {
+pub(crate) fn compile(t: &Translation, source_text: &str) -> String {
     let resolution = rsvelte_vue_semantic::resolve::resolve_with_module(
         &t.javascript,
         t.script,
@@ -195,5 +191,5 @@ pub fn compile(t: &Translation, source_text: &str, _path: &str) -> R<String> {
         Some(&t.compiler_syntax_tree),
         source_text,
     );
-    Ok(vapor::compile(t, &resolution, source_text))
+    vapor::compile(t, &resolution, source_text)
 }

@@ -3,7 +3,7 @@
 
 // Loading native libraries and running processes need an operating system.
 #[cfg(not(target_arch = "wasm32"))]
-pub mod native;
+pub(crate) mod native;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod process;
 mod wire;

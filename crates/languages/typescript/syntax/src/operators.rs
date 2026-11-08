@@ -18,7 +18,7 @@ macro_rules! operator_enum {
 			}
 
 			#[inline]
-			pub const fn from_u8(v: u8) -> $name {
+			pub(crate) const fn from_u8(v: u8) -> $name {
 				Self::ALL[v as usize]
 			}
 		}

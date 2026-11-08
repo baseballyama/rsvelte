@@ -17,7 +17,7 @@ pub(super) struct Gen<'a> {
 impl Compiled {
     /// `generate` for a module: the preamble (`genModulePreamble`: the helper import and the
     /// hoists) and the expression the render function returns.
-    pub fn generate(
+    pub(crate) fn generate(
         &self,
         javascript: &SyntaxTree,
         res: &Resolution,

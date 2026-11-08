@@ -1,6 +1,6 @@
 //! TypeScript lint.
 
-pub mod lint;
+pub(crate) mod lint;
 pub use lint::*;
 
 mod task;

@@ -10,7 +10,7 @@ impl Parser<'_, '_> {
     /// # Errors
     ///
     /// [`super::ParseError`] at the first lexical or syntax error.
-    pub fn expression(&mut self) -> R<NodeIdentifier> {
+    pub(crate) fn expression(&mut self) -> R<NodeIdentifier> {
         let start_offset = self.token.span.start_offset;
         let first = self.assignment()?;
         if self.token.t != T::Comma {

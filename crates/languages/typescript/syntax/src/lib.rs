@@ -12,5 +12,5 @@ pub mod operators;
 pub mod parser;
 pub mod syntax_tree;
 
-pub mod computation;
+pub(crate) mod computation;
 pub use computation::{PLUGIN, Parsed, Program, is_typescript, matches, register};

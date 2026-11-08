@@ -102,9 +102,9 @@
 //! - A listener that falls through replaces the root's own listener for that event instead of being
 //!   merged with it.
 
-pub mod compilation;
-pub mod computation;
-pub use compilation::{Translation, translate};
+pub(crate) mod compilation;
+pub(crate) mod computation;
+pub use compilation::Translation;
 pub(crate) use compilation::{context, script, template};
 pub use computation::{
     Analyzed, Client, Compile, PLUGIN, Resolved, Server, Side, Translated, register,

@@ -223,7 +223,7 @@ impl Simple {
     }
 
     #[must_use]
-    pub fn has_nesting(&self) -> bool {
+    pub(crate) fn has_nesting(&self) -> bool {
         match self {
             Self::Nesting(_) => true,
             Self::PseudoClass { selectors, .. } => selectors.iter().any(|selector| {

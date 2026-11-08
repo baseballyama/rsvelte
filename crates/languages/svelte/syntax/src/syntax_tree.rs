@@ -23,7 +23,7 @@ pub struct Range {
 impl Range {
     /// An absent child list, which is not the empty one: `{#await p}{:then}{/await}` has an empty
     /// `then` and no `catch`.
-    pub const ABSENT: Self = Self {
+    pub(crate) const ABSENT: Self = Self {
         start: u32::MAX,
         len: 0,
     };
@@ -98,7 +98,7 @@ pub enum TemplateNode {
     },
     /// `{#await expression}…{:then value}…{:catch error}…{/await}`. `{#await p then v}` has no
     /// pending branch. An absent pattern is `NodeIdentifier::NONE`; an absent branch is
-    /// [`Range::ABSENT`].
+    /// `Range::ABSENT`.
     Await {
         expression: NodeIdentifier,
         value: NodeIdentifier,
@@ -215,7 +215,7 @@ pub enum AttributeKind {
 impl AttributeKind {
     /// The length of the prefix before the directive's name, the `:` included.
     #[must_use]
-    pub const fn prefix_len(self) -> Option<u32> {
+    pub(crate) const fn prefix_len(self) -> Option<u32> {
         Some(match self {
             Self::Bind => "bind:".len() as u32,
             Self::Class => "class:".len() as u32,
@@ -420,18 +420,6 @@ impl Component {
     #[must_use]
     pub fn javascript_list(&self, r: Range) -> &[NodeIdentifier] {
         r.get(&self.javascript_lists)
-    }
-
-    #[must_use]
-    pub const fn heap_bytes(&self) -> usize {
-        self.javascript.heap_bytes()
-            + self.nodes.capacity() * size_of::<TemplateNode>()
-            + self.children.capacity() * 4
-            + self.attributes.capacity() * size_of::<Attribute>()
-            + self.parts.capacity() * size_of::<Part>()
-            + self.modifiers.capacity() * size_of::<Span>()
-            + self.javascript_lists.capacity() * size_of::<NodeIdentifier>()
-            + self.tokens.heap_bytes()
     }
 }
 

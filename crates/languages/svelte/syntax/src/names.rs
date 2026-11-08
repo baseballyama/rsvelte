@@ -58,7 +58,7 @@ fn is_uppercase_letter(c: char) -> bool {
 
 /// Upstream `is_valid_element_name`: a doctype, a `namespace:name`, or a tag name.
 #[must_use]
-pub fn is_valid_element_name(name: &str) -> bool {
+pub(crate) fn is_valid_element_name(name: &str) -> bool {
     if let Some(rest) = name.strip_prefix('!') {
         return !rest.is_empty() && rest.chars().all(|c| c.is_ascii_alphabetic());
     }
@@ -101,7 +101,7 @@ fn is_valid_tag_name(name: &str) -> bool {
 }
 
 /// Upstream `meta_tags`: the `svelte:` elements.
-pub const META_TAGS: &[&str] = &[
+pub(crate) const META_TAGS: &[&str] = &[
     "svelte:head",
     "svelte:options",
     "svelte:window",

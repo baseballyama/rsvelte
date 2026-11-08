@@ -19,7 +19,7 @@ pub struct Translation {
 
 impl Translation {
     #[must_use]
-    pub fn compile_input<'a>(
+    pub(crate) fn compile_input<'a>(
         &'a self,
         source_text: &'a str,
         filename: &'a str,
@@ -47,7 +47,7 @@ impl Translation {
 ///
 /// A `compile_unsupported` [`Diagnostic`] for what svue does not translate (the crate's doc lists
 /// every refusal).
-pub fn translate(
+pub(crate) fn translate(
     sfc: &rsvelte_vue_syntax::syntax_tree::SingleFileComponent,
     compiler_syntax_tree: Option<&rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTree>,
     resolution: &rsvelte_vue_semantic::resolve::Resolution,

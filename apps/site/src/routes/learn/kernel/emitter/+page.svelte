@@ -37,24 +37,16 @@
 		</li>
 		<li>
 			<dfn>点</dfn>（<code>len == 0</code
-			>）：生成側のこの位置が元のこの位置に当たる、という印です。<code>mark</code> と
-			<code>push_for</code> が作ります。改名した識別子や、コンパイラが足した呼び出しに使います。
+			>）：生成側のこの位置が元のこの位置に当たる、という印です。<code>mark</code>
+			が作ります。改名した識別子や、コンパイラが足した呼び出しに使います。
 		</li>
 	</ul>
 </div>
 
 <Code item={data.code.copy} />
 <Code item={data.code.mark} />
-<Code item={data.code.pushFor} />
 
 <div class="prose-learn">
-	<p>
-		<code>push_for</code> は
-		<code>SourceLocation</code
-		>（元のソース上の範囲、またはコンパイラが合成したノードであるという印）を受け取ります。合成されたノードなら印を付けません（<a
-			href="/learn/kernel/source#loc">02 章</a
-		>）。偽の位置を位置の対応に混ぜないためです。
-	</p>
 	<p>次の図は、Svelte プラグインが実際に出力した JavaScript と、その位置の対応です。</p>
 </div>
 

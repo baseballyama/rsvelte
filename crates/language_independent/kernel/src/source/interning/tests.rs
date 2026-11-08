@@ -20,7 +20,10 @@ fn a_hit_does_not_grow_the_table() {
         i.intern(&format!("n{n}"));
     }
     let cap = i.table.len();
-    assert!((i.len() + 1) * 2 > cap, "the next new name would grow it");
+    assert!(
+        (i.ends.len() + 1) * 2 > cap,
+        "the next new name would grow it"
+    );
     i.intern("n0");
     assert_eq!(i.table.len(), cap);
     i.intern("new");

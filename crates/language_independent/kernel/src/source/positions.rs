@@ -42,15 +42,6 @@ impl Span {
     pub const fn is_empty(self) -> bool {
         self.end_offset == self.start_offset
     }
-
-    #[inline]
-    #[must_use]
-    pub const fn to(self, other: Self) -> Self {
-        Self {
-            start_offset: self.start_offset,
-            end_offset: other.end_offset,
-        }
-    }
 }
 
 /// Line starts plus a UTF-16 view of one document.
@@ -139,7 +130,7 @@ impl LineIndex {
     /// UTF-16 offset of a byte offset. An offset inside a character counts as that character's
     /// start, and one past the end as the end.
     #[must_use]
-    pub fn utf16(&self, byte: u32) -> u32 {
+    pub(crate) fn utf16(&self, byte: u32) -> u32 {
         let byte = byte.min(self.len);
         let i = self.wide.partition_point(|w| w.end <= byte);
         if let Some(w) = self.wide.get(i).filter(|w| w.start < byte) {
@@ -150,7 +141,7 @@ impl LineIndex {
         })
     }
 
-    /// The line and column of a byte offset, rounded as [`LineIndex::utf16`] rounds.
+    /// The line and column of a byte offset, rounded as `LineIndex::utf16` rounds.
     #[must_use]
     pub fn line_column(&self, byte: u32) -> LineColumn {
         let byte = byte.min(self.len);
@@ -185,11 +176,6 @@ impl LineIndex {
         });
         (byte <= end).then_some(byte)
     }
-
-    #[must_use]
-    pub const fn line_count(&self) -> usize {
-        self.line_starts.len()
-    }
 }
 
 impl Drop for LineIndex {
@@ -210,7 +196,7 @@ const _: () = assert!(
 /// Sources must be shorter than this, so that [`SourceLocation`] can keep "synthesized" in the same
 /// 8 bytes. Checked once where text enters the pipeline
 /// ([`crate::source::document::Document::new`]).
-pub const MAXIMUM_SOURCE_LENGTH: u32 = u32::MAX;
+pub(crate) const MAXIMUM_SOURCE_LENGTH: u32 = u32::MAX;
 
 /// Where a tree node came from: a source range, or nowhere (a lowering made it up).
 ///

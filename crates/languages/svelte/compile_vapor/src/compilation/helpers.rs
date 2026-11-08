@@ -8,7 +8,7 @@ use rsvelte_typescript_compile::copy::{Rewrite, copy};
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Helper {
+pub(crate) enum Helper {
     /// The client's `{#each}` conversion (`each`: `is_array(c) ? c : c == null ? [] :
     /// array_from(c)`).
     Each,
@@ -420,7 +420,7 @@ const SPREAD: &str = "     const $$invalid_name = (name) => name === '' || \
 
 /// The helpers `h` calls.
 #[must_use]
-pub const fn requires(h: Helper) -> &'static [Helper] {
+pub(crate) const fn requires(h: Helper) -> &'static [Helper] {
     match h {
         Helper::Animate => &[Helper::Transition, Helper::Lifecycle],
         Helper::Boundary
@@ -449,7 +449,7 @@ pub const fn requires(h: Helper) -> &'static [Helper] {
 /// # Panics
 ///
 /// If a helper's source does not parse, which the unit tests rule out.
-pub fn declarations(helpers: &[Helper], to: &mut SyntaxTree) -> Vec<NodeIdentifier> {
+pub(crate) fn declarations(helpers: &[Helper], to: &mut SyntaxTree) -> Vec<NodeIdentifier> {
     let mut out = Vec::new();
     for &h in helpers {
         if h == Helper::Spread {

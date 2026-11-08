@@ -38,7 +38,7 @@ impl From<LexicalError> for ParseError {
 type R<T> = Result<T, ParseError>;
 
 #[derive(Debug)]
-pub struct Parser<'a, 'b> {
+pub(crate) struct Parser<'a, 'b> {
     source_text: &'a str,
     lex: Lexer<'a>,
     token: LexedToken,

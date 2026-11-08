@@ -30,7 +30,7 @@ const VOID_TAGS: &[&str] = &[
 ];
 
 #[must_use]
-pub fn is_void(name: &str) -> bool {
+pub(crate) fn is_void(name: &str) -> bool {
     VOID_TAGS.contains(&name)
 }
 

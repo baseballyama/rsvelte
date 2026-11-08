@@ -7,7 +7,7 @@ use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use super::CheckRequest;
 
 #[derive(Debug)]
-pub struct ContentMappedInput {
+pub(crate) struct ContentMappedInput {
     pub source: String,
     pub extension: &'static str,
     pub mappings: Vec<Mapping>,

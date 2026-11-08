@@ -19,7 +19,7 @@ use rsvelte_document_printer::{
     GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions, PrintOptions, Refused,
 };
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-pub use rsvelte_typescript_format::Unsupported;
+pub(crate) use rsvelte_typescript_format::Unsupported;
 use rsvelte_typescript_format::{Formatter, Options as JavaScriptOptions};
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rsvelte_vue_syntax::syntax_tree::{
@@ -42,7 +42,7 @@ const VOID_TAGS: &[&str] = &[
 ///
 /// [`Unsupported`] if the component holds a construct this formatter does not print.
 /// `lines` is `source_text`'s, which the pipeline builds once per document.
-pub fn format(c: &SingleFileComponent, source_text: &str, lines: &LineIndex) -> R<String> {
+pub(crate) fn format(c: &SingleFileComponent, source_text: &str, lines: &LineIndex) -> R<String> {
     let tree = Tree::build(c, source_text, lines)?;
     let mut docs = LayoutInstructions::new();
     let javascript = Formatter::new(

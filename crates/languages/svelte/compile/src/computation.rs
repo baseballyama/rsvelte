@@ -78,7 +78,7 @@ impl Artifact for Identified {
 }
 
 #[derive(Debug)]
-pub struct CompileConfiguration;
+pub(crate) struct CompileConfiguration;
 
 impl Facet for CompileConfiguration {
     type Output = std::sync::Arc<crate::Configuration>;
@@ -87,7 +87,7 @@ impl Facet for CompileConfiguration {
 }
 
 #[derive(Debug)]
-pub struct Validated;
+pub(crate) struct Validated;
 
 impl Artifact for Validated {
     type Output = Result<crate::lower::ValidatedOptions, rsvelte_kernel::diagnostics::Diagnostic>;

@@ -77,7 +77,7 @@ impl ArtifactRegistry {
     /// # Panics
     ///
     /// If another artifact or facet uses `A::NAME`.
-    pub fn register<A: Artifact>(&mut self) {
+    pub(crate) fn register<A: Artifact>(&mut self) {
         let next = self.names.len();
         if let std::collections::hash_map::Entry::Vacant(e) =
             self.index.entry(TypeIdentifier::of::<A>())
@@ -97,7 +97,7 @@ impl ArtifactRegistry {
     /// # Panics
     ///
     /// If `identifier` already provides `F`.
-    pub fn provide<F: Facet>(
+    pub(crate) fn provide<F: Facet>(
         &mut self,
         identifier: &'static str,
         applies: impl Fn(&Document) -> bool + Send + Sync + 'static,
@@ -140,11 +140,6 @@ impl ArtifactRegistry {
         self.facets
             .get(&TypeIdentifier::of::<F>())
             .is_some_and(|e| e.providers.iter().any(|p| (p.applies)(document)))
-    }
-
-    #[must_use]
-    pub fn names(&self) -> &[&'static str] {
-        &self.names
     }
 
     fn slot<A: Artifact>(&self) -> usize {

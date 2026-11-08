@@ -7,7 +7,7 @@ use rsvelte_kernel::source::document::Document;
 
 use crate::script;
 
-/// [`check`] on the Svelte plugin's artifacts, shared by both targets.
+/// `check` on the Svelte plugin's artifacts, shared by both targets.
 #[derive(Debug)]
 pub struct Checked;
 
@@ -93,7 +93,7 @@ impl Compile {
             )?
         };
         let _p = measurement::phase("vuelte.vapor");
-        let javascript = compile(&t, context.source_text(), &context.document.path)?;
+        let javascript = compile(&t, context.source_text());
         let external_stylesheet =
             t.css_mode == crate::template::CssMode::External && t.custom_element.is_none();
         Ok((

@@ -15,7 +15,7 @@ pub enum RuleConfiguration {
 
 impl RuleConfiguration {
     #[must_use]
-    pub const fn name(self) -> &'static str {
+    pub(crate) const fn name(self) -> &'static str {
         match self {
             Self::NoUnusedVariables(_) => "no-unused-vars",
             Self::ButtonHasType { .. } => "svelte/button-has-type",

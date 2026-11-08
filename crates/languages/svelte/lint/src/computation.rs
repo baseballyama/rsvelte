@@ -5,7 +5,7 @@ use rsvelte_typescript_syntax::NodeIdentifier;
 use crate::Configuration;
 
 #[derive(Debug)]
-pub struct LintConfiguration;
+pub(crate) struct LintConfiguration;
 
 impl Facet for LintConfiguration {
     type Output = std::sync::Arc<Configuration>;

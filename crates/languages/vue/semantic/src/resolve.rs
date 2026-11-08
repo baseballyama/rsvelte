@@ -94,7 +94,7 @@ pub fn resolve_with_module(
 
 /// The template's scope roots, in document order.
 #[must_use]
-pub fn template_roots(compiler_syntax_tree: &CompilerSyntaxTree) -> Vec<HostRoot> {
+pub(crate) fn template_roots(compiler_syntax_tree: &CompilerSyntaxTree) -> Vec<HostRoot> {
     let mut out = Vec::new();
     for &n in compiler_syntax_tree.root() {
         node_roots(compiler_syntax_tree, n, &mut out);

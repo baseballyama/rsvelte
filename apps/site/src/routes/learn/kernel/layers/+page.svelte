@@ -198,11 +198,11 @@
 <div class="prose-learn">
 	<p>
 		式が括弧で囲まれているか、文の前にどのコメントがあるか。書かれてはいても意味を持たないことへの問いには、ソースのバイトを読まずにトークン表で答えます。typescript-eslint
-		の <code>getTokenBefore</code> にあたるのが <code>before</code> です。
+		の <code>getTokenAfter</code> にあたるのが <code>after</code> です。
 	</p>
 </div>
 
-<Code item={data.code.before} />
+<Code item={data.code.after} />
 
 <div class="prose-learn">
 	<p>

@@ -1,9 +1,9 @@
 //! Svelte lint.
 
-pub mod lint;
+pub(crate) mod lint;
 pub use lint::*;
 
-pub mod computation;
+pub(crate) mod computation;
 mod configuration;
 mod extension;
 pub use extension::EXTENSION;

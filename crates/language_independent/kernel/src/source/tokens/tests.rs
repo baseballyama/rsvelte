@@ -34,13 +34,11 @@ fn lookups_skip_trivia() {
     let source_text = "ab  cd e";
     let t = words(source_text);
     assert_eq!(t.check_lossless(source_text), Ok(()));
-    let text =
-        |identifier: Option<TokenIdentifier>| identifier.map(|i| t.get(i).span.text(source_text));
-    assert_eq!(text(t.at(3)), Some("  "));
-    assert_eq!(text(t.before(4)), Some("ab"));
+    let text = |identifier: Option<TokenIdentifier>| {
+        identifier.map(|i| t.since(i.index())[0].span.text(source_text))
+    };
     assert_eq!(text(t.after(2)), Some("cd"));
     assert_eq!(text(t.after(8)), None);
-    assert_eq!(text(t.before(0)), None);
 }
 
 #[test]

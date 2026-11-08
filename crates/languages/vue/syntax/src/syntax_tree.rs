@@ -19,7 +19,7 @@ pub struct Range {
 }
 
 impl Range {
-    pub fn get<T>(self, v: &[T]) -> &[T] {
+    pub(crate) fn get<T>(self, v: &[T]) -> &[T] {
         &v[self.start as usize..(self.start + self.len) as usize]
     }
 }
@@ -245,29 +245,6 @@ impl SingleFileComponent {
             .as_ref()
             .map_or(&[], |t| self.children(t.root))
     }
-
-    #[must_use]
-    pub const fn heap_bytes(&self) -> usize {
-        self.javascript.heap_bytes()
-            + self.nodes.capacity() * size_of::<TemplateNode>()
-            + self.children.capacity() * 4
-            + self.attributes.capacity() * size_of::<Attribute>()
-            + self.tokens.heap_bytes()
-    }
-}
-
-/// `<script>`/`<style>`/`<template>` attribute `name`: `Some(value)` when present (`Some(None)` for
-/// a bare attribute).
-#[must_use]
-pub fn tag_attribute<'s>(
-    attributes: &[TagAttributes],
-    source_text: &'s str,
-    name: &str,
-) -> Option<Option<&'s str>> {
-    attributes
-        .iter()
-        .find(|(n, _)| n.text(source_text) == name)
-        .map(|(_, v)| v.map(|v| v.text(source_text)))
 }
 
 // Pinned so a change to the surface tree's layout is a decision.
