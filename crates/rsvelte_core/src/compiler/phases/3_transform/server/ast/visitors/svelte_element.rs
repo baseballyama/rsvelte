@@ -85,25 +85,19 @@ pub fn visit_svelte_element<'a>(
             oxc_ast::ast::Expression::Identifier(id) => id.name.to_string(),
             tag => {
                 let name = state.next_dynamic_tag_name();
-                state
-                    .template
-                    .push(TemplateEntry::HoistableDecl(b.const_id(&name, tag)));
+                state.init.push(b.const_id(&name, tag));
                 name
             }
         };
-        state
-            .template
-            .push(TemplateEntry::HoistableDecl(b.stmt(b.call(
-                "$.validate_dynamic_element_tag",
-                vec![b.thunk(b.id(&name), false)],
-            ))));
+        state.init.push(b.stmt(b.call(
+            "$.validate_dynamic_element_tag",
+            vec![b.thunk(b.id(&name), false)],
+        )));
         if !node.fragment.nodes.is_empty() {
-            state
-                .template
-                .push(TemplateEntry::HoistableDecl(b.stmt(b.call(
-                    "$.validate_void_dynamic_element",
-                    vec![b.thunk(b.id(&name), false)],
-                ))));
+            state.init.push(b.stmt(b.call(
+                "$.validate_void_dynamic_element",
+                vec![b.thunk(b.id(&name), false)],
+            )));
         }
         let (line, col) = crate::compiler::phases::phase3_transform::utils::locate_in_source(
             state.source,

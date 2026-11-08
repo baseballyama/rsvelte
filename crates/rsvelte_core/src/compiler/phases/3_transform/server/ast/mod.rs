@@ -149,14 +149,12 @@ pub struct ServerTransformState<'a> {
     /// `promises`, `promises_1`, `promises_2`, … (mirrors the text oracle's
     /// `const_promises_counter`).
     pub const_promises_counter: usize,
-    /// Component-body `init` slot for NON-hoistable snippet function declarations
-    /// (写经 upstream `SnippetBlock.js`: `node.metadata.can_hoist ? state.hoisted
-    /// : state.init`). A snippet that references instance-level state cannot be
-    /// lifted to module scope, so its `function name($$renderer, …) { … }`
-    /// declaration is collected here — regardless of how deeply it nests in the
-    /// template — and prepended to the component-function body (ahead of the
-    /// rendered template), matching upstream's shared component-level `state.init`.
-    pub snippet_inits: Vec<Statement<'a>>,
+    /// What regular (non-hoisted) nodes push onto the current fragment's
+    /// upstream `state.init`, in visit order: a component's `var bind_get` /
+    /// `var bind_set`, a dev `<svelte:element>`'s tag validation. Upstream visits
+    /// the hoisted `{@const}` / snippet nodes first, so `build_fragment_body`
+    /// places these after them.
+    pub init: Vec<Statement<'a>>,
     /// Names of every `{#snippet name(...)}` lowered to a `function name(...)`
     /// declaration (写经 upstream's `fn.___snippet = true` marker). Used by the
     /// `uses_component_bindings` settle-loop assembly to partition top-level
@@ -336,7 +334,7 @@ impl<'a> ServerTransformState<'a> {
             const_blocker_map: rustc_hash::FxHashMap::default(),
             local_derived_names: rustc_hash::FxHashSet::default(),
             const_promises_counter: 0,
-            snippet_inits: Vec::new(),
+            init: Vec::new(),
             snippet_names: rustc_hash::FxHashSet::default(),
             derived_d_counter: 0,
             derived_array_counter: 0,
@@ -1548,13 +1546,6 @@ pub fn server_component_ast<'a>(
     );
     // Root fragment: parent is the Fragment node itself, so it IS an
     // `is_text_first` parent (upstream `clean_nodes`/`Fragment`).
-    // 写经 upstream `SnippetBlock.js`: NON-hoistable snippet function
-    // declarations are emitted into the enclosing render scope's `state.init`.
-    // `build_fragment_body` collects them per-fragment (see `state.snippet_inits`)
-    // and prepends them to the front of each fragment body — so for the ROOT
-    // fragment they already sit at the head of `template_body` (ahead of the
-    // rendered template, after the instance body), and for block-nested snippets
-    // they stay inside their block body. No extra splice is needed here.
     let template_body =
         visitors::shared::build_fragment_body(&ast.fragment.nodes, true, true, &mut state);
 

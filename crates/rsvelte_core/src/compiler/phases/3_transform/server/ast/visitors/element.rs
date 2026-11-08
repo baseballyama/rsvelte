@@ -220,10 +220,12 @@ pub fn visit_regular_element<'a>(node: &RegularElement<'a>, state: &mut ServerTr
         // SEPARATE `$$renderer.run` group (`promises_N`) that waits on the parent
         // group's bindings, rather than leaking into the parent's group.
         let saved_consts_scope = super::shared::open_async_consts_scope(state);
+        let saved_init = std::mem::take(&mut state.init);
         emit_element_body(node, name, is_void, state);
         state.eval_inputs.constant_vars = saved_constants;
         let captured = std::mem::replace(&mut state.template, saved);
-        let mut body = super::shared::build_template(captured, state);
+        let init = std::mem::replace(&mut state.init, saved_init);
+        let mut body = super::shared::build_template_with_init(captured, init, state);
         super::shared::flush_element_async_consts(state, saved_consts_scope, &mut body);
         let block = state.b.block(body);
         state.template.push(TemplateEntry::Stmt(block));
@@ -498,10 +500,11 @@ fn emit_async_element<'a>(
     is_void: bool,
     state: &mut ServerTransformState<'a>,
 ) {
-    use super::shared::{PromiseOptimiser, build_template};
+    use super::shared::{PromiseOptimiser, build_template_with_init};
 
     // Swap in a fresh template buffer + a fresh optimiser for this element.
     let saved_template = std::mem::take(&mut state.template);
+    let saved_init = std::mem::take(&mut state.init);
     let saved_optimiser = state.attr_optimiser.take();
     state.attr_optimiser = Some(PromiseOptimiser::new());
 
@@ -509,6 +512,7 @@ fn emit_async_element<'a>(
 
     // Reclaim the element's buffered entries + the populated optimiser.
     let element_entries = std::mem::replace(&mut state.template, saved_template);
+    let init = std::mem::replace(&mut state.init, saved_init);
     let mut optimiser = state.attr_optimiser.take().unwrap_or_default();
     state.attr_optimiser = saved_optimiser;
 
@@ -518,7 +522,7 @@ fn emit_async_element<'a>(
     // `optimiser.render([...build_template(state.template)])` — the statements
     // flat, NO `{ ... }` block wrapper. (The block-wrapped `has_child_declarations`
     // path is a future refinement; the current async fixtures are all flat.)
-    let body = build_template(element_entries, state);
+    let body = build_template_with_init(element_entries, init, state);
     let wrapped = optimiser.render(state, body);
     for stmt in wrapped {
         state.template.push(TemplateEntry::Stmt(stmt));
@@ -546,15 +550,17 @@ fn emit_content_body<'a>(
     namespace: &str,
     state: &mut ServerTransformState<'a>,
 ) {
-    use super::shared::build_template;
+    use super::shared::build_template_with_init;
 
     // Build the inner-children template into a SEPARATE buffer (the `else`
-    // branch body). Upstream uses a fresh `inner_state.template`.
+    // branch body). Upstream uses a fresh `inner_state`.
     let else_body = {
         let saved = std::mem::take(&mut state.template);
+        let saved_init = std::mem::take(&mut state.init);
         process_children(&node.fragment.nodes, Some(node), namespace, state);
         let inner_entries = std::mem::replace(&mut state.template, saved);
-        build_template(inner_entries, state)
+        let init = std::mem::replace(&mut state.init, saved_init);
+        build_template_with_init(inner_entries, init, state)
     };
 
     // `id` is the truthiness test / push target. Upstream keeps a bare
