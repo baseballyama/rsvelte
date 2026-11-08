@@ -4,7 +4,7 @@ Every other lint gate compares sources that all sit under one ancestry, so the
 answer to "is SvelteKit installed" is a constant across the whole population.
 It is not a constant for users: eslint-plugin-svelte resolves `@sveltejs/kit`
 **from the linted file's path** (`getSvelteKitVersion` in
-`src/utils/svelte-context.ts`) and disables five rules when it finds none.
+`src/utils/svelte-context.ts`) and disables five rules when it finds none — and two of them (`no-goto-without-base`, `no-navigation-without-base`) also under any SvelteKit major past 2, which is what `sveltekit-2` against `sveltekit-3` compares.
 
 Each directory here is a self-contained project with its own `package.json`.
 The sources are deliberately identical across projects — the only variable is

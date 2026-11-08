@@ -85,31 +85,46 @@ function upstreamGate(conditions) {
 }
 
 /**
- * Rules upstream will not run outside a SvelteKit project, at Svelte 5.
+ * Rules upstream will not run outside a SvelteKit project, at Svelte 5, with the
+ * SvelteKit majors each runs under ("*" for any known version).
  *
  * `svelteKitFileType` is only computed once a version is known, so a
- * `svelteKitFileTypes` condition also requires SvelteKit — both keys count.
+ * `svelteKitFileTypes` condition also requires SvelteKit — both keys count. The
+ * version set is a union because `shouldRun` ORs the condition objects.
  */
 function upstreamKitOnly(up) {
-  return Object.entries(up)
-    .filter(([, c]) => {
-      if (!c) return false;
-      const reachable = c.filter((o) => !o.svelteVersions || o.svelteVersions.includes("5"));
-      return reachable.length > 0 && reachable.every((o) => o.svelteKitVersions || o.svelteKitFileTypes);
-    })
-    .map(([id]) => id)
-    .sort();
+  const out = {};
+  for (const [id, c] of Object.entries(up)) {
+    if (!c) continue;
+    const reachable = c.filter((o) => !o.svelteVersions || o.svelteVersions.includes("5"));
+    if (reachable.length === 0 || !reachable.every((o) => o.svelteKitVersions || o.svelteKitFileTypes)) {
+      continue;
+    }
+    const versions = new Set();
+    for (const o of reachable) for (const v of o.svelteKitVersions ?? ["*"]) versions.add(v);
+    out[id] = versions.has("*") ? "*" : [...versions].sort().join(",");
+  }
+  return out;
 }
 
-/** The rule names `crates/rsvelte_lint/src/sveltekit.rs` hard-codes. */
+/** The rules and version lists `crates/rsvelte_lint/src/sveltekit.rs` hard-codes. */
 function rsvelteKitOnly() {
   const src = fs.readFileSync(path.join(ROOT, "crates", "rsvelte_lint", "src", "sveltekit.rs"), "utf8");
-  const block = /const SVELTEKIT_ONLY: &\[&str\] = &\[([\s\S]*?)\];/.exec(src);
+  const block = /const SVELTEKIT_ONLY: &\[\(&str, &\[&str\]\)\] = &\[([\s\S]*?)\n\];/.exec(src);
   if (!block) {
     console.error("[lint-conditions] ❌ could not read SVELTEKIT_ONLY from sveltekit.rs");
     process.exit(2);
   }
-  return [...block[1].matchAll(/"(svelte\/[a-z0-9-]+)"/g)].map((m) => m[1]).sort();
+  const out = {};
+  for (const m of block[1].matchAll(/\(\s*"(svelte\/[a-z0-9-]+)",\s*&\[([^\]]*)\],?\s*\)/g)) {
+    const versions = [...m[2].matchAll(/"([^"]+)"/g)].map((v) => v[1]);
+    out[m[1]] = versions.length === 0 ? "*" : versions.sort().join(",");
+  }
+  if (Object.keys(out).length === 0) {
+    console.error("[lint-conditions] ❌ SVELTEKIT_ONLY in sveltekit.rs parsed to no entries");
+    process.exit(2);
+  }
+  return out;
 }
 
 /** Rules `crates/rsvelte_lint/src/svelte_version.rs` excludes on Svelte 5. */
@@ -206,9 +221,14 @@ function main() {
   // would go unnoticed.
   const upKit = upstreamKitOnly(up);
   const myKit = rsvelteKitOnly();
-  for (const id of upKit) if (!myKit.includes(id)) diffs.push(`kit-gate-missing|${id}`);
-  for (const id of myKit) if (!upKit.includes(id)) diffs.push(`kit-gate-extra|${id}`);
-  if (upKit.length === 0) {
+  for (const [id, versions] of Object.entries(upKit)) {
+    if (!(id in myKit)) diffs.push(`kit-gate-missing|${id}`);
+    else if (myKit[id] !== versions) {
+      diffs.push(`kit-versions|${id}|upstream ${versions} rsvelte ${myKit[id]}`);
+    }
+  }
+  for (const id of Object.keys(myKit)) if (!(id in upKit)) diffs.push(`kit-gate-extra|${id}`);
+  if (Object.keys(upKit).length === 0) {
     console.error(
       "[lint-conditions] ❌ upstream gates no rule on SvelteKit — the kit comparison is vacuous, " +
         "which means the conditions were not read, not that the lists agree",
@@ -230,7 +250,7 @@ function main() {
 
   console.log(
     `[lint-conditions] ${shared.length} shared rules, ${gated} mode/version-gated by upstream, ` +
-      `${mySvelte34Only.length} Svelte-3/4-only and ${upKit.length} SvelteKit-gated; ` +
+      `${mySvelte34Only.length} Svelte-3/4-only and ${Object.keys(upKit).length} SvelteKit-gated; ` +
       `${diffs.length} divergence(s)`,
   );
 
