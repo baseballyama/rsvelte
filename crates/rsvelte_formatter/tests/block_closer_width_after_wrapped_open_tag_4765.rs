@@ -71,3 +71,30 @@ fn control_that_fits_at_width_120() {
         "{#if a}{#if b}<First name={b.owner.name} />{/if}{:else if c && b}<Second viewer={b.view.as} {c} />{:else}<Third />{/if}\n",
     );
 }
+
+// The closers sit on the close tag's line for an element with a close tag, and
+// inside an element the collapse pass lays the parent out; neither may move.
+
+#[test]
+fn empty_element_keeps_its_closer_on_the_close_tag_line() {
+    let oracle = "{#if a}<span class=\"alpha beta gamma\" title={someLongExpressionName} data-x={another.long.path.xyz}\n  ></span>{/if}\n";
+    assert_eq!(fmt(oracle, 100), oracle);
+}
+
+#[test]
+fn self_closing_element_in_a_block_inside_an_element() {
+    assert_fmt(
+        "<ul>{#each items as item}<Second\n  onclick={() => handle(item.id, item.name)} disabled={!enabled}\n/>{/each}</ul>\n",
+        100,
+        "<ul>\n  {#each items as item}<Second\n      onclick={() => handle(item.id, item.name)}\n      disabled={!enabled}\n    />{/each}\n</ul>\n",
+    );
+}
+
+#[test]
+fn split_open_tag_with_a_body_on_its_last_line() {
+    assert_fmt(
+        "{#key k}<span\n  onclick={() => handle(item.id, item.name)} disabled={!enabled}>x</span>{/key}\n",
+        80,
+        "{#key k}<span onclick={() => handle(item.id, item.name)} disabled={!enabled}\n    >x</span\n  >{/key}\n",
+    );
+}
