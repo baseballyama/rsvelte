@@ -52,7 +52,7 @@
 	<p>
 		<code>tools/performance/baseline.json</code>
 		を書き換えたコミットを古い順に並べ、それぞれが記録した値を示します（<a
-			href="/learn/measure#ratchet">13</a
+			href="/learn/measure#ratchet">14</a
 		>）。値はビルドのたびに git の履歴から読み出します（<code
 			>src/lib/build/performance-history.ts</code
 		>）。基準値を書き換えてまだコミットしていなければ、その値が「作業ツリー」の行として最後に付きます。命令数は
@@ -77,7 +77,7 @@
 		)} です。ただし読み込みを記録し始めたのは、読み込みを 878,552,187 命令から減らした変更そのもので（コミットのメッセージによる）、<code
 			>{firstLoad.sha ?? '作業ツリー'}</code
 		>
-		の行の読み込みの減少は最適化ではなく測り方の訂正です（<a href="/learn/measure#ci">13</a>）。
+		の行の読み込みの減少は最適化ではなく測り方の訂正です（<a href="/learn/measure#ci">14</a>）。
 	</p>
 </div>
 
@@ -172,8 +172,8 @@
 			出力の前の <code>propagate_breaks</code>
 			とそのメモを消し、<code>will_break</code>
 			を表引きにしました。アリーナのバッファもプールに入れ、<code>svelte.format</code>
-			の割り当ては 1,070,011 回から 691,547 回になりました（<a href="/learn/kernel/document#printer"
-				>08</a
+			の割り当ては 1,070,011 回から 691,547 回になりました（<a
+				href="/learn/document-printer#printer">09</a
 			>）。
 		</li>
 		<li>
@@ -188,7 +188,7 @@
 		</li>
 		<li>
 			<strong>トークン表とテンプレートの列をプールに</strong>（92571ee562、バイト −45%）:
-			<a href="/learn/kernel/buffer-pool#users">12</a> を参照。
+			<a href="/learn/kernel/buffer-pool#users">13</a> を参照。
 		</li>
 		<li>
 			パーサの作業用配列を一本にまとめました（d5060ddc01、割り当て −8.1%）。
@@ -206,7 +206,7 @@
 	<ul>
 		<li>
 			<strong>プールの鍵を持ち主ごとに</strong>（20f5846343、割り当て −6.7%）:
-			<a href="/learn/kernel/buffer-pool#keyed">12</a> を参照。
+			<a href="/learn/kernel/buffer-pool#keyed">13</a> を参照。
 		</li>
 		<li>
 			<strong>埋め込み言語へのトークンの受け渡し</strong>（ff65a1e66b、バイト −19%）:
@@ -235,12 +235,12 @@
 		<li>
 			<strong>整形器がコンポーネントの中身を複製しない</strong>（e0ef873545、割り当て −7.8%）:
 			借用の都合で要素の子、属性の断片、テキストを複製していたのをやめ、コンポーネントの寿命で借用します（<a
-				href="/learn/kernel/document#ir">08</a
+				href="/learn/document-printer#ir">09</a
 			>）。
 		</li>
 		<li>
 			<strong>構造化データ形式の文字列を連続部分ごとにコピー</strong>（a6eed170c4、命令数 −0.6%）:
-			<a href="/learn/kernel/structured-data#escape">10</a> を参照。
+			<a href="/learn/kernel/structured-data#escape">11</a> を参照。
 		</li>
 	</ul>
 	<p>
@@ -263,7 +263,7 @@
 			>lookup</code
 		>
 		も読み手と同じく「同じ生成行で」探します。テストは書き出した source map を復号し、出力のすべての位置で二つの答えを比べます（<a
-			href="/learn/kernel/emitter#disagreement">09</a
+			href="/learn/kernel/emitter#disagreement">10</a
 		>）。
 	</p>
 	<p>直す途中で、同じ場所に欠陥がさらに三つ見つかりました。</p>
@@ -373,14 +373,14 @@
 	)}
 	<p>
 		<code>group_broken</code> で作った group が親の group を壊さず、Prettier
-		と違う出力になっていました（708a4403d5、<a href="/learn/kernel/document#printer">08</a>）。
+		と違う出力になっていました（708a4403d5、<a href="/learn/document-printer#printer">09</a>）。
 	</p>
 
 	{@render item('P8', '文字列の幅が Prettier と違った', 'fixed', 'document_printer · string_width')}
 	<p>
 		絵文字、異体字セレクタ、ゼロ幅の文字の数え方が違っていました。今は Unicode
 		の幅の規則（unicode-width）で数えます。Prettier の表との一致は目的にしていません（b58a0a72be、<a
-			href="/learn/kernel/document#flat-only">08</a
+			href="/learn/document-printer#flat-only">09</a
 		>）。
 	</p>
 
@@ -392,7 +392,7 @@
 	)}
 	<p>
 		整数と小数を別の関数に分け、有限でない小数は <code>null</code> にしました（37a595c11e、<a
-			href="/learn/kernel/structured-data#state">10</a
+			href="/learn/kernel/structured-data#state">11</a
 		>）。
 	</p>
 
@@ -606,7 +606,7 @@
 		ガードは <code>Send</code> でない型になり、順番を違えて落とすと debug ビルドで止まります。<Term
 			name="CountingAllocator"
 		/> は <code>alloc_zeroed</code>
-		を転送するようになりました（2f8bef970a、<a href="/learn/kernel/measurement#phases">11</a>）。
+		を転送するようになりました（2f8bef970a、<a href="/learn/kernel/measurement#phases">12</a>）。
 	</p>
 
 	{@render item(
@@ -617,7 +617,7 @@
 	)}
 	<p>
 		ステージしたテスト用の入力と期待値のスナップショットを測るようにしました（201b86fd6b、<a
-			href="/learn/measure#ci">13</a
+			href="/learn/measure#ci">14</a
 		>）。
 	</p>
 </div>

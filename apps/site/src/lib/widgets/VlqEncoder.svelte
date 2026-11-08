@@ -7,7 +7,7 @@
 	const shifted = $derived(value < 0 ? -Math.trunc(value) * 2 + 1 : Math.trunc(value) * 2);
 </script>
 
-<Figure label="図 9.2 · 可変長の整数表現">
+<Figure label="図 10.2 · 可変長の整数表現">
 	{#snippet controls()}
 		{#each [0, 1, -1, 16, 1000] as v (v)}
 			<button type="button" class="btn-ghost" aria-pressed={value === v} onclick={() => (value = v)}

@@ -190,7 +190,7 @@
 <div class="prose-learn">
 	<p>
 		トークン表は文書ごとに作っては捨てるので、そのバッファもスレッドのプールから借りて返します（<a
-			href="/learn/kernel/buffer-pool#users">12</a
+			href="/learn/kernel/buffer-pool#users">13</a
 		>）。
 	</p>
 </div>

@@ -172,7 +172,7 @@
 		<li>
 			<code>rsvelte_typescript::SyntaxTree</code
 			>:構文木の列、文字列、コメント、型の表、パーサの作業用スタック（<a
-				href="/learn/polish#history">14</a
+				href="/learn/polish#history">15</a
 			>）。
 		</li>
 		<li>
@@ -182,7 +182,7 @@
 		<li><code>rsvelte_svelte::syntax::syntax_tree::Component</code>: テンプレートの列。</li>
 		<li>
 			<Term name="LayoutInstructions" />: 整形用のデータ構造 のアリーナ（<a
-				href="/learn/kernel/document#ir">08</a
+				href="/learn/document-printer#ir">09</a
 			>）と、プリンタのスタックや作業リスト。
 		</li>
 		<li>
@@ -238,7 +238,7 @@
 		<p>
 			この比較は、鍵を持ち主ごとに分けたあとのビルド（d6f426e250）で測ったもので、今のコードより古い版です。それ以降の変更の効果は、上に書いたとおり性能の基準値との比較検査の計数（1
 			スレッド、最後のラウンド）で測っていて、ベンチマークの実行時間とは別の量です（<a
-				href="/learn/measure#ratchet">13</a
+				href="/learn/measure#ratchet">14</a
 			>）。
 		</p>
 	</DeepDive>

@@ -15,7 +15,7 @@ export interface Chapter {
 	title: string;
 	/** One line for the chapter list. */
 	abstract: string;
-	/** The kernel module the chapter explains, as a source key. */
+	/** The module the chapter explains, as a source key. */
 	module?: string;
 	minutes: number;
 	sections: Section[];
@@ -148,13 +148,21 @@ export const chapters: Chapter[] = [
 		slug: 'diagnostics',
 		href: '/learn/kernel/diagnostics',
 		number: '07',
-		title: 'エラーや警告の報告とコード検査',
-		abstract: 'Diagnostic、近似しないための Unsupported、Rule の守るべき条件と並び順。',
+		title: 'エラーや警告の報告',
+		abstract: 'Diagnostic と、近似しないための Unsupported。',
+		module: 'kernel/diagnostics/diagnostic',
+		minutes: 4,
+		sections: [s('diagnostic', 'エラーや警告の記録'), s('unsupported', '未対応の構文を報告する')],
+	},
+	{
+		slug: 'lint-runner',
+		href: '/learn/lint-runner',
+		number: '08',
+		title: 'コード検査のルールの実行',
+		abstract: 'Rule の守るべき条件、指摘の並び順、ESLint の位置での書き出し。',
 		module: 'lint/rules',
-		minutes: 8,
+		minutes: 5,
 		sections: [
-			s('diagnostic', 'エラーや警告の記録'),
-			s('unsupported', '未対応の構文を報告する'),
 			s('rule', '検査ルールが実装する処理'),
 			s('order', '並び順'),
 			s('render', 'ESLint の位置で書き出す'),
@@ -162,8 +170,8 @@ export const chapters: Chapter[] = [
 	},
 	{
 		slug: 'doc',
-		href: '/learn/kernel/document',
-		number: '08',
+		href: '/learn/document-printer',
+		number: '09',
 		title: '改行と字下げの決め方',
 		abstract:
 			'Prettier と同じ規則で、一行に収めるか改行するかを決める。整形用のデータ構造と、それを文字列にする処理。',
@@ -182,7 +190,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'emit',
 		href: '/learn/kernel/emitter',
-		number: '09',
+		number: '10',
 		title: '生成したコードと元のソースの位置を対応させる',
 		abstract:
 			'出力バッファと位置の対応、指定位置以前で最も近い対応点の逆引き、source map v3 と 可変長の整数表現。',
@@ -200,7 +208,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'json',
 		href: '/learn/kernel/structured-data',
-		number: '10',
+		number: '11',
 		title: '構造化データを直接書き出す',
 		abstract: '値の木を作らずに書く。状態はフラグのスタックとビット 1 つ。',
 		module: 'kernel/output/structured_data',
@@ -210,7 +218,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'metrics',
 		href: '/learn/kernel/measurement',
-		number: '11',
+		number: '12',
 		title: '処理時間とメモリの計測',
 		abstract:
 			'メモリを確保する回数と大きさを数える。処理時間は、内側で呼んだ別の処理の時間を差し引いて記録する。',
@@ -227,7 +235,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'pool',
 		href: '/learn/kernel/buffer-pool',
-		number: '12',
+		number: '13',
 		title: '作業用メモリの再利用',
 		abstract:
 			'文書をまたいで Vec の容量を使い回す、スレッドローカルのプール。持ち主ごとの鍵と、スレッドあたりの予算。',
@@ -245,7 +253,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'measure',
 		href: '/learn/measure',
-		number: '13',
+		number: '14',
 		title: '実測 — 性能の基準値との比較検査',
 		abstract:
 			'割り当てと命令数を決定的に数え、main と experimental への push と pull request で基準値と比べる。正しさの基準値との比較検査と、実行時間のベンチマーク。',
@@ -266,7 +274,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'polish',
 		href: '/learn/polish',
-		number: '14',
+		number: '15',
 		title: '磨きどころ',
 		abstract:
 			'最適化の記録と計測した差分。コードを読んで見つけた、直す価値のある箇所と、それぞれをどうしたか。',
@@ -282,7 +290,7 @@ export const chapters: Chapter[] = [
 	{
 		slug: 'plugins',
 		href: '/learn/plugins',
-		number: '15',
+		number: '16',
 		title: 'プラグインを実装する',
 		abstract:
 			'独自の計算結果とタスクをカーネルに登録する手順。既存の言語プラグインの構文木を使う例を実行する。',

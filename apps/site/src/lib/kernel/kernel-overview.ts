@@ -246,7 +246,7 @@ export const sharedParts: SharedPart[] = [
 		id: 'document',
 		label: 'コードの整形',
 		module: 'document_printer/lib',
-		href: '/learn/kernel/document',
+		href: '/learn/document-printer',
 	},
 	{
 		id: 'emitter',
@@ -270,7 +270,7 @@ export const sharedParts: SharedPart[] = [
 		id: 'width',
 		label: '文字の表示幅',
 		module: 'document_printer/width',
-		href: '/learn/kernel/document',
+		href: '/learn/document-printer',
 	},
 	{
 		id: 'measurement',
@@ -449,7 +449,8 @@ export const chapterPositions: Record<string, string[]> = {
 	'/learn/kernel/layers': ['lang-core', 'part:index'],
 	'/learn/kernel/pipeline': ['registry', 'run', 'run-document', 'project', 'output'],
 	'/learn/kernel/diagnostics': ['part:diagnostics', 'output'],
-	'/learn/kernel/document': ['part:document'],
+	'/learn/lint-runner': ['output'],
+	'/learn/document-printer': ['part:document'],
 	'/learn/kernel/emitter': ['part:emitter'],
 	'/learn/kernel/structured-data': ['part:structured_data'],
 	'/learn/kernel/measurement': ['part:measurement'],

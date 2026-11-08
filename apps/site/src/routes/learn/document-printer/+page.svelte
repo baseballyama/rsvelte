@@ -84,7 +84,7 @@
 		四本のベクタそのものも、文書ごとに作り直しません。<Term name="LayoutInstructions" /> はスレッドのプールから
 		<Term name="LayoutInstructions" />
 		という鍵でバッファを借り、<code>Drop</code> で逆の順に返します（<a
-			href="/learn/kernel/buffer-pool#keyed">12</a
+			href="/learn/kernel/buffer-pool#keyed">13</a
 		>）。
 	</p>
 </div>
@@ -105,7 +105,7 @@
 </div>
 
 <DocumentPrinter
-	label="図 8.1 · 文書プリンタ"
+	label="図 9.1 · 文書プリンタ"
 	presets={[call, fill, groupIds, flatOnly, remeasure]}
 />
 
@@ -228,7 +228,7 @@
 
 <Code item={data.code.mustBeFlatTest} />
 
-<DocumentPrinter label="図 8.2 · mustBeFlat" presets={[mustBeFlat]} />
+<DocumentPrinter label="図 9.2 · mustBeFlat" presets={[mustBeFlat]} />
 
 <div class="prose-learn">
 	<H2 id="group-ids" />
@@ -266,7 +266,7 @@
 		>）します。収まらないときに「それらしく」改行すると、Prettier
 		が出さないレイアウトを出してしまうからです。<a href="/learn/kernel/diagnostics#unsupported"
 			>07</a
-		> の「近似しない」をプリンタに持ち込んだものです。図 8.1 の「flat_only」で、幅を狭めてみてください。
+		> の「近似しない」をプリンタに持ち込んだものです。図 9.1 の「flat_only」で、幅を狭めてみてください。
 	</p>
 </div>
 
@@ -289,7 +289,7 @@
 		ゼロ幅の結合文字 絵文字などの文字列内の並びも扱うため、このプロジェクトで Unicode
 		の表を生成して持つ必要はありません。これは端末風の表示列数を安定して見積もるための規則であり、フォントによる実際の描画幅や
 		Prettier の歴史的な規則との完全一致を目的にはしていません。<Note
-			>この教材のブラウザ上のプリンタ（図 8.1）も、WebAssembly を通して同じ Rust の <code
+			>この教材のブラウザ上のプリンタ（図 9.1）も、WebAssembly を通して同じ Rust の <code
 				>string_width</code
 			> を使います。</Note
 		>
@@ -340,7 +340,7 @@
 	<code>Copy</code>
 	な識別番号で配れるので、共有は簡単に起きます。それでも複製する形にしないのは、上流の prettier-plugin-svelte
 	も配列をその場で書き換えていて、共有された doc についての出力を上流と揃えるためです（<a
-		href="/learn/polish#correctness">14 磨きどころ</a
+		href="/learn/polish#correctness">15 磨きどころ</a
 	>）。
 </Caution>
 

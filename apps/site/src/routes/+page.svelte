@@ -183,7 +183,7 @@
 					</dl>
 					<p class="mt-3 font-mono text-[11.5px] tracking-normal text-muted">
 						release ビルド {data.benchmark.rev.slice(0, 10)} の実測。比較対象の定義と再現手順は
-						<a class="link" href="/learn/measure">13 実測</a>に。
+						<a class="link" href="/learn/measure">14 実測</a>に。
 					</p>
 				</div>
 			</div>
@@ -306,7 +306,7 @@
 						手書きの検証例と、検証用のソースファイル集から取り込んだ検証例を、上流のツールの出力と比べた判定です。変更時の自動検査
 						はこのファイルを基準値との比較検査として扱い、判定が一つでも動けば落ちます（<a
 							class="link"
-							href="/learn/measure">13 実測</a
+							href="/learn/measure">14 実測</a
 						>）。「未対応」はまだ移植していない構文を正直に拒否したもの、「パースできない」は拒否すべきところで出力してしまった欠陥です。
 					</p>
 				</div>
@@ -329,7 +329,7 @@
 				<a
 					href="/learn/measure"
 					class="mt-5 inline-flex items-center gap-1.5 text-[15px] font-medium text-accent hover:underline"
-					>13 実測<Icon name="arrow-right" size={14} /></a
+					>14 実測<Icon name="arrow-right" size={14} /></a
 				>
 			</div>
 			<div class="mt-8 min-w-0 lg:col-span-8 lg:mt-0">

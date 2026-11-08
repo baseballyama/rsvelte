@@ -85,7 +85,7 @@
 	const x = (v: number) => (v / T) * W;
 </script>
 
-<Figure label="図 11.1 · 1 文書のフェーズ" wide>
+<Figure label="図 12.1 · 1 文書のフェーズ" wide>
 	{#snippet controls()}
 		<button
 			type="button"

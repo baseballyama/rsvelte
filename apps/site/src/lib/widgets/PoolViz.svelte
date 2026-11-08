@@ -16,7 +16,7 @@
 	const maxCap = $derived(Math.max(...steps.flatMap((s) => s.pool.concat(s.event.cap))));
 </script>
 
-<Figure label="図 12.1 · 1 ワーカー、1 つの鍵" wide>
+<Figure label="図 13.1 · 1 ワーカー、1 つの鍵" wide>
 	{#snippet controls()}
 		<button type="button" class="btn-ghost" aria-pressed={enabled} onclick={() => (enabled = true)}
 			>pool あり</button

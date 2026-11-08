@@ -25,7 +25,7 @@
 	const cur = $derived(steps[Math.min(step, steps.length - 1)]);
 </script>
 
-<Figure label="図 10.1 · StructuredDataWriter の状態">
+<Figure label="図 11.1 · StructuredDataWriter の状態">
 	{#snippet controls()}
 		<button type="button" class="btn-ghost" aria-pressed={!pretty} onclick={() => (pretty = false)}
 			>compact</button

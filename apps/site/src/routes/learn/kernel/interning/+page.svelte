@@ -108,7 +108,7 @@
 		三つのベクタは、文書をまたいでも使い回します。Interner は作るときにスレッドのバッファプールから <code
 			>Interner</code
 		>
-		という鍵でバッファを借り、捨てるときに返します（<a href="/learn/kernel/buffer-pool#keyed">12</a
+		という鍵でバッファを借り、捨てるときに返します（<a href="/learn/kernel/buffer-pool#keyed">13</a
 		>）。返す順は借りた順の逆です。<code>ends</code> と
 		<code>table</code> はどちらも <code>Vec&lt;u32&gt;</code> なので、逆の順で返さないと、次の文書で互いのバッファを受け取ってしまいます。
 	</p>

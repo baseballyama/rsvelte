@@ -98,7 +98,7 @@
 		最後にこの基準値を書き換えたコミットは <code
 			>{data.performance.last.sha ?? '作業ツリー（未コミット）'}</code
 		>（{data.performance.last.subject}）。記録の推移は
-		<a class="link" href="/learn/polish#history">14 磨きどころ</a> にあります。
+		<a class="link" href="/learn/polish#history">15 磨きどころ</a> にあります。
 	</figcaption>
 </figure>
 
@@ -108,7 +108,7 @@
 	<ul>
 		<li>
 			割り当て: <code>metrics</code> feature を入れたビルドの <code>rsvelte performance</code>
-			が、<Term name="CountingAllocator" />（<a href="/learn/kernel/measurement#alloc">11</a
+			が、<Term name="CountingAllocator" />（<a href="/learn/kernel/measurement#alloc">12</a
 			>）で最後のラウンドの割り当て回数とバイト数を数えます。全体の数に加え、フェーズ（計算結果、タスク、ルール）ごとの呼び出し回数・割り当て回数・バイト数、それに使用中のメモリのピーク増分です。比べ方は<strong
 				>完全一致</strong
 			>です。
@@ -309,7 +309,7 @@
 	<p>
 		時間を測るラウンドは、比較対象を 比較対象を順に実行し、逆順でも実行する
 		の順（奇数ラウンドは逆順）に交互に走らせ、{data.rounds} ラウンドの中央値を取ります。割り当てとピークは、プロセス全体の追跡を入れた別のラウンドで取ります（<a
-			href="/learn/kernel/measurement#global">11</a
+			href="/learn/kernel/measurement#global">12</a
 		>）。ビルドは metrics なしとありの二種類を、それぞれ二回走らせました。
 	</p>
 
@@ -370,7 +370,7 @@
 			pool: nopool → shared で時間が {(
 				(1 - a('shared').plain[0] / a('nopool').plain[0]) *
 				100
-			).toFixed(0)}% 減ります（<a href="/learn/kernel/buffer-pool#measure">12</a>）。
+			).toFixed(0)}% 減ります（<a href="/learn/kernel/buffer-pool#measure">13</a>）。
 		</li>
 		<li>
 			ストリーミング: 時間の差は、同じ比較対象の二回の実行の差（{Math.abs(

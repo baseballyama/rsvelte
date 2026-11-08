@@ -44,14 +44,14 @@
 		</li>
 		<li>
 			<strong>ブラウザで動くアルゴリズム。</strong>文書プリンタは Rust の
-			<code>rsvelte_kernel</code> を WebAssembly にしてそのまま実行します。そのため、プリンタ本体と文字幅の計算は、ネイティブ版とブラウザ版で同一です。LineIndex、Emitter、StructuredDataWriter、Interner
+			<code>rsvelte_document_printer</code> を WebAssembly にしてそのまま実行します。そのため、プリンタ本体と文字幅の計算は、ネイティブ版とブラウザ版で同一です。LineIndex、Emitter、StructuredDataWriter、Interner
 			は TypeScript に一行ずつ移植してあり、Rust のテストと同じ入力・期待値で検査しています。Interner
 			のみハッシュ関数が異なります（FxHash ではなく 別のハッシュ関数）。
 		</li>
 		<li>
 			<strong>モデル。</strong
 			>スケジューラの時間軸、キャッシュ、バッファプールの様子を示す図は、カーネルの規則を真似た模型です。時間やメモリの数字は例示で、実測ではありません。実測は
-			<a href="/learn/measure">13 実測</a
+			<a href="/learn/measure">14 実測</a
 			>の章にまとめています。性能の基準値との比較検査の数はビルド時に
 			<code>tools/performance/baseline.json</code>
 			から読み、実行時間のベンチマークには測ったビルドを添えています。本文中の変更前後の数は、その変更のコミット（<code
@@ -65,10 +65,10 @@
 	<p>
 		最初に <a href="/learn/kernel">01 全体像</a
 		>を読んでください。そのあとは順番どおりでなくてもかまいません。位置（02）と一度だけ計算する仕組み（04）とスケジューラ（06）が中心となる仕組みで、残りはその上に載る部品です。最後の
-		<a href="/learn/polish">14 磨きどころ</a>は、各章で触れた弱点を一か所に集めたものです。
+		<a href="/learn/polish">15 磨きどころ</a>は、各章で触れた弱点を一か所に集めたものです。
 	</p>
 	<p>
-		独自の処理を追加する手順は、<a href="/learn/plugins">15 プラグインを実装する</a
+		独自の処理を追加する手順は、<a href="/learn/plugins">16 プラグインを実装する</a
 		>で説明しています。計算結果とタスクを登録する手順を、実行できる言語プラグインの例で示します。
 	</p>
 </div>

@@ -7,7 +7,7 @@
 		groupIds,
 		mustBeFlat,
 		remeasure,
-	} from '../../kernel/document/presets';
+	} from '../../document-printer/presets';
 
 	const object = {
 		name: 'オブジェクト',
@@ -49,8 +49,8 @@
 	>
 	<p class="mt-4 max-w-[44em] text-[17px] leading-[1.8] text-fg-2">
 		整形用のデータ構造を小さな式で書き、Rust のカーネルを WebAssembly
-		としてブラウザで実行して出力します。仕組みは <a class="link" href="/learn/kernel/document"
-			>08 レイアウト</a
+		としてブラウザで実行して出力します。仕組みは <a class="link" href="/learn/document-printer"
+			>09 レイアウト</a
 		>で説明しています。このページはブラウザだけで動き、サーバーでは描画しません。
 	</p>
 </header>

@@ -60,7 +60,7 @@
 	</p>
 </div>
 
-<SpanFigure data={data.counter} label="図 9.0 · Counter.svelte の出力（本物）" />
+<SpanFigure data={data.counter} label="図 10.0 · Counter.svelte の出力（本物）" />
 
 <div class="prose-learn">
 	<p>

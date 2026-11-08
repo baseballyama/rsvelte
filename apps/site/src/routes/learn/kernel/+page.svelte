@@ -484,7 +484,7 @@
 		<li>
 			<strong>計測を最初から組み込む。</strong
 			>計算結果とタスクとルールは、すべて名前のついたフェーズです。<code>metrics</code>
-			feature を外すと、計測のコードはまったく残りません（<a href="/learn/kernel/measurement">11</a
+			feature を外すと、計測のコードはまったく残りません（<a href="/learn/kernel/measurement">12</a
 			>）。
 		</li>
 	</ol>
