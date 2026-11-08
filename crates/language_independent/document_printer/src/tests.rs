@@ -1,0 +1,205 @@
+use crate::{
+    GroupDecision, LayoutInstructionIdentifier, LayoutInstructions, PrintOptions, Refused,
+    TraceEvent, TraceMode,
+};
+
+fn call(d: &mut LayoutInstructions, arguments: &[&str]) -> LayoutInstructionIdentifier {
+    let open = d.lit("f(");
+    let mut inner = Vec::new();
+    for (i, a) in arguments.iter().enumerate() {
+        if i > 0 {
+            inner.push(d.lit(","));
+            inner.push(d.line());
+        }
+        inner.push(d.text(a));
+    }
+    let inner = d.concat(&inner);
+    let soft = d.softline();
+    let body = d.concat(&[soft, inner]);
+    let body = d.indent(body);
+    let soft2 = d.softline();
+    let close = d.lit(")");
+    d.group(&[open, body, soft2, close])
+}
+
+fn print(
+    d: &LayoutInstructions,
+    root: LayoutInstructionIdentifier,
+    options: &PrintOptions,
+) -> String {
+    d.print(root, options).expect("no flat-only layouts")
+}
+
+/// Prettier's `propagateBreaks` breaks a group around a group built broken, not only around
+/// hard lines: Prettier prints this `x\ny`.
+#[test]
+fn a_group_built_broken_breaks_its_parent() {
+    let mut d = LayoutInstructions::new();
+    let (x, y) = (d.lit("x"), d.lit("y"));
+    let inner = d.group_broken(&[y]);
+    let line = d.line();
+    let outer = d.group(&[x, line, inner]);
+    assert!(d.will_break(outer));
+    assert_eq!(print(&d, outer, &PrintOptions::default()), "x\ny");
+}
+
+/// Prettier propagates breaks at print time, after a trim: a hard line trimmed away breaks
+/// nothing, here or in the groups around it.
+#[test]
+fn a_trimmed_hard_line_no_longer_breaks() {
+    let mut d = LayoutInstructions::new();
+    let (a, x) = (d.lit("a"), d.lit("x"));
+    let hard = d.hardline();
+    let inner = d.concat(&[x, hard]);
+    let line = d.line();
+    let outer = d.group(&[a, line, inner]);
+    let mut docs = vec![outer];
+    d.trim_right(&mut docs, LayoutInstructions::is_line);
+    assert!(!d.will_break(inner) && !d.will_break(outer));
+    assert_eq!(print(&d, outer, &PrintOptions::default()), "a x");
+}
+
+#[test]
+fn group_prints_flat_when_it_fits_and_breaks_otherwise() {
+    let mut d = LayoutInstructions::new();
+    let g = call(&mut d, &["a", "b"]);
+    assert_eq!(print(&d, g, &PrintOptions::default()), "f(a, b)");
+    let mut d = LayoutInstructions::new();
+    let long = "x".repeat(50);
+    let g = call(&mut d, &[&long, &long]);
+    assert_eq!(
+        print(&d, g, &PrintOptions::default()),
+        format!("f(\n  {long},\n  {long}\n)")
+    );
+}
+
+#[test]
+fn traced_print_uses_the_production_printer() {
+    let mut d = LayoutInstructions::new();
+    let long = "x".repeat(50);
+    let g = call(&mut d, &[&long, &long]);
+    let mut trace = Vec::new();
+    let out = d
+        .print_with_trace(g, &PrintOptions::default(), &mut trace)
+        .expect("no flat-only layouts");
+    assert_eq!(out, format!("f(\n  {long},\n  {long}\n)"));
+    assert_eq!(
+        trace,
+        vec![TraceEvent::Group {
+            document: g,
+            position: 0,
+            remaining: 80,
+            mode: TraceMode::Break,
+            decision: GroupDecision::DoesNotFit,
+        }]
+    );
+}
+
+#[test]
+fn hardline_breaks_enclosing_groups_and_trims_trailing_space() {
+    let mut d = LayoutInstructions::new();
+    let a = d.lit("a ");
+    let hard = d.hardline();
+    let b = d.lit("b");
+    let inner = d.concat(&[a, hard, b]);
+    let indentation = d.indent(inner);
+    let line = d.line();
+    let group = d.group(&[indentation, line]);
+    let options = PrintOptions {
+        indent_spaces: None,
+        ..Default::default()
+    };
+    assert_eq!(print(&d, group, &options), "a\n\tb\n");
+}
+
+#[test]
+fn text_parts_is_the_text_of_its_parts_joined() {
+    let mut d = LayoutInstructions::new();
+    let a = d.text_parts(&["</", "div", ">"]);
+    let b = d.text_parts(&[]);
+    assert_eq!((d.as_str(a), d.as_str(b)), (Some("</div>"), Some("")));
+    let root = d.concat(&[a, b]);
+    assert_eq!(print(&d, root, &PrintOptions::default()), "</div>");
+}
+
+#[test]
+fn literal_line_keeps_trailing_space_and_skips_indentation() {
+    let mut d = LayoutInstructions::new();
+    let a = d.lit("a ");
+    let l = d.literalline();
+    let b = d.lit("b");
+    let inner = d.concat(&[a, l, b]);
+    let indentation = d.indent(inner);
+    assert_eq!(print(&d, indentation, &PrintOptions::default()), "a \nb");
+}
+
+#[test]
+fn fill_packs_words() {
+    let mut d = LayoutInstructions::new();
+    let mut items = Vec::new();
+    for i in 0..30 {
+        if i > 0 {
+            items.push(d.line());
+        }
+        items.push(d.lit("word"));
+    }
+    let f = d.fill(&items);
+    let options = PrintOptions {
+        width: 20,
+        ..Default::default()
+    };
+    let out = print(&d, f, &options);
+    assert!(out.lines().all(|l| l.len() <= 20), "{out}");
+    assert_eq!(out.lines().next().unwrap(), "word word word word");
+}
+
+#[test]
+fn fill_breaks_the_separator_after_content_holding_a_broken_group() {
+    let mut d = LayoutInstructions::new();
+    let a = d.lit("a");
+    let line = d.line();
+    let b = d.lit("b");
+    let content = d.group_broken(&[a, line, b]);
+    let sep = d.line();
+    let c = d.lit("c");
+    let filled = d.fill(&[content, sep, c]);
+    assert_eq!(print(&d, filled, &PrintOptions::default()), "a\nb\nc");
+}
+
+#[test]
+fn if_break_follows_a_named_group() {
+    let mut d = LayoutInstructions::new();
+    let identifier = d.new_group_identifier();
+    let long = d.text(&"x".repeat(90));
+    let l = d.line();
+    let g = d.group_with_identifier(&[long, l], identifier);
+    let yes = d.lit("broken");
+    let no = d.lit("flat");
+    let ib = d.if_break_of(yes, no, identifier);
+    let root = d.concat(&[g, ib]);
+    assert!(print(&d, root, &PrintOptions::default()).ends_with("\nbroken"));
+}
+
+#[test]
+fn flat_only_refuses_when_it_does_not_fit() {
+    let mut d = LayoutInstructions::new();
+    let short = d.lit("short");
+    let ok = d.flat_only(short);
+    assert_eq!(d.print(ok, &PrintOptions::default()), Ok("short".into()));
+    let mut d = LayoutInstructions::new();
+    let long = d.text(&"x".repeat(90));
+    let bad = d.flat_only(long);
+    assert_eq!(d.print(bad, &PrintOptions::default()), Err(Refused));
+}
+
+#[test]
+fn trim_descends_into_the_last_part() {
+    let mut d = LayoutInstructions::new();
+    let a = d.lit("a");
+    let h = d.hardline();
+    let inner = d.concat(&[a, h]);
+    let mut docs = vec![inner];
+    d.trim_right(&mut docs, LayoutInstructions::is_line);
+    let root = d.concat(&docs);
+    assert_eq!(print(&d, root, &PrintOptions::default()), "a");
+}
