@@ -1142,6 +1142,7 @@ pub fn compile_module(
         // whether analysis rebuilds a line table it would not use; keep the
         // pre-existing behaviour for the `.svelte.js` path.
         skip_expression_loc: false,
+        ts: false,
         instance: None,
         module: Some(Box::new(crate::ast::template::Script {
             node_type: crate::ast::template::ScriptType::Script,
@@ -1302,30 +1303,14 @@ fn check_module_store_subscriptions(
 
 /// Remove TypeScript nodes from the parsed AST's script content.
 ///
-/// This checks if any script block has `lang="ts"` or `lang="typescript"` attributes,
-/// and if so, applies `remove_typescript_nodes` to strip type annotations.
-/// This matches the official Svelte compiler behavior where TypeScript stripping
-/// happens during compilation, not during parsing.
+/// `compile` in `compiler/index.js` strips on `parsed.metadata.ts`, the parser's
+/// own decision, not on any script's `lang` attribute: `<script data-lang="ts">`
+/// or a `<script lang="ts">` nested in the markup turns it on with no top-level
+/// `lang="ts"`.
 fn remove_typescript_from_ast(
     ast: &mut crate::ast::Root,
     retained: &crate::ast::oxc_program::RetainedScripts<'_>,
 ) -> Result<(), crate::error::ParseError> {
-    use crate::ast::AttributeValue;
-    use crate::ast::AttributeValuePart;
-
-    fn is_typescript_script(script: &crate::ast::Script) -> bool {
-        for attr in &script.attributes {
-            if attr.name.as_str() == "lang"
-                && let AttributeValue::Sequence(parts) = &attr.value
-                && let Some(AttributeValuePart::Text(t)) = parts.first()
-            {
-                let lang = t.data.as_ref();
-                return lang == "ts" || lang == "typescript";
-            }
-        }
-        false
-    }
-
     fn strip_ts_from_script(
         script: &mut crate::ast::Script,
         retained: Option<&crate::ast::oxc_program::RetainedProgram<'_>>,
@@ -1369,16 +1354,12 @@ fn remove_typescript_from_ast(
         }
     }
 
-    // In Svelte, if ANY script has lang="ts", ALL scripts are treated as TypeScript.
-    // This matches the official compiler behavior where the module script's lang attribute
-    // propagates to the instance script.
-    let any_is_typescript = ast
-        .instance
-        .as_ref()
-        .is_some_and(|s| is_typescript_script(s))
-        || ast.module.as_ref().is_some_and(|s| is_typescript_script(s));
-
-    if any_is_typescript {
+    // A script's own `lang="ts"`/`"typescript"` still parses it as TypeScript
+    // where upstream would reject it, so whatever was parsed as TS is stripped.
+    let parsed_as_typescript = ast.ts
+        || ast.instance.as_ref().is_some_and(|s| s.is_typescript)
+        || ast.module.as_ref().is_some_and(|s| s.is_typescript);
+    if parsed_as_typescript {
         if let Some(ref mut instance) = ast.instance {
             strip_ts_from_script(instance, retained.instance.as_ref())?;
         }
@@ -2275,6 +2256,44 @@ mod tests {
         };
         let result = compile(source, options).unwrap();
         assert!(result.js.code.contains("svelte/internal/server"));
+    }
+
+    /// Upstream strips TypeScript on the parser's `metadata.ts`, which these
+    /// sources turn on without a top-level `lang="ts"`. Expected output is the
+    /// official compiler's (`submodules/svelte` 5.57.3, `filename: App.svelte`).
+    #[test]
+    fn typescript_is_stripped_on_the_parser_decision_not_the_script_lang() {
+        let cases: [(&str, &str, &str); 3] = [
+            (
+                r#"<script data-lang="ts">let x: number = 1;</script><p>{x as number}</p>"#,
+                "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\nimport * as $ from 'svelte/internal/client';\n\nvar root = $.from_html(`<p></p>`);\n\nexport default function App($$anchor) {\n\tlet x = 1;\n\tvar p = root();\n\n\tp.textContent = '1';\n\t$.append($$anchor, p);\n}",
+                "import * as $ from 'svelte/internal/server';\n\nexport default function App($$renderer) {\n\tlet x = 1;\n\n\t$$renderer.push(`<p>1</p>`);\n}",
+            ),
+            (
+                r#"<div><script lang="ts"></script></div><script>let x: number = 1; interface A {}</script><p>{x}</p>"#,
+                "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\nimport * as $ from 'svelte/internal/client';\n\nvar root = $.with_script($.from_html(`<div><script lang=\"ts\"></script><!></div><p></p>`, 1));\n\nexport default function App($$anchor) {\n\tlet x = 1;\n\tvar fragment = root();\n\tvar p = $.sibling($.first_child(fragment));\n\n\tp.textContent = '1';\n\t$.append($$anchor, fragment);\n}",
+                "import * as $ from 'svelte/internal/server';\n\nexport default function App($$renderer) {\n\tlet x = 1;\n\n\t$$renderer.push(`<div>`);\n\t$$renderer.push(`<script lang=\"ts\"></script>`);\n\t$$renderer.push(`<!----></div><p>1</p>`);\n}",
+            ),
+            (
+                r#"<script>let x = 1; const s = '<script lang="ts">';</script><p>{x as number}</p>"#,
+                "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\nimport * as $ from 'svelte/internal/client';\n\nvar root = $.from_html(`<p></p>`);\n\nexport default function App($$anchor) {\n\tlet x = 1;\n\tconst s = '<script lang=\"ts\">';\n\tvar p = root();\n\n\tp.textContent = '1';\n\t$.append($$anchor, p);\n}",
+                "import * as $ from 'svelte/internal/server';\n\nexport default function App($$renderer) {\n\tlet x = 1;\n\tconst s = '<script lang=\"ts\">';\n\n\t$$renderer.push(`<p>1</p>`);\n}",
+            ),
+        ];
+        for (source, client, server) in cases {
+            for (generate, expected) in [
+                (GenerateMode::Client, client),
+                (GenerateMode::Server, server),
+            ] {
+                let options = CompileOptions {
+                    filename: Some("App.svelte".to_string()),
+                    generate,
+                    ..Default::default()
+                };
+                let code = compile(source, options).unwrap().js.code;
+                assert_eq!(code.trim_end(), expected, "{source}");
+            }
+        }
     }
 
     #[test]

@@ -72,6 +72,11 @@ pub struct Root<'a> {
     /// make the same `loc` decision the parser did rather than a fresh one.
     #[serde(skip)]
     pub skip_expression_loc: bool,
+    /// Upstream's `parser.ts` (`metadata.ts`): whether the parser read this
+    /// component as TypeScript. The compiler strips TypeScript on this flag,
+    /// not on any script's own `lang`, which can disagree with it.
+    #[serde(skip)]
+    pub ts: bool,
 }
 
 /// Set `end` to `-1` on each template node `Root::unclosed_ancestors` names.
