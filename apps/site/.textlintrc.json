@@ -1,15 +1,37 @@
 {
 	"rules": {
 		"preset-ja-technical-writing": {
-			"sentence-length": { "max": 100, "skipPatterns": ["/`[^`]*`/g"] },
+			"sentence-length": { "max": 80, "skipPatterns": ["/`[^`]*`/g"] },
 			"no-exclamation-question-mark": false,
 			"ja-no-mixed-period": false,
 			"no-mix-dearu-desumasu": false,
 			"arabic-kanji-numbers": false,
-			"no-doubled-joshi": false,
+			"no-doubled-joshi": { "strict": false, "allow": ["も", "や", "か", "と"] },
 			"max-comma": false
 		},
 		"@textlint-ja/preset-ai-writing": { "ai-tech-writing-guideline": false },
+		"preset-jtf-style": {
+			"1.1.3.箇条書き": false,
+			"2.2.1.ひらがなと漢字の使い分け": false,
+			"2.2.2.算用数字と漢数字の使い分け": false,
+			"3.1.1.全角文字と半角文字の間": false,
+			"4.2.2.疑問符(？)": false
+		},
+		"preset-ja-spacing": {
+			"ja-space-between-half-and-full-width": { "space": "always" },
+			"ja-space-around-code": { "before": true, "after": true }
+		},
+		"ja-hiragana-keishikimeishi": true,
+		"ja-hiragana-hojodoushi": true,
+		"ja-hiragana-daimeishi": true,
+		"ja-no-orthographic-variants": true,
+		"ja-joyo-or-jinmeiyo-kanji": true,
+		"no-mixed-zenkaku-and-hankaku-alphabet": true,
+		"no-kangxi-radicals": true,
+		"@textlint-ja/no-dropping-i": true,
+		"@textlint-ja/no-insert-dropping-sa": true,
+		"@textlint-ja/no-synonyms": true,
+		"@textlint-ja/no-filler": true,
 		"prh": { "rulePaths": ["writing.yml"] }
 	}
 }

@@ -1,4 +1,5 @@
 import type { loadTextlintrc } from 'textlint';
+import { acronyms } from '../../../tools/writing/words.ts';
 
 // textlint's rule types live in @textlint/types, which the site does not depend on directly.
 type Descriptor = Awaited<ReturnType<typeof loadTextlintrc>>;
@@ -8,13 +9,14 @@ type TextNode = NonNullable<Parameters<Parameters<Rule>[0]['getSource']>[0]>;
 
 const rule: Rule = (context) => {
 	const { Syntax, RuleError, report, getSource } = context;
-	const technicalTerms = new Set(['AST', 'HIR']);
+	const technicalTerms = new Set(acronyms);
 	const pattern =
 		/(?<![\w])(?:[A-Z]{2,}(?:-\d+)?|db(?:\.rs)?|idx(?:\.rs)?|diag(?:\.rs)?|doc\.rs|Ctx|Loc|Idx|TsView|TsDoc)(?![\w])/g;
 	function check(node: TextNode, code = false) {
 		const source = getSource(node);
 		for (const match of source.matchAll(pattern)) {
-			if (technicalTerms.has(match[0])) continue;
+			// A version suffix keeps the name allowed: UTF-8 is UTF, SHA-256 is SHA.
+			if (technicalTerms.has(match[0].replace(/-\d+$/, ''))) continue;
 			if (code && !/^(?:db|idx|diag|doc\.rs|Ctx|Loc|Idx|TsView|TsDoc|AST|HIR|IR)/.test(match[0]))
 				continue;
 			report(

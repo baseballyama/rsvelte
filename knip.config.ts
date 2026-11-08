@@ -20,6 +20,10 @@ export default {
 			// Oracles run from their installed path or named in reports, not imported.
 			ignoreDependencies: ['svelte-check', 'vue-tsc'],
 		},
+		'tools/writing': {
+			// The spelling rule loads the dictionary by its language name.
+			ignoreDependencies: ['dictionary-en'],
+		},
 		'tools/performance': {
 			entry: ['workloads/*/*.ts'],
 			// The svelte-lint workload's oracle requires the packages tools/oracle installs.

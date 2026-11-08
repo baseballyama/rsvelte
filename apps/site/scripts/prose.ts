@@ -27,6 +27,14 @@ const blocks = new Set([
 	'label',
 	'figcaption',
 	'div',
+	'title',
+	'header',
+	'footer',
+	'nav',
+	'section',
+	'figure',
+	'dt',
+	'dd',
 ]);
 const proseAttributes = new Set([
 	'lead',
@@ -61,7 +69,9 @@ export async function writingLinter() {
 	const loaded = await loadTextlintrc({
 		configFilePath: path.join(import.meta.dirname, '../.textlintrc.json'),
 	});
-	if (!loaded.configBaseDir) throw new Error('The writing rules failed to load');
+	// The loader returns an empty rule set, not an error, when any one rule fails to load.
+	if (!loaded.configBaseDir || !loaded.rule.toKernelRulesFormat().length)
+		throw new Error('The writing rules failed to load');
 	const descriptor = loaded.shallowMerge({
 		rules: [
 			...loaded.rule.toKernelRulesFormat(),
@@ -113,8 +123,7 @@ export function extractProse(source: string, file: string): Chunk[] {
 						node.parent.arguments[1] === node));
 			if (ts.isTemplateExpression(node)) {
 				const text =
-					node.head.text +
-					node.templateSpans.map((span) => '`動的な値`' + span.literal.text).join('');
+					node.head.text + node.templateSpans.map((span) => '`value`' + span.literal.text).join('');
 				const code =
 					ts.isPropertyAssignment(node.parent) &&
 					['expr', 'code', 'source', 'src'].includes(node.parent.name.getText(tree));
@@ -203,7 +212,7 @@ export function extractProse(source: string, file: string): Chunk[] {
 							? n.data
 							: n.type === 'ExpressionTag' && n.expression.type === 'Literal'
 								? String(n.expression.value)
-								: '',
+								: 'value',
 					)
 					.join('');
 				if (value) text += '`' + value.replaceAll('`', '\\`') + '`';
@@ -223,10 +232,7 @@ export function extractProse(source: string, file: string): Chunk[] {
 				if (value && typeof value === 'object' && !Array.isArray(value) && value.expression)
 					expression(value.expression);
 				if (Array.isArray(value)) {
-					add(
-						value.map((n) => (n.type === 'Text' ? n.data : '`動的な値`')).join(''),
-						attribute.start,
-					);
+					add(value.map((n) => (n.type === 'Text' ? n.data : '`value`')).join(''), attribute.start);
 					for (const valuePart of value)
 						if (valuePart.type === 'ExpressionTag') expression(valuePart.expression);
 				}
@@ -256,7 +262,7 @@ export function extractProse(source: string, file: string): Chunk[] {
 				}
 			}
 			if (node.type === 'ExpressionTag') {
-				text += node.expression.type === 'Literal' ? String(node.expression.value) : '`動的な値`';
+				text += node.expression.type === 'Literal' ? String(node.expression.value) : '`value`';
 				if (node.expression.type !== 'Literal') expression(node.expression);
 			}
 			if (block) flush();

@@ -8,7 +8,7 @@ rules:
     pattern: 射影
   - expected: 基準値からの変化を検出する検査
     pattern: ラチェット
-  - expected: 比較対象
+  - expected: 測定条件
     pattern: アーム
   - expected: 実行時間
     pattern: 壁時計

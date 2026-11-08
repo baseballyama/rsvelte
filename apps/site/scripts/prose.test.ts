@@ -131,3 +131,22 @@ test('every visible source surface is parsed, including the reported modules pag
 	assert.ok(files.includes('src/lib/widgets/ArtifactCacheSim.svelte'));
 	for (const file of files) extractProse(readFileSync(file, 'utf8'), file);
 });
+
+test('a dynamic value reads as inline code, also inside a code element', () => {
+	const chunks = extractProse('<p>結果は <code>{count}</code> 件です。{label}</p>', 'page.svelte');
+	assert.deepEqual(
+		chunks.map((chunk) => chunk.text),
+		['結果は `value` 件です。`value`'],
+	);
+});
+
+test('a title and the next element are separate passages', () => {
+	const chunks = extractProse(
+		'<svelte:head><title>リファレンス — rsvelte</title></svelte:head><header><span>付録</span></header>',
+		'page.svelte',
+	);
+	assert.deepEqual(
+		chunks.map((chunk) => chunk.text),
+		['リファレンス — rsvelte', '付録'],
+	);
+});
