@@ -1616,10 +1616,33 @@ pub fn text_has_await(expr_text: &str) -> bool {
 /// off (the map is only populated under `experimental.async`) or the expression
 /// references no blocked binding. Mirrors `metadata.expression.blockers()`.
 pub fn expr_text_blockers(state: &ServerTransformState, expr_text: &str) -> Vec<usize> {
-    crate::compiler::phases::phase3_transform::server::helpers::find_expression_blockers(
+    let indices: std::collections::BTreeSet<usize> = instance_blocker_reads(state, expr_text)
+        .into_iter()
+        .map(|(_, idx)| idx)
+        .collect();
+    indices.into_iter().collect()
+}
+
+/// `(name, index)` for each read of a top-level-await-blocked binding in
+/// `expr_text`, in source order, skipping a name that an each item, snippet
+/// parameter or template const declares closer than the instance script.
+fn instance_blocker_reads<'e>(
+    state: &ServerTransformState,
+    expr_text: &'e str,
+) -> Vec<(&'e str, usize)> {
+    let root = &state.analysis.root;
+    crate::compiler::phases::phase3_transform::server::helpers::find_expression_blocker_names(
         expr_text,
         &state.eval_inputs.top_level_blocker_map,
     )
+    .into_iter()
+    .filter(|(name, _)| {
+        state
+            .nearest_binding(name)
+            .and_then(|b| root.bindings.get(b))
+            .is_none_or(|b| b.scope_index == root.instance_scope_index || b.scope_index == 0)
+    })
+    .collect()
 }
 
 /// Build the top-level async-wrapped expression-tag push statement — the Rust
@@ -1783,12 +1806,11 @@ impl<'a> PromiseOptimiser<'a> {
     /// 写经 `check_blockers(metadata)`: union the top-level-await blocker indices
     /// referenced by `expr_text` into the blocker set (insertion-ordered).
     pub fn check_blockers(&mut self, state: &ServerTransformState<'a>, expr_text: &str) {
-        let instance = expr_text_blockers(state, expr_text);
+        let instance_reads = instance_blocker_reads(state, expr_text);
         let local = local_const_blocker_reads(state, expr_text);
         let mut found: Vec<OptimiserBlocker> = Vec::new();
         if !local.is_empty() {
             // Mixed kinds keep reference order, like upstream's Set.
-            let top_level = &state.eval_inputs.top_level_blocker_map;
             for name in
                 crate::compiler::phases::phase3_transform::server::helpers::free_identifier_names(
                     expr_text,
@@ -1796,13 +1818,13 @@ impl<'a> PromiseOptimiser<'a> {
             {
                 if let Some((_, slot)) = local.iter().find(|(n, _)| *n == name) {
                     found.push(OptimiserBlocker::Local(slot.clone()));
-                } else if let Some(&idx) = top_level.get(&name)
-                    && instance.contains(&idx)
-                {
+                } else if let Some(&(_, idx)) = instance_reads.iter().find(|(n, _)| *n == name) {
                     found.push(OptimiserBlocker::Instance(idx));
                 }
             }
         }
+        let instance: std::collections::BTreeSet<usize> =
+            instance_reads.into_iter().map(|(_, idx)| idx).collect();
         found.extend(instance.into_iter().map(OptimiserBlocker::Instance));
         for blocker in found {
             if !self.blockers.contains(&blocker) {
