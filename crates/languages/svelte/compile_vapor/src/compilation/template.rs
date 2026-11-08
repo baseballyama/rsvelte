@@ -236,17 +236,6 @@ impl Rewrite for TemplateRewrite<'_> {
     }
 }
 
-fn has_animation(tree: &CompilerSyntaxTree, body: Children) -> bool {
-    tree.children(body).iter().any(|&child| {
-        let NodeKind::Element(element) = &tree.node(child).kind else {
-            return false;
-        };
-        tree.attributes(element.attributes)
-            .iter()
-            .any(|attribute| matches!(attribute.value, AttributeValue::Animate { .. }))
-    })
-}
-
 mod properties;
 use properties::{
     attribute, binding_event, bound, captured_event, directive, is_boolean, is_primitive,
@@ -267,6 +256,7 @@ mod components;
 mod custom_elements;
 mod declarations;
 mod defaults;
+mod each_block;
 mod elements;
 mod expressions;
 mod groups;
