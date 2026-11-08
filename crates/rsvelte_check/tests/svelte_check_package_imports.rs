@@ -389,3 +389,119 @@ fn external_package_own_imports_resolve_from_its_mirror() {
         ],
     );
 }
+
+/// Components a symlinked workspace dependency publishes through `exports`:
+/// an exact subpath with `types` before a `svelte` condition, a `./cmp/*`
+/// pattern, a longer `null` pattern inside it, and `svelte` before `default`.
+/// Each `<cell>.ts` / `<CELL>.svelte` checks clean only on a `src/ui` or
+/// `src/cmp` component; official svelte-check resolves every cell there except
+/// `h`, which the `null` makes TS2307. The expected set is its output on this
+/// fixture.
+#[cfg(unix)]
+#[test]
+fn package_exports_components_resolve_like_typescript() {
+    if find_compiler(&PathBuf::from("."), true).is_err() {
+        assert!(
+            std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+            "no TypeScript 7 native compiler in a job that declares RSVELTE_REQUIRE_PREREQS"
+        );
+        eprintln!("skip package exports: no TSGO_BIN and no @typescript/native-preview");
+        return;
+    }
+    let root = std::env::temp_dir().join(format!("rsvelte_pkg_exports_{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    let app = root.join("app");
+    let libs = root.join("libs");
+    for dir in ["src/ui", "src/x", "src/cmp/hidden"] {
+        fs::create_dir_all(libs.join(dir)).unwrap();
+    }
+    fs::create_dir_all(app.join("src")).unwrap();
+    fs::create_dir_all(app.join("node_modules/@s")).unwrap();
+    std::os::unix::fs::symlink(&libs, app.join("node_modules/@s/libs")).unwrap();
+    fs::write(
+        app.join("tsconfig.json"),
+        r#"{ "compilerOptions": { "moduleResolution": "bundler", "module": "esnext", "target": "esnext", "allowArbitraryExtensions": true, "strict": true, "skipLibCheck": true, "noEmit": true, "paths": {} }, "include": ["src/**/*.ts", "src/**/*.svelte"] }"#,
+    )
+    .unwrap();
+    fs::write(
+        app.join("package.json"),
+        r#"{ "name": "app", "type": "module", "dependencies": { "@s/libs": "workspace:*" } }"#,
+    )
+    .unwrap();
+    fs::write(
+        libs.join("package.json"),
+        r#"{ "name": "@s/libs", "type": "module", "exports": {
+            "./ui/Card.svelte": { "types": "./src/ui/Card.svelte", "svelte": "./src/x/Card.svelte" },
+            "./cmp/*": "./src/cmp/*",
+            "./cmp/hidden/*": null,
+            "./typed/*": { "svelte": "./src/x/*", "default": "./src/cmp/*" }
+        } }"#,
+    )
+    .unwrap();
+    let kind = |k: &str| {
+        format!(
+            "<script module lang=\"ts\">export const KIND = '{k}' as const;</script>\n<i></i>\n"
+        )
+    };
+    for (file, k) in [
+        ("src/ui/Card.svelte", "t"),
+        ("src/x/Card.svelte", "x"),
+        ("src/cmp/Pat.svelte", "t"),
+        ("src/cmp/Typed.svelte", "t"),
+        ("src/x/Typed.svelte", "x"),
+        ("src/cmp/hidden/H.svelte", "t"),
+    ] {
+        fs::write(libs.join(file), kind(k)).unwrap();
+    }
+    for (cell, spec) in [
+        ("a", "@s/libs/ui/Card.svelte"),
+        ("p", "@s/libs/cmp/Pat.svelte"),
+        ("t", "@s/libs/typed/Typed.svelte"),
+        ("h", "@s/libs/cmp/hidden/H.svelte"),
+    ] {
+        fs::write(
+            app.join(format!("src/{cell}.ts")),
+            format!("import {{ KIND }} from '{spec}';\nexport const k: 't' = KIND;\n"),
+        )
+        .unwrap();
+        fs::write(
+            app.join(format!("src/{}.svelte", cell.to_uppercase())),
+            format!(
+                "<script lang=\"ts\">import {{ KIND }} from '{spec}';\nconst k: 't' = KIND;</script>\n{{k}}\n"
+            ),
+        )
+        .unwrap();
+    }
+    write_svelte_stub(&app);
+
+    let opts = RunOptions {
+        workspace: app.clone(),
+        tsconfig: Some(app.join("tsconfig.json")),
+        type_check: true,
+        prefer_tsgo: true,
+        ignore: vec!["node_modules".to_string()],
+        ..RunOptions::default()
+    };
+    let mut errs: Vec<String> = run(&opts)
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == DiagnosticSeverity::Error)
+        .map(|d| {
+            format!(
+                "{} {}",
+                d.file.file_name().unwrap_or_default().to_string_lossy(),
+                d.message
+            )
+        })
+        .collect();
+    errs.sort();
+    let _ = fs::remove_dir_all(&root);
+
+    assert_eq!(
+        errs,
+        [
+            "H.svelte Cannot find module '@s/libs/cmp/hidden/H.svelte' or its corresponding type declarations.",
+            "h.ts Cannot find module '@s/libs/cmp/hidden/H.svelte' or its corresponding type declarations.",
+        ],
+    );
+}

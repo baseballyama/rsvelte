@@ -986,6 +986,12 @@ fn materialize_overlay_for(
         &package_json_conditions(tsconfig_path),
         &user_paths,
     ));
+    alias_path_overrides.extend(package_exports_path_overrides(
+        &external,
+        &alias_override_candidates(&entries, &external, &module_bridges),
+        &package_json_conditions(tsconfig_path),
+        &user_paths,
+    ));
     alias_path_overrides.extend(svelte_types_path_overrides(&global_types));
 
     let overlay_tsconfig = cache_dir.join("tsconfig.json");
@@ -3465,6 +3471,67 @@ fn package_json_path_overrides(
     out
 }
 
+/// Whether one of the user's own `paths` keys matches `spec`: TypeScript tries
+/// `paths` before `imports` and a package's `exports`, so such a specifier is
+/// the user's mapping to keep.
+fn user_paths_match(user_paths: &serde_json::Map<String, serde_json::Value>, spec: &str) -> bool {
+    user_paths.keys().any(|key| match key.split_once('*') {
+        None => key == spec,
+        Some((prefix, suffix)) => {
+            spec.len() >= prefix.len() + suffix.len()
+                && spec.starts_with(prefix)
+                && spec.ends_with(suffix)
+        }
+    })
+}
+
+/// Exact `paths` entries for the components a workspace dependency publishes
+/// through its package.json `exports` (`"./ui/Card.svelte"`, `"./cmp/*"`). A
+/// plain `.ts` file importing `@scope/pkg/ui/Card.svelte` is resolved by
+/// TypeScript through `exports` to the `.svelte` source, which has no
+/// declaration beside it, so it fell through to the ambient `*.svelte` module.
+/// Subpaths follow the same key precedence, conditions and `null` exclusions
+/// as `imports`; a target TypeScript would send to a declaration file instead
+/// (`"types": "./dist/Card.svelte.d.ts"`) gets no entry.
+fn package_exports_path_overrides(
+    external: &[ExternalPackage],
+    candidates: &[(PathBuf, PathBuf)],
+    conditions: &[String],
+    user_paths: &serde_json::Map<String, serde_json::Value>,
+) -> Vec<(String, PathBuf)> {
+    let mut out: Vec<(String, PathBuf)> = Vec::new();
+    for pkg in external {
+        let Some(manifest) = fs::read_to_string(pkg.real_dir.join("package.json"))
+            .ok()
+            .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        else {
+            continue;
+        };
+        let (Some(name), Some(exports)) = (
+            manifest.get("name").and_then(|n| n.as_str()),
+            manifest.get("exports").and_then(|e| e.as_object()),
+        ) else {
+            continue;
+        };
+        // A conditions object at the top is sugar for `"."`: no subpaths.
+        if !exports.keys().all(|key| key.starts_with('.')) {
+            continue;
+        }
+        let public = |subpath: &str| -> Option<String> {
+            let spec = format!("{name}/{}", subpath.strip_prefix("./")?);
+            (!user_paths_match(user_paths, &spec)).then_some(spec)
+        };
+        for (spec, tsx) in
+            package_json_path_overrides(exports, &pkg.real_dir, conditions, candidates, &public)
+        {
+            if !out.iter().any(|(s, _)| *s == spec) {
+                out.push((spec, tsx));
+            }
+        }
+    }
+    out
+}
+
 /// Exact `paths` entries for the components reached through package.json
 /// `imports` (`#lib/Foo.svelte`, SvelteKit 3's replacement for `$lib`). A `#`
 /// specifier resolves against the package.json nearest the IMPORTING file,
@@ -3508,18 +3575,9 @@ fn package_imports_path_overrides(
             let target = package_json_resolve(imports.as_ref()?, spec, conditions)?;
             Some(normalize_abs(&dir.join(target)))
         };
-    let matches_user_paths = |spec: &str| {
-        user_paths.keys().any(|key| match key.split_once('*') {
-            None => key == spec,
-            Some((prefix, suffix)) => {
-                spec.len() >= prefix.len() + suffix.len()
-                    && spec.starts_with(prefix)
-                    && spec.ends_with(suffix)
-            }
-        })
-    };
     let public = |subpath: &str| -> Option<String> {
-        (subpath.starts_with('#') && !matches_user_paths(subpath)).then(|| subpath.to_string())
+        (subpath.starts_with('#') && !user_paths_match(user_paths, subpath))
+            .then(|| subpath.to_string())
     };
     let mut out: Vec<(String, PathBuf)> = Vec::new();
     for scope in &scopes {
@@ -7356,6 +7414,79 @@ mod tests {
         assert!(
             paths["#lib/Button.svelte"][0].is_string(),
             "the `#lib` override is missing:\n{paths}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn overlay_tsconfig_adds_exact_paths_override_for_a_package_exports_component() {
+        // A plain `.ts` file importing `libs/ui/Card.svelte` through the
+        // dependency's `exports` map reaches the `.svelte` source with no
+        // declaration beside it, so the overlay tsconfig must redirect it.
+        let tmp = std::env::temp_dir().join(format!("svc_exports_paths_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("app/src")).unwrap();
+        fs::create_dir_all(tmp.join("app/node_modules")).unwrap();
+        fs::create_dir_all(tmp.join("libs/src/ui")).unwrap();
+        fs::write(tmp.join("app/tsconfig.json"), "{\"compilerOptions\":{}}").unwrap();
+        fs::write(
+            tmp.join("libs/package.json"),
+            // `Typed.svelte` reaches TypeScript as its `types` declaration
+            // file, which needs no redirect.
+            r#"{"name":"libs","exports":{"./ui/Card.svelte":"./src/ui/Card.svelte","./ui/Typed.svelte":{"types":"./dist/Typed.svelte.d.ts","default":"./src/ui/Typed.svelte"}}}"#,
+        )
+        .unwrap();
+        fs::write(tmp.join("libs/tsconfig.json"), "{\"compilerOptions\":{}}").unwrap();
+        for name in ["Card", "Typed"] {
+            fs::write(
+                tmp.join(format!("libs/src/ui/{name}.svelte")),
+                "<script lang=\"ts\">let { n }: { n: number } = $props();</script>\n<p>{n}</p>\n",
+            )
+            .unwrap();
+        }
+        fs::write(
+            tmp.join("app/src/App.svelte"),
+            "<script lang=\"ts\">import Card from 'libs/ui/Card.svelte';</script>\n<Card n={1} />\n",
+        )
+        .unwrap();
+        std::os::unix::fs::symlink(tmp.join("libs"), tmp.join("app/node_modules/libs")).unwrap();
+
+        let workspace = tmp.join("app");
+        let _cwd_guard = CWD_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&workspace).unwrap();
+        let result = {
+            let files = vec![PathBuf::from("src/App.svelte")];
+            materialize_overlay_with(
+                Path::new("."),
+                &files,
+                Some(Path::new("./tsconfig.json")),
+                false,
+                &[],
+            )
+        };
+        std::env::set_current_dir(&cwd).unwrap();
+        result.unwrap();
+
+        let cfg: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(workspace.join(".svelte-check/tsconfig.json")).unwrap(),
+        )
+        .unwrap();
+        let paths = &cfg["compilerOptions"]["paths"];
+        let target = paths["libs/ui/Card.svelte"][0]
+            .as_str()
+            .unwrap_or_else(|| panic!("no exact override for libs/ui/Card.svelte:\n{paths}"));
+        assert!(
+            target.ends_with("Card.svelte.tsx"),
+            "override does not point at the shadow: {target}"
+        );
+        assert!(
+            paths["libs/ui/Typed.svelte"].is_null(),
+            "a subpath TypeScript types through `types` was redirected:\n{paths}"
         );
 
         let _ = fs::remove_dir_all(&tmp);
