@@ -1,7 +1,9 @@
-# Every gate the repository has, on every push and pull request:
-# - rust: formatting, the lint gate (both feature sets, rustdoc), the test suites (each crate's
-#   fixture snapshots, and every corpus unit against the official output with the parity ratchet,
-#   corpus/_registry/parity.json; the type-check ones run tsc from tools/oracle/node_modules);
+# Every gate the repository has, on every push and pull request, as jobs that run at once:
+# - rust-format: rustfmt with the pinned nightly;
+# - rust-lint: the lint gate (both feature sets, rustdoc);
+# - rust-test: the test suites (each crate's fixture snapshots, and every corpus unit against the
+#   official output with the parity ratchet, corpus/_registry/parity.json; the type-check ones run
+#   tsc from tools/oracle/node_modules);
 # - oracle: the structure check and the oracle tools' own tests (the behaviour oracle among them);
 # - performance: the deterministic performance ratchet (tools/performance/baseline.json): allocations exactly,
 #   and cachegrind's instruction counts (a warm round, and loading) on the platform the baseline
@@ -29,22 +31,39 @@ env:
   RUSTFMT_TOOLCHAIN: nightly-2026-11-03
 
 jobs:
-  rust:
+  rust-format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install "$RUSTFMT_TOOLCHAIN" --profile minimal --component rustfmt
+      - run: cargo +"$RUSTFMT_TOOLCHAIN" fmt --all --check
+
+  rust-lint:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: rustup toolchain install "$RUSTFMT_TOOLCHAIN" --profile minimal --component rustfmt
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: cargo +"$RUSTFMT_TOOLCHAIN" fmt --all --check
+      - uses: ./.github/actions/rust
       - run: cargo fetch
-      # The same commands as `mise run lint` (the rust-toolchain.toml toolchain is installed on
-      # first use).
+      # The same commands as `mise run lint`.
       - run: cargo clippy --offline --workspace --all-targets
       - run: cargo clippy --offline --workspace --all-targets --all-features
       - run: cargo doc --offline --workspace --no-deps --all-features
+
+  rust-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+      - run: cargo fetch
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26.13.0
@@ -67,7 +86,7 @@ jobs:
           package-manager-cache: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/oracle...
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: ./.github/actions/rust
       - run: node --test tools/structure/*.test.ts
       - run: node tools/structure/structure.ts
       # The semantic tests build other crates with --offline, so fetch the whole lockfile first.
@@ -108,13 +127,31 @@ jobs:
           node-version: 26.13.0
           package-manager-cache: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - run: rustup target add wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: ./.github/actions/rust
+        with:
+          targets: wasm32-unknown-unknown
       - run: cargo install wasm-pack --version 0.15.1 --locked
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run test
-      - run: pnpm run check
-      - run: pnpm run build
+      - run: pnpm run generate
+      # test, check and build each start by generating; it is done, so they skip that and run at
+      # once. SvelteKit's sync writes a file only when its content changes, so they share it.
+      - run: |
+          declare -A pids
+          for script in test check build; do
+            pnpm --config.enable-pre-post-scripts=false run "$script" > "$RUNNER_TEMP/$script.log" 2>&1 &
+            pids[$script]=$!
+          done
+          failed=()
+          for script in test check build; do
+            if ! wait "${pids[$script]}"; then failed+=("$script"); fi
+            echo "::group::$script"
+            cat "$RUNNER_TEMP/$script.log"
+            echo "::endgroup::"
+          done
+          if [ "${#failed[@]}" -gt 0 ]; then
+            echo "::error::failed: ${failed[*]}"
+            exit 1
+          fi
 
   performance:
     # The instruction baseline is recorded on arm64 Linux (`performance.ts linux` runs the same
@@ -129,9 +166,14 @@ jobs:
         with:
           node-version: 26.13.0
           package-manager-cache: false
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends valgrind
+      # The image's package lists usually still name valgrind; updating them took 15 seconds.
+      - run: |
+          if ! sudo apt-get install -y --no-install-recommends valgrind; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends valgrind
+          fi
       - run: node --test tools/performance/*.test.ts
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: ./.github/actions/rust
       - run: cargo fetch
       - run: node tools/performance/performance.ts ratchet --instructions --json performance-report.json
       - if: always()

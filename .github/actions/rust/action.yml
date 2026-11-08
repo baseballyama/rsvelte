@@ -1,0 +1,27 @@
+name: Rust
+description: >-
+  The pinned toolchain (rust-toolchain.toml) and the build cache. Installing the toolchain took
+  15-20 seconds of every job, so its directory is cached as well.
+inputs:
+  targets:
+    description: Extra compilation targets, separated by spaces.
+    default: ''
+runs:
+  using: composite
+  steps:
+    - id: channel
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: echo "channel=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.rustup/toolchains/${{ steps.channel.outputs.channel }}-*
+        key: rustup-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml') }}-${{ inputs.targets }}
+    - shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        TARGETS: ${{ inputs.targets }}
+      run: |
+        rustup toolchain install
+        for target in $TARGETS; do rustup target add "$target"; done
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
