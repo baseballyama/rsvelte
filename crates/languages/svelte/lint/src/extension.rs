@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-use rsvelte_html_lint::button_type::Allowed;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_lint_runner::configuration::RuleEntry;
+use rsvelte_markup_lint::button_type::Allowed;
 use rsvelte_plugin_interface::{CallError, Extension, Settings};
 use serde::Deserialize;
 use serde_json::value::RawValue;

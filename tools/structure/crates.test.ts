@@ -88,10 +88,14 @@ function inject(from: string, to: string): string[] {
 	return forbiddenDependencies([{ ...pkg, dependencies: [...pkg.dependencies, { name: to }] }]);
 }
 
-// The name says the path, so a crate is found from either.
+// The name says the path, so a crate is found from either. Identifiers spell out `css` and `html`
+// (apps/site/scripts/code-names.ts); only the language directories keep the short names.
+const spelled: Record<string, string> = { css: 'stylesheet', html: 'markup' };
 function expectedName(manifestPath: string): string | undefined {
-	const path = /\/crates\/languages\/([^/]+)\/([^/]+)\/Cargo\.toml$/.exec(manifestPath);
-	return path ? `rsvelte_${path[1]}_${path[2]}` : undefined;
+	const [, language, directory] =
+		/\/crates\/languages\/([^/]+)\/([^/]+)\/Cargo\.toml$/.exec(manifestPath) ?? [];
+	if (language === undefined || directory === undefined) return undefined;
+	return `rsvelte_${spelled[language] ?? language}_${directory}`;
 }
 
 test('every workspace crate has a role from its path', () => {
@@ -101,14 +105,14 @@ test('every workspace crate has a role from its path', () => {
 	);
 	assert.deepEqual(named('kernel'), ['rsvelte_kernel']);
 	assert.deepEqual(named('syntax'), [
-		'rsvelte_css_syntax',
-		'rsvelte_html_syntax',
+		'rsvelte_markup_syntax',
+		'rsvelte_stylesheet_syntax',
 		'rsvelte_svelte_syntax',
 		'rsvelte_typescript_syntax',
 		'rsvelte_vue_syntax',
 	]);
 	assert.deepEqual(named('semantic'), [
-		'rsvelte_css_semantic',
+		'rsvelte_stylesheet_semantic',
 		'rsvelte_svelte_semantic',
 		'rsvelte_typescript_semantic',
 		'rsvelte_vue_semantic',
@@ -139,6 +143,10 @@ test('every language crate is named for its path', () => {
 		expectedName('/r/crates/languages/vue/compile_svelte/Cargo.toml'),
 		'rsvelte_vue_compile_svelte',
 	);
+	assert.equal(
+		expectedName('/r/crates/languages/css/syntax/Cargo.toml'),
+		'rsvelte_stylesheet_syntax',
+	);
 	assert.equal(expectedName('/r/crates/hosts/browser/Cargo.toml'), undefined);
 });
 
@@ -151,7 +159,7 @@ test('syntax rejects analysis, tools and hosts', () => {
 		'rsvelte_svelte_semantic',
 		'rsvelte_typescript_semantic',
 		'rsvelte_svelte_format',
-		'rsvelte_css_compile',
+		'rsvelte_stylesheet_compile',
 		'rsvelte_lint_runner',
 		'rsvelte_command_line',
 	]) {
@@ -159,13 +167,13 @@ test('syntax rejects analysis, tools and hosts', () => {
 			`rsvelte_svelte_syntax depends on ${to}`,
 		]);
 	}
-	assert.deepEqual(inject('rsvelte_svelte_syntax', 'rsvelte_css_syntax'), []);
+	assert.deepEqual(inject('rsvelte_svelte_syntax', 'rsvelte_stylesheet_syntax'), []);
 });
 
 test('semantic rejects tools and hosts whatever their names end with', () => {
 	for (const to of [
-		'rsvelte_css_compile',
-		'rsvelte_html_lint',
+		'rsvelte_stylesheet_compile',
+		'rsvelte_markup_lint',
 		'rsvelte_svelte_compile',
 		'rsvelte_svelte_lint_typed',
 		'rsvelte_svelte_check',
@@ -182,7 +190,11 @@ test('semantic rejects tools and hosts whatever their names end with', () => {
 });
 
 test('the kernel rejects language data and shared task contracts', () => {
-	for (const to of ['rsvelte_svelte_syntax', 'rsvelte_typescript_semantic', 'rsvelte_lint_runner']) {
+	for (const to of [
+		'rsvelte_svelte_syntax',
+		'rsvelte_typescript_semantic',
+		'rsvelte_lint_runner',
+	]) {
 		assert.deepEqual(inject('rsvelte_kernel', to), [`rsvelte_kernel depends on ${to}`]);
 	}
 });

@@ -1,8 +1,8 @@
 //! Prints a style sheet the way prettier's postcss printer does, for the subset the parser reads.
 
-use rsvelte_css_syntax::syntax_tree::{Rule, RuleKind, StyleSheet};
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_stylesheet_syntax::syntax_tree::{Rule, RuleKind, StyleSheet};
 
 /// Each line starts with `indent`; one nesting level adds `unit`.
 ///
@@ -87,10 +87,10 @@ fn block(source_text: &str, rule: &Rule, indent: &str, unit: &str, out: &mut Str
 
 fn selector(
     source_text: &str,
-    sel: &rsvelte_css_syntax::syntax_tree::ComplexSelector,
+    sel: &rsvelte_stylesheet_syntax::syntax_tree::ComplexSelector,
     out: &mut String,
 ) {
-    use rsvelte_css_syntax::syntax_tree::Combinator::{
+    use rsvelte_stylesheet_syntax::syntax_tree::Combinator::{
         Child, Descendant, NextSibling, SubsequentSibling,
     };
     for rel in &sel.parts {

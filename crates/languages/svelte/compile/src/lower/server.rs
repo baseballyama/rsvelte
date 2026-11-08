@@ -16,9 +16,9 @@ mod fragments;
 mod special;
 
 use events::{capture_event, push_captured_events};
-use rsvelte_html_syntax::decode_text;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::SourceLocation;
+use rsvelte_markup_syntax::decode_text;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,

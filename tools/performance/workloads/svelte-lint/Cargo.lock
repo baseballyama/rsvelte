@@ -49,9 +49,9 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 name = "lint-architecture-benchmark"
 version = "0.0.0"
 dependencies = [
- "rsvelte_html_lint",
  "rsvelte_kernel",
  "rsvelte_lint_runner",
+ "rsvelte_markup_lint",
  "rsvelte_svelte_lint",
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
@@ -131,30 +131,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsvelte_css_semantic"
-version = "0.0.0"
-dependencies = [
- "rsvelte_css_syntax",
- "rsvelte_kernel",
-]
-
-[[package]]
-name = "rsvelte_css_syntax"
-version = "0.0.0"
-dependencies = [
- "rsvelte_kernel",
- "rustc-hash",
-]
-
-[[package]]
-name = "rsvelte_html_lint"
-version = "0.0.0"
-
-[[package]]
-name = "rsvelte_html_syntax"
-version = "0.0.0"
-
-[[package]]
 name = "rsvelte_kernel"
 version = "0.0.0"
 dependencies = [
@@ -172,6 +148,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_markup_lint"
+version = "0.0.0"
+
+[[package]]
+name = "rsvelte_markup_syntax"
+version = "0.0.0"
+
+[[package]]
 name = "rsvelte_plugin_interface"
 version = "0.0.0"
 dependencies = [
@@ -181,13 +165,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_stylesheet_semantic"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_stylesheet_syntax",
+]
+
+[[package]]
+name = "rsvelte_stylesheet_syntax"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rustc-hash",
+]
+
+[[package]]
 name = "rsvelte_svelte_lint"
 version = "0.0.0"
 dependencies = [
- "rsvelte_html_lint",
- "rsvelte_html_syntax",
  "rsvelte_kernel",
  "rsvelte_lint_runner",
+ "rsvelte_markup_lint",
+ "rsvelte_markup_syntax",
  "rsvelte_plugin_interface",
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
@@ -203,9 +203,9 @@ version = "0.0.0"
 dependencies = [
  "num-bigint",
  "num-traits",
- "rsvelte_css_semantic",
- "rsvelte_css_syntax",
  "rsvelte_kernel",
+ "rsvelte_stylesheet_semantic",
+ "rsvelte_stylesheet_syntax",
  "rsvelte_svelte_syntax",
  "rsvelte_typescript_semantic",
  "rsvelte_typescript_syntax",
@@ -217,8 +217,8 @@ name = "rsvelte_svelte_syntax"
 version = "0.0.0"
 dependencies = [
  "memchr",
- "rsvelte_css_syntax",
  "rsvelte_kernel",
+ "rsvelte_stylesheet_syntax",
  "rsvelte_typescript_syntax",
  "unicode-id-start",
 ]

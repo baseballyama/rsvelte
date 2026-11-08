@@ -1,7 +1,7 @@
-use rsvelte_css_semantic::matcher::is_global;
-use rsvelte_css_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 use rsvelte_kernel::output::edits::BorrowedEdits as Edits;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_stylesheet_semantic::matcher::is_global;
+use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 
 mod keyframes;
 
@@ -103,7 +103,10 @@ impl Renderer<'_> {
         }
     }
 
-    fn minify_declaration(&mut self, declaration: &rsvelte_css_syntax::syntax_tree::Declaration) {
+    fn minify_declaration(
+        &mut self,
+        declaration: &rsvelte_stylesheet_syntax::syntax_tree::Declaration,
+    ) {
         let property = declaration.property.text(self.source);
         let name = property
             .strip_prefix("-webkit-")

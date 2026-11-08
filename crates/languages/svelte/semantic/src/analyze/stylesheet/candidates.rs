@@ -1,9 +1,9 @@
 use std::cell::OnceCell;
 
-use rsvelte_css_semantic::matcher;
-use rsvelte_css_syntax::syntax_tree::{ComplexSelector, Simple, StyleSheet};
 use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::performance::buffer_pool;
+use rsvelte_stylesheet_semantic::matcher;
+use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Simple, StyleSheet};
 use rustc_hash::FxHashMap;
 
 use super::is_dom;

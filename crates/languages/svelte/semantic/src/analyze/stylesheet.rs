@@ -1,8 +1,8 @@
 use std::cell::{OnceCell, RefCell};
 
-use rsvelte_css_semantic::matcher::{self, Match};
-use rsvelte_css_syntax::syntax_tree::{Rule, RuleIdentifier};
 use rsvelte_kernel::index::IndexVector;
+use rsvelte_stylesheet_semantic::matcher::{self, Match};
+use rsvelte_stylesheet_syntax::syntax_tree::{Rule, RuleIdentifier};
 use rustc_hash::FxHashMap;
 
 use crate::compiler_syntax_tree::{self, CompilerNodeIdentifier, CompilerSyntaxTree};
@@ -106,7 +106,7 @@ impl<'a> Facts<'a> {
 
 #[derive(Clone, Copy)]
 struct El<'a> {
-    sheet: &'a rsvelte_css_syntax::StyleSheet,
+    sheet: &'a rsvelte_stylesheet_syntax::StyleSheet,
     compiler_syntax_tree: &'a CompilerSyntaxTree,
     source_text: &'a str,
     identifier: CompilerNodeIdentifier,

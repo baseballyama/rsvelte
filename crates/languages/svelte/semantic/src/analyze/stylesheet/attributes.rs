@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 
-use rsvelte_css_semantic::matcher::Match;
+use rsvelte_stylesheet_semantic::matcher::Match;
 use rsvelte_typescript_semantic::number::number;
 use rsvelte_typescript_syntax::operators::LogicalOperator;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};

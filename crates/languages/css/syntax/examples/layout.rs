@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use rsvelte_css_syntax::syntax_tree::{
+use rsvelte_stylesheet_syntax::syntax_tree::{
     ComplexSelector, Declaration, RelativeSelector, Rule, Simple, SimpleList, StyleSheet,
 };
 

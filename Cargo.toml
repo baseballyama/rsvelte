@@ -22,13 +22,13 @@ rsvelte_test_harness = { path = "crates/language_independent/test_harness" }
 rsvelte_document_printer = { path = "crates/language_independent/document_printer" }
 rsvelte_typescript_syntax = { path = "crates/languages/typescript/syntax" }
 rsvelte_typescript_semantic = { path = "crates/languages/typescript/semantic" }
-rsvelte_css_syntax = { path = "crates/languages/css/syntax" }
-rsvelte_css_semantic = { path = "crates/languages/css/semantic" }
-rsvelte_css_compile = { path = "crates/languages/css/compile" }
+rsvelte_stylesheet_syntax = { path = "crates/languages/css/syntax" }
+rsvelte_stylesheet_semantic = { path = "crates/languages/css/semantic" }
+rsvelte_stylesheet_compile = { path = "crates/languages/css/compile" }
 rsvelte_svelte_syntax = { path = "crates/languages/svelte/syntax" }
 rsvelte_svelte_semantic = { path = "crates/languages/svelte/semantic" }
-rsvelte_html_syntax = { path = "crates/languages/html/syntax" }
-rsvelte_html_lint = { path = "crates/languages/html/lint" }
+rsvelte_markup_syntax = { path = "crates/languages/html/syntax" }
+rsvelte_markup_lint = { path = "crates/languages/html/lint" }
 rsvelte_vue_syntax = { path = "crates/languages/vue/syntax" }
 rsvelte_vue_semantic = { path = "crates/languages/vue/semantic" }
 rsvelte_vue_compile_svelte = { path = "crates/languages/vue/compile_svelte" }
@@ -45,7 +45,7 @@ rsvelte_svelte_check = { path = "crates/languages/svelte/check" }
 rsvelte_vue_format = { path = "crates/languages/vue/format" }
 rsvelte_vue_lint = { path = "crates/languages/vue/lint" }
 rsvelte_vue_check = { path = "crates/languages/vue/check" }
-rsvelte_css_format = { path = "crates/languages/css/format" }
+rsvelte_stylesheet_format = { path = "crates/languages/css/format" }
 rsvelte_typescript_compile = { path = "crates/languages/typescript/compile" }
 rsvelte_svelte_compile = { path = "crates/languages/svelte/compile" }
 rsvelte_vue_compile = { path = "crates/languages/vue/compile" }

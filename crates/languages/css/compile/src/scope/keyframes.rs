@@ -1,6 +1,6 @@
-use rsvelte_css_syntax::syntax_tree::{Declaration, Rule, RuleKind, StyleSheet};
 use rsvelte_kernel::output::edits::BorrowedEdits as Edits;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_stylesheet_syntax::syntax_tree::{Declaration, Rule, RuleKind, StyleSheet};
 use rustc_hash::FxHashSet;
 
 pub(super) struct Names<'a> {

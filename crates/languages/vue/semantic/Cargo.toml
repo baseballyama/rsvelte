@@ -13,7 +13,7 @@ rsvelte_kernel.workspace = true
 rsvelte_vue_syntax.workspace = true
 rsvelte_typescript_syntax.workspace = true
 rsvelte_typescript_semantic.workspace = true
-rsvelte_html_syntax.workspace = true
+rsvelte_markup_syntax.workspace = true
 rustc-hash.workspace = true
 
 [lints]

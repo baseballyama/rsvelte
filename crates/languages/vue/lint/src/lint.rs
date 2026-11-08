@@ -1,15 +1,15 @@
 //! eslint-plugin-vue's rules, and the core rules as they see a Vue component.
 //!
 //! One layer: the surface tree with its name resolution. The core `no-unused-variables` is
-//! `rsvelte_typescript_syntax`'s, unchanged: template expressions are scope roots, so a script
+//! `rsvelte_typescript_lint`'s, unchanged: template expressions are scope roots, so a script
 //! binding read only in the template is used (vue-eslint-parser marks such a variable used). It
 //! judges only the script's bindings; the `v-for` aliases are `vue/no-unused-variables`' to report.
 
-use rsvelte_html_lint::button_type::{Allowed, Problem, check_static};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
+use rsvelte_markup_lint::button_type::{Allowed, Problem, check_static};
 use rsvelte_typescript_lint::JavaScriptFacts;
 use rsvelte_typescript_semantic::scope::{DeclarationKind, HostRoot};
 use rsvelte_vue_semantic::resolve::Resolution;
@@ -148,7 +148,7 @@ fn pattern_bindings(
 
 /// With the default options, so the `forbiddenTypeAttribute` message cannot fire.
 ///
-/// The judgement is [`rsvelte_html_lint::button_type`]'s, shared with `svelte/button-has-type`;
+/// The judgement is [`rsvelte_markup_lint::button_type`]'s, shared with `svelte/button-has-type`;
 /// what is Vue's is that a static `type` is looked for before a `:type`, and that a finding sits on
 /// the value when there is one. Attribute names compare without case, as vue-eslint-parser
 /// lowercases them in HTML. The parser refuses a directive without an expression, so upstream's
@@ -187,7 +187,7 @@ impl<'a> Rule<RuleContext<'a>> for MarkupButtonHasType {
                     report(Problem::Empty, a.span);
                     continue;
                 };
-                let text = rsvelte_html_syntax::decode_text(v.text(source_text));
+                let text = rsvelte_markup_syntax::decode_text(v.text(source_text));
                 if let Some(p) = check_static(&text, Allowed::default()) {
                     report(p, value_node(v, a.quoted));
                 }

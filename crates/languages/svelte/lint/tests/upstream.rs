@@ -9,12 +9,12 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use rsvelte_html_lint::button_type::Allowed;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_markup_lint::button_type::Allowed;
 use rsvelte_svelte_lint::{Configuration, Lint, RuleConfiguration};
 use serde::Deserialize;
 use serde::de::IgnoredAny;

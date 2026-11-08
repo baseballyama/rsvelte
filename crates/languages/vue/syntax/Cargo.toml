@@ -11,7 +11,7 @@ doctest = false
 [dependencies]
 rsvelte_kernel.workspace = true
 rsvelte_typescript_syntax.workspace = true
-rsvelte_css_syntax.workspace = true
+rsvelte_stylesheet_syntax.workspace = true
 
 [lints]
 workspace = true

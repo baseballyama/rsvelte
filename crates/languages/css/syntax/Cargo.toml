@@ -1,5 +1,5 @@
 [package]
-name = "rsvelte_css_syntax"
+name = "rsvelte_stylesheet_syntax"
 description = "CSS trees and their parser"
 version = "0.0.0"
 edition.workspace = true

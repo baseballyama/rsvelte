@@ -1,5 +1,5 @@
 [package]
-name = "rsvelte_html_syntax"
+name = "rsvelte_markup_syntax"
 description = "HTML character references"
 version = "0.0.0"
 edition.workspace = true

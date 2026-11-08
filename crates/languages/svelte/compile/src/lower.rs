@@ -64,7 +64,7 @@ pub fn lower_with_plan<'a>(
             &input.component,
             an,
             &identity,
-            rsvelte_css_compile::scope::RenderMode::Minify,
+            rsvelte_stylesheet_compile::scope::RenderMode::Minify,
         )
     } else {
         None

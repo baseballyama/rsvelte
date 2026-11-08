@@ -1,5 +1,5 @@
 [package]
-name = "rsvelte_css_format"
+name = "rsvelte_stylesheet_format"
 description = "Stylesheet format"
 edition.workspace = true
 version.workspace = true
@@ -10,7 +10,7 @@ publish.workspace = true
 doctest = false
 
 [dependencies]
-rsvelte_css_syntax.workspace = true
+rsvelte_stylesheet_syntax.workspace = true
 rsvelte_kernel.workspace = true
 
 [lints]

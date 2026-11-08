@@ -1,6 +1,6 @@
 # Svelte type checking
 
-`rsvelte_svelte_typecheck` reads the cached output of `rsvelte_svelte_typescript_projection` and
+`rsvelte_svelte_check` reads the cached output of `rsvelte_svelte_typescript_projection` and
 runs native TypeScript 7.1 through its content mapper. Projection and type checking share one
 implementation. The task name stays `svelte.check/default` to match the existing oracle
 identifier.
@@ -36,6 +36,6 @@ declaration can accept an unresolved import with a broad component type. So empt
 not prove that the checker checked the props of imported components.
 
 ```sh
-cargo test -p rsvelte_svelte_typecheck --test fixtures
-cargo test -p rsvelte_svelte_typecheck --test fixtures -- rsvelte
+cargo test -p rsvelte_svelte_check --test fixtures
+cargo test -p rsvelte_svelte_check --test fixtures -- rsvelte
 ```

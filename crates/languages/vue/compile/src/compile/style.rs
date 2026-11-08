@@ -1,8 +1,8 @@
 //! compileStyle: the `vue-sfc-trim` plugin on every sheet, and `vue-sfc-scoped` on a scoped one.
-use rsvelte_css_syntax::syntax_tree::{Rule, RuleKind, Simple};
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::output::edits::Edits;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_stylesheet_syntax::syntax_tree::{Rule, RuleKind, Simple};
 
 use super::StyleInput;
 

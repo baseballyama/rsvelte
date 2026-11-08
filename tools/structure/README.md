@@ -3,8 +3,8 @@
 Checks the repository's layout:
 
 - File sizes, against `limits.json`.
-- The crate graph (`crates.test.ts`): which kind of crate may depend on which, and that a
-  language crate is named for its path.
+- The crate graph (`crates.test.ts`): which kind of crate may depend on which, and that each
+  language crate's name follows its path.
 - The kernel's layers (`kernel.test.ts`): each kernel module uses only the modules listed before
   it in its `lib.rs`.
 - Module files (`modules.test.ts`): no file only lists child modules. Its parent declares such a

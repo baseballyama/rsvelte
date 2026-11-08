@@ -4,7 +4,7 @@ The public entry is `parse::parse`. It builds one surface tree with source
 spans, lossless tokens, and shared JavaScript nodes. JavaScript and CSS parsing use
 their language parsers.
 
-| Module under `src/parse/`      | Owns                                                           |
+| Module under `src/parse/`             | Owns                                                           |
 | ------------------------------------- | -------------------------------------------------------------- |
 | `fragment`, `html`                    | Children, text, comments, and implicit HTML closing rules      |
 | `element`                             | Element names and child modes, including raw text and textarea |

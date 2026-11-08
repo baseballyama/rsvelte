@@ -9,9 +9,9 @@
 //! extraction, CSS display, space sensitivity, simple-element merging) over a tree of its own,
 //! since the preprocessing rewrites text and removes nodes. `Printer` is `printChildren`,
 //! `printElement` and the tag helpers of `print/tag.js`, one function per upstream function.
-//! Script bodies and template expressions go through `rsvelte_typescript_syntax`'s formatter, style
-//! bodies through `rsvelte_css_syntax`'s; anything neither covers is an [`Unsupported`] error,
-//! never an approximation.
+//! Script bodies and template expressions go through `rsvelte_typescript_format`'s formatter, style
+//! bodies through `rsvelte_stylesheet_format`'s; anything neither covers is an [`Unsupported`]
+//! error, never an approximation.
 
 use std::borrow::Cow;
 

@@ -47,7 +47,7 @@ pub struct CompileInput<'a> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct StyleInput<'a> {
-    pub sheet: &'a rsvelte_css_syntax::StyleSheet,
+    pub sheet: &'a rsvelte_stylesheet_syntax::StyleSheet,
     pub scoped: bool,
 }
 

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
-use rsvelte_html_lint::button_type::{Allowed, Problem, check_static};
 use rsvelte_lint_runner::rule::Reporter;
+use rsvelte_markup_lint::button_type::{Allowed, Problem, check_static};
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode,
 };
@@ -82,14 +82,14 @@ fn static_problem(
     let parts = component.parts(parts);
     let value = match parts {
         [] => return Some(Problem::Empty.message()),
-        [Part::Text(span)] => rsvelte_html_syntax::decode_text(span.text(source)),
+        [Part::Text(span)] => rsvelte_markup_syntax::decode_text(span.text(source)),
         _ => {
             let mut text = String::new();
             for part in parts {
                 let Part::Text(span) = part else {
                     return None;
                 };
-                text.push_str(&rsvelte_html_syntax::decode_text(span.text(source)));
+                text.push_str(&rsvelte_markup_syntax::decode_text(span.text(source)));
             }
             Cow::Owned(text)
         }

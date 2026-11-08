@@ -1,5 +1,5 @@
 [package]
-name = "rsvelte_html_lint"
+name = "rsvelte_markup_lint"
 description = "Lint judgements the HTML-based languages share"
 version = "0.0.0"
 edition.workspace = true

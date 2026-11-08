@@ -143,7 +143,7 @@ that `tsc` with `--singleThreaded`, because the tests check more than one projec
 version:
 
 ```sh
-FIXTURE_TYPE_CHECKER="tsrs --fast" cargo test -p rsvelte_svelte_typecheck --test fixtures
+FIXTURE_TYPE_CHECKER="tsrs --fast" cargo test -p rsvelte_svelte_check --test fixtures
 ```
 
 ## Where the cases are
@@ -153,7 +153,7 @@ FIXTURE_TYPE_CHECKER="tsrs --fast" cargo test -p rsvelte_svelte_typecheck --test
 | `languages/svelte/compile`               | `svelte.compile/client`, `/server`          | `client`, `server` |
 | `languages/svelte/format`                | `svelte.format/default`                     | `formatted`        |
 | `languages/svelte/lint`                  | `svelte.lint/default`                       | `findings`         |
-| `languages/svelte/typecheck`             | `svelte.check/default`                      | `findings`         |
+| `languages/svelte/check`                 | `svelte.check/default`                      | `findings`         |
 | `languages/svelte/typescript_projection` | `svelte.typescript_projection/default`      | `projection`       |
 | `languages/svelte/compile_vapor`         | `vuelte.compile/client`, `/server`          | `client`, `server` |
 | `languages/vue/compile`                  | `vue.compile/default`                       | `compiled`         |

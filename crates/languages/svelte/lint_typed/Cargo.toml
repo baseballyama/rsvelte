@@ -24,7 +24,7 @@ rsvelte_typescript_check.workspace = true
 [dev-dependencies]
 rsvelte_test_harness.workspace = true
 rsvelte_kernel = { workspace = true, features = ["trace-artifacts"] }
-rsvelte_html_lint.workspace = true
+rsvelte_markup_lint.workspace = true
 
 [[test]]
 name = "rules"

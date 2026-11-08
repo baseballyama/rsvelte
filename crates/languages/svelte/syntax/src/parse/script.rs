@@ -200,7 +200,7 @@ impl Parser<'_> {
         }
         self.component.tokens.push(TokenType::Stylesheet, content);
         self.close_raw("style");
-        let sheet = rsvelte_css_syntax::parse(self.source_text, content)
+        let sheet = rsvelte_stylesheet_syntax::parse(self.source_text, content)
             .map_err(|e| Diagnostic::error("css_parse_error", e.message, e.span))?;
         self.component.style = Some(Style {
             span: Span::new(start_offset as u32, self.position as u32),

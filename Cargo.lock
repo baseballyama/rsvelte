@@ -773,40 +773,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsvelte_css_compile"
-version = "0.0.0"
-dependencies = [
- "rsvelte_css_semantic",
- "rsvelte_css_syntax",
- "rsvelte_kernel",
- "rustc-hash",
-]
-
-[[package]]
-name = "rsvelte_css_format"
-version = "0.0.0"
-dependencies = [
- "rsvelte_css_syntax",
- "rsvelte_kernel",
-]
-
-[[package]]
-name = "rsvelte_css_semantic"
-version = "0.0.0"
-dependencies = [
- "rsvelte_css_syntax",
- "rsvelte_kernel",
-]
-
-[[package]]
-name = "rsvelte_css_syntax"
-version = "0.0.0"
-dependencies = [
- "rsvelte_kernel",
- "rustc-hash",
-]
-
-[[package]]
 name = "rsvelte_document_printer"
 version = "0.0.0"
 dependencies = [
@@ -823,14 +789,6 @@ dependencies = [
  "rsvelte_svelte_format",
  "rsvelte_svelte_syntax",
 ]
-
-[[package]]
-name = "rsvelte_html_lint"
-version = "0.0.0"
-
-[[package]]
-name = "rsvelte_html_syntax"
-version = "0.0.0"
 
 [[package]]
 name = "rsvelte_kernel"
@@ -873,6 +831,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_markup_lint"
+version = "0.0.0"
+
+[[package]]
+name = "rsvelte_markup_syntax"
+version = "0.0.0"
+
+[[package]]
 name = "rsvelte_plugin_interface"
 version = "0.0.0"
 dependencies = [
@@ -893,6 +859,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_stylesheet_compile"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_stylesheet_semantic",
+ "rsvelte_stylesheet_syntax",
+ "rustc-hash",
+]
+
+[[package]]
+name = "rsvelte_stylesheet_format"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_stylesheet_syntax",
+]
+
+[[package]]
+name = "rsvelte_stylesheet_semantic"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_stylesheet_syntax",
+]
+
+[[package]]
+name = "rsvelte_stylesheet_syntax"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rustc-hash",
+]
+
+[[package]]
 name = "rsvelte_svelte_check"
 version = "0.0.0"
 dependencies = [
@@ -909,10 +909,10 @@ dependencies = [
 name = "rsvelte_svelte_compile"
 version = "0.0.0"
 dependencies = [
- "rsvelte_css_compile",
- "rsvelte_html_syntax",
  "rsvelte_kernel",
+ "rsvelte_markup_syntax",
  "rsvelte_plugin_interface",
+ "rsvelte_stylesheet_compile",
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
@@ -945,10 +945,10 @@ dependencies = [
 name = "rsvelte_svelte_format"
 version = "0.0.0"
 dependencies = [
- "rsvelte_css_format",
  "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
+ "rsvelte_stylesheet_format",
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
  "rsvelte_typescript_format",
@@ -959,10 +959,10 @@ dependencies = [
 name = "rsvelte_svelte_lint"
 version = "0.0.0"
 dependencies = [
- "rsvelte_html_lint",
- "rsvelte_html_syntax",
  "rsvelte_kernel",
  "rsvelte_lint_runner",
+ "rsvelte_markup_lint",
+ "rsvelte_markup_syntax",
  "rsvelte_plugin_interface",
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
@@ -979,9 +979,9 @@ dependencies = [
 name = "rsvelte_svelte_lint_typed"
 version = "0.0.0"
 dependencies = [
- "rsvelte_html_lint",
  "rsvelte_kernel",
  "rsvelte_lint_runner",
+ "rsvelte_markup_lint",
  "rsvelte_plugin_interface",
  "rsvelte_svelte_lint",
  "rsvelte_svelte_semantic",
@@ -999,9 +999,9 @@ version = "0.0.0"
 dependencies = [
  "num-bigint",
  "num-traits",
- "rsvelte_css_semantic",
- "rsvelte_css_syntax",
  "rsvelte_kernel",
+ "rsvelte_stylesheet_semantic",
+ "rsvelte_stylesheet_syntax",
  "rsvelte_svelte_syntax",
  "rsvelte_typescript_semantic",
  "rsvelte_typescript_syntax",
@@ -1013,8 +1013,8 @@ name = "rsvelte_svelte_syntax"
 version = "0.0.0"
 dependencies = [
  "memchr",
- "rsvelte_css_syntax",
  "rsvelte_kernel",
+ "rsvelte_stylesheet_syntax",
  "rsvelte_typescript_syntax",
  "unicode-id-start",
 ]
@@ -1139,9 +1139,9 @@ dependencies = [
 name = "rsvelte_vue_compile"
 version = "0.0.0"
 dependencies = [
- "rsvelte_css_syntax",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
+ "rsvelte_stylesheet_syntax",
  "rsvelte_test_harness",
  "rsvelte_typescript_compile",
  "rsvelte_typescript_semantic",
@@ -1173,10 +1173,10 @@ dependencies = [
 name = "rsvelte_vue_format"
 version = "0.0.0"
 dependencies = [
- "rsvelte_css_format",
  "rsvelte_document_printer",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
+ "rsvelte_stylesheet_format",
  "rsvelte_test_harness",
  "rsvelte_typescript_format",
  "rsvelte_typescript_syntax",
@@ -1187,10 +1187,10 @@ dependencies = [
 name = "rsvelte_vue_lint"
 version = "0.0.0"
 dependencies = [
- "rsvelte_html_lint",
- "rsvelte_html_syntax",
  "rsvelte_kernel",
  "rsvelte_lint_runner",
+ "rsvelte_markup_lint",
+ "rsvelte_markup_syntax",
  "rsvelte_plugin_interface",
  "rsvelte_test_harness",
  "rsvelte_typescript_lint",
@@ -1204,9 +1204,8 @@ dependencies = [
 name = "rsvelte_vue_semantic"
 version = "0.0.0"
 dependencies = [
- "rsvelte_css_syntax",
- "rsvelte_html_syntax",
  "rsvelte_kernel",
+ "rsvelte_markup_syntax",
  "rsvelte_typescript_semantic",
  "rsvelte_typescript_syntax",
  "rsvelte_vue_syntax",
@@ -1217,12 +1216,9 @@ dependencies = [
 name = "rsvelte_vue_syntax"
 version = "0.0.0"
 dependencies = [
- "rsvelte_css_syntax",
- "rsvelte_html_syntax",
  "rsvelte_kernel",
- "rsvelte_typescript_semantic",
+ "rsvelte_stylesheet_syntax",
  "rsvelte_typescript_syntax",
- "rustc-hash",
 ]
 
 [[package]]
