@@ -1,10 +1,6 @@
 {
 	"maxLines": 600,
 	"exceptions": {
-		"crates/language_independent/document_printer/src/lib.rs": {
-			"maxLines": 1309,
-			"reason": "Existing source; keep its size until its responsibility can be split."
-		},
 		"apps/site/src/lib/widgets/PipelinePlayground.svelte": {
 			"maxLines": 915,
 			"reason": "Grew past the limit when oxfmt first wrapped its long lines; keep its size until it is split."
