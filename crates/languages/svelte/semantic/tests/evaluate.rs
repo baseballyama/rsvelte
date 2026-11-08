@@ -4,7 +4,7 @@ use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
 };
 use rsvelte_svelte_semantic::semantic::evaluate::{Evaluation, Evaluator, Tree, Value};
 use rsvelte_svelte_semantic::semantic::resolve;
-use rsvelte_typescript::{Kind, SyntaxTree, parser};
+use rsvelte_typescript_syntax::{Kind, SyntaxTree, parser};
 
 fn evaluate(source: &str) -> Evaluation {
     let mut tree = SyntaxTree::new();

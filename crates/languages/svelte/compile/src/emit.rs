@@ -1,5 +1,5 @@
 use rsvelte_kernel::output::emitter::Emitter;
-use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 #[derive(Debug)]
 pub struct LoweredModule<'a> {

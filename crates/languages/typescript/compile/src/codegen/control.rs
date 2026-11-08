@@ -1,4 +1,4 @@
-use rsvelte_typescript::syntax_tree::Control;
+use rsvelte_typescript_syntax::syntax_tree::Control;
 
 use super::{Gen, Kind, NodeIdentifier, prec};
 

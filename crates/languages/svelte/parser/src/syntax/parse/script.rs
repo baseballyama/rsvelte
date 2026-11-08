@@ -1,7 +1,7 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Script, Style, TagAttributes, TokenType};
-use rsvelte_typescript::parser::parse_program;
+use rsvelte_typescript_syntax::parser::parse_program;
 
 use super::{ParseResult, Parser, javascript_error};
 

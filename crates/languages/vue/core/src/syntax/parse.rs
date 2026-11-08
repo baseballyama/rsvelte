@@ -12,8 +12,8 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
-use rsvelte_typescript::parser::{parse_expression, parse_parameters, parse_program};
-use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::parser::{parse_expression, parse_parameters, parse_program};
+use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 use crate::syntax_tree::{
     Attribute, AttributeKind, Directive, DirectiveExpression, DirectiveName, LoopExpression, Range,

@@ -236,7 +236,7 @@ pub(super) fn props_declarations(
         let key = to.identifier(&p.key);
         let local = to.identifier(&p.var);
         let value = p.default.map_or(local, |d| {
-            let d = copy(from, to, &mut rsvelte_typescript::copy::Verbatim, d);
+            let d = copy(from, to, &mut rsvelte_typescript_compile::copy::Verbatim, d);
             to.assign_pat(local, d, SourceLocation::SYNTHETIC)
         });
         let shorthand = p.key == p.var && p.default.is_none();
@@ -291,9 +291,9 @@ pub(super) fn boolean_prop(
             SourceLocation::SYNTHETIC,
         );
         let v = to.identifier(&value);
-        let d = copy(from, to, &mut rsvelte_typescript::copy::Verbatim, d);
+        let d = copy(from, to, &mut rsvelte_typescript_compile::copy::Verbatim, d);
         let set = to.assign(
-            rsvelte_typescript::operators::AssignmentOperator::Assign,
+            rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
             v,
             d,
             SourceLocation::SYNTHETIC,

@@ -53,11 +53,11 @@ impl Printer<'_, '_> {
         };
         let javascript = &self.c.javascript;
         // `{#each items}` and `{#each items, i}` have no context.
-        let has_context = context != rsvelte_typescript::NodeIdentifier::NONE;
+        let has_context = context != rsvelte_typescript_syntax::NodeIdentifier::NONE;
         if has_context
             && !matches!(
                 javascript.kind(context),
-                rsvelte_typescript::Kind::Identifier(_)
+                rsvelte_typescript_syntax::Kind::Identifier(_)
             )
         {
             let span = javascript
@@ -73,11 +73,11 @@ impl Printer<'_, '_> {
             let context = format!(" as {}", self.c.javascript.name(context));
             def.push(self.d().text(&context));
         }
-        if index != rsvelte_typescript::NodeIdentifier::NONE {
+        if index != rsvelte_typescript_syntax::NodeIdentifier::NONE {
             let index = format!(", {}", self.c.javascript.name(index));
             def.push(self.d().text(&index));
         }
-        if key != rsvelte_typescript::NodeIdentifier::NONE {
+        if key != rsvelte_typescript_syntax::NodeIdentifier::NONE {
             def.push(self.lit(" ("));
             def.push(self.expression(key, true, false)?);
             def.push(self.lit(")"));

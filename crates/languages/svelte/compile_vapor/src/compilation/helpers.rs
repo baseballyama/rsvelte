@@ -4,8 +4,8 @@
 //! Helpers adapt Svelte semantics to the Vue runtime without reparsing generated output.
 
 use rsvelte_kernel::source::positions::{SourceLocation, Span};
-use rsvelte_typescript::copy::{Rewrite, copy};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_compile::copy::{Rewrite, copy};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Helper {
@@ -468,7 +468,7 @@ pub(crate) fn boolean_names(name: &str, to: &mut SyntaxTree) -> NodeIdentifier {
     let value = to.array(&values, SourceLocation::SYNTHETIC);
     let name = to.identifier(name);
     to.let_(
-        rsvelte_typescript::syntax_tree::flag::CONST,
+        rsvelte_typescript_syntax::syntax_tree::flag::CONST,
         name,
         Some(value),
     )
@@ -478,7 +478,7 @@ pub(crate) fn source_declarations(source_text: &str, to: &mut SyntaxTree) -> Vec
     let mut scratch = SyntaxTree::new();
     let range = Span::new(0, u32::try_from(source_text.len()).expect("a short helper"));
     let program =
-        rsvelte_typescript::parser::parse_program(&mut scratch, source_text, range, false)
+        rsvelte_typescript_syntax::parser::parse_program(&mut scratch, source_text, range, false)
             .expect("helper sources parse");
     let Kind::Program(body) = scratch.kind(program) else {
         unreachable!("a program")

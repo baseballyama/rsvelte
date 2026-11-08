@@ -5,7 +5,8 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
 use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
-use rsvelte_typescript::{Parsed, Resolved};
+use rsvelte_typescript_semantic::Resolved;
+use rsvelte_typescript_syntax::Parsed;
 
 use crate::lint::{self, JavaScriptFacts};
 
@@ -26,14 +27,14 @@ pub static PLUGIN: Plugin = Plugin {
     identifier: "typescript.lint",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "typescript",
+        identifier: "typescript.semantic",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
 
 pub fn register(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_typescript::register(registry);
+    rsvelte_typescript_semantic::register(registry);
     registry.task(Lint);
 }
 
@@ -46,7 +47,7 @@ impl Task for Lint {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_typescript::matches(document)
+        rsvelte_typescript_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {

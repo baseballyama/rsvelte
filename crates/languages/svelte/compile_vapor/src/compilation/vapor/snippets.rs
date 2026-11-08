@@ -79,7 +79,7 @@ impl Builder<'_> {
             let mut test = first;
             for &condition in rest {
                 test = self.to.logical(
-                    rsvelte_typescript::operators::LogicalOperator::And,
+                    rsvelte_typescript_syntax::operators::LogicalOperator::And,
                     test,
                     condition,
                     SYNTHETIC,

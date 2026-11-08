@@ -2,8 +2,8 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Part, Range, TokenType,
 };
-use rsvelte_typescript::NodeIdentifier;
-use rsvelte_typescript::lexer::T;
+use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_syntax::lexer::T;
 
 use super::{ParseResult, Parser};
 

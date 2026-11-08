@@ -8,8 +8,7 @@
 //! slices stay valid).
 
 use rsvelte_kernel::source::positions::Span;
-
-use crate::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, flag};
+use rsvelte_typescript_syntax::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, flag};
 
 pub trait Rewrite {
     fn rewrite(

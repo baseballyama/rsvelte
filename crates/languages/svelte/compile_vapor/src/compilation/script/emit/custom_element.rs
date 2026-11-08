@@ -24,7 +24,7 @@ pub(super) fn bindings(
         if super::super::prop_cell(resolution, from, binding) {
             let parameter = to.identifier("$$prop_value");
             let assignment = to.assign(
-                rsvelte_typescript::operators::AssignmentOperator::Assign,
+                rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
                 value,
                 parameter,
                 SourceLocation::SYNTHETIC,

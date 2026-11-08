@@ -185,7 +185,7 @@ impl Printer<'_, '_> {
     /// An embedded expression (`printJS`), optionally forced onto one line or into single quotes.
     pub(super) fn expression(
         &mut self,
-        e: rsvelte_typescript::NodeIdentifier,
+        e: rsvelte_typescript_syntax::NodeIdentifier,
         single_line: bool,
         single_quote: bool,
     ) -> R<LayoutInstructionIdentifier> {

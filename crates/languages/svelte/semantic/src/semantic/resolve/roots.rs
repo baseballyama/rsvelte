@@ -2,8 +2,8 @@ use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
     AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element, NodeKind, Part,
     StyleValue,
 };
-use rsvelte_typescript::NodeIdentifier;
-use rsvelte_typescript::scope::{DeclarationKind, HostRoot, HostScope};
+use rsvelte_typescript_semantic::scope::{DeclarationKind, HostRoot, HostScope};
+use rsvelte_typescript_syntax::NodeIdentifier;
 
 /// The template's expressions in document order, with the scopes the template opens (upstream
 /// `create_scopes`). A fragment gets a scope only when it declares names: the others would be

@@ -1,4 +1,4 @@
-use rsvelte_typescript::semantic::number::number;
+use rsvelte_typescript_semantic::number::number;
 
 #[derive(Clone, Debug)]
 pub enum Value {

@@ -1,6 +1,6 @@
 use rsvelte_svelte::semantic::resolve::RUNES;
-use rsvelte_typescript::scope::{DeclarationKind, ScopeIdentifier};
-use rsvelte_typescript::syntax_tree::{TypeScriptFeature, TypeScriptRuntime};
+use rsvelte_typescript_semantic::scope::{DeclarationKind, ScopeIdentifier};
+use rsvelte_typescript_syntax::syntax_tree::{TypeScriptFeature, TypeScriptRuntime};
 
 use super::{
     CompileInput, Diagnostic, Kind, NodeIdentifier, Resolution, Span, SyntaxTree, Target,
@@ -248,7 +248,7 @@ pub(super) fn check_runes(
         let in_class = in_class
             || matches!(
                 javascript.kind(e),
-                Kind::Class(rsvelte_typescript::syntax_tree::Class::Definition { .. })
+                Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition { .. })
             );
         for c in children {
             walk(

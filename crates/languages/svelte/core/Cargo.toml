@@ -13,7 +13,7 @@ rsvelte_svelte_syntax.workspace = true
 rsvelte_svelte_parser.workspace = true
 rsvelte_svelte_compiler_syntax_tree.workspace = true
 rsvelte_svelte_semantic.workspace = true
-rsvelte_typescript.workspace = true
+rsvelte_typescript_syntax.workspace = true
 
 [lints]
 workspace = true

@@ -1,4 +1,4 @@
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 pub const RUNES: &[&str] = &[
     "$state",

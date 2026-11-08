@@ -18,13 +18,13 @@
 //! `baseParse`'s tree: compiler-core's structural transforms build those nodes while they
 //! traverse, and when they do decides the helper order and the cache slots of the output.
 //!
-//! JavaScript expressions stay in the component's one [`rsvelte_typescript::SyntaxTree`], keyed by
-//! [`NodeIdentifier`].
+//! JavaScript expressions stay in the component's one [`rsvelte_typescript_syntax::SyntaxTree`],
+//! keyed by [`NodeIdentifier`].
 
 use rsvelte_kernel::index::{IndexRange, IndexVector};
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::NodeIdentifier;
+use rsvelte_typescript_syntax::NodeIdentifier;
 
 use crate::syntax_tree::{
     self, AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent, TemplateNode,

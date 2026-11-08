@@ -2,8 +2,8 @@ use rsvelte_kernel::index::IndexVector;
 use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
     AttributeValue, CompilerSyntaxTree, NodeKind,
 };
-use rsvelte_typescript::scope::{BindingIdentifier, Semantic};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, Semantic};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::super::{BindingInformation, BindingKind, for_each_pattern_identifier};
 

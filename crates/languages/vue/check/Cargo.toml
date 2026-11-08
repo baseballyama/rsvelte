@@ -16,7 +16,8 @@ rustc-hash.workspace = true
 rsvelte_vue.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript_check.workspace = true
-rsvelte_typescript.workspace = true
+rsvelte_typescript_syntax.workspace = true
+rsvelte_typescript_semantic.workspace = true
 
 [dev-dependencies]
 rsvelte_test_harness.workspace = true

@@ -30,7 +30,7 @@ fn core_registers_facts_without_selecting_tools() {
     let mut registry = Registry::new();
     rsvelte_svelte::register(&mut registry);
     rsvelte_vue::register(&mut registry);
-    rsvelte_typescript::register(&mut registry);
+    rsvelte_typescript_semantic::register(&mut registry);
     assert_eq!(registry.document_task_identifiers(), Vec::<&str>::new());
     for path in ["App.svelte", "App.vue", "app.ts"] {
         let document = registry.document(path, "").expect("valid source size");

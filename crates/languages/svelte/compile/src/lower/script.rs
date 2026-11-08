@@ -8,13 +8,13 @@ use declarators::lower_value_declarator;
 use props::{lower_client_props, server_props_pattern};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution, rune_call};
-use rsvelte_typescript::copy::{Rewrite, copy, copy_node};
-use rsvelte_typescript::operators::{
+use rsvelte_typescript_compile::copy::{Rewrite, copy, copy_node};
+use rsvelte_typescript_semantic::scope::BindingIdentifier;
+use rsvelte_typescript_syntax::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
 };
-use rsvelte_typescript::scope::BindingIdentifier;
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
 use super::names::Names;
@@ -445,8 +445,8 @@ pub(super) fn lower_script(
             Kind::ExportNamed(_)
             | Kind::ExportDefault(_)
             | Kind::Control(
-                rsvelte_typescript::syntax_tree::Control::ExportList { .. }
-                | rsvelte_typescript::syntax_tree::Control::ExportAll { .. },
+                rsvelte_typescript_syntax::syntax_tree::Control::ExportList { .. }
+                | rsvelte_typescript_syntax::syntax_tree::Control::ExportAll { .. },
             ) if context == ScriptContext::Instance => {
                 return unsupported(
                     "an export from the instance script",

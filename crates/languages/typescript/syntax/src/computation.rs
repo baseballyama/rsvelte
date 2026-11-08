@@ -7,7 +7,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::Span;
 
-use crate::{NodeIdentifier, SyntaxTree, parser, scope};
+use crate::{NodeIdentifier, SyntaxTree, parser};
 
 #[must_use]
 pub fn matches(document: &Document) -> bool {
@@ -52,27 +52,13 @@ impl Artifact for Parsed {
     }
 }
 
-#[derive(Debug)]
-pub struct Resolved;
-
-impl Artifact for Resolved {
-    type Output = Option<scope::Semantic>;
-
-    const NAME: &'static str = "ts.resolve";
-
-    fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let program = context.get::<Parsed>().as_ref().ok()?;
-        Some(scope::analyze(&program.syntax_tree, program.root, &[]))
-    }
-}
-
 pub static PLUGIN: Plugin = Plugin {
-    identifier: "typescript",
+    identifier: "typescript.syntax",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[],
 };
 
 pub fn register(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    registry.artifact::<Parsed>().artifact::<Resolved>();
+    registry.artifact::<Parsed>();
 }

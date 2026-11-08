@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::parser::{parse_expression, parse_parameters, parse_program};
-use rsvelte_typescript::scope::{DeclarationKind, HostRoot, HostScope, analyze};
-use rsvelte_typescript::syntax_tree::SyntaxTree;
+use rsvelte_typescript_semantic::scope::{DeclarationKind, HostRoot, HostScope, analyze};
+use rsvelte_typescript_syntax::parser::{parse_expression, parse_parameters, parse_program};
+use rsvelte_typescript_syntax::syntax_tree::SyntaxTree;
 
 #[test]
 fn template_expressions_resolve_against_the_instance_scope() {
@@ -128,7 +128,7 @@ fn a_host_scope_declares_names_its_body_sees() {
         }),
     ];
     let sem = analyze(&syntax_tree, program, &host);
-    let name = |b: rsvelte_typescript::scope::BindingIdentifier| {
+    let name = |b: rsvelte_typescript_semantic::scope::BindingIdentifier| {
         syntax_tree.atoms.get(sem.bindings[b].name).to_owned()
     };
     let outer = sem
@@ -186,7 +186,7 @@ fn catch_loop_and_class_scopes_keep_bindings_and_writes() {
 
 #[test]
 fn module_scope_encloses_instance_and_template_without_reverse_visibility() {
-    use rsvelte_typescript::scope::analyze_enclosed;
+    use rsvelte_typescript_semantic::scope::analyze_enclosed;
     let module = "const value=1; const shared=2; function read(){return value+instanceOnly;}";
     let instance = "const value=3; const instanceOnly=4; shared;";
     let source = format!("{module}\n{instance}\nvalue+shared");

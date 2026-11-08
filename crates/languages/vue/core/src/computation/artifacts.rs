@@ -66,14 +66,14 @@ pub static PLUGIN: Plugin = Plugin {
     identifier: "vue",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "typescript",
+        identifier: "typescript.syntax",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
 
 pub fn register(reg: &mut Registry) {
     reg.plugin(&PLUGIN);
-    rsvelte_typescript::register(reg);
+    rsvelte_typescript_syntax::register(reg);
     reg.artifact::<Parsed>()
         .artifact::<Lowered>()
         .artifact::<Resolved>();

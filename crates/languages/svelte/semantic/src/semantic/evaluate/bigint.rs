@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use num_bigint::{BigInt, Sign};
 use num_traits::FromPrimitive;
-use rsvelte_typescript::operators::{BinaryOperator, UnaryOperator};
+use rsvelte_typescript_syntax::operators::{BinaryOperator, UnaryOperator};
 
 use super::Value;
 

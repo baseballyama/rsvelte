@@ -1,5 +1,5 @@
-use rsvelte_typescript::scope::DeclarationKind;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::scope::DeclarationKind;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::ExpressionMetadata;
 use super::evaluation::BindingValues;

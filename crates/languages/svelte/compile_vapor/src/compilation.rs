@@ -11,7 +11,7 @@ use rsvelte_svelte::compilation::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_svelte::semantic::analyze::Analysis;
 use rsvelte_svelte::semantic::resolve::Resolution;
 use rsvelte_svelte::syntax::syntax_tree::Component;
-use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 /// The translated component: one JavaScript tree holding the `<script setup>` program and every
 /// template expression, and the template's Vue HIR.
@@ -140,7 +140,7 @@ pub fn translate(
         server,
         source_text,
     );
-    let rsvelte_typescript::Kind::Program(statements) = to.kind(script) else {
+    let rsvelte_typescript_syntax::Kind::Program(statements) = to.kind(script) else {
         unreachable!()
     };
     let mut statements = statements.to_vec();

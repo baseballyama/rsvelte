@@ -3,8 +3,9 @@ use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::TaskOutput;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::{Parsed, Resolved};
 use rsvelte_typescript_check::{TypeScriptDocument, TypeScriptView};
+use rsvelte_typescript_semantic::Resolved;
+use rsvelte_typescript_syntax::Parsed;
 
 fn registry() -> Registry {
     let mut registry = Registry::new();
@@ -54,7 +55,11 @@ fn javascript_and_typescript_extensions_select_shared_tasks() {
         ("README", false),
     ] {
         let document = registry.document(path, "").expect("valid text");
-        assert_eq!(rsvelte_typescript::matches(&document), selected, "{path}");
+        assert_eq!(
+            rsvelte_typescript_syntax::matches(&document),
+            selected,
+            "{path}"
+        );
         assert_eq!(
             registry.artifacts().provides::<TypeScriptView>(&document),
             selected,

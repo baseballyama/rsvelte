@@ -31,7 +31,7 @@ pub(crate) fn static_string<'a>(
         AttributeValue::Expression { expression, .. } | AttributeValue::Shorthand(expression)
             if matches!(
                 input.component.javascript.kind(*expression),
-                rsvelte_typescript::Kind::String
+                rsvelte_typescript_syntax::Kind::String
             ) =>
         {
             Some(

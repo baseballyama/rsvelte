@@ -27,13 +27,13 @@ pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.parser",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "typescript",
+        identifier: "typescript.syntax",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
 
 pub fn register(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_typescript::register(registry);
+    rsvelte_typescript_syntax::register(registry);
     registry.artifact::<Parsed>();
 }

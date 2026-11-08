@@ -13,8 +13,8 @@
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::scope::ScopeIdentifier;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_typescript_semantic::scope::ScopeIdentifier;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 use rsvelte_vue::resolve::Resolution;
 use rsvelte_vue::semantic::expressions::{
     camelize, can_prefix, collect_identifiers, is_simple_identifier, to_handler_key,

@@ -1,4 +1,4 @@
-use rsvelte_typescript::copy::{Verbatim, copy};
+use rsvelte_typescript_compile::copy::{Verbatim, copy};
 use rsvelte_vue::compiler_syntax_tree::{
     CompilerNodeIdentifier, Directive, NodeKind, PropertyKind,
 };

@@ -1,8 +1,8 @@
 use rsvelte_kernel::source::positions::{SourceLocation, Span};
-use rsvelte_typescript::operators::BinaryOperator;
-use rsvelte_typescript::parser::parse_program;
-use rsvelte_typescript::syntax_tree::{Kind, NodeIdentifier, SyntaxTree};
 use rsvelte_typescript_compile::codegen::print_expression;
+use rsvelte_typescript_syntax::operators::BinaryOperator;
+use rsvelte_typescript_syntax::parser::parse_program;
+use rsvelte_typescript_syntax::syntax_tree::{Kind, NodeIdentifier, SyntaxTree};
 
 fn binary_children(
     tree: &SyntaxTree,

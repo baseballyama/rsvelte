@@ -4,6 +4,7 @@ mod task;
 pub use task::*;
 
 pub mod codegen;
+pub mod copy;
 
 pub use task::PLUGIN;
 

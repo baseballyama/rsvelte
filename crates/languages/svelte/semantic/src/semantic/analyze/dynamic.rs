@@ -2,7 +2,7 @@ use rsvelte_kernel::index::IndexVector;
 use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
     self, AttributeValue, CompilerNodeIdentifier, NodeKind, Part,
 };
-use rsvelte_typescript::NodeIdentifier;
+use rsvelte_typescript_syntax::NodeIdentifier;
 use rustc_hash::FxHashMap;
 
 use super::ExpressionMetadata;

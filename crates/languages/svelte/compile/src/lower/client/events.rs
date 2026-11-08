@@ -69,7 +69,7 @@ impl ClientCompilationContext<'_> {
             Kind::Identifier(_)
                 if self.res.binding(handler).is_none_or(|(b, _)| {
                     self.res.sem.bindings[b].kind
-                        != rsvelte_typescript::scope::DeclarationKind::Import
+                        != rsvelte_typescript_semantic::scope::DeclarationKind::Import
                 }) =>
             {
                 built

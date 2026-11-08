@@ -118,7 +118,7 @@ impl Builder<'_, '_> {
                     let description = self.to.write_string("@attach");
                     let symbol = self.call("Symbol", &[description]);
                     self.declarations.push(self.to.let_(
-                        rsvelte_typescript::syntax_tree::flag::CONST,
+                        rsvelte_typescript_syntax::syntax_tree::flag::CONST,
                         key,
                         Some(symbol),
                     ));
@@ -126,7 +126,7 @@ impl Builder<'_, '_> {
                     fields.push(self.to.property(
                         key,
                         value,
-                        rsvelte_typescript::syntax_tree::flag::COMPUTED,
+                        rsvelte_typescript_syntax::syntax_tree::flag::COMPUTED,
                         attribute.span,
                     ));
                     continue;

@@ -46,10 +46,10 @@ impl Builder<'_> {
             let tag = self.name();
             body.push(
                 self.to
-                    .let_(rsvelte_typescript::syntax_tree::flag::LET, tag, None),
+                    .let_(rsvelte_typescript_syntax::syntax_tree::flag::LET, tag, None),
             );
             let assign = self.to.assign(
-                rsvelte_typescript::operators::AssignmentOperator::Assign,
+                rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
                 tag,
                 value,
                 SYNTHETIC,
@@ -71,7 +71,7 @@ impl Builder<'_> {
                 let svg = self.to.call0(create, &[uri, tag]);
                 let name = self.to.write_string("svg");
                 let test = self.to.binary(
-                    rsvelte_typescript::operators::BinaryOperator::StrictEq,
+                    rsvelte_typescript_syntax::operators::BinaryOperator::StrictEq,
                     tag,
                     name,
                     SYNTHETIC,
@@ -127,7 +127,7 @@ impl Builder<'_> {
             let document = self.to.identifier("document");
             let title = self.to.dot(document, "title");
             let assignment = self.to.assign(
-                rsvelte_typescript::operators::AssignmentOperator::Assign,
+                rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
                 title,
                 value,
                 SYNTHETIC,
@@ -162,14 +162,14 @@ impl Builder<'_> {
             let callee = self.to.identifier("$$await_block");
             let has_catch = self.expression(self.raw_markup_value(identifier));
             let value = self.to.call0(callee, &[getter, has_catch]);
-            let parameter_node = rsvelte_typescript::copy::copy(
+            let parameter_node = rsvelte_typescript_compile::copy::copy(
                 &self.input.javascript,
                 &mut self.to,
-                &mut rsvelte_typescript::copy::Verbatim,
+                &mut rsvelte_typescript_compile::copy::Verbatim,
                 parameter,
             );
             body.push(self.to.let_(
-                rsvelte_typescript::syntax_tree::flag::CONST,
+                rsvelte_typescript_syntax::syntax_tree::flag::CONST,
                 parameter_node,
                 Some(value),
             ));
@@ -336,7 +336,7 @@ impl Builder<'_> {
                     if matches!(arg, "checked" | "selected") {
                         let target = self.to.dot(node, property);
                         let set = self.to.assign(
-                            rsvelte_typescript::operators::AssignmentOperator::Assign,
+                            rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
                             target,
                             value,
                             SYNTHETIC,

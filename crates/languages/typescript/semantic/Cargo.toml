@@ -1,6 +1,6 @@
 [package]
-name = "rsvelte_typescript"
-description = "JavaScript/TypeScript language: immutable trees, parser, and semantic facts"
+name = "rsvelte_typescript_semantic"
+description = "Scopes and constant folding over JavaScript and TypeScript trees"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
@@ -11,6 +11,7 @@ doctest = false
 
 [dependencies]
 rsvelte_kernel.workspace = true
+rsvelte_typescript_syntax.workspace = true
 rustc-hash.workspace = true
 
 [lints]

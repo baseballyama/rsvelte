@@ -8,7 +8,7 @@ use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{TokenKind, Tokens};
 use rsvelte_stylesheet::StyleSheet;
-use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 pub type TemplateNodeIdentifier = u32;
 
@@ -343,7 +343,7 @@ pub enum TokenType {
     BlockOpen,
     /// `if` in `{:else if`, `as` in `{#each … as …}`, `@attach` in `{@attach …}`.
     BlockKeyword,
-    JavaScript(rsvelte_typescript::lexer::T),
+    JavaScript(rsvelte_typescript_syntax::lexer::T),
     JavaScriptComment,
     Whitespace,
     /// A style sheet's content, until the CSS parser records its own tokens.

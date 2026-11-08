@@ -142,7 +142,7 @@ impl Analyzer<'_> {
     pub(super) fn resolve(&mut self, identifier: NodeIdentifier, context: ReferenceContext) {
         match (self.syntax_tree.kind(identifier), context) {
             (
-                Kind::Class(crate::syntax_tree::Class::Definition {
+                Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition {
                     superclass,
                     members,
                     ..
@@ -160,7 +160,13 @@ impl Analyzer<'_> {
                     self.stack.pop();
                 }
             }
-            (Kind::Control(crate::syntax_tree::Control::Catch { parameter, body }), _) => {
+            (
+                Kind::Control(rsvelte_typescript_syntax::syntax_tree::Control::Catch {
+                    parameter,
+                    body,
+                }),
+                _,
+            ) => {
                 let entered = self.enter(identifier);
                 if let Some(p) = parameter {
                     self.resolve(p, ReferenceContext::Pattern { initializer: false });
@@ -171,8 +177,11 @@ impl Analyzer<'_> {
                 }
             }
             (
-                Kind::Control(crate::syntax_tree::Control::ForEach {
-                    left, right, body, ..
+                Kind::Control(rsvelte_typescript_syntax::syntax_tree::Control::ForEach {
+                    left,
+                    right,
+                    body,
+                    ..
                 }),
                 _,
             ) => {
@@ -192,7 +201,7 @@ impl Analyzer<'_> {
                 }
             }
             (
-                Kind::Control(crate::syntax_tree::Control::Switch {
+                Kind::Control(rsvelte_typescript_syntax::syntax_tree::Control::Switch {
                     discriminant,
                     cases,
                 }),

@@ -4,10 +4,10 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::{SourceLocation, Span};
 use rsvelte_svelte_compile::Target;
-use rsvelte_typescript::copy::{Rewrite, copy, copy_node};
-use rsvelte_typescript::scope::{BindingIdentifier, DeclarationKind, ScopeIdentifier};
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_compile::copy::{Rewrite, copy, copy_node};
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind, ScopeIdentifier};
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rsvelte_vue::resolve::{BindingType, Resolution};
 use rustc_hash::{FxHashMap, FxHashSet};
 

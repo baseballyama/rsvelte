@@ -1,6 +1,6 @@
 use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_svelte_semantic::semantic::resolve::{RUNES, rune_call};
-use rsvelte_typescript::SyntaxTree;
+use rsvelte_typescript_syntax::SyntaxTree;
 
 #[test]
 fn every_public_rune_is_recognized_in_both_supported_shapes() {
@@ -46,7 +46,7 @@ fn destructured_runes_classify_every_leaf_without_classifying_keys() {
         Children, CompilerSyntaxTreeBuilder,
     };
     use rsvelte_svelte_semantic::semantic::resolve::{self, BindingKind};
-    use rsvelte_typescript::parser;
+    use rsvelte_typescript_syntax::parser;
 
     let source = concat!(
         "let { first: a, nested: [b = 1, ...c], ...d } = $derived(value); ",
@@ -87,7 +87,7 @@ fn nested_runes_classify_bindings_in_their_own_scope() {
         Children, CompilerSyntaxTreeBuilder,
     };
     use rsvelte_svelte_semantic::semantic::resolve::{self, BindingKind};
-    use rsvelte_typescript::parser;
+    use rsvelte_typescript_syntax::parser;
 
     let source = concat!(
         "function counter() { let value = $state(1); let [offset] = $derived([value]);",

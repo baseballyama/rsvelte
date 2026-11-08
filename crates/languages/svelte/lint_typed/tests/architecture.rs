@@ -100,8 +100,8 @@ fn typed_lint_registers_dependencies_without_enabling_their_tasks() {
             "svelte.lint",
             "svelte.lint.typed",
             "svelte.parser",
-            "typescript",
-            "typescript.check"
+            "typescript.check",
+            "typescript.syntax"
         ]
     );
 }

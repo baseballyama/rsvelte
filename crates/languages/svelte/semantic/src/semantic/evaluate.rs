@@ -10,8 +10,8 @@ mod template;
 mod value;
 mod values;
 
-use rsvelte_typescript::scope::ScopeIdentifier;
-use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::scope::ScopeIdentifier;
+use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 pub use value::Value;
 use values::Values;
 

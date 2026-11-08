@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
-use rsvelte_typescript::lexer::T;
-use rsvelte_typescript::parser::parse_parameters;
+use rsvelte_typescript_syntax::lexer::T;
+use rsvelte_typescript_syntax::parser::parse_parameters;
 
 use super::identifier::match_bracket;
 use super::{End, ParseResult, Parser, javascript_error};

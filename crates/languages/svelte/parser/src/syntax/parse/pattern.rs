@@ -1,7 +1,7 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::NodeIdentifier;
-use rsvelte_typescript::parser::parse_parameters;
+use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_syntax::parser::parse_parameters;
 
 use super::identifier::{identifier_len, match_bracket};
 use super::{ParseResult, Parser, javascript_error};

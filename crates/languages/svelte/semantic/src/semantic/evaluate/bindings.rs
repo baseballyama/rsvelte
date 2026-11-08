@@ -1,6 +1,6 @@
 use rsvelte_kernel::index::TypedIndex;
-use rsvelte_typescript::scope::DeclarationKind;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_typescript_semantic::scope::DeclarationKind;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::globals::global_function;
 use super::{Evaluator, Tree, Value, Values, add};
@@ -11,7 +11,7 @@ impl<'a> Evaluator<'a> {
         &self,
         tree: Tree<'a>,
         e: NodeIdentifier,
-    ) -> Option<rsvelte_typescript::scope::BindingIdentifier> {
+    ) -> Option<rsvelte_typescript_semantic::scope::BindingIdentifier> {
         match tree {
             Tree::Source => self.res.sem.binding_of(e),
             Tree::Output(syntax_tree, scope) => self

@@ -12,13 +12,13 @@
 
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_typescript::copy::{Rewrite, Verbatim, copy};
-use rsvelte_typescript::operators::{
+use rsvelte_typescript_compile::copy::{Rewrite, Verbatim, copy};
+use rsvelte_typescript_semantic::scope::{DeclarationKind, ScopeIdentifier};
+use rsvelte_typescript_syntax::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator,
 };
-use rsvelte_typescript::scope::{DeclarationKind, ScopeIdentifier};
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rsvelte_vue::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind, PropertyIdentifier, PropertyKind, TagType,
 };

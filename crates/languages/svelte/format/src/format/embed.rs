@@ -131,7 +131,7 @@ impl Printer<'_, '_> {
     pub(super) fn script_body(
         &mut self,
         content: Span,
-        program: rsvelte_typescript::NodeIdentifier,
+        program: rsvelte_typescript_syntax::NodeIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
         let text = content.text(self.source_text);
         if text.trim().is_empty() {

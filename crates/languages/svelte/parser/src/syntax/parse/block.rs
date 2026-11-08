@@ -1,8 +1,8 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
-use rsvelte_typescript::lexer::T;
-use rsvelte_typescript::syntax_tree::TypeScriptKind;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_typescript_syntax::lexer::T;
+use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::identifier::is_identifier_continue;
 use super::{End, ParseResult, Parser};
@@ -229,7 +229,7 @@ impl Parser<'_> {
         &mut self,
         position: usize,
         tokens: usize,
-        mark: rsvelte_typescript::syntax_tree::Mark,
+        mark: rsvelte_typescript_syntax::syntax_tree::Mark,
     ) {
         self.position = position;
         self.component.tokens.truncate(tokens);

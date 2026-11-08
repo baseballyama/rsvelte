@@ -20,12 +20,12 @@ use rsvelte_svelte::semantic::evaluate::Value;
 use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte_compile::lower::{Item, Parent, clean_nodes, sanitize_template_string};
 use rsvelte_svelte_compile::render_plan::Namespace;
-use rsvelte_typescript::copy::{Rewrite, Verbatim, copy};
-use rsvelte_typescript::operators::{
+use rsvelte_typescript_compile::copy::{Rewrite, Verbatim, copy};
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind, ScopeIdentifier};
+use rsvelte_typescript_syntax::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator,
 };
-use rsvelte_typescript::scope::{BindingIdentifier, DeclarationKind, ScopeIdentifier};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rsvelte_vue::compiler_syntax_tree::{
     self as vue, CompilerSyntaxTreeBuilder, Name, PropertyKind, Text,
 };

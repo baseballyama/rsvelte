@@ -10,7 +10,7 @@ use rsvelte_kernel::source::positions::Span;
 pub use rsvelte_svelte_syntax::names::is_component_name;
 pub use rsvelte_svelte_syntax::syntax_tree::Part;
 use rsvelte_svelte_syntax::syntax_tree::{TemplateNodeIdentifier, decode_text};
-use rsvelte_typescript::NodeIdentifier;
+use rsvelte_typescript_syntax::NodeIdentifier;
 
 newtype_index!(
     pub struct CompilerNodeIdentifier;
@@ -238,13 +238,13 @@ impl Each {
 
     /// Upstream's `metadata.keyed`: a key other than the index itself.
     #[must_use]
-    pub fn keyed(&self, javascript: &rsvelte_typescript::SyntaxTree) -> bool {
+    pub fn keyed(&self, javascript: &rsvelte_typescript_syntax::SyntaxTree) -> bool {
         let Some(key) = self.key() else {
             return false;
         };
         let is_index = matches!(
             javascript.kind(key),
-            rsvelte_typescript::Kind::Identifier(_)
+            rsvelte_typescript_syntax::Kind::Identifier(_)
         ) && self.index().is_some_and(|i| {
             javascript.atom(i).is_some() && javascript.atom(i) == javascript.atom(key)
         });

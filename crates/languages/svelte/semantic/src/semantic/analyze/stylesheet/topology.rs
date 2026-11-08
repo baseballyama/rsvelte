@@ -1,8 +1,8 @@
 use rsvelte_kernel::index::IndexVector;
 use rsvelte_kernel::newtype_index;
 use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
-use rsvelte_typescript::Kind;
-use rsvelte_typescript::scope::BindingIdentifier;
+use rsvelte_typescript_semantic::scope::BindingIdentifier;
+use rsvelte_typescript_syntax::Kind;
 use rustc_hash::FxHashMap;
 
 use super::relations::Relations;

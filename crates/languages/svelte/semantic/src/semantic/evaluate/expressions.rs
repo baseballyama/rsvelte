@@ -1,5 +1,5 @@
-use rsvelte_typescript::operators::{BinaryOperator, LogicalOperator, UnaryOperator};
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_typescript_syntax::operators::{BinaryOperator, LogicalOperator, UnaryOperator};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::globals::global_constant;
 use super::operators::{binary, unary};

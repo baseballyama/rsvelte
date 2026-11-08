@@ -230,7 +230,7 @@ impl T<'_, '_> {
             let ok = self.info.resolution.sem.binding_of(e).is_some_and(|b| {
                 let binding = &self.info.resolution.sem.bindings[b];
                 self.info.class.get(&b) == Some(&Class::Ref)
-                    || (binding.scope == rsvelte_typescript::scope::ScopeIdentifier::ROOT
+                    || (binding.scope == rsvelte_typescript_semantic::scope::ScopeIdentifier::ROOT
                         && matches!(
                             binding.kind,
                             DeclarationKind::Let | DeclarationKind::Variable

@@ -1,5 +1,5 @@
-use rsvelte_typescript::SyntaxTree;
-use rsvelte_typescript::copy::Rewrite;
+use rsvelte_typescript_compile::copy::Rewrite;
+use rsvelte_typescript_syntax::SyntaxTree;
 
 use super::{Builder, Kind, NodeIdentifier, SYNTHETIC, Verbatim, call_name, copy};
 
@@ -38,7 +38,7 @@ impl Builder<'_> {
                 let value = self.to.call0(helper, &[]);
                 let context = self.to.identifier("$$async_context");
                 let declaration = self.to.let_(
-                    rsvelte_typescript::syntax_tree::flag::CONST,
+                    rsvelte_typescript_syntax::syntax_tree::flag::CONST,
                     context,
                     Some(value),
                 );
@@ -90,7 +90,7 @@ impl Builder<'_> {
         let finish = self.to.expression_statement(finish);
         let finalizer = self.to.block(&[finish], SYNTHETIC);
         let statement = self.to.control(
-            rsvelte_typescript::syntax_tree::Control::Try {
+            rsvelte_typescript_syntax::syntax_tree::Control::Try {
                 block,
                 handler: None,
                 finalizer: Some(finalizer),

@@ -12,14 +12,14 @@
 //!   before anything is printed.
 //!
 //! TypeScript types are not parsed into nodes (see
-//! [`rsvelte_typescript::syntax_tree::TypeScriptSyntax`]); a type prints as its source text only
-//! when that text is a plain type reference (`Props`, `string`, `a.B[]`).
+//! [`rsvelte_typescript_syntax::syntax_tree::TypeScriptSyntax`]); a type prints as its source text
+//! only when that text is a plain type reference (`Props`, `string`, `a.B[]`).
 
 use rsvelte_document_printer::{LayoutInstructionIdentifier, LayoutInstructions};
 pub use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-use rsvelte_typescript::operators::{BinaryOperator, LogicalOperator, UnaryOperator};
-use rsvelte_typescript::syntax_tree::{
+use rsvelte_typescript_syntax::operators::{BinaryOperator, LogicalOperator, UnaryOperator};
+use rsvelte_typescript_syntax::syntax_tree::{
     Kind, NodeIdentifier, SyntaxTree, TypeScriptKind, TypeScriptSyntax, flag,
 };
 

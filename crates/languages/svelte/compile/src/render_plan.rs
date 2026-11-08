@@ -114,7 +114,7 @@ impl RenderPlan {
                                             AttributeValue::Expression { expression, .. }
                                             | AttributeValue::Shorthand(expression) => matches!(
                                                 input.component.javascript.kind(expression),
-                                                rsvelte_typescript::Kind::Boolean(true)
+                                                rsvelte_typescript_syntax::Kind::Boolean(true)
                                             ),
                                             _ => false,
                                         }

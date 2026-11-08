@@ -1,5 +1,5 @@
-use rsvelte_typescript::operators::LogicalOperator;
-use rsvelte_typescript::syntax_tree::flag;
+use rsvelte_typescript_syntax::operators::LogicalOperator;
+use rsvelte_typescript_syntax::syntax_tree::flag;
 use rsvelte_vue::compiler_syntax_tree::{Element, NodeKind, PropertyKind};
 
 use super::{Builder, Namespace, NodeIdentifier, SYNTHETIC};

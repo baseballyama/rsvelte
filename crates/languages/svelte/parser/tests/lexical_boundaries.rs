@@ -101,7 +101,7 @@ fn unterminated_values_report_the_utf8_byte_offset() {
 
 #[test]
 fn component_names_keep_their_member_tree_and_source_positions() {
-    use rsvelte_typescript::{Kind, NodeIdentifier};
+    use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
     let source = "<UI.Button /><item.component /><div />";
     let parsed = parse(source).expect("component tags");
     parsed.tokens.check_lossless(source).expect("all bytes");

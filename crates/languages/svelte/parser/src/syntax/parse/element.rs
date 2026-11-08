@@ -49,7 +49,7 @@ impl Parser<'_> {
         let component = component_name
             .then(|| self.component_reference(name))
             .flatten()
-            .unwrap_or(rsvelte_typescript::NodeIdentifier::NONE);
+            .unwrap_or(rsvelte_typescript_syntax::NodeIdentifier::NONE);
         let (attributes, self_closing) = self.attributes()?;
         let start_tag = Span::new(start_offset as u32, self.position as u32);
         let regular = !name_text.starts_with("svelte:") && !component_name;
@@ -79,7 +79,10 @@ impl Parser<'_> {
         })))
     }
 
-    fn component_reference(&mut self, name: Span) -> Option<rsvelte_typescript::NodeIdentifier> {
+    fn component_reference(
+        &mut self,
+        name: Span,
+    ) -> Option<rsvelte_typescript_syntax::NodeIdentifier> {
         let text = name.text(self.source_text);
         if text.split('.').any(str::is_empty) {
             return None;

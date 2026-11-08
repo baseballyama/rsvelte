@@ -83,7 +83,7 @@ impl Analyzer<'_> {
     #[expect(clippy::too_many_lines, reason = "one arm per declaration kind")]
     pub(super) fn declare(&mut self, identifier: NodeIdentifier) {
         match self.syntax_tree.kind(identifier) {
-            Kind::Class(crate::syntax_tree::Class::Definition {
+            Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition {
                 name,
                 superclass,
                 members,
@@ -104,7 +104,10 @@ impl Analyzer<'_> {
                 }
                 self.stack.pop();
             }
-            Kind::Control(crate::syntax_tree::Control::Catch { parameter, body }) => {
+            Kind::Control(rsvelte_typescript_syntax::syntax_tree::Control::Catch {
+                parameter,
+                body,
+            }) => {
                 self.push_scope(identifier, false);
                 if let Some(p) = parameter {
                     self.declare_pattern(p, DeclarationKind::Let);
@@ -114,12 +117,12 @@ impl Analyzer<'_> {
             }
             Kind::Block(_)
             | Kind::For { .. }
-            | Kind::Control(crate::syntax_tree::Control::ForEach { .. }) => {
+            | Kind::Control(rsvelte_typescript_syntax::syntax_tree::Control::ForEach { .. }) => {
                 self.push_scope(identifier, false);
                 self.declare_children(identifier);
                 self.stack.pop();
             }
-            Kind::Control(crate::syntax_tree::Control::Switch {
+            Kind::Control(rsvelte_typescript_syntax::syntax_tree::Control::Switch {
                 discriminant,
                 cases,
             }) => {

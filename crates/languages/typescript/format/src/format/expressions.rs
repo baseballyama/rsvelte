@@ -57,7 +57,8 @@ impl Formatter<'_> {
         let document = document?;
         let leftmost = self.paren_leftmost == Some(identifier);
         if leftmost
-            || self.syntax_tree.flags(identifier) & rsvelte_typescript::syntax_tree::flag::GROUPED
+            || self.syntax_tree.flags(identifier)
+                & rsvelte_typescript_syntax::syntax_tree::flag::GROUPED
                 != 0
             || parent.is_some_and(|p| self.needs_parens(identifier, p, slot))
         {

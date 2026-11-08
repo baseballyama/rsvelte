@@ -1,6 +1,6 @@
 use rsvelte_kernel::index::IndexVector;
-use rsvelte_typescript::NodeIdentifier;
-use rsvelte_typescript::scope::BindingIdentifier;
+use rsvelte_typescript_semantic::scope::BindingIdentifier;
+use rsvelte_typescript_syntax::NodeIdentifier;
 
 use crate::semantic::evaluate::{Evaluator, Tree};
 use crate::semantic::input::ComponentInput;

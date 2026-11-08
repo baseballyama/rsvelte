@@ -7,10 +7,10 @@
 use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution, rune_call};
 use rsvelte_svelte::syntax::syntax_tree::Component;
-use rsvelte_typescript::copy::{Rewrite, Verbatim, copy};
-use rsvelte_typescript::scope::BindingIdentifier;
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_compile::copy::{Rewrite, Verbatim, copy};
+use rsvelte_typescript_semantic::scope::BindingIdentifier;
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::helpers::{self, Helper};
@@ -507,7 +507,7 @@ fn props(javascript: &SyntaxTree, pattern: NodeIdentifier) -> R<Props> {
 fn is_literal(javascript: &SyntaxTree, e: NodeIdentifier) -> bool {
     match javascript.kind(e) {
         Kind::String | Kind::Number(_) | Kind::Boolean(_) | Kind::Null => true,
-        Kind::Unary(rsvelte_typescript::operators::UnaryOperator::Neg, n) => {
+        Kind::Unary(rsvelte_typescript_syntax::operators::UnaryOperator::Neg, n) => {
             matches!(javascript.kind(n), Kind::Number(_))
         }
         Kind::Template { expressions, .. } => expressions.is_empty(),

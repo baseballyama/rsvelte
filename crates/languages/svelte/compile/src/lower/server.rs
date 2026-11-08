@@ -26,11 +26,11 @@ use rsvelte_svelte::compilation::compiler_syntax_tree::{
 use rsvelte_svelte::semantic::analyze::Analysis;
 use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte::syntax::parse::is_void;
-use rsvelte_typescript::copy::copy;
-use rsvelte_typescript::operators::{BinaryOperator, UpdateOperator};
-use rsvelte_typescript::scope::ScopeIdentifier;
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_compile::copy::copy;
+use rsvelte_typescript_semantic::scope::ScopeIdentifier;
+use rsvelte_typescript_syntax::operators::{BinaryOperator, UpdateOperator};
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
 use super::javascript::{call_arguments, init_property, runtime_call};

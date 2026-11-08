@@ -1,4 +1,4 @@
-use rsvelte_typescript::copy::Verbatim;
+use rsvelte_typescript_compile::copy::Verbatim;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::{
@@ -190,7 +190,7 @@ impl ClientCompilationContext<'_> {
                 .bindings
                 .iter_enumerated()
                 .filter(|(_, binding)| {
-                    binding.scope == rsvelte_typescript::scope::ScopeIdentifier::ROOT
+                    binding.scope == rsvelte_typescript_semantic::scope::ScopeIdentifier::ROOT
                 })
                 .map(|(id, binding)| (self.javascript.atoms.get(binding.name), id))
                 .collect::<FxHashMap<_, _>>()

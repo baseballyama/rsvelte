@@ -11,10 +11,9 @@ use rsvelte_kernel::index::{IndexVector, TypedIndex};
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::interning::Atom;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_syntax::operators::AssignmentOperator;
+use rsvelte_typescript_syntax::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, flag};
 use rustc_hash::FxHashMap;
-
-use crate::operators::AssignmentOperator;
-use crate::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, flag};
 
 newtype_index!(
     pub struct BindingIdentifier;
@@ -133,7 +132,8 @@ pub struct Semantic {
     /// `by_binding[by_binding_start[b]..by_binding_start[b + 1]]`, in source order.
     by_binding: Vec<u32>,
     by_binding_start: Vec<u32>,
-    /// Per binding: named in type syntax ([`crate::syntax_tree::SyntaxTree::type_references`]).
+    /// Per binding: named in type syntax
+    /// ([`rsvelte_typescript_syntax::syntax_tree::SyntaxTree::type_references`]).
     /// typescript-eslint's scope analysis counts such a name as a read; the compiler's read
     /// counts do not.
     type_referenced: Vec<bool>,

@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_typescript::operators::UnaryOperator;
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::operators::UnaryOperator;
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 /// `b.call` for `$.method(…)`.
 pub(crate) fn runtime_call(

@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::parser::parse_program;
-use rsvelte_typescript::syntax_tree::SyntaxTree;
 use rsvelte_typescript_compile::codegen::print_program;
+use rsvelte_typescript_syntax::parser::parse_program;
+use rsvelte_typescript_syntax::syntax_tree::SyntaxTree;
 
 fn print(source_text: &str, typescript: bool) -> String {
     let mut syntax_tree = SyntaxTree::new();

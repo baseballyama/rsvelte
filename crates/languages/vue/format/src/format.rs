@@ -9,9 +9,9 @@
 //! extraction, CSS display, space sensitivity, simple-element merging) over a tree of its own,
 //! since the preprocessing rewrites text and removes nodes. `Printer` is `printChildren`,
 //! `printElement` and the tag helpers of `print/tag.js`, one function per upstream function.
-//! Script bodies and template expressions go through `rsvelte_typescript`'s formatter, style bodies
-//! through `rsvelte_stylesheet`'s; anything neither covers is an [`Unsupported`] error, never an
-//! approximation.
+//! Script bodies and template expressions go through `rsvelte_typescript_syntax`'s formatter, style
+//! bodies through `rsvelte_stylesheet`'s; anything neither covers is an [`Unsupported`] error,
+//! never an approximation.
 
 use std::borrow::Cow;
 
@@ -19,9 +19,9 @@ use rsvelte_document_printer::{
     GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions, PrintOptions, Refused,
 };
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 pub use rsvelte_typescript_format::Unsupported;
 use rsvelte_typescript_format::{Formatter, Options as JavaScriptOptions};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rsvelte_vue::syntax_tree::{
     Attribute, AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent,
     TagAttributes, TemplateNode, TemplateNodeIdentifier,

@@ -1,6 +1,6 @@
-use rsvelte_typescript::copy::{Rewrite, copy};
-use rsvelte_typescript::operators::BinaryOperator;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_compile::copy::{Rewrite, copy};
+use rsvelte_typescript_syntax::operators::BinaryOperator;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::SourceLocation;
 
@@ -33,7 +33,7 @@ pub(crate) fn declaration(
     };
     lower(from, to, rewrite, pattern, value, mode, &mut declarations);
     to.var_declaration(
-        rsvelte_typescript::syntax_tree::flag::CONST,
+        rsvelte_typescript_syntax::syntax_tree::flag::CONST,
         &declarations,
         SYNTHETIC,
     )

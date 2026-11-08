@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::TokenType;
-use rsvelte_typescript::NodeIdentifier;
-use rsvelte_typescript::parser::{parse_expression, parse_expression_prefix};
+use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_syntax::parser::{parse_expression, parse_expression_prefix};
 
 use super::identifier::identifier_len;
 use super::{ParseResult, Parser, javascript_error};

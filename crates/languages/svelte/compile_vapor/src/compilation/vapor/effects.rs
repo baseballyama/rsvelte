@@ -1,6 +1,6 @@
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_typescript::copy::{Rewrite, copy};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_compile::copy::{Rewrite, copy};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 pub(super) fn lower(
     from: &SyntaxTree,

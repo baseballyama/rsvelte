@@ -1,5 +1,5 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_typescript::operators::UnaryOperator;
+use rsvelte_typescript_syntax::operators::UnaryOperator;
 
 use super::{
     Kind, NodeIdentifier, ScriptRewrite, SyntaxTree, Target, copy, rune_call, should_proxy,

@@ -1,6 +1,6 @@
-use rsvelte_typescript::copy::{Verbatim, copy};
-use rsvelte_typescript::scope::BindingIdentifier;
-use rsvelte_typescript::syntax_tree::flag;
+use rsvelte_typescript_compile::copy::{Verbatim, copy};
+use rsvelte_typescript_semantic::scope::BindingIdentifier;
+use rsvelte_typescript_syntax::syntax_tree::flag;
 
 use super::{Builder, Kind, NodeIdentifier, SYNTHETIC};
 
@@ -61,7 +61,7 @@ impl Builder<'_> {
                 if let Some(default) = default {
                     let undefined = self.to.identifier("undefined");
                     let test = self.to.binary(
-                        rsvelte_typescript::operators::BinaryOperator::StrictEq,
+                        rsvelte_typescript_syntax::operators::BinaryOperator::StrictEq,
                         value,
                         undefined,
                         SYNTHETIC,

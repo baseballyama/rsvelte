@@ -1,4 +1,4 @@
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 #[must_use]
 pub fn cannot_be_set_statically(name: &str) -> bool {

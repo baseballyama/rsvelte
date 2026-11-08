@@ -1,4 +1,4 @@
-use rsvelte_typescript::NodeIdentifier;
+use rsvelte_typescript_syntax::NodeIdentifier;
 
 mod infer;
 

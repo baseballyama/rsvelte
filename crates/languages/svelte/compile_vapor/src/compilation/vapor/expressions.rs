@@ -1,8 +1,8 @@
 mod asynchronous;
 pub(super) use asynchronous::script_getter;
-use rsvelte_typescript::copy::{Rewrite, copy};
-use rsvelte_typescript::scope::{BindingIdentifier, DeclarationKind};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_compile::copy::{Rewrite, copy};
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rsvelte_vue::resolve::{BindingType, Resolution};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -243,8 +243,18 @@ impl Rewrite for ExpressionRewrite<'_> {
                 && from.name(object).starts_with("$$pattern_")
                 && from.name(property) == "value" =>
             {
-                let object = copy(from, to, &mut rsvelte_typescript::copy::Verbatim, object);
-                let property = copy(from, to, &mut rsvelte_typescript::copy::Verbatim, property);
+                let object = copy(
+                    from,
+                    to,
+                    &mut rsvelte_typescript_compile::copy::Verbatim,
+                    object,
+                );
+                let property = copy(
+                    from,
+                    to,
+                    &mut rsvelte_typescript_compile::copy::Verbatim,
+                    property,
+                );
                 Some(to.member(object, property, false, optional, super::SYNTHETIC))
             }
             Kind::Identifier(_) => self.reference(from, to, identifier),

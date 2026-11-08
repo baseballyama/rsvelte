@@ -5,7 +5,7 @@ impl Evaluator<'_> {
         let raw = syntax_tree.str_value(quasi, self.source_text);
         let raw = raw.replace("\r\n", "\n");
         if raw.contains('\\') {
-            rsvelte_typescript::lexer::decode_string(&raw)
+            rsvelte_typescript_syntax::lexer::decode_string(&raw)
         } else {
             Some(raw)
         }

@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::positions::SourceLocation;
+use rsvelte_typescript_syntax::syntax_tree::Class;
 
 use super::{NodeIdentifier, Rewrite, SyntaxTree, copy, copy_all, copy_opt};
-use crate::syntax_tree::Class;
 
 pub(super) fn copy_class<R: Rewrite + ?Sized>(
     from: &SyntaxTree,

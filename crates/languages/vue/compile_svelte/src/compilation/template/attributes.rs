@@ -161,7 +161,7 @@ impl T<'_, '_> {
             Kind::Identifier(_) => {
                 let function = self.info.resolution.sem.binding_of(e).is_some_and(|b| {
                     let binding = &self.info.resolution.sem.bindings[b];
-                    binding.scope == rsvelte_typescript::scope::ScopeIdentifier::ROOT
+                    binding.scope == rsvelte_typescript_semantic::scope::ScopeIdentifier::ROOT
                         && (binding.kind == DeclarationKind::Function
                             || (binding.kind == DeclarationKind::Const
                                 && binding.initializer(from).is_some_and(|i| {

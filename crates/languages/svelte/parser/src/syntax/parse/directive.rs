@@ -1,6 +1,6 @@
 use rsvelte_kernel::source::positions::{SourceLocation, Span};
 use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part};
-use rsvelte_typescript::NodeIdentifier;
+use rsvelte_typescript_syntax::NodeIdentifier;
 
 use super::identifier::identifier_len;
 use super::{ParseResult, Parser};
@@ -81,7 +81,7 @@ impl Parser<'_> {
             self.component.javascript.tokens.len(),
             self.component.javascript.comments.len(),
         );
-        let expression = rsvelte_typescript::parser::parse_expression(
+        let expression = rsvelte_typescript_syntax::parser::parse_expression(
             &mut self.component.javascript,
             self.source_text,
             span,

@@ -1,6 +1,6 @@
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::parser::parse_program;
-use rsvelte_typescript::syntax_tree::SyntaxTree;
+use rsvelte_typescript_syntax::parser::parse_program;
+use rsvelte_typescript_syntax::syntax_tree::SyntaxTree;
 
 /// The gaps between consumed tokens hold only whitespace and exactly the recorded comments.
 fn gaps_are_trivia(source_text: &str, typescript: bool) {

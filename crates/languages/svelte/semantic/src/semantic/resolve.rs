@@ -2,8 +2,8 @@
 
 use rsvelte_kernel::index::IndexVector;
 use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::CompilerSyntaxTree;
-use rsvelte_typescript::scope::{self, BindingIdentifier, Semantic};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::scope::{self, BindingIdentifier, Semantic};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 mod classify;
 mod roots;

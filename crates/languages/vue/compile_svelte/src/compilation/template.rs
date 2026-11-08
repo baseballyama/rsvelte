@@ -7,12 +7,12 @@ use rsvelte_svelte::compilation::compiler_syntax_tree::{
     Element as SvelteElement, NodeKind as SvelteNodeKind,
 };
 use rsvelte_svelte_compile::Target;
-use rsvelte_typescript::operators::{
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind};
+use rsvelte_typescript_syntax::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator,
 };
-use rsvelte_typescript::scope::{BindingIdentifier, DeclarationKind};
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rsvelte_vue::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, Directive, Element, NodeKind, Property,
     PropertyKind, TagType,

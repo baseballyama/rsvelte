@@ -9,7 +9,7 @@ doctest = false
 
 [dependencies]
 rsvelte_kernel.workspace = true
-rsvelte_typescript.workspace = true
+rsvelte_typescript_syntax.workspace = true
 rsvelte_svelte_syntax.workspace = true
 unicode-id-start.workspace = true
 

@@ -1,8 +1,8 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
-use rsvelte_typescript::parser::parse_declaration_prefix;
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_typescript_syntax::parser::parse_declaration_prefix;
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::identifier::is_identifier_continue;
 use super::{ParseResult, Parser, javascript_error};
@@ -143,7 +143,10 @@ impl Parser<'_> {
         if self.peek() != Some(b'=') {
             return self.err("expected `=`");
         }
-        self.eat_token(TokenType::JavaScript(rsvelte_typescript::lexer::T::Op), 1);
+        self.eat_token(
+            TokenType::JavaScript(rsvelte_typescript_syntax::lexer::T::Op),
+            1,
+        );
         let expression_start = self.position;
         let initializer = self.expression()?;
         self.component.template_expressions.pop();

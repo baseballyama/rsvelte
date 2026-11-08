@@ -1,4 +1,4 @@
-use rsvelte_typescript::syntax_tree::flag;
+use rsvelte_typescript_syntax::syntax_tree::flag;
 use rsvelte_vue::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind, PropertyKind};
 use rsvelte_vue::syntax_tree::{DirectiveExpression, DirectiveName};
 

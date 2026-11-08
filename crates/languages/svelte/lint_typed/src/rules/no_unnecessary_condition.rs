@@ -2,9 +2,9 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_svelte::Parsed;
-use rsvelte_typescript::operators::{LogicalOperator, UnaryOperator};
-use rsvelte_typescript::syntax_tree::TypeScriptKind;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_typescript_syntax::operators::{LogicalOperator, UnaryOperator};
+use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use crate::computation::ConditionTypes;
 use crate::types::TypeFacts;

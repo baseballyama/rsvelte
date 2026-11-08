@@ -1,4 +1,4 @@
-use rsvelte_typescript::SyntaxTree;
+use rsvelte_typescript_syntax::SyntaxTree;
 
 use super::*;
 use crate::helpers;
@@ -78,7 +78,7 @@ fn every_helper_parses() {
     ];
     assert_ne!(
         helpers::declarations(&all, &mut to),
-        Vec::<rsvelte_typescript::NodeIdentifier>::new()
+        Vec::<rsvelte_typescript_syntax::NodeIdentifier>::new()
     );
 }
 

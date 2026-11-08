@@ -1,17 +1,17 @@
 //! eslint-plugin-vue's rules, and the core rules as they see a Vue component.
 //!
 //! One layer: the surface tree with its name resolution. The core `no-unused-variables` is
-//! `rsvelte_typescript`'s, unchanged: template expressions are scope roots, so a script binding
-//! read only in the template is used (vue-eslint-parser marks such a variable used). It judges only
-//! the script's bindings; the `v-for` aliases are `vue/no-unused-variables`' to report.
+//! `rsvelte_typescript_syntax`'s, unchanged: template expressions are scope roots, so a script
+//! binding read only in the template is used (vue-eslint-parser marks such a variable used). It
+//! judges only the script's bindings; the `v-for` aliases are `vue/no-unused-variables`' to report.
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_markup::button_type::{Allowed, Problem, check_static};
-use rsvelte_typescript::scope::{DeclarationKind, HostRoot};
 use rsvelte_typescript_lint::JavaScriptFacts;
+use rsvelte_typescript_semantic::scope::{DeclarationKind, HostRoot};
 use rsvelte_vue::resolve::Resolution;
 use rsvelte_vue::syntax_tree::{AttributeKind, DirectiveName, SingleFileComponent, TemplateNode};
 
@@ -116,13 +116,16 @@ impl<'a> Rule<RuleContext<'a>> for VueNoUnusedVariables {
 /// (upstream `isDestructuringVariable`).
 fn pattern_bindings(
     context: &RuleContext<'_>,
-    p: rsvelte_typescript::NodeIdentifier,
-) -> Vec<(rsvelte_typescript::scope::BindingIdentifier, bool)> {
+    p: rsvelte_typescript_syntax::NodeIdentifier,
+) -> Vec<(rsvelte_typescript_semantic::scope::BindingIdentifier, bool)> {
     let syntax_tree = context.javascript.syntax_tree;
     let mut out = Vec::new();
     let mut stack = vec![(p, false)];
     while let Some((n, destructured)) = stack.pop() {
-        if matches!(syntax_tree.kind(n), rsvelte_typescript::Kind::Identifier(_)) {
+        if matches!(
+            syntax_tree.kind(n),
+            rsvelte_typescript_syntax::Kind::Identifier(_)
+        ) {
             if let Some(b) = context.res.sem.binding_of(n) {
                 out.push((b, destructured));
             }
@@ -133,8 +136,8 @@ fn pattern_bindings(
         let inner = destructured
             || matches!(
                 syntax_tree.kind(n),
-                rsvelte_typescript::Kind::ObjectPattern(_)
-                    | rsvelte_typescript::Kind::ArrayPattern(_)
+                rsvelte_typescript_syntax::Kind::ObjectPattern(_)
+                    | rsvelte_typescript_syntax::Kind::ArrayPattern(_)
             );
         stack.extend(children.into_iter().rev().map(|k| (k, inner)));
     }

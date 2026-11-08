@@ -4,8 +4,8 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_typescript::Parsed;
-use rsvelte_typescript::syntax_tree::TypeScriptFeature;
+use rsvelte_typescript_syntax::Parsed;
+use rsvelte_typescript_syntax::syntax_tree::TypeScriptFeature;
 
 use crate::codegen;
 
@@ -13,14 +13,14 @@ pub static PLUGIN: Plugin = Plugin {
     identifier: "typescript.compile",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "typescript",
+        identifier: "typescript.syntax",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
 
 pub fn register(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_typescript::register(registry);
+    rsvelte_typescript_syntax::register(registry);
     registry.task(Compile);
 }
 
@@ -33,7 +33,7 @@ impl Task for Compile {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_typescript::matches(document)
+        rsvelte_typescript_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {

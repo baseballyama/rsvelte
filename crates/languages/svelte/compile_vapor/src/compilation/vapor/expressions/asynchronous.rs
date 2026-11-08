@@ -112,7 +112,12 @@ impl<N: Rewrite> Rewrite for AsyncRewrite<N> {
                         let property = if computed {
                             copy(from, to, self, property)
                         } else {
-                            copy(from, to, &mut rsvelte_typescript::copy::Verbatim, property)
+                            copy(
+                                from,
+                                to,
+                                &mut rsvelte_typescript_compile::copy::Verbatim,
+                                property,
+                            )
                         };
                         to.member(
                             object,
@@ -143,7 +148,12 @@ impl<N: Rewrite> Rewrite for AsyncRewrite<N> {
                 ..
             } => {
                 let value = copy(from, to, self, value);
-                let key = copy(from, to, &mut rsvelte_typescript::copy::Verbatim, key);
+                let key = copy(
+                    from,
+                    to,
+                    &mut rsvelte_typescript_compile::copy::Verbatim,
+                    key,
+                );
                 Some(to.property(key, value, 0, from.source_location(identifier)))
             }
             _ => self.normal.rewrite(from, to, identifier),
@@ -165,7 +175,7 @@ pub(crate) fn script_getter(
         unreachable!("an async derived getter")
     };
     let mut rewrite = AsyncRewrite {
-        normal: rsvelte_typescript::copy::Verbatim,
+        normal: rsvelte_typescript_compile::copy::Verbatim,
         awaited: await_nodes(from, body),
     };
     let body = copy(from, to, &mut rewrite, body);

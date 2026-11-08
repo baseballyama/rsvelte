@@ -1,17 +1,18 @@
 //! Lint rules over JavaScript facts alone, for every language that embeds JavaScript.
 //!
 //! A host language wraps them in its own [`rsvelte_lint_runner::rule::Rule`]. Its template
-//! expressions are scope-analysis roots ([`rsvelte_typescript::scope::HostRoot`]), so their reads
-//! are already here; which bindings a rule reports on is the host's decision (`considered`),
-//! because the upstream plugins differ: svelte-eslint-parser puts `{#each}` names in the scope core
-//! rules read, while Vue's `v-for` names are reported by `vue/no-unused-variables` instead.
+//! expressions are scope-analysis roots ([`rsvelte_typescript_semantic::scope::HostRoot`]), so
+//! their reads are already here; which bindings a rule reports on is the host's decision
+//! (`considered`), because the upstream plugins differ: svelte-eslint-parser puts `{#each}` names
+//! in the scope core rules read, while Vue's `v-for` names are reported by
+//! `vue/no-unused-variables` instead.
 
 use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript::operators::AssignmentOperator;
-use rsvelte_typescript::scope::{BindingIdentifier, DeclarationKind, Reference, Semantic};
-use rsvelte_typescript::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, TypeScriptKind};
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind, Reference, Semantic};
+use rsvelte_typescript_syntax::operators::AssignmentOperator;
+use rsvelte_typescript_syntax::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, TypeScriptKind};
 
 #[derive(Debug)]
 pub struct JavaScriptFacts<'a> {
@@ -205,7 +206,7 @@ fn rhs_node(
     f: &JavaScriptFacts<'_>,
     r: &Reference,
     prev: Option<NodeIdentifier>,
-    declaration_scope: rsvelte_typescript::scope::ScopeIdentifier,
+    declaration_scope: rsvelte_typescript_semantic::scope::ScopeIdentifier,
 ) -> Option<NodeIdentifier> {
     let can_be_used_later =
         f.sem.variable_scope(r.scope) != f.sem.variable_scope(declaration_scope);

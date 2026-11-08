@@ -437,7 +437,7 @@ impl Rewrite for ScriptRewrite<'_> {
             Kind::Assign(..) if self.constructors.assignments.contains(&identifier) => {
                 Some(self.constructor_assignment(from, to, identifier))
             }
-            Kind::Class(rsvelte_typescript::syntax_tree::Class::Definition { .. }) => {
+            Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition { .. }) => {
                 Some(self.class(from, to, identifier))
             }
             Kind::Member {

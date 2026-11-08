@@ -6,9 +6,9 @@
 //! Lint rules, compilation and the type-check projection all read this one resolution.
 
 use rsvelte_kernel::source::interning::Atom;
-use rsvelte_typescript::scope::{self, HostRoot, HostScope, Semantic};
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::scope::{self, HostRoot, HostScope, Semantic};
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
 use crate::compiler_syntax_tree::{

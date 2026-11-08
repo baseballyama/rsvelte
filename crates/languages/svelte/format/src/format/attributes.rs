@@ -91,7 +91,7 @@ impl Printer<'_, '_> {
             (a.directive_name(&comp.modifiers), parts)
             && matches!(
                 comp.javascript.kind(*expression),
-                rsvelte_typescript::Kind::Identifier(_)
+                rsvelte_typescript_syntax::Kind::Identifier(_)
             )
             && comp.javascript.name(*expression) == property.text(source_text)
         {
@@ -101,7 +101,7 @@ impl Printer<'_, '_> {
         if let [Part::Expression { expression, .. }] = parts
             && matches!(
                 comp.javascript.kind(*expression),
-                rsvelte_typescript::Kind::Identifier(_)
+                rsvelte_typescript_syntax::Kind::Identifier(_)
             )
             && comp.javascript.name(*expression) == name
         {

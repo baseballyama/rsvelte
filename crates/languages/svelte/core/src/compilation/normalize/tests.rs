@@ -100,7 +100,7 @@ fn directives_keep_their_parts() {
                 AttributeValue::Use { action, argument } => {
                     let member = matches!(
                         c.javascript.kind(*action),
-                        rsvelte_typescript::Kind::Member { .. }
+                        rsvelte_typescript_syntax::Kind::Member { .. }
                     );
                     format!("use member={member} {}", argument.is_some())
                 }

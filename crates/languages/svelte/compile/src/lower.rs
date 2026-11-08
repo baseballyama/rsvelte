@@ -27,7 +27,7 @@ use rsvelte_svelte::compilation::compiler_syntax_tree::{
 use rsvelte_svelte::semantic::analyze::Analysis;
 use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution};
 pub use rsvelte_svelte::semantic::template::{cannot_be_set_statically, needs_clsx};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
 pub use crate::input::{CompileInput, Target};

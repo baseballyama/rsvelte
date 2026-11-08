@@ -9,9 +9,9 @@
 //! the plugin mutates the text of its tree as it goes, and this port keeps that state in a side
 //! table (`text`) instead of mutating the shared, immutable component.
 //!
-//! Script and expression bodies go through `rsvelte_typescript`'s formatter, style bodies through
-//! `rsvelte_stylesheet`'s. Anything neither port covers is an [`Unsupported`] error, never an
-//! approximation.
+//! Script and expression bodies go through `rsvelte_typescript_syntax`'s formatter, style bodies
+//! through `rsvelte_stylesheet`'s. Anything neither port covers is an [`Unsupported`] error, never
+//! an approximation.
 
 use std::borrow::Cow;
 

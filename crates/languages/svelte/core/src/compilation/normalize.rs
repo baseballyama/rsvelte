@@ -7,7 +7,7 @@ use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
 use rsvelte_svelte_syntax::syntax_tree::{
     self, Component, TemplateNode, TemplateNodeIdentifier, decode_attribute,
 };
-use rsvelte_typescript::NodeIdentifier;
+use rsvelte_typescript_syntax::NodeIdentifier;
 
 #[must_use]
 pub fn lower(c: &Component, source_text: &str) -> CompilerSyntaxTree {

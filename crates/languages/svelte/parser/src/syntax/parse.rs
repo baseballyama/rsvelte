@@ -1,8 +1,8 @@
 //! The template parser: upstream's `1-parse` for Svelte 5 markup, blocks, tags and directives,
 //! one instance `<script>`, one `<script module>` and one `<style>`.
 //!
-//! Expressions are parsed by `rsvelte_typescript` in place, and the parser, not a brace scan,
-//! decides where each one ends.
+//! Expressions are parsed by `rsvelte_typescript_syntax` in place, and the parser, not a brace
+//! scan, decides where each one ends.
 
 mod attribute;
 mod block;
@@ -29,7 +29,7 @@ use rsvelte_kernel::source::tokens::Tokens;
 use rsvelte_svelte_syntax::syntax_tree::{
     Component, Range, TemplateNode, TemplateNodeIdentifier, TokenType,
 };
-use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 type ParseResult<T> = Result<T, Diagnostic>;
 
@@ -79,7 +79,7 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
 }
 
 #[cold]
-fn javascript_error(e: rsvelte_typescript::parser::ParseError) -> Diagnostic {
+fn javascript_error(e: rsvelte_typescript_syntax::parser::ParseError) -> Diagnostic {
     Diagnostic::error("js_parse_error", e.message, e.span)
 }
 

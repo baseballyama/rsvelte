@@ -4,7 +4,7 @@ pub(crate) mod template;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_compile::{CompileInput, Target};
-use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 /// The component as the Svelte compiler reads it: a runes instance program and a Svelte HIR, in a
 /// tree of their own over the `.vue` document's text.

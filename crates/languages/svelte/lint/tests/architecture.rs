@@ -126,6 +126,11 @@ fn normal_lint_does_not_register_type_services_or_typed_lint() {
             .plugins()
             .map(|plugin| plugin.identifier)
             .collect::<Vec<_>>(),
-        ["svelte", "svelte.lint", "svelte.parser", "typescript"]
+        [
+            "svelte",
+            "svelte.lint",
+            "svelte.parser",
+            "typescript.syntax"
+        ]
     );
 }
