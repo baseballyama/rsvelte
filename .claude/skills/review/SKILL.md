@@ -1,6 +1,6 @@
 ---
 name: review
-description: Review a branch or PR as the code owner - WHY, design, then the code chunk by chunk, until no serious finding is left. Use for "review this", "/review". Options - --quick (code only), --codex (Codex CLI as a second reviewer).
+description: Review a branch or PR as the code owner - why, design, then the code chunk by chunk, until no serious finding is left. Use for "review this", "/review". Options - --quick (code only), --codex (Codex CLI as a second reviewer).
 user_invocable: true
 ---
 
@@ -11,20 +11,21 @@ Show the result of each phase. Fix only what the user approves. `--quick` skips 
 0. **Chunks.** Base: the user's choice > the PR's `baseRefName` > the script's choice. Run
    `git fetch origin && mise exec -- node .claude/skills/review/plan-chunks.ts --format=md [<base>]`,
    show the table, and ask if the split is fine.
-1. **WHY.** Read the PR, issues and commits. Does it solve the problem in the simplest way, and
-   is it not a non-goal in AGENTS.md?
-2. **Design.** Check P1–P7, non-goals, evidence (every number has a command that makes it),
-   corpus (expected files only from `regen`, parity.json changes explained, permissive
-   license), and no abstraction for needs that do not exist yet.
+1. **Why.** Read the PR, issues and commits. Does it solve the problem in the simplest way? Is
+   it outside the non-goals in AGENTS.md?
+2. **Design.** Check P1–P7 and the non-goals. Check the evidence: every number has a command
+   that makes it. Check the corpus: expected files come only from `regen`, every parity.json
+   change comes with an explanation, and every license is permissive. Check that no abstraction
+   serves a need that does not exist yet.
 3. **Code.** For each chunk, run one read-only reviewer subagent (`general-purpose`, foreground)
    with the prompt below. With `--codex`, also run
    `codex exec --sandbox read-only --cd "$(pwd)" "<prompt>"`. Fix approved findings and review
-   the same chunk again until no Critical or Major is left. Ask after 5 rounds.
+   the same chunk again until it has no Critical or Major finding. Ask after 5 rounds.
 4. **Summary.** Verdict (Approve / Request changes / Needs discussion), open and fixed findings,
    and the files the script skipped. Ask before you commit or push.
 
-A reviewer that failed to run (error, rate limit, timeout) did not review. Never count it as
-"No findings". Never approve with a Critical or Major left unless the user skips it.
+A reviewer that did not finish (error, rate limit, timeout) did not review. Never count it as
+"No findings". Never approve with a Critical or Major finding open unless the user skips it.
 
 ## Reviewer prompt
 

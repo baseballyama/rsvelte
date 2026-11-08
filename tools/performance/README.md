@@ -12,13 +12,18 @@ Every command is `node tools/performance/performance.ts <command>`; the header o
 | `performance.ts macos-cycles <config.json> <report.json>`   | macOS hardware CPU cycles and instructions, P-core share, peak footprint |
 | `mise run performance:test`                                 | Measurement tests and defect controls                                    |
 
+`mise run performance` copies the built binary and writes the report into its own temporary
+directory, so a later build or run in the same tree cannot change what it measures. A build that
+finishes between another run's build and its copy can still get copied, so run one ratchet per
+tree. Cargo reads `CARGO_BUILD_JOBS` from the environment.
+
 ## Cache profiles
 
-Run in Linux with `valgrind`, `cg_annotate`, Node and a release binary with debug line
-tables. `linux.Dockerfile` supplies these tools. Profile a frozen source tree;
-use separate Cargo target directories for different source trees.
+Run in Linux with `valgrind`, `cg_annotate`, Node and a release binary with debug line tables;
+`linux.Dockerfile` supplies these tools. Profile a frozen source tree, and use separate Cargo
+target directories for different source trees.
 
-The config contains:
+The config has these fields:
 
 | Field                   | Meaning                                                                   |
 | ----------------------- | ------------------------------------------------------------------------- |
@@ -32,74 +37,71 @@ The config contains:
 | `baseline`              | Optional previous complete report to compare                              |
 | `tolerance`             | Optional relative tolerance for the two-sided gate; default 0.02          |
 
-The command must perform the declared number of rounds. For `rsvelte performance`,
-check `documents`, `skipped`, `metrics`, `rounds` and the minimum output size. Outside
-the fixture corpus, unit directory names must end in the language extension, such as
-`case.svelte/input.svelte`. A file count alone does not prove tasks ran.
+The command must run the declared number of rounds. For `rsvelte performance`, check
+`documents`, `skipped`, `metrics` and `rounds`. Also check the smallest allowed output size. Outside the
+corpus, a unit directory name must end in the language extension, such as
+`case.svelte/input.svelte`. A file count alone does not prove that the tasks ran.
 
-Two arms run as ABBA; three run forward then reverse. Reports retain every sample,
-input/source/tool/binary hashes, the model and tool version. Each sample has the raw
-Cachegrind file, stdout, stderr and function counts sorted by L1 data read misses.
-For source lines, run `cg_annotate --auto=yes <sample.cg>` with the frozen source paths
-available. Records include instruction fetches, reads, writes and L1/last-level misses.
-The summaries show process totals, totals per declared round and miss rates.
+Each repetition runs the arms forward, then in reverse; two arms run first-second, then
+second-first. A report keeps every sample, the model and the tool version. It also keeps the
+hashes of the inputs and sources, and of the tools and binaries. Each sample has the raw Cachegrind file, stdout and stderr. It also has the
+function counts, sorted by L1 data read misses. For source lines, run
+`cg_annotate --auto=yes <sample.cg>` with the frozen source paths available. Records include
+instruction fetches, reads, writes and L1 and last-level misses. The summaries show process
+totals, totals per declared round, and miss rates.
 
-The gate checks all nine events. It refuses a different population, platform, backend,
-Valgrind version, model, round count or sample count. Either direction outside tolerance
-fails: accept an intended improvement by recording a new complete baseline report.
-Keep the old baseline and output report separate. Never edit counter values by hand.
-Cache counts depend on code and heap addresses as well as access order; keep the raw
-samples and compare their spread. Choose tolerance for the recorded environment.
+The gate checks all nine events. It refuses a run that differs from the baseline in population,
+platform, backend, Valgrind version or model. It also refuses a different round or sample count.
+A change outside the tolerance fails in either direction. To accept an intended improvement,
+record a new complete baseline report. Keep the old baseline and the output report separate, and
+never edit counter values by hand. Cache counts depend on code and heap addresses as well as
+access order, so keep the raw samples and compare their spread. Choose the tolerance for the
+recorded environment.
 
-Cachegrind is a basic model. It does not reproduce modern prefetching, out-of-order
-execution, all cache levels or contention between cores. A model miss is not a measured
-hardware miss. See the [Valgrind manual](https://valgrind.org/docs/manual/cg-manual.html).
-Use models with different capacities and line sizes, then check actual CPU cycles.
+Cachegrind is a basic model. It does not reproduce modern prefetching, out-of-order execution,
+every cache level or contention between cores. A model miss is not a measured hardware miss.
+See the [Valgrind manual](https://valgrind.org/docs/manual/cg-manual.html). Use models with
+different capacities and line sizes, then check the real CPU cycles.
 
 ## macOS counters
 
-`macos-cycles.ts` injects `macos-cycles.c` and reads `proc_pid_rusage` for the process it
-starts. Its limits:
+`macos-cycles.ts` injects `macos-cycles.c` and reads `proc_pid_rusage` for the process it starts.
+Its limits:
 
-- Only that process is measured. A child that the arm waits for is rejected (`child_time_ns`
-  above zero). A process that replaces itself with `exec` (a shim, for example) has no report.
-  A child that is not waited for is not counted and never writes a report. Pass the real
+- It measures that process alone. It rejects an arm that waits for a child (`child_time_ns`
+  above zero). A process that replaces itself with `exec` (a shim, for example) has no report. A
+  child that the arm does not wait for does not count and never writes a report. Pass the real
   executable.
-- The arm is found on `PATH` and hashed before the first sample, and again after the last. A
-  different hash fails the run. The report keeps the path, its real path and the hash. A
-  symbolic link to a multi-call tool hashes that tool. An empty `PATH` entry is skipped; it
+- The tool finds the arm on `PATH` and hashes it before the first sample and again after the
+  last. A different hash fails the run. The report keeps the path, its real path and the hash. A
+  symbolic link to a multi-call tool hashes that tool. The tool skips an empty `PATH` entry; it
   does not mean the current directory.
-- A start load above a quarter of the logical CPUs is refused, as in `tools/buildtime`. The
-  report keeps the start load, the limit and the load before each sample. `--allow-busy`
-  records the override; it does not make busy samples comparable.
+- The tool refuses to start when the load is above a quarter of the logical CPUs, as
+  `tools/buildtime` does. The report keeps the start load, the limit and the load before each
+  sample. `--allow-busy` records the override; it does not make busy samples comparable.
 - `cycles` and `instructions` cover every core type. `p_cycles` and `p_instructions` come from
-  `RUSAGE_INFO_V6`, and only on a host with more than one core type. An older kernel falls
-  back to V4, and both values are `null` (UNMEASURED), never zero. One `null` sample makes the
-  arm's P-core summary `null`. The share of P-core cycles is a property of scheduling, not of
-  the code.
-- `lifetime_max_phys_footprint_bytes` is the process peak, including start-up. It is not the
-  heap growth of the workload; use the `metrics` build for that.
-- There are no hardware cache-miss counters here. Cache claims need the Cachegrind model above
+  `RUSAGE_INFO_V6`, and only on a host with more than one core type. An older kernel falls back
+  to V4, and both values are `null` (UNMEASURED), never zero. One `null` sample makes the arm's
+  P-core summary `null`. The share of P-core cycles depends on scheduling, not on the code.
+- `lifetime_max_phys_footprint_bytes` is the process peak, start-up included. It does not show
+  the heap growth of the workload; use the `metrics` build for that.
+- This backend has no hardware cache-miss counters. Cache claims need the Cachegrind model above
   and a cycle measurement.
-
-`mise run performance` copies the built binary and writes the report into its own temporary
-directory, so a later build or run in the same tree cannot change what it measures. A build
-that finishes between another run's build and its copy can still be copied; run one ratchet
-per tree. Cargo reads `CARGO_BUILD_JOBS` from the environment.
 
 ## Hardware and layout
 
-The Linux backend uses `perf stat` for cycles, instructions, L1 data loads/misses and
-LLC loads/misses. It uses the same arm ordering and round declarations as the other
-backends. A missing PMU, unsupported event or permission failure returns nonzero and
-records `UNMEASURED`; it never turns missing events into zero misses. Install `perf`
-for the host kernel and run on a host that exposes those events. Virtual machines may
-not expose a PMU. Raw records retain scaling/runtime fields from `perf`.
+The Linux backend uses `perf stat` for cycles and instructions. It also counts L1 data loads and
+misses, and last-level cache loads and misses. It uses the same arm order and round declarations
+as the other backends. Some failures return nonzero and record `UNMEASURED`: a missing
+performance monitoring unit, an unsupported event or a permission error. The backend never turns
+missing events into zero misses. Install `perf` for the host kernel, and run on a host that
+exposes those events; a virtual machine may not. Raw records keep the scaling and runtime fields
+from `perf`.
 
-All three counter backends accept `expect_stdout` and `minimum_output_bytes`.
-Use them for compiler workloads to reject skipped units or empty output before a
-sample is accepted. Commands without these fields may produce plain text.
+All three counter backends accept `expect_stdout` and `minimum_output_bytes`. Use them for
+compiler workloads, so that a sample with skipped units or empty output fails. Commands without
+these fields may print plain text.
 
-CI runs a real sequential/strided memory control and verifies that the baseline gate
-rejects the deliberate miss increase. The cache gate is available for pinned workload
-configs; it is separate from the whole-corpus allocation/instruction baseline.
+CI runs a real sequential and strided memory control, and checks that the baseline gate rejects
+the deliberate rise in misses. The cache gate is for pinned workload configs and does not touch
+the allocation and instruction baseline of the whole corpus.

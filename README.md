@@ -1,8 +1,8 @@
 # rsvelte (experimental)
 
 A native toolchain for Svelte 5 (and Vue), written from scratch in Rust: compile, lint, format
-and type check. It reads each file once, keeps immutable trees and a database of facts derived
-from them, and computes only what a task needs, one file per thread. The old port on `main` is
+and type check. It reads each file once and keeps immutable trees and a database of facts derived
+from them. A task computes only what it needs, one file per thread. The old port on `main` is
 only a diff oracle and a performance baseline.
 
 ## Layout
@@ -12,7 +12,7 @@ only a diff oracle and a performance baseline.
 | [`crates/`](crates/README.md)       | The Rust toolchain                                                            |
 | [`corpus/`](corpus/README.md)       | Real files from open-source projects, and the official tools' output for them |
 | [`tools/`](tools/README.md)         | TypeScript tools: the fixture runner, the performance gate, …                 |
-| [`apps/site/`](apps/site/README.md) | The website, built with SvelteKit                                             |
+| [`apps/site/`](apps/site/README.md) | The project site, built with SvelteKit                                        |
 
 ## How it works
 
@@ -28,22 +28,22 @@ only a diff oracle and a performance baseline.
 
 ## Correctness and speed
 
-Expected output comes from the official tools (`svelte`, `prettier`, `eslint`, `svelte-check`,
-…), run over the files in `corpus/`; rsvelte must match it. Performance is gated by allocation
-and instruction counts in `tools/performance/baseline.json`.
+The expected output for the files in `corpus/` comes from the official tools, such as `svelte`,
+`prettier`, `eslint` and `svelte-check`. rsvelte must match it. The performance gate compares
+allocation and instruction counts with `tools/performance/baseline.json`.
 
 ## Commands
 
 ```sh
-cargo test                                      # Rust tests, the fixture tests included
-mise run lint                                   # clippy and rustdoc, every lint denies
-mise run fmt                                    # rustfmt on the pinned nightly
-pnpm install && pnpm run check                  # TypeScript side: oxfmt, oxlint, knip, tsc
-node tools/oracle/oracle.ts run-all         # rsvelte's output for every fixture unit
-node tools/oracle/oracle.ts check           # ... compared with the official tools' output
-node tools/performance/performance.ts ratchet   # the performance gate
+cargo test                                        # Rust tests, the fixture tests included
+mise run lint                                     # clippy and rustdoc, every lint denies
+mise run fmt                                      # rustfmt on the pinned nightly
+pnpm install && pnpm run check                    # TypeScript side: oxfmt, oxlint, knip, tsc, the English prose lint
+node tools/oracle/oracle.ts run-all               # rsvelte's output for every corpus unit
+cargo test -p rsvelte_command_line --test corpus  # compare it with the official tools' output
+node tools/performance/performance.ts ratchet     # the performance gate
 cargo run -p rsvelte_command_line -- run App.svelte --task svelte.compile/client
 ```
 
-Versions are pinned in `rust-toolchain.toml` and `mise.toml`. Contributor rules are in
+`rust-toolchain.toml` and `mise.toml` pin the versions. Contributor rules are in
 [AGENTS.md](AGENTS.md).

@@ -1,10 +1,10 @@
 # Svelte documentation coverage
 
-This compiler does not yet implement every feature in the
-[Svelte overview](https://svelte.dev/docs/svelte/overview).
-`Partial` means the listed forms work, while the remaining forms still need work.
-Handwritten cases live in `tests/fixtures/`. External JavaScript imports are preserved.
-Component imports, member names and local references support client and server rendering.
+This compiler does not cover every feature in the
+[Svelte overview](https://svelte.dev/docs/svelte/overview) yet. `Partial` means the listed forms
+work and the remaining forms still need work. Hand-written cases live in `tests/fixtures/`. The
+output keeps external JavaScript imports as they are. Component imports, member names and local
+references work in client and server rendering.
 
 | Documentation topic   | Status  | Implemented forms                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Remaining work                                                                                                |
 | --------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
@@ -55,8 +55,24 @@ cargo test -p rsvelte_svelte_compile_vapor
 mise exec -- node --test tools/oracle/behaviour/*.test.ts
 ```
 
-Runtime comparisons include mount, user actions, head output, and explicit
-unmount where a case requests them. Positive controls change an update, remove server head output, and change an SVG
-namespace. Browser tests compare dimension updates, observer disposal, window scrolling, custom element host events, shadow modes, injected CSS, transitions and keyed move animations in Chrome.
-Positive controls change a dimension, omit observer cleanup, remove a component reference, accept stale async results, coerce a normal attribute to a boolean, freeze a nonreactive attribute, reflect `checked`, omit autofocus, preserve a static preformatted newline, change attribute whitespace, delay a template call until after a DOM write, omit a deferred transition resolver, stringify a custom element property, normalize a custom element spread as an ordinary element, lowercase a namespaced spread attribute, and omit custom element prop reflection. Each must produce a mismatch. Full corpus parity, hydration,
-and performance are **UNMEASURED**.
+Runtime comparisons cover mount, user actions, head output and an explicit unmount where a case
+asks for them. Browser tests in Chrome compare:
+
+- Dimension updates, observer disposal and window scrolling
+- Custom element host events, shadow modes and injected CSS
+- Transitions and keyed move animations
+
+Each of these positive controls must produce a mismatch:
+
+- Change an update, remove server head output, or change an SVG namespace.
+- Change a dimension, omit observer cleanup, or remove a component reference.
+- Accept stale async results, or delay a template call until after a DOM write.
+- Coerce a normal attribute to a boolean, or freeze a nonreactive attribute.
+- Reflect `checked`, omit autofocus, or change attribute whitespace.
+- Preserve a static preformatted newline.
+- Omit a deferred transition resolver.
+- Omit custom element prop reflection, or stringify a custom element property.
+- Normalize a custom element spread as an ordinary element.
+- Lowercase a namespaced spread attribute.
+
+Full corpus parity, hydration and performance are **UNMEASURED**.

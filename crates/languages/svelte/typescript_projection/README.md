@@ -1,8 +1,8 @@
 # Svelte TypeScript projection
 
-`rsvelte_svelte_typescript_projection` builds a TypeScript projection without a type checker or Node.
-The output uses `.ts`, so angle-bracket type assertions remain valid. JSX is not required
-for template checks: elements become typed calls to `svelteHTML.createElement`.
+`rsvelte_svelte_typescript_projection` turns a Svelte component into TypeScript (a projection)
+without a type checker or Node. The output uses `.ts`, so angle-bracket type assertions stay
+valid. Template checks need no JSX: elements become typed calls to `svelteHTML.createElement`.
 
 | API                                               | Result                                                                         |
 | ------------------------------------------------- | ------------------------------------------------------------------------------ |
@@ -12,45 +12,68 @@ for template checks: elements become typed calls to `svelteHTML.createElement`.
 | `register(&mut Registry)`                         | `svelte.typescript_projection/default`, plus cached AST and emission artifacts |
 | `content_mapper::write_transform(source, output)` | A native TypeScript content mapper transform result                            |
 
-The source component must be the one used to build the projection. Source nodes refer
-by ID to its immutable JS/TS AST. The printer copies complete source subtrees to keep
-TypeScript syntax and comments that the runtime compiler erases. Generated statements,
-branches, loops, assignments, component calls, properties, spreads, and strings are typed AST nodes. Lowering
-never emits text. No transform prints and reparses its output.
-Consumers that check the emitted TypeScript include `DECLARATIONS` and the Svelte package types.
-The standalone `rsvelte-svelte-content-mapper` executable exposes the same AST lowering to
-native TypeScript 7.1. It parses each transform input once and emits UTF-8 span mappings.
-Its package manifest is in `content_mapper/package.json`. Add that package to `node_modules`
-and select it with `contentMappers: [{ "package": "@rsvelte/svelte-content-mapper", "extensions": [".svelte"] }]`.
-Run native TypeScript with `--runExternalCode`. Include `DECLARATIONS` and `types: ["svelte"]`
-in the project. Install the executable with
-`cargo install --path crates/languages/svelte/typescript_projection`.
+## How it builds the projection
+
+Pass the same source component that built the projection. Source nodes refer by ID to its
+immutable JS/TS AST. The printer copies whole source subtrees, which keeps the TypeScript syntax
+and comments that the runtime compiler erases. Lowering builds typed AST nodes for generated
+statements, branches, loops and assignments. It does the same for component calls, properties,
+spreads and strings. Lowering never
+emits text, and no transform prints and parses its output again.
+
 Element helpers and attachment keys are ordinary member, call, object and computed-property
-nodes. The printer does not choose Svelte helper names or lower Svelte constructs.
-`lower` and `emit` run directly without a task registry. The AST can also be inspected
-without emitting it, and parser artifacts can be shared when composing tasks.
+nodes. The printer does not choose Svelte helper names or lower Svelte constructs. `lower` and
+`emit` run directly, without a task registry. You can also inspect the AST without emitting it,
+and share the parser artifacts when you compose tasks.
 
-This follows the separate AST construction and printing steps of the
+The design follows the separate AST construction and printing steps of the
 [TypeScript compiler API](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API).
-It uses flat per-file node and child vectors with `u32` IDs. A per-node side table indexes
-TypeScript expression suffixes once, rather than searching all suffixes for every expression.
-The parser artifact is shared with the compiler; projection needs no semantic-analysis crate.
-Node, child and scratch buffers use the kernel's bounded per-thread pool.
+Each file has flat node and child vectors with `u32` IDs. A per-node side table records the
+TypeScript expression suffixes once, so the lowering does not search all suffixes for every
+expression. The projection shares the parser artifact with the compiler and needs no
+semantic-analysis crate. Node, child and scratch buffers come from the kernel's bounded
+per-thread pool.
 
-JavaScript and scriptless components can also be projected. Unsupported type semantics
-return their original source range. Supported template checks include `if`, `each`,
-`@const`, Svelte 5 component props without children, `class:`, and DOM `bind:this`.
-Public component contracts include annotated props, defaults inferred from object destructuring,
-instance function and constant exports, and `$bindable()` keys. Instance value exports are
-component instance members; module exports keep their module meaning. Components without props
-reject arbitrary property names. Generic component contracts and untyped whole-object `$props()`
-bindings remain unsupported. Component children, other bindings and directives, snippets, and await
-blocks remain unsupported. This is not a complete Svelte type projection.
+## Use it with native TypeScript
 
-Type checking and typed lint consume this same projection. There is no task-specific output.
-Original expressions keep exact content mappings; generated helpers do not become source lint
-nodes. The [shared type information API](../../../../tools/type-information/README.md) uses one native
-Program for both consumers. The existing Rust CLI checker has not been connected to that API.
+A consumer that checks the emitted TypeScript includes `DECLARATIONS` and the Svelte package
+types. The standalone `rsvelte-svelte-content-mapper` executable gives native TypeScript 7.1
+the same AST lowering. It parses each transform input once and emits UTF-8 span mappings.
+
+1. Install the executable with `cargo install --path crates/languages/svelte/typescript_projection`.
+2. Add the package in `content_mapper/package.json` to `node_modules`.
+3. Select it with
+   `contentMappers: [{ "package": "@rsvelte/svelte-content-mapper", "extensions": [".svelte"] }]`.
+4. Include `DECLARATIONS` and `types: ["svelte"]` in the project.
+5. Run native TypeScript with `--runExternalCode`.
+
+## What it supports
+
+The projection also handles JavaScript and scriptless components. Unsupported type semantics
+return their original source range.
+
+- Template checks cover `if`, `each` and `@const`. They also cover Svelte 5 component props
+  without children, `class:` and DOM `bind:this`.
+- Public component contracts include annotated props and defaults inferred from object
+  destructuring. They also include instance function and constant exports, and `$bindable()`
+  keys.
+- Instance value exports are members of the component instance; module exports keep their
+  module meaning. A component without props rejects arbitrary property names.
+
+Still unsupported:
+
+- Generic component contracts and untyped whole-object `$props()` bindings
+- Component children, other bindings and directives
+- Snippets and await blocks
+
+This is not a complete Svelte type projection.
+
+Type checking and typed lint read this same projection; no task has its own output. Original
+expressions keep exact content mappings, and generated helpers do not become source lint nodes.
+The [shared type information API](../../../../tools/type-information/README.md) uses one native
+Program for both consumers. The Rust CLI checker does not use that API yet.
+
+## Tests and measurements
 
 ```sh
 cargo test -p rsvelte_svelte_typescript_projection
@@ -60,18 +83,19 @@ cargo run --profile benchmark -p rsvelte_svelte_typescript_projection --example 
 cargo run -p rsvelte_svelte_typescript_projection --example layout
 ```
 
-The verifier counts all Svelte inputs, parse failures, unsupported projections, and invalid
-TypeScript outputs. It checks generated syntax with an independent parser. The benchmark
-measures lowering and printing for parsed components with an instance TypeScript script;
-its process CPU counters also include file reads and source parsing. Layout sizes are payload
-measurements, not proof of cache residency. See [performance tools](../../../../tools/performance/README.md).
+The verifier counts all Svelte inputs, parse failures, unsupported projections and invalid
+TypeScript outputs. It checks the generated syntax with an independent parser. The benchmark
+measures lowering and printing for parsed components with an instance TypeScript script. Its
+process CPU counters also include file reads and source parsing. Layout sizes measure payloads;
+they do not prove cache residency. See [performance tools](../../../../tools/performance/README.md).
 
-The fixture test runs the corpus and the compiler's hand-written inputs
-(`../compile/tests/fixtures`).
-Only projection expectations and actual outputs live here. It checks every emitted file
-with an independent TypeScript parser, including external cases without oracle snapshots.
-Handwritten snapshots detect changes in our own output; they do not establish type equivalence
-with svelte2tsx. The semantic harness (`tools/oracle/oracle.ts semantic`)
-compares source-visible types from both projections through TS 7.1 content mappers over the same compiler inputs.
-The harness also compares public props, instance exports, and bindable keys. Missing queries
-and unsupported public contract shapes remain `UNMEASURED`.
+The fixture test runs the compiler's hand-written inputs (`../compile/tests/fixtures`); only the
+projection's expected and actual outputs live here. The corpus runs in the `corpus` test of
+`rsvelte_command_line`, which parses every emitted projection with an independent TypeScript
+parser, including units without oracle snapshots. Hand-written snapshots catch changes in
+our own output; they do not show type equivalence with svelte2tsx.
+
+The semantic harness (`tools/oracle/oracle.ts semantic`) compares the source-visible types of
+both projections through TS 7.1 content mappers, over the same compiler inputs. It also compares
+public props, instance exports and bindable keys. Missing queries and unsupported public
+contract shapes stay `UNMEASURED`.

@@ -1,9 +1,9 @@
 # Crate fixture tests
 
-`rsvelte_test_harness` runs a crate's tasks with `cargo test` over two kinds of case, and
-compares rsvelte's output with `expected/`. It writes the output to a case's `actual/` (not in
-git), so `diff -ru <case>/expected <case>/actual` shows a difference: on every run for a
-hand-written case, and only with `FIXTURE_ACTUAL=1` for a corpus unit.
+`rsvelte_test_harness` runs a crate's tasks with `cargo test` over its cases and compares
+rsvelte's output with `expected/`. It writes the output to the case's `actual/`, which Git does
+not track. Then `diff -ru <case>/expected <case>/actual` shows the difference. A hand-written
+case gets `actual/` on every run; a corpus unit gets it only with `FIXTURE_ACTUAL=1`.
 
 | Kind         | Where                                                                      | `expected/` holds                                     | A difference                 |
 | ------------ | -------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------- |
@@ -11,18 +11,29 @@ hand-written case, and only with `FIXTURE_ACTUAL=1` for a corpus unit.
 | corpus unit  | [`corpus/<family>/`](../../corpus/README.md), with `Fixtures::corpus_only` | the official tool's output                            | fails when its verdict moved |
 | copied       | a directory of `tests/fixtures/` with `source.json` (`lint_typed`)         | the official tool's output                            | is counted, not failed       |
 
-Snapshots show what changed. Only the official output shows what is correct. Against it, each
-task and variant of a unit gets one verdict, its worst file: `match`, `unexpected` (only rsvelte
-wrote the file), `missing` (only the official tool did), `mismatch`, or `unparseable` (rsvelte's
-JavaScript does not parse). JavaScript is compared as a syntax tree, with the meaning of
-`tools/oracle/canonical.ts` (layout, comments and literal spelling are ignored; `@__PURE__` on
-calls is not), `lint.json` by the rules rsvelte ran, other JSON as values, and the rest as bytes.
-A unit where the official tool reported an error is compared only on its `error.json`. A unit
-where rsvelte wrote only diagnostics and the official tool wrote output is refused.
+Snapshots show what changed, not what is correct; the official output shows that. Each task and
+variant (such as `client`) of a corpus unit gets one verdict, the worst of its files:
 
-Every corpus verdict except a refusal is recorded in `corpus/_registry/parity.json`. The ratchet
-is two-sided: a verdict that moved fails, an improvement included, until `UPDATE_EXPECT=1` records
-it. A run limited to some cases compares and records only theirs.
+| Verdict       | Meaning                                |
+| ------------- | -------------------------------------- |
+| `match`       | rsvelte's file equals the official one |
+| `unexpected`  | only rsvelte wrote the file            |
+| `missing`     | only the official tool wrote the file  |
+| `mismatch`    | both wrote the file, and it differs    |
+| `unparseable` | rsvelte's JavaScript does not parse    |
+
+How files compare:
+
+- JavaScript compares as a syntax tree, with the meaning of `tools/oracle/canonical.ts`. Layout,
+  comments and literal spelling do not count, but `@__PURE__` on calls does.
+- `lint.json` compares by the rules rsvelte ran, other JSON as values, and the rest as bytes.
+- When the official tool reported an error, only the unit's `error.json` counts.
+- When rsvelte wrote only diagnostics and the official tool wrote output, the harness refuses
+  the unit: it prints the refusal and records no verdict.
+
+`corpus/_registry/parity.json` records every corpus verdict except a refusal. The ratchet works
+in both directions: any verdict that moved fails the test, an improvement too, until
+`UPDATE_EXPECT=1` records it. A run limited to some cases compares and records only those.
 
 ## A case
 
@@ -42,18 +53,18 @@ corpus/svelte/bits-ui/src/lib/button.svelte/   a corpus unit; the directory is t
 └── actual/svelte.compile/       client.js, ..., client.diagnostics.json, as `rsvelte corpus` writes
 ```
 
-- A hand-written document is named `<case>.<ext>` (here `rsvelte/each-keyed.svelte`). A corpus
-  document is named by its path in the repository (here `src/lib/button.svelte`), the file name
-  the official tool was given. Component names and style hashes come from that name.
-- A hand-written snapshot is `<name>.<file>`: `<name>` is set by the crate's test, `<file>` by the
-  task's output (`js`, `css`, `lint.json`, ...). Its diagnostics are one line each:
-  `severity code line:column-line:column message`, with lines and columns counted from 1 and
-  columns in UTF-16 code units.
+- A hand-written document's name is `<case>.<ext>` (here `rsvelte/each-keyed.svelte`). A corpus
+  document's name is its path in the source repository (here `src/lib/button.svelte`), the
+  filename the official tool got. Component names and style hashes come from that name.
+- A hand-written snapshot is `<name>.<file>`. The crate's test sets `<name>`, and the task's
+  output sets `<file>`, such as `js` or `lint.json`. Its diagnostics are one line each:
+  `severity code line:column-line:column message`. Lines and columns count from 1, and columns
+  count UTF-16 code units.
 - A corpus unit's files are `<task>/<variant>.<file>`. The harness changes only the files of its
-  own tasks in `actual/`. A task with no official output for the unit, or one its `fixture.toml`
-  skips, is not measured on it.
-- Other files in the case are not read by the harness (for example `behaviour.toml`, read by the
-  behaviour oracle's tests in `tools/oracle`).
+  own tasks in `actual/`. A task does not measure a unit when the unit has no official output
+  for it or its `fixture.toml` skips it.
+- The harness does not read other files in the case. For example, the behavior oracle's tests
+  in `tools/oracle` read `behaviour.toml`.
 
 ## Add a case
 
@@ -66,9 +77,10 @@ git diff -- crates/languages/svelte/compile/tests/fixtures   # read every snapsh
 
 ## Run
 
-The Svelte corpus runs in one test, `rsvelte_command_line`'s `corpus`: compile, lint, projection
-and type check together, so each unit is found, read and parsed once. Each crate's `fixtures` test
-runs its hand-written cases.
+The Svelte corpus runs in one test, the `corpus` test of `rsvelte_command_line`. It runs
+compile, lint, projection and type check together. That way it finds, reads and parses each
+unit once.
+Each crate's `fixtures` test runs its hand-written cases.
 
 ```sh
 cargo test -p rsvelte_svelte_compile --test fixtures                 # the hand-written cases
@@ -80,10 +92,15 @@ UPDATE_EXPECT=1 cargo test -p rsvelte_command_line --test corpus     # record mo
 FIXTURE_ACTUAL=1 cargo test -p rsvelte_command_line --test corpus -- svelte/bits-ui  # also write the units' actual/
 ```
 
-The test fails when a hand-written snapshot differs, is missing, or is no longer produced, when a
-corpus verdict moved, when a task panics on any case, and when no case exists. It prints each
-task's verdicts and refusals. `FIXTURE_VERDICTS=<file>` writes every file's verdict there, one
-`verdict case file` line each.
+The test fails in these cases:
+
+- A hand-written snapshot differs, is missing, or is no longer produced.
+- A corpus verdict moved.
+- A task panics on any case.
+- No case exists.
+
+It prints each task's verdicts and refusals. `FIXTURE_VERDICTS=<file>` writes every file's
+verdict to that file, one `verdict case file` line each.
 
 ## Add fixture tests to a crate
 
@@ -113,16 +130,17 @@ fn main() -> ExitCode {
 }
 ```
 
-A new task for Svelte files joins the corpus by a `snapshot` in
-[`command_line/tests/corpus.rs`](../hosts/command_line/tests/corpus.rs); a task of the official tool
-that rsvelte does not implement yet is a `not_implemented`, so its units stay in the ratchet as
-`missing`.
+To add a task for Svelte files to the corpus, add a `snapshot` in
+[`command_line/tests/corpus.rs`](../hosts/command_line/tests/corpus.rs). For a task of the
+official tool that rsvelte does not have yet, add a `not_implemented`. Its units then stay in the
+ratchet as `missing`.
 
 Type-check tasks need native TypeScript 7.1 and the framework packages.
 `NodePackages::locate()` finds them in `tools/oracle/node_modules`; install them with
 `pnpm install --frozen-lockfile` at the repository root. `NodePackages::type_checker()` returns
-that `tsc` with `--singleThreaded` (the tests check several projects at once), or the command in
-`FIXTURE_TYPE_CHECKER`, and prints the checker and its version:
+that `tsc` with `--singleThreaded`, because the tests check more than one project at once. With
+`FIXTURE_TYPE_CHECKER`, it returns that command instead. It prints the checker and its
+version:
 
 ```sh
 FIXTURE_TYPE_CHECKER="tsrs --fast" cargo test -p rsvelte_svelte_typecheck --test fixtures
@@ -145,7 +163,7 @@ FIXTURE_TYPE_CHECKER="tsrs --fast" cargo test -p rsvelte_svelte_typecheck --test
 | `languages/vue/compile_svelte`           | `svue.compile/client`, `/server`            | `client`, `server` |
 | `hosts/command_line`                     | `ts.check/default` (registered by the host) | `ts-check`         |
 
-The Svelte crates in the table run the corpus too. Lint, type checking and TypeScript projection
-use `Fixtures::inputs_from` to read the compiler's hand-written inputs, and keep their own
-snapshots of them. Type checking runs each source on its own (`Fixtures::per_project`). A unit
-without an official output reports `UNMEASURED`, not a match.
+Lint, type checking and TypeScript projection read the compiler's hand-written inputs with
+`Fixtures::inputs_from`, and keep their own snapshots of them. Type checking runs each project on
+its own (`Fixtures::per_project`). A unit without an official output reports `UNMEASURED`, not a
+match.

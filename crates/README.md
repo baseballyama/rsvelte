@@ -1,4 +1,4 @@
-# crates
+# Crates
 
 A crate's place says what it knows: no language, one language, or how to run plugins.
 

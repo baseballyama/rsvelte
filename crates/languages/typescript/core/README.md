@@ -4,8 +4,9 @@ Component scripts and standalone JavaScript and TypeScript files share parsing a
 analysis. Core `register` adds facts only. The sibling `compile`, `format`, `lint`, and `check`
 crates register tools separately; see [crate layout](../../../README.md).
 
-The tools select `.ts`, `.mts`, `.cts`, `.js`, `.mjs`, and `.cjs` documents. They also accept
-declaration files. The extension selects JavaScript or TypeScript syntax in the same parser.
+The tools select documents with the extensions `.ts`, `.mts` and `.cts`, and `.js`, `.mjs`
+and `.cjs`. They also accept declaration files. The extension selects JavaScript or TypeScript
+syntax in the same parser.
 
 | Task                 | Output                   | Current scope                                                                           |
 | -------------------- | ------------------------ | --------------------------------------------------------------------------------------- |

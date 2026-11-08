@@ -10,8 +10,9 @@ It has no language parser and no type checker.
 | `serve_precomputed()`                 | Serve saved projections without parsing their original inputs again                                                 |
 
 The protocol uses UTF-8 byte positions. Native TypeScript converts positions for its API
-and editor features. Synthesized gaps have no original range. Point mappings are omitted.
-JSON input is decoded into typed records; output uses the kernel's streaming writer.
+and editor features. Synthesized gaps have no original range, and the mapper writes no point
+mappings. It decodes JSON input into typed records and writes output with the kernel's streaming
+writer.
 
 `rsvelte-typescript-content-mapper` serves precomputed projections. For `input.ext`, it reads
 `input.ext.projection.json`: `source`, `text`, and `mappings`. Each tuple is

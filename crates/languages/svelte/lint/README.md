@@ -1,8 +1,8 @@
 # Svelte lint
 
-This crate contains rules that need syntax and scopes. It does not register a type
-provider or depend on `rsvelte_svelte_lint_typed` or `rsvelte_typescript_check`.
-TypeScript core supplies JS/TS parsing and scopes; it does not start tsgo.
+This crate has the rules that need syntax and scopes. It does not register a type provider, and
+it does not depend on `rsvelte_svelte_lint_typed` or `rsvelte_typescript_check`. TypeScript core
+supplies JS/TS parsing and scopes; it does not start tsgo.
 
 | Rule                     | Facts requested           |
 | ------------------------ | ------------------------- |
@@ -10,30 +10,35 @@ TypeScript core supplies JS/TS parsing and scopes; it does not start tsgo.
 | `svelte/valid-each-key`  | HIR and resolution        |
 | `no-unused-vars`         | Resolution and JS parents |
 
-Rules live in `src/rules/<rule>.rs`. `lint.rs` is the library entry point;
-`configuration.rs` selects rules, severity and options; `task.rs` adapts the library
-to the registry and JSON output. Facts are cached once per document.
+Rules live in `src/rules/<rule>.rs`. `lint.rs` is the library entry point. `configuration.rs`
+selects rules, severity and options, and `task.rs` adapts the library to the registry and JSON
+output. The crate caches facts once per document.
 
-`Configuration::new` rejects duplicate rules. Omitted rules are disabled. The
-default enables `no-unused-vars` and `svelte/button-has-type`. Findings keep source
-order, with configuration order for ties.
+`Configuration::new` rejects duplicate rules, and a rule it does not list is off. The default
+turns on `no-unused-vars` and `svelte/button-has-type`. Findings keep source order, and
+configuration order breaks ties.
 
-`register` enables `svelte.lint/default`. `register_artifacts` registers the plugin
-and shared facts without enabling its task. Use
-[`lint_typed`](../lint_typed/README.md) for rules that require type information.
+`register` turns on `svelte.lint/default`. `register_artifacts` registers the plugin and the
+shared facts without turning on its task. For rules that need type information, use
+[`lint_typed`](../lint_typed/README.md).
 
 ## Fixtures
 
-`tests/fixtures.rs` runs the corpus and the compiler's hand-written inputs
-(`../compile/tests/fixtures`); only their lint snapshots live here. Hand-written cases fail on
-differences. Corpus units without a lint oracle remain UNMEASURED. Non-component inputs are not
-run.
+`tests/fixtures.rs` runs the compiler's hand-written inputs (`../compile/tests/fixtures`); only
+their lint snapshots live here. A difference in a hand-written case fails. The corpus runs in
+the `corpus` test of `rsvelte_command_line`, where a unit without a lint oracle stays
+UNMEASURED. Inputs that are not components do not run.
 
-`tests/upstream.rs` runs eslint-plugin-svelte's own rule tests, copied unchanged to
-[`tests/upstream/eslint-plugin-svelte`](tests/upstream/eslint-plugin-svelte), and this crate's cases in `tests/cases`, which use the same layout:
-`<rule>/{valid,invalid}/<name>-input.svelte`, options in `<name>-config.json` or `_config.json`,
-the expected reports in `<name>-errors.yaml`. It reads them as upstream's runner does. Every case of
-an implemented rule must pass; the others are counted.
+`tests/upstream.rs` runs the rule tests of eslint-plugin-svelte, copied unchanged to
+[`tests/upstream/eslint-plugin-svelte`](tests/upstream/eslint-plugin-svelte). It also runs this
+crate's cases in `tests/cases`, which use the same layout:
+
+- `<rule>/{valid,invalid}/<name>-input.svelte` is the input.
+- `<name>-config.json` or `_config.json` holds the options.
+- `<name>-errors.yaml` holds the expected reports.
+
+It reads them as the upstream runner does. Every case of an implemented rule must pass; the
+test counts the others.
 
 ```sh
 cargo test -p rsvelte_svelte_lint --test upstream
@@ -41,7 +46,7 @@ mise exec -- node tools/oracle/oracle.ts upstream eslint-plugin-svelte <checkout
 mise exec -- node tools/oracle/oracle.ts lint-cases   # write errors.yaml for a new case in tests/cases
 ```
 
-To add a rule, add it to `IMPLEMENTED` in `tests/upstream.rs`. `errors.yaml` is written by ESLint,
-never by hand.
+To add a rule, add it to `IMPLEMENTED` in `tests/upstream.rs`. ESLint writes `errors.yaml`;
+never write it by hand.
 
 See [the performance workload](../../../../tools/performance/workloads/svelte-lint/README.md).
