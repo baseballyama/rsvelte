@@ -300,3 +300,92 @@ fn a_query_or_fragment_specifier_is_not_the_component() {
         ],
     );
 }
+
+/// A workspace dependency's component importing through the dependency's own
+/// package.json `imports` (`#u/util.js` for `util.ts`, a conditional `#d`
+/// whose `types` target is a `.d.ts`): official svelte-check resolves both
+/// from the dependency's real files, so the consumer sees `number` and
+/// `boolean`. Its shadow lives under the consumer's overlay, where the walk-up
+/// finds the consumer's package.json instead, and both used to be `any`.
+#[cfg(unix)]
+#[test]
+fn external_package_own_imports_resolve_from_its_mirror() {
+    if find_compiler(&PathBuf::from("."), true).is_err() {
+        assert!(
+            std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
+            "no TypeScript 7 native compiler in a job that declares RSVELTE_REQUIRE_PREREQS"
+        );
+        eprintln!("skip package imports: no TSGO_BIN and no @typescript/native-preview");
+        return;
+    }
+    let root = std::env::temp_dir().join(format!("rsvelte_pkg_imports_ext_{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    let app = root.join("app");
+    let libs = root.join("libs");
+    fs::create_dir_all(app.join("src")).unwrap();
+    fs::create_dir_all(app.join("node_modules")).unwrap();
+    fs::create_dir_all(libs.join("src")).unwrap();
+    std::os::unix::fs::symlink(&libs, app.join("node_modules/libs")).unwrap();
+    let tsconfig = r#"{ "compilerOptions": { "moduleResolution": "bundler", "module": "esnext", "target": "esnext", "allowArbitraryExtensions": true, "strict": true, "skipLibCheck": true, "noEmit": true, "paths": {} }, "include": ["src/**/*.ts", "src/**/*.svelte"] }"#;
+    fs::write(app.join("tsconfig.json"), tsconfig).unwrap();
+    fs::write(libs.join("tsconfig.json"), tsconfig).unwrap();
+    fs::write(
+        app.join("package.json"),
+        r#"{ "name": "app", "type": "module", "dependencies": { "libs": "workspace:*" } }"#,
+    )
+    .unwrap();
+    fs::write(
+        app.join("src/A.svelte"),
+        "<script lang=\"ts\">import { N, D } from 'libs/src/Field.svelte';\nconst s: string = N;\nconst t: string = D;</script>\n{s}{t}\n",
+    )
+    .unwrap();
+    fs::write(
+        libs.join("package.json"),
+        r##"{ "name": "libs", "type": "module", "imports": { "#u/*": "./src/*", "#d": { "types": "./src/decl.d.ts", "default": "./src/decl.js" } } }"##,
+    )
+    .unwrap();
+    fs::write(libs.join("src/util.ts"), "export const n: number = 1;\n").unwrap();
+    fs::write(
+        libs.join("src/decl.d.ts"),
+        "export declare const d: boolean;\n",
+    )
+    .unwrap();
+    fs::write(libs.join("src/decl.js"), "export const d = true;\n").unwrap();
+    fs::write(
+        libs.join("src/Field.svelte"),
+        "<script module lang=\"ts\">import { n } from '#u/util.js';\nimport { d } from '#d';\nexport const N = n;\nexport const D = d;</script>\n<p></p>\n",
+    )
+    .unwrap();
+    write_svelte_stub(&app);
+
+    let opts = RunOptions {
+        workspace: app.clone(),
+        tsconfig: Some(app.join("tsconfig.json")),
+        type_check: true,
+        prefer_tsgo: true,
+        ignore: vec!["node_modules".to_string()],
+        ..RunOptions::default()
+    };
+    let mut errs: Vec<String> = run(&opts)
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == DiagnosticSeverity::Error)
+        .map(|d| {
+            format!(
+                "{} {}",
+                d.file.file_name().unwrap_or_default().to_string_lossy(),
+                d.message
+            )
+        })
+        .collect();
+    errs.sort();
+    let _ = fs::remove_dir_all(&root);
+
+    assert_eq!(
+        errs,
+        [
+            "A.svelte Type 'boolean' is not assignable to type 'string'.",
+            "A.svelte Type 'number' is not assignable to type 'string'.",
+        ],
+    );
+}
