@@ -255,7 +255,7 @@ pub(crate) fn benchmark(
         .key("metrics")
         .write_boolean(measurement::ENABLED)
         .end_object();
-    crate::write_tools(&options.tools, &mut w);
+    super::write_tools(&options.tools, &mut w);
     w.key("threads")
         .write_number(rayon::current_num_threads())
         .key("population")

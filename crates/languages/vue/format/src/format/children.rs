@@ -1,6 +1,12 @@
-use super::{
-    Attributes, Between, GroupIdentifier, Kind2, LayoutInstructionIdentifier, Printer, R, ROOT,
-};
+use super::{Attributes, GroupIdentifier, Kind2, LayoutInstructionIdentifier, Printer, R, ROOT};
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Between {
+    None,
+    Soft,
+    Line,
+    Hard,
+}
 
 const fn attributes_len(a: Attributes<'_>) -> usize {
     match a {
@@ -65,7 +71,7 @@ impl Printer<'_, '_> {
     }
 
     /// `printBetweenLine`.
-    pub(super) fn between(&self, prev: usize, next: usize) -> Between {
+    fn between(&self, prev: usize, next: usize) -> Between {
         if self.text_like(prev) && self.text_like(next) {
             let p = self.n(prev);
             if p.sensitive.trailing {
@@ -112,7 +118,7 @@ impl Printer<'_, '_> {
         }
     }
 
-    pub(super) fn between_doc(&mut self, b: Between) -> LayoutInstructionIdentifier {
+    fn between_doc(&mut self, b: Between) -> LayoutInstructionIdentifier {
         match b {
             Between::None => self.d().nil(),
             Between::Soft => self.d().softline(),

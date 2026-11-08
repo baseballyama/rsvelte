@@ -168,7 +168,7 @@ fn report(
     w.begin_object()
         .key("rev")
         .write_string(env!("RSV_BUILD_REV"));
-    crate::write_tools(&options.tools, &mut w);
+    super::write_tools(&options.tools, &mut w);
     w.key("metrics")
         .write_boolean(measurement::ENABLED)
         .key("rounds")

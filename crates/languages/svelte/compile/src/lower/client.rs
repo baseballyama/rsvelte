@@ -45,38 +45,7 @@ use super::{
 };
 use crate::render_plan::RenderPlan;
 
-const TEMPLATE_FRAGMENT: u32 = 1;
-const TEMPLATE_USE_IMPORT_NODE: u32 = 2;
-const EACH_ITEM_REACTIVE: u32 = 1;
-const EACH_INDEX_REACTIVE: u32 = 1 << 1;
-const EACH_IS_CONTROLLED: u32 = 1 << 2;
-const EACH_ITEM_IMMUTABLE: u32 = 1 << 4;
 const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];
-const DELEGATED_EVENTS: &[&str] = &[
-    "beforeinput",
-    "click",
-    "change",
-    "dblclick",
-    "contextmenu",
-    "focusin",
-    "focusout",
-    "input",
-    "keydown",
-    "keyup",
-    "mousedown",
-    "mousemove",
-    "mouseout",
-    "mouseover",
-    "mouseup",
-    "pointerdown",
-    "pointermove",
-    "pointerout",
-    "pointerover",
-    "pointerup",
-    "touchend",
-    "touchmove",
-    "touchstart",
-];
 
 type R<T> = Result<T, Diagnostic>;
 

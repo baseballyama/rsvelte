@@ -1,7 +1,32 @@
 use super::{
-    ClientCompilationContext, DELEGATED_EVENTS, Kind, Lists, NodeIdentifier, PASSIVE_EVENTS,
-    SourceLocation,
+    ClientCompilationContext, Kind, Lists, NodeIdentifier, PASSIVE_EVENTS, SourceLocation,
 };
+
+const DELEGATED_EVENTS: &[&str] = &[
+    "beforeinput",
+    "click",
+    "change",
+    "dblclick",
+    "contextmenu",
+    "focusin",
+    "focusout",
+    "input",
+    "keydown",
+    "keyup",
+    "mousedown",
+    "mousemove",
+    "mouseout",
+    "mouseover",
+    "mouseup",
+    "pointerdown",
+    "pointermove",
+    "pointerout",
+    "pointerover",
+    "pointerup",
+    "touchend",
+    "touchmove",
+    "touchstart",
+];
 
 impl ClientCompilationContext<'_> {
     /// Upstream `visit_event_attribute` + `build_event` + `build_event_handler` (non-dev).

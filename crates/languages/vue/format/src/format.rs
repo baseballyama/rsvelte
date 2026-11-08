@@ -170,14 +170,6 @@ fn only_ws(s: &str) -> bool {
     s.bytes().all(is_markup_ws)
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Between {
-    None,
-    Soft,
-    Line,
-    Hard,
-}
-
 struct Printer<'a, 'd> {
     c: &'a SingleFileComponent,
     source_text: &'a str,

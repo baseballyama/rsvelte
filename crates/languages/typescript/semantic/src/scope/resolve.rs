@@ -4,7 +4,7 @@ use super::{
 };
 
 #[derive(Clone, Copy)]
-pub(super) enum ReferenceContext {
+enum ReferenceContext {
     Expression,
     /// A binding pattern: identifiers declare, defaults and computed keys are expressions.
     /// `initializer` when the identifiers are also written (an initialised declarator, a default
@@ -139,7 +139,7 @@ impl Analyzer<'_> {
     }
 
     #[expect(clippy::too_many_lines, reason = "one arm per node kind and context")]
-    pub(super) fn resolve(&mut self, identifier: NodeIdentifier, context: ReferenceContext) {
+    fn resolve(&mut self, identifier: NodeIdentifier, context: ReferenceContext) {
         match (self.syntax_tree.kind(identifier), context) {
             (
                 Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition {

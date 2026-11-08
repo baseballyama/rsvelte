@@ -17,13 +17,7 @@
     reason = "a command-line tool reports on stdout and stderr"
 )]
 
-/// Command execution.
-mod commands {
-    pub(crate) mod benchmark;
-    pub(crate) mod corpus;
-    pub(crate) mod performance;
-    pub(crate) mod run;
-}
+mod commands;
 mod configuration;
 mod input;
 mod output;
@@ -61,23 +55,6 @@ static EXTENSIONS: &[&rsvelte_plugin_interface::Extension] = &[
     &rsvelte_vue_compile_svelte::EXTENSION,
     &rsvelte_svelte_compile_vapor::EXTENSION,
 ];
-
-/// `tools`: the external programs the run's plugins run, each `{ command, version }`.
-pub(crate) fn write_tools(
-    tools: &[rsvelte_plugin_interface::Tool],
-    w: &mut rsvelte_kernel::output::structured_data::StructuredDataWriter,
-) {
-    w.key("tools").begin_array();
-    for tool in tools {
-        w.begin_object()
-            .key("command")
-            .write_string(&tool.command)
-            .key("version")
-            .write_string(&tool.version)
-            .end_object();
-    }
-    w.end_array();
-}
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();

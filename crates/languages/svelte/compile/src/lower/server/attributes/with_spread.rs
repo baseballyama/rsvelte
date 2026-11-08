@@ -1,8 +1,10 @@
 use crate::lower::server::{
-    Attribute, AttributeValue, CompilerNodeIdentifier, ELEMENT_IS_INPUT, NodeIdentifier, Piece, R,
+    Attribute, AttributeValue, CompilerNodeIdentifier, NodeIdentifier, Piece, R,
     ServerCompilationContext, SourceLocation, capture_event, check_binding, event_attribute,
     init_property, is_directive, is_load_error_element, push_captured_events, runtime_call,
 };
+
+const ELEMENT_IS_INPUT: u32 = 1 << 2;
 
 const ELEMENT_IS_NAMESPACED: u32 = 1;
 const ELEMENT_PRESERVE_ATTRIBUTE_CASE: u32 = 1 << 1;
