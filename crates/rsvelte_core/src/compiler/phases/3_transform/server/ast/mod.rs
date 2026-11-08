@@ -139,7 +139,7 @@ pub struct ServerTransformState<'a> {
     /// binding registered here is routed through
     /// `$$renderer.async([<blocker>], …)`. Saved/restored around each fragment
     /// body (an inner block inherits the parent map but additions are local).
-    pub const_blocker_map: rustc_hash::FxHashMap<String, String>,
+    pub const_blocker_map: rustc_hash::FxHashMap<String, ConstBlocker>,
     /// In-scope LOCAL async-`$derived` const binding names (`{const d =
     /// $derived(await …)}`). A read of such a name resolves to a CALL `d()`,
     /// winning over the ambiguous polluted-root `get_binding`. Saved/restored
@@ -243,6 +243,16 @@ pub struct ServerTransformState<'a> {
     /// The instance body cannot be reconstructed after that, so assembly aborts
     /// instead of shipping a component whose `<script>` silently did nothing.
     pub reparse_failure: std::cell::RefCell<Option<String>>,
+}
+
+/// An async `{@const}` / `{const}` binding's `$$renderer.run` slot.
+#[derive(Clone)]
+pub struct ConstBlocker {
+    /// The slot's source, e.g. `promises[1]`.
+    pub expr: String,
+    /// The declaring binding (`analysis.root.bindings` index), so a read of a
+    /// same-named binding that shadows it is not routed through the slot.
+    pub binding: Option<usize>,
 }
 
 /// The render position saved by [`ServerTransformState::enter_template_scope`],
@@ -778,6 +788,19 @@ impl<'a> ServerTransformState<'a> {
     /// read of an each item / snippet parameter from a read of a `{@const}`
     /// that shadows one in an inner block — and upstream folds the latter,
     /// because `scope.get` stops at the nearest declaration.
+    pub(super) fn nearest_binding(&self, name: &str) -> Option<usize> {
+        let root = &self.analysis.root;
+        let mut current = Some(self.current_scope_index);
+        while let Some(idx) = current {
+            let scope = root.all_scopes.get(idx)?;
+            if let Some(&binding) = scope.declarations.get(name) {
+                return Some(binding);
+            }
+            current = scope.parent;
+        }
+        None
+    }
+
     pub(super) fn nearest_declaration_is_template_const(&self, name: &str) -> bool {
         use crate::compiler::phases::phase2_analyze::scope::BindingKind;
         let root = &self.analysis.root;

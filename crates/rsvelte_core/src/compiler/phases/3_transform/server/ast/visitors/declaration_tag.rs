@@ -412,7 +412,7 @@ fn compute_decl_tag_blockers(state: &ServerTransformState, init_refs: &[String])
     let current_group_name = state.async_consts.as_ref().map(|g| g.name.clone());
     let mut blist: Vec<String> = Vec::new();
     for name in init_refs {
-        if let Some(blocker_expr) = state.const_blocker_map.get(name) {
+        if let Some(blocker_expr) = state.const_blocker_map.get(name).map(|b| &b.expr) {
             if let Some(ref group_name) = current_group_name
                 && blocker_expr.starts_with(&format!("{group_name}["))
             {
@@ -530,8 +530,11 @@ fn emit_async_decl_tag<'a>(
 
     let group_name = group.name.clone();
     for name in declared_names {
-        let blocker_expr = format!("{group_name}[{thunk_index}]");
-        state.const_blocker_map.insert(name.clone(), blocker_expr);
+        let blocker = super::super::ConstBlocker {
+            expr: format!("{group_name}[{thunk_index}]"),
+            binding: state.nearest_binding(name),
+        };
+        state.const_blocker_map.insert(name.clone(), blocker);
     }
 
     // Record a `$derived`-initialized const so later reads resolve to a CALL
