@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use rsvelte_kernel::computation::functions::CallError;
 use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
+
+use crate::CallError;
 
 #[cfg(test)]
 mod tests;

@@ -1,4 +1,4 @@
-use rsvelte_kernel::computation::functions::CallError;
+use crate::CallError;
 
 #[cfg(test)]
 mod tests;

@@ -253,17 +253,17 @@
 <div class="prose-learn">
 	<H2 id="run" />
 	<p>
-		結果をまとめて受け取りたい呼び出し側には <code>run</code> があります。<code>run</code> は rayon
-		の <code>collect</code>
-		で、結果を文書の順に集めます。結果を集める部分にロックはありません（<code>in_pool</code>
+		結果をまとめて受け取りたい呼び出し側には <code>run</code>
+		があります。文書の配り方（スレッドが一つなら順に、そうでなければ rayon で並列に）は、<code
+			>run_each</code
+		>
+		と同じ <code>map_documents</code>
+		が決めます。結果は文書の順に集めます。結果を集める部分にロックはありません（<code>in_pool</code>
 		がスレッドプールを残すための <code>Mutex</code> は別で、取るのは実行ごとに多くて 1 回です）。
 	</p>
 </div>
 
-<Code
-	item={data.code.run}
-	mark={['let compile = |d| run_document(reg, d, &tasks, &finish_tasks, options.sharing);']}
-/>
+<Code item={data.code.run} mark={['results = map_documents(docs, options.threads, |_, d| {']} />
 
 <div class="prose-learn">
 	<p>

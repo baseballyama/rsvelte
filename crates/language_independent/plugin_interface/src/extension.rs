@@ -1,7 +1,6 @@
-use rsvelte_kernel::computation::functions::CallError;
-use rsvelte_kernel::computation::pipeline::Registry;
+use rsvelte_kernel::computation::registry::Registry;
 
-use crate::Settings;
+use crate::{CallError, Settings};
 
 #[cfg(test)]
 mod tests;

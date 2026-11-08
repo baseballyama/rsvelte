@@ -1,4 +1,4 @@
-use rsvelte_kernel::source::index::TypedIndex;
+use rsvelte_kernel::index::TypedIndex;
 use rsvelte_typescript::scope::DeclarationKind;
 use rsvelte_typescript::{Kind, NodeIdentifier};
 

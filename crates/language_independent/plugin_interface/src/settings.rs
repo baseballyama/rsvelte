@@ -1,13 +1,12 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use rsvelte_kernel::computation::functions::CallError;
 use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 
 use crate::options::OptionStore;
 use crate::tools::Tools;
-use crate::{FunctionResolver, PluginOptions, Selection, TaskKind, Tool};
+use crate::{CallError, FunctionResolver, PluginOptions, Selection, TaskKind, Tool};
 
 /// What a host gives every plugin it installs.
 #[derive(Debug)]

@@ -1,8 +1,7 @@
-//! Producing text.
+//! Generated text that remembers where it came from.
 //!
-//! An output buffer that records where each piece came from, source map v3
-//! encoding, reverse lookup (generated → original, for mapping diagnostics of a generated file
-//! back), and a minimal edit list for tasks that patch the original text instead of reprinting it.
+//! An output buffer that records where each piece came from, source map v3 encoding, and reverse
+//! lookup (generated → original, for mapping diagnostics of a generated file back).
 
 use crate::source::positions::{LineIndex, SourceLocation, Span};
 
@@ -167,9 +166,9 @@ impl Emitter {
     }
 
     /// Encodes the mappings as a source map v3 JSON document, one segment per mapped character.
+    /// `source` indexes the original text; a document's is cached in its `DocumentContext`.
     #[must_use]
-    pub fn source_map(&self, source: &str, source_name: &str) -> String {
-        let source_text_index = LineIndex::new(source);
+    pub fn source_map(&self, source: &LineIndex, source_name: &str) -> String {
         let gen_index = LineIndex::new(&self.out);
         let mut mappings = String::new();
         let (
@@ -181,7 +180,7 @@ impl Emitter {
         let mut first_in_line = true;
         for (generated, source_text) in self.points() {
             let g = gen_index.line_column(generated);
-            let s = source_text_index.line_column(source_text);
+            let s = source.line_column(source_text);
             while prev_gen_line < g.line {
                 mappings.push(';');
                 prev_gen_line += 1;
@@ -228,90 +227,12 @@ fn vlq(out: &mut String, value: i64) {
     }
 }
 
-/// Insertions and deletions against an original text, applied in one pass.
-#[derive(Default, Debug)]
-pub struct TextEdits<T> {
-    items: Vec<(u32, u32, T)>,
-}
-
-pub type Edits = TextEdits<String>;
-pub type BorrowedEdits<'a> = TextEdits<&'a str>;
-
-impl<T: AsRef<str>> TextEdits<T> {
-    pub fn insert(&mut self, at: u32, text: impl Into<T>) {
-        self.items.push((at, at, text.into()));
-    }
-
-    pub fn replace(&mut self, span: Span, text: impl Into<T>) {
-        self.items
-            .push((span.start_offset, span.end_offset, text.into()));
-    }
-
-    #[must_use]
-    pub fn apply(self, source_text: &str) -> String {
-        self.apply_in(source_text, Span::new(0, source_text.len() as u32))
-    }
-
-    /// Applies the edits and returns only `range` of the result. Inserts at the same offset keep
-    /// the order they were added in.
-    ///
-    /// # Panics
-    ///
-    /// If two edits overlap or an edit lies outside `range`.
-    #[must_use]
-    pub fn apply_in(mut self, source_text: &str, range: Span) -> String {
-        assert!(
-            range.start_offset <= range.end_offset
-                && range.end_offset as usize <= source_text.len(),
-            "range outside the source"
-        );
-        self.items
-            .sort_by_key(|&(start_offset, end_offset, _)| (start_offset, end_offset));
-        let mut output_len = range.len() as usize;
-        let mut checked_to = range.start_offset;
-        for (start_offset, end_offset, text) in &self.items {
-            assert!(
-                range.start_offset <= *start_offset
-                    && *start_offset <= *end_offset
-                    && *end_offset <= range.end_offset,
-                "edit outside the range"
-            );
-            assert!(
-                *start_offset >= checked_to,
-                "overlapping edits at {start_offset}"
-            );
-            output_len = output_len
-                .checked_sub((*end_offset - *start_offset) as usize)
-                .and_then(|len| len.checked_add(text.as_ref().len()))
-                .expect("edited text length fits usize");
-            checked_to = *end_offset;
-        }
-        let mut out = String::with_capacity(output_len);
-        let mut position = range.start_offset as usize;
-        for (start_offset, end_offset, text) in self.items {
-            out.push_str(&source_text[position..start_offset as usize]);
-            out.push_str(text.as_ref());
-            position = end_offset as usize;
-        }
-        out.push_str(&source_text[position..range.end_offset as usize]);
-        out
-    }
-}
-
 // One per copied source range of every generated file.
 const _: () = assert!(size_of::<Mapping>() == 12, "`Mapping` is 12 bytes");
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    #[should_panic(expected = "edit outside the range")]
-    fn an_edit_before_the_range_is_reported_as_outside_it() {
-        let mut e = Edits::default();
-        e.insert(1, "x");
-        drop(e.apply_in("abcdef", Span::new(2, 4)));
-    }
 
     #[test]
     fn vlq_matches_the_spec_examples() {
@@ -433,7 +354,7 @@ mod tests {
         e.push("$.text(");
         e.copy(source_text, Span::new(at("{é}") + 1, at("{é}") + 3));
         e.push(");\n}\n");
-        let map = e.source_map(source_text, "App.svelte");
+        let map = e.source_map(&LineIndex::new(source_text), "App.svelte");
         let mut checked = 0;
         for (position, _) in e.out.char_indices().chain([(e.out.len(), ' ')]) {
             assert_eq!(
@@ -457,23 +378,5 @@ mod tests {
             "the last character's start, not its last byte"
         );
         assert_eq!(e.lookup(e.out.find("function").unwrap() as u32), None);
-    }
-
-    #[test]
-    fn edits_apply_in_order() {
-        let mut e = Edits::default();
-        e.insert(4, ".h");
-        e.replace(Span::new(0, 1), "X");
-        assert_eq!(e.apply(".big {}"), "Xbig.h {}");
-    }
-
-    #[test]
-    fn a_deletion_does_not_reserve_the_deleted_text() {
-        let source_text = "x".repeat(64 * 1024);
-        let mut e = Edits::default();
-        e.replace(Span::new(0, source_text.len() as u32), "");
-        let out = e.apply(&source_text);
-        assert_eq!(out, "");
-        assert_eq!(out.capacity(), 0);
     }
 }

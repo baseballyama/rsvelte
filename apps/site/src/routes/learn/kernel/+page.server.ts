@@ -11,11 +11,7 @@ export const load = () => {
 			lines: m.lines,
 			title: moduleDescription(m.key).title,
 			summary: moduleDescription(m.key).summary,
-			chapter: chapters.find(
-				(c) =>
-					c.module === m.key ||
-					(c.slug === 'diagnostics' && m.key === 'kernel/diagnostics/diagnostic'),
-			),
+			chapter: chapters.find((c) => c.module === m.key),
 		}));
 	return {
 		modules,
@@ -25,7 +21,7 @@ export const load = () => {
 			register: 'svelte/computation/register',
 			vueRegister: 'vue/computation/artifacts/register',
 			vueParsed: 'vue/computation/artifacts/impl Artifact for Parsed',
-			registry: 'kernel/computation/pipeline/Registry',
+			registry: 'kernel/computation/registry/Registry',
 			runDocument: 'kernel/computation/pipeline/run_document',
 		}),
 	};

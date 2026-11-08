@@ -62,7 +62,7 @@
 	<p>
 		ノードごとに <code>Box</code>
 		を作らないので、文書を組み立てるときの割り当ては、四本のバッファが伸びる分だけです。ノードの
-		<code>nodes</code>、改行の要否の <code>breaks</code>、子のリストの
+		<code>nodes</code>、改行の要否と平らに出したときの幅の <code>measures</code>、子のリストの
 		<code>children</code>、文字列の
 		<code>buffer</code> です。実行時に作ったテキストも <code>buffer</code> に追記し、ノードはその範囲だけを持ちます。
 	</p>
@@ -149,13 +149,15 @@
 		を書き換えます。rsvelte のプリンタでは、これをノードを作る時点で済ませます。ノードは自分より前に作られたノードしか参照できないので、子の答えは親を作るときにはすでに出ています。<code
 			>push</code
 		>
-		はノードと一緒に、<code>breaks_of</code> の答えを <code>breaks</code> に一つ積みます。
+		はノードと一緒に、<code>measure_of</code> の答えを <code>measures</code>
+		に一つ積みます。答えは一つの 32 ビット整数で、最上位のビットが改行の要否、残りが平らに出したときの幅です（幅は次の節の
+		<code>fits</code> が使います）。
 	</p>
 </div>
 
-<Code item={data.code.push} mark={['self.breaks.push(breaks);']} />
+<Code item={data.code.push} mark={['self.measures.push(measure);']} />
 
-<Code item={data.code.breaksOf} mark={['} => breaks_line || any(self.children(start, len)),']} />
+<Code item={data.code.measureOf} mark={['if breaks_line {']} />
 
 <div class="prose-learn">
 	<p>
@@ -187,6 +189,7 @@
 	item={data.code.fitsIn}
 	mark={[
 		'rest_i -= 1;',
+		'&& let Some(width) = self.docs.measure(identifier).width()',
 		'if must_be_flat && breaks_line {',
 		'if mode == Mode::Break || matches!(kind, LineKind::Hard | LineKind::Literal)',
 	]}
@@ -198,6 +201,12 @@
 		<code>Printer</code>
 		が持つ <code>scratch</code>
 		を使い回し、呼び出しごとに確保しません。数える本体は <code>fits_in</code> です。
+	</p>
+	<p>
+		強制改行も名前付きの group も含まない部分木は、中をたどりません。<code>measure_of</code>
+		がノードを作るときに求めた幅を、まとめて引きます。group を判断するたびに同じ部分木をたどり直すことがなくなりました。検証用のソースファイル集の整形では、<code
+			>fits</code
+		> の命令数が約 3 分の 1 になりました。
 	</p>
 	<p>
 		たとえば <code>f(a, b);</code> の group が収まるかは、閉じ括弧のあとの <code>;</code>
@@ -315,22 +324,23 @@
 	<ul>
 		<li>
 			<code>trim_left</code> と <code>trim_right</code> は prettier-plugin-svelte の
-			<code>trim</code> の移植です。<code>replace_parts</code>
-			で既存のノードの子リストを差し替えます。
+			<code>trim</code> の移植です。取り除くのは子リストの先頭か末尾だけなので、<code
+				>set_parts</code
+			>
+			で既存のノードが指す子リストの範囲を縮めます。子リストを写し直すことはありません。
 		</li>
 		<li><code>remove_lines</code> は逆に、元のノードを変えずに新しいノードを作って返します。</li>
 	</ul>
 </div>
 
-<Code item={data.code.replaceParts} />
+<Code item={data.code.setParts} />
 
 <div class="prose-learn">
 	<p>
 		Prettier は <code>propagateBreaks</code> を出力の直前に走らせるので、trim
 		のあとの木で数え直します。一方、アリーナは <code>will_break</code>
-		をノードを作るときに決めてしまいます。そこで <code>replace_parts</code>
-		は、子リストを差し替えたあと持ち主の答えを数え直します。子を取り除いても break が増えることはないので、数え直すのは元の答えが
-		true のときだけです。trim は内側から順に差し替えるので、子の答えはその時点で最新です。以前はこの数え直しがなく、hardline
+		をノードを作るときに決めてしまいます。そこで <code>set_parts</code>
+		は、範囲を縮めたあと持ち主の答え（改行の要否と幅）を数え直します。trim は内側から順に縮めるので、子の答えはその時点で最新です。以前はこの数え直しがなく、hardline
 		を取り除いた group も改行したまま出力されていました。この修正で変わった出力は、検証用のソースファイル集の
 		105,387 件のうち 0 件です。修正前に落ちる単体テスト
 		<code>a_trimmed_hard_line_no_longer_breaks</code> で固定しています。

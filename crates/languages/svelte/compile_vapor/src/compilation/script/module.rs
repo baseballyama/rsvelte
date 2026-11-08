@@ -38,13 +38,11 @@ pub(super) fn check(
                         {
                             let (rune, _) = rune_call(tree, value).expect("a rune initializer");
                             if matches!(rune, "$derived" | "$derived.by") {
-                                return Err(
-                                    rsvelte_kernel::diagnostics::diagnostic::Diagnostic::error(
-                                        "derived_invalid_export",
-                                        "Derived state cannot be exported.",
-                                        span(tree, declaration),
-                                    ),
-                                );
+                                return Err(rsvelte_kernel::diagnostics::Diagnostic::error(
+                                    "derived_invalid_export",
+                                    "Derived state cannot be exported.",
+                                    span(tree, declaration),
+                                ));
                             }
                             if !matches!(tree.kind(identifier), Kind::Identifier(_)) {
                                 return Err(unsupported(
@@ -57,14 +55,12 @@ pub(super) fn check(
                                 .binding_of(identifier)
                                 .expect("an exported declaration has a binding");
                             if resolution.sem.bindings[binding].writes > 0 {
-                                return Err(
-                                    rsvelte_kernel::diagnostics::diagnostic::Diagnostic::error(
-                                        "state_invalid_export",
-                                        "Exported state cannot be reassigned. \
+                                return Err(rsvelte_kernel::diagnostics::Diagnostic::error(
+                                    "state_invalid_export",
+                                    "Exported state cannot be reassigned. \
                                          Export a function to read it instead.",
-                                        span(tree, declaration),
-                                    ),
-                                );
+                                    span(tree, declaration),
+                                ));
                             }
                             exports.insert(binding, format!("$$module_export_{}", exports.len()));
                         }

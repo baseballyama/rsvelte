@@ -9,7 +9,7 @@ RUSTFLAGS='--cfg sha2_backend="soft"' mise exec -- node tools/hashing/hashing.ts
 
 The driver builds a temporary release crate with thin LTO and one codegen unit. It compares:
 
-- The real kernel API
+- The SHA-256 that Vue compilation uses
 - The scalar baseline from a fixed commit (the third argument selects another commit)
 - RustCrypto's digest API
 - Compression without short-input batching

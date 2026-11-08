@@ -1,7 +1,7 @@
 use std::cell::OnceCell;
 
+use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::performance::buffer_pool;
-use rsvelte_kernel::source::index::TypedIndex;
 use rsvelte_stylesheet::matcher;
 use rsvelte_stylesheet::syntax_tree::{ComplexSelector, Simple, StyleSheet};
 use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{

@@ -9,7 +9,7 @@
 //! As upstream, an interpolation ends at the first `}}` and an attribute value at its closing
 //! quote; the text in between is then parsed as JavaScript (TypeScript under `lang="ts"`).
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
 use rsvelte_typescript::parser::{parse_expression, parse_parameters, parse_program};

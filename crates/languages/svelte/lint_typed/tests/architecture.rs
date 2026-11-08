@@ -2,8 +2,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::computation::pipeline::{Document, Registry, Task};
-use rsvelte_kernel::diagnostics::diagnostic::Severity;
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::task::Task;
+use rsvelte_kernel::diagnostics::Severity;
+use rsvelte_kernel::source::document::Document;
 use rsvelte_markup::button_type::Allowed;
 use rsvelte_svelte_lint_typed::Configuration;
 use rsvelte_svelte_lint_typed::computation::ConditionTypes;
@@ -130,8 +132,8 @@ fn normal_and_typed_lint_share_parsing_and_keep_separate_configurations() {
         )
         .expect("valid source");
     let context = DocumentContext::new(&document, registry.artifacts());
-    let mut normal = rsvelte_kernel::computation::pipeline::TaskOutput::default();
-    let mut typed = rsvelte_kernel::computation::pipeline::TaskOutput::default();
+    let mut normal = rsvelte_kernel::computation::task::TaskOutput::default();
+    let mut typed = rsvelte_kernel::computation::task::TaskOutput::default();
     rsvelte_svelte_lint::Lint.run(&context, &mut normal);
     assert_eq!(
         context.computed(),

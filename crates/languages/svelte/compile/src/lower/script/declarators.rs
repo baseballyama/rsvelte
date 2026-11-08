@@ -1,4 +1,4 @@
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_typescript::operators::UnaryOperator;
 
 use super::{

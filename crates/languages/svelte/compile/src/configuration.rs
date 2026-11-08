@@ -1,4 +1,4 @@
-use rsvelte_kernel::computation::functions::{Contract, Function};
+use rsvelte_plugin_interface::{Contract, Function};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CssHashInput<'a> {

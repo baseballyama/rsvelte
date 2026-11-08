@@ -332,7 +332,7 @@
 		'P3',
 		'範囲の検査が debug ビルドだけだった',
 		'fixed',
-		'output/emitter.rs · Edits::apply_in、lint/rule.rs · Reporter、check/report.rs · parse_report',
+		'output/edits.rs · Edits::apply_in、lint/rule.rs · Reporter、check/report.rs · parse_report',
 	)}
 	<p>
 		<code>Edits</code>（出力に加える書き換えの一覧）の重なりと範囲は、release
@@ -346,16 +346,16 @@
 		'P4',
 		'LayoutInstruction のアリーナが書き換えられる',
 		'upstream',
-		'document_printer · LayoutInstructions::trim_left、trim_right、replace_parts',
+		'document_printer · LayoutInstructions::trim_left_range、trim_right_range、set_parts',
 	)}
 </div>
 
-<Code item={data.code.trimLeft} mark={['self.replace_parts(d, &inner);']} />
+<Code item={data.code.trimLeft} mark={['self.set_parts(d, s + dropped, l - dropped);']} />
 
 <div class="prose-learn">
 	<p>
 		<code>trim</code>
-		は既存のノードの子リストを差し替えます。同じノードを二か所で使っていると、片方の
+		は既存のノードが指す子リストの範囲を縮めます。同じノードを二か所で使っていると、片方の
 		<code>trim</code> がもう片方も変えます。公式ツールの prettier-plugin-svelte の
 		<code>trimLeft</code>
 		も、<code>getParts</code> が返した配列を <code>splice</code> でその場で書き換えます<Note
@@ -432,7 +432,7 @@
 		'C1',
 		'Task::identifier のドキュメントの例が実際の名前と違った',
 		'fixed',
-		'computation/pipeline.rs · Task::identifier',
+		'computation/task.rs · Task::identifier',
 	)}
 	<p>
 		実際の形 <code>&lt;言語&gt;.&lt;タスク&gt;/&lt;変種&gt;</code> と例（<code
@@ -444,7 +444,7 @@
 		'C2',
 		'知らないタスク名を黙って無視していた',
 		'fixed',
-		'computation/pipeline.rs · Registry::check_task_identifiers、run_each',
+		'computation/registry.rs · Registry::check_task_identifiers、computation/pipeline.rs · run_each',
 	)}
 	<p>
 		<code>run_each</code> と <code>run</code> は、知らないタスク名があれば何も走らせずに
@@ -453,12 +453,7 @@
 		>）。
 	</p>
 
-	{@render item(
-		'C3',
-		'Unsupported が場所を持たなかった',
-		'fixed',
-		'diagnostics/diagnostic.rs · Unsupported',
-	)}
+	{@render item('C3', 'Unsupported が場所を持たなかった', 'fixed', 'diagnostics.rs · Unsupported')}
 	<p>
 		<code>Unsupported</code> は、拒否した構文の
 		<code>SourceLocation</code

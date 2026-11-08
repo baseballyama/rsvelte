@@ -5,7 +5,7 @@ A crate's place says what it knows: no language, one language, or how to run plu
 ```
 crates/
 ├── language_independent/      know no language
-│   ├── kernel/                sources, spans, diagnostics, the artifact database, task scheduling
+│   ├── kernel/                documents, spans, diagnostics, generated text, the artifact database, task scheduling
 │   ├── plugin_interface/      what a host gives a plugin: options, the tasks that run, functions
 │   ├── lint_runner/           rule running and ESLint-style reports, for any linter
 │   ├── document_printer/      layout instructions and a printer, for any formatter

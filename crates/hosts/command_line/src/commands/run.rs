@@ -1,8 +1,9 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use rsvelte_kernel::computation::pipeline::{Registry, RunOptions, Sharing};
-use rsvelte_kernel::output::task_files::diagnostics_json;
+use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing};
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::task_files::diagnostics_json;
 
 use crate::usage;
 

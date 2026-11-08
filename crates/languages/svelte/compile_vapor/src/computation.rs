@@ -1,7 +1,9 @@
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
-use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::performance::measurement;
+use rsvelte_kernel::source::document::Document;
 
 use crate::script;
 

@@ -1,5 +1,5 @@
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::diagnostics::diagnostic::Severity;
+use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_svelte::Parsed;
 use rsvelte_typescript::operators::{LogicalOperator, UnaryOperator};

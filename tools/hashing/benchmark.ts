@@ -30,15 +30,17 @@ export async function main(args: string[]): Promise<void> {
 			maxBuffer: 64 * 1024 * 1024,
 			...options,
 		});
-	// The kernel has moved between revisions, so the baseline's path comes from its own tree.
+	// The file has moved between revisions (the kernel, then Vue compilation), so the baseline's
+	// path comes from its own tree.
 	const baselinePaths = run('git', ['ls-tree', '-r', '--name-only', baselineRev, '--', 'crates'])
 		.split('\n')
-		.filter((file) => file.endsWith('kernel/src/source/hashing.rs'));
-	assert.equal(baselinePaths.length, 1, `${baselineRev} has one kernel hashing.rs`);
+		.filter((file) => /(?:kernel\/src\/source|vue\/compile\/src)\/hashing\.rs$/.test(file));
+	assert.equal(baselinePaths.length, 1, `${baselineRev} has one hashing.rs`);
 	const baseline = run('git', ['show', `${baselineRev}:${baselinePaths[0]}`]);
-	const sourcePath = path.join(root, 'crates/language_independent/kernel/src/source/hashing.rs');
+	const sourcePath = path.join(root, 'crates/languages/vue/compile/src/hashing.rs');
 	const measuredSource = fs.readFileSync(sourcePath);
 	fs.writeFileSync(path.join(scratch, 'src/baseline.rs'), baseline);
+	fs.writeFileSync(path.join(scratch, 'src/hashing.rs'), measuredSource);
 	fs.copyFileSync(path.join(root, 'tools/hashing/benchmark.rs'), path.join(scratch, 'src/main.rs'));
 	fs.writeFileSync(
 		path.join(scratch, 'Cargo.toml'),

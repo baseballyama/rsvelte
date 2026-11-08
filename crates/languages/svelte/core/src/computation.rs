@@ -1,8 +1,8 @@
 //! Cached artifacts and plugin registration.
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
-use rsvelte_kernel::computation::pipeline::Registry;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
+use rsvelte_kernel::computation::registry::Registry;
 pub use rsvelte_svelte_parser::{Parsed, matches};
 
 use crate::compilation::compiler_syntax_tree;

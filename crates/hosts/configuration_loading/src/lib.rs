@@ -12,10 +12,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use rsvelte_kernel::computation::functions::CallError;
-use rsvelte_plugin_interface::FunctionResolver;
 #[cfg(target_arch = "wasm32")]
 use rsvelte_plugin_interface::NoFunctions;
+use rsvelte_plugin_interface::{CallError, FunctionResolver};
 use serde::Deserialize;
 use serde_json::value::RawValue;
 

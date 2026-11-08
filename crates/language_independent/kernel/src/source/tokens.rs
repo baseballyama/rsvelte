@@ -9,9 +9,9 @@
 
 use std::fmt::Debug;
 
+use crate::index::{IndexVector, TypedIndex};
 use crate::newtype_index;
 use crate::performance::buffer_pool;
-use crate::source::index::{IndexVector, TypedIndex};
 use crate::source::positions::Span;
 
 pub trait TokenKind: Copy + Eq + Debug + 'static {

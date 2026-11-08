@@ -18,7 +18,7 @@ mod template;
 
 use std::borrow::Cow;
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte::compilation::compiler_syntax_tree::{
     Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,

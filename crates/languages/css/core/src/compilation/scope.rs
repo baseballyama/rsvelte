@@ -1,4 +1,4 @@
-use rsvelte_kernel::output::emitter::BorrowedEdits as Edits;
+use rsvelte_kernel::output::edits::BorrowedEdits as Edits;
 use rsvelte_kernel::source::positions::Span;
 
 use crate::matcher::is_global;

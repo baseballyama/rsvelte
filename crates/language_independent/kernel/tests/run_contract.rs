@@ -2,11 +2,12 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rsvelte_kernel::computation::database::{Artifact, ArtifactRegistry, DocumentContext};
-use rsvelte_kernel::computation::pipeline::{
-    Document, DocumentResult, FinishTask, Part, Registry, RunOptions, Sharing, Task, TaskOutput,
-    run, run_each,
-};
-use rsvelte_kernel::{Diagnostic, Span};
+use rsvelte_kernel::computation::pipeline::{DocumentResult, RunOptions, Sharing, run, run_each};
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::task::{FinishTask, Part, Task, TaskOutput};
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::Span;
 
 struct Length;
 

@@ -2,7 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
-use rsvelte_kernel::computation::pipeline::{Document, Registry};
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::source::document::Document;
 
 /// A unit is a directory holding `input.<ext>`; its path relative to its source directory
 /// (`corpus/<family>/<source>`), with the reserved-name `~` escape undone, is the filename the

@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-use rsvelte_kernel::computation::pipeline::Registry;
+use rsvelte_kernel::computation::registry::Registry;
 
 fn main() -> ExitCode {
     let mut registry = Registry::new();

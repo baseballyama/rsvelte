@@ -786,7 +786,6 @@ dependencies = [
  "rayon",
  "rustc-hash",
  "semver",
- "sha2",
 ]
 
 [[package]]
@@ -1159,6 +1158,7 @@ dependencies = [
  "rsvelte_typescript_compile",
  "rsvelte_vue",
  "rustc-hash",
+ "sha2",
 ]
 
 [[package]]

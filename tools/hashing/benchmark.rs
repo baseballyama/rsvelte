@@ -1,10 +1,11 @@
 mod baseline;
+#[expect(dead_code, reason = "only the digest is measured; Vue compilation also uses `hex`")]
+mod hashing;
 
 use std::hint::black_box;
 use std::time::Instant;
 
 use rsvelte_kernel::performance::measurement;
-use rsvelte_kernel::source::hashing;
 use sha2::{Digest, Sha256};
 
 #[global_allocator]

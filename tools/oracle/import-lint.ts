@@ -254,8 +254,7 @@ export async function main(args: string[]): Promise<void> {
 		);
 	}
 	for (const suite of suites) {
-		const imports =
-			'use super::CaseConfiguration;\nuse rsvelte_kernel::diagnostics::diagnostic::Severity;\n';
+		const imports = 'use super::CaseConfiguration;\nuse rsvelte_kernel::diagnostics::Severity;\n';
 		fs.writeFileSync(
 			path.join(suite.directory, 'cases.rs'),
 			imports +

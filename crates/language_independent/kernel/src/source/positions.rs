@@ -207,6 +207,47 @@ const _: () = assert!(
     "`SourceLocation` keeps \"synthesized\" inside a span's 8 bytes"
 );
 
+/// Sources must be shorter than this, so that [`SourceLocation`] can keep "synthesized" in the same
+/// 8 bytes. Checked once where text enters the pipeline
+/// ([`crate::source::document::Document::new`]).
+pub const MAXIMUM_SOURCE_LENGTH: u32 = u32::MAX;
+
+/// Where a tree node came from: a source range, or nowhere (a lowering made it up).
+///
+/// The only way to read a [`Span`] out of a `SourceLocation` is [`SourceLocation::span`], which
+/// forces the caller to handle the synthesized case.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SourceLocation(Span);
+
+impl SourceLocation {
+    pub const SYNTHETIC: Self = Self(Span {
+        start_offset: MAXIMUM_SOURCE_LENGTH,
+        end_offset: MAXIMUM_SOURCE_LENGTH,
+    });
+
+    #[inline]
+    #[must_use]
+    pub fn span(self) -> Option<Span> {
+        (self != Self::SYNTHETIC).then_some(self.0)
+    }
+}
+
+impl From<Span> for SourceLocation {
+    #[inline]
+    fn from(s: Span) -> Self {
+        Self(s)
+    }
+}
+
+impl std::fmt::Debug for SourceLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.span() {
+            Some(s) => write!(f, "{}..{}", s.start_offset, s.end_offset),
+            None => f.write_str("synthetic"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -286,47 +327,6 @@ mod tests {
             } else {
                 column += ch.len_utf16() as u32;
             }
-        }
-    }
-}
-
-/// Sources must be shorter than this, so that [`SourceLocation`] can keep "synthesized" in the same
-/// 8 bytes. Checked once where text enters the pipeline
-/// ([`crate::computation::pipeline::Document::new`]).
-pub const MAXIMUM_SOURCE_LENGTH: u32 = u32::MAX;
-
-/// Where a tree node came from: a source range, or nowhere (a lowering made it up).
-///
-/// The only way to read a [`Span`] out of a `SourceLocation` is [`SourceLocation::span`], which
-/// forces the caller to handle the synthesized case.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SourceLocation(Span);
-
-impl SourceLocation {
-    pub const SYNTHETIC: Self = Self(Span {
-        start_offset: MAXIMUM_SOURCE_LENGTH,
-        end_offset: MAXIMUM_SOURCE_LENGTH,
-    });
-
-    #[inline]
-    #[must_use]
-    pub fn span(self) -> Option<Span> {
-        (self != Self::SYNTHETIC).then_some(self.0)
-    }
-}
-
-impl From<Span> for SourceLocation {
-    #[inline]
-    fn from(s: Span) -> Self {
-        Self(s)
-    }
-}
-
-impl std::fmt::Debug for SourceLocation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.span() {
-            Some(s) => write!(f, "{}..{}", s.start_offset, s.end_offset),
-            None => f.write_str("synthetic"),
         }
     }
 }

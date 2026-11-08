@@ -16,8 +16,9 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::computation::pipeline::{Document, Registry};
+use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
+use rsvelte_kernel::source::document::Document;
 use rsvelte_svelte_compile::{Target, lower_document};
 
 fn main() -> ExitCode {
@@ -81,7 +82,7 @@ fn main() -> ExitCode {
     }
     w.end_array()
         .key("source_map")
-        .write_string(&e.source_map(&document.text, name))
+        .write_string(&e.source_map(context.line_index(), name))
         .end_object();
     print!("{}", w.finish());
     ExitCode::SUCCESS

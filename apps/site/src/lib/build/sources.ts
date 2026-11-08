@@ -32,7 +32,11 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		}));
 	const groups: [string, string, string[]][] = [
 		['lint', 'language_independent/lint_runner/src', ['rule', 'findings', 'output']],
-		['document_printer', 'language_independent/document_printer/src', ['lib', 'width']],
+		[
+			'document_printer',
+			'language_independent/document_printer/src',
+			['lib', 'construct', 'printer', 'rewrite', 'tests', 'width'],
+		],
 		[
 			'typescript',
 			'languages/typescript/core/src',

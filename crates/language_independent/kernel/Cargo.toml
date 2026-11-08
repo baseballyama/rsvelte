@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_kernel"
-description = "Language-agnostic core: sources, spans, diagnostics, derived-artifact database, task scheduling, metrics, pretty-printing"
+description = "Language-agnostic core: documents and positions, diagnostics, generated text, the derived-artifact database, task scheduling, and measurements"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
@@ -19,7 +19,6 @@ trace-artifacts = []
 rayon.workspace = true
 semver.workspace = true
 rustc-hash.workspace = true
-sha2.workspace = true
 
 [lints]
 workspace = true

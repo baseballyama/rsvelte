@@ -64,7 +64,7 @@ impl Transform<'_> {
 
     pub(super) fn parse_props(
         &self,
-        range: rsvelte_kernel::source::index::IndexRange<PropertyIdentifier>,
+        range: rsvelte_kernel::index::IndexRange<PropertyIdentifier>,
     ) -> R<Vec<Property>> {
         let mut props = Vec::with_capacity(range.len());
         for (identifier, p) in range.iter().zip(self.compiler_syntax_tree.props(range)) {

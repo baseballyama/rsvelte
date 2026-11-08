@@ -1,5 +1,6 @@
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::computation::pipeline::{Registry, Task, TaskOutput};
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_svelte::compilation::compiler_syntax_tree::{Children, CompilerSyntaxTree, NodeKind};
 use rsvelte_svelte_compile::RenderPlan;
 use rsvelte_svelte_compile::lower::{self, Item, Target};

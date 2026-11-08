@@ -1,7 +1,8 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use rsvelte_kernel::computation::pipeline::{Registry, RunOptions, Sharing};
+use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing};
+use rsvelte_kernel::computation::registry::Registry;
 
 use crate::input::load;
 use crate::output::{report_metrics, write_outputs};

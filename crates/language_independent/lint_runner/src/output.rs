@@ -1,6 +1,6 @@
 //! Findings as `ESLint` reports them.
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::LineIndex;
 

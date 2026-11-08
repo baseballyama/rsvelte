@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use rsvelte_kernel::computation::pipeline::Document;
-use rsvelte_kernel::output::task_files;
+use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::task_files;
 use serde::Deserialize;
 
 const INPUT_STEM: &str = "input.";

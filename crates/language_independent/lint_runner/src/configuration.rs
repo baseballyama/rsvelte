@@ -4,7 +4,7 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use rsvelte_kernel::diagnostics::diagnostic::Severity;
+use rsvelte_kernel::diagnostics::Severity;
 use serde::de::{
     self, Deserialize, Deserializer, IntoDeserializer, SeqAccess, Unexpected, Visitor,
 };

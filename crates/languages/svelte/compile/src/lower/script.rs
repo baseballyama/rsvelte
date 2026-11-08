@@ -6,7 +6,7 @@ mod props;
 pub(super) use declarators::check_destructured_rune;
 use declarators::lower_value_declarator;
 use props::{lower_client_props, server_props_pattern};
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution, rune_call};
 use rsvelte_typescript::copy::{Rewrite, copy, copy_node};
 use rsvelte_typescript::operators::{

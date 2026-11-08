@@ -1,5 +1,7 @@
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
+use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::performance::measurement;
 use rsvelte_svelte::{Normalized, Parsed, Resolved};
 #[allow(dead_code)]
@@ -74,7 +76,7 @@ fn main() {
     if mode.ends_with("-button") {
         let rules = rsvelte_svelte_lint::Configuration::new(vec![
             rsvelte_svelte_lint::RuleConfiguration::ButtonHasType {
-                severity: rsvelte_kernel::diagnostics::diagnostic::Severity::Error,
+                severity: rsvelte_kernel::diagnostics::Severity::Error,
                 allowed: rsvelte_markup::button_type::Allowed::default(),
             },
         ])

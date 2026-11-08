@@ -12,7 +12,7 @@ port on `main` is only a diff oracle and a performance baseline; do not copy its
 | P1  | Decide structure by asking the tree. Only the lexer and parser read source bytes.                |
 | P2  | One meaning, one implementation. `client`, `server` and `dev` differ by a parameter, not a copy. |
 | P3  | Shared trees are immutable. Never print text and parse it again.                                 |
-| P4  | One position type, `Span { file, lo, hi }` (UTF-8 bytes). One integer never has two meanings.    |
+| P4  | One position type: `Span` (UTF-8 bytes, in one document). One integer never has two meanings.    |
 | P5  | No `serde_json::Value` inside. Write public JSON directly when printing.                         |
 | P6  | Semantic facts live in side tables, so trees stay `Sync`.                                        |
 | P7  | Claims about speed or correctness need measurements.                                             |

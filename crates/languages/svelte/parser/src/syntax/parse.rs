@@ -22,7 +22,7 @@ mod whitespace;
 
 pub use element_rules::is_void;
 use identifier::is_identifier_continue;
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;

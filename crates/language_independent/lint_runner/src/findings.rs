@@ -1,6 +1,6 @@
 //! Running rules over a document and putting their findings in `ESLint`'s order.
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::measurement;
 
 use crate::rule::{Reporter, Rule};
@@ -46,7 +46,7 @@ impl Findings {
 
 #[cfg(test)]
 mod tests {
-    use rsvelte_kernel::diagnostics::diagnostic::Severity;
+    use rsvelte_kernel::diagnostics::Severity;
     use rsvelte_kernel::source::positions::Span;
 
     use super::*;

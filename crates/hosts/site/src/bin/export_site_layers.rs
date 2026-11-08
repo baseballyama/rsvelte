@@ -14,8 +14,8 @@
 
 use std::process::ExitCode;
 
+use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
-use rsvelte_kernel::source::index::TypedIndex;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_svelte::compilation::compiler_syntax_tree::{
     self, AttributeValue, Children, CompilerSyntaxTree, ElementKind, NodeKind,
@@ -39,16 +39,16 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let document =
-        match rsvelte_kernel::computation::pipeline::Document::new(path.clone(), source_text) {
-            Ok(document) => document,
-            Err(error) => {
-                eprintln!("{path}: {error:?}");
-                return ExitCode::FAILURE;
-            }
-        };
+    let document = match rsvelte_kernel::source::document::Document::new(path.clone(), source_text)
+    {
+        Ok(document) => document,
+        Err(error) => {
+            eprintln!("{path}: {error:?}");
+            return ExitCode::FAILURE;
+        }
+    };
     let source_text = document.text.as_str();
-    let mut registry = rsvelte_kernel::computation::pipeline::Registry::new();
+    let mut registry = rsvelte_kernel::computation::registry::Registry::new();
     rsvelte_svelte_lint::register(&mut registry);
     let context = rsvelte_kernel::computation::database::DocumentContext::new(
         &document,

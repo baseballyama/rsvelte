@@ -2,10 +2,12 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
-use rsvelte_kernel::computation::pipeline::{Document, DocumentResult, TaskOutput};
-use rsvelte_kernel::diagnostics::diagnostic::Severity;
-use rsvelte_kernel::output::task_files;
+use rsvelte_kernel::computation::pipeline::DocumentResult;
+use rsvelte_kernel::computation::task::TaskOutput;
+use rsvelte_kernel::diagnostics::Severity;
+use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;
+use rsvelte_kernel::task_files;
 use rustc_hash::FxHashSet;
 
 use crate::cases::{Case, Kind};

@@ -5,10 +5,10 @@ use std::sync::mpsc::{SyncSender, sync_channel};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rsvelte_kernel::computation::functions::CallError;
+use rsvelte_plugin_interface::{
+    CallError, FunctionReference, FunctionResolver, TextContract, TextFunction,
+};
 use serde::{Deserialize, Serialize};
-
-use rsvelte_plugin_interface::{FunctionReference, FunctionResolver, TextContract, TextFunction};
 
 use crate::{Configuration, LoadedConfiguration, Loader};
 

@@ -109,7 +109,7 @@ export const chapters: Chapter[] = [
 		title: '構文木と解析結果の持ち方',
 		abstract:
 			'構文木の要素を型付きの番号で参照し、変数と宣言の対応を別の表に保存する。コンパイル用に整理した構文木は、別の言語からも作れる。',
-		module: 'kernel/source/index',
+		module: 'kernel/index',
 		minutes: 20,
 		sections: [
 			s('why', 'なぜ層を重ねるのか'),
@@ -151,7 +151,7 @@ export const chapters: Chapter[] = [
 		number: '07',
 		title: 'エラーや警告の報告',
 		abstract: 'エラーと警告を表す Diagnostic と、未対応の構文を近似せずに報告する Unsupported。',
-		module: 'kernel/diagnostics/diagnostic',
+		module: 'kernel/diagnostics',
 		minutes: 4,
 		sections: [s('diagnostic', 'エラーや警告の記録'), s('unsupported', '未対応の構文を報告する')],
 	},

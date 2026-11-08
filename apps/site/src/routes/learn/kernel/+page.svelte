@@ -162,16 +162,18 @@
 	{#snippet caption()}矢印は依存の向き。役割は crate のパスで決まり、<code>tools/structure</code>
 		のテストが依存の向きを確かめる。言語の中核はカーネルと他の言語の中核だけに、言語を知らない部品はカーネルだけに依存する。設定ファイルを読む
 		rsvelte_configuration_loading には、ホストだけが依存できる。rsvelte_svue と rsvelte_svelte_compile_vapor
-		は Svelte と Vue の両方の中核に依存する。カーネルが依存する外部の crate は rayon、semver、rustc-hash、sha2
-		の四つ。{/snippet}
+		は Svelte と Vue の両方の中核に依存する。カーネルが依存する外部の crate は rayon、semver、rustc-hash
+		の三つ。{/snippet}
 </Figure>
 
 <div class="prose-learn">
 	<p>
 		カーネルの <code>lib.rs</code>
-		は、冒頭のコメントでカーネルが持つものを挙げています（訳：共有するソースのデータ、計算結果、診断、出力、性能の計測）。
+		の冒頭のコメントは、カーネルのモジュールを下の層から並べた一覧です。各モジュールは前の行のモジュールだけを使い、同じ行のモジュールどうしは使い合いません。crate
+		の間の依存の向きと同じく、この一覧とコードが合っていることも <code>tools/structure</code>
+		のテストが確かめています。
 	</p>
-	<blockquote class="border-l-0 font-mono text-[14px] leading-[1.7] text-fg-2">
+	<blockquote class="border-l-0 font-mono text-[14px] leading-[1.7] whitespace-pre-line text-fg-2">
 		{data.libDocs}
 	</blockquote>
 	<p>

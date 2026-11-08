@@ -28,7 +28,7 @@ use commands::corpus::corpus;
 use commands::run::run_file;
 use commands::{benchmark, performance};
 use input::load;
-use rsvelte_kernel::computation::pipeline::Registry;
+use rsvelte_kernel::computation::registry::Registry;
 
 #[cfg(feature = "metrics")]
 #[global_allocator]

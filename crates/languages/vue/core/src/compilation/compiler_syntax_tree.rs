@@ -21,8 +21,8 @@
 //! JavaScript expressions stay in the component's one [`rsvelte_typescript::SyntaxTree`], keyed by
 //! [`NodeIdentifier`].
 
+use rsvelte_kernel::index::{IndexRange, IndexVector};
 use rsvelte_kernel::newtype_index;
-use rsvelte_kernel::source::index::{IndexRange, IndexVector};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript::NodeIdentifier;
 

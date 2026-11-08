@@ -1,6 +1,6 @@
 //! What a lint rule implements, and the only way it reports.
 
-use rsvelte_kernel::diagnostics::diagnostic::{Diagnostic, Severity};
+use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::source::positions::Span;
 
 /// A lint rule over a context type `C` that the language chooses.

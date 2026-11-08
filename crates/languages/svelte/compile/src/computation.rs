@@ -51,8 +51,7 @@ impl Artifact for ScopedStylesheet {
 pub struct Identified;
 
 impl Artifact for Identified {
-    type Output =
-        Result<crate::OutputIdentity, rsvelte_kernel::diagnostics::diagnostic::Diagnostic>;
+    type Output = Result<crate::OutputIdentity, rsvelte_kernel::diagnostics::Diagnostic>;
 
     const NAME: &'static str = "svelte.output_identity";
 
@@ -69,7 +68,7 @@ impl Artifact for Identified {
             .facet::<CompileConfiguration>()
             .map_or(&default, |value| value.as_ref());
         crate::OutputIdentity::build_with_configuration(&input, configuration).map_err(|error| {
-            rsvelte_kernel::diagnostics::diagnostic::Diagnostic::error(
+            rsvelte_kernel::diagnostics::Diagnostic::error(
                 "svelte.compile.css-hash",
                 error.to_string(),
                 rsvelte_kernel::source::positions::Span::new(0, 0),
@@ -91,8 +90,7 @@ impl Facet for CompileConfiguration {
 pub struct Validated;
 
 impl Artifact for Validated {
-    type Output =
-        Result<crate::lower::ValidatedOptions, rsvelte_kernel::diagnostics::diagnostic::Diagnostic>;
+    type Output = Result<crate::lower::ValidatedOptions, rsvelte_kernel::diagnostics::Diagnostic>;
 
     const NAME: &'static str = "svelte.validate";
 

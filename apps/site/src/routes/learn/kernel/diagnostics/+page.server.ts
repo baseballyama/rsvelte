@@ -6,10 +6,10 @@ export const load = () => ({
 	documents: reports().plainA.population.documents,
 	benchRev: reports().plainA.build.rev,
 	code: excerpts({
-		severity: 'kernel/diagnostics/diagnostic/Severity',
-		diagnostic: 'kernel/diagnostics/diagnostic/Diagnostic',
-		unsupported: 'kernel/diagnostics/diagnostic/Unsupported',
-		unsupportedImpl: 'kernel/diagnostics/diagnostic/impl Unsupported',
+		severity: 'kernel/diagnostics/Severity',
+		diagnostic: 'kernel/diagnostics/Diagnostic',
+		unsupported: 'kernel/diagnostics/Unsupported',
+		unsupportedImpl: 'kernel/diagnostics/impl Unsupported',
 		format: 'svelte/format/task/Format::run',
 	}),
 });

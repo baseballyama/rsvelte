@@ -1,19 +1,19 @@
 const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	'kernel/source': {
 		title: 'ソースの記録',
-		summary: '位置、名前、字句、構文木の識別番号を扱います。',
+		summary: '文書、位置、名前、字句を扱います。',
 	},
 	'kernel/computation': {
 		title: '計算と実行',
-		summary: '計算結果の保存と、処理の登録と実行を扱います。',
+		summary: '計算結果の保存、タスクの定義、処理の登録と実行を扱います。',
 	},
 	'kernel/diagnostics': {
-		title: '問題の報告',
-		summary: 'どのタスクも使うエラーや警告の型です。',
+		title: 'エラーや警告の情報',
+		summary: '問題の種類、メッセージ、ソース内の位置を記録します。',
 	},
 	'kernel/output': {
 		title: '文字列の出力',
-		summary: '出力文字列の組み立てと位置の対応、JSON の書き出し、タスクの出力ファイルを扱います。',
+		summary: '位置の対応を持つコードの出力、元の文への編集、JSON の書き出しを扱います。',
 	},
 	'kernel/performance': {
 		title: '性能の計測と改善',
@@ -22,6 +22,10 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	'document_printer/width': {
 		title: '文字の表示幅',
 		summary: '文字が画面で占める幅を、Unicode の幅の規則で計算します。',
+	},
+	'kernel/source/document': {
+		title: '文書',
+		summary: '処理する文書のパスと本文を持ち、大きさの上限を入口で一度だけ確かめます。',
 	},
 	'kernel/source/positions': {
 		title: 'ソース内の位置',
@@ -39,51 +43,38 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: '計算結果の保存と再利用',
 		summary: '構文解析などの結果を文書ごとに保存し、複数の処理で共有します。',
 	},
-	'kernel/source/index': {
+	'kernel/index': {
 		title: '型付きの識別番号',
 		summary: '構文木の各要素を番号で参照し、その要素に対応する解析結果を保存します。',
 	},
+	'kernel/computation/task': {
+		title: 'タスクの定義',
+		summary: '文書ごとのタスクと全文書をまとめるタスクの形、タスクが残すファイルと診断を定めます。',
+	},
+	'kernel/computation/registry': {
+		title: '処理の登録',
+		summary:
+			'プラグイン、計算結果の型、共通の呼び出し窓口、タスクを登録し、実行するタスクを選びます。',
+	},
 	'kernel/computation/pipeline': {
-		title: '処理の登録と実行',
-		summary: '処理を登録し、文書を並列に処理して結果を返します。',
+		title: '処理の実行',
+		summary:
+			'選んだタスクで文書を並列に処理し、全文書をまとめる処理を最後に一度だけ呼んで結果を返します。',
 	},
 	'kernel/computation/pipeline/tests': {
-		title: '処理の登録と実行のテスト',
-		summary: '文書ごとの処理と、全文書の結果をまとめる処理に渡る値を確かめます。',
-	},
-	'kernel/computation/pipeline/tests/plugins': {
-		title: '実行前のプラグイン検査のテスト',
+		title: '処理の実行のテスト',
 		summary:
-			'依存関係が正しくなければ、二つの実行の入口がどちらも処理を始める前に止まることを確かめます。',
-	},
-	'kernel/computation/functions': {
-		title: '設定で渡す関数',
-		summary:
-			'設定から渡される外部の関数（Svelte の cssHash など）を、入力と出力の型、名前、版を決めて呼び、失敗をエラーで返します。',
-	},
-	'kernel/computation/functions/tests': {
-		title: '設定で渡す関数のテスト',
-		summary:
-			'借用した入力を受け取れること、関数を持つ値が生き続けること、エラーがそのまま返ることを確かめます。',
+			'文書ごとの処理と全文書をまとめる処理に渡る値、依存関係が正しくないときに処理を始めないことを確かめます。',
 	},
 	'kernel/computation/plugins': {
 		title: 'プラグインの依存関係の検査',
 		summary:
-			'プラグインの名前、版、依存先を登録し、依存先の不足、版の不一致、循環を処理の前に見つけます。',
-	},
-	'kernel/computation/plugins/error': {
-		title: 'プラグインの登録エラー',
-		summary:
-			'空の名前、正しくない版や版の条件、食い違う登録、依存先の重複・不足・版の不一致、循環を区別して報告します。',
+			'プラグインの名前、版、依存先を登録し、依存先の不足、版の不一致、循環を処理の前に見つけて、原因ごとに区別して報告します。',
 	},
 	'kernel/computation/plugins/tests': {
 		title: 'プラグインの依存関係の検査のテスト',
 		summary:
 			'版の条件が Cargo と同じ規則で判定されること、登録の順で結果が変わらないこと、各エラーが原因の名前を示すことを確かめます。',
-	},
-	'kernel/diagnostics/diagnostic': {
-		title: 'エラーや警告の情報',
-		summary: '問題の種類、メッセージ、ソース内の位置を記録します。',
 	},
 	'lint/output': {
 		title: '検査結果の書き出し',
@@ -105,11 +96,15 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: 'コードの出力と位置の対応',
 		summary: '出力文字列を組み立て、生成した位置と元のソースの位置を対応させます。',
 	},
+	'kernel/output/edits': {
+		title: '元の文への編集',
+		summary: '元の文字列への挿入と削除を集め、一度にまとめて適用します。',
+	},
 	'kernel/output/structured_data': {
 		title: 'JSON の書き出し',
 		summary: '文字列、数値、配列、オブジェクトを、値の木を作らずに JSON で書き出します。',
 	},
-	'kernel/output/task_files': {
+	'kernel/task_files': {
 		title: 'タスクの出力ファイル',
 		summary: 'タスクが文書ごとに残すファイルの名前と中身を決め、診断を JSON で書き出します。',
 	},
@@ -120,11 +115,6 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	'kernel/performance/buffer_pool': {
 		title: '作業用メモリの再利用',
 		summary: '処理が終わった配列の領域を、同じスレッドの次の文書で使い回します。',
-	},
-	'kernel/source/hashing': {
-		title: 'ハッシュ値の計算',
-		summary:
-			'256 ビットのハッシュ値を計算し、Vue の公式プラグインと同じスタイルの識別子を作ります。',
 	},
 };
 

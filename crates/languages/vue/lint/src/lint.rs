@@ -5,7 +5,7 @@
 //! read only in the template is used (vue-eslint-parser marks such a variable used). It judges only
 //! the script's bindings; the `v-for` aliases are `vue/no-unused-variables`' to report.
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};

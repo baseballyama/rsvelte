@@ -10,7 +10,10 @@ mod settings;
 mod tools;
 
 pub use extension::{Extension, install};
-pub use functions::{FunctionReference, FunctionResolver, NoFunctions, TextContract, TextFunction};
+pub use functions::{
+    CallError, Contract, Function, FunctionReference, FunctionResolver, NoFunctions, TextContract,
+    TextFunction,
+};
 pub use options::PluginOptions;
 pub use program::program_path;
 pub use selection::{Selection, TaskKind};

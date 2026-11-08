@@ -8,7 +8,7 @@ export const load = () => ({
 		locationSpan: 'kernel/source/positions/SourceLocation::span',
 		synthetic: 'kernel/source/positions/SourceLocation::SYNTHETIC',
 		max: 'kernel/source/positions/MAXIMUM_SOURCE_LENGTH',
-		docNew: 'kernel/computation/pipeline/Document::new',
+		docNew: 'kernel/source/document/Document::new',
 		lineIndex: 'kernel/source/positions/LineIndex',
 		lineCol: 'kernel/source/positions/LineColumn',
 		indexNew: 'kernel/source/positions/LineIndex::new',

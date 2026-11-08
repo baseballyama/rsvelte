@@ -4,7 +4,8 @@
 
 use std::sync::Arc;
 
-use rsvelte_kernel::computation::pipeline::{Registry, RunOptions, Sharing, run};
+use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
+use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_plugin_interface::{NoFunctions, Selection, Settings};
 
 #[expect(clippy::print_stdout, reason = "This example prints the task output.")]

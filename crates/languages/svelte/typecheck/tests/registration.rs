@@ -1,4 +1,6 @@
-use rsvelte_kernel::computation::pipeline::{Document, Registry, RunOptions, Sharing, run};
+use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
+use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::source::document::Document;
 
 #[test]
 fn projection_and_typecheck_can_be_registered_together() {
