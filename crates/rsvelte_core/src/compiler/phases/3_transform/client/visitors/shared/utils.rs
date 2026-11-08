@@ -4417,6 +4417,22 @@ pub(crate) fn is_expression_defined(
     .is_defined()
 }
 
+/// Upstream's `scope.evaluate(expression).is_function`.
+pub(crate) fn is_expression_function(
+    expr: &crate::ast::js::Expression,
+    context: &ComponentContext,
+) -> bool {
+    evaluate_estree(
+        &ClientEvalScope {
+            context,
+            converted: false,
+        },
+        expr.as_json(),
+        0,
+    )
+    .is_function()
+}
+
 /// Dotted keypath of a static estree-JSON callee (`Math.round` → `"Math.round"`).
 pub(crate) fn json_keypath(node: &serde_json::Value) -> Option<String> {
     let obj = node.as_object()?;
