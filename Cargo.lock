@@ -814,6 +814,16 @@ name = "rsvelte_markup"
 version = "0.0.0"
 
 [[package]]
+name = "rsvelte_site"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_svelte",
+ "rsvelte_svelte_compile",
+ "rsvelte_svelte_lint",
+]
+
+[[package]]
 name = "rsvelte_stylesheet"
 version = "0.0.0"
 dependencies = [

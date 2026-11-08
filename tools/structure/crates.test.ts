@@ -97,7 +97,11 @@ test('every workspace crate has a role from its path', () => {
 		'rsvelte_test_harness',
 		'rsvelte_typescript_content_mapper',
 	]);
-	assert.deepEqual(named('host'), ['rsvelte_command_line', 'rsvelte_kernel_browser']);
+	assert.deepEqual(named('host'), [
+		'rsvelte_command_line',
+		'rsvelte_kernel_browser',
+		'rsvelte_site',
+	]);
 	assert.ok(named('capability').length > 0);
 });
 

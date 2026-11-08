@@ -1,5 +1,5 @@
 // One component's layers as the Rust pipeline built them: scripts/generate.ts runs the
-// export_site_layers example on Toolbar.svelte.txt (a `.txt` so the site's own svelte-check does not
+// export_site_layers tool on Toolbar.svelte.txt (a `.txt` so the site's own svelte-check does not
 // type-check the sample).
 import toolbar from '#generated/layers/Toolbar.json';
 

@@ -7,7 +7,7 @@
 	interface EmitData {
 		source: string;
 		out: string;
-		/** `[generated, src, len]` per mapping, as the export_site_source_maps example prints them. */
+		/** `[generated, src, len]` per mapping, as the export_site_source_maps tool prints them. */
 		mappings: number[][];
 		file: string;
 		target: string;

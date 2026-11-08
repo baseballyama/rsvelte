@@ -1,0 +1,16 @@
+[package]
+name = "rsvelte_site"
+description = "Prints what the pipeline builds, as data for the site's figures"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rsvelte_kernel.workspace = true
+rsvelte_svelte.workspace = true
+rsvelte_svelte_compile.workspace = true
+rsvelte_svelte_lint.workspace = true
+
+[lints]
+workspace = true

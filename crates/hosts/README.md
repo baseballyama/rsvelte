@@ -12,6 +12,7 @@ task scheduling live in `../kernel/`.
 | --------------- | -------------------------------------------------------------------- | ---------------------------------- |
 | `command_line/` | People running rsvelte in a terminal, and toolchain developers       | The native `rsvelte` executable    |
 | `browser/`      | Developers embedding rsvelte in a web page; currently the Learn site | JavaScript bindings to WebAssembly |
+| `site/`         | The site's build (`apps/site/scripts/generate.ts`)                   | Executables that print figure data |
 
 ## Command line
 

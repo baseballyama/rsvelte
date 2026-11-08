@@ -10,14 +10,6 @@ publish.workspace = true
 name = "rsvelte"
 path = "src/main.rs"
 
-[[example]]
-name = "export_site_layers"
-path = "tools/export_site_layers.rs"
-
-[[example]]
-name = "export_site_source_maps"
-path = "tools/export_site_source_maps.rs"
-
 [features]
 lint-typed = ["dep:rsvelte_svelte_lint_typed"]
 metrics = ["rsvelte_kernel/metrics"]

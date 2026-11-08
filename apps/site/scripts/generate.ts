@@ -35,17 +35,9 @@ const rev = run('git', ['rev-parse', 'HEAD']).trim();
 // Untracked files (test outputs) cannot change what cargo builds; tracked edits can.
 const dirty =
 	run('git', ['status', '--porcelain', '--untracked-files=no', '--', 'crates']).trim() !== '';
-const examples = ['export_site_source_maps', 'export_site_layers'];
-run('cargo', [
-	'build',
-	'-q',
-	'--release',
-	'-p',
-	'rsvelte_command_line',
-	...examples.flatMap((e) => ['--example', e]),
-]);
-const example = (name: string, args: string[]) =>
-	run(path.join(root, 'target/release/examples', name), args);
+run('cargo', ['build', '-q', '--release', '-p', 'rsvelte_site', '--bins']);
+const exporter = (name: string, args: string[]) =>
+	run(path.join(root, 'target/release', name), args);
 
 const samples = [
 	{
@@ -61,7 +53,7 @@ for (const s of samples) {
 	copyFileSync(path.join(root, s.fixture), input);
 	for (const target of ['client', 'server']) {
 		const data = {
-			...JSON.parse(example('export_site_source_maps', [input, target])),
+			...JSON.parse(exporter('export_site_source_maps', [input, target])),
 			fixture: s.fixture,
 			file: s.file,
 			target,
@@ -79,7 +71,7 @@ rmSync(tmp, { recursive: true });
 mkdirSync(path.join(out, 'layers'), { recursive: true });
 writeFileSync(
 	path.join(out, 'layers/Toolbar.json'),
-	example('export_site_layers', [path.join(site, 'src/lib/data/layers/Toolbar.svelte.txt')]),
+	exporter('export_site_layers', [path.join(site, 'src/lib/data/layers/Toolbar.svelte.txt')]),
 );
 console.log(
 	`generated/ from ${rev.slice(0, 10)}${dirty ? ' with uncommitted changes in crates/' : ''}`,
