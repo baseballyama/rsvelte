@@ -10,7 +10,7 @@
 //! insertion-ordered map: which helpers the import names, and in which order, falls out of exactly
 //! when each transform adds and removes one.
 
-use rsvelte_kernel::diagnostics::diagnostic::Unsupported;
+use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_typescript::copy::{Rewrite, Verbatim, copy};
 use rsvelte_typescript::operators::{

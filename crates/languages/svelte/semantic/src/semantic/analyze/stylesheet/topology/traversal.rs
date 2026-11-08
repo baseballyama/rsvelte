@@ -1,4 +1,4 @@
-use rsvelte_kernel::source::index::TypedIndex;
+use rsvelte_kernel::index::TypedIndex;
 use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::CompilerNodeIdentifier;
 
 use super::super::worklist::Worklist;

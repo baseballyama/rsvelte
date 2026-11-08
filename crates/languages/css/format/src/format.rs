@@ -1,6 +1,6 @@
 //! Prints a style sheet the way prettier's postcss printer does, for the subset the parser reads.
 
-use rsvelte_kernel::diagnostics::diagnostic::Unsupported;
+use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_stylesheet::syntax_tree::{Rule, RuleKind, StyleSheet};
 

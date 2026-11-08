@@ -3,7 +3,7 @@
 //! Early rules read the surface tree, late rules the HIR; both read the one parse and the one name
 //! resolution the compiler uses.
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_lint_runner::rules::{Findings, Rule};
 use rsvelte_markup::button_type::{Allowed, Problem, check_static};
 use rsvelte_svelte::compilation::compiler_syntax_tree::{AttributeValue, CompilerSyntaxTree};

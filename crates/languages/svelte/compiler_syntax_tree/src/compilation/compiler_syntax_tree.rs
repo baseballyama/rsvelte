@@ -4,8 +4,8 @@ mod builder;
 
 use builder::Either;
 pub use builder::{spelled_text, text};
+use rsvelte_kernel::index::{IndexRange, IndexVector};
 use rsvelte_kernel::newtype_index;
-use rsvelte_kernel::source::index::{IndexRange, IndexVector};
 use rsvelte_kernel::source::positions::Span;
 pub use rsvelte_svelte_syntax::names::is_component_name;
 pub use rsvelte_svelte_syntax::syntax_tree::Part;

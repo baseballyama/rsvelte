@@ -6,8 +6,8 @@
 //! because the upstream plugins differ: svelte-eslint-parser puts `{#each}` names in the scope core
 //! rules read, while Vue's `v-for` names are reported by `vue/no-unused-variables` instead.
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
-use rsvelte_kernel::source::index::TypedIndex;
+use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript::operators::AssignmentOperator;
 use rsvelte_typescript::scope::{BindingIdentifier, DeclarationKind, Reference, Semantic};

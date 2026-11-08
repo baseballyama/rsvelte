@@ -1,4 +1,4 @@
-use rsvelte_kernel::diagnostics::diagnostic::Severity;
+use rsvelte_kernel::diagnostics::Severity;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Configuration {

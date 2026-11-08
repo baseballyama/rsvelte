@@ -1,4 +1,4 @@
-use rsvelte_kernel::source::index::TypedIndex;
+use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte::semantic::resolve::Resolution;
 use rsvelte_svelte::syntax::syntax_tree::Component;

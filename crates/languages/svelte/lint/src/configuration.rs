@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use rsvelte_kernel::diagnostics::diagnostic::Severity;
+use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_markup::button_type::Allowed;
 
 #[derive(Clone, Copy, Debug)]

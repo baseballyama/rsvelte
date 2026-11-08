@@ -18,7 +18,7 @@ mod template;
 mod template_chunk;
 mod title;
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_markup::decode_text;
 use rsvelte_svelte::compilation::compiler_syntax_tree::{

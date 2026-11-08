@@ -223,7 +223,7 @@ export const sharedParts: SharedPart[] = [
 		module: 'kernel/source/interning',
 		href: '/learn/kernel/interning',
 	},
-	{ id: 'index', label: '識別番号', module: 'kernel/source/index', href: '/learn/kernel/layers' },
+	{ id: 'index', label: '識別番号', module: 'kernel/index', href: '/learn/kernel/layers' },
 	{
 		id: 'tokens',
 		label: '字句の記録',
@@ -233,7 +233,7 @@ export const sharedParts: SharedPart[] = [
 	{
 		id: 'diagnostics',
 		label: '診断',
-		module: 'kernel/diagnostics/diagnostic',
+		module: 'kernel/diagnostics',
 		href: '/learn/kernel/diagnostics',
 	},
 	{
@@ -249,6 +249,12 @@ export const sharedParts: SharedPart[] = [
 		href: '/learn/kernel/emitter',
 	},
 	{
+		id: 'edits',
+		label: '元の文への編集',
+		module: 'kernel/output/edits',
+		href: '/learn/kernel/emitter',
+	},
+	{
 		id: 'structured_data',
 		label: '構造化データ',
 		module: 'kernel/output/structured_data',
@@ -257,7 +263,7 @@ export const sharedParts: SharedPart[] = [
 	{
 		id: 'task_files',
 		label: 'タスクの出力ファイル',
-		module: 'kernel/output/task_files',
+		module: 'kernel/task_files',
 		href: '/learn/kernel#modules',
 	},
 	{

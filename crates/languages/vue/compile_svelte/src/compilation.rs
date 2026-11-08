@@ -2,7 +2,7 @@ pub(crate) mod context;
 pub(crate) mod script;
 pub(crate) mod template;
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_compile::{CompileInput, Target};
 use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
 

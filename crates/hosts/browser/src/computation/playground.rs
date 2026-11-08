@@ -5,7 +5,7 @@ use rsvelte_kernel::computation::database::{ArtifactAccess, DocumentContext};
 use rsvelte_kernel::computation::pipeline::{self, RunOptions, Sharing};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
-use rsvelte_kernel::diagnostics::diagnostic::{Diagnostic, Severity};
+use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;

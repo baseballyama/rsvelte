@@ -31,7 +31,6 @@ describe('the overview figure draws only what the code shows', () => {
 			'kernel/computation/pipeline',
 			'kernel/computation/database',
 			'kernel/computation/plugins',
-			'kernel/computation/plugins/error',
 			'kernel/computation/registry',
 			'kernel/computation/task',
 			...sharedParts.map((part) => part.module),
@@ -41,7 +40,6 @@ describe('the overview figure draws only what the code shows', () => {
 			'kernel/computation',
 			'kernel/output',
 			'kernel/performance',
-			'kernel/diagnostics',
 			'kernel/lib',
 		]);
 		const modules = sources(path.join(root, 'crates'))

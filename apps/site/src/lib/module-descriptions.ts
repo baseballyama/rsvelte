@@ -1,19 +1,19 @@
 const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	'kernel/source': {
 		title: 'ソースの記録',
-		summary: '文書、位置、名前、字句、構文木の識別番号を扱う機能をまとめます。',
+		summary: '文書、位置、名前、字句を扱う機能をまとめます。',
 	},
 	'kernel/computation': {
 		title: '計算と実行',
 		summary: '計算結果の保存、タスクの定義、処理の登録と実行をまとめます。',
 	},
 	'kernel/diagnostics': {
-		title: '問題の報告',
-		summary: 'どのタスクも使う、エラーや警告の情報をまとめます。',
+		title: 'エラーや警告の情報',
+		summary: '問題の種類、メッセージ、ソース内の位置を記録します。',
 	},
 	'kernel/output': {
 		title: '文字列の出力',
-		summary: 'コードの整形、位置の対応、構造化データの出力をまとめます。',
+		summary: '位置の対応を持つコードの出力、元の文への編集、構造化データの出力をまとめます。',
 	},
 	'kernel/performance': {
 		title: '性能の計測と改善',
@@ -43,7 +43,7 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: '計算結果の保存と再利用',
 		summary: '構文解析などの結果を文書ごとに保存し、複数の処理で共有します。',
 	},
-	'kernel/source/index': {
+	'kernel/index': {
 		title: '型付きの識別番号',
 		summary: '構文木の各要素を番号で参照し、その要素に対応する解析結果を保存します。',
 	},
@@ -69,21 +69,12 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 	'kernel/computation/plugins': {
 		title: 'プラグインの依存関係の検査',
 		summary:
-			'プラグインの名前、版、依存先を登録し、依存先の不足、版の不一致、循環を処理の前に見つけます。',
-	},
-	'kernel/computation/plugins/error': {
-		title: 'プラグインの登録エラー',
-		summary:
-			'空の名前、正しくない版や版の条件、食い違う登録、依存先の重複・不足・版の不一致、循環を区別して報告します。',
+			'プラグインの名前、版、依存先を登録し、依存先の不足、版の不一致、循環を処理の前に見つけて、原因ごとに区別して報告します。',
 	},
 	'kernel/computation/plugins/tests': {
 		title: 'プラグインの依存関係の検査のテスト',
 		summary:
 			'版の条件が Cargo と同じ規則で判定されること、登録の順で結果が変わらないこと、各エラーが原因の名前を示すことを確かめます。',
-	},
-	'kernel/diagnostics/diagnostic': {
-		title: 'エラーや警告の情報',
-		summary: '問題の種類、メッセージ、ソース内の位置を記録します。',
 	},
 	'lint/output': {
 		title: '検査結果の書き出し',
@@ -101,11 +92,15 @@ const moduleDescriptions: Record<string, { title: string; summary: string }> = {
 		title: 'コードの出力と位置の対応',
 		summary: '出力文字列を組み立て、生成した位置と元のソースの位置を対応させます。',
 	},
+	'kernel/output/edits': {
+		title: '元の文への編集',
+		summary: '元の文字列への挿入と削除を集め、一度にまとめて適用します。',
+	},
 	'kernel/output/structured_data': {
 		title: '構造化データの書き出し',
 		summary: '文字列・数値・配列・オブジェクトを、直接テキスト形式に書き出します。',
 	},
-	'kernel/output/task_files': {
+	'kernel/task_files': {
 		title: 'タスクの出力ファイル',
 		summary: 'タスクが文書ごとに残すファイルの名前と中身を決め、診断を構造化データで書き出します。',
 	},

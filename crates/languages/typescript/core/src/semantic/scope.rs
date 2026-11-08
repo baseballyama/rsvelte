@@ -7,8 +7,8 @@
 //! program's top-level scope, which is what makes script-and-template facts ("is this variable used
 //! anywhere?") one query instead of two analyses.
 
+use rsvelte_kernel::index::{IndexVector, TypedIndex};
 use rsvelte_kernel::newtype_index;
-use rsvelte_kernel::source::index::{IndexVector, TypedIndex};
 use rsvelte_kernel::source::interning::Atom;
 use rsvelte_kernel::source::positions::Span;
 use rustc_hash::FxHashMap;

@@ -10,7 +10,7 @@
 //! mapped; the inserted text is not, so a diagnostic maps back to what was written
 //! ([`Emitter::lookup_overlap`]).
 
-use rsvelte_kernel::diagnostics::diagnostic::Unsupported;
+use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript::scope::ScopeIdentifier;

@@ -1,4 +1,4 @@
-use rsvelte_kernel::diagnostics::diagnostic::Severity;
+use rsvelte_kernel::diagnostics::Severity;
 use serde::Deserialize;
 
 /// A rule's level in lint options, as `ESLint` writes it: `off`, `warn`, `error`, `0`, `1` or `2`.

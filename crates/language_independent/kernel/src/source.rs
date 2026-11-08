@@ -1,7 +1,6 @@
-//! Documents, source positions, names, tokens, and typed indices.
+//! Documents, source positions, names, and tokens.
 
 pub mod document;
-pub mod index;
 pub mod interning;
 pub mod positions;
 pub mod tokens;

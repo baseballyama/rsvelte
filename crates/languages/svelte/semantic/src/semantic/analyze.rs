@@ -1,6 +1,6 @@
 //! Expression metadata, template dynamics, and stylesheet usage.
 
-use rsvelte_kernel::source::index::IndexVector;
+use rsvelte_kernel::index::IndexVector;
 use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::CompilerNodeIdentifier;
 use rsvelte_typescript::NodeIdentifier;
 use rustc_hash::{FxBuildHasher, FxHashMap};

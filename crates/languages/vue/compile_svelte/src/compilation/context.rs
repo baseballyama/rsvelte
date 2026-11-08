@@ -1,7 +1,7 @@
 //! What the script and the template translations share: the names svue adds, the runtime helpers
 //! it imports, and the rewrite every user expression goes through.
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::{SourceLocation, Span};
 use rsvelte_svelte_compile::Target;
 use rsvelte_typescript::copy::{Rewrite, copy, copy_node};

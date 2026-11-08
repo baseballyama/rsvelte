@@ -1,7 +1,7 @@
 //! A tolerant subset parser: style rules with selector lists, declarations and at-rules with
 //! either a block of rules or a block of declarations. Anything else is a [`ParseError`].
 
-use rsvelte_kernel::source::index::TypedIndex;
+use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::interning::{Atom, Interner};
 use rsvelte_kernel::source::positions::Span;
 use rustc_hash::FxHashMap;

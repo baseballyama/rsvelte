@@ -9,7 +9,7 @@
 //! client mirrors what Svelte's DOM updates do (`set_text`, `set_attribute`, `set_value`, the
 //! binding effects), the server what its renderer prints (`escape`, `attr`, `stringify`).
 
-use rsvelte_kernel::source::index::TypedIndex;
+use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::positions::{SourceLocation, Span};
 use rsvelte_svelte::compilation::compiler_syntax_tree::{
     Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,

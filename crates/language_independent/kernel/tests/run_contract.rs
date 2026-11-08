@@ -5,8 +5,9 @@ use rsvelte_kernel::computation::database::{Artifact, ArtifactRegistry, Document
 use rsvelte_kernel::computation::pipeline::{DocumentResult, RunOptions, Sharing, run, run_each};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{FinishTask, Part, Task, TaskOutput};
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_kernel::{Diagnostic, Span};
+use rsvelte_kernel::source::positions::Span;
 
 struct Length;
 

@@ -14,8 +14,8 @@
 
 use std::process::ExitCode;
 
+use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
-use rsvelte_kernel::source::index::TypedIndex;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_svelte::compilation::compiler_syntax_tree::{
     self, AttributeValue, Children, CompilerSyntaxTree, ElementKind, NodeKind,

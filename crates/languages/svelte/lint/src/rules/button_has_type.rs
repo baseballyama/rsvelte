@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_markup::button_type::{Allowed, Problem, check_static};
 use rsvelte_svelte::syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode,

@@ -157,7 +157,7 @@ impl Fixtures {
     /// As [`Fixtures::snapshot`].
     #[must_use]
     pub fn not_implemented(self, task: &'static str) -> Self {
-        let (_, variant) = rsvelte_kernel::output::task_files::location(task);
+        let (_, variant) = rsvelte_kernel::task_files::location(task);
         self.add(task, variant, false)
     }
 
@@ -319,7 +319,7 @@ impl Fixtures {
             .snapshots
             .iter()
             .map(|s| {
-                let (task, variant) = rsvelte_kernel::output::task_files::location(s.task);
+                let (task, variant) = rsvelte_kernel::task_files::location(s.task);
                 format!("{task}/{variant}")
             })
             .collect();

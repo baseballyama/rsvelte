@@ -1,5 +1,5 @@
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte::compilation::compiler_syntax_tree::NodeKind;
 use rsvelte_svelte::{Normalized, Parsed, Resolved};
 

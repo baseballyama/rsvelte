@@ -1,5 +1,5 @@
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte::{Parsed, Resolved};
 
 use crate::computation::Parents;

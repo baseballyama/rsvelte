@@ -1,4 +1,4 @@
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript::NodeIdentifier;
 use rsvelte_typescript::parser::parse_parameters;

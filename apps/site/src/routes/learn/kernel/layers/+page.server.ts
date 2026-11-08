@@ -18,10 +18,10 @@ function layouts() {
 export const load = () => ({
 	layouts: layouts(),
 	code: excerpts({
-		index: 'kernel/source/index/TypedIndex',
-		newtype: 'kernel/source/index/newtype_index!',
-		indexVec: 'kernel/source/index/IndexVector',
-		fromElem: 'kernel/source/index/IndexVector::from_element_n',
+		index: 'kernel/index/TypedIndex',
+		newtype: 'kernel/index/newtype_index!',
+		indexVec: 'kernel/index/IndexVector',
+		fromElem: 'kernel/index/IndexVector::from_element_n',
 		lossless: 'kernel/source/tokens/Tokens::check_lossless',
 		before: 'kernel/source/tokens/Tokens::before',
 		tk: 'svelte/syntax/syntax_tree/TokenType',

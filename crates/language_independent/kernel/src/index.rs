@@ -45,7 +45,7 @@ macro_rules! newtype_index {
             )*
         }
 
-        impl $crate::source::index::TypedIndex for $name {
+        impl $crate::index::TypedIndex for $name {
             #[inline]
             fn new(i: usize) -> Self {
                 // `i + 1` wraps to zero exactly when `i` is `u32::MAX`, so one test covers both.

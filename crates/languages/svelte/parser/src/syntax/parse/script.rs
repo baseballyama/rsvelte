@@ -1,4 +1,4 @@
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Script, Style, TagAttributes, TokenType};
 use rsvelte_typescript::parser::parse_program;

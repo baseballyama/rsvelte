@@ -11,11 +11,7 @@ export const load = () => {
 			lines: m.lines,
 			title: moduleDescription(m.key).title,
 			summary: moduleDescription(m.key).summary,
-			chapter: chapters.find(
-				(c) =>
-					c.module === m.key ||
-					(c.slug === 'diagnostics' && m.key === 'kernel/diagnostics/diagnostic'),
-			),
+			chapter: chapters.find((c) => c.module === m.key),
 		}));
 	return {
 		modules,

@@ -6,7 +6,7 @@
 mod style;
 pub mod template;
 
-use rsvelte_kernel::diagnostics::diagnostic::Unsupported;
+use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_typescript::copy::{Rewrite, Verbatim, copy};
 use rsvelte_typescript::scope::{DeclarationKind, ScopeIdentifier};

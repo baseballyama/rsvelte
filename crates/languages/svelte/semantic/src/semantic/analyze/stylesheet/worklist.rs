@@ -1,5 +1,5 @@
+use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::performance::buffer_pool;
-use rsvelte_kernel::source::index::TypedIndex;
 
 const INLINE_CAPACITY: usize = 4;
 
@@ -53,8 +53,8 @@ impl<I: TypedIndex> Drop for Worklist<I> {
 
 #[cfg(test)]
 mod tests {
+    use rsvelte_kernel::index::TypedIndex;
     use rsvelte_kernel::newtype_index;
-    use rsvelte_kernel::source::index::TypedIndex;
 
     use super::{INLINE_CAPACITY, Worklist};
 

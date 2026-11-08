@@ -19,7 +19,7 @@ describe('parseRustModule', () => {
 		expect(lookup?.docs).toMatch(/greatest lower bound/);
 		expect(lookup?.code.split('\n').at(-1)?.trim()).toBe('}');
 		expect(m.items.map((i) => i.name)).toContain('impl Emitter');
-		expect(m.docs).toMatch(/^Producing text/);
+		expect(m.docs).toMatch(/^Generated text/);
 	});
 
 	it('finds macros, including exported ones', () => {

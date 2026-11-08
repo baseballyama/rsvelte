@@ -1,7 +1,7 @@
 //! Target independent render regions, fixed before JavaScript lowering.
 
+use rsvelte_kernel::index::IndexVector;
 use rsvelte_kernel::newtype_index;
-use rsvelte_kernel::source::index::IndexVector;
 use rsvelte_svelte::compilation::compiler_syntax_tree::{
     AttributeValue, Children, ElementKind, MetadataTag, NodeKind,
 };

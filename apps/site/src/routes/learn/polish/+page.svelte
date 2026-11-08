@@ -304,7 +304,7 @@
 		'P3',
 		'範囲の検査が debug ビルドだけだった',
 		'fixed',
-		'output/emitter.rs · Edits::apply_in、lint/rules.rs · run、check/report.rs · parse_report',
+		'output/edits.rs · Edits::apply_in、lint/rules.rs · run、check/report.rs · parse_report',
 	)}
 	<p>
 		<code>Edits</code> の重なりと範囲、lint ルールが自分の識別番号で報告しているかは、release
@@ -424,12 +424,7 @@
 		>）。
 	</p>
 
-	{@render item(
-		'C3',
-		'Unsupported が場所を持たなかった',
-		'fixed',
-		'diagnostics/diagnostic.rs · Unsupported',
-	)}
+	{@render item('C3', 'Unsupported が場所を持たなかった', 'fixed', 'diagnostics.rs · Unsupported')}
 	<p>
 		<code>Unsupported</code> は拒否した構文の <Term name="SourceLocation" /> を持ち、整形と型検査の型検査用のコードの診断はその構文を指します。位置を持たないのは文書全体についての判断（一行に収まらないレイアウト）だけで、それは
 		<code>nowhere</code> と明示します。スタイルシートの整形も同じ型に揃えました（<a

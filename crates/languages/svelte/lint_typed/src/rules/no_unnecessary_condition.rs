@@ -1,5 +1,5 @@
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::diagnostics::diagnostic::{Diagnostic, Severity};
+use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rules::Rule;
 use rsvelte_svelte::Parsed;

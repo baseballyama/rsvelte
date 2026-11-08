@@ -1,4 +1,4 @@
-use rsvelte_kernel::source::index::IndexVector;
+use rsvelte_kernel::index::IndexVector;
 use rsvelte_typescript::scope::{BindingIdentifier, Semantic};
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 

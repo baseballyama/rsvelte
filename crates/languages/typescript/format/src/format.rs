@@ -16,7 +16,7 @@
 //! when that text is a plain type reference (`Props`, `string`, `a.B[]`).
 
 use rsvelte_document_printer::{LayoutInstructionIdentifier, LayoutInstructions};
-pub use rsvelte_kernel::diagnostics::diagnostic::Unsupported;
+pub use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_typescript::operators::{BinaryOperator, LogicalOperator, UnaryOperator};
 use rsvelte_typescript::syntax_tree::{

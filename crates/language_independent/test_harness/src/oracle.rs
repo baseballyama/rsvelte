@@ -10,7 +10,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use rsvelte_kernel::output::task_files;
+use rsvelte_kernel::task_files;
 use serde::Deserialize;
 
 use crate::javascript::{self, Unparsed};

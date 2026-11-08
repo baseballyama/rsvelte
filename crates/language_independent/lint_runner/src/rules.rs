@@ -1,6 +1,6 @@
 //! Language rules share execution and ordering without depending on each other.
 
-use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::measurement;
 
 pub trait Rule<C: ?Sized>: Send + Sync {

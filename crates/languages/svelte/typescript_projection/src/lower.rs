@@ -1,6 +1,6 @@
 mod contract;
 
-use rsvelte_kernel::diagnostics::diagnostic::Unsupported;
+use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, Range, TemplateNode,
