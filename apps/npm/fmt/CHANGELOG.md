@@ -1,5 +1,13 @@
 # @rsvelte/fmt
 
+## 0.7.26
+
+### Patch Changes
+
+- 07c064c: fix(fmt): an overflowing array / object attribute value (`items={[{ … }]}`) now lays its elements out at the full width once it breaks, as prettier-plugin-svelte does, instead of also breaking elements that fit; and prose beside a `{@render …}` tag now wraps like other text, letting a line overflow by its last word where prettier does.
+- 58ffa79: Upgrade the oxc crates from 0.149 to 0.157 (and `rsvelte-fmt`'s embedded `oxc_formatter` / `oxc_formatter_css` to the matching 0.75 release). Parse errors keep acorn's wording and offsets where oxc's parser now reports first: a nested `import` / `export` declaration still says `'import' and 'export' may only appear at the top level`, a TypeScript-only class-member modifier in a plain-JavaScript script is still rejected at the token after it, and an optional class member (`x?`, `m?()`) in plain JavaScript is `Unexpected token` at the `?`. An HTML-like comment (`<!--` / `-->`, script-mode only) is still printed as a line comment. `rsvelte-fmt` now formats a `font-family` list with a `-`-prefixed member (`-apple-system`) by filling to the print width instead of breaking one item per line, and opens an over-wide `calc()` parenthesized operand the way Prettier does.
+- 72a8f07: fix(fmt): a quoted `style:` directive value now prints its text the way prettier-plugin-svelte does, as a `fill` of its words: whitespace runs (including a line break inside the text) collapse to one space that breaks at the print width, and a line break at the edge of a text chunk becomes a line break at the attribute indent. Regular attributes and `style:` directives inside `<pre>` / `<textarea>` keep their text verbatim.
+
 ## 0.7.25
 
 ### Patch Changes
@@ -251,7 +259,7 @@
   parent layout, is now touched.
 - b33ddfa: Keep prose fill running across `<!-- prettier-ignore -->`'d inline nodes. An ignore comment
   glued directly to a single-line inline node (e.g. `text <!-- prettier-ignore --><b>a  b</b>
-more text`) used to end the prose run, so the whole surrounding paragraph was emitted on one
+  more text`) used to end the prose run, so the whole surrounding paragraph was emitted on one
   unwrapped line. The pair is now treated as a single verbatim atom of the fill: its own source
   is still preserved byte-for-byte, but the text around it reflows normally.
 
@@ -295,10 +303,10 @@ more text`) used to end the prose run, so the whole surrounding paragraph was em
   its interpreter by reading the _target file's shebang at shim-generation
   time_ — before `postinstall` has necessarily run. If that read sees this
   file's original `#!/usr/bin/env node` shebang, pnpm bakes `exec node
-".../bin/rsvelte-fmt" "$@"` into the shim permanently. `postinstall`'s later
+  ".../bin/rsvelte-fmt" "$@"` into the shim permanently. `postinstall`'s later
   swap to a native Mach-O/ELF binary then makes that baked-in Node try to parse
   binary bytes as JS: `SyntaxError: Invalid or unexpected token` on `pnpm exec
-rsvelte-fmt` (the same bug fixed for `@rsvelte/lint` in #1723 / #1726).
+  rsvelte-fmt` (the same bug fixed for `@rsvelte/lint` in #1723 / #1726).
 
   `bin/rsvelte-fmt` is now always the Node launcher (never mutated at install
   time); it already resolves and execs the platform-native binary itself,
@@ -431,7 +439,7 @@ rsvelte-fmt` (the same bug fixed for `@rsvelte/lint` in #1723 / #1726).
 
   Template literals with `${…}` interpolations are sorted per static quasi; the
   token abutting an interpolation is pinned (`cn(\`flex m-2 ${x}\`)`keeps its
-structure), matching`prettier-plugin-tailwindcss`.
+  structure), matching`prettier-plugin-tailwindcss`.
 
   Sorting routes through the same class sorter as static attributes, so the native
   (zero-config) and Node-sidecar (custom-config) paths both apply. The default path
@@ -488,7 +496,7 @@ structure), matching`prettier-plugin-tailwindcss`.
   are fixed (both pre-existing, no effect on the default `false`):
 
   - a deliberate whitespace-only inline element in prose (`<p>text <span>   </span>
-text</p>`) now keeps prettier's non-hug body (`<span> </span>`) instead of
+    text</p>`) now keeps prettier's non-hug body (`<span> </span>`) instead of
     collapsing to the source-empty hug form — the source whitespace is told apart
     from the wrap artifact an earlier pass inserts into source-empty wrapped
     elements;
@@ -501,8 +509,8 @@ text</p>`) now keeps prettier's non-hug body (`<span> </span>`) instead of
 - 54debca: fix(formatter): break a prose expression/render tag's call arguments in place
 
   A long call inside an expression or render tag in prose (`… LineChart. {format(
-chartData.length,
-)} data points`) was treated as an atomic fill word, so rsvelte wrapped at the
+  chartData.length,
+  )} data points`) was treated as an atomic fill word, so rsvelte wrapped at the
   word boundary before it instead of breaking the call's arguments in place and
   gluing the following word to the `)}` line. Prettier builds such a paragraph as
   fill + expression-tag concat + fill — the tag sits outside the fill with its own
@@ -621,7 +629,7 @@ chartData.length,
 - f95de6d: fix(fmt): exit 2 with oxfmt's own message when no files match, instead of a false success
 
   `rsvelte-fmt` now exits 2 with `Expected at least one target file. All
-matched files may have been excluded by ignore rules.` — the same exit code
+  matched files may have been excluded by ignore rules.` — the same exit code
   and message `oxfmt` gives when it finds nothing to format. This covers a
   genuinely empty directory as well as a tree whose only files are excluded by
   `.gitignore`/`.prettierignore` or don't match any supported extension.
@@ -1043,7 +1051,7 @@ matched files may have been excluded by ignore rules.` — the same exit code
     minimal break point.
   - The trailing-width estimate summed _all_ following literal text, including text
     on later physical lines of a multi-line string value (`style="…\n\twidth: {r *
-2}px;\n…"`), so a trivial `{r * 2}` was force-broken to fit a phantom-long line.
+    2}px;\n…"`), so a trivial `{r * 2}` was force-broken to fit a phantom-long line.
     Trailing width now stops at the next newline.
 
   Net: 9 real-world corpus files (cmsaasstarter, layercake, …) now format
@@ -1657,7 +1665,7 @@ matched files may have been excluded by ignore rules.` — the same exit code
   Three formatter bugs that together blocked formatting most real `.svelte` files:
   - **Shorthand attribute corruption (#679):** a `{name}` shorthand attribute's
     `ExpressionTag` spans only the identifier (matching upstream `start: id.start,
-end: id.end`), with no surrounding braces. The formatter unconditionally
+    end: id.end`), with no surrounding braces. The formatter unconditionally
     sliced one byte off each end of the span, so `{width}` was silently rewritten
     to `width={idt}` and the 1-char `{x}` to `x={}` — undefined-identifier
     references emitted with exit 0. Brace-stripping now only happens when braces
