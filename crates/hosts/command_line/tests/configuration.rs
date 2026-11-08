@@ -119,6 +119,51 @@ fn node_config_callbacks_reach_client_server_and_stylesheet_output() {
 }
 
 #[test]
+fn a_node_function_is_a_lint_rule_with_options_and_utf16_ranges() {
+    let project = Project::new();
+    // JavaScript counts the emoji as two code units and Rust as four bytes.
+    project.write("Input.svelte", "<p>😀Hi</p>");
+    project.write(
+        "config.mjs",
+        "
+        export default {plugins: {'svelte.lint': {
+            plugins: {project: {'no-word': ({path, source, options}) => {
+                const [{word}] = JSON.parse(options);
+                const start = source.indexOf(word);
+                return JSON.stringify([{
+                    message: `${word} in ${path}`,
+                    range: [start, start + word.length],
+                }]);
+            }}},
+            rules: {'project/no-word': ['warn', {word: 'Hi'}]},
+        }}};
+    ",
+    );
+    let output = project.run(&[
+        "--config",
+        "config.mjs",
+        "--config-loader",
+        "node",
+        "--task",
+        "svelte.lint/default",
+    ]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let output = String::from_utf8(output.stdout).expect("UTF-8");
+    assert!(output.contains(r#""rule": "project/no-word""#), "{output}");
+    assert!(
+        output.contains(r#""message": "Hi in Input.svelte""#),
+        "{output}"
+    );
+    // `Hi` starts at UTF-16 column 6 and ends at 8.
+    assert!(output.contains(r#""column": 6"#), "{output}");
+    assert!(output.contains(r#""column": 8"#), "{output}");
+}
+
+#[test]
 fn command_line_options_replace_a_plugins_options_from_the_file() {
     let project = Project::new();
     project.write(

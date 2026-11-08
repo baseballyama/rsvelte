@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
@@ -5,30 +7,52 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
 
 use crate::Configuration;
-use crate::computation::{LintConfiguration, Parents};
+use crate::computation::{LintConfiguration, ModuleParents, Parents};
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.lint",
     version: env!("CARGO_PKG_VERSION"),
-    dependencies: &[Dependency {
-        identifier: "svelte",
-        requirement: concat!("=", env!("CARGO_PKG_VERSION")),
-    }],
+    dependencies: &[
+        Dependency {
+            identifier: "svelte",
+            requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+        },
+        Dependency {
+            identifier: "typescript",
+            requirement: concat!("=", env!("CARGO_PKG_VERSION")),
+        },
+    ],
 };
 
+/// Turns on `svelte.lint/default` with the default rules.
 pub fn register(registry: &mut Registry) {
     register_artifacts(registry);
-    registry.task(Lint);
+    registry.task(Lint { modules: false });
 }
 
 pub fn register_artifacts(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
     rsvelte_svelte::register(registry);
-    registry.artifact::<Parents>();
+    rsvelte_typescript::register(registry);
+    registry.artifact::<Parents>().artifact::<ModuleParents>();
+}
+
+/// Turns on `svelte.lint/default` with `configuration`. It lints modules only when a configured
+/// rule runs on them.
+pub fn register_with_configuration(registry: &mut Registry, configuration: Configuration) {
+    register_artifacts(registry);
+    registry.task(Lint {
+        modules: configuration.lints_modules(),
+    });
+    let configuration = Arc::new(configuration);
+    registry.provide::<LintConfiguration>("svelte", |_| true, move |_| Arc::clone(&configuration));
 }
 
 #[derive(Debug)]
-pub struct Lint;
+pub struct Lint {
+    /// Whether JavaScript and TypeScript modules are linted, besides components.
+    pub modules: bool,
+}
 
 impl Task for Lint {
     fn identifier(&self) -> &'static str {
@@ -36,14 +60,15 @@ impl Task for Lint {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_svelte::matches(document)
+        rsvelte_svelte::matches(document) || (self.modules && rsvelte_typescript::matches(document))
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        let default = Configuration::default();
         let configuration = context
             .facet::<LintConfiguration>()
-            .map_or(&default, |configuration| configuration.as_ref());
+            .map_or(&*crate::configuration::DEFAULT, |configuration| {
+                configuration.as_ref()
+            });
         let findings = match crate::lint::lint(context, configuration) {
             Ok(findings) => findings,
             Err(error) => {
@@ -51,22 +76,16 @@ impl Task for Lint {
                 return;
             }
         };
-        let rules = configuration.rules();
         out.file(
             "lint.json",
             rsvelte_lint_runner::output::render_json(
                 context.line_index(),
-                rules.iter().map(|rule| rule.name()),
+                configuration
+                    .rules()
+                    .iter()
+                    .map(crate::ConfiguredRule::name),
                 &findings,
             ),
         );
     }
-}
-
-pub fn register_with_configuration(registry: &mut Registry, configuration: Configuration) {
-    register(registry);
-    let configuration = std::sync::Arc::new(configuration);
-    registry.provide::<LintConfiguration>("svelte", rsvelte_svelte::matches, move |_| {
-        std::sync::Arc::clone(&configuration)
-    });
 }

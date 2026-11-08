@@ -11,11 +11,10 @@ use std::process::ExitCode;
 
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
-use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_markup::button_type::Allowed;
-use rsvelte_svelte_lint::{Configuration, Lint, RuleConfiguration};
+use rsvelte_lint_runner::finding::{Finding, apply_fix, apply_fixes};
+use rsvelte_svelte_lint::{Configuration, LintSettings, SvelteConfig};
 use serde::Deserialize;
 use serde::de::IgnoredAny;
 use serde_json::value::RawValue;
@@ -25,6 +24,15 @@ const UPSTREAM: &str = concat!(
     "/tests/upstream/eslint-plugin-svelte"
 );
 const OWN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/cases");
+/// Cases whose expected output is an upstream bug this crate does not reproduce, by document,
+/// with why. Each is a candidate issue for eslint-plugin-svelte.
+const DEVIATIONS: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/upstream_deviations.json"
+);
+/// Rules whose verdicts are counted but do not fail: type-aware rules do not follow
+/// `svelte-eslint-parser`'s virtual code.
+const TYPED: &[&str] = &["@typescript-eslint/no-unnecessary-condition"];
 
 #[derive(Deserialize)]
 struct Upstream {
@@ -34,10 +42,43 @@ struct Upstream {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CaseConfig {
-    options: Option<Box<RawValue>>,
+    #[serde(default)]
+    options: Vec<Box<RawValue>>,
     #[serde(rename = "languageOptions")]
-    language_options: Option<IgnoredAny>,
-    settings: Option<IgnoredAny>,
+    language_options: Option<LanguageOptions>,
+    settings: Option<CaseSettings>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CaseSettings {
+    svelte: Option<Box<RawValue>>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LanguageOptions {
+    #[serde(rename = "parserOptions")]
+    parser_options: Option<ParserOptions>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ParserOptions {
+    #[serde(rename = "svelteConfig")]
+    svelte_config: Option<CaseSvelteConfig>,
+    /// The parser of `<script>`; this crate has one parser for JavaScript and TypeScript.
+    #[serde(rename = "parser")]
+    _parser: Option<IgnoredAny>,
+    /// `globalReturn`, which changes nothing a rule reports.
+    #[serde(rename = "ecmaFeatures")]
+    _ecma_features: Option<IgnoredAny>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CaseSvelteConfig {
+    kit: Option<rsvelte_svelte_lint::Kit>,
 }
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
@@ -45,30 +86,14 @@ struct ExpectedError {
     message: String,
     line: u32,
     column: u32,
-    suggestions: Option<Vec<IgnoredSuggestion>>,
+    suggestions: Option<Vec<ExpectedSuggestion>>,
 }
 
+/// `loadTestCases` keeps a suggestion's `desc` and `output` alone.
 #[derive(Deserialize, PartialEq, Eq, Debug)]
-struct IgnoredSuggestion {
+struct ExpectedSuggestion {
     desc: String,
     output: String,
-}
-
-#[derive(Deserialize)]
-struct Report {
-    findings: Vec<Finding>,
-}
-
-#[derive(Deserialize)]
-struct Finding {
-    message: String,
-    start: Position,
-}
-
-#[derive(Deserialize)]
-struct Position {
-    line: u32,
-    column: u32,
 }
 
 struct Case<'a> {
@@ -94,8 +119,23 @@ fn main() -> ExitCode {
         "eslint-plugin-svelte {}",
         upstream.versions["eslint-plugin-svelte"]
     );
-    let failed = suite(&label, Path::new(UPSTREAM), &upstream.versions)
-        + suite("this crate's cases", Path::new(OWN), &upstream.versions);
+    let mut deviations: BTreeMap<String, String> =
+        serde_json::from_str(&read(Path::new(DEVIATIONS))).expect("deviations are an object");
+    let mut failed = suite(
+        &label,
+        Path::new(UPSTREAM),
+        &upstream.versions,
+        &mut deviations,
+    ) + suite(
+        "this crate's cases",
+        Path::new(OWN),
+        &upstream.versions,
+        &mut BTreeMap::new(),
+    );
+    for (document, reason) in &deviations {
+        failed += 1;
+        eprintln!("UNKNOWN DEVIATION {document}: no case of an implemented rule ({reason})");
+    }
     if failed == 0 {
         ExitCode::SUCCESS
     } else {
@@ -104,9 +144,14 @@ fn main() -> ExitCode {
 }
 
 /// Runs one fixture tree and returns how many cases of implemented rules did not pass.
-fn suite(label: &str, root: &Path, versions: &BTreeMap<String, String>) -> usize {
+fn suite(
+    label: &str,
+    root: &Path,
+    versions: &BTreeMap<String, String>,
+    deviations: &mut BTreeMap<String, String>,
+) -> usize {
     let cases = cases(root);
-    let mut by_rule: BTreeMap<&str, [usize; 4]> = BTreeMap::new();
+    let mut by_rule: BTreeMap<&str, Counts> = BTreeMap::new();
     let (mut skipped, mut failed, mut not_implemented) = (0, 0, 0);
     for case in &cases {
         if !requirements_hold(&case.input, versions) {
@@ -118,22 +163,35 @@ fn suite(label: &str, root: &Path, versions: &BTreeMap<String, String>) -> usize
             not_implemented += 1;
             continue;
         }
+        let document = case.document();
+        let deviation = deviations.remove(&document);
+        let typed = TYPED.contains(&case.rule.as_str());
         let counts = by_rule.entry(&case.rule).or_default();
-        match verdict {
-            Verdict::NotImplemented => unreachable!("counted above"),
-            Verdict::Pass => counts[0] += 1,
-            Verdict::Fail(detail) => {
-                counts[1] += 1;
+        counts.total += 1;
+        match (verdict, deviation) {
+            (Verdict::NotImplemented, _) => unreachable!("counted above"),
+            (Verdict::Pass, None) => counts.pass += 1,
+            (Verdict::Pass, Some(reason)) => {
+                counts.fail += 1;
                 failed += 1;
-                eprintln!("FAIL {}: {detail}", case.document());
+                eprintln!("STALE DEVIATION {document}: passes, but is listed ({reason})");
             }
-            Verdict::Unmeasured(reason) => {
-                counts[2] += 1;
-                failed += 1;
-                eprintln!("UNMEASURED {}: {reason}", case.document());
+            (Verdict::Fail(_) | Verdict::Unmeasured(_), Some(_)) => counts.deviation += 1,
+            (Verdict::Fail(detail), None) => {
+                counts.fail += 1;
+                if !typed {
+                    failed += 1;
+                }
+                eprintln!("FAIL {document}: {detail}");
+            }
+            (Verdict::Unmeasured(reason), None) => {
+                counts.unmeasured += 1;
+                if !typed {
+                    failed += 1;
+                }
+                eprintln!("UNMEASURED {document}: {reason}");
             }
         }
-        counts[3] += 1;
     }
     let rules: std::collections::BTreeSet<&str> = cases.iter().map(|c| c.rule.as_str()).collect();
     eprintln!(
@@ -142,14 +200,31 @@ fn suite(label: &str, root: &Path, versions: &BTreeMap<String, String>) -> usize
         cases.len(),
         rules.len(),
     );
-    for (rule, [pass, fail, unmeasured, total]) in &by_rule {
-        eprintln!("  {rule}: {pass} of {total} pass, {fail} fail, {unmeasured} unmeasured");
+    for (rule, c) in &by_rule {
+        let typed = if TYPED.contains(rule) {
+            " (typed: not required)"
+        } else {
+            ""
+        };
+        eprintln!(
+            "  {rule}: {} of {} pass, {} fail, {} unmeasured, {} deviate{typed}",
+            c.pass, c.total, c.fail, c.unmeasured, c.deviation
+        );
     }
     assert!(
         !by_rule.is_empty(),
         "{label}: no implemented rule has a case"
     );
     failed
+}
+
+#[derive(Default)]
+struct Counts {
+    pass: usize,
+    fail: usize,
+    unmeasured: usize,
+    deviation: usize,
+    total: usize,
 }
 
 impl Case<'_> {
@@ -307,122 +382,129 @@ fn config(input: &Path, directory: &Path) -> Option<PathBuf> {
     .find(|path| path.exists())
 }
 
-/// The rule as this crate configures it from the case's options.
-fn rule(name: &str, options: Option<&RawValue>) -> RuleConfiguration {
-    #[derive(Deserialize)]
-    #[serde(deny_unknown_fields)]
-    struct ButtonHasType {
-        button: Option<bool>,
-        submit: Option<bool>,
-        reset: Option<bool>,
-    }
-    let severity = Severity::Error;
-    match name {
-        "button-has-type" => {
-            let [options]: [ButtonHasType; 1] = options.map_or(
-                [ButtonHasType {
-                    button: None,
-                    submit: None,
-                    reset: None,
-                }],
-                |raw| serde_json::from_str(raw.get()).expect("button-has-type options"),
-            );
-            RuleConfiguration::ButtonHasType {
-                severity,
-                allowed: Allowed {
-                    button: options.button.unwrap_or(true),
-                    submit: options.submit.unwrap_or(true),
-                    reset: options.reset.unwrap_or(true),
-                },
-            }
-        }
-        "valid-each-key" => {
-            assert!(options.is_none(), "valid-each-key takes no options");
-            RuleConfiguration::ValidEachKey(severity)
-        }
-        _ => unreachable!("{name} is not in IMPLEMENTED"),
-    }
-}
-
-/// Rules this crate implements, by eslint-plugin-svelte's name.
-const IMPLEMENTED: &[&str] = &["button-has-type", "valid-each-key"];
-
 fn run(case: &Case<'_>) -> Verdict {
-    if !IMPLEMENTED.contains(&case.rule.as_str()) {
+    let name = format!("svelte/{}", case.rule);
+    if rsvelte_svelte_lint::definition(&name, &[]).is_none() {
         return Verdict::NotImplemented;
     }
     let directory = case.input.parent().expect("a parent");
-    let parsed = match config(&case.input, directory) {
+    let config = match config(&case.input, directory) {
         Some(path) if path.extension().is_some_and(|e| e == "json") => {
-            Some(serde_json::from_str::<CaseConfig>(&read(&path)).expect("a case configuration"))
+            serde_json::from_str::<CaseConfig>(&read(&path)).expect("a case configuration")
         }
         Some(_) => return Verdict::Unmeasured("a JavaScript configuration".to_owned()),
-        None => None,
+        None => CaseConfig {
+            options: Vec::new(),
+            language_options: None,
+            settings: None,
+        },
     };
-    if let Some(c) = &parsed
-        && (c.language_options.is_some() || c.settings.is_some())
-    {
-        return Verdict::Unmeasured("languageOptions or settings".to_owned());
+    if svelte_config_file(&case.input, case.root).is_some() {
+        return Verdict::Unmeasured("a svelte.config.js".to_owned());
     }
-    let name = case
-        .input
-        .file_name()
-        .and_then(|n| n.to_str())
-        .expect("UTF-8 name");
-    if !name.ends_with(".svelte") {
-        return Verdict::Unmeasured(format!("a {} input", suffix(name)));
+    let mut settings: LintSettings = config
+        .settings
+        .and_then(|s| s.svelte)
+        .map(|raw| serde_json::from_str(raw.get()).expect("svelte settings"))
+        .unwrap_or_default();
+    settings.svelte_config = config
+        .language_options
+        .and_then(|l| l.parser_options)
+        .and_then(|p| p.svelte_config)
+        .map(|c| SvelteConfig { kit: c.kit });
+    let mut configuration = Configuration::new(settings);
+    if let Err(error) = configuration.rule(&name, Severity::Error, &config.options, &[]) {
+        return Verdict::Fail(format!("the options do not configure the rule: {error}"));
     }
-    let configuration = Configuration::new(vec![rule(
-        &case.rule,
-        parsed.as_ref().and_then(|c| c.options.as_deref()),
-    )])
-    .expect("one rule");
-    let Some(report) = lint(case, configuration) else {
-        return Verdict::Fail("the input does not lint".to_owned());
+    let source = read(&case.input);
+    // The path from the upstream package's root, which is where upstream's tests run.
+    let document = Document::new(
+        format!("tests/fixtures/rules/{}", case.document()),
+        source.clone(),
+    )
+    .expect("a fixture is small");
+    let findings = match lint(&document, &configuration) {
+        Ok(findings) => findings,
+        Err(error) => return Verdict::Fail(format!("the input does not lint: {}", error.message)),
     };
-    let report: Report = serde_json::from_str(&report).expect("the lint report is valid");
     let expected: Vec<ExpectedError> = if case.invalid {
         serde_saphyr::from_str(&read(&sibling(&case.input, "errors.yaml")))
             .expect("errors.yaml is valid")
     } else {
         Vec::new()
     };
-    if expected.iter().any(|e| e.suggestions.is_some()) {
-        return Verdict::Fail("suggestions are not implemented".to_owned());
-    }
-    let output = sibling(&case.input, &format!("output.{}", &suffix(name)[1..]));
-    if output.exists() && read(&output) != read(&case.input) {
-        return Verdict::Fail("fixes are not implemented".to_owned());
-    }
-    let actual: Vec<ExpectedError> = report
-        .findings
-        .into_iter()
-        .map(|f| ExpectedError {
-            message: f.message,
-            line: f.start.line,
-            column: f.start.column,
-            suggestions: None,
+    let lines = rsvelte_kernel::source::positions::LineIndex::new(&source);
+    let actual: Vec<ExpectedError> = findings
+        .iter()
+        .map(|f| {
+            let at = lines.line_column(f.diagnostic.span.start_offset);
+            ExpectedError {
+                message: f.diagnostic.message.clone(),
+                line: at.line,
+                column: at.column + 1,
+                suggestions: (!f.suggestions.is_empty()).then(|| {
+                    f.suggestions
+                        .iter()
+                        .map(|s| ExpectedSuggestion {
+                            desc: s.message.clone(),
+                            output: apply_fix(&source, &s.fix),
+                        })
+                        .collect()
+                }),
+            }
         })
         .collect();
-    if actual == expected {
+    // `suggestions: null` and `[]` both expect none.
+    let expected: Vec<ExpectedError> = expected
+        .into_iter()
+        .map(|e| ExpectedError {
+            suggestions: e.suggestions.filter(|s| !s.is_empty()),
+            ..e
+        })
+        .collect();
+    if actual != expected {
+        return Verdict::Fail(format!("expected {expected:#?}, found {actual:#?}"));
+    }
+    // RuleTester: an `output` file holds the fixed code; without one the rule must not fix.
+    let name = case
+        .input
+        .file_name()
+        .and_then(|n| n.to_str())
+        .expect("UTF-8 name");
+    let output = sibling(&case.input, &format!("output.{}", &suffix(name)[1..]));
+    let fixed = apply_fixes(&source, &findings);
+    let wanted = if case.invalid && output.exists() {
+        read(&output)
+    } else {
+        source
+    };
+    if fixed == wanted {
         Verdict::Pass
     } else {
-        Verdict::Fail(format!("expected {expected:?}, found {actual:?}"))
+        Verdict::Fail(format!("expected the fixed code\n{wanted}\nfound\n{fixed}"))
     }
 }
 
-/// The task's `lint.json`, or `None` when the input does not parse.
-fn lint(case: &Case<'_>, configuration: Configuration) -> Option<String> {
+/// A `svelte.config.js` that `svelte-eslint-parser` would load for the input: in its directory or
+/// one above it, up to the fixture root.
+fn svelte_config_file(input: &Path, root: &Path) -> Option<PathBuf> {
+    input
+        .ancestors()
+        .skip(1)
+        .take_while(|directory| directory.starts_with(root) && *directory != root)
+        .map(|directory| directory.join("svelte.config.js"))
+        .find(|path| path.exists())
+}
+
+/// The findings, or the parse error.
+fn lint(
+    document: &Document,
+    configuration: &Configuration,
+) -> Result<Vec<Finding>, rsvelte_kernel::diagnostics::Diagnostic> {
     let mut registry = Registry::new();
-    rsvelte_svelte_lint::register_with_configuration(&mut registry, configuration);
-    let document = Document::new(case.document(), read(&case.input)).ok()?;
-    let context = DocumentContext::new(&document, registry.artifacts());
-    let mut output = TaskOutput::default();
-    Lint.run(&context, &mut output);
-    if !output.diagnostics.is_empty() {
-        return None;
-    }
-    output.files.into_iter().next().map(|file| file.text)
+    rsvelte_svelte_lint::register_artifacts(&mut registry);
+    let context = DocumentContext::new(document, registry.artifacts());
+    rsvelte_svelte_lint::lint(&context, configuration)
 }
 
 fn read(path: &Path) -> String {

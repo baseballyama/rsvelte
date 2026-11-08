@@ -44,3 +44,19 @@ fn an_entry_is_a_level_or_an_array_of_a_level_and_options() {
         .to_string();
     assert!(error.contains("off, warn, error, 0, 1 or 2"), "{error}");
 }
+
+#[test]
+fn an_entry_list_keeps_every_option() {
+    let entry = RuleEntryList::<u64>::deserialize(SeqDeserializer::<_, Error>::new(
+        [1u64, 7, 8].into_iter(),
+    ))
+    .expect("a level and two options");
+    assert_eq!(
+        (entry.level.severity(), entry.options),
+        (Some(Severity::Warning), vec![7, 8])
+    );
+    let empty = RuleEntryList::<u64>::deserialize(SeqDeserializer::<_, Error>::new(
+        std::iter::empty::<u64>(),
+    ));
+    assert!(empty.is_err(), "an entry needs a level");
+}

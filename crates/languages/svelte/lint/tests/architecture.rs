@@ -2,11 +2,16 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_markup::button_type::Allowed;
-use rsvelte_svelte_lint::{Configuration, RuleConfiguration};
+use rsvelte_svelte_lint::{Configuration, LintSettings};
 
-fn configuration(rules: Vec<RuleConfiguration>) -> Configuration {
-    Configuration::new(rules).expect("test rules are unique")
+fn configuration(rules: &[(&str, Severity)]) -> Configuration {
+    let mut configuration = Configuration::new(LintSettings::default());
+    for (name, severity) in rules {
+        configuration
+            .rule(name, *severity, &[], &[])
+            .expect("test rules are unique and known");
+    }
+    configuration
 }
 
 #[test]
@@ -19,24 +24,21 @@ fn disabled_and_syntax_rules_do_not_build_semantic_facts() {
     )
     .expect("valid input");
     let context = DocumentContext::new(&document, registry.artifacts());
-    let disabled = configuration(Vec::new());
+    let disabled = configuration(&[]);
     assert!(
         rsvelte_svelte_lint::lint(&context, &disabled)
             .expect("source parses")
             .is_empty()
     );
     assert_eq!(context.computed(), ["svelte.parse"]);
-    let syntax = configuration(vec![RuleConfiguration::ButtonHasType {
-        severity: Severity::Warning,
-        allowed: Allowed::default(),
-    }]);
+    let syntax = configuration(&[("svelte/button-has-type", Severity::Warning)]);
     let findings = rsvelte_svelte_lint::lint(&context, &syntax).expect("source parses");
     assert_eq!(findings.len(), 1);
-    assert!(matches!(findings[0].severity, Severity::Warning));
+    assert!(matches!(findings[0].diagnostic.severity, Severity::Warning));
     assert_eq!(context.computed(), ["svelte.parse"]);
-    let mixed = configuration(vec![
-        RuleConfiguration::NoUnusedVariables(Severity::Error),
-        syntax.rules()[0],
+    let mixed = configuration(&[
+        ("no-unused-vars", Severity::Error),
+        ("svelte/button-has-type", Severity::Warning),
     ]);
     assert_eq!(
         rsvelte_svelte_lint::lint(&context, &mixed)
@@ -65,7 +67,7 @@ fn a_scope_rule_shares_resolution_and_does_not_request_javascript_parents() {
     )
     .expect("valid input");
     let context = DocumentContext::new(&document, registry.artifacts());
-    let rules = configuration(vec![RuleConfiguration::ValidEachKey(Severity::Error)]);
+    let rules = configuration(&[("svelte/valid-each-key", Severity::Error)]);
     for _ in 0..2 {
         assert_eq!(
             rsvelte_svelte_lint::lint(&context, &rules)
@@ -86,10 +88,18 @@ fn a_scope_rule_shares_resolution_and_does_not_request_javascript_parents() {
 
 #[test]
 fn duplicate_rules_are_rejected_before_execution() {
-    let rule = RuleConfiguration::NoUnusedVariables(Severity::Error);
+    let mut configuration = configuration(&[("no-unused-vars", Severity::Error)]);
     assert_eq!(
-        Configuration::new(vec![rule, rule]).err(),
-        Some("each lint rule may be configured once")
+        configuration
+            .rule("no-unused-vars", Severity::Warning, &[], &[])
+            .err(),
+        Some("rule `no-unused-vars` is configured twice".to_owned())
+    );
+    assert_eq!(
+        configuration
+            .rule("svelte/no-such-rule", Severity::Error, &[], &[])
+            .err(),
+        Some("unknown Svelte lint rule `svelte/no-such-rule`".to_owned())
     );
 }
 
@@ -97,7 +107,7 @@ fn duplicate_rules_are_rejected_before_execution() {
 fn scope_rules_distinguish_shadowed_bindings() {
     let mut registry = Registry::new();
     rsvelte_svelte_lint::register(&mut registry);
-    let rules = configuration(vec![RuleConfiguration::ValidEachKey(Severity::Error)]);
+    let rules = configuration(&[("svelte/valid-each-key", Severity::Error)]);
     for (key, expected) in [("item", 0), ("((item) => item)(0)", 1)] {
         let document = Document::new(
             "test.svelte".to_owned(),

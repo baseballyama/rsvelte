@@ -1,5 +1,6 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_lint_runner::finding::Finding;
 use rsvelte_svelte::Parsed;
 
 use crate::Configuration;
@@ -10,7 +11,7 @@ use crate::Configuration;
 pub fn lint(
     context: &DocumentContext<'_>,
     configuration: &Configuration,
-) -> Result<Vec<Diagnostic>, Diagnostic> {
+) -> Result<Vec<Finding>, Diagnostic> {
     context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
     Ok(configuration
         .no_unnecessary_condition

@@ -119,5 +119,61 @@ impl<'de, O: Deserialize<'de>> Visitor<'de> for EntryVisitor<O> {
     }
 }
 
+/// `ESLint`'s `RuleEntry` for a rule with any number of options: a level alone, or `[level,
+/// ...options]`.
+#[derive(Debug)]
+pub struct RuleEntryList<O> {
+    pub level: Level,
+    pub options: Vec<O>,
+}
+
+impl<'de, O: Deserialize<'de>> Deserialize<'de> for RuleEntryList<O> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_any(ListVisitor(PhantomData))
+    }
+}
+
+struct ListVisitor<O>(PhantomData<O>);
+
+impl<O> ListVisitor<O> {
+    const fn level(level: Level) -> RuleEntryList<O> {
+        RuleEntryList {
+            level,
+            options: Vec::new(),
+        }
+    }
+}
+
+impl<'de, O: Deserialize<'de>> Visitor<'de> for ListVisitor<O> {
+    type Value = RuleEntryList<O>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{LEVELS}, or an array of a level and options")
+    }
+
+    fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+        Level::deserialize(v.into_deserializer()).map(Self::level)
+    }
+
+    fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
+        Level::deserialize(v.into_deserializer()).map(Self::level)
+    }
+
+    fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
+        Level::deserialize(v.into_deserializer()).map(Self::level)
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+        let level = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let mut options = Vec::new();
+        while let Some(option) = seq.next_element()? {
+            options.push(option);
+        }
+        Ok(RuleEntryList { level, options })
+    }
+}
+
 #[cfg(test)]
 mod tests;

@@ -5,8 +5,8 @@
 //! read only in the template is used (vue-eslint-parser marks such a variable used). It judges only
 //! the script's bindings; the `v-for` aliases are `vue/no-unused-variables`' to report.
 
-use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_markup::button_type::{Allowed, Problem, check_static};
@@ -36,7 +36,7 @@ static RULES: &[&VueRule] = &[
 ];
 
 #[must_use]
-pub fn lint(context: &RuleContext<'_>) -> Vec<Diagnostic> {
+pub fn lint(context: &RuleContext<'_>) -> Vec<Finding> {
     let mut f = Findings::new();
     f.run(RULES.iter().copied(), context);
     f.finish()

@@ -5,13 +5,44 @@ use rsvelte_markup::button_type::{Allowed, Problem, check_static};
 use rsvelte_svelte::syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode,
 };
+use serde::Deserialize;
 
-pub(super) fn check(
-    component: &Component,
-    source: &str,
-    allowed: Allowed,
-    reporter: &mut Reporter<'_>,
-) {
+use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+
+pub(super) static RULE: RuleDefinition = RuleDefinition {
+    name: "svelte/button-has-type",
+    files: Files::Components,
+    configure,
+};
+
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Options {
+    button: Option<bool>,
+    submit: Option<bool>,
+    reset: Option<bool>,
+}
+
+fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
+    let options: Options = options.single()?;
+    Ok(Box::new(ButtonHasType(Allowed {
+        button: options.button.unwrap_or(true),
+        submit: options.submit.unwrap_or(true),
+        reset: options.reset.unwrap_or(true),
+    })))
+}
+
+#[derive(Debug)]
+struct ButtonHasType(Allowed);
+
+impl SvelteRule for ButtonHasType {
+    fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
+        let component = file.component().expect("a component rule");
+        check(component, file.source(), self.0, reporter);
+    }
+}
+
+fn check(component: &Component, source: &str, allowed: Allowed, reporter: &mut Reporter<'_>) {
     for node in &component.nodes {
         let TemplateNode::Element {
             name,

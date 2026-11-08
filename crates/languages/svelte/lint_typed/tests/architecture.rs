@@ -6,7 +6,6 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::Task;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_markup::button_type::Allowed;
 use rsvelte_svelte_lint_typed::Configuration;
 use rsvelte_svelte_lint_typed::computation::ConditionTypes;
 use rsvelte_svelte_lint_typed::types::{ConditionType, TypeFacts};
@@ -78,7 +77,7 @@ fn a_missing_type_provider_reports_the_requirement() {
     let findings = rsvelte_svelte_lint_typed::lint(&context, &rules).expect("source parses");
     assert_eq!(findings.len(), 1);
     assert_eq!(
-        findings[0].message,
+        findings[0].diagnostic.message,
         "This rule requires a condition type provider."
     );
     assert_eq!(context.computed(), ["svelte.parse"]);
@@ -109,16 +108,13 @@ fn typed_lint_registers_dependencies_without_enabling_their_tasks() {
 #[test]
 fn normal_and_typed_lint_share_parsing_and_keep_separate_configurations() {
     use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
-    use rsvelte_svelte_lint::RuleConfiguration;
     let mut registry = Registry::new();
-    rsvelte_svelte_lint::register_with_configuration(
-        &mut registry,
-        rsvelte_svelte_lint::Configuration::new(vec![RuleConfiguration::ButtonHasType {
-            severity: Severity::Error,
-            allowed: Allowed::default(),
-        }])
-        .expect("unique rules"),
-    );
+    let mut normal =
+        rsvelte_svelte_lint::Configuration::new(rsvelte_svelte_lint::LintSettings::default());
+    normal
+        .rule("svelte/button-has-type", Severity::Error, &[], &[])
+        .expect("a known rule");
+    rsvelte_svelte_lint::register_with_configuration(&mut registry, normal);
     rsvelte_svelte_lint_typed::register_with_configuration(
         &mut registry,
         Configuration {
@@ -132,15 +128,19 @@ fn normal_and_typed_lint_share_parsing_and_keep_separate_configurations() {
         )
         .expect("valid source");
     let context = DocumentContext::new(&document, registry.artifacts());
-    let mut normal = rsvelte_kernel::computation::task::TaskOutput::default();
+    let mut normal_output = rsvelte_kernel::computation::task::TaskOutput::default();
     let mut typed = rsvelte_kernel::computation::task::TaskOutput::default();
-    rsvelte_svelte_lint::Lint.run(&context, &mut normal);
+    rsvelte_svelte_lint::Lint { modules: false }.run(&context, &mut normal_output);
     assert_eq!(
         context.computed(),
         ["svelte.lint.configuration", "svelte.parse"]
     );
     rsvelte_svelte_lint_typed::Lint.run(&context, &mut typed);
-    assert!(normal.files[0].text.contains("svelte/button-has-type"));
+    assert!(
+        normal_output.files[0]
+            .text
+            .contains("svelte/button-has-type")
+    );
     assert!(typed.files[0].text.contains("always truthy"));
     assert_eq!(
         context
@@ -157,7 +157,7 @@ fn normal_and_typed_lint_share_parsing_and_keep_separate_configurations() {
         },
     )
     .expect("source parses");
-    assert!(matches!(findings[0].severity, Severity::Warning));
+    assert!(matches!(findings[0].diagnostic.severity, Severity::Warning));
     let results = run(
         &registry,
         std::slice::from_ref(&document),

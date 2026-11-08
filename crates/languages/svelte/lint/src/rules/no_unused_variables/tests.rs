@@ -11,7 +11,10 @@ fn lint(source_text: &str) -> String {
     let context = DocumentContext::new(&document, registry.artifacts());
     let configuration = crate::Configuration::default();
     let findings = crate::lint(&context, &configuration).expect("source parses");
-    let rules = configuration.rules().iter().map(|rule| rule.name());
+    let rules = configuration
+        .rules()
+        .iter()
+        .map(crate::ConfiguredRule::name);
     rsvelte_lint_runner::output::render_json(&LineIndex::new(source_text), rules, &findings)
 }
 

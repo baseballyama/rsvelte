@@ -1,25 +1,36 @@
-use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte::{Parsed, Resolved};
 
-use crate::computation::Parents;
+use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 #[cfg(test)]
 mod tests;
 
-pub(super) fn check(context: &DocumentContext<'_>, reporter: &mut Reporter<'_>) {
-    let component = context
-        .get::<Parsed>()
-        .as_ref()
-        .expect("lint checks parsing first");
-    let resolution = context
-        .get::<Resolved>()
-        .as_ref()
-        .expect("a parsed component resolves");
+/// `ESLint`'s core rule over a component; `typescript.lint` owns it for modules.
+pub(super) static RULE: RuleDefinition = RuleDefinition {
+    name: "no-unused-vars",
+    files: Files::Components,
+    configure,
+};
+
+fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
+    options.none()?;
+    Ok(Box::new(NoUnusedVariables))
+}
+
+#[derive(Debug)]
+struct NoUnusedVariables;
+
+impl SvelteRule for NoUnusedVariables {
+    fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
+        check(file, reporter);
+    }
+}
+
+fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let facts = rsvelte_typescript_lint::JavaScriptFacts {
-        syntax_tree: &component.javascript,
-        sem: &resolution.sem,
-        parents: context.get::<Parents>(),
+        syntax_tree: file.javascript(),
+        sem: file.semantic(),
+        parents: file.parents(),
     };
     rsvelte_typescript_lint::no_unused_variables(&facts, |_| true, reporter);
 }

@@ -30,3 +30,22 @@ impl Artifact for Parents {
             .parents()
     }
 }
+
+/// [`Parents`] of a JavaScript or TypeScript module.
+#[derive(Debug)]
+pub(crate) struct ModuleParents;
+
+impl Artifact for ModuleParents {
+    type Output = Vec<NodeIdentifier>;
+
+    const NAME: &'static str = "svelte.lint.module_parents";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        context
+            .get::<rsvelte_typescript::Parsed>()
+            .as_ref()
+            .expect("lint requests parents after parsing")
+            .syntax_tree
+            .parents()
+    }
+}

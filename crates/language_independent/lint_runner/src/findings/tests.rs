@@ -18,10 +18,10 @@ impl Rule<str> for Every {
     }
 }
 
-fn codes(findings: &[Diagnostic]) -> Vec<(&str, u32)> {
+fn codes(findings: &[Finding]) -> Vec<(&str, u32)> {
     findings
         .iter()
-        .map(|d| (&*d.code, d.span.start_offset))
+        .map(|f| (&*f.diagnostic.code, f.diagnostic.span.start_offset))
         .collect()
 }
 
@@ -65,7 +65,10 @@ fn findings_carry_the_rule_identifier_and_severity() {
     let mut f = Findings::new();
     f.run([&Len], b"ab".as_slice()).run([&Every("x", 0)], "x");
     let got = f.finish();
-    let stamped: Vec<_> = got.iter().map(|d| (&*d.code, d.severity)).collect();
+    let stamped: Vec<_> = got
+        .iter()
+        .map(|f| (&*f.diagnostic.code, f.diagnostic.severity))
+        .collect();
     assert_eq!(
         stamped,
         [("len", Severity::Warning), ("x", Severity::Error)]
