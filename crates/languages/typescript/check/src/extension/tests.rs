@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use rsvelte_config::{NoFunctions, Selection, Settings};
+use rsvelte_plugin_interface::{NoFunctions, Selection, Settings};
 
 use super::*;
 

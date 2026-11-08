@@ -1,6 +1,6 @@
 # Hosts
 
-[Configuration hosts](config/README.md) load JSON, JS/TS or custom settings and
+[Configuration hosts](configuration_loading/README.md) load JSON, JS/TS or custom settings and
 resolve runtime or native functions before tasks run. Node is optional.
 
 A host connects the rsvelte toolchain to an execution environment. It chooses
@@ -36,7 +36,7 @@ diagnostics to standard output, with task labels. It does not edit the input fil
 | `performance <dir>... --task <identifier>` | Measure performance counters                                    |
 
 The CLI knows no language: it installs every plugin's `EXTENSION`, and each plugin reads its own
-options, the configuration file's `plugins.<plugin>` (see [the configuration file](config/README.md)).
+options, the configuration file's `plugins.<plugin>` (see [the configuration file](configuration_loading/README.md)).
 `--options <plugin> <json>` replaces them, with paths relative to the current directory. Options
 no installed plugin reads, and a task that will run without what it needs, stop the run with exit
 code 2 before any file is read. Without `--task`, `corpus` and `run` run every task, the checks

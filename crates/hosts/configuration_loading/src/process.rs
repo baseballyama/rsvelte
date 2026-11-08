@@ -8,10 +8,9 @@ use std::time::Duration;
 use rsvelte_kernel::computation::functions::CallError;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Configuration, FunctionReference, FunctionResolver, LoadedConfiguration, Loader, TextContract,
-    TextFunction,
-};
+use rsvelte_plugin_interface::{FunctionReference, FunctionResolver, TextContract, TextFunction};
+
+use crate::{Configuration, LoadedConfiguration, Loader};
 
 const PROTOCOL_VERSION: u32 = 1;
 use crate::wire::{self, MAX_MESSAGE_BYTES};

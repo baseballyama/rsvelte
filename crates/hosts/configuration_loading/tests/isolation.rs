@@ -1,7 +1,8 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use rsvelte_config::process::ProcessLoader;
-use rsvelte_config::{FunctionReference, Loader, TextContract};
+use rsvelte_configuration_loading::Loader;
+use rsvelte_configuration_loading::process::ProcessLoader;
+use rsvelte_plugin_interface::{FunctionReference, TextContract};
 
 static CONTRACT: TextContract = TextContract {
     identifier: "example.name",

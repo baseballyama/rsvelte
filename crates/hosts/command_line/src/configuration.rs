@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use rsvelte_config::{JsonLoader, LoadedConfiguration, Loader};
+use rsvelte_configuration_loading::{JsonLoader, LoadedConfiguration, Loader};
 use rsvelte_kernel::computation::functions::CallError;
 
 #[derive(Debug, Default)]
@@ -81,7 +81,7 @@ impl Options {
                         "use --config-runtime-arg for the Node loader".into(),
                     ));
                 }
-                Box::new(rsvelte_config::process::ProcessLoader::node(
+                Box::new(rsvelte_configuration_loading::process::ProcessLoader::node(
                     self.runtime.clone().unwrap_or_else(|| "node".into()),
                     self.runtime_arguments.clone(),
                 ))
@@ -92,7 +92,7 @@ impl Options {
                         "external loaders accept --config-loader-arg".into(),
                     ));
                 }
-                Box::new(rsvelte_config::process::ProcessLoader::new(
+                Box::new(rsvelte_configuration_loading::process::ProcessLoader::new(
                     executable.into(),
                     self.loader_arguments.clone(),
                 ))

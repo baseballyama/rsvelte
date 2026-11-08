@@ -4,8 +4,8 @@
 
 use std::sync::Arc;
 
-use rsvelte_config::{NoFunctions, Selection, Settings};
 use rsvelte_kernel::computation::pipeline::{Registry, RunOptions, Sharing, run};
+use rsvelte_plugin_interface::{NoFunctions, Selection, Settings};
 
 #[expect(clippy::print_stdout, reason = "This example prints the task output.")]
 fn main() -> Result<(), String> {
@@ -15,7 +15,7 @@ fn main() -> Result<(), String> {
         Arc::new(NoFunctions),
     );
     let mut registry = Registry::new();
-    rsvelte_config::extension::install(
+    rsvelte_plugin_interface::install(
         &mut registry,
         &[&rsvelte_svelte_example_plugin::EXTENSION],
         &mut settings,

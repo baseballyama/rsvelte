@@ -15,7 +15,8 @@ lint-typed = ["dep:rsvelte_svelte_lint_typed"]
 metrics = ["rsvelte_kernel/metrics"]
 
 [dependencies]
-rsvelte_config.workspace = true
+rsvelte_configuration_loading.workspace = true
+rsvelte_plugin_interface.workspace = true
 serde_json.workspace = true
 rsvelte_vue_lint.workspace = true
 rsvelte_vue_format.workspace = true

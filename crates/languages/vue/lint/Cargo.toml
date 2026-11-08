@@ -10,7 +10,7 @@ publish.workspace = true
 doctest = false
 
 [dependencies]
-rsvelte_config.workspace = true
+rsvelte_plugin_interface.workspace = true
 rsvelte_lint_runner.workspace = true
 rsvelte_vue.workspace = true
 rsvelte_markup.workspace = true

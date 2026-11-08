@@ -17,19 +17,17 @@ const metadata = JSON.parse(
 	}),
 ) as { packages: Package[] };
 
-type Role = 'kernel' | 'core' | 'support' | 'host' | 'capability';
+type Role = 'kernel' | 'core' | 'support' | 'host_library' | 'host' | 'capability';
 
 // Crate names do not follow paths (`rsvelte_svue`, `rsvelte_markup`), so the role comes from the path.
 function role(manifestPath: string): Role | undefined {
 	const path = /\/crates\/(.+)\/Cargo\.toml$/.exec(manifestPath)?.[1];
 	if (path === undefined) return undefined;
 	if (path === 'language_independent/kernel') return 'kernel';
-	if (
-		path.startsWith('language_independent/') ||
-		path === 'hosts/config' ||
-		path === 'languages/typescript/content_mapper'
-	)
+	if (path.startsWith('language_independent/') || path === 'languages/typescript/content_mapper')
 		return 'support';
+	// Only hosts load configuration files; a plugin reads its options through the plugin interface.
+	if (path === 'hosts/configuration_loading') return 'host_library';
 	if (path.startsWith('hosts/')) return 'host';
 	if (
 		/^languages\/[^/]+\/core$/.test(path) ||
@@ -47,8 +45,9 @@ const allowed: Record<Role, readonly Role[]> = {
 	kernel: [],
 	core: ['kernel', 'core'],
 	support: ['kernel'],
+	host_library: ['kernel', 'support'],
 	capability: ['kernel', 'core', 'support', 'capability'],
-	host: ['kernel', 'core', 'support', 'capability'],
+	host: ['kernel', 'core', 'support', 'host_library', 'capability'],
 };
 
 function toolDependencies(packages: Package[]): string[] {
@@ -91,12 +90,13 @@ test('every workspace crate has a role from its path', () => {
 		'rsvelte_vue',
 	]);
 	assert.deepEqual(named('support'), [
-		'rsvelte_config',
 		'rsvelte_document_printer',
 		'rsvelte_lint_runner',
+		'rsvelte_plugin_interface',
 		'rsvelte_test_harness',
 		'rsvelte_typescript_content_mapper',
 	]);
+	assert.deepEqual(named('host_library'), ['rsvelte_configuration_loading']);
 	assert.deepEqual(named('host'), [
 		'rsvelte_command_line',
 		'rsvelte_kernel_browser',
@@ -232,7 +232,9 @@ test('new crates get a role from where they are placed', () => {
 test('support, plugin and host boundaries reject injected dependencies', () => {
 	for (const [from, to] of [
 		['rsvelte_lint_runner', 'rsvelte_svelte'],
-		['rsvelte_config', 'rsvelte_svelte_compile'],
+		['rsvelte_plugin_interface', 'rsvelte_svelte_compile'],
+		['rsvelte_svelte_compile', 'rsvelte_configuration_loading'],
+		['rsvelte_plugin_interface', 'rsvelte_configuration_loading'],
 		['rsvelte_typescript_content_mapper', 'rsvelte_typescript'],
 		['rsvelte_svelte_lint', 'rsvelte_command_line'],
 		['rsvelte_svue', 'rsvelte_kernel_browser'],

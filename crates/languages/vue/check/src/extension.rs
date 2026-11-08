@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use rsvelte_config::{Extension, Settings, TaskKind};
 use rsvelte_kernel::computation::functions::CallError;
 use rsvelte_kernel::computation::pipeline::Registry;
+use rsvelte_plugin_interface::{Extension, Settings, TaskKind};
 use serde::Deserialize;
 
 use crate::{Configuration, TypeCheckConfiguration};

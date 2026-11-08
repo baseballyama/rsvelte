@@ -1,10 +1,10 @@
 //! A plugin that counts a component's top-level elements: the smallest whole plugin, as the
 //! site's plugin guide walks through it.
 
-use rsvelte_config::Extension;
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::pipeline::{Document, Registry, Task, TaskOutput};
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
+use rsvelte_plugin_interface::Extension;
 use rsvelte_svelte::Parsed;
 use rsvelte_svelte::syntax::syntax_tree::TemplateNode;
 

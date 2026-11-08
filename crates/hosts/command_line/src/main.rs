@@ -36,7 +36,7 @@ static ALLOC: rsvelte_kernel::performance::measurement::CountingAllocator =
     rsvelte_kernel::performance::measurement::CountingAllocator;
 
 /// Every plugin the command installs, in installation order.
-static EXTENSIONS: &[&rsvelte_config::Extension] = &[
+static EXTENSIONS: &[&rsvelte_plugin_interface::Extension] = &[
     &rsvelte_typescript_compile::EXTENSION,
     &rsvelte_typescript_format::EXTENSION,
     &rsvelte_typescript_lint::EXTENSION,
@@ -58,7 +58,7 @@ static EXTENSIONS: &[&rsvelte_config::Extension] = &[
 
 /// `tools`: the external programs the run's plugins run, each `{ command, version }`.
 pub(crate) fn write_tools(
-    tools: &[rsvelte_config::Tool],
+    tools: &[rsvelte_plugin_interface::Tool],
     w: &mut rsvelte_kernel::output::structured_data::StructuredDataWriter,
 ) {
     w.key("tools").begin_array();
@@ -106,11 +106,11 @@ fn main() -> ExitCode {
         }
     }
     let selection = if !tasks.is_empty() {
-        rsvelte_config::Selection::Named(tasks.iter().map(|&t| t.to_owned()).collect())
+        rsvelte_plugin_interface::Selection::Named(tasks.iter().map(|&t| t.to_owned()).collect())
     } else if matches!(positional.first(), Some(&("corpus" | "run"))) {
-        rsvelte_config::Selection::Every
+        rsvelte_plugin_interface::Selection::Every
     } else {
-        rsvelte_config::Selection::DocumentTasks
+        rsvelte_plugin_interface::Selection::DocumentTasks
     };
     let (reg, tools) = match configured_registry(&config, &overrides, selection) {
         Ok(configured) => configured,
@@ -127,14 +127,14 @@ fn main() -> ExitCode {
 fn configured_registry(
     config: &configuration::Options,
     overrides: &[(&str, &str)],
-    selection: rsvelte_config::Selection,
-) -> Result<(Registry, Vec<rsvelte_config::Tool>), String> {
+    selection: rsvelte_plugin_interface::Selection,
+) -> Result<(Registry, Vec<rsvelte_plugin_interface::Tool>), String> {
     let loaded = config.load().map_err(|error| error.to_string())?;
-    let functions: std::sync::Arc<dyn rsvelte_config::FunctionResolver> = match &loaded {
+    let functions: std::sync::Arc<dyn rsvelte_plugin_interface::FunctionResolver> = match &loaded {
         Some((_, loaded)) => std::sync::Arc::clone(&loaded.functions),
-        None => std::sync::Arc::new(rsvelte_config::NoFunctions),
+        None => std::sync::Arc::new(rsvelte_plugin_interface::NoFunctions),
     };
-    let mut settings = rsvelte_config::Settings::new(selection, functions);
+    let mut settings = rsvelte_plugin_interface::Settings::new(selection, functions);
     if let Some((path, loaded)) = loaded {
         let base = path.parent().unwrap_or_else(|| Path::new(".")).to_owned();
         for (plugin, options) in loaded.configuration.plugins {
@@ -148,7 +148,7 @@ fn configured_registry(
         settings.set(plugin.to_owned(), options, here.clone());
     }
     let mut registry = Registry::new();
-    rsvelte_config::extension::install(&mut registry, EXTENSIONS, &mut settings)
+    rsvelte_plugin_interface::install(&mut registry, EXTENSIONS, &mut settings)
         .map_err(|error| error.to_string())?;
     registry
         .validate_plugins()
@@ -161,7 +161,7 @@ fn dispatch(
     reg: &Registry,
     positional: &[&str],
     tasks: &[&str],
-    tools: Vec<rsvelte_config::Tool>,
+    tools: Vec<rsvelte_plugin_interface::Tool>,
 ) -> ExitCode {
     match positional {
         ["corpus", dirs @ ..] if !dirs.is_empty() => {

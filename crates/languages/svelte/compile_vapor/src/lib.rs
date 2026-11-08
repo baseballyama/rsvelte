@@ -20,7 +20,7 @@ pub use compilation::{Translation, check, compile, helpers, script, template, tr
 pub use computation::{Checked, Compile, PLUGIN, register};
 
 /// Takes no options.
-pub static EXTENSION: rsvelte_config::Extension = rsvelte_config::Extension {
+pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_interface::Extension {
     identifier: "vuelte",
     install: |registry, _| {
         register(registry);

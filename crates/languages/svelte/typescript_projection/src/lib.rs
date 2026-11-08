@@ -22,7 +22,7 @@ pub const DECLARATIONS: (&str, &str) = (
 pub use computation::PLUGIN;
 
 /// Takes no options.
-pub static EXTENSION: rsvelte_config::Extension = rsvelte_config::Extension {
+pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_interface::Extension {
     identifier: "svelte.typescript_projection",
     install: |registry, _| {
         register(registry);

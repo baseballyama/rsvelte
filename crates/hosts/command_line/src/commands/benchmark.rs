@@ -33,7 +33,7 @@ use rsvelte_kernel::performance::measurement;
 pub(crate) struct Options {
     rounds: usize,
     json: Option<PathBuf>,
-    pub(crate) tools: Vec<rsvelte_config::Tool>,
+    pub(crate) tools: Vec<rsvelte_plugin_interface::Tool>,
 }
 
 impl Options {

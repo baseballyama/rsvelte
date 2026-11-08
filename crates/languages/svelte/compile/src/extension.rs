@@ -1,6 +1,6 @@
-use rsvelte_config::{Extension, FunctionReference, Settings, TextContract};
 use rsvelte_kernel::computation::functions::{CallError, Contract, Function};
 use rsvelte_kernel::computation::pipeline::Registry;
+use rsvelte_plugin_interface::{Extension, FunctionReference, Settings, TextContract};
 use serde::Deserialize;
 
 use crate::{Configuration, CssHash};

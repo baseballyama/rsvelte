@@ -11,7 +11,7 @@ doctest = false
 
 [dependencies]
 rustc-hash.workspace = true
-rsvelte_config.workspace = true
+rsvelte_plugin_interface.workspace = true
 serde.workspace = true
 rsvelte_typescript_compile.workspace = true
 rsvelte_markup.workspace = true

@@ -104,7 +104,7 @@ export function traitParameterNamesEnforced(manifest: string, clippyConfiguratio
 }
 
 // The one std `Write::write` implementation whose `buf` the workspace lint keeps.
-export const WRITE_BUFFER_FILE = 'hosts/config/src/wire.rs';
+export const WRITE_BUFFER_FILE = 'hosts/configuration_loading/src/wire.rs';
 
 /** True when `source` declares `buf` only because it implements std `Write::write` under the lint. */
 export function keepsWriteBuffer(source: string) {

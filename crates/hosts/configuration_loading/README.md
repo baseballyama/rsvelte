@@ -153,7 +153,7 @@ dropped. Reloading creates a new session; old handles retain their old session.
 Watch integration and request batching are not implemented yet.
 
 ```sh
-mise exec -- cargo test -p rsvelte_config
+mise exec -- cargo test -p rsvelte_configuration_loading
 mise exec -- cargo test -p rsvelte_command_line --test configuration
 cargo test -p rsvelte_svelte_compile --test configuration
 ```

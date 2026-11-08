@@ -9,7 +9,7 @@ use std::sync::Arc;
 use libloading::Library;
 use rsvelte_kernel::computation::functions::CallError;
 
-use crate::{FunctionReference, FunctionResolver, TextContract, TextFunction};
+use rsvelte_plugin_interface::{FunctionReference, FunctionResolver, TextContract, TextFunction};
 
 const ABI_VERSION: u32 = 1;
 const THREAD_SAFE: u32 = 1;

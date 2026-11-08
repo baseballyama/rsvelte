@@ -10,7 +10,9 @@ use rsvelte_kernel::computation::pipeline::Registry;
 use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 
-use crate::FunctionResolver;
+mod functions;
+
+pub use functions::{FunctionReference, FunctionResolver, NoFunctions, TextContract, TextFunction};
 
 /// A plugin as a host installs it.
 #[derive(Debug)]

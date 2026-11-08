@@ -1,6 +1,6 @@
 [package]
-name = "rsvelte_config"
-description = "Pluggable configuration loaders and function backends"
+name = "rsvelte_plugin_interface"
+description = "What a host gives a plugin: its options, the tasks that will run, and functions from the configuration"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
@@ -13,9 +13,6 @@ doctest = false
 rsvelte_kernel.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-libloading.workspace = true
 
 [lints]
 workspace = true

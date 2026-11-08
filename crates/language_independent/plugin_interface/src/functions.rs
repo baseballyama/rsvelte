@@ -1,6 +1,41 @@
 use std::sync::Arc;
 
 use rsvelte_kernel::computation::functions::CallError;
+use serde::Deserialize;
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(tag = "backend", rename_all = "lowercase", deny_unknown_fields)]
+pub enum FunctionReference {
+    Runtime { handle: String },
+    Native { library: String, symbol: String },
+}
+
+pub trait FunctionResolver: std::fmt::Debug + Send + Sync {
+    /// # Errors
+    /// The backend does not support the requested contract or function.
+    fn resolve(
+        &self,
+        reference: &FunctionReference,
+        contract: &'static TextContract,
+    ) -> Result<TextFunction, CallError>;
+}
+
+/// Resolves no function: for a host with no configuration file.
+#[derive(Debug)]
+pub struct NoFunctions;
+
+impl FunctionResolver for NoFunctions {
+    fn resolve(
+        &self,
+        _: &FunctionReference,
+        contract: &'static TextContract,
+    ) -> Result<TextFunction, CallError> {
+        Err(CallError(format!(
+            "`{}` needs a configuration file to resolve its function",
+            contract.identifier
+        )))
+    }
+}
 
 #[derive(Debug)]
 pub struct TextContract {

@@ -2,8 +2,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use rsvelte_config::process::ProcessLoader;
-use rsvelte_config::{FunctionReference, JsonLoader, Loader, TextContract};
+use rsvelte_configuration_loading::process::ProcessLoader;
+use rsvelte_configuration_loading::{JsonLoader, Loader};
+use rsvelte_plugin_interface::{FunctionReference, TextContract};
 
 static CONTRACT: TextContract = TextContract {
     identifier: "svelte.compile.css-hash",

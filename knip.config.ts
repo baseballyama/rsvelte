@@ -3,8 +3,8 @@ import type { KnipConfig } from 'knip';
 export default {
 	workspaces: {
 		'.': {
-			entry: ['crates/hosts/config/src/node_server.ts', '.claude/skills/*/*.ts'],
-			project: ['crates/hosts/config/src/*.ts', '.claude/skills/**/*.ts'],
+			entry: ['crates/hosts/configuration_loading/src/node_server.ts', '.claude/skills/*/*.ts'],
+			project: ['crates/hosts/configuration_loading/src/*.ts', '.claude/skills/**/*.ts'],
 			// The root has no Svelte app; the site workspace does.
 			svelte: false,
 		},

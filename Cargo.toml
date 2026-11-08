@@ -9,7 +9,8 @@ license = "MIT"
 publish = false
 
 [workspace.dependencies]
-rsvelte_config = { path = "crates/hosts/config" }
+rsvelte_configuration_loading = { path = "crates/hosts/configuration_loading" }
+rsvelte_plugin_interface = { path = "crates/language_independent/plugin_interface" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.154", features = ["raw_value"] }
 serde-saphyr = "2.1.0"

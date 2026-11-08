@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
-use rsvelte_config::{Extension, Settings};
 use rsvelte_kernel::computation::functions::CallError;
 use rsvelte_kernel::computation::pipeline::Registry;
 use rsvelte_lint_runner::level::Level;
+use rsvelte_plugin_interface::{Extension, Settings};
 use serde::Deserialize;
 
 use crate::Configuration;

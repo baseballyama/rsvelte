@@ -222,7 +222,8 @@ fn discovery_reports_ambiguity_and_explicit_config_resolves_it() {
 #[test]
 fn json_config_calls_a_native_stylesheet_hash_without_node() {
     let project = Project::new();
-    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../config/tests/native.c");
+    let source =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../configuration_loading/tests/native.c");
     let output = Command::new("cc")
         .args(["-shared", "-fPIC", "-o"])
         .arg(project.0.join("hash.so"))

@@ -4,12 +4,12 @@ use super::*;
 
 /// Every plugin, installed without options for a run of the document tasks.
 fn installed() -> Registry {
-    let mut settings = rsvelte_config::Settings::new(
-        rsvelte_config::Selection::DocumentTasks,
-        std::sync::Arc::new(rsvelte_config::NoFunctions),
+    let mut settings = rsvelte_plugin_interface::Settings::new(
+        rsvelte_plugin_interface::Selection::DocumentTasks,
+        std::sync::Arc::new(rsvelte_plugin_interface::NoFunctions),
     );
     let mut reg = Registry::new();
-    rsvelte_config::extension::install(&mut reg, EXTENSIONS, &mut settings).unwrap();
+    rsvelte_plugin_interface::install(&mut reg, EXTENSIONS, &mut settings).unwrap();
     reg
 }
 

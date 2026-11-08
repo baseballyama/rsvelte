@@ -50,7 +50,7 @@
 		別の Rust ライブラリから使う場合は、<code>Cargo.toml</code> の依存関係に
 		<code>rsvelte_svelte</code>
 		を追加します。カーネルに接続する例では <code>rsvelte_kernel</code> と
-		<code>rsvelte_config</code>
+		<code>rsvelte_plugin_interface</code>
 		も必要です。このリポジトリ内では workspace の依存設定を使えます。外から参照する場合は、各 crate のディレクトリを
 		<code>path</code> に指定します。現在は公開パッケージの設定になっていません。
 	</p>
@@ -173,7 +173,7 @@
 <div class="prose-learn">
 	<p>
 		呼び出し側は <code>Settings</code> に実行するタスクとオプションを入れ、<code
-			>rsvelte_config::extension::install</code
+			>rsvelte_plugin_interface::install</code
 		>
 		で登録先を作ります。そのあと文書と実行設定を渡します。この例は追加したタスクだけを選びます。
 	</p>

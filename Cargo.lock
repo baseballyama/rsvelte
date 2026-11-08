@@ -733,8 +733,9 @@ dependencies = [
  "oxc_parser",
  "oxc_span",
  "rayon",
- "rsvelte_config",
+ "rsvelte_configuration_loading",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_svelte",
  "rsvelte_svelte_compile",
  "rsvelte_svelte_compile_vapor",
@@ -760,11 +761,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsvelte_config"
+name = "rsvelte_configuration_loading"
 version = "0.0.0"
 dependencies = [
  "libloading",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "serde",
  "serde_json",
 ]
@@ -821,6 +823,15 @@ name = "rsvelte_markup"
 version = "0.0.0"
 
 [[package]]
+name = "rsvelte_plugin_interface"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_kernel",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rsvelte_site"
 version = "0.0.0"
 dependencies = [
@@ -862,9 +873,9 @@ dependencies = [
 name = "rsvelte_svelte_compile"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_markup",
+ "rsvelte_plugin_interface",
  "rsvelte_stylesheet",
  "rsvelte_svelte",
  "rsvelte_test_harness",
@@ -878,8 +889,8 @@ dependencies = [
 name = "rsvelte_svelte_compile_vapor"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_svelte",
  "rsvelte_svelte_compile",
  "rsvelte_test_harness",
@@ -903,8 +914,8 @@ dependencies = [
 name = "rsvelte_svelte_example_plugin"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_svelte",
  "rsvelte_svelte_format",
 ]
@@ -913,9 +924,9 @@ dependencies = [
 name = "rsvelte_svelte_format"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_document_printer",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_stylesheet_format",
  "rsvelte_svelte",
  "rsvelte_test_harness",
@@ -927,10 +938,10 @@ dependencies = [
 name = "rsvelte_svelte_lint"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_lint_runner",
  "rsvelte_markup",
+ "rsvelte_plugin_interface",
  "rsvelte_svelte",
  "rsvelte_test_harness",
  "rsvelte_typescript",
@@ -945,10 +956,10 @@ dependencies = [
 name = "rsvelte_svelte_lint_typed"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_lint_runner",
  "rsvelte_markup",
+ "rsvelte_plugin_interface",
  "rsvelte_svelte",
  "rsvelte_svelte_lint",
  "rsvelte_test_harness",
@@ -997,8 +1008,8 @@ dependencies = [
 name = "rsvelte_svelte_typecheck"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_svelte_parser",
  "rsvelte_svelte_typescript_projection",
  "rsvelte_test_harness",
@@ -1013,8 +1024,8 @@ dependencies = [
  "oxc_allocator",
  "oxc_parser",
  "oxc_span",
- "rsvelte_config",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_svelte_parser",
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",
@@ -1026,8 +1037,8 @@ dependencies = [
 name = "rsvelte_svue"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_svelte",
  "rsvelte_svelte_compile",
  "rsvelte_test_harness",
@@ -1065,8 +1076,8 @@ dependencies = [
 name = "rsvelte_typescript_check"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_typescript",
  "rsvelte_typescript_content_mapper",
  "serde",
@@ -1077,8 +1088,8 @@ dependencies = [
 name = "rsvelte_typescript_compile"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_typescript",
 ]
 
@@ -1095,9 +1106,9 @@ dependencies = [
 name = "rsvelte_typescript_format"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_document_printer",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_typescript",
 ]
 
@@ -1105,9 +1116,9 @@ dependencies = [
 name = "rsvelte_typescript_lint"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_lint_runner",
+ "rsvelte_plugin_interface",
  "rsvelte_typescript",
 ]
 
@@ -1126,8 +1137,8 @@ dependencies = [
 name = "rsvelte_vue_check"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_check",
@@ -1140,8 +1151,8 @@ dependencies = [
 name = "rsvelte_vue_compile"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_stylesheet",
  "rsvelte_test_harness",
  "rsvelte_typescript",
@@ -1154,9 +1165,9 @@ dependencies = [
 name = "rsvelte_vue_format"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_document_printer",
  "rsvelte_kernel",
+ "rsvelte_plugin_interface",
  "rsvelte_stylesheet_format",
  "rsvelte_test_harness",
  "rsvelte_typescript",
@@ -1168,10 +1179,10 @@ dependencies = [
 name = "rsvelte_vue_lint"
 version = "0.0.0"
 dependencies = [
- "rsvelte_config",
  "rsvelte_kernel",
  "rsvelte_lint_runner",
  "rsvelte_markup",
+ "rsvelte_plugin_interface",
  "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_lint",
