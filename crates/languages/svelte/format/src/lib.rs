@@ -3,7 +3,7 @@
 pub(crate) mod format;
 
 mod task;
-pub use task::{Format, PLUGIN, register};
+pub use task::{Format, PLUGIN, format, register};
 
 /// Takes no options.
 pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_interface::Extension {

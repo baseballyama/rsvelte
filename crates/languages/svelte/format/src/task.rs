@@ -4,7 +4,9 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::LineIndex;
 use rsvelte_svelte_syntax::Parsed;
+use rsvelte_svelte_syntax::syntax_tree::Component;
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.format",
@@ -41,13 +43,36 @@ impl Task for Format {
                 return;
             }
         };
-        match crate::format::format(c, context.source_text(), context.line_index()) {
+        match formatted(c, context.source_text(), context.line_index()) {
             Ok(text) => out.file("svelte", text),
-            Err(u) => out.diagnostics.push(Diagnostic::error(
-                "format_unsupported",
-                format!("not supported by the formatter yet: {}", u.what),
-                u.span(),
-            )),
+            Err(diagnostic) => out.diagnostics.push(diagnostic),
         }
     }
 }
+
+/// Formats a component as prettier with prettier-plugin-svelte and the default options does.
+///
+/// # Errors
+///
+/// The parse error, or the first construct the formatter does not handle yet.
+pub fn format(source_text: &str) -> Result<String, Diagnostic> {
+    let component = rsvelte_svelte_syntax::parse::parse(source_text)?;
+    formatted(&component, source_text, &LineIndex::new(source_text))
+}
+
+fn formatted(
+    component: &Component,
+    source_text: &str,
+    lines: &LineIndex,
+) -> Result<String, Diagnostic> {
+    crate::format::format(component, source_text, lines).map_err(|u| {
+        Diagnostic::error(
+            "format_unsupported",
+            format!("not supported by the formatter yet: {}", u.what),
+            u.span(),
+        )
+    })
+}
+
+#[cfg(test)]
+mod tests;

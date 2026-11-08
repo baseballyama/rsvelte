@@ -10,6 +10,6 @@ export const load = () => ({
 		diagnostic: 'kernel/diagnostics/Diagnostic',
 		unsupported: 'kernel/diagnostics/Unsupported',
 		unsupportedImpl: 'kernel/diagnostics/impl Unsupported',
-		format: 'svelte/format/task/Format::run',
+		format: 'svelte/format/task/formatted',
 	}),
 });
