@@ -4438,6 +4438,17 @@ fn build_svelte_import_resolver(tsconfig: Option<&Path>) -> Option<oxc_resolver:
             config_file: tsconfig.to_path_buf(),
             references: TsconfigReferences::Auto,
         })),
+        // TypeScript resolves `./x.js` to `x.ts` (and the like); a package that
+        // writes its imports that way would otherwise never resolve here.
+        extension_alias: vec![
+            (
+                ".js".into(),
+                vec![".ts".into(), ".tsx".into(), ".js".into()],
+            ),
+            (".jsx".into(), vec![".tsx".into(), ".jsx".into()]),
+            (".mjs".into(), vec![".mts".into(), ".mjs".into()]),
+            (".cjs".into(), vec![".cts".into(), ".cjs".into()]),
+        ],
         // TypeScript's own conditions: a `svelte` condition, which TypeScript
         // never matches, would send `imports` / `exports` to a different file.
         condition_names: package_json_conditions(Some(tsconfig))
@@ -4518,12 +4529,19 @@ fn rewrite_aliased_svelte_imports(
         if path_part.contains(['?', '#']) {
             return None;
         }
-        if !path_part.ends_with(".svelte") {
+        // Inside an external package a `#` subpath import (`#ui/utils.js`) is
+        // meant for that package's own `imports` map, but the shadow sits under
+        // the workspace's mirror, where TypeScript's walk-up finds the
+        // workspace's package.json instead. Point it at the file in the
+        // package's mirror directory, which `rootDirs` pairs with the real one.
+        let hash_subpath = spec.starts_with('#') && confine_canon.is_some();
+        if !path_part.ends_with(".svelte") && !hash_subpath {
             return None;
         }
         let resolution = resolver.resolve(source_dir, spec).ok()?;
         let resolved_path = resolution.path();
-        if resolved_path.extension().and_then(|e| e.to_str()) != Some("svelte") {
+        let is_svelte = resolved_path.extension().and_then(|e| e.to_str()) == Some("svelte");
+        if !is_svelte && !hash_subpath {
             return None;
         }
         let resolved_canon = resolved_path
@@ -4555,8 +4573,12 @@ fn rewrite_aliased_svelte_imports(
                 })
                 .max_by_key(|(rel, _)| resolved_canon.as_os_str().len() - rel.as_os_str().len())?
         };
-        let shadow = append_extension(&mirror_dir.join(rel), shadow_extension(&resolved_canon));
-        let mut rewritten = lexical_relative_posix(generated_dir, &shadow);
+        let target = if is_svelte {
+            append_extension(&mirror_dir.join(rel), shadow_extension(&resolved_canon))
+        } else {
+            js_specifier_path(&mirror_dir.join(rel))
+        };
+        let mut rewritten = lexical_relative_posix(generated_dir, &target);
         if !rewritten.starts_with('.') {
             rewritten = format!("./{rewritten}");
         }
@@ -4564,6 +4586,30 @@ fn rewrite_aliased_svelte_imports(
     };
 
     rewrite_module_specifiers(tsx, &decide)
+}
+
+/// The specifier path TypeScript resolves back to `path`: a TypeScript source
+/// or declaration file is named by its JavaScript extension (`./util.js` for
+/// `util.ts`), which needs neither `allowImportingTsExtensions` nor a
+/// type-only import.
+fn js_specifier_path(path: &Path) -> PathBuf {
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return path.to_path_buf();
+    };
+    for (ts, js) in [
+        (".d.ts", ".js"),
+        (".d.mts", ".mjs"),
+        (".d.cts", ".cjs"),
+        (".ts", ".js"),
+        (".tsx", ".jsx"),
+        (".mts", ".mjs"),
+        (".cts", ".cjs"),
+    ] {
+        if let Some(stem) = name.strip_suffix(ts) {
+            return path.with_file_name(format!("{stem}{js}"));
+        }
+    }
+    path.to_path_buf()
 }
 
 /// Scan `text` for `from "<spec>"` / `import("<spec>")` module specifiers and
@@ -6815,6 +6861,89 @@ mod tests {
 
             let _ = fs::remove_dir_all(&tmp);
         }
+    }
+
+    #[test]
+    fn js_specifier_path_names_typescript_files_by_their_javascript_extension() {
+        for (path, spec) in [
+            ("m/src/util.ts", "m/src/util.js"),
+            ("m/src/decl.d.ts", "m/src/decl.js"),
+            ("m/src/x.d.mts", "m/src/x.mjs"),
+            ("m/src/x.tsx", "m/src/x.jsx"),
+            ("m/src/x.cts", "m/src/x.cjs"),
+            ("m/src/state.svelte.ts", "m/src/state.svelte.js"),
+            ("m/src/plain.js", "m/src/plain.js"),
+            ("m/src/data.json", "m/src/data.json"),
+        ] {
+            assert_eq!(js_specifier_path(Path::new(path)), PathBuf::from(spec));
+        }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn external_package_hash_subpath_import_is_pointed_at_its_mirror() {
+        let tmp = std::env::temp_dir().join(format!("svc_ext_hash_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("app/src")).unwrap();
+        fs::create_dir_all(tmp.join("app/node_modules")).unwrap();
+        fs::create_dir_all(tmp.join("libs/src")).unwrap();
+        fs::write(tmp.join("app/tsconfig.json"), "{\"compilerOptions\":{}}").unwrap();
+        fs::write(
+            tmp.join("libs/package.json"),
+            "{\"name\":\"libs\",\"imports\":{\"#u/*\":\"./src/*\"}}",
+        )
+        .unwrap();
+        fs::write(tmp.join("libs/tsconfig.json"), "{\"compilerOptions\":{}}").unwrap();
+        fs::write(
+            tmp.join("libs/src/util.ts"),
+            "export const n: number = 1;\n",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("libs/src/Field.svelte"),
+            "<script lang=\"ts\">import { n } from '#u/util.js';</script>\n<p>{n}</p>\n",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("app/src/App.svelte"),
+            "<script lang=\"ts\">import Field from 'libs/src/Field.svelte';</script>\n<Field />\n",
+        )
+        .unwrap();
+        std::os::unix::fs::symlink(tmp.join("libs"), tmp.join("app/node_modules/libs")).unwrap();
+
+        let workspace = tmp.join("app");
+        let _cwd_guard = CWD_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&workspace).unwrap();
+        let result = {
+            let files = vec![PathBuf::from("src/App.svelte")];
+            materialize_overlay_with(
+                Path::new("."),
+                &files,
+                Some(Path::new("./tsconfig.json")),
+                false,
+                &[],
+            )
+        };
+        std::env::set_current_dir(&cwd).unwrap();
+        result.unwrap();
+
+        let field = fs::read_to_string(workspace.join(".svelte-check/ext/0/src/Field.svelte.tsx"))
+            .expect("external Field.svelte shadow should have been emitted");
+        assert!(
+            !field.contains("#u/util.js"),
+            "the package's own `#` subpath import was left for the workspace to resolve:\n{field}"
+        );
+        // Named by its `.js` extension, as the package wrote it: a `.ts`
+        // extension needs `allowImportingTsExtensions` (TS5097).
+        assert!(
+            field.contains("'./util.js'"),
+            "the import should point at the util file beside the shadow:\n{field}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
     }
 
     #[test]
