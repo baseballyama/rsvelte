@@ -3652,40 +3652,48 @@ fn compute_alias_path_overrides(
     }
     let candidates = alias_override_candidates(entries, external, module_bridges);
 
-    let alias_targets: Vec<(&String, PathBuf)> = alias_prefixes
+    let targets: Vec<(&str, PathBuf)> = alias_prefixes
         .iter()
-        .map(|(prefix, target_dir)| (prefix, canonicalized(target_dir)))
+        .map(|(prefix, dir)| (prefix.as_str(), canonicalized(dir)))
         .collect();
-
     let mut out = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (real_canon, tsx_path) in &candidates {
-        // Longest target-dir prefix wins when aliases nest.
-        let best = alias_targets
-            .iter()
-            .filter_map(|(prefix, target_canon)| {
-                real_canon
-                    .strip_prefix(target_canon)
-                    .ok()
-                    .map(|rel| (prefix, rel.to_path_buf()))
-            })
-            .max_by_key(|(_, rel)| real_canon.as_os_str().len() - rel.as_os_str().len());
-        let Some((prefix, rel)) = best else { continue };
-        let rel_posix = rel
-            .components()
-            .filter_map(|c| c.as_os_str().to_str())
-            .collect::<Vec<_>>()
-            .join("/");
-        if rel_posix.is_empty() {
-            continue;
-        }
-        // A multi-target alias (`"$lib/*": ["./a/*", "./b/*"]`) can map two
-        // different components onto the same specifier; TypeScript resolves
-        // such a specifier against the first target that exists, so keep the
-        // first match rather than letting discovery order decide.
-        let spec = format!("{prefix}/{rel_posix}");
-        if seen.insert(spec.clone()) {
-            out.push((spec, tsx_path.clone()));
+        // Every alias whose target dir holds the file names it: `$lib/*` and
+        // `~/*` on one dir, or `$lib/*` and `$ui/*` on `src/lib` and
+        // `src/lib/ui`, are different specifiers for the same component.
+        for (index, (prefix, target_dir)) in targets.iter().enumerate() {
+            let Ok(rel) = real_canon.strip_prefix(target_dir) else {
+                continue;
+            };
+            let rel_posix = rel
+                .components()
+                .filter_map(|c| c.as_os_str().to_str())
+                .collect::<Vec<_>>()
+                .join("/");
+            if rel_posix.is_empty() {
+                continue;
+            }
+            let spec = format!("{prefix}/{rel_posix}");
+            // TypeScript matches the pattern with the longest prefix, so an
+            // exact entry under a shorter alias (`$lib/over/X` from `$lib/*`
+            // beside `$lib/over/*`) would override the file it picks.
+            let longest = targets
+                .iter()
+                .map(|(p, _)| *p)
+                .filter(|p| {
+                    spec.strip_prefix(p)
+                        .is_some_and(|rest| rest.starts_with('/'))
+                })
+                .max_by_key(|p| p.len());
+            // A multi-target alias (`"$lib/*": ["./a/*", "./b/*"]`) resolves
+            // against the first target that has the file.
+            let shadowed = targets[..index]
+                .iter()
+                .any(|(p, dir)| p == prefix && dir.join(rel).exists());
+            if longest == Some(*prefix) && !shadowed && seen.insert(spec.clone()) {
+                out.push((spec, tsx_path.clone()));
+            }
         }
     }
     out
@@ -7262,6 +7270,151 @@ mod tests {
                 .as_str()
                 .is_some_and(|t| t.ends_with("B.svelte.tsx")),
             "{paths}"
+        );
+    }
+
+    #[test]
+    fn overlay_tsconfig_adds_exact_paths_override_for_a_package_imports_subpath() {
+        // A plain `.ts` file importing a component through a package.json
+        // `imports` subpath (`#lib/Button.svelte`) is never rewritten, so the
+        // overlay tsconfig's `paths` has to redirect that specifier to the shadow.
+        let tmp = std::env::temp_dir().join(format!("svc_imports_paths_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib")).unwrap();
+        fs::write(tmp.join("tsconfig.json"), "{\"compilerOptions\":{}}").unwrap();
+        fs::write(
+            tmp.join("package.json"),
+            "{\"name\":\"app\",\"imports\":{\"#lib/*\":{\"default\":\"./src/lib/*\"},\"#lib\":\"./src/lib/index.js\"}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/lib/Button.svelte"),
+            "<script lang=\"ts\">let { n }: { n: number } = $props();</script>\n<button>{n}</button>\n",
+        )
+        .unwrap();
+
+        let files = vec![tmp.join("src/lib/Button.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
+
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        let paths = &cfg["compilerOptions"]["paths"];
+        let target = paths["#lib/Button.svelte"][0]
+            .as_str()
+            .unwrap_or_else(|| panic!("no exact override for #lib/Button.svelte:\n{paths}"));
+        assert!(
+            target.ends_with("Button.svelte.tsx"),
+            "override does not point at the shadow: {target}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn overlay_tsconfig_keeps_both_aliases_when_paths_and_imports_name_the_same_dir() {
+        // `$lib/*` in tsconfig `paths` and `#lib/*` in package.json `imports`
+        // reach the same directory; a plain `.ts` file may use either, so both
+        // specifiers need their override.
+        let tmp = std::env::temp_dir().join(format!("svc_both_aliases_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src/lib")).unwrap();
+        fs::write(
+            tmp.join("tsconfig.json"),
+            "{\"compilerOptions\":{\"paths\":{\"$lib/*\":[\"./src/lib/*\"]}}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("package.json"),
+            "{\"name\":\"app\",\"imports\":{\"#lib/*\":\"./src/lib/*\"}}",
+        )
+        .unwrap();
+        fs::write(
+            tmp.join("src/lib/Button.svelte"),
+            "<script lang=\"ts\">let { n }: { n: number } = $props();</script>\n<button>{n}</button>\n",
+        )
+        .unwrap();
+
+        let files = vec![tmp.join("src/lib/Button.svelte")];
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        let paths = &cfg["compilerOptions"]["paths"];
+        assert!(
+            paths["$lib/Button.svelte"][0].is_string(),
+            "the `$lib` override was dropped:\n{paths}"
+        );
+        assert!(
+            paths["#lib/Button.svelte"][0].is_string(),
+            "the `#lib` override is missing:\n{paths}"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn overlay_tsconfig_paths_overrides_cover_every_alias_typescript_routes_through() {
+        // `$lib/*` and `~/*` on one dir tie; `$ui/*` nests inside `$lib/*`;
+        // `$lib/over/*` sends `$lib/over/…` elsewhere, so `src/lib/over/Y`
+        // has no `$lib` specifier at all. Official svelte-check resolves
+        // `$lib/ui/X.svelte`, `~/ui/X.svelte` and `$ui/X.svelte` to X, and
+        // `$lib/over/Y.svelte` to `src/components/Y.svelte`.
+        let tmp =
+            std::env::temp_dir().join(format!("svc_paths_every_alias_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        for dir in ["src/lib/ui", "src/lib/over", "src/components"] {
+            fs::create_dir_all(tmp.join(dir)).unwrap();
+        }
+        fs::write(
+            tmp.join("tsconfig.json"),
+            r#"{"compilerOptions":{"paths":{"$lib/*":["./src/lib/*"],"~/*":["./src/lib/*"],"$ui/*":["./src/lib/ui/*"],"$lib/over/*":["./src/components/*"]}}}"#,
+        )
+        .unwrap();
+        let component = "<script lang=\"ts\"></script>\n<i></i>\n";
+        let files: Vec<PathBuf> = [
+            "src/lib/ui/X.svelte",
+            "src/lib/over/Y.svelte",
+            "src/components/Y.svelte",
+        ]
+        .iter()
+        .map(|rel| {
+            fs::write(tmp.join(rel), component).unwrap();
+            tmp.join(rel)
+        })
+        .collect();
+        let tsconfig = tmp.join("tsconfig.json");
+        let layout = materialize_overlay_with(&tmp, &files, Some(&tsconfig), false, &[]).unwrap();
+        let cfg: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&layout.overlay_tsconfig).unwrap()).unwrap();
+        let _ = fs::remove_dir_all(&tmp);
+        let paths = cfg["compilerOptions"]["paths"].as_object().unwrap();
+        let exact: Vec<(&str, &str)> = paths
+            .iter()
+            .filter(|(key, _)| !key.ends_with('*'))
+            .map(|(key, targets)| {
+                let target = targets[0].as_str().unwrap();
+                let shadow = if target.contains("components") {
+                    "components/Y"
+                } else if target.contains("over") {
+                    "lib/over/Y"
+                } else {
+                    "lib/ui/X"
+                };
+                (key.as_str(), shadow)
+            })
+            .collect();
+        let mut exact = exact;
+        exact.sort_unstable();
+        assert_eq!(
+            exact,
+            [
+                ("$lib/over/Y.svelte", "components/Y"),
+                ("$lib/ui/X.svelte", "lib/ui/X"),
+                ("$ui/X.svelte", "lib/ui/X"),
+                ("~/over/Y.svelte", "lib/over/Y"),
+                ("~/ui/X.svelte", "lib/ui/X"),
+            ],
         );
     }
 
