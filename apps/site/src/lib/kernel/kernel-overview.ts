@@ -196,8 +196,8 @@ export const overviewNodes: OverviewNode[] = [
 		what: '文書を作り、使うプラグインを登録して、カーネルの実行を呼びます。',
 		href: '/learn/kernel#life',
 		source: {
-			path: 'crates/hosts/browser/src/computation/playground.rs',
-			line: 238,
+			path: 'crates/hosts/browser/src/computation.rs',
+			line: 247,
 			text: 'pipeline::run(&reg',
 		},
 		box: { x: 790, y: 162, w: 176, h: height },
@@ -311,8 +311,8 @@ export const overviewEdges: OverviewEdge[] = [
 		path: 'M878 162 V8 H396 V60',
 		at: [560, 0],
 		source: {
-			path: 'crates/hosts/browser/src/computation/playground.rs',
-			line: 118,
+			path: 'crates/hosts/browser/src/computation.rs',
+			line: 133,
 			text: 'rsvelte_svelte_compile::register(&mut reg);',
 		},
 	},
