@@ -180,10 +180,11 @@
 <div class="prose-learn">
 	<p>
 		カーネルの <code>lib.rs</code>
-		の冒頭のコメントは、カーネルが持つものの一覧です。依存の向きの約束は、上の図のとおり
-		<code>tools/structure</code> のテストが確かめています。
+		の冒頭のコメントは、カーネルのモジュールを下の層から並べた一覧です。各モジュールは前の行のモジュールだけを使い、同じ行のモジュールどうしは使い合いません。crate
+		の間の依存の向きと同じく、この一覧とコードが合っていることも <code>tools/structure</code>
+		のテストが確かめています。
 	</p>
-	<blockquote class="border-l-0 font-mono text-[14px] leading-[1.7] text-fg-2">
+	<blockquote class="border-l-0 font-mono text-[14px] leading-[1.7] whitespace-pre-line text-fg-2">
 		{data.libDocs}
 	</blockquote>
 	<p>
