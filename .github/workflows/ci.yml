@@ -131,6 +131,12 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - run: cargo install wasm-pack --version 0.15.1 --locked
+      # wasm-pack downloads wasm-bindgen and wasm-opt from GitHub releases on every run; when that
+      # fails it compiles wasm-bindgen (90 s) or stops.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/.wasm-pack
+          key: wasm-pack-${{ runner.os }}-0.15.1-${{ hashFiles('Cargo.lock') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm run generate
       # test, check and build each start by generating; it is done, so they skip that and run at
