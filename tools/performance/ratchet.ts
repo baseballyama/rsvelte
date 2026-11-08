@@ -15,7 +15,7 @@
 // The ratchet is two-sided: a counter that rose fails, and so does one that fell without the
 // baseline recording it, so an improvement is locked in by the change that made it. `--update`
 // writes what was measured into the baseline (instruction counts of other platforms are kept).
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -101,7 +101,7 @@ export async function main(args: string[]): Promise<void> {
 	/** Relative; cachegrind repeats itself exactly on one machine, this absorbs libc and CPU dispatch. */
 	const INSTRUCTION_TOLERANCE = 0.002;
 	/** Instructions count every this-th corpus unit. */
-	const INSTRUCTION_SAMPLE = 10;
+	const INSTRUCTION_SAMPLE = 20;
 
 	const { values } = parseArgs({
 		args,
@@ -112,19 +112,15 @@ export async function main(args: string[]): Promise<void> {
 		},
 	});
 
-	function run(cmd: string, argv: string[], env: NodeJS.ProcessEnv = process.env) {
-		const started = performance.now();
-		const r = spawnSync(cmd, argv, { cwd: ROOT, env, encoding: 'utf8', maxBuffer: 1 << 28 });
-		if (r.status !== 0) throw new Error(`${cmd} ${argv.join(' ')} exited ${r.status}\n${r.stderr}`);
-		took(cmd, argv, started);
-		return r;
-	}
-
-	/** `run` without waiting; resolves with the command's stderr. */
-	function start(cmd: string, argv: string[]): Promise<string> {
+	/** Runs a command; resolves with its stderr. */
+	function start(
+		cmd: string,
+		argv: string[],
+		env: NodeJS.ProcessEnv = process.env,
+	): Promise<string> {
 		const started = performance.now();
 		return new Promise((resolve, reject) => {
-			const child = spawn(cmd, argv, { cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'] });
+			const child = spawn(cmd, argv, { cwd: ROOT, env, stdio: ['ignore', 'ignore', 'pipe'] });
 			let stderr = '';
 			child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk));
 			child.on('error', reject);
@@ -140,17 +136,20 @@ export async function main(args: string[]): Promise<void> {
 	}
 
 	/**
-	 * A private copy, so a build that finishes after the copy cannot swap the binary while it is
-	 * measured. Both flavours share one target directory: only the crates the feature touches build
-	 * twice.
+	 * A private copy, so a later build cannot swap the binary while it is measured. Each flavour
+	 * has its own target directory, so the two builds run at once.
 	 */
-	function build(flavour: 'metrics' | 'plain', directory: string): string {
-		const dir = path.join(ROOT, 'target', 'performance');
+	async function build(flavour: 'metrics' | 'plain', directory: string): Promise<string> {
+		const dir = path.join(ROOT, 'target', `performance-${flavour}`);
 		const features = flavour === 'metrics' ? ['--features', 'metrics'] : [];
-		run('cargo', ['build', '--release', '--offline', '-p', 'rsvelte_command_line', ...features], {
-			...process.env,
-			CARGO_TARGET_DIR: dir,
-		});
+		await start(
+			'cargo',
+			['build', '--release', '--offline', '-p', 'rsvelte_command_line', ...features],
+			{
+				...process.env,
+				CARGO_TARGET_DIR: dir,
+			},
+		);
 		fs.mkdirSync(path.join(directory, flavour));
 		const copy = path.join(directory, flavour, 'rsvelte');
 		fs.copyFileSync(path.join(dir, 'release', 'rsvelte'), copy);
@@ -221,11 +220,12 @@ export async function main(args: string[]): Promise<void> {
 	let report: Report;
 	let instr: { warm: number; load: number; sample: Sample } | undefined;
 	try {
-		const metrics = build('metrics', directory);
-		const plain = values.instructions ? build('plain', directory) : undefined;
+		// rustup installs a missing toolchain on first use; two builds at once would both download it.
+		await start('cargo', ['--version']);
+		// Each measurement starts as soon as its own build is done.
 		[report, instr] = await Promise.all([
-			allocations(metrics, directory),
-			plain === undefined ? undefined : instructions(plain),
+			build('metrics', directory).then((metrics) => allocations(metrics, directory)),
+			values.instructions ? build('plain', directory).then(instructions) : undefined,
 		]);
 	} finally {
 		fs.rmSync(directory, { recursive: true, force: true });
