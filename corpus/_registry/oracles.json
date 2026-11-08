@@ -22,7 +22,8 @@
 			"acorn": "8.19.0"
 		},
 		"oracles": {
-			"svelte": "5.57.3"
+			"svelte": "5.57.3",
+			"typescript": "6.0.3"
 		}
 	},
 	"svelte.format": {
