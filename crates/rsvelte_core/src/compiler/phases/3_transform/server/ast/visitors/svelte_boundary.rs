@@ -215,15 +215,7 @@ pub fn visit_svelte_boundary<'a>(node: &SvelteElement<'a>, state: &mut ServerTra
     // (`statements = can_hoist ? state.hoisted : state.init`):
     // - HOISTABLE (`can_hoist` AND top-level boundary) → component-body top
     //   (`state.body`), ahead of ALL template content.
-    // - NON-hoistable → the CURRENT fragment's `state.init`. In this pipeline that
-    //   is `state.snippet_inits`, which `build_fragment_body` prepends to the head
-    //   of the enclosing fragment body — so a TOP-LEVEL boundary's instance-state-
-    //   referencing `failed` lands at the component-body top (ahead of the rendered
-    //   `push(...)` template), and a NESTED boundary's `failed` lands at the head of
-    //   the surrounding block body. Previously this was emitted INLINE
-    //   (`TemplateEntry::Stmt`) right before the boundary call, which placed it
-    //   AFTER preceding sibling template pushes — diverging from upstream, whose
-    //   `state.init` always precedes the fragment's rendered template.
+    // - NON-hoistable → the boundary's own `init`, emitted as `{ ...init, boundary }`.
     // Two sibling boundaries each declare a function named `failed`, so a
     // non-hoisted one needs its own lexical block or the second redeclares the
     // first (upstream's `init` vec, emitted as `{ ...init, boundary }`).

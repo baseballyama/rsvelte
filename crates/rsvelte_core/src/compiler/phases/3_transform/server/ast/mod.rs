@@ -128,11 +128,11 @@ pub struct ServerTransformState<'a> {
     /// `DeclarationTag.js::add_async_declaration`). When a `{@const}` in a block
     /// has an awaited / blocker-dependent initializer, its assignment becomes a
     /// thunk in this group's `$$renderer.run([...])` declaration, and the bare
-    /// `let <name>;` for each declared binding is collected into `let_decls`. The
+    /// `let <name>;` for each declared binding is a hoisted template entry. The
     /// group is created lazily by the const visitor, prepended to the fragment
     /// body by [`visitors::shared::build_fragment_body`], and reset (save/restore)
     /// around each fragment so blocks don't leak consts to siblings.
-    pub async_consts: Option<AsyncConstsGroup<'a>>,
+    pub async_consts: Option<AsyncConstsGroup>,
     /// Per-fragment-scope const blocker map (binding name → blocker expression
     /// source, e.g. `"promises[1]"`). Mirrors the text oracle's
     /// `const_blocker_map` / upstream `Binding.blocker`: a template read of a
@@ -149,14 +149,12 @@ pub struct ServerTransformState<'a> {
     /// `promises`, `promises_1`, `promises_2`, … (mirrors the text oracle's
     /// `const_promises_counter`).
     pub const_promises_counter: usize,
-    /// Component-body `init` slot for NON-hoistable snippet function declarations
-    /// (写经 upstream `SnippetBlock.js`: `node.metadata.can_hoist ? state.hoisted
-    /// : state.init`). A snippet that references instance-level state cannot be
-    /// lifted to module scope, so its `function name($$renderer, …) { … }`
-    /// declaration is collected here — regardless of how deeply it nests in the
-    /// template — and prepended to the component-function body (ahead of the
-    /// rendered template), matching upstream's shared component-level `state.init`.
-    pub snippet_inits: Vec<Statement<'a>>,
+    /// What regular (non-hoisted) nodes push onto the current fragment's
+    /// upstream `state.init`, in visit order: a component's `var bind_get` /
+    /// `var bind_set`, a dev `<svelte:element>`'s tag validation. Upstream visits
+    /// the hoisted `{@const}` / snippet nodes first, so `build_fragment_body`
+    /// places these after them.
+    pub init: Vec<Statement<'a>>,
     /// Names of every `{#snippet name(...)}` lowered to a `function name(...)`
     /// declaration (写经 upstream's `fn.___snippet = true` marker). Used by the
     /// `uses_component_bindings` settle-loop assembly to partition top-level
@@ -259,15 +257,12 @@ pub struct SavedScope {
 /// One per-fragment async `{@const}` group — the AST mirror of upstream's
 /// `state.async_consts` (`DeclarationTag.js`). `name` is the `$$renderer.run`
 /// result variable (`promises`); `thunks` are the (source, has_await) thunk
-/// entries fed to `$$renderer.run([...])`; `let_decls` are the bare `let <name>;`
-/// declarations that precede the run call.
-pub struct AsyncConstsGroup<'a> {
+/// entries fed to `$$renderer.run([...])`. The bare `let <name>;` declarations
+/// are hoisted template entries, so they keep their source position.
+pub struct AsyncConstsGroup {
     pub name: String,
     /// (thunk source text, is_async) — reparsed into the run array on flush.
     pub thunks: Vec<(String, bool)>,
-    /// Bare `let <name>;` statements (one per declared binding) emitted before
-    /// the `var promises = $$renderer.run([...])` declaration.
-    pub let_decls: Vec<Statement<'a>>,
 }
 
 pub struct PendingTailComment {
@@ -336,7 +331,7 @@ impl<'a> ServerTransformState<'a> {
             const_blocker_map: rustc_hash::FxHashMap::default(),
             local_derived_names: rustc_hash::FxHashSet::default(),
             const_promises_counter: 0,
-            snippet_inits: Vec::new(),
+            init: Vec::new(),
             snippet_names: rustc_hash::FxHashSet::default(),
             derived_d_counter: 0,
             derived_array_counter: 0,
@@ -1548,13 +1543,6 @@ pub fn server_component_ast<'a>(
     );
     // Root fragment: parent is the Fragment node itself, so it IS an
     // `is_text_first` parent (upstream `clean_nodes`/`Fragment`).
-    // 写经 upstream `SnippetBlock.js`: NON-hoistable snippet function
-    // declarations are emitted into the enclosing render scope's `state.init`.
-    // `build_fragment_body` collects them per-fragment (see `state.snippet_inits`)
-    // and prepends them to the front of each fragment body — so for the ROOT
-    // fragment they already sit at the head of `template_body` (ahead of the
-    // rendered template, after the instance body), and for block-nested snippets
-    // they stay inside their block body. No extra splice is needed here.
     let template_body =
         visitors::shared::build_fragment_body(&ast.fragment.nodes, true, true, &mut state);
 
@@ -1574,7 +1562,6 @@ pub fn server_component_ast<'a>(
     // and keep them ahead of `$$render_inner` rather than inside it.
     let template_body = if analysis.uses_component_bindings {
         let mut snippets: Vec<Statement<'a>> = Vec::new();
-        let mut inner_prefix: Vec<Statement<'a>> = Vec::new();
         let mut rest: Vec<Statement<'a>> = Vec::new();
         for stmt in template_body {
             let is_snippet = matches!(
@@ -1584,8 +1571,6 @@ pub fn server_component_ast<'a>(
             );
             if is_snippet {
                 snippets.push(stmt);
-            } else if is_prevent_snippet_stringification(&stmt) {
-                inner_prefix.push(stmt);
             } else {
                 rest.push(stmt);
             }
@@ -1593,8 +1578,7 @@ pub fn server_component_ast<'a>(
 
         // function $$render_inner($$renderer) { <rest> }
         let inner_params = b.params(vec![b.id_pat("$$renderer")], None);
-        inner_prefix.extend(rest);
-        let inner_fn_body = b.body(inner_prefix);
+        let inner_fn_body = b.body(rest);
         let render_inner_fn =
             b.function_declaration("$$render_inner", inner_params, inner_fn_body, false);
 
@@ -2052,22 +2036,6 @@ fn holds_a_body(stmt: &Statement<'_>) -> bool {
     let mut search = Search(false);
     oxc_ast_visit::Visit::visit_statement(&mut search, stmt);
     search.0
-}
-
-fn is_prevent_snippet_stringification(stmt: &Statement<'_>) -> bool {
-    matches!(
-        stmt,
-        Statement::ExpressionStatement(expr)
-            if matches!(
-                &expr.expression,
-                OxcExpression::CallExpression(call)
-                    if matches!(
-                        &call.callee,
-                        OxcExpression::Identifier(id)
-                            if id.name.as_str() == "$.prevent_snippet_stringification"
-                    )
-            )
-    )
 }
 
 fn rehome_derived_jsdoc(code: &str) -> String {
