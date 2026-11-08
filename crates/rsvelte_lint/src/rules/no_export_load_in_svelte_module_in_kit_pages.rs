@@ -1,12 +1,9 @@
 //! `svelte/no-export-load-in-svelte-module-in-kit-pages` — disallow exporting
 //! `load` functions in `*.svelte` module scripts in `SvelteKit` page components.
 //!
-//! Two upstream quirks are load-bearing here and both are reproduced verbatim.
-//! Its `isModule` flag is set by a selector matching only
-//! `SvelteAttribute[key.name="context"] > SvelteLiteral[value="module"]`, so the
-//! Svelte 5 spelling `<script module>` never turns the rule on; and its export
-//! selector is not anchored to `Program`, so an `export function load()` nested
-//! inside `export namespace App { … }` does fire.
+//! Upstream's export selector is not anchored to `Program`, so an
+//! `export function load()` nested inside `export namespace App { … }` does
+//! fire; that quirk is reproduced verbatim.
 //!
 //! Port of
 //! `eslint-plugin-svelte/src/rules/no-export-load-in-svelte-module-in-kit-pages.ts`.
@@ -23,6 +20,7 @@ use serde_json::Value;
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 use crate::rules::kit_routes;
+use crate::rules::shared::module_script::is_module_script;
 use crate::script::node_type;
 
 static META: RuleMeta = RuleMeta {
@@ -41,31 +39,6 @@ static META: RuleMeta = RuleMeta {
 
 const MESSAGE: &str =
     "disallow exporting load functions in `*.svelte` module in SvelteKit page components.";
-
-/// Whether a `<script>` element carries `context="module"` — the only module
-/// spelling upstream's selector recognizes.
-fn has_context_module_attribute(script: &Value) -> bool {
-    let Some(attributes) = script.get("attributes").and_then(Value::as_array) else {
-        return false;
-    };
-    attributes.iter().any(|attr| {
-        if node_type(attr) != Some("Attribute")
-            || attr.get("name").and_then(Value::as_str) != Some("context")
-        {
-            return false;
-        }
-        attr.get("value")
-            .and_then(Value::as_array)
-            .is_some_and(|parts| {
-                parts.iter().any(|part| {
-                    part.get("data")
-                        .or_else(|| part.get("raw"))
-                        .and_then(Value::as_str)
-                        == Some("module")
-                })
-            })
-    })
-}
 
 /// The `lang` attribute of a `<script>` element, lowercased.
 fn script_lang(script: &Value) -> String {
@@ -159,7 +132,7 @@ impl Rule for NoExportLoadInSvelteModuleInKitPages {
         let Some(module) = json.get("module").filter(|m| !m.is_null()) else {
             return;
         };
-        if !has_context_module_attribute(module) {
+        if !root.module.as_ref().is_some_and(|m| is_module_script(m)) {
             return;
         }
         // rsvelte's own ESTree elides a `namespace` body (it serializes as an
