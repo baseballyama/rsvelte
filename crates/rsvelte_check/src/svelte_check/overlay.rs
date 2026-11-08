@@ -6928,11 +6928,18 @@ mod tests {
             !field.contains("#u/util.js"),
             "the package's own `#` subpath import was left for the workspace to resolve:\n{field}"
         );
-        // Named by its `.js` extension, as the package wrote it: a `.ts`
+        // The rewritten relative import then resolves to the package's own
+        // file, named by its `.js` extension as the package wrote it: a `.ts`
         // extension needs `allowImportingTsExtensions` (TS5097).
-        assert!(
-            field.contains("'./util.js'"),
-            "the import should point at the util file beside the shadow:\n{field}"
+        let spec = field
+            .split('\'')
+            .find(|s| s.ends_with("util.js"))
+            .unwrap_or_else(|| panic!("no util.js import in the shadow:\n{field}"));
+        let shadow_dir = workspace.join(".svelte-check/ext/0/src");
+        assert_eq!(
+            normalize_abs(&shadow_dir.join(spec)),
+            normalize_abs(&tmp.join("libs/src/util.js")),
+            "the import should point at the package's own util file:\n{field}"
         );
 
         let _ = fs::remove_dir_all(&tmp);
