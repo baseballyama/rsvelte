@@ -311,35 +311,7 @@ fn visit_identifier_inner(
         // Check if the function depths match
         if absolute_context_depth == binding_scope_depth {
             // Check binding kind eligibility
-            let is_eligible_kind = match binding.kind {
-                // State: warn if reassigned, or if the initial value is a primitive
-                // (in the official compiler this checks should_proxy on the initial argument)
-                // We simplify: warn for all $state bindings that are reassigned
-                BindingKind::State => {
-                    binding.reassigned || {
-                        // Upstream asks `!should_proxy(initial.arguments[0])`, which is a
-                        // DENY-LIST defaulting to proxied; spelling it as an allow-list
-                        // silently dropped every shape nobody listed. Logical and
-                        // conditional expressions are absent on purpose — either branch
-                        // may produce a proxyable value, so upstream proxies them.
-                        binding.initial_node_type.as_deref().is_some_and(|t| {
-                            matches!(
-                                t,
-                                "Literal"
-                                    | "TemplateLiteral"
-                                    | "ArrowFunctionExpression"
-                                    | "FunctionExpression"
-                                    | "BinaryExpression"
-                                    | "UnaryExpression"
-                            ) || (t == "Identifier"
-                                && binding.initial_identifier_name.as_deref() == Some("undefined"))
-                        })
-                    }
-                }
-                BindingKind::RawState | BindingKind::Derived => true,
-                BindingKind::Prop | BindingKind::RestProp => true,
-                _ => false,
-            };
+            let is_eligible_kind = state_read_can_warn(binding);
 
             // For var-hoisted bindings, skip warning if the reference appears before
             // the declaration in source order. The official Svelte compiler sets binding
@@ -675,4 +647,51 @@ fn check_const_tag_snippet_reference(
     }
 
     Ok(())
+}
+
+/// The binding-kind half of upstream's `state_referenced_locally` condition:
+/// a `$state` warns only when reassigned or when its initial value would not
+/// be proxied.
+pub(super) fn state_read_can_warn(
+    binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
+) -> bool {
+    state_read_can_warn_with(
+        binding,
+        binding.initial_node_type.as_deref(),
+        binding.initial_identifier_name.as_deref(),
+    )
+}
+
+/// [`state_read_can_warn`] with the `$state` argument's node type supplied by
+/// the caller.
+pub(super) fn state_read_can_warn_with(
+    binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
+    initial_node_type: Option<&str>,
+    initial_identifier_name: Option<&str>,
+) -> bool {
+    match binding.kind {
+        BindingKind::State => {
+            binding.reassigned || {
+                // Upstream asks `!should_proxy(initial.arguments[0])`, which is a
+                // DENY-LIST defaulting to proxied; spelling it as an allow-list
+                // silently dropped every shape nobody listed. Logical and
+                // conditional expressions are absent on purpose — either branch
+                // may produce a proxyable value, so upstream proxies them.
+                initial_node_type.is_some_and(|t| {
+                    matches!(
+                        t,
+                        "Literal"
+                            | "TemplateLiteral"
+                            | "ArrowFunctionExpression"
+                            | "FunctionExpression"
+                            | "BinaryExpression"
+                            | "UnaryExpression"
+                    ) || (t == "Identifier" && initial_identifier_name == Some("undefined"))
+                })
+            }
+        }
+        BindingKind::RawState | BindingKind::Derived => true,
+        BindingKind::Prop | BindingKind::RestProp => true,
+        _ => false,
+    }
 }
