@@ -82,7 +82,7 @@ fn main() -> ExitCode {
     }
     w.end_array()
         .key("source_map")
-        .write_string(&e.source_map(&document.text, name))
+        .write_string(&e.source_map(context.line_index(), name))
         .end_object();
     print!("{}", w.finish());
     ExitCode::SUCCESS

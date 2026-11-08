@@ -166,9 +166,9 @@ impl Emitter {
     }
 
     /// Encodes the mappings as a source map v3 JSON document, one segment per mapped character.
+    /// `source` indexes the original text; a document's is cached in its `DocumentContext`.
     #[must_use]
-    pub fn source_map(&self, source: &str, source_name: &str) -> String {
-        let source_text_index = LineIndex::new(source);
+    pub fn source_map(&self, source: &LineIndex, source_name: &str) -> String {
         let gen_index = LineIndex::new(&self.out);
         let mut mappings = String::new();
         let (
@@ -180,7 +180,7 @@ impl Emitter {
         let mut first_in_line = true;
         for (generated, source_text) in self.points() {
             let g = gen_index.line_column(generated);
-            let s = source_text_index.line_column(source_text);
+            let s = source.line_column(source_text);
             while prev_gen_line < g.line {
                 mappings.push(';');
                 prev_gen_line += 1;
@@ -354,7 +354,7 @@ mod tests {
         e.push("$.text(");
         e.copy(source_text, Span::new(at("{é}") + 1, at("{é}") + 3));
         e.push(");\n}\n");
-        let map = e.source_map(source_text, "App.svelte");
+        let map = e.source_map(&LineIndex::new(source_text), "App.svelte");
         let mut checked = 0;
         for (position, _) in e.out.char_indices().chain([(e.out.len(), ' ')]) {
             assert_eq!(

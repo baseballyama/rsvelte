@@ -84,7 +84,7 @@ impl Task for Project {
                 out.file("ts", projection.out.clone());
                 out.file(
                     "ts.map",
-                    projection.source_map(context.source_text(), &context.document.path),
+                    projection.source_map(context.line_index(), &context.document.path),
                 );
             }
             Err(diagnostic) => out.diagnostics.push(diagnostic.clone()),
