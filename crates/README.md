@@ -27,7 +27,7 @@ crates/
     └── configuration_loading/ loads configuration files, for hosts only
 ```
 
-A crate under `languages/` is named `rsvelte_<language>_<directory>`, with `css` spelled
+Each crate under `languages/` takes the name `rsvelte_<language>_<directory>`, with `css` spelled
 `stylesheet` and `html` spelled `markup`. A language splits into syntax and semantic only where
 some crate needs the trees without the analysis.
 
