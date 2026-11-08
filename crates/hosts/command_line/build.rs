@@ -1,6 +1,6 @@
 //! Embeds the tree the binary was built from, so a measurement names its arm: `RSV_BUILD_REV` is
-//! `git rev-parse HEAD` plus `-dirty` when the build's inputs ([`INPUTS`]) differ from it: a tracked
-//! file changed, or an untracked one (such as a module left out of a commit) is present.
+//! `git rev-parse HEAD` plus `-dirty` when the build's inputs ([`INPUTS`]) differ from it: a
+//! tracked file changed, or an untracked one (such as a module left out of a commit) is present.
 
 use std::process::Command;
 
