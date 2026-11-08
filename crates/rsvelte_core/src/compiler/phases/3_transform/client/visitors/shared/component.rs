@@ -2364,36 +2364,38 @@ fn process_attach_tag(
     );
     let expression = convert_expression(&attach.expression, context);
 
-    // Phase 2's AttachTag visitor walks this expression with the same metadata
-    // object upstream passes to its visitor context. Consume that single source
-    // of truth instead of independently re-deriving the two flags in Phase 3.
-    let has_state = attach.metadata.expression.has_state();
-    let has_call = attach.metadata.expression.has_call();
+    // Upstream's `has_state` is narrower than either answer available here:
+    // Phase 2's also counts state read inside a nested function body (upstream's
+    // `visit_function` enters it with `expression: null`), and the template
+    // walk also counts a binding blocked by a top-level `await`. Each over-counts
+    // what the other does not, so a read is state only if both say so. Neither
+    // walk misses an assignment target except the template one, which ignores
+    // it, and Phase 2 does not lift `has_assignment` out of function bodies.
+    let metadata = &attach.metadata.expression;
+    let has_state = (metadata.has_state()
+        && super::utils::expression_has_reactive_state(&attach.expression, context))
+        || metadata.has_call()
+        || (metadata.has_assignment() && metadata.has_state());
 
-    let final_expr = if has_state || has_call {
-        // Apply transforms to the expression to convert state references to $.get() calls
-        // e.g., attachment(message) -> attachment($.get(message))
-        let transformed = super::utils::apply_transforms_to_expression(&expression, context);
-
-        // Wrap in arrow function for reactive attach
-        // The structure is: ($$node) => (expression || $.noop)($$node)
-        // The logical OR wraps the expression, and the result is called with $$node
+    let transformed = super::utils::apply_transforms_to_expression(&expression, context);
+    let final_expr = if has_state {
+        let callee = if super::utils::is_expression_function(&attach.expression, context) {
+            transformed
+        } else {
+            b::logical(
+                &context.arena,
+                JsLogicalOp::Or,
+                transformed,
+                b::member_path(&context.arena, "$.noop"),
+            )
+        };
         b::arrow(
             &context.arena,
             vec![b::id_pattern("$$node")],
-            b::call(
-                &context.arena,
-                b::logical(
-                    &context.arena,
-                    JsLogicalOp::Or,
-                    transformed,
-                    b::member_path(&context.arena, "$.noop"),
-                ),
-                vec![b::id("$$node")],
-            ),
+            b::call(&context.arena, callee, vec![b::id("$$node")]),
         )
     } else {
-        expression
+        transformed
     };
 
     // Add as computed property with $.attachment() key

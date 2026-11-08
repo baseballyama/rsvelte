@@ -171,6 +171,15 @@ impl Evaluation {
                 .all(|v| matches!(v, EvalValue::Str(_) | EvalValue::StringMarker))
     }
 
+    /// True if every possible value is a function (mirrors `is_function`).
+    pub(crate) fn is_function(&self) -> bool {
+        !self.values.is_empty()
+            && self
+                .values
+                .iter()
+                .all(|v| matches!(v, EvalValue::FunctionMarker))
+    }
+
     /// True if the value is known to not be null/undefined (mirrors `is_defined`).
     pub(crate) fn is_defined(&self) -> bool {
         !self.values.is_empty()
