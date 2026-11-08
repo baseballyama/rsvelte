@@ -7419,15 +7419,6 @@ mod class_field_server_tests {
         );
     }
 
-    /// Regression: a class with NO $derived/$state fields between two classes
-    /// that DO have such fields must NOT cause the second class's fields to be
-    /// skipped.  The previous early-return at `derived_fields.is_empty() &&
-    /// !has_state_fields` returned `script.to_string()` — discarding any
-    /// subsequent recursive work — instead of forwarding the recursion.
-    ///
-    /// Mirrors the shape of `ToggleGroupRootState` (static-create-only, no rune
-    /// fields) sitting between `ToggleGroupMultipleState` (has rune fields) and
-    /// `ToggleGroupItemState` (has rune fields).
     #[test]
     fn a_field_continued_after_a_binary_operator_stays_one_member() {
         let input = "export class A {\n  y = 1 |\n    2;\n  static FLAGS =\n    A.FLAG_A |\n    A.FLAG_B;\n  z = a\n    && b;\n  x = $state(0);\n  m(\n    a,\n    b\n  ) {\n    return a;\n  }\n}\n";
@@ -7446,6 +7437,25 @@ mod class_field_server_tests {
         assert!(out.contains("x = 0"), "{out}");
     }
 
+    #[test]
+    fn a_derived_class_body_with_super_call_still_uses_member_extents() {
+        let input = "export class C extends B {\n  static ALL =\n    1 |\n    2;\n  count = $state(0);\n  constructor() {\n    super();\n  }\n}\n";
+        let out = transform_class_fields_server(input);
+        let alloc = oxc_allocator::Allocator::default();
+        let parsed = oxc_parser::Parser::new(&alloc, &out, oxc_span::SourceType::mjs()).parse();
+        assert!(parsed.diagnostics.is_empty(), "unparseable:\n{out}");
+        assert!(out.contains("static ALL =\n    1 |\n    2"), "{out}");
+    }
+
+    /// Regression: a class with NO $derived/$state fields between two classes
+    /// that DO have such fields must NOT cause the second class's fields to be
+    /// skipped.  The previous early-return at `derived_fields.is_empty() &&
+    /// !has_state_fields` returned `script.to_string()` — discarding any
+    /// subsequent recursive work — instead of forwarding the recursion.
+    ///
+    /// Mirrors the shape of `ToggleGroupRootState` (static-create-only, no rune
+    /// fields) sitting between `ToggleGroupMultipleState` (has rune fields) and
+    /// `ToggleGroupItemState` (has rune fields).
     #[test]
     fn class_with_no_rune_fields_between_two_classes_that_do() {
         let input = r#"class First {
