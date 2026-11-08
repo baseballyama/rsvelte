@@ -11,7 +11,7 @@ doctest = false
 
 [dependencies]
 rsvelte_config.workspace = true
-rsvelte_lint.workspace = true
+rsvelte_lint_runner.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript.workspace = true
 

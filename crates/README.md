@@ -20,7 +20,7 @@ crates/
 │   └── compile_vapor/         Svelte compiled for the Vue Vapor runtime
 ├── languages/typescript/content_mapper/  the protocol to the native TypeScript checker
 ├── languages/vue/compile_svelte/         Vue compiled for the Svelte runtime
-├── tooling/lint/              rule running and ESLint-style reports, shared by every linter
+├── language_independent/lint_runner/  rule running and ESLint-style reports, shared by every linter
 ├── hosts/                     command_line, browser, config: see hosts/README.md
 └── test_harness/              runs each crate's tasks over its tests/fixtures/ and the corpus
 ```

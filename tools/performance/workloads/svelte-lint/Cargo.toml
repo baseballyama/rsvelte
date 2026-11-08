@@ -9,7 +9,7 @@ allocations = []
 rsvelte_svelte_lint = { path = "../../../../crates/languages/svelte/lint" }
 rsvelte_svelte = { path = "../../../../crates/languages/svelte/core" }
 rsvelte_kernel = { path = "../../../../crates/language_independent/kernel" }
-rsvelte_lint = { path = "../../../../crates/tooling/lint" }
+rsvelte_lint_runner = { path = "../../../../crates/language_independent/lint_runner" }
 rsvelte_markup = { path = "../../../../crates/languages/html/core" }
 rsvelte_typescript_lint = { path = "../../../../crates/languages/typescript/lint" }
 [profile.release]

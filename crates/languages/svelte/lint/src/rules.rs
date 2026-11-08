@@ -1,6 +1,6 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
-use rsvelte_lint::rules::{Findings, Rule};
+use rsvelte_lint_runner::rules::{Findings, Rule};
 use rsvelte_svelte::Parsed;
 
 use crate::RuleConfiguration;

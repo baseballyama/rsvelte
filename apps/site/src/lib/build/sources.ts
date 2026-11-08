@@ -7,7 +7,7 @@ import path from 'node:path';
 /** Role names used in item keys. */
 export const CRATES: Record<string, string> = {
 	rsvelte_kernel: 'kernel',
-	rsvelte_lint: 'lint',
+	rsvelte_lint_runner: 'lint',
 	rsvelte_svelte: 'svelte',
 	rsvelte_typescript: 'typescript',
 	rsvelte_command_line: 'command_line',
@@ -30,7 +30,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 			file: `language_independent/kernel/src/${file}`,
 		}));
 	const groups: [string, string, string[]][] = [
-		['lint', 'tooling/lint/src', ['rules', 'output']],
+		['lint', 'language_independent/lint_runner/src', ['rules', 'output']],
 		[
 			'typescript',
 			'languages/typescript/core/src',

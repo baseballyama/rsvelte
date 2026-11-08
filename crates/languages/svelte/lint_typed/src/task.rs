@@ -69,7 +69,7 @@ impl Task for Lint {
         };
         out.file(
             "lint.json",
-            rsvelte_lint::output::render_json(
+            rsvelte_lint_runner::output::render_json(
                 context.line_index(),
                 if configuration.no_unnecessary_condition.is_some() {
                     &[crate::rules::RULE]

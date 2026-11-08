@@ -326,7 +326,7 @@ export function moduleFile(module: string): string {
 		crate === 'kernel'
 			? 'crates/language_independent/kernel/src'
 			: crate === 'lint'
-				? 'crates/tooling/lint/src'
+				? 'crates/language_independent/lint_runner/src'
 				: null;
 	if (!directory) throw new Error(`no crate directory for ${module}`);
 	return `${directory}/${rest.join('/')}.rs`;

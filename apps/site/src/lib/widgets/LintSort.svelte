@@ -2,7 +2,7 @@
 	import Figure from '#lib/components/Figure.svelte';
 	import { LineIndex } from '#lib/kernel/source.ts';
 
-	// The rsvelte_lint test's rule: report every 'x' (optionally shifted), under the rule's own id.
+	// The rsvelte_lint_runner test's rule: report every 'x' (optionally shifted), under the rule's own id.
 	interface Finding {
 		code: string;
 		startOffset: number;

@@ -546,7 +546,7 @@
 	</ul>
 	<p>
 		Svelte プラグインでは、設定の中の各ルール（<code>RuleConfiguration</code>）が <code>Rule</code>
-		を実装し、必要な層をその場で求めます。<code>rsvelte_lint</code>
+		を実装し、必要な層をその場で求めます。<code>rsvelte_lint_runner</code>
 		の <code>Findings</code> は、ルールを設定の順に走らせて、一つの並びにまとめます。同じ位置の指摘は、ルールの順になります。
 	</p>
 </div>

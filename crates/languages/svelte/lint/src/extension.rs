@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use rsvelte_config::{Extension, Settings};
 use rsvelte_kernel::computation::functions::CallError;
 use rsvelte_kernel::computation::pipeline::Registry;
-use rsvelte_lint::level::Level;
+use rsvelte_lint_runner::level::Level;
 use rsvelte_markup::button_type::Allowed;
 use serde::Deserialize;
 use serde_json::value::RawValue;

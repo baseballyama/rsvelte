@@ -801,7 +801,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsvelte_lint"
+name = "rsvelte_lint_runner"
 version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
@@ -920,7 +920,7 @@ version = "0.0.0"
 dependencies = [
  "rsvelte_config",
  "rsvelte_kernel",
- "rsvelte_lint",
+ "rsvelte_lint_runner",
  "rsvelte_markup",
  "rsvelte_svelte",
  "rsvelte_test_harness",
@@ -938,7 +938,7 @@ version = "0.0.0"
 dependencies = [
  "rsvelte_config",
  "rsvelte_kernel",
- "rsvelte_lint",
+ "rsvelte_lint_runner",
  "rsvelte_markup",
  "rsvelte_svelte",
  "rsvelte_svelte_lint",
@@ -1097,7 +1097,7 @@ version = "0.0.0"
 dependencies = [
  "rsvelte_config",
  "rsvelte_kernel",
- "rsvelte_lint",
+ "rsvelte_lint_runner",
  "rsvelte_typescript",
 ]
 
@@ -1159,7 +1159,7 @@ version = "0.0.0"
 dependencies = [
  "rsvelte_config",
  "rsvelte_kernel",
- "rsvelte_lint",
+ "rsvelte_lint_runner",
  "rsvelte_markup",
  "rsvelte_test_harness",
  "rsvelte_typescript",

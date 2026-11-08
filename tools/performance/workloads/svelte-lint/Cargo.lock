@@ -102,7 +102,7 @@ name = "lint-architecture-benchmark"
 version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
- "rsvelte_lint",
+ "rsvelte_lint_runner",
  "rsvelte_markup",
  "rsvelte_svelte",
  "rsvelte_svelte_lint",
@@ -175,7 +175,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsvelte_lint"
+name = "rsvelte_lint_runner"
 version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
@@ -220,7 +220,7 @@ name = "rsvelte_svelte_lint"
 version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
- "rsvelte_lint",
+ "rsvelte_lint_runner",
  "rsvelte_markup",
  "rsvelte_svelte",
  "rsvelte_typescript",
@@ -276,7 +276,7 @@ name = "rsvelte_typescript_lint"
 version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
- "rsvelte_lint",
+ "rsvelte_lint_runner",
  "rsvelte_typescript",
 ]
 

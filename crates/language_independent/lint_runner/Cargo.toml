@@ -1,5 +1,5 @@
 [package]
-name = "rsvelte_lint"
+name = "rsvelte_lint_runner"
 description = "Shared lint rule execution and report output"
 edition.workspace = true
 version.workspace = true

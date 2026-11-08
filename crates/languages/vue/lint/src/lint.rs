@@ -7,7 +7,7 @@
 
 use rsvelte_kernel::diagnostics::diagnostic::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_lint::rules::{Findings, Rule};
+use rsvelte_lint_runner::rules::{Findings, Rule};
 use rsvelte_markup::button_type::{Allowed, Problem, check_static};
 use rsvelte_typescript::scope::{DeclarationKind, HostRoot};
 use rsvelte_typescript_lint::JavaScriptFacts;

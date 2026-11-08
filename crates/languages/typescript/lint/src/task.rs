@@ -55,7 +55,7 @@ impl Task for Lint {
         lint::no_unused_variables(&facts, UNUSED_VARIABLES_RULE, |_| true, &mut findings);
         out.file(
             "lint.json",
-            rsvelte_lint::output::render_json(
+            rsvelte_lint_runner::output::render_json(
                 context.line_index(),
                 &[UNUSED_VARIABLES_RULE],
                 &findings,

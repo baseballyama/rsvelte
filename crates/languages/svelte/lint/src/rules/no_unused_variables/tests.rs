@@ -15,7 +15,7 @@ fn lint(source_text: &str) -> String {
         .iter()
         .map(|rule| rule.name())
         .collect();
-    rsvelte_lint::output::render_json(&LineIndex::new(source_text), &rules, &findings)
+    rsvelte_lint_runner::output::render_json(&LineIndex::new(source_text), &rules, &findings)
 }
 
 fn unused(source_text: &str) -> Vec<String> {

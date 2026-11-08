@@ -1,6 +1,6 @@
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::diagnostics::diagnostic::{Diagnostic, Severity};
-use rsvelte_lint::rules::Findings;
+use rsvelte_lint_runner::rules::Findings;
 
 mod no_unnecessary_condition;
 

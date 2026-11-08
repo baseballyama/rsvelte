@@ -25,9 +25,8 @@ function role(manifestPath: string): Role | undefined {
 	if (path === undefined) return undefined;
 	if (path === 'language_independent/kernel') return 'kernel';
 	if (
-		path === 'language_independent/test_harness' ||
+		path.startsWith('language_independent/') ||
 		path === 'hosts/config' ||
-		path.startsWith('tooling/') ||
 		path === 'languages/typescript/content_mapper'
 	)
 		return 'support';
@@ -93,7 +92,7 @@ test('every workspace crate has a role from its path', () => {
 	]);
 	assert.deepEqual(named('support'), [
 		'rsvelte_config',
-		'rsvelte_lint',
+		'rsvelte_lint_runner',
 		'rsvelte_test_harness',
 		'rsvelte_typescript_content_mapper',
 	]);
@@ -181,15 +180,18 @@ test('Svelte boundaries reject injected dependencies on parsing, normalization, 
 test('the kernel rejects language data and shared task contracts', () => {
 	const kernel = metadata.packages.find((pkg) => pkg.name === 'rsvelte_kernel');
 	assert.ok(kernel);
-	for (const name of ['rsvelte_svelte', 'rsvelte_typescript', 'rsvelte_lint']) {
+	for (const name of ['rsvelte_svelte', 'rsvelte_typescript', 'rsvelte_lint_runner']) {
 		const injected: Package = { ...kernel, dependencies: [...kernel.dependencies, { name }] };
 		assert.deepEqual(toolDependencies([injected]), [`rsvelte_kernel depends on ${name}`]);
 	}
 	for (const pkg of metadata.packages.filter((candidate) =>
 		candidate.manifest_path.includes('/core/'),
 	)) {
-		const injected = { ...pkg, dependencies: [...pkg.dependencies, { name: 'rsvelte_lint' }] };
-		assert.deepEqual(toolDependencies([injected]), [`${pkg.name} depends on rsvelte_lint`]);
+		const injected = {
+			...pkg,
+			dependencies: [...pkg.dependencies, { name: 'rsvelte_lint_runner' }],
+		};
+		assert.deepEqual(toolDependencies([injected]), [`${pkg.name} depends on rsvelte_lint_runner`]);
 	}
 });
 
@@ -218,7 +220,7 @@ test('new crates get a role from where they are placed', () => {
 		['/r/crates/languages/rust/core/Cargo.toml', 'core'],
 		['/r/crates/languages/rust/lint/Cargo.toml', 'capability'],
 		['/r/crates/hosts/editor/Cargo.toml', 'host'],
-		['/r/crates/tooling/format/Cargo.toml', 'support'],
+		['/r/crates/language_independent/document_printer/Cargo.toml', 'support'],
 		['/r/crates/misc/thing/Cargo.toml', undefined],
 		['/r/crates/languages/rust/lint/nested/Cargo.toml', undefined],
 	] as const) {
@@ -228,7 +230,7 @@ test('new crates get a role from where they are placed', () => {
 
 test('support, plugin and host boundaries reject injected dependencies', () => {
 	for (const [from, to] of [
-		['rsvelte_lint', 'rsvelte_svelte'],
+		['rsvelte_lint_runner', 'rsvelte_svelte'],
 		['rsvelte_config', 'rsvelte_svelte_compile'],
 		['rsvelte_typescript_content_mapper', 'rsvelte_typescript'],
 		['rsvelte_svelte_lint', 'rsvelte_command_line'],

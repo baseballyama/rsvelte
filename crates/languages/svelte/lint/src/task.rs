@@ -52,7 +52,7 @@ impl Task for Lint {
         let rules = configuration.rules();
         out.file(
             "lint.json",
-            rsvelte_lint::output::render_json_with_rules(
+            rsvelte_lint_runner::output::render_json_with_rules(
                 context.line_index(),
                 rules.iter().map(|rule| rule.name()),
                 &findings,

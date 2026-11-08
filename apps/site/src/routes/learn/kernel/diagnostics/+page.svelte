@@ -92,7 +92,7 @@
 
 	<H2 id="rule" />
 	<p>
-		lint ルールの守るべき条件は、各言語で共有する <code>rsvelte_lint</code>
+		lint ルールの守るべき条件は、各言語で共有する <code>rsvelte_lint_runner</code>
 		にあります。カーネルはタスクを実行し、成果物と診断を受け取ります。ルールはコンテキストの型
 		<code>C</code>
 		について総称的で、<code>C</code> を決めるのは言語の側です。
@@ -134,7 +134,7 @@
 	<p>
 		<code>Findings</code>
 		は、層ごとのルールの組を順に走らせ、ルールごとに計測のフェーズを開き、最後に指摘を開始位置で並べます。層が一つなら
-		<code>rsvelte_lint::rules::run</code> が同じことをします。
+		<code>rsvelte_lint_runner::rules::run</code> が同じことをします。
 	</p>
 </div>
 
