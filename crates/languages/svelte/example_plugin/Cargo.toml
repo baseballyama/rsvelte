@@ -1,0 +1,21 @@
+[package]
+name = "rsvelte_svelte_example_plugin"
+description = "A small plugin that counts a component's elements, as a model for new plugins"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+rsvelte_config.workspace = true
+rsvelte_kernel.workspace = true
+rsvelte_svelte.workspace = true
+
+[dev-dependencies]
+rsvelte_svelte_format.workspace = true
+
+[lints]
+workspace = true

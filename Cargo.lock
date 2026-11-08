@@ -735,7 +735,6 @@ dependencies = [
  "rayon",
  "rsvelte_config",
  "rsvelte_kernel",
- "rsvelte_stylesheet",
  "rsvelte_svelte",
  "rsvelte_svelte_compile",
  "rsvelte_svelte_compile_vapor",
@@ -890,6 +889,16 @@ dependencies = [
  "rsvelte_svelte_syntax",
  "rsvelte_typescript",
  "unicode-id-start",
+]
+
+[[package]]
+name = "rsvelte_svelte_example_plugin"
+version = "0.0.0"
+dependencies = [
+ "rsvelte_config",
+ "rsvelte_kernel",
+ "rsvelte_svelte",
+ "rsvelte_svelte_format",
 ]
 
 [[package]]

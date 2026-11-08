@@ -49,7 +49,8 @@
 	<p>
 		別の Rust ライブラリから使う場合は、<code>Cargo.toml</code> の依存関係に
 		<code>rsvelte_svelte</code>
-		を追加します。カーネルに接続する例では <code>rsvelte_kernel</code>
+		を追加します。カーネルに接続する例では <code>rsvelte_kernel</code> と
+		<code>rsvelte_config</code>
 		も必要です。このリポジトリ内では workspace の依存設定を使えます。外から参照する場合は、各 crate のディレクトリを
 		<code>path</code> に指定します。現在は公開パッケージの設定になっていません。
 	</p>
@@ -126,15 +127,21 @@
 	</p>
 	<H2 id="register" />
 	<p>
-		登録関数はプラグイン側で用意する普通の Rust
-		関数です。今回の例では、使う二つの計算結果と一つのタスクを登録します。カーネルは依存する型を自動登録しません。
-	</p>
-	<p>
-		配布する登録関数は、さらに名前・版・依存先を <code>Plugin</code> として宣言し、<code
-			>Registry::plugin</code
+		登録関数はプラグイン側で用意する普通の Rust 関数です。プラグインの名前・版・依存先を <code
+			>Plugin</code
 		>
+		として宣言し、<code>Registry::plugin</code>
 		で登録します。<code>run</code> と <code>run_each</code>
-		は実行の前に、依存先の不足、版の不一致、循環を確かめます。この例は宣言を省いています。
+		は実行の前に、依存先の不足、版の不一致、循環を確かめます。
+	</p>
+</div>
+
+<Code item={data.code.plugin} />
+
+<div class="prose-learn">
+	<p>
+		今回の例では、宣言のあとに Svelte
+		の中核部分を登録し、自分の計算結果とタスクを一つずつ登録します。カーネルは依存する型を自動登録しません。
 	</p>
 </div>
 
@@ -155,14 +162,28 @@
 		同じ計算結果の型を再度登録しても保存先は増えません。別の型に同じ計算名を使うことや、同じタスク識別名を二度登録することはエラーになります。登録は実行前に済ませてください。
 	</p>
 	<H2 id="host" />
-	<p>呼び出し側は登録先を作り、文書と実行設定を渡します。この例は追加したタスクだけを選びます。</p>
+	<p>
+		呼び出し側にはプラグインを <code>Extension</code> として渡します。<code>install</code>
+		はプラグインのオプションを読み、登録関数を呼びます。この例はオプションを受け取りません。
+	</p>
+</div>
+
+<Code item={data.code.extension} />
+
+<div class="prose-learn">
+	<p>
+		呼び出し側は <code>Settings</code> に実行するタスクとオプションを入れ、<code
+			>rsvelte_config::extension::install</code
+		>
+		で登録先を作ります。そのあと文書と実行設定を渡します。この例は追加したタスクだけを選びます。
+	</p>
 </div>
 
 <Code item={data.code.host} />
 
 <div class="prose-learn">
 	<p>次のコマンドで例を実行すると、<code>elements.txt: 2</code> と表示します。</p>
-	<pre><code>cargo run -p rsvelte_command_line --example plugin</code></pre>
+	<pre><code>cargo run -p rsvelte_svelte_example_plugin --example host</code></pre>
 	<p>
 		<code>Sharing::Shared</code> は同じ文書のタスク間で計算結果を共有します。<code
 			>Sharing::Isolated</code

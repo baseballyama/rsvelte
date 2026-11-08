@@ -82,7 +82,7 @@ export function sources(cratesDir: string): { key: string; file: string }[] {
 		],
 		['markup', 'languages/html/core/src', ['button_type']],
 		['command_line', 'hosts/command_line/src', ['commands/benchmark', 'commands/performance']],
-		['svelte/examples', 'hosts/command_line/examples', ['plugin']],
+		['svelte/example_plugin', 'languages/svelte/example_plugin', ['src/lib', 'examples/host']],
 	];
 	return [
 		...kernel,
