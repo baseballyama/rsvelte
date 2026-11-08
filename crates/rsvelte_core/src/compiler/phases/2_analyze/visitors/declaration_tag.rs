@@ -121,25 +121,30 @@ pub fn visit(tag: &mut DeclarationTag, context: &mut VisitorContext) -> Result<(
 
     // The initializer goes through `walk_js_expression_node`, not the
     // Identifier visitor, so its share of the warning is checked here.
-    if context.analysis.runes && !context.is_ignored("state_referenced_locally") {
+    if context.analysis.runes {
         let decl_json = tag.declaration.as_json();
         if let Some(decls) = decl_json.field("declarations").and_then(|d| d.as_array()) {
-            for (name, arg_type, ident) in decls.iter().filter_map(state_initial) {
-                if let Some(idx) = context.analysis.root.get_binding(&name, context.scope) {
-                    context
-                        .analysis
-                        .declaration_tag_state_args
-                        .insert(idx, (arg_type, ident));
+            // Recorded even when this tag is ignored: a later tag's read still warns.
+            for (names, arg_type, ident) in decls.iter().filter_map(state_initial) {
+                for name in names {
+                    if let Some(idx) = context.analysis.root.get_binding(&name, context.scope) {
+                        context
+                            .analysis
+                            .declaration_tag_state_args
+                            .insert(idx, (arg_type.clone(), ident.clone()));
+                    }
                 }
             }
-            let inits: Vec<serde_json::Value> = decls
-                .iter()
-                .filter_map(|d| d.field("init"))
-                .filter(|i| !i.is_null())
-                .cloned()
-                .collect();
-            for init in &inits {
-                warn_local_state_reads(init, "closure", context);
+            if context.is_ignored("state_referenced_locally") {
+                return Ok(());
+            }
+            for declarator in decls {
+                if let Some(id) = declarator.field("id") {
+                    warn_pattern_reads(id, context);
+                }
+                if let Some(init) = declarator.field("init").filter(|i| !i.is_null()) {
+                    warn_local_state_reads(init, "closure", context);
+                }
             }
         }
     }
@@ -169,8 +174,12 @@ fn warn_local_state_reads(node: &serde_json::Value, kind: &str, context: &mut Vi
                             binding,
                             Some(arg_type),
                             ident.as_deref(),
+                            root,
+                            context.scope,
                         ),
-                        None => super::identifier::state_read_can_warn(binding),
+                        None => {
+                            super::identifier::state_read_can_warn(binding, root, context.scope)
+                        }
                     }
             });
             if warns {
@@ -223,7 +232,7 @@ fn warn_local_state_reads(node: &serde_json::Value, kind: &str, context: &mut Vi
                 warn_local_state_reads(property, kind, context);
             }
         }
-        Some("Property") => {
+        Some("Property" | "PropertyDefinition" | "MethodDefinition" | "AccessorProperty") => {
             if node.field("computed").and_then(|c| c.as_bool()) == Some(true)
                 && let Some(key) = node.field("key")
             {
@@ -233,12 +242,21 @@ fn warn_local_state_reads(node: &serde_json::Value, kind: &str, context: &mut Vi
                 warn_local_state_reads(value, kind, context);
             }
         }
+        // Upstream exempts only the identifier that IS the assignment target or
+        // update argument; names inside a target pattern still count as reads.
         Some("AssignmentExpression") => {
+            if let Some(left) = node.field("left").filter(|l| !is_identifier(l)) {
+                warn_local_state_reads(left, kind, context);
+            }
             if let Some(right) = node.field("right") {
                 warn_local_state_reads(right, kind, context);
             }
         }
-        Some("UpdateExpression") => {}
+        Some("UpdateExpression") => {
+            if let Some(argument) = node.field("argument").filter(|a| !is_identifier(a)) {
+                warn_local_state_reads(argument, kind, context);
+            }
+        }
         _ => match node {
             Value::Object(map) => {
                 for (k, v) in map {
@@ -258,15 +276,65 @@ fn warn_local_state_reads(node: &serde_json::Value, kind: &str, context: &mut Vi
     }
 }
 
-/// `(name, argument type, argument identifier)` for a `{let x = $state(arg)}`
-/// declarator: the `should_proxy` half of the warning reads the argument,
-/// where this binding's `initial_node_type` records the whole call.
-fn state_initial(declarator: &serde_json::Value) -> Option<(String, String, Option<String>)> {
-    let id = declarator.field("id")?;
-    if id.field("type").and_then(|t| t.as_str()) != Some("Identifier") {
-        return None;
+fn is_identifier(node: &serde_json::Value) -> bool {
+    node.field("type").and_then(|t| t.as_str()) == Some("Identifier")
+}
+
+/// The reads in a declarator's own pattern: its defaults and computed keys.
+/// The names it declares are the bindings themselves.
+fn warn_pattern_reads(pattern: &serde_json::Value, context: &mut VisitorContext) {
+    match pattern.field("type").and_then(|t| t.as_str()) {
+        Some("ObjectPattern") => {
+            for prop in pattern
+                .field("properties")
+                .and_then(|p| p.as_array())
+                .into_iter()
+                .flatten()
+            {
+                if prop.field("computed").and_then(|c| c.as_bool()) == Some(true)
+                    && let Some(key) = prop.field("key")
+                {
+                    warn_local_state_reads(key, "closure", context);
+                }
+                if let Some(target) = prop.field("value").or_else(|| prop.field("argument")) {
+                    warn_pattern_reads(target, context);
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            for element in pattern
+                .field("elements")
+                .and_then(|e| e.as_array())
+                .into_iter()
+                .flatten()
+            {
+                warn_pattern_reads(element, context);
+            }
+        }
+        Some("RestElement") => {
+            if let Some(argument) = pattern.field("argument") {
+                warn_pattern_reads(argument, context);
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(left) = pattern.field("left") {
+                warn_pattern_reads(left, context);
+            }
+            if let Some(right) = pattern.field("right") {
+                warn_local_state_reads(right, "closure", context);
+            }
+        }
+        _ => {}
     }
-    let name = id.field("name")?.as_str()?.to_string();
+}
+
+/// `(names, argument type, argument identifier)` for a `{let x = $state(arg)}`
+/// declarator: the `should_proxy` half of the warning reads the argument,
+/// where this binding's `initial_node_type` records the whole call. Every name
+/// a destructuring pattern declares shares the declarator's `initial`.
+fn state_initial(declarator: &serde_json::Value) -> Option<(Vec<String>, String, Option<String>)> {
+    let mut names = Vec::new();
+    pattern_names(declarator.field("id")?, &mut names);
     let init = declarator.field("init")?;
     if !matches!(callee_rune(init), Some("$state" | "$state.raw")) {
         return None;
@@ -282,7 +350,50 @@ fn state_initial(declarator: &serde_json::Value) -> Option<(String, String, Opti
         .field("name")
         .and_then(|n| n.as_str())
         .map(str::to_string);
-    Some((name, arg_type.to_string(), ident))
+    Some((names, arg_type.to_string(), ident))
+}
+
+fn pattern_names(pattern: &serde_json::Value, names: &mut Vec<String>) {
+    match pattern.field("type").and_then(|t| t.as_str()) {
+        Some("Identifier") => {
+            if let Some(name) = pattern.field("name").and_then(|n| n.as_str()) {
+                names.push(name.to_string());
+            }
+        }
+        Some("ObjectPattern") => {
+            for prop in pattern
+                .field("properties")
+                .and_then(|p| p.as_array())
+                .into_iter()
+                .flatten()
+            {
+                if let Some(target) = prop.field("value").or_else(|| prop.field("argument")) {
+                    pattern_names(target, names);
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            for element in pattern
+                .field("elements")
+                .and_then(|e| e.as_array())
+                .into_iter()
+                .flatten()
+            {
+                pattern_names(element, names);
+            }
+        }
+        Some("RestElement") => {
+            if let Some(argument) = pattern.field("argument") {
+                pattern_names(argument, names);
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(left) = pattern.field("left") {
+                pattern_names(left, names);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// The rune a `CallExpression` JSON node calls (`$state`, `$state.raw`,

@@ -8,4 +8,6 @@ A declaration tag's initializer is walked by `walk_js_expression_node`, not the 
 - a proxied local `$state` (no warning)
 - a read that is the `$state` argument (`closure`) and one nested inside it (`derived`)
 - `$derived` arguments, object keys and member properties (no warning)
+- a destructuring default (warning) and a class field key (no warning)
+- a read in a later tag of a declaring tag that is `svelte-ignore`d (warning)
 - a read in a later tag of the same scope (warning) and one in a nested block (no warning)
