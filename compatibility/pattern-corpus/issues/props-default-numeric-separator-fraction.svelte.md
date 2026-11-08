@@ -1,0 +1,5 @@
+# `props-default-numeric-separator-fraction.svelte`
+
+**Issue:** [#4752](https://github.com/baseballyama/rsvelte/issues/4752)
+
+Upstream decides between an eager `$props()` default and a `PROPS_IS_LAZY_INITIAL` thunk with `is_simple_expression` on the AST, where every `Literal` is simple. rsvelte already ported that check (`ast_expr_is_simple`), but ran it last and let it only flip a text heuristic's `true` to `false`. The heuristic ahead of it treated any text containing `.` that `str::parse::<f64>` rejects as a member expression, so `2_000.5` (the separator) and `1.5 + 1` (the operator) were both thunked. The AST check now decides whenever the default parses as one expression, and the text rules only cover text that does not. The rows cross the separator with the fraction forms, add a literal inside a binary, a conditional and a logical expression, and keep three controls that were already right: `2.5` and `1_000` stay eager, and `-2_000.5` stays lazy because upstream reads it as a `UnaryExpression`. A first fix that taught the text heuristic about separators passed the first ten rows and failed the last three.
