@@ -2,7 +2,7 @@
 // the kernel's WebAssembly bindings, the emitter samples and the layer figure's data.
 // Run from apps/site: `node scripts/generate.ts`. dev, test, check and build run it first.
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -19,25 +19,47 @@ const run = (command: string, args: string[]) =>
 		stdio: ['ignore', 'pipe', 'inherit'],
 	});
 
-run('wasm-pack', [
-	'build',
-	'crates/hosts/browser',
-	'--out-dir',
-	path.join(out, 'wasm/kernel'),
-	'--out-name',
-	'rsvelte_kernel_browser',
-	'--target',
-	'web',
-	'--release',
+const build = (command: string, args: string[]) =>
+	new Promise<void>((resolve, reject) => {
+		const child = spawn(command, args, { cwd: root, stdio: ['ignore', 'ignore', 'inherit'] });
+		child.on('error', reject);
+		child.on('close', (code) =>
+			code === 0 ? resolve() : reject(new Error(`${command} ${args[0]} exited ${code}`)),
+		);
+	});
+
+// The two builds run at once. Cargo locks a target directory for the whole build, so the
+// exporters have one of their own.
+const exporters = path.join(root, 'target/site');
+await Promise.all([
+	build('wasm-pack', [
+		'build',
+		'crates/hosts/browser',
+		'--out-dir',
+		path.join(out, 'wasm/kernel'),
+		'--out-name',
+		'rsvelte_kernel_browser',
+		'--target',
+		'web',
+		'--release',
+	]),
+	build('cargo', [
+		'build',
+		'-q',
+		'--release',
+		'-p',
+		'rsvelte_site',
+		'--bins',
+		'--target-dir',
+		exporters,
+	]),
 ]);
 
 const rev = run('git', ['rev-parse', 'HEAD']).trim();
 // Untracked files (test outputs) cannot change what cargo builds; tracked edits can.
 const dirty =
 	run('git', ['status', '--porcelain', '--untracked-files=no', '--', 'crates']).trim() !== '';
-run('cargo', ['build', '-q', '--release', '-p', 'rsvelte_site', '--bins']);
-const exporter = (name: string, args: string[]) =>
-	run(path.join(root, 'target/release', name), args);
+const exporter = (name: string, args: string[]) => run(path.join(exporters, 'release', name), args);
 
 const samples = [
 	{
