@@ -9,11 +9,11 @@ it('counts workspace crates in nested directories using their package names', ()
 	try {
 		writeFileSync(
 			path.join(root, 'Cargo.toml'),
-			'[workspace]\nmembers = ["crates/kernel", "crates/languages/svelte/core"]\nresolver = "3"\n',
+			'[workspace]\nmembers = ["crates/kernel", "crates/languages/svelte/syntax"]\nresolver = "3"\n',
 		);
 		for (const [directory, name] of [
 			['kernel', 'rsvelte_kernel'],
-			['languages/svelte/core', 'rsvelte_svelte'],
+			['languages/svelte/syntax', 'rsvelte_svelte_syntax'],
 		]) {
 			const crateDir = path.join(root, 'crates', directory);
 			mkdirSync(path.join(crateDir, 'src', 'syntax'), { recursive: true });
@@ -28,7 +28,7 @@ it('counts workspace crates in nested directories using their package names', ()
 		mkdirSync(path.join(root, 'crates/apps/site'), { recursive: true });
 		expect(crateSizes(path.join(root, 'crates'))).toEqual([
 			{ name: 'rsvelte_kernel', files: 2, lines: 3 },
-			{ name: 'rsvelte_svelte', files: 2, lines: 3 },
+			{ name: 'rsvelte_svelte_syntax', files: 2, lines: 3 },
 		]);
 	} finally {
 		rmSync(root, { recursive: true, force: true });

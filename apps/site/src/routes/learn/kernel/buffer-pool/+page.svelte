@@ -24,7 +24,7 @@
 <div class="prose-learn">
 	<H2 id="idea" />
 	<p>
-		<code>rsvelte_typescript</code> の構文木 <code>SyntaxTree</code>
+		<code>rsvelte_typescript_syntax</code> の構文木 <code>SyntaxTree</code>
 		は、ノードの種類、フラグ、データ、位置などを列ごとのベクタに持ちます。文書を一つパースすると、各ベクタはノードの数まで伸び、伸びるたびに確保し直します。文書が終わると木は捨てられ、次の文書でまた
 		0 から伸ばします。
 	</p>
@@ -197,7 +197,7 @@
 	<p>プールを使う主な構造は次のとおりです。</p>
 	<ul>
 		<li>
-			<code>rsvelte_typescript::SyntaxTree</code
+			<code>rsvelte_typescript_syntax::SyntaxTree</code
 			>：構文木の列、文字列、コメント、型の表、パーサの作業用スタック（<a
 				href="/learn/polish#history">15 章</a
 			>）。
@@ -207,7 +207,7 @@
 			>）。鍵は要素の型 <code>Token&lt;K&gt;</code> だけです。<code>Token&lt;K&gt;</code>
 			のベクタを持つのはトークン表だけなので、取り合いは起きません。
 		</li>
-		<li><code>rsvelte_svelte::syntax::syntax_tree::Component</code>：テンプレートの列。</li>
+		<li><code>rsvelte_svelte_syntax::syntax_tree::Component</code>：テンプレートの列。</li>
 		<li>
 			<code>LayoutInstructions</code>：アリーナ（<a href="/learn/document-printer#ir">09 章</a
 			>）と、プリンタのスタックや作業リスト。

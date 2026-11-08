@@ -219,8 +219,7 @@
 					の処理は、プラグイン（言語や処理ごとに分かれた機能のまとまり）が提供します。型チェックの処理は、<code
 						>typescript.check</code
 					>
-					と <code>svelte.typecheck</code> の二つのプラグインの設定を読みます。<code>--options</code
-					>
+					と <code>svelte.check</code> の二つのプラグインの設定を読みます。<code>--options</code>
 					は、プラグイン名と、そのオプションの JSON を受け取ります。
 				</p>
 				<div class="overflow-x-auto">
@@ -239,12 +238,12 @@
 								></tr
 							>
 							<tr
-								><td><code>svelte.typecheck</code> の <code>svelte</code></td><td
+								><td><code>svelte.check</code> の <code>svelte</code></td><td
 									>Svelte パッケージのディレクトリ</td
 								></tr
 							>
 							<tr
-								><td><code>svelte.typecheck</code> の <code>contentMapper</code></td><td
+								><td><code>svelte.check</code> の <code>contentMapper</code></td><td
 									>位置対応の実行ファイル。省略できます</td
 								></tr
 							>

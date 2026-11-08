@@ -43,7 +43,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/plugins',
 		source: {
 			path: 'crates/languages/svelte/compile/src/task.rs',
-			line: 31,
+			line: 32,
 			text: '.task(Compile {',
 		},
 		box: { x: 32, y: 162, w: 188, h: height },
@@ -56,8 +56,8 @@ export const overviewNodes: OverviewNode[] = [
 		what: '構文解析や名前解決など、計算結果の型を登録します。',
 		href: '/learn/kernel/layers',
 		source: {
-			path: 'crates/languages/svelte/core/src/computation.rs',
-			line: 110,
+			path: 'crates/languages/svelte/semantic/src/computation.rs',
+			line: 108,
 			text: 'reg.artifact::<Resolved>()',
 		},
 		box: { x: 32, y: 262, w: 188, h: height },
@@ -70,7 +70,7 @@ export const overviewNodes: OverviewNode[] = [
 		what: '型検査のように、全文書の準備が終わってから一度だけ動く処理を登録します。',
 		href: '/learn/kernel/database#facet',
 		source: {
-			path: 'crates/languages/svelte/typecheck/src/registration.rs',
+			path: 'crates/languages/svelte/check/src/registration.rs',
 			line: 36,
 			text: 'reg.finish_task(Check {',
 		},
@@ -197,7 +197,7 @@ export const overviewNodes: OverviewNode[] = [
 		href: '/learn/kernel#life',
 		source: {
 			path: 'crates/hosts/browser/src/computation.rs',
-			line: 247,
+			line: 261,
 			text: 'pipeline::run(&reg',
 		},
 		box: { x: 790, y: 162, w: 176, h: height },
@@ -298,8 +298,8 @@ export const overviewEdges: OverviewEdge[] = [
 		path: 'M126 132 V90 H306',
 		at: [134, 82],
 		source: {
-			path: 'crates/languages/svelte/core/src/computation.rs',
-			line: 107,
+			path: 'crates/languages/svelte/semantic/src/computation.rs',
+			line: 105,
 			text: 'pub fn register(reg: &mut Registry) {',
 		},
 	},
@@ -312,7 +312,7 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [560, 0],
 		source: {
 			path: 'crates/hosts/browser/src/computation.rs',
-			line: 133,
+			line: 147,
 			text: 'rsvelte_svelte_compile::register(&mut reg);',
 		},
 	},
@@ -369,8 +369,8 @@ export const overviewEdges: OverviewEdge[] = [
 		at: [226, 246],
 		source: {
 			path: 'crates/languages/svelte/lint/src/rules/valid_each_key.rs',
-			line: 12,
-			text: '.get::<Normalized>()',
+			line: 13,
+			text: '.get::<Lowered>()',
 		},
 	},
 	{

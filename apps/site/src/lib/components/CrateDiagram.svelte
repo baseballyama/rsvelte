@@ -19,9 +19,10 @@
 	const H = 58;
 	const boxes: Box[] = [
 		{ id: 'rsvelte_command_line', x: 250, y: 10, w: 260, role: 'corpus · run · benchmark' },
-		{ id: 'rsvelte_svelte', x: 250, y: 110, w: 260, role: 'parse · resolve · analysis' },
-		{ id: 'rsvelte_typescript', x: 90, y: 210, w: 260, role: 'JS/TS: parse · scope · print' },
-		{ id: 'rsvelte_stylesheet', x: 410, y: 210, w: 260, role: 'CSS: parse · scope' },
+		{ id: 'rsvelte_svelte_semantic', x: 90, y: 110, w: 280, role: 'HIR · resolve · analysis' },
+		{ id: 'rsvelte_svelte_syntax', x: 390, y: 110, w: 280, role: 'parse · trees' },
+		{ id: 'rsvelte_typescript_syntax', x: 90, y: 210, w: 280, role: 'JS/TS: parse · trees' },
+		{ id: 'rsvelte_stylesheet_syntax', x: 390, y: 210, w: 280, role: 'CSS: parse · trees' },
 		{
 			id: 'rsvelte_kernel',
 			x: 20,
@@ -31,31 +32,35 @@
 		},
 	];
 	const by = (id: string) => boxes.find((b) => b.id === id)!;
-	// rsvelte_svelte reaches the stylesheet crate only through its parser crate, which the figure leaves out.
-	const indirect = new Set(['rsvelte_svelte,rsvelte_stylesheet']);
 	const edges: [string, string][] = [
-		['rsvelte_command_line', 'rsvelte_svelte'],
-		['rsvelte_svelte', 'rsvelte_typescript'],
-		['rsvelte_svelte', 'rsvelte_stylesheet'],
-		['rsvelte_typescript', 'rsvelte_kernel'],
-		['rsvelte_stylesheet', 'rsvelte_kernel'],
-		['rsvelte_svelte', 'rsvelte_kernel'],
+		['rsvelte_command_line', 'rsvelte_svelte_semantic'],
+		['rsvelte_command_line', 'rsvelte_svelte_syntax'],
+		['rsvelte_svelte_semantic', 'rsvelte_svelte_syntax'],
+		['rsvelte_svelte_semantic', 'rsvelte_typescript_syntax'],
+		['rsvelte_svelte_syntax', 'rsvelte_typescript_syntax'],
+		['rsvelte_svelte_syntax', 'rsvelte_stylesheet_syntax'],
+		['rsvelte_typescript_syntax', 'rsvelte_kernel'],
+		['rsvelte_stylesheet_syntax', 'rsvelte_kernel'],
 		['rsvelte_command_line', 'rsvelte_kernel'],
 	];
 	function path([a, b]: [string, string]) {
 		const s = by(a);
 		const t = by(b);
+		if (s.y === t.y) {
+			// Boxes in one row link sideways, so the edge stays out of the row below.
+			return `M${s.x + s.w} ${s.y + H / 2} H${t.x}`;
+		}
 		const sx = s.x + s.w / 2;
 		const sy = s.y + H;
 		const tx =
 			b === 'rsvelte_kernel' ? Math.min(Math.max(sx, t.x + 20), t.x + t.w - 20) : t.x + t.w / 2;
 		const ty = t.y;
 		if (a === 'rsvelte_command_line' && b === 'rsvelte_kernel') {
-			// Around the plugin on the right, so it does not cross the other edges.
+			// Around the plugins on the right, so it does not cross the other edges.
 			const rx = 700;
 			return `M${s.x + s.w} ${s.y + H / 2} H${rx} V${ty}`;
 		}
-		if (a === 'rsvelte_svelte' && b === 'rsvelte_kernel') return `M${sx} ${sy} V${ty}`;
+		if (tx === sx) return `M${sx} ${sy} V${ty}`;
 		const my = (sy + ty) / 2;
 		return `M${sx} ${sy} V${my} H${tx} V${ty}`;
 	}
@@ -63,9 +68,8 @@
 
 <svg viewBox="0 0 760 390" class="h-auto w-full" role="img">
 	<title
-		>主な crate
-		の依存関係の抜粋。コマンドラインの実行プログラムは言語プラグインを使います。言語プラグインは、埋め込み言語の処理とカーネルを使います。破線は、図にない
-		crate を通した間接の依存です。</title
+		>主な crate の依存関係の抜粋。コマンドラインの実行プログラムは言語プラグインを使います。Svelte
+		の意味解析は構文木を、構文解析は埋め込み言語の構文解析を使い、どれもカーネルの上にあります。</title
 	>
 	<defs>
 		<marker
@@ -86,7 +90,6 @@
 			fill="none"
 			stroke="var(--border-strong)"
 			stroke-width="1"
-			stroke-dasharray={indirect.has(e.join()) ? '4 3' : undefined}
 			marker-end="url(#arrow)"
 		/>
 	{/each}

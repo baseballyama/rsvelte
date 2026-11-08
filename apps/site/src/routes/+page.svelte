@@ -252,8 +252,9 @@
 					<code class="text-[14px]">rsvelte_kernel</code>
 					が受け持つのは、ソース内の位置、名前の保存、一度だけ計算するキャッシュ、並列実行、診断、出力と位置の対応、計測です。Svelte
 					への対応は、言語プラグインとしてカーネルに処理を登録します。<code class="text-[14px]"
-						>rsvelte_svelte</code
+						>rsvelte_svelte_syntax</code
 					>
+					と <code class="text-[14px]">rsvelte_svelte_semantic</code>
 					は構文解析や名前解決の計算結果を登録します。コンパイル・整形・コード検査・型検査の crate は、それぞれのタスク（処理の単位）を登録します。
 				</p>
 				<p class="mt-4 text-[14px] leading-[1.8] text-muted">

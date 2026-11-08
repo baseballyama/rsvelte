@@ -170,8 +170,7 @@
 			のスコープと参照の解析は、制御フローグラフを作りません。到達できるかや、経路ごとの代入の状態を調べるには、分岐やループを通る実行経路の解析（制御フロー解析）が別に要ります。
 		</p>
 		<p class="reading">
-			実装：<a
-				href="{REPO_URL}/blob/experimental/crates/languages/typescript/core/src/semantic/scope.rs"
+			実装：<a href="{REPO_URL}/blob/experimental/crates/languages/typescript/semantic/src/scope.rs"
 				>2 パスのスコープと参照の解析</a
 			>、<a
 				href="{REPO_URL}/blob/experimental/crates/languages/svelte/semantic/src/semantic/resolve.rs"

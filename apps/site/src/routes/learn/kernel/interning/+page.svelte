@@ -28,8 +28,9 @@
 	<p>
 		名前を Atom に置き換える型が、カーネルの <code>Interner</code> です。カーネルは
 		<code>Interner</code>
-		を提供するだけで、使うのは言語の側です。今は <code>rsvelte_typescript</code>
-		と <code>rsvelte_stylesheet</code> の <code>SyntaxTree</code> が一つずつ持ちます。スコープ解析は
+		を提供するだけで、使うのは言語の側です。今は <code>rsvelte_typescript_syntax</code>
+		と <code>rsvelte_stylesheet_syntax</code> の <code>SyntaxTree</code>
+		が一つずつ持ちます。スコープ解析は
 		<code>(ScopeIdentifier, Atom)</code>
 		をキーに束縛を引きます<Note
 			><code>Interner</code> は文書ごとに作ります。文書をまたいで Atom を比べることはありません。</Note

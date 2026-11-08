@@ -143,7 +143,7 @@
 <Figure label="図 1.2 · crate の役割と依存の向き">
 	<div class="overflow-x-auto px-4 py-5">
 		<ol class="flex min-w-[640px] items-stretch gap-2 font-mono text-[12.5px] tracking-normal">
-			{#each [['rsvelte_command_line · rsvelte_kernel_browser', 'ホスト：コマンドラインとブラウザ'], ['rsvelte_svelte_compile · rsvelte_vue_lint · rsvelte_svue ほか', '言語の機能：コンパイル、整形、コード検査、型検査、言語間の変換'], ['rsvelte_svelte · rsvelte_vue ほか／rsvelte_plugin_interface ほか', '言語の中核と、言語を知らない部品'], ['rsvelte_kernel', '言語を知らない']] as [name, role], i (name)}
+			{#each [['rsvelte_command_line · rsvelte_kernel_browser', 'ホスト：コマンドラインとブラウザ'], ['rsvelte_svelte_compile · rsvelte_vue_lint · rsvelte_vue_compile_svelte ほか', '言語の機能：コンパイル、整形、コード検査、型検査、言語間の変換'], ['rsvelte_svelte_syntax · rsvelte_vue_semantic ほか／rsvelte_plugin_interface ほか', '言語の構文と意味解析と、言語を知らない部品'], ['rsvelte_kernel', '言語を知らない']] as [name, role], i (name)}
 				<li class="flex flex-1 items-center gap-2">
 					<div
 						class={[
@@ -160,10 +160,10 @@
 		</ol>
 	</div>
 	{#snippet caption()}矢印は依存の向き。役割は crate のパスで決まり、<code>tools/structure</code>
-		のテストが依存の向きを確かめる。言語の中核はカーネルと他の言語の中核だけに、言語を知らない部品はカーネルだけに依存する。設定ファイルを読む
-		rsvelte_configuration_loading には、ホストだけが依存できる。rsvelte_svue と rsvelte_svelte_compile_vapor
-		は Svelte と Vue の両方の中核に依存する。カーネルが依存する外部の crate は rayon、semver、rustc-hash
-		の三つ。{/snippet}
+		のテストが依存の向きを確かめる。構文の crate が依存できるのは、カーネルと構文の crate だけ。意味解析の
+		crate は、それに加えて意味解析の crate にも依存できる。言語を知らない部品は、カーネルだけに依存する。設定ファイルを読む
+		rsvelte_configuration_loading には、ホストだけが依存できる。言語間を変換する二つの crate は、Svelte
+		と Vue の両方の意味解析に依存する。カーネルが依存する外部の crate は rayon、semver、rustc-hash の三つ。{/snippet}
 </Figure>
 
 <div class="prose-learn">
@@ -342,8 +342,10 @@
 
 	<H2 id="languages" />
 	<p>
-		カーネルが本当に言語を知らないかは、二つ目の言語を足すまで分かりません。<code>rsvelte_vue</code>
-		は、それを試すために足した、Vue の単一ファイルコンポーネントのプラグインです。Svelte と同じ仕組みで、次の計算結果を文書ごとに保存します。
+		カーネルが本当に言語を知らないかは、二つ目の言語を足すまで分かりません。それを試すために、Vue
+		の単一ファイルコンポーネントのプラグインを足しました。crate は <code>rsvelte_vue_syntax</code>
+		と
+		<code>rsvelte_vue_semantic</code> です。Svelte と同じ仕組みで、次の計算結果を文書ごとに保存します。
 	</p>
 	<table class="table">
 		<caption class="mb-3 text-left text-[14px] text-fg-2">Vue プラグインが保存する計算結果</caption>
@@ -381,13 +383,14 @@
 		の構文解析と出力、スタイルシートの処理は Svelte と共通です。
 	</p>
 	<p>
-		二つ目の言語のために足したものは次の四つです。最初の一つは rsvelte_typescript
+		二つ目の言語のために足したものは次の四つです。最初の一つは rsvelte_typescript_semantic
 		に、残りはカーネルに足しました。どれも Vue だけのものではなく、Svelte も使います。
 	</p>
 	<ul>
 		<li>
 			埋め込む側の言語が開くスコープ：スクリプトを埋め込む側の言語（Vue
-			のテンプレートなど）は、スコープの根を渡せます。スコープ解析（<code>rsvelte_typescript</code
+			のテンプレートなど）は、スコープの根を渡せます。スコープ解析（<code
+				>rsvelte_typescript_semantic</code
 			>）は、それを木として受け取ります。Vue の <code>v-for</code> は、テンプレートが開くスコープです。
 		</li>
 		<li>
@@ -405,12 +408,12 @@
 		</li>
 	</ul>
 	<p>
-		二つのプラグインを組み合わせて、一方の言語のコンポーネントをもう一方のランタイムで動かす翻訳もあります。svue（<code
-			>rsvelte_svue</code
-		>）は、<code>.vue</code> のコンポーネントを Svelte のコンパイラでコンパイルし、Svelte
-		のランタイムで動かします。意味は Vue のままです。Vue のパーサと名前解決、Svelte
-		のコンパイラはそのまま使います。自分で持つのは、Vue の構文木を Svelte の runes
-		のスクリプトと、コンパイル用に整理した構文木へ翻訳する部分だけです（<a
+		二つのプラグインを組み合わせて、一方の言語のコンポーネントをもう一方のランタイムで動かす翻訳もあります。svue
+		は、<code>.vue</code>
+		のコンポーネントを Svelte のコンパイラでコンパイルし、Svelte のランタイムで動かします。crate は
+		<code>rsvelte_vue_compile_svelte</code> です。意味は Vue のままです。Vue
+		のパーサと名前解決、Svelte のコンパイラはそのまま使います。自分で持つのは、Vue の構文木を Svelte
+		の runes のスクリプトと、コンパイル用に整理した構文木へ翻訳する部分だけです（<a
 			href="/learn/kernel/layers#svue">05 章</a
 		>）。
 	</p>

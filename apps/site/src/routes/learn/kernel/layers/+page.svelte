@@ -104,7 +104,7 @@
 
 <div class="prose-learn">
 	<p>
-		この型を最初に使ったのは、<code>rsvelte_typescript</code> のスコープ解析です。<code
+		この型を最初に使ったのは、<code>rsvelte_typescript_semantic</code> のスコープ解析です。<code
 			>BindingIdentifier</code
 		>
 		と <code>ScopeIdentifier</code>
@@ -241,7 +241,7 @@
 	<H2 id="stack" />
 	<p>
 		層の型や分け方は、言語プラグインが決めます。カーネルは、登録された計算結果を求められたときに計算して保存します。次の表と図は
-		Svelte プラグインの例です。Rust の型は、表の上から <code>Parsed</code>、<code>Normalized</code
+		Svelte プラグインの例です。Rust の型は、表の上から <code>Parsed</code>、<code>Lowered</code
 		>、<code>Resolved</code>、<code>Analyzed</code> です。出力の二つは <code>ScopedStylesheet</code>
 		と <code>TypeScriptView</code> です。
 	</p>
@@ -348,7 +348,7 @@
 	<p>
 		<code>element_kind</code> は <code>CompilerSyntaxTreeBuilder</code>
 		のメソッドです。この公開された型は Svelte の元の構文木を知りません。要素を足し、子の並びを記録し、祖先をたどって要素の種類を決めるだけです。Svelte
-		の元の構文木からこの木を作るのは、<code>rsvelte_svelte</code> の中でこの型を使う
+		の元の構文木からこの木を作るのは、<code>rsvelte_svelte_semantic</code> の中でこの型を使う
 		<code>SurfaceBuilder</code> です。
 	</p>
 </div>
@@ -390,7 +390,7 @@
 		の検証用のソースファイル集の compile・format・lint の出力 70,608 ファイルです。
 	</p>
 	<p>
-		svue（crate <code>rsvelte_svue</code>）は、この仕組みで <code>.vue</code>
+		svue（crate <code>rsvelte_vue_compile_svelte</code>）は、この仕組みで <code>.vue</code>
 		のコンポーネントをコンパイルします。<strong>Vue の意味のまま</strong>、Svelte
 		のランタイムで動く形にします。新しい言語は足さず、<code>.vue</code> の文書に
 		<code>svue.compile/client</code>
@@ -540,7 +540,7 @@
 			>svelte/button-has-type</code
 		>
 		と <code>vue/html-button-has-type</code> です。rsvelte では判断の部分を、<code
-			>rsvelte_markup::button_type</code
+			>rsvelte_markup_lint::button_type</code
 		>
 		の一つの関数にしています。判断の部分とは、<code>type</code> が取れる値、四つのメッセージ、オプションです。
 	</p>

@@ -48,13 +48,13 @@
 		"reason": "The `html` namespace"
 	},
 	{
-		"file": "languages/svelte/syntax/src/syntax/syntax_tree.rs",
+		"file": "languages/svelte/syntax/src/syntax_tree.rs",
 		"name": "TemplateNode::Html",
 		"upstream": "type: 'HtmlTag';",
 		"reason": "The `{@html}` tag"
 	},
 	{
-		"file": "languages/svelte/compiler_syntax_tree/src/compilation/compiler_syntax_tree.rs",
+		"file": "languages/svelte/semantic/src/compiler_syntax_tree.rs",
 		"name": "NodeKind::Html",
 		"upstream": "type: 'HtmlTag';",
 		"reason": "The `{@html}` tag"
