@@ -4845,6 +4845,50 @@ fn class_rune_initializer<'a>(text: &str, runes: &'a [&'a str]) -> Option<(usize
     Some((eq, rune_pos, rune))
 }
 
+/// Indexed by line: the last line of the class member that starts there, read
+/// off the parsed class body. A member's extent is a property of the grammar
+/// (`y = 1 |\n 2` continues where `y = 1\n z = 2` does not), which no per-line
+/// bracket count can decide. `None` when the body does not parse on its own, so
+/// the caller keeps its line heuristics.
+fn member_end_lines(body: &str) -> Option<Vec<Option<usize>>> {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::Statement;
+    use oxc_span::{GetSpan, SourceType};
+
+    const PREFIX: &str = "class _ {\n";
+    let src = format!("{PREFIX}{body}\n}}");
+    let alloc = Allocator::default();
+    let parsed = [SourceType::mjs(), SourceType::ts()]
+        .into_iter()
+        .find_map(|ty| {
+            let parsed = oxc_parser::Parser::new(&alloc, &src, ty).parse();
+            (!parsed.fatal_error && parsed.diagnostics.is_empty()).then_some(parsed)
+        })?;
+    let Some(Statement::ClassDeclaration(class)) = parsed.program.body.first() else {
+        return None;
+    };
+
+    let line_starts: Vec<usize> = std::iter::once(0)
+        .chain(memchr::memchr_iter(b'\n', body.as_bytes()).map(|i| i + 1))
+        .collect();
+    let line_of = |offset: usize| line_starts.partition_point(|&start| start <= offset) - 1;
+    let mut ends = vec![None; line_starts.len()];
+    // Every member, not only fields: a method whose head wraps reaches the
+    // plain-field branch too.
+    for element in &class.body.body {
+        let span = element.span();
+        let (Some(start), Some(end)) = (
+            (span.start as usize).checked_sub(PREFIX.len()),
+            (span.end as usize).checked_sub(PREFIX.len() + 1),
+        ) else {
+            continue;
+        };
+        let (start_line, end_line) = (line_of(start), line_of(end));
+        ends[start_line] = Some(ends[start_line].map_or(end_line, |e: usize| e.max(end_line)));
+    }
+    Some(ends)
+}
+
 /// Transform class fields with $derived runes for server-side.
 pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let script_bytes = script.as_bytes();
@@ -4958,6 +5002,8 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let mut in_plain_field = false;
     let mut plain_field_lines: Vec<String> = Vec::new();
     let mut plain_field_is_conditional = false;
+    let mut plain_field_end_line: Option<usize> = None;
+    let field_end_lines = member_end_lines(class_body);
 
     // For block comments (`/** … */` / `/* … */`) inside class bodies: accumulate
     // lines until the closing `*/` and push them as a `ClassMember::Comment` so the
@@ -5160,11 +5206,17 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         // single Field member so the emitter can write it verbatim.
         if in_plain_field {
             plain_field_lines.push(line.to_string());
-            if code_bracket_depth(&plain_field_lines.join("\n")) <= 0
-                && (!plain_field_is_conditional || trimmed.starts_with(':'))
-            {
+            let complete = match plain_field_end_line {
+                Some(end) => line_idx > end,
+                None => {
+                    code_bracket_depth(&plain_field_lines.join("\n")) <= 0
+                        && (!plain_field_is_conditional || trimmed.starts_with(':'))
+                }
+            };
+            if complete {
                 in_plain_field = false;
                 plain_field_is_conditional = false;
+                plain_field_end_line = None;
                 // Emit the full multi-line field as a single Field entry whose
                 // text is the source lines joined. The emitter handles it
                 // specially when it sees newlines inside the Field value.
@@ -5483,9 +5535,17 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 && next_nonempty_lines
                     .get(1)
                     .is_some_and(|next| next.starts_with('?')));
-        if field_bracket_depth > 0 || starts_plain_field_conditional {
+        let ast_end_line = field_end_lines
+            .as_ref()
+            .and_then(|ends| ends.get(line_idx - 1).copied().flatten());
+        let spans_lines = match ast_end_line {
+            Some(end) => end > line_idx - 1,
+            None => field_bracket_depth > 0 || starts_plain_field_conditional,
+        };
+        if spans_lines {
             in_plain_field = true;
             plain_field_is_conditional = starts_plain_field_conditional;
+            plain_field_end_line = ast_end_line;
             plain_field_lines.clear();
             plain_field_lines.push(line.to_string());
         } else {
@@ -7368,6 +7428,24 @@ mod class_field_server_tests {
     /// Mirrors the shape of `ToggleGroupRootState` (static-create-only, no rune
     /// fields) sitting between `ToggleGroupMultipleState` (has rune fields) and
     /// `ToggleGroupItemState` (has rune fields).
+    #[test]
+    fn a_field_continued_after_a_binary_operator_stays_one_member() {
+        let input = "export class A {\n  y = 1 |\n    2;\n  static FLAGS =\n    A.FLAG_A |\n    A.FLAG_B;\n  z = a\n    && b;\n  x = $state(0);\n  m(\n    a,\n    b\n  ) {\n    return a;\n  }\n}\n";
+        let out = transform_class_fields_server(input);
+        let alloc = oxc_allocator::Allocator::default();
+        let parsed = oxc_parser::Parser::new(&alloc, &out, oxc_span::SourceType::mjs()).parse();
+        assert!(parsed.diagnostics.is_empty(), "unparseable:\n{out}");
+        for member in [
+            "y = 1 |\n    2",
+            "static FLAGS =\n    A.FLAG_A |\n    A.FLAG_B",
+            "z = a\n    && b",
+            "m(\n    a,\n    b\n  ) {",
+        ] {
+            assert!(out.contains(member), "{member:?} split:\n{out}");
+        }
+        assert!(out.contains("x = 0"), "{out}");
+    }
+
     #[test]
     fn class_with_no_rune_fields_between_two_classes_that_do() {
         let input = r#"class First {
