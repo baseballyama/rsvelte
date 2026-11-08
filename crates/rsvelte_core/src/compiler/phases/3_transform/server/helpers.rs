@@ -1523,24 +1523,6 @@ fn split_declarators(s: &str) -> Vec<&str> {
     parts
 }
 
-/// Find all blocker indices referenced by an expression.
-///
-/// Scans an expression string for identifiers that appear in the blocker_map
-/// and returns a deduplicated, sorted list of blocker indices (for $$promises[N]).
-///
-/// This is used to determine if an expression tag or if-block test needs to be
-/// wrapped in `$$renderer.async()` or `$$renderer.async_block()`.
-pub(crate) fn find_expression_blockers(
-    expr: &str,
-    blocker_map: &rustc_hash::FxHashMap<String, usize>,
-) -> Vec<usize> {
-    let mut blockers = std::collections::BTreeSet::new();
-    scan_blocked_identifiers(expr, blocker_map, |_, idx| {
-        blockers.insert(idx);
-    });
-    blockers.into_iter().collect()
-}
-
 /// The blocked identifiers `expr` references, each once, in source order.
 pub(crate) fn find_expression_blocker_names<'e>(
     expr: &'e str,
@@ -1620,23 +1602,47 @@ fn scan_blocked_identifiers<'e>(
     }
 }
 
-/// Find const-tag-level blocker expressions for identifiers referenced in a JS expression string.
-/// Returns a list of unique blocker expressions (e.g., "promises_2[1]") for variables
-/// referenced in the expression that have entries in the const_blocker_map.
-pub(crate) fn find_const_expression_blockers(
-    expr: &str,
-    const_blocker_map: &rustc_hash::FxHashMap<String, String>,
-) -> Vec<String> {
-    let mut blockers = Vec::new();
-    let idents = extract_identifiers_from_js(expr);
-    for ident in &idents {
-        if let Some(blocker) = const_blocker_map.get(ident)
-            && !blockers.contains(blocker)
-        {
-            blockers.push(blocker.clone());
+/// The free identifiers `expr` reads, each once, in source order: names a
+/// nested function parameter or declaration binds, property keys, member
+/// properties and the insides of strings / regexes / template quasis are not
+/// references. Falls back to a lexical scan when `expr` does not parse.
+pub(crate) fn free_identifier_names(expr: &str) -> Vec<String> {
+    use oxc_ast_visit::Visit;
+    use oxc_span::SourceType;
+
+    struct Reads<'s> {
+        scoping: &'s oxc_semantic::Scoping,
+        names: Vec<String>,
+    }
+    impl<'a> Visit<'a> for Reads<'_> {
+        fn visit_identifier_reference(&mut self, id: &oxc_ast::ast::IdentifierReference<'a>) {
+            let free = self
+                .scoping
+                .get_reference(id.reference_id())
+                .symbol_id()
+                .is_none();
+            if free && !self.names.iter().any(|n| n == id.name.as_str()) {
+                self.names.push(id.name.to_string());
+            }
         }
     }
-    blockers
+
+    let src = format!("({expr}\n);");
+    let alloc = oxc_allocator::Allocator::default();
+    for ty in [SourceType::mjs(), SourceType::ts()] {
+        let parsed = oxc_parser::Parser::new(&alloc, &src, ty).parse();
+        if parsed.fatal_error || !parsed.diagnostics.is_empty() {
+            continue;
+        }
+        let semantic = oxc_semantic::SemanticBuilder::new().build(&parsed.program);
+        let mut reads = Reads {
+            scoping: semantic.semantic.scoping(),
+            names: Vec::new(),
+        };
+        reads.visit_program(&parsed.program);
+        return reads.names;
+    }
+    extract_identifiers_from_js(expr)
 }
 
 /// Extract all identifier names from a JavaScript expression string.
@@ -1675,8 +1681,16 @@ fn extract_identifiers_from_js(expr: &str) -> Vec<String> {
                 i += 1;
             }
             let ident: String = chars[start..i].iter().collect();
+            // A member property (`obj.n`, `obj?.n`) is not a reference; a spread
+            // (`...n`) is.
+            let before = chars[..start]
+                .iter()
+                .rev()
+                .skip_while(|c| c.is_whitespace());
+            let dots = before.take(3).take_while(|&&c| c == '.').count();
+            let is_member = dots == 1 || dots == 2;
             // Skip keywords and common builtins
-            if !is_js_keyword_or_builtin(&ident) && !idents.contains(&ident) {
+            if !is_member && !is_js_keyword_or_builtin(&ident) && !idents.contains(&ident) {
                 idents.push(ident);
             }
         } else {

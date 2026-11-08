@@ -409,13 +409,17 @@ fn push_element_dev<'a>(node: &RegularElement, name: &str, state: &mut ServerTra
 }
 
 /// Whether the element has any attribute / spread value with an inline `await`
-/// or a top-level-await blocker — the predicate that switches on the async
+/// or a blocker (top-level await or async `{const}`) — the predicate that switches on the async
 /// `PromiseOptimiser` wrapping. Only ever true under `experimental.async` (the
 /// blocker map is empty otherwise, and `text_has_await` requires a literal
 /// `await`).
 fn element_has_async_attribute(node: &RegularElement, state: &ServerTransformState<'_>) -> bool {
-    use super::shared::{expr_text_blockers, text_has_await};
-    let is_async_text = |t: &str| text_has_await(t) || !expr_text_blockers(state, t).is_empty();
+    use super::shared::{expr_local_const_blockers, expr_text_blockers, text_has_await};
+    let is_async_text = |t: &str| {
+        text_has_await(t)
+            || !expr_text_blockers(state, t).is_empty()
+            || !expr_local_const_blockers(state, t).is_empty()
+    };
     for attr in &node.attributes {
         match attr {
             Attribute::SpreadAttribute(spread) => {

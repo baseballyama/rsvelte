@@ -698,10 +698,7 @@ fn expression_tag_const_blockers(expr: &Expression, state: &ServerTransformState
     let Some(text) = state.expr_source(expr) else {
         return Vec::new();
     };
-    crate::compiler::phases::phase3_transform::server::helpers::find_const_expression_blockers(
-        text,
-        &state.const_blocker_map,
-    )
+    expr_local_const_blockers(state, text)
 }
 
 /// A joinable sibling captured during [`process_children`].
@@ -1307,7 +1304,10 @@ pub fn build_fragment_body<'a, N: AsRef<TemplateNode<'a>>>(
 /// [`open_async_consts_scope`] and consumed by [`flush_element_async_consts`].
 pub(super) type SavedAsyncConstsScope<'a> = (
     Option<crate::compiler::phases::phase3_transform::server::ast::AsyncConstsGroup>,
-    rustc_hash::FxHashMap<String, String>,
+    rustc_hash::FxHashMap<
+        String,
+        crate::compiler::phases::phase3_transform::server::ast::ConstBlocker,
+    >,
 );
 
 /// Open a FRESH async-const scope (写经 each Fragment / `has_declarations`
@@ -1472,13 +1472,39 @@ pub fn create_child_block<'a>(
 /// `$$promises[N]` portion comes from [`expr_text_blockers`]). Empty when no
 /// async const is in scope.
 pub fn expr_local_const_blockers(state: &ServerTransformState, expr_text: &str) -> Vec<String> {
+    local_const_blocker_reads(state, expr_text)
+        .into_iter()
+        .map(|(_, expr)| expr)
+        .collect()
+}
+
+/// `(name, slot)` for each read of an async const in `expr_text`, in reference
+/// order. A read counts only when the name resolves to the declaring binding.
+fn local_const_blocker_reads(
+    state: &ServerTransformState,
+    expr_text: &str,
+) -> Vec<(String, String)> {
     if state.const_blocker_map.is_empty() {
         return Vec::new();
     }
-    crate::compiler::phases::phase3_transform::server::helpers::find_const_expression_blockers(
-        expr_text,
-        &state.const_blocker_map,
-    )
+    let mut out: Vec<(String, String)> = Vec::new();
+    for name in
+        crate::compiler::phases::phase3_transform::server::helpers::free_identifier_names(expr_text)
+    {
+        let Some(blocker) = state.const_blocker_map.get(&name) else {
+            continue;
+        };
+        if blocker
+            .binding
+            .is_some_and(|binding| state.nearest_binding(&name) != Some(binding))
+        {
+            continue;
+        }
+        if !out.iter().any(|(_, e)| *e == blocker.expr) {
+            out.push((name, blocker.expr.clone()));
+        }
+    }
+    out
 }
 
 /// Build a `[$$promises[i]…, <local source>…]` blockers array combining instance
@@ -1590,10 +1616,33 @@ pub fn text_has_await(expr_text: &str) -> bool {
 /// off (the map is only populated under `experimental.async`) or the expression
 /// references no blocked binding. Mirrors `metadata.expression.blockers()`.
 pub fn expr_text_blockers(state: &ServerTransformState, expr_text: &str) -> Vec<usize> {
-    crate::compiler::phases::phase3_transform::server::helpers::find_expression_blockers(
+    let indices: std::collections::BTreeSet<usize> = instance_blocker_reads(state, expr_text)
+        .into_iter()
+        .map(|(_, idx)| idx)
+        .collect();
+    indices.into_iter().collect()
+}
+
+/// `(name, index)` for each read of a top-level-await-blocked binding in
+/// `expr_text`, in source order, skipping a name that an each item, snippet
+/// parameter or template const declares closer than the instance script.
+fn instance_blocker_reads<'e>(
+    state: &ServerTransformState,
+    expr_text: &'e str,
+) -> Vec<(&'e str, usize)> {
+    let root = &state.analysis.root;
+    crate::compiler::phases::phase3_transform::server::helpers::find_expression_blocker_names(
         expr_text,
         &state.eval_inputs.top_level_blocker_map,
     )
+    .into_iter()
+    .filter(|(name, _)| {
+        state
+            .nearest_binding(name)
+            .and_then(|b| root.bindings.get(b))
+            .is_none_or(|b| b.scope_index == root.instance_scope_index || b.scope_index == 0)
+    })
+    .collect()
 }
 
 /// Build the top-level async-wrapped expression-tag push statement — the Rust
@@ -1716,8 +1765,15 @@ pub struct PromiseOptimiser<'a> {
     expressions: Vec<OxcExpression<'a>>,
     /// Whether ANY transformed value carried an inline await.
     has_await: bool,
-    /// Insertion-ordered, de-duplicated top-level blocker indices.
-    blockers: Vec<usize>,
+    /// Insertion-ordered, de-duplicated blockers: top-level-await indices and
+    /// async `{@const}` slots alike, as upstream's `binding.blocker` set.
+    blockers: Vec<OptimiserBlocker>,
+}
+
+#[derive(PartialEq)]
+enum OptimiserBlocker {
+    Instance(usize),
+    Local(String),
 }
 
 impl<'a> PromiseOptimiser<'a> {
@@ -1750,16 +1806,53 @@ impl<'a> PromiseOptimiser<'a> {
     /// 写经 `check_blockers(metadata)`: union the top-level-await blocker indices
     /// referenced by `expr_text` into the blocker set (insertion-ordered).
     pub fn check_blockers(&mut self, state: &ServerTransformState<'a>, expr_text: &str) {
-        for idx in expr_text_blockers(state, expr_text) {
-            if !self.blockers.contains(&idx) {
-                self.blockers.push(idx);
+        let instance_reads = instance_blocker_reads(state, expr_text);
+        let local = local_const_blocker_reads(state, expr_text);
+        let mut found: Vec<OptimiserBlocker> = Vec::new();
+        if !local.is_empty() {
+            // Mixed kinds keep reference order, like upstream's Set.
+            for name in
+                crate::compiler::phases::phase3_transform::server::helpers::free_identifier_names(
+                    expr_text,
+                )
+            {
+                if let Some((_, slot)) = local.iter().find(|(n, _)| *n == name) {
+                    found.push(OptimiserBlocker::Local(slot.clone()));
+                } else if let Some(&(_, idx)) = instance_reads.iter().find(|(n, _)| *n == name) {
+                    found.push(OptimiserBlocker::Instance(idx));
+                }
+            }
+        }
+        let instance: std::collections::BTreeSet<usize> =
+            instance_reads.into_iter().map(|(_, idx)| idx).collect();
+        found.extend(instance.into_iter().map(OptimiserBlocker::Instance));
+        for blocker in found {
+            if !self.blockers.contains(&blocker) {
+                self.blockers.push(blocker);
             }
         }
     }
 
+    fn has_blockers(&self) -> bool {
+        !self.blockers.is_empty()
+    }
+
+    fn blockers_array(&self, state: &ServerTransformState<'a>) -> OxcExpression<'a> {
+        let elems = self
+            .blockers
+            .iter()
+            .filter_map(|blocker| match blocker {
+                OptimiserBlocker::Instance(idx) => Some(promise_ref(state, *idx)),
+                OptimiserBlocker::Local(src) => state.reparse_slice_owned(src),
+            })
+            .map(Some)
+            .collect();
+        state.b.array(elems)
+    }
+
     /// 写经 `is_async()`: any hoisted expression OR any blocker.
     pub fn is_async(&self) -> bool {
-        !self.expressions.is_empty() || !self.blockers.is_empty()
+        !self.expressions.is_empty() || self.has_blockers()
     }
 
     /// 写经 `#apply()`: build the `const` declaration that resolves the hoisted
@@ -1809,8 +1902,8 @@ impl<'a> PromiseOptimiser<'a> {
         let b = state.b;
         let params = b.params(vec![b.id_pat("$$renderer")], None);
         let arrow = b.arrow(params, b.body(statements), false, self.has_await);
-        if !self.blockers.is_empty() {
-            let blockers = blockers_array(state, &self.blockers);
+        if self.has_blockers() {
+            let blockers = self.blockers_array(state);
             vec![b.stmt(b.call("$$renderer.async", vec![blockers, arrow]))]
         } else {
             vec![b.stmt(b.call("$$renderer.child", vec![arrow]))]
@@ -1831,7 +1924,15 @@ impl<'a> PromiseOptimiser<'a> {
         if let Some(decl) = self.apply(state) {
             statements.insert(0, decl);
         }
-        create_child_block(state, statements, &self.blockers, self.has_await)
+        let b = state.b;
+        let params = b.params(vec![b.id_pat("$$renderer")], None);
+        let arrow = b.arrow(params, b.body(statements), false, self.has_await);
+        if self.has_blockers() {
+            let blockers = self.blockers_array(state);
+            vec![b.stmt(b.call("$$renderer.async_block", vec![blockers, arrow]))]
+        } else {
+            vec![b.stmt(b.call("$$renderer.child_block", vec![arrow]))]
+        }
     }
 }
 
