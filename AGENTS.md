@@ -67,6 +67,7 @@ All JavaScript-side code is TypeScript that Node 26 runs directly, in one pnpm w
 - Declare a module that only lists child modules inline in its parent
   (`pub mod source { pub mod document; }`). A module with code gets its own `x.rs`.
 - Put a module's tests in `x/tests.rs` and declare `#[cfg(test)] mod tests;`.
+- Define a helper in the narrowest module that uses it, not in a parent that never does.
 - No O(n²) in per-node code; borrow instead of clone.
 - Check input once, where it enters. Do not hide a computed span or index behind
   `unwrap_or(0)` / `unwrap_or_default()`.

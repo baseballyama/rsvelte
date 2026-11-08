@@ -8,6 +8,7 @@ Checks the repository's layout:
   it in its `lib.rs`.
 - Module files (`modules.test.ts`): no file only lists child modules. Its parent declares such a
   module inline. No file writes its tests inline; they sit in `tests.rs`.
+  No parent defines an item that it never uses and that one child alone uses.
 
 ```sh
 mise run structure
