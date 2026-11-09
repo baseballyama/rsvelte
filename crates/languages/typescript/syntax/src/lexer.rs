@@ -80,6 +80,7 @@ pub(crate) struct LexedRegex {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Lexer<'a> {
+    source: &'a str,
     source_text: &'a [u8],
     pub position: usize,
     end: usize,
@@ -105,15 +106,15 @@ impl<'a> Lexer<'a> {
     #[must_use]
     pub(crate) const fn new(source_text: &'a str, start: usize, end: usize) -> Self {
         Lexer {
+            source: source_text,
             source_text: source_text.as_bytes(),
             position: start,
             end,
         }
     }
 
-    pub(crate) fn text(&self, span: Span) -> &str {
-        std::str::from_utf8(&self.source_text[span.start_offset as usize..span.end_offset as usize])
-            .expect("a token is UTF-8 source")
+    pub(crate) fn text(&self, span: Span) -> &'a str {
+        &self.source[span.start_offset as usize..span.end_offset as usize]
     }
 
     fn err<X>(&self, message: impl Into<String>, start_offset: usize) -> R<X> {
@@ -129,19 +130,45 @@ impl<'a> Lexer<'a> {
         if i < self.end { self.source_text[i] } else { 0 }
     }
 
+    /// The non-ASCII whitespace character at the position, if any.
+    fn non_ascii_whitespace(&self) -> Option<char> {
+        // Only these lead bytes start a character of the set, so others need no decoding.
+        if !matches!(
+            self.source_text[self.position],
+            0xC2 | 0xE1 | 0xE2 | 0xE3 | 0xEF
+        ) {
+            return None;
+        }
+        (self.source[self.position..self.end].chars().next())
+            .filter(|&c| is_javascript_whitespace(c))
+    }
+
+    /// The length of the line terminator at `i`: LF, CR, LS or PS.
+    fn line_terminator_len(&self, i: usize) -> usize {
+        match self.source_text[i] {
+            b'\n' | b'\r' => 1,
+            0xE2 if self.source_text.get(i + 1) == Some(&0x80)
+                && matches!(self.source_text.get(i + 2), Some(0xA8 | 0xA9)) =>
+            {
+                3
+            }
+            _ => 0,
+        }
+    }
+
     /// Skips whitespace and comments; returns whether a line terminator was crossed.
     fn skip_trivia(&mut self, comments: &mut Vec<Span>) -> R<bool> {
         let mut newline = false;
         while self.position < self.end {
             match self.source_text[self.position] {
-                b'\n' => {
+                b'\n' | b'\r' => {
                     newline = true;
                     self.position += 1;
                 }
-                b' ' | b'\t' | b'\r' | 0x0B | 0x0C => self.position += 1,
+                b' ' | b'\t' | 0x0B | 0x0C => self.position += 1,
                 b'/' if self.peek(1) == b'/' => {
                     let start_offset = self.position;
-                    while self.position < self.end && self.source_text[self.position] != b'\n' {
+                    while self.position < self.end && self.line_terminator_len(self.position) == 0 {
                         self.position += 1;
                     }
                     comments.push(Span::new(start_offset as u32, self.position as u32));
@@ -159,19 +186,19 @@ impl<'a> Lexer<'a> {
                             self.position += 2;
                             break;
                         }
-                        if self.source_text[self.position] == b'\n' {
-                            newline = true;
-                        }
-                        self.position += 1;
+                        let len = self.line_terminator_len(self.position);
+                        newline |= len > 0;
+                        self.position += len.max(1);
                     }
                     comments.push(Span::new(start_offset as u32, self.position as u32));
                 }
-                0xE2 if self.peek(1) == 0x80 && matches!(self.peek(2), 0xA8 | 0xA9) => {
-                    newline = true;
-                    self.position += 3;
-                }
-                0xC2 if self.peek(1) == 0xA0 => self.position += 2,
-                0xEF if self.peek(1) == 0xBB && self.peek(2) == 0xBF => self.position += 3,
+                0x80.. => match self.non_ascii_whitespace() {
+                    Some(c) => {
+                        newline |= matches!(c, '\u{2028}' | '\u{2029}');
+                        self.position += c.len_utf8();
+                    }
+                    None => break,
+                },
                 _ => break,
             }
         }
@@ -281,29 +308,22 @@ impl<'a> Lexer<'a> {
     fn ident_tail(&mut self) -> R<()> {
         while self.position < self.end {
             let b = self.source_text[self.position];
-            if b >= 0x80 {
-                // Non-ASCII identifier chars are accepted as-is; separators are handled in trivia.
-                let ch_len = match b {
-                    0xC0..=0xDF => 2,
-                    0xE0..=0xEF => 3,
-                    _ => 4,
-                };
-                if b == 0xE2 && self.peek(1) == 0x80 && matches!(self.peek(2), 0xA8 | 0xA9) {
+            if b < 0x80 {
+                if is_identifier_continue(b) {
+                    self.position += 1;
+                } else if b == b'\\' {
+                    return self.err(
+                        "unicode escapes in identifiers are not supported",
+                        self.position,
+                    );
+                } else {
                     break;
                 }
-                if b == 0xC2 && self.peek(1) == 0xA0 {
-                    break;
-                }
-                self.position += ch_len;
-            } else if is_identifier_continue(b) {
-                self.position += 1;
-            } else if b == b'\\' {
-                return self.err(
-                    "unicode escapes in identifiers are not supported",
-                    self.position,
-                );
-            } else {
+            } else if self.non_ascii_whitespace().is_some() {
                 break;
+            } else {
+                // Other non-ASCII chars are accepted as-is, byte by byte.
+                self.position += 1;
             }
         }
         Ok(())
@@ -353,7 +373,10 @@ impl<'a> Lexer<'a> {
             }
             self.position += 1;
         }
-        if self.position < self.end && is_identifier_start(self.source_text[self.position]) {
+        if self.position < self.end
+            && is_identifier_start(self.source_text[self.position])
+            && (self.source_text[self.position] < 0x80 || self.non_ascii_whitespace().is_none())
+        {
             return self.err("identifier directly after number", start_offset);
         }
         Ok(())

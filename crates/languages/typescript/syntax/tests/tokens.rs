@@ -64,3 +64,60 @@ fn tokens_comments_and_whitespace_are_the_source() {
         true,
     );
 }
+
+#[test]
+fn javascript_whitespace_separates_tokens() {
+    for space in [
+        '\u{3000}', '\u{2003}', '\u{202F}', '\u{205F}', '\u{1680}', '\u{FEFF}', '\u{A0}',
+        '\u{2028}',
+    ] {
+        let source_text = format!("let{space}a{space}={space}1{space};{space}a{space}+{space}2;");
+        let mut syntax_tree = SyntaxTree::new();
+        if let Err(e) = parse_program(
+            &mut syntax_tree,
+            &source_text,
+            Span::new(0, source_text.len() as u32),
+            false,
+        ) {
+            panic!("{source_text:?}: {}", e.message);
+        }
+        let tokens: Vec<_> = (syntax_tree.tokens.iter())
+            .map(|t| &source_text[t.span.start_offset as usize..t.span.end_offset as usize])
+            .collect();
+        assert_eq!(
+            tokens,
+            ["let", "a", "=", "1", ";", "a", "+", "2", ";"],
+            "{source_text:?}"
+        );
+    }
+}
+
+fn token_texts(source_text: &str) -> Vec<&str> {
+    let mut syntax_tree = SyntaxTree::new();
+    if let Err(e) = parse_program(
+        &mut syntax_tree,
+        source_text,
+        Span::new(0, source_text.len() as u32),
+        false,
+    ) {
+        panic!("{source_text:?}: {}", e.message);
+    }
+    (syntax_tree.tokens.iter())
+        .map(|t| &source_text[t.span.start_offset as usize..t.span.end_offset as usize])
+        .collect()
+}
+
+/// CR, LS and PS end a line as LF does: they close a `//` comment and allow ASI, also inside `/* */`.
+#[test]
+fn every_line_terminator_ends_a_line() {
+    for terminator in ["\n", "\r", "\r\n", "\u{2028}", "\u{2029}"] {
+        let expected = ["let", "a", "=", "1", "let", "b", "=", "2", ";"];
+        for source_text in [
+            format!("let a = 1 // c{terminator}let b = 2;"),
+            format!("let a = 1{terminator}let b = 2;"),
+            format!("let a = 1 /* {terminator} */ let b = 2;"),
+        ] {
+            assert_eq!(token_texts(&source_text), expected, "{source_text:?}");
+        }
+    }
+}
