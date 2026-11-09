@@ -338,37 +338,90 @@ fn register_constant_folds<'a>(node: &DeclarationTag, state: &mut ServerTransfor
         return;
     };
     for d in decls {
-        let (Some(id), Some(init)) = (d.field("id"), d.field("init")) else {
+        let Some(id) = d.field("id") else {
             continue;
         };
-        if init.is_null() || id.field("type").and_then(|t| t.as_str()) != Some("Identifier") {
-            continue;
+        // Every name the tag declares shadows a constant of the same name from
+        // an outer scope, whether or not its own init folds.
+        let folded = fold_declarator_init(d, state);
+        let mut names = Vec::new();
+        collect_pattern_names(id, &mut names);
+        for name in &names {
+            state.eval_inputs.constant_vars.remove(name);
         }
-        let Some(name) = id.field("name").and_then(|n| n.as_str()) else {
-            continue;
-        };
-        let (Some(s), Some(e)) = (
-            init.field("start").and_then(|v| v.as_u64()),
-            init.field("end").and_then(|v| v.as_u64()),
-        ) else {
-            continue;
-        };
-        let (s, e) = (s as usize, e as usize);
-        if s >= e || e > state.source.len() {
-            continue;
-        }
-        let rhs = state.source[s..e].trim();
-        if let Some(folded) =
-            crate::compiler::phases::phase3_transform::server::helpers::try_evaluate_with_constants(
-                rhs,
-                &state.eval_inputs.constant_vars,
-            )
-        {
+        if let (Some(folded), Some(name)) = (
+            folded,
+            id.field("name")
+                .and_then(|n| n.as_str())
+                .filter(|_| id.field("type").and_then(|t| t.as_str()) == Some("Identifier")),
+        ) {
             state
                 .eval_inputs
                 .constant_vars
                 .insert(name.to_string(), folded);
         }
+    }
+}
+
+fn fold_declarator_init(
+    d: &serde_json::Value,
+    state: &ServerTransformState<'_>,
+) -> Option<crate::compiler::phases::phase3_transform::server::evaluate::EvalValue> {
+    let init = d.field("init")?;
+    if init.is_null() {
+        return None;
+    }
+    let s = init.field("start")?.as_u64()? as usize;
+    let e = init.field("end")?.as_u64()? as usize;
+    if s >= e || e > state.source.len() {
+        return None;
+    }
+    crate::compiler::phases::phase3_transform::server::helpers::try_evaluate_with_constants(
+        state.source[s..e].trim(),
+        &state.eval_inputs.constant_vars,
+    )
+}
+
+fn collect_pattern_names(pattern: &serde_json::Value, names: &mut Vec<String>) {
+    match pattern.field("type").and_then(|t| t.as_str()) {
+        Some("Identifier") => {
+            if let Some(name) = pattern.field("name").and_then(|n| n.as_str()) {
+                names.push(name.to_string());
+            }
+        }
+        Some("ObjectPattern") => {
+            for prop in pattern
+                .field("properties")
+                .and_then(|p| p.as_array())
+                .into_iter()
+                .flatten()
+            {
+                if let Some(target) = prop.field("value").or_else(|| prop.field("argument")) {
+                    collect_pattern_names(target, names);
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            for element in pattern
+                .field("elements")
+                .and_then(|e| e.as_array())
+                .into_iter()
+                .flatten()
+            {
+                collect_pattern_names(element, names);
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(left) = pattern.field("left") {
+                collect_pattern_names(left, names);
+            }
+        }
+        Some("RestElement") => {
+            if let Some(argument) = pattern.field("argument") {
+                collect_pattern_names(argument, names);
+            }
+        }
+        _ => {}
     }
 }
 
