@@ -9,7 +9,7 @@ use rsvelte_kernel::source::document::Document;
 use crate::Configuration;
 use crate::computation::{
     ConditionTypes, LegacyReactivity, LintConfiguration, ModuleParents, NativeConditionTypes,
-    Parents, SameNamedFile, same_named_file,
+    Parents, SameNamedFileOnDisk,
 };
 use crate::types::TypeFacts;
 
@@ -42,9 +42,8 @@ pub fn register_artifacts(registry: &mut Registry) {
         .artifact::<Parents>()
         .artifact::<ModuleParents>()
         .artifact::<NativeConditionTypes>()
-        .artifact::<LegacyReactivity>();
-    // Computed only when a rule asks, so other rules never touch the file system.
-    registry.provide::<SameNamedFile>("svelte.lint", |_| true, same_named_file);
+        .artifact::<LegacyReactivity>()
+        .artifact::<SameNamedFileOnDisk>();
 }
 
 /// Replaces the built-in prototype's condition types with `provider`'s.

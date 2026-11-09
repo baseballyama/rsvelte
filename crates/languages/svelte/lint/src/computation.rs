@@ -129,8 +129,9 @@ impl Facet for SvelteConfiguration {
 
 /// The on-disk name of the file a component or a runes module shares its name with.
 ///
-/// `Foo.svelte` and `Foo.svelte.ts` share one. It reads the file system, so it is a facet a host
-/// can answer from its own view of the files; only `svelte/no-conflicting-module-names` asks.
+/// `Foo.svelte` and `Foo.svelte.ts` share one. A host that has its own view of the files can
+/// provide it; without a provider, [`SameNamedFileOnDisk`] reads the process's file system. Only
+/// `svelte/no-conflicting-module-names` asks.
 #[derive(Debug)]
 pub struct SameNamedFile;
 
@@ -140,12 +141,26 @@ impl Facet for SameNamedFile {
     const NAME: &'static str = "svelte.lint.same_named_file";
 }
 
+/// [`SameNamedFile`] from the process's file system.
+#[derive(Debug)]
+pub(crate) struct SameNamedFileOnDisk;
+
+impl Artifact for SameNamedFileOnDisk {
+    type Output = Option<String>;
+
+    const NAME: &'static str = "svelte.lint.same_named_file_on_disk";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        same_named_file(context)
+    }
+}
+
 /// The extensions TypeScript's resolution appends to a `.svelte` specifier; `.d.ts` declares a
 /// component instead of shadowing it.
 const MODULE_EXTENSIONS: [&str; 8] = [".ts", ".tsx", ".js", ".jsx", ".mts", ".cts", ".mjs", ".cjs"];
 
-/// [`SameNamedFile`] from the process's file system; a document that is not a file has none.
-pub(crate) fn same_named_file(context: &DocumentContext<'_>) -> Option<String> {
+/// A document that is not a file has none.
+fn same_named_file(context: &DocumentContext<'_>) -> Option<String> {
     let path = context.document.path.as_str();
     if !is_file(path) {
         return None;

@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::rule::Reporter;
 
-use crate::computation::SameNamedFile;
+use crate::computation::{SameNamedFile, SameNamedFileOnDisk};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -19,7 +19,11 @@ struct NoConflictingModuleNames;
 
 impl SvelteRule for NoConflictingModuleNames {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let Some(Some(other)) = file.context.facet::<SameNamedFile>() else {
+        let other = file
+            .context
+            .facet::<SameNamedFile>()
+            .unwrap_or_else(|| file.context.get::<SameNamedFileOnDisk>());
+        let Some(other) = other else {
             return;
         };
         let message = if file.is_component() {
