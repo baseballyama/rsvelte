@@ -72,3 +72,12 @@ case of this crate (`tests/cases`, or a rule's unit test). Nobody has filed them
 - Correct: no fix while another declaration or conditional in the style sets the same property;
   the reports stay.
 - Why: each declaration is fixed on its own.
+
+## prefer-class-directive: a fix duplicates an existing `class:` directive
+
+- Case: `src/rules/prefer_class_directive/tests.rs`,
+  `a_class_with_a_directive_is_reported_without_a_fix`.
+- Upstream: `<div class={a ? "" : "x"} class:x={b}>` is fixed to `<div class:x={!a} class:x={b}>`,
+  which Svelte rejects as a duplicate attribute.
+- Correct: no fix; the report stays.
+- Why: the fix does not look at the element's other directives.

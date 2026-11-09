@@ -9,6 +9,7 @@ use rsvelte_svelte::syntax::syntax_tree::{
 use rsvelte_typescript::operators::{BinaryOperator, UnaryOperator};
 use rsvelte_typescript::syntax_tree::{Kind, Tag};
 use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
 use super::element_kind::is_html_like;
@@ -54,6 +55,7 @@ impl SvelteRule for PreferClassDirective {
             javascript: &component.javascript,
             source,
         };
+        let mut directives = FxHashSet::default();
         for node in &component.nodes {
             let TemplateNode::Element { attributes, .. } = node else {
                 continue;
@@ -61,7 +63,15 @@ impl SvelteRule for PreferClassDirective {
             if !is_html_like(node, source) {
                 continue;
             }
-            for attribute in component.attributes(*attributes) {
+            let all = component.attributes(*attributes);
+            directives.clear();
+            directives.extend(
+                all.iter()
+                    .filter(|attribute| attribute.kind == AttributeKind::Class)
+                    .filter_map(|attribute| attribute.directive_name(&component.modifiers))
+                    .map(|name| name.text(source)),
+            );
+            for attribute in all {
                 if attribute.kind != AttributeKind::Attribute
                     || attribute.shorthand
                     || attribute.name.text(source) != "class"
@@ -74,14 +84,17 @@ impl SvelteRule for PreferClassDirective {
                 let parts = component.parts(parts);
                 for (index, part) in parts.iter().enumerate() {
                     if let Part::Expression { expression, span } = *part
-                        && let Some(fix) =
+                        && let Some((fix, names)) =
                             self.verify(&values, attribute, parts, index, expression, span)
                     {
-                        reporter.report(
+                        let mut report =
                             Report::range("Unexpected class using the ternary operator.", span)
-                                .message_id("unexpected")
-                                .fix(fix),
-                        );
+                                .message_id("unexpected");
+                        // A second `class:name` would be a duplicate attribute.
+                        if !names.iter().any(|name| directives.contains(name.as_str())) {
+                            report = report.fix(fix);
+                        }
+                        reporter.report(report);
                     }
                 }
             }
@@ -265,6 +278,7 @@ fn is_class_name(name: &str) -> bool {
 }
 
 impl PreferClassDirective {
+    /// The fix, and the classes it writes as directives.
     fn verify(
         &self,
         values: &Values<'_>,
@@ -273,7 +287,7 @@ impl PreferClassDirective {
         index: usize,
         expression: NodeIdentifier,
         span: Span,
-    ) -> Option<Fix> {
+    ) -> Option<(Fix, Vec<String>)> {
         let Kind::Conditional {
             test,
             consequent,
@@ -305,12 +319,14 @@ impl PreferClassDirective {
             }
         }
         let mut directives = Vec::new();
+        let mut classes = Vec::new();
         let mut space = " ";
         for (name, not) in names.iter().zip([false, true]) {
             let trimmed = name.trim_matches(is_space);
             if trimmed.is_empty() {
                 space = name;
             } else {
+                classes.push(trimmed.to_owned());
                 directives.push(format!(
                     "class:{trimmed}={{{}}}",
                     values.condition(test, not)
@@ -349,7 +365,7 @@ impl PreferClassDirective {
             break;
         }
         if before.is_empty() && after.is_empty() {
-            return Some(Fix::replace(attribute.span, directives));
+            return Some((Fix::replace(attribute.span, directives), classes));
         }
         if before.is_empty() || after.is_empty() {
             fix.push(span, "");
@@ -360,6 +376,9 @@ impl PreferClassDirective {
             Span::new(attribute.span.end_offset, attribute.span.end_offset),
             format!(" {directives}"),
         );
-        Some(fix)
+        Some((fix, classes))
     }
 }
+
+#[cfg(test)]
+mod tests;
