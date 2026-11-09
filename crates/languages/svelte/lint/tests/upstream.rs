@@ -24,8 +24,9 @@ const UPSTREAM: &str = concat!(
     "/tests/upstream/eslint-plugin-svelte"
 );
 const OWN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/cases");
-/// Cases whose expected output is an upstream bug this crate does not reproduce, by document,
-/// with why. Each is a candidate issue for eslint-plugin-svelte.
+/// Cases whose expected output is an upstream bug this crate does not reproduce, by document: why,
+/// and the reports (and fixed code) that are correct, which the case must then produce. Each is a
+/// candidate issue for eslint-plugin-svelte.
 const DEVIATIONS: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/tests/upstream_deviations.json"
@@ -81,7 +82,7 @@ struct CaseSvelteConfig {
     kit: Option<rsvelte_svelte_lint::Kit>,
 }
 
-#[derive(Deserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Deserialize, PartialEq, Eq, Debug)]
 struct ExpectedError {
     message: String,
     line: u32,
@@ -90,10 +91,21 @@ struct ExpectedError {
 }
 
 /// `loadTestCases` keeps a suggestion's `desc` and `output` alone.
-#[derive(Deserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Deserialize, PartialEq, Eq, Debug)]
 struct ExpectedSuggestion {
     desc: String,
     output: String,
+}
+
+/// An upstream case this crate answers differently, and the answer it must give.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Deviation {
+    reason: String,
+    /// The correct reports, in `errors.yaml`'s shape.
+    errors: Vec<ExpectedError>,
+    /// The correct fixed code, when it is not upstream's.
+    output: Option<String>,
 }
 
 struct Case<'a> {
@@ -119,7 +131,7 @@ fn main() -> ExitCode {
         "eslint-plugin-svelte {}",
         upstream.versions["eslint-plugin-svelte"]
     );
-    let mut deviations: BTreeMap<String, String> =
+    let mut deviations: BTreeMap<String, Deviation> =
         serde_json::from_str(&read(Path::new(DEVIATIONS))).expect("deviations are an object");
     let mut failed = suite(
         &label,
@@ -132,9 +144,12 @@ fn main() -> ExitCode {
         &upstream.versions,
         &mut BTreeMap::new(),
     );
-    for (document, reason) in &deviations {
+    for (document, deviation) in &deviations {
         failed += 1;
-        eprintln!("UNKNOWN DEVIATION {document}: no case of an implemented rule ({reason})");
+        eprintln!(
+            "UNKNOWN DEVIATION {document}: no case of an implemented rule ({})",
+            deviation.reason
+        );
     }
     if failed == 0 {
         ExitCode::SUCCESS
@@ -148,7 +163,7 @@ fn suite(
     label: &str,
     root: &Path,
     versions: &BTreeMap<String, String>,
-    deviations: &mut BTreeMap<String, String>,
+    deviations: &mut BTreeMap<String, Deviation>,
 ) -> usize {
     let cases = cases(root);
     let mut by_rule: BTreeMap<&str, Counts> = BTreeMap::new();
@@ -158,7 +173,7 @@ fn suite(
             skipped += 1;
             continue;
         }
-        let verdict = run(case);
+        let verdict = run(case, None);
         if matches!(verdict, Verdict::NotImplemented) {
             not_implemented += 1;
             continue;
@@ -171,12 +186,25 @@ fn suite(
         match (verdict, deviation) {
             (Verdict::NotImplemented, _) => unreachable!("counted above"),
             (Verdict::Pass, None) => counts.pass += 1,
-            (Verdict::Pass, Some(reason)) => {
+            (Verdict::Pass, Some(deviation)) => {
                 counts.fail += 1;
                 failed += 1;
-                eprintln!("STALE DEVIATION {document}: passes, but is listed ({reason})");
+                eprintln!(
+                    "STALE DEVIATION {document}: matches upstream, but is listed ({})",
+                    deviation.reason
+                );
             }
-            (Verdict::Fail(_) | Verdict::Unmeasured(_), Some(_)) => counts.deviation += 1,
+            (Verdict::Fail(_) | Verdict::Unmeasured(_), Some(deviation)) => {
+                match run(case, Some(&deviation)) {
+                    Verdict::Pass => counts.deviation += 1,
+                    Verdict::Fail(detail) | Verdict::Unmeasured(detail) => {
+                        counts.fail += 1;
+                        failed += 1;
+                        eprintln!("FAIL {document}: not the deviation's answer: {detail}");
+                    }
+                    Verdict::NotImplemented => unreachable!("implemented above"),
+                }
+            }
             (Verdict::Fail(detail), None) => {
                 counts.fail += 1;
                 if !typed {
@@ -382,7 +410,8 @@ fn config(input: &Path, directory: &Path) -> Option<PathBuf> {
     .find(|path| path.exists())
 }
 
-fn run(case: &Case<'_>) -> Verdict {
+/// The case's verdict against upstream's expectation, or against `deviation`'s when given.
+fn run(case: &Case<'_>, deviation: Option<&Deviation>) -> Verdict {
     let name = format!("svelte/{}", case.rule);
     if rsvelte_svelte_lint::definition(&name, &[]).is_none() {
         return Verdict::NotImplemented;
@@ -427,11 +456,11 @@ fn run(case: &Case<'_>) -> Verdict {
         Ok(findings) => findings,
         Err(error) => return Verdict::Fail(format!("the input does not lint: {}", error.message)),
     };
-    let expected: Vec<ExpectedError> = if case.invalid {
-        serde_saphyr::from_str(&read(&sibling(&case.input, "errors.yaml")))
-            .expect("errors.yaml is valid")
-    } else {
-        Vec::new()
+    let expected: Vec<ExpectedError> = match deviation {
+        Some(deviation) => deviation.errors.clone(),
+        None if case.invalid => serde_saphyr::from_str(&read(&sibling(&case.input, "errors.yaml")))
+            .expect("errors.yaml is valid"),
+        None => Vec::new(),
     };
     let lines = rsvelte_kernel::source::positions::LineIndex::new(&source);
     let actual: Vec<ExpectedError> = findings
@@ -473,10 +502,10 @@ fn run(case: &Case<'_>) -> Verdict {
         .expect("UTF-8 name");
     let output = sibling(&case.input, &format!("output.{}", &suffix(name)[1..]));
     let fixed = apply_fixes(&source, &findings);
-    let wanted = if case.invalid && output.exists() {
-        read(&output)
-    } else {
-        source
+    let wanted = match deviation.and_then(|d| d.output.clone()) {
+        Some(correct) => correct,
+        None if case.invalid && output.exists() => read(&output),
+        None => source,
     };
     if fixed == wanted {
         Verdict::Pass

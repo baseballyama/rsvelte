@@ -15,14 +15,21 @@ pub fn lint(
     context: &DocumentContext<'_>,
     configuration: &Configuration,
 ) -> Result<Vec<Finding>, Diagnostic> {
-    let file = File::new(context)?;
+    check(&File::new(context)?, configuration)
+}
+
+/// [`lint`] of a parsed document.
+pub(crate) fn check(
+    file: &File<'_>,
+    configuration: &Configuration,
+) -> Result<Vec<Finding>, Diagnostic> {
     let mut findings = Findings::new();
     findings.run(
         configuration
             .rules()
             .iter()
-            .filter(|rule| rule.applies(&file)),
-        &file,
+            .filter(|rule| rule.applies(file)),
+        file,
     );
-    Ok(findings.finish())
+    findings.finish()
 }

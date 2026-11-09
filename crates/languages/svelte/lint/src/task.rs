@@ -69,8 +69,11 @@ impl Task for Lint {
             .map_or(&*crate::configuration::DEFAULT, |configuration| {
                 configuration.as_ref()
             });
-        let findings = match crate::lint::lint(context, configuration) {
-            Ok(findings) => findings,
+        let (file, findings) = match crate::rule::File::new(context).and_then(|file| {
+            let findings = crate::lint::check(&file, configuration)?;
+            Ok((file, findings))
+        }) {
+            Ok(linted) => linted,
             Err(error) => {
                 out.diagnostics.push(error);
                 return;
@@ -80,9 +83,12 @@ impl Task for Lint {
             "lint.json",
             rsvelte_lint_runner::output::render_json(
                 context.line_index(),
+                // The rules that ran, so a report tells a rule that found nothing from one that
+                // does not run on this file.
                 configuration
                     .rules()
                     .iter()
+                    .filter(|rule| rule.applies(&file))
                     .map(crate::ConfiguredRule::name),
                 &findings,
             ),

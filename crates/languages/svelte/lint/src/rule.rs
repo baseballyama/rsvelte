@@ -41,9 +41,11 @@ pub enum Files {
     All,
 }
 
-/// Rules a plugin adds, named `<prefix>/<rule>` in configuration.
+/// Rules a plugin adds. Each rule's name is `<prefix>/<rule>`.
 #[derive(Debug)]
 pub struct LintPlugin {
+    /// Not `svelte`, and no other plugin's.
+    pub prefix: &'static str,
     pub rules: &'static [&'static RuleDefinition],
 }
 
@@ -140,6 +142,15 @@ impl<'a> File<'a> {
     #[must_use]
     pub fn path(&self) -> &'a str {
         &self.context.document.path
+    }
+
+    /// A `.svelte.js` or `.svelte.ts` module, whose runes Svelte compiles.
+    #[must_use]
+    pub fn is_svelte_module(&self) -> bool {
+        !self.is_component()
+            && [".svelte.js", ".svelte.ts"]
+                .iter()
+                .any(|suffix| self.path().ends_with(suffix))
     }
 
     #[must_use]

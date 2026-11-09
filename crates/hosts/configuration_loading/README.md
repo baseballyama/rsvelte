@@ -76,8 +76,9 @@ configuration module. Functions stay in the Node process; transport data refers 
 other values fail. It sends the configuration's stdout to stderr, so the protocol stays intact.
 
 An explicit lint `rules` object replaces the defaults, and empty rules turn every rule off.
-Severity is `off`, `warn` or `error`, or `0`, `1` or `2`. Unknown fields, rules and severities
-fail before any task runs, and so do plugins that are not available. The CLI adapters so far
+Severity is `off`, `warn` or `error`, or `0`, `1` or `2`. Unknown fields and severities, and
+unknown rules that are on, fail before any task runs, and so do plugins that are not available. As
+in ESLint, a rule that is off is not checked. The CLI adapters so far
 cover Svelte compile, normal lint and typed lint. Typed lint needs the CLI's `lint-typed` Cargo
 feature.
 

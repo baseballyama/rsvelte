@@ -69,12 +69,19 @@ impl Task for Lint {
         };
         let mut findings = Findings::new();
         findings.run([&NoUnusedVariables], &facts);
+        let findings = match findings.finish() {
+            Ok(findings) => findings,
+            Err(error) => {
+                out.diagnostics.push(error);
+                return;
+            }
+        };
         out.file(
             "lint.json",
             rsvelte_lint_runner::output::render_json(
                 context.line_index(),
                 [NoUnusedVariables.identifier()],
-                &findings.finish(),
+                &findings,
             ),
         );
     }

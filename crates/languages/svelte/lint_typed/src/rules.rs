@@ -12,5 +12,5 @@ pub(crate) fn execute(context: &DocumentContext<'_>, severity: Severity) -> Vec<
     let rule = NoUnnecessaryCondition(severity);
     let mut findings = Findings::new();
     findings.run([&rule], context);
-    findings.finish()
+    findings.finish().expect("the typed rule does not fail")
 }

@@ -5,13 +5,13 @@ pub use lint::lint;
 
 pub mod computation;
 mod configuration;
-pub use configuration::{Configuration, ConfiguredRule, definition};
+pub use configuration::{Configuration, ConfiguredRule, check_plugins, definition};
 mod extension;
 pub use extension::EXTENSION;
 pub mod external;
 pub mod rule;
 mod rules;
 mod settings;
-pub use settings::{Kit, KitFiles, LintSettings, SvelteConfig};
+pub use settings::{CompileOptions, Kit, KitFiles, LintSettings, Postcss, SvelteConfig};
 mod task;
 pub use task::{Lint, PLUGIN, register, register_artifacts, register_with_configuration};

@@ -4,7 +4,7 @@
 //! document's path, its text and its options, and returns reports with `ESLint`'s UTF-16 ranges.
 
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-use rsvelte_lint_runner::finding::Fix;
+use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_plugin_interface::{TextContract, TextFunction};
 use serde::Deserialize;
@@ -13,9 +13,11 @@ use crate::rule::{File, SvelteRule};
 
 /// The function of a host rule.
 ///
-/// It takes `(path, source, options)`, where `options` is the JSON array of the rule's options
-/// after its level. It returns a JSON array of reports: `{message, range: [start, end], messageId?,
-/// fix?: {range, text}}`, where a range counts UTF-16 code units, as a JavaScript string does.
+/// It takes `(path, source, options)`: the document's absolute path, its text, and the JSON array
+/// of the rule's options after its level. It returns a JSON array of reports: `{message, range:
+/// [start, end], messageId?, fix?: {range, text}, suggestions?: [{message, fix}]}`, where a range
+/// counts UTF-16 code units, as a JavaScript string does. A failure or an invalid report fails the
+/// document, as a throwing `ESLint` rule does.
 pub static CONTRACT: TextContract = TextContract {
     identifier: "svelte.lint.rule",
     version: 1,
@@ -36,6 +38,8 @@ struct ExternalReport {
     range: [u32; 2],
     message_id: Option<String>,
     fix: Option<ExternalFix>,
+    #[serde(default)]
+    suggestions: Vec<ExternalSuggestion>,
 }
 
 #[derive(Deserialize)]
@@ -45,51 +49,64 @@ struct ExternalFix {
     text: String,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExternalSuggestion {
+    message: String,
+    fix: ExternalFix,
+}
+
 impl SvelteRule for ExternalRule {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        // A failing function is reported at the start, never dropped.
-        let failed = |reporter: &mut Reporter<'_>, why: String| {
-            reporter.report(Report::point(why, 0));
-        };
-        let output = match self
-            .function
-            .call(&[file.path(), file.source(), &self.options])
-        {
-            Ok(output) => output,
-            Err(error) => return failed(reporter, format!("the rule failed: {error}")),
-        };
-        let reports: Vec<ExternalReport> = match serde_json::from_str(&output) {
-            Ok(reports) => reports,
-            Err(error) => return failed(reporter, format!("the rule returned {error}")),
-        };
-        let lines = file.context.line_index();
-        for report in reports {
-            let Some(at) = span(lines, report.range) else {
-                failed(
-                    reporter,
-                    format!("the rule reported an invalid range {:?}", report.range),
-                );
-                continue;
-            };
-            let mut out = Report::range(report.message, at);
-            if let Some(id) = report.message_id {
-                out = out.message_id(id);
+        match self.reports(file) {
+            Ok(reports) => {
+                for report in reports {
+                    reporter.report(report);
+                }
             }
-            if let Some(external) = report.fix {
-                let Some(edit) = span(lines, external.range) else {
-                    failed(
-                        reporter,
-                        format!(
-                            "the rule returned an invalid fix range {:?}",
-                            external.range
-                        ),
-                    );
-                    continue;
-                };
-                out = out.fix(Fix::replace(edit, external.text));
-            }
-            reporter.report(out);
+            Err(why) => reporter.fail(why),
         }
+    }
+}
+
+impl ExternalRule {
+    fn reports(&self, file: &File<'_>) -> Result<Vec<Report>, String> {
+        let path = std::path::absolute(file.path()).map_err(|e| e.to_string())?;
+        let path = path.to_str().ok_or("the document's path is not UTF-8")?;
+        let output = self
+            .function
+            .call(&[path, file.source(), &self.options])
+            .map_err(|e| e.to_string())?;
+        let reports: Vec<ExternalReport> =
+            serde_json::from_str(&output).map_err(|e| format!("it returned {e}"))?;
+        let lines = file.context.line_index();
+        let fix = |fix: ExternalFix| {
+            span(lines, fix.range)
+                .map(|at| Fix::replace(at, fix.text))
+                .ok_or_else(|| format!("it returned an invalid fix range {:?}", fix.range))
+        };
+        reports
+            .into_iter()
+            .map(|report| {
+                let at = span(lines, report.range)
+                    .ok_or_else(|| format!("it reported an invalid range {:?}", report.range))?;
+                let mut out = Report::range(report.message, at);
+                if let Some(id) = report.message_id {
+                    out = out.message_id(id);
+                }
+                if let Some(external) = report.fix {
+                    out = out.fix(fix(external)?);
+                }
+                for suggestion in report.suggestions {
+                    out = out.suggest(Suggestion {
+                        message_id: None,
+                        message: suggestion.message,
+                        fix: fix(suggestion.fix)?,
+                    });
+                }
+                Ok(out)
+            })
+            .collect()
     }
 }
 
