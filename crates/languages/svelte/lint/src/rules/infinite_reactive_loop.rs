@@ -7,7 +7,7 @@ use rustc_hash::FxHashSet;
 
 use super::javascript::span;
 use super::legacy_reactivity::legacy;
-use super::reactive_statements::{programs, reactive_statements};
+use super::reactive_statements::{by_statement, programs, reactive_statements};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -37,7 +37,7 @@ impl SvelteRule for InfiniteReactiveLoop {
         let legacy = legacy(file);
         let roots: Vec<NodeIdentifier> = programs(component).collect();
         // The calls that run their callbacks in another microtask.
-        let mut later: Vec<Span> = import_references(
+        let mut later: FxHashSet<NodeIdentifier> = import_references(
             javascript,
             sem,
             parents,
@@ -49,7 +49,6 @@ impl SvelteRule for InfiniteReactiveLoop {
         .into_iter()
         .filter_map(|reference| reference.call)
         .filter(|&call| matches!(javascript.kind(call), Kind::Call { .. }))
-        .map(|call| span(javascript, call))
         .collect();
         later.extend(
             global_references(
@@ -61,8 +60,7 @@ impl SvelteRule for InfiniteReactiveLoop {
             )
             .into_iter()
             .filter_map(|reference| reference.call)
-            .filter(|&call| matches!(javascript.kind(call), Kind::Call { .. }))
-            .map(|call| span(javascript, call)),
+            .filter(|&call| matches!(javascript.kind(call), Kind::Call { .. })),
         );
         let reactive: FxHashSet<NodeIdentifier> = sem
             .references
@@ -73,16 +71,19 @@ impl SvelteRule for InfiniteReactiveLoop {
             })
             .map(|(reference, _)| reference.node)
             .collect();
-        for (statement, body) in statements {
-            let range = span(javascript, statement);
-            let names: FxHashSet<&str> = reactive
+        let ranges: Vec<Span> = statements
+            .iter()
+            .map(|&(statement, _)| span(javascript, statement))
+            .collect();
+        let names = by_statement(
+            &ranges,
+            reactive
                 .iter()
-                .filter(|&&node| {
-                    let at = span(javascript, node);
-                    range.start_offset <= at.start_offset && at.end_offset <= range.end_offset
-                })
-                .map(|&node| javascript.name(node))
-                .collect();
+                .map(|&node| (span(javascript, node).start_offset, javascript.name(node)))
+                .collect(),
+        );
+        for ((_, body), names) in statements.into_iter().zip(names) {
+            let names: FxHashSet<&str> = names.into_iter().collect();
             let mut lint = Lint {
                 file,
                 javascript,
@@ -94,7 +95,7 @@ impl SvelteRule for InfiniteReactiveLoop {
                 processed: FxHashSet::default(),
                 reporter: &mut *reporter,
             };
-            lint.verify(body, &mut Vec::new(), true);
+            lint.verify(body);
         }
     }
 }
@@ -103,7 +104,7 @@ struct Lint<'a, 'r, 'p> {
     file: &'a File<'a>,
     javascript: &'a SyntaxTree,
     parents: &'a [NodeIdentifier],
-    later: &'a [Span],
+    later: &'a FxHashSet<NodeIdentifier>,
     reactive: &'a FxHashSet<NodeIdentifier>,
     names: &'a FxHashSet<&'a str>,
     statement_body: NodeIdentifier,
@@ -115,103 +116,148 @@ struct Lint<'a, 'r, 'p> {
 /// One walk of a body: whether the code runs in the reactive statement's microtask, and the
 /// nodes whose leaving brings it back there.
 struct Walk {
+    body: NodeIdentifier,
     same_microtask: bool,
-    other_microtask: Vec<NodeIdentifier>,
+    other_microtask: FxHashSet<NodeIdentifier>,
+    /// How many of the calls in `later` enclose the node being walked.
+    inside_later: usize,
+}
+
+/// A step of the walk, which runs on an explicit stack so that deep code cannot exhaust the
+/// thread's.
+enum Step {
+    Enter(NodeIdentifier),
+    /// After a call's function body: the rest of entering the call's name.
+    Resume(NodeIdentifier),
+    /// The end of a called function's body.
+    Return,
+    Leave(NodeIdentifier),
 }
 
 impl Lint<'_, '_, '_> {
-    /// `verifyInternal`.
-    fn verify(&mut self, body: NodeIdentifier, calls: &mut Vec<NodeIdentifier>, same: bool) {
-        if !self.processed.insert(body) {
+    /// `verifyInternal` for the statement's body and, through calls, the functions it calls.
+    fn verify(&mut self, body: NodeIdentifier) {
+        self.processed.insert(body);
+        let mut walks = vec![self.walk(body, true)];
+        let mut calls: Vec<NodeIdentifier> = Vec::new();
+        let mut stack = vec![Step::Enter(body)];
+        while let Some(step) = stack.pop() {
+            match step {
+                Step::Enter(node) => {
+                    let walk = walks.last_mut().expect("a walk");
+                    let later = walk.inside_later > 0;
+                    if self.is_promise_callback(node) || later || self.is_awaited_assignment(node) {
+                        walk.other_microtask.insert(node);
+                        walk.same_microtask = false;
+                    }
+                    stack.push(Step::Resume(node));
+                    if is_function_call(self.javascript, self.parents, node)
+                        && let Some(function_body) = self.function_body(node)
+                        && self.processed.insert(function_body)
+                    {
+                        let same = walk.same_microtask;
+                        calls.push(node);
+                        walks.push(self.walk(function_body, same));
+                        stack.push(Step::Return);
+                        stack.push(Step::Enter(function_body));
+                    }
+                }
+                Step::Return => {
+                    walks.pop();
+                    calls.pop();
+                }
+                Step::Resume(node) => {
+                    let walk = walks.last_mut().expect("a walk");
+                    if !walk.same_microtask {
+                        self.report(node, &calls);
+                    }
+                    if self.later.contains(&node) {
+                        walk.inside_later += 1;
+                    }
+                    stack.push(Step::Leave(node));
+                    let first = stack.len();
+                    self.javascript
+                        .for_each_child(node, |child| stack.push(Step::Enter(child)));
+                    stack[first..].reverse();
+                }
+                Step::Leave(node) => {
+                    let statement_body = self.statement_body;
+                    let awaited = matches!(self.javascript.kind(node), Kind::Await(_));
+                    let walk = walks.last_mut().expect("a walk");
+                    if self.later.contains(&node) {
+                        walk.inside_later -= 1;
+                    }
+                    if awaited
+                        && (walk.body != statement_body || !self.is_inside_async_function(node))
+                    {
+                        walk.same_microtask = false;
+                    }
+                    if walk.other_microtask.contains(&node) {
+                        walk.same_microtask = true;
+                    }
+                }
+            }
+        }
+    }
+
+    /// A walk of `body`, entered in the statement's microtask when `same`.
+    fn walk(&self, body: NodeIdentifier, same: bool) -> Walk {
+        let mut inside_later = 0;
+        let mut at = self.parent(body);
+        while let Some(node) = at {
+            inside_later += usize::from(self.later.contains(&node));
+            at = self.parent(node);
+        }
+        Walk {
+            body,
+            same_microtask: same,
+            other_microtask: FxHashSet::default(),
+            inside_later,
+        }
+    }
+
+    /// `name = await …`, whose assignment runs in another microtask.
+    fn is_awaited_assignment(&self, node: NodeIdentifier) -> bool {
+        self.parent(node).is_some_and(|parent| {
+            matches!(self.javascript.kind(parent), Kind::Assign(_, left, right)
+                if left == node && matches!(self.javascript.kind(right), Kind::Await(_)))
+        })
+    }
+
+    /// Reports `node` when it assigns a variable the statement reads, with the calls that led
+    /// to it.
+    fn report(&mut self, node: NodeIdentifier, calls: &[NodeIdentifier]) {
+        let javascript = self.javascript;
+        if !(self.reactive.contains(&node)
+            && self.names.contains(javascript.name(node))
+            && self.is_assigned(node))
+        {
             return;
         }
-        let mut walk = Walk {
-            same_microtask: same,
-            other_microtask: Vec::new(),
-        };
-        self.visit(body, body, calls, &mut walk);
+        self.reporter.report(
+            Report::range(
+                "Possibly it may occur an infinite reactive loop.",
+                span(javascript, node),
+            )
+            .message_id("unexpected"),
+        );
+        for &call in calls {
+            self.reporter.report(
+                Report::range(
+                    format!(
+                        "Possibly it may occur an infinite reactive loop because this function \
+                         may update `{}`.",
+                        javascript.name(node)
+                    ),
+                    span(javascript, call),
+                )
+                .message_id("unexpectedCall"),
+            );
+        }
     }
 
     fn parent(&self, node: NodeIdentifier) -> Option<NodeIdentifier> {
         self.parents[node.index()].opt()
-    }
-
-    fn visit(
-        &mut self,
-        body: NodeIdentifier,
-        node: NodeIdentifier,
-        calls: &mut Vec<NodeIdentifier>,
-        walk: &mut Walk,
-    ) {
-        let javascript = self.javascript;
-        if self.is_promise_callback(node) {
-            walk.other_microtask.push(node);
-            walk.same_microtask = false;
-        }
-        let at = span(javascript, node);
-        for call in self.later {
-            if call.start_offset <= at.start_offset
-                && at.end_offset <= call.end_offset
-                && *call != at
-            {
-                walk.other_microtask.push(node);
-                walk.same_microtask = false;
-            }
-        }
-        if let Some(parent) = self.parent(node)
-            && let Kind::Assign(_, left, right) = javascript.kind(parent)
-            && left == node
-            && matches!(javascript.kind(right), Kind::Await(_))
-        {
-            walk.other_microtask.push(node);
-            walk.same_microtask = false;
-        }
-        if is_function_call(javascript, self.parents, node)
-            && let Some(function_body) = self.function_body(node)
-        {
-            calls.push(node);
-            self.verify(function_body, calls, walk.same_microtask);
-            calls.pop();
-        }
-        if !walk.same_microtask
-            && self.reactive.contains(&node)
-            && self.names.contains(javascript.name(node))
-            && self.is_assigned(node)
-        {
-            self.reporter.report(
-                Report::range(
-                    "Possibly it may occur an infinite reactive loop.",
-                    span(javascript, node),
-                )
-                .message_id("unexpected"),
-            );
-            for &call in calls.iter() {
-                self.reporter.report(
-                    Report::range(
-                        format!(
-                            "Possibly it may occur an infinite reactive loop because this \
-                             function may update `{}`.",
-                            javascript.name(node)
-                        ),
-                        span(javascript, call),
-                    )
-                    .message_id("unexpectedCall"),
-                );
-            }
-        }
-        let mut children = Vec::new();
-        javascript.for_each_child(node, |child| children.push(child));
-        for child in children {
-            self.visit(body, child, calls, walk);
-        }
-        if matches!(javascript.kind(node), Kind::Await(_))
-            && (body != self.statement_body || !self.is_inside_async_function(node))
-        {
-            walk.same_microtask = false;
-        }
-        if walk.other_microtask.contains(&node) {
-            walk.same_microtask = true;
-        }
     }
 
     /// `isPromiseThenOrCatchBody`: a function passed to `.then()` or `.catch()`.
