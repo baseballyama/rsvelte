@@ -359,9 +359,9 @@ impl Builder<'_> {
     }
 
     fn is_rune(&self, node: SourceNode, name: &str) -> bool {
-        let tree = &self.component.javascript;
-        matches!(tree.kind(node), Kind::Call { callee, .. }
-            if matches!(tree.kind(callee), Kind::Identifier(_)) && tree.name(callee) == name)
+        self.resolution
+            .rune(&self.component.javascript, node)
+            .is_some_and(|(rune, _)| rune == name)
     }
 
     fn span(&self, node: SourceNode) -> Span {
