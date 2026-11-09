@@ -3,6 +3,7 @@ use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript::syntax_tree::TypeScriptKind;
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rustc_hash::FxHashMap;
 
 use super::javascript::{span, walk};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
@@ -28,19 +29,28 @@ impl SvelteRule for NoAddEventListener {
         let named = |node| {
             javascript.atom(node).map(|atom| javascript.atoms.get(atom)) == Some("addEventListener")
         };
+        let mut typed: Option<FxHashMap<NodeIdentifier, Span>> = None;
         walk(file, |call| {
             let Kind::Call { callee, .. } = javascript.kind(call) else {
                 return;
             };
-            let target = match javascript.kind(callee) {
+            let object = match javascript.kind(callee) {
                 Kind::Member {
                     object, property, ..
-                } if named(property) => typed_span(javascript, object).text(source),
-                Kind::Identifier(_) if named(callee) => "window",
+                } if named(property) => Some(object),
+                Kind::Identifier(_) if named(callee) => None,
                 _ => return,
             };
+            let typed = typed.get_or_insert_with(|| typed_spans(javascript));
+            let typed_span = |node| {
+                typed
+                    .get(&node)
+                    .copied()
+                    .unwrap_or_else(|| span(javascript, node))
+            };
+            let target = object.map_or("window", |object| typed_span(object).text(source));
             // A cast callee is a `TSAsExpression`, which is neither a member nor a name.
-            if typed_span(javascript, callee) != span(javascript, callee) {
+            if typed_span(callee) != span(javascript, callee) {
                 return;
             }
             let callee_span = span(javascript, callee);
@@ -67,23 +77,23 @@ impl SvelteRule for NoAddEventListener {
     }
 }
 
-/// The span of `node` with the type syntax that wraps it (`e as T`, `e!`, `<T>e`), as `ESTree`'s
-/// node for the cast spans it.
-fn typed_span(javascript: &SyntaxTree, node: NodeIdentifier) -> Span {
-    let mut out = span(javascript, node);
-    for syntax in javascript
-        .typescript
-        .iter()
-        .filter(|syntax| syntax.node == node)
-    {
-        match syntax.kind {
-            TypeScriptKind::As | TypeScriptKind::Satisfies | TypeScriptKind::NonNull => {
-                out.end_offset = out.end_offset.max(syntax.span.end_offset);
-            }
-            TypeScriptKind::Assertion => {
-                out.start_offset = out.start_offset.min(syntax.span.start_offset);
-            }
-            _ => {}
+/// The span of each node that type syntax wraps (`e as T`, `e!`, `<T>e`), with that syntax, as
+/// `ESTree`'s node for the cast spans it.
+fn typed_spans(javascript: &SyntaxTree) -> FxHashMap<NodeIdentifier, Span> {
+    let mut out: FxHashMap<NodeIdentifier, Span> = FxHashMap::default();
+    for syntax in &javascript.typescript {
+        let wraps_end = match syntax.kind {
+            TypeScriptKind::As | TypeScriptKind::Satisfies | TypeScriptKind::NonNull => true,
+            TypeScriptKind::Assertion => false,
+            _ => continue,
+        };
+        let at = out
+            .entry(syntax.node)
+            .or_insert_with(|| span(javascript, syntax.node));
+        if wraps_end {
+            at.end_offset = at.end_offset.max(syntax.span.end_offset);
+        } else {
+            at.start_offset = at.start_offset.min(syntax.span.start_offset);
         }
     }
     out

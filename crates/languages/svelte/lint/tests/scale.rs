@@ -160,3 +160,15 @@ fn deep_expressions_do_not_exhaust_the_stack() {
         0
     );
 }
+
+#[test]
+fn no_add_event_listener_is_near_baseline() {
+    near_baseline("svelte/no-add-event-listener", "a.svelte", 4000, 1, |n| {
+        let mut out = String::from("<script lang=\"ts\">\n");
+        for i in 0..n {
+            writeln!(out, "el{i}!.addEventListener('x', f as any);").expect("a string");
+        }
+        out.push_str("</script>\n");
+        out
+    });
+}
