@@ -1,1 +1,27 @@
-{}
+{
+	"no-unused-props/invalid/alias-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/builtin-shadow-unused-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/builtin-types-unused-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/class-props-unused-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/custom-config-combination-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/extends-unused-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/generic-props-unused-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/ignore-external-type-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/ignore-property-patterns-custom-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/ignored-type-patterns-custom-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/imported-type-check-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/imported-type-unused-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/index-signature-no-rest-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/intersection-unused-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/multiple-extends-unused-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/nested-unused-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/optional-unused-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/parent-interface-unused-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/simple-unused-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"no-unused-props/invalid/unused-index-signature-input.svelte": "needs the properties of the `$props()` declaration's type, which only a type checker resolves",
+	"require-event-prefix/invalid/checkAsyncFunctions/async-arrow01-input.svelte": "needs which properties of the `$props()` type are functions, which only a type checker resolves",
+	"require-event-prefix/invalid/checkAsyncFunctions/async01-input.svelte": "needs which properties of the `$props()` type are functions, which only a type checker resolves",
+	"require-event-prefix/invalid/no-prefix-arrow01-input.svelte": "needs which properties of the `$props()` type are functions, which only a type checker resolves",
+	"require-event-prefix/invalid/no-prefix-inline-type01-input.svelte": "needs which properties of the `$props()` type are functions, which only a type checker resolves",
+	"require-event-prefix/invalid/no-prefix01-input.svelte": "needs which properties of the `$props()` type are functions, which only a type checker resolves"
+}
