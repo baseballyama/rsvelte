@@ -173,3 +173,31 @@ fn an_escaped_identifier_names_what_it_decodes_to() {
     let span = tree.source_location(reference).span().expect("located");
     assert_eq!(span, Span::new(17, 24));
 }
+
+#[test]
+fn an_exported_declaration_starts_at_export() {
+    let source_text = "export async function f() {}\nexport function g() {}";
+    let (tree, statements) = typescript(source_text);
+    let text = |n| {
+        tree.source_location(n)
+            .span()
+            .expect("located")
+            .text(source_text)
+    };
+    let spans: Vec<(&str, &str)> = statements
+        .iter()
+        .map(|&s| {
+            let Kind::ExportNamed(declaration) = tree.kind(s) else {
+                panic!("a named export");
+            };
+            (text(s), text(declaration))
+        })
+        .collect();
+    assert_eq!(
+        spans,
+        [
+            ("export async function f() {}", "async function f() {}"),
+            ("export function g() {}", "function g() {}"),
+        ]
+    );
+}
