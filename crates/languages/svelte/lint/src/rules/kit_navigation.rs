@@ -205,10 +205,14 @@ pub(super) fn links<'a>(
     })
 }
 
-/// The first chunk of an attribute's value, as `svelte-eslint-parser` gives `value[0]`.
+/// The first chunk of an attribute's value, as `svelte-eslint-parser` gives `value[0]`: it gives
+/// no chunk for `href=""`.
 pub(super) fn first_part<'a>(component: &'a Component, attribute: &Attribute) -> Option<&'a Part> {
     match attribute.value {
-        AttributeValue::Parts(parts) => component.parts(parts).first(),
+        AttributeValue::Parts(parts) => component
+            .parts(parts)
+            .first()
+            .filter(|part| !matches!(part, Part::Text(span) if span.is_empty())),
         AttributeValue::True => None,
     }
 }

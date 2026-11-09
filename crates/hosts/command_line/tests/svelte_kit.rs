@@ -202,3 +202,19 @@ fn only_resolve_is_checked_in_sveltekit_3() {
         5
     );
 }
+
+/// `svelte-eslint-parser` gives `href=""` no value, and upstream checks no link without one.
+#[test]
+fn an_empty_link_is_not_checked() {
+    let project = Project::new(&[
+        ("package.json", KIT_2),
+        (
+            "src/lib/Link.svelte",
+            "<a href=\"\">a</a><a href=''>b</a><a href>c</a>",
+        ),
+    ]);
+    assert_eq!(
+        project.rules(".", "src/lib/Link.svelte", NAVIGATION_RULES),
+        [""; 0]
+    );
+}
