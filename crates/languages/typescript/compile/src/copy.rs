@@ -350,6 +350,9 @@ pub fn copy_node<R: Rewrite + ?Sized>(
         }
         Kind::Hole => to.hole(span),
     };
+    if f.is_chain(identifier) {
+        to.mark_chain(copied);
+    }
     if fl & flag::GROUPED != 0 {
         to.grouped(copied)
     } else {

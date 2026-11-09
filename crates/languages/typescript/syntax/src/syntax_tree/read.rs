@@ -13,6 +13,13 @@ impl SyntaxTree {
         e
     }
 
+    /// Whether `e` ends an optional chain: `a?.b` in `(a?.b).c`, and `a?.b.c` as a whole.
+    #[inline]
+    #[must_use]
+    pub fn is_chain(&self, e: NodeIdentifier) -> bool {
+        matches!(self.tag(e), Tag::Member | Tag::Call) && self.flags(e) & flag::CHAIN != 0
+    }
+
     #[inline]
     #[must_use]
     pub fn is_identifier(&self, identifier: NodeIdentifier) -> bool {

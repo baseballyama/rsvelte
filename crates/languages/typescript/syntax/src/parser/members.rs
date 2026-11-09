@@ -30,6 +30,7 @@ impl Parser<'_, '_> {
         start_offset: u32,
         calls: bool,
     ) -> R<NodeIdentifier> {
+        let mut optional = false;
         loop {
             match self.token.t {
                 T::Dot => {
@@ -45,6 +46,7 @@ impl Parser<'_, '_> {
                 }
                 T::QuestionDot => {
                     self.bump()?;
+                    optional = true;
                     match self.token.t {
                         T::LParen if calls => {
                             let arguments = self.arguments()?;
@@ -109,7 +111,12 @@ impl Parser<'_, '_> {
                 {
                     self.maybe_type_arguments(e)?;
                 }
-                _ => return Ok(e),
+                _ => {
+                    if optional {
+                        self.syntax_tree.mark_chain(e);
+                    }
+                    return Ok(e);
+                }
             }
         }
     }

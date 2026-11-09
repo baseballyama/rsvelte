@@ -231,6 +231,11 @@ impl SyntaxTree {
         self.flags[call.index()] |= flag::PURE;
     }
 
+    /// Ends an optional chain at `link`, a member or a call.
+    pub fn mark_chain(&mut self, link: NodeIdentifier) {
+        self.flags[link.index()] |= flag::CHAIN;
+    }
+
     pub fn new_(
         &mut self,
         callee: NodeIdentifier,
