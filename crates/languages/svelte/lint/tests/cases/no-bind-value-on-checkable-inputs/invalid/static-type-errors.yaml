@@ -1,0 +1,202 @@
+- message: "`bind:value` does not work on checkbox inputs. Did you mean
+    `bind:checked` or `bind:group`?"
+  line: 8
+  column: 17
+  suggestions:
+    - desc: Change `bind:value` to `bind:checked`.
+      messageId: checkedSuggestion
+      output: >
+        <script lang="ts">
+        	let t = 'checkbox';
+        	const types = { choice: 'radio' };
+        	const kind = 'CHECK';
+        	let a = $state(''), b = $state(''), c = $state(''), d = $state(''), e = $state(''), f = $state('');
+        </script>
+
+
+        <input type={t} bind:checked={a} />
+
+        <input type={'radio' as const} bind:value={b} />
+
+        <input type={types.choice} bind:value={c} />
+
+        <input type={kind.toLowerCase() + 'box'} bind:value={d} />
+
+        <input type={t ? 'radio' : 'text'} bind:value={e} />
+
+        <input type={`${'radio'}`} bind:value={f} />
+    - desc: Change `bind:value` to `bind:group`.
+      messageId: groupSuggestion
+      output: >
+        <script lang="ts">
+        	let t = 'checkbox';
+        	const types = { choice: 'radio' };
+        	const kind = 'CHECK';
+        	let a = $state(''), b = $state(''), c = $state(''), d = $state(''), e = $state(''), f = $state('');
+        </script>
+
+
+        <input type={t} bind:group={a} />
+
+        <input type={'radio' as const} bind:value={b} />
+
+        <input type={types.choice} bind:value={c} />
+
+        <input type={kind.toLowerCase() + 'box'} bind:value={d} />
+
+        <input type={t ? 'radio' : 'text'} bind:value={e} />
+
+        <input type={`${'radio'}`} bind:value={f} />
+- message: "`bind:value` does not work on radio inputs. Did you mean `bind:group`?"
+  line: 9
+  column: 32
+  suggestions:
+    - desc: Change `bind:value` to `bind:group`.
+      messageId: groupSuggestion
+      output: >
+        <script lang="ts">
+        	let t = 'checkbox';
+        	const types = { choice: 'radio' };
+        	const kind = 'CHECK';
+        	let a = $state(''), b = $state(''), c = $state(''), d = $state(''), e = $state(''), f = $state('');
+        </script>
+
+
+        <input type={t} bind:value={a} />
+
+        <input type={'radio' as const} bind:group={b} />
+
+        <input type={types.choice} bind:value={c} />
+
+        <input type={kind.toLowerCase() + 'box'} bind:value={d} />
+
+        <input type={t ? 'radio' : 'text'} bind:value={e} />
+
+        <input type={`${'radio'}`} bind:value={f} />
+- message: "`bind:value` does not work on radio inputs. Did you mean `bind:group`?"
+  line: 10
+  column: 28
+  suggestions:
+    - desc: Change `bind:value` to `bind:group`.
+      messageId: groupSuggestion
+      output: >
+        <script lang="ts">
+        	let t = 'checkbox';
+        	const types = { choice: 'radio' };
+        	const kind = 'CHECK';
+        	let a = $state(''), b = $state(''), c = $state(''), d = $state(''), e = $state(''), f = $state('');
+        </script>
+
+
+        <input type={t} bind:value={a} />
+
+        <input type={'radio' as const} bind:value={b} />
+
+        <input type={types.choice} bind:group={c} />
+
+        <input type={kind.toLowerCase() + 'box'} bind:value={d} />
+
+        <input type={t ? 'radio' : 'text'} bind:value={e} />
+
+        <input type={`${'radio'}`} bind:value={f} />
+- message: "`bind:value` does not work on checkbox inputs. Did you mean
+    `bind:checked` or `bind:group`?"
+  line: 11
+  column: 42
+  suggestions:
+    - desc: Change `bind:value` to `bind:checked`.
+      messageId: checkedSuggestion
+      output: >
+        <script lang="ts">
+        	let t = 'checkbox';
+        	const types = { choice: 'radio' };
+        	const kind = 'CHECK';
+        	let a = $state(''), b = $state(''), c = $state(''), d = $state(''), e = $state(''), f = $state('');
+        </script>
+
+
+        <input type={t} bind:value={a} />
+
+        <input type={'radio' as const} bind:value={b} />
+
+        <input type={types.choice} bind:value={c} />
+
+        <input type={kind.toLowerCase() + 'box'} bind:checked={d} />
+
+        <input type={t ? 'radio' : 'text'} bind:value={e} />
+
+        <input type={`${'radio'}`} bind:value={f} />
+    - desc: Change `bind:value` to `bind:group`.
+      messageId: groupSuggestion
+      output: >
+        <script lang="ts">
+        	let t = 'checkbox';
+        	const types = { choice: 'radio' };
+        	const kind = 'CHECK';
+        	let a = $state(''), b = $state(''), c = $state(''), d = $state(''), e = $state(''), f = $state('');
+        </script>
+
+
+        <input type={t} bind:value={a} />
+
+        <input type={'radio' as const} bind:value={b} />
+
+        <input type={types.choice} bind:value={c} />
+
+        <input type={kind.toLowerCase() + 'box'} bind:group={d} />
+
+        <input type={t ? 'radio' : 'text'} bind:value={e} />
+
+        <input type={`${'radio'}`} bind:value={f} />
+- message: "`bind:value` does not work on radio inputs. Did you mean `bind:group`?"
+  line: 12
+  column: 36
+  suggestions:
+    - desc: Change `bind:value` to `bind:group`.
+      messageId: groupSuggestion
+      output: >
+        <script lang="ts">
+        	let t = 'checkbox';
+        	const types = { choice: 'radio' };
+        	const kind = 'CHECK';
+        	let a = $state(''), b = $state(''), c = $state(''), d = $state(''), e = $state(''), f = $state('');
+        </script>
+
+
+        <input type={t} bind:value={a} />
+
+        <input type={'radio' as const} bind:value={b} />
+
+        <input type={types.choice} bind:value={c} />
+
+        <input type={kind.toLowerCase() + 'box'} bind:value={d} />
+
+        <input type={t ? 'radio' : 'text'} bind:group={e} />
+
+        <input type={`${'radio'}`} bind:value={f} />
+- message: "`bind:value` does not work on radio inputs. Did you mean `bind:group`?"
+  line: 13
+  column: 28
+  suggestions:
+    - desc: Change `bind:value` to `bind:group`.
+      messageId: groupSuggestion
+      output: >
+        <script lang="ts">
+        	let t = 'checkbox';
+        	const types = { choice: 'radio' };
+        	const kind = 'CHECK';
+        	let a = $state(''), b = $state(''), c = $state(''), d = $state(''), e = $state(''), f = $state('');
+        </script>
+
+
+        <input type={t} bind:value={a} />
+
+        <input type={'radio' as const} bind:value={b} />
+
+        <input type={types.choice} bind:value={c} />
+
+        <input type={kind.toLowerCase() + 'box'} bind:value={d} />
+
+        <input type={t ? 'radio' : 'text'} bind:value={e} />
+
+        <input type={`${'radio'}`} bind:group={f} />

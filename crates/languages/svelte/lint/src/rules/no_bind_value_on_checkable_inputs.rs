@@ -4,8 +4,8 @@ use rsvelte_svelte::syntax::syntax_tree::{
     Attribute, AttributeKind, Component, Part, TemplateNode, decode_attribute,
 };
 
-use super::constant_string::{root, string_if_constant};
-use super::expressions::Expressions;
+use rsvelte_typescript::semantic::static_value::{StaticValues, Value};
+
 use super::markup::{is_attribute, parts};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -27,6 +27,8 @@ impl SvelteRule for NoBindValueOnCheckableInputs {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let source = file.source();
+        // Scopes are resolved only for the first `type={expression}`.
+        let mut values = None;
         for node in &component.nodes {
             let TemplateNode::Element {
                 name, attributes, ..
@@ -52,7 +54,13 @@ impl SvelteRule for NoBindValueOnCheckableInputs {
                     is_attribute(component, source, "input", attribute)
                         && attribute.name.text(source).eq_ignore_ascii_case("type")
                 })
-                .and_then(|attribute| static_type(file, component, attribute))
+                .and_then(|attribute| {
+                    static_type(component, source, attribute, || {
+                        values.get_or_insert_with(|| {
+                            StaticValues::new(&component.javascript, source, Some(file.semantic()))
+                        })
+                    })
+                })
             else {
                 continue;
             };
@@ -94,15 +102,18 @@ fn rebind(bind_value: &Attribute, binding: &'static str) -> Suggestion {
 }
 
 /// The lowercased `type` when it is one text, or one expression known to be a string.
-fn static_type(file: &File<'_>, component: &Component, attribute: &Attribute) -> Option<String> {
-    let source = file.source();
+fn static_type<'v>(
+    component: &Component,
+    source: &str,
+    attribute: &Attribute,
+    values: impl FnOnce() -> &'v StaticValues<'v>,
+) -> Option<String> {
     let value = match *parts(component, attribute) {
         [Part::Text(text)] => decode_attribute(text.text(source)).into_owned(),
-        [Part::Expression { expression, .. }] => {
-            let expressions = Expressions::new(&component.javascript, source);
-            let expression = root(&expressions, || file.semantic(), expression);
-            string_if_constant(&expressions, expression)?
-        }
+        [Part::Expression { expression, .. }] => match values().value(expression)? {
+            Value::String(value) => value,
+            _ => return None,
+        },
         _ => return None,
     };
     Some(value.to_lowercase())
