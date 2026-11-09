@@ -43,7 +43,11 @@ enum Name<'a> {
 }
 
 /// `ESLint`'s `prefer-const` over the `let` declarations under `roots` that `skip` does not
-/// exclude.
+/// exclude. A variable `written_by_host` (a Svelte prop, which its parent writes) is never const.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each fact the host supplies is one argument"
+)]
 pub fn prefer_const(
     f: &JavaScriptFacts<'_>,
     roots: &[NodeIdentifier],
@@ -51,6 +55,7 @@ pub fn prefer_const(
     options: PreferConstOptions,
     statements: ProgramStatements,
     skip: impl Fn(NodeIdentifier) -> bool,
+    written_by_host: impl Fn(BindingIdentifier) -> bool,
     reporter: &mut Reporter<'_>,
 ) {
     let tree = f.syntax_tree;
@@ -82,7 +87,11 @@ pub fn prefer_const(
     let mut uses = Vec::new();
     for &variable in &variables {
         collect_uses(f, variable, &mut uses);
-        let identifier = identifier_if_should_be_const(f, variable, &uses, options, statements);
+        let identifier = if written_by_host(variable) {
+            None
+        } else {
+            identifier_if_should_be_const(f, variable, &uses, options, statements)
+        };
         let mut previous = None;
         for reference in &uses {
             if previous == Some(reference.node) {
