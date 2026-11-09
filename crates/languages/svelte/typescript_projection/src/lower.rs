@@ -1,5 +1,7 @@
 mod contract;
 
+use std::cell::OnceCell;
+
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::semantic::resolve::{self, Runes};
@@ -18,15 +20,9 @@ type Result<T> = std::result::Result<T, Unsupported>;
 ///
 /// Returns the source range of a construct whose type semantics are not supported yet.
 pub fn lower(component: &Component, source: &str) -> Result<SyntaxTree> {
-    let runes = resolve::runes(
-        &component.javascript,
-        source,
-        component.program,
-        component.module.as_ref().map(|module| module.program),
-    );
     let mut builder = Builder {
         component,
-        runes: &runes,
+        runes: OnceCell::new(),
         source,
         suffixes: Buffer::new(0),
         type_arguments: Buffer::new(0),
@@ -50,7 +46,8 @@ pub fn lower(component: &Component, source: &str) -> Result<SyntaxTree> {
 
 struct Builder<'a> {
     component: &'a Component,
-    runes: &'a Runes,
+    /// Built on the first call that could be a rune; most components make none.
+    runes: OnceCell<Runes>,
     source: &'a str,
     suffixes: Buffer<Option<Span>>,
     type_arguments: Buffer<SourceNode>,
