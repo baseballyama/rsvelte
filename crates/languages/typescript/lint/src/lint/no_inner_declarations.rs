@@ -24,9 +24,14 @@ pub fn no_inner_declarations(
     reporter: &mut Reporter<'_>,
 ) {
     let tree = f.syntax_tree;
-    // Each node with whether the code around it is strict.
-    let mut stack: Vec<(NodeIdentifier, bool)> = roots.iter().rev().map(|&r| (r, module)).collect();
-    while let Some((node, strict)) = stack.pop() {
+    // Each node with whether the code around it is strict, and the body it is in
+    // (`getAllowedBodyDescription`), both decided once on the way down.
+    let mut stack: Vec<(NodeIdentifier, bool, &str)> = roots
+        .iter()
+        .rev()
+        .map(|&r| (r, module, "program"))
+        .collect();
+    while let Some((node, strict, body)) = stack.pop() {
         let kind = match tree.kind(node) {
             Kind::Function {
                 declaration: true, ..
@@ -41,15 +46,20 @@ pub fn no_inner_declarations(
         {
             reporter.report(
                 Report::range(
-                    format!("Move {kind} declaration to {} root.", body(f, node)),
+                    format!("Move {kind} declaration to {body} root."),
                     f.span(node),
                 )
                 .message_id("moveDeclToRoot"),
             );
         }
         let inner = strict || makes_strict(f, source, node);
+        let inner_body = match tree.kind(node) {
+            Kind::Class(Class::StaticBlock(_)) => "class static block body",
+            Kind::Function { .. } | Kind::Arrow { .. } => "function body",
+            _ => body,
+        };
         let at = stack.len();
-        tree.for_each_child(node, |child| stack.push((child, inner)));
+        tree.for_each_child(node, |child| stack.push((child, inner, inner_body)));
         stack[at..].reverse();
     }
 }
@@ -107,17 +117,4 @@ fn at_root(f: &JavaScriptFacts<'_>, node: NodeIdentifier) -> bool {
         }),
         _ => false,
     }
-}
-
-/// `getAllowedBodyDescription`.
-fn body(f: &JavaScriptFacts<'_>, node: NodeIdentifier) -> &'static str {
-    let mut at = f.parent(node);
-    while let Some(current) = at {
-        match f.syntax_tree.kind(current) {
-            Kind::Class(Class::StaticBlock(_)) => return "class static block body",
-            Kind::Function { .. } | Kind::Arrow { .. } => return "function body",
-            _ => at = f.parent(current),
-        }
-    }
-    "program"
 }
