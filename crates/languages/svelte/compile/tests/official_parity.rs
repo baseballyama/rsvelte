@@ -92,3 +92,17 @@ fn a_grouped_optional_chain_is_neither_pure_nor_safe() {
         );
     }
 }
+
+#[test]
+fn only_the_instance_splits_a_declaration_into_one_per_declarator() {
+    let source = "<script module>let m = 1, n = 2;</script><script>let p = 1, q = 2; function f() { let r = 1, s = 2; return r + s; }</script>{m}{n}{p}{q}{f()}";
+    for target in [Target::Client, Target::Server] {
+        let output = squashed(source, target);
+        for expected in ["letm=1,n=2;", "letp=1;letq=2;", "letr=1,s=2;"] {
+            assert!(
+                output.contains(expected),
+                "{expected} on {target:?} in {output}"
+            );
+        }
+    }
+}

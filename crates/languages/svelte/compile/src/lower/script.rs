@@ -459,12 +459,16 @@ pub(super) fn lower_script(
                 for &d in declarations {
                     check_destructured_rune(from, rw.target, d)?;
                 }
+                // Upstream's instance gives each declarator its own declaration.
+                let split = context == ScriptContext::Instance;
+                let location = from.source_location(statement);
                 let mut lowered = Vec::with_capacity(declarations.len());
-                for &d in declarations {
+                for (i, &d) in declarations.iter().enumerate() {
                     lower_declarator(from, to, rw, d, &mut lowered, hoisted, names);
-                }
-                if !lowered.is_empty() {
-                    out.push(to.var_declaration(kind, &lowered, from.source_location(statement)));
+                    if (split || i + 1 == declarations.len()) && !lowered.is_empty() {
+                        out.push(to.var_declaration(kind, &lowered, location));
+                        lowered.clear();
+                    }
                 }
             }
             _ => out.push(copy(from, to, rw, statement)),

@@ -1,4 +1,4 @@
-# svelte.compile/server: 2963 match
+# svelte.compile/server: 2966 match
 svelte/animotion/src/lib/components/action.svelte	refused
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -3037,8 +3037,8 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/s
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-directive/valid/test01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/alphabetical-test-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/alphabetical-test-output.svelte	missing
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/class-test-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/class-test-output.svelte	mismatch
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/class-test-input.svelte	missing
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/class-test-output.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/in-out-test-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/in-out-test-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/let-test-input.svelte	refused
@@ -3049,8 +3049,8 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/s
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/spread-test01-output.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/spread-test02-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/spread-test02-output.svelte	missing
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/spread-test03-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/spread-test03-output.svelte	mismatch
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/spread-test03-input.svelte	missing
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/spread-test03-output.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/style-ptops-test-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/style-ptops-test-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/use-test-input.svelte	refused
@@ -3061,8 +3061,8 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/s
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/ignore-no-order-with-spread-test-output.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/alphabetical-test-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/bind-on-test01-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/class-test-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/ignore-spread-test-input.svelte	mismatch
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/class-test-input.svelte	missing
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/ignore-spread-test-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/let-test-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/spread-test01-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/style-test-input.svelte	refused
@@ -5263,7 +5263,6 @@ svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/attributes-for
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/await-with-$store/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/circle-drawer-example/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/component-default-slot/input.svelte	refused
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-constant/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/component-events-strictEvents/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/component-multiple-slots/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/component-slot-$$slot-interface/input.svelte	refused
@@ -5326,7 +5325,6 @@ svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/stores-looking
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/style-after-selfclosing-iframe/input.svelte	missing
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/style-attribute-bare/input.svelte	missing
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/style-attribute/input.svelte	missing
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/style-in-script/input.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/style-tag-in-script-comment-with-real-style/input.svelte	missing
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/style/input.svelte	missing
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/svelte-element/input.svelte	missing
@@ -13738,7 +13736,6 @@ svelte/svelte/packages/svelte/tests/migrate/samples/event-handlers-with-alias/ou
 svelte/svelte/packages/svelte/tests/migrate/samples/event-handlers/input.svelte	refused
 svelte/svelte/packages/svelte/tests/migrate/samples/event-handlers/output.svelte	refused
 svelte/svelte/packages/svelte/tests/migrate/samples/export-props-multiple-declarations/input.svelte	refused
-svelte/svelte/packages/svelte/tests/migrate/samples/export-props-multiple-declarations/output.svelte	mismatch
 svelte/svelte/packages/svelte/tests/migrate/samples/impossible-migrate-$derived-derived-var-2/input.svelte	refused
 svelte/svelte/packages/svelte/tests/migrate/samples/impossible-migrate-$derived-derived-var-2/output.svelte	refused
 svelte/svelte/packages/svelte/tests/migrate/samples/impossible-migrate-$derived-derived-var-3/input.svelte	refused
