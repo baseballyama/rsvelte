@@ -82,19 +82,31 @@ impl SvelteRule for BlockLang {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let source = file.source();
+        // `ESLint`'s `{ line: 1, column: 1 }`, the second character of the first line; its end
+        // when the line is shorter, since a position past it does not exist.
+        let first_line = file
+            .context
+            .ecmascript_line_index()
+            .line_span(1)
+            .expect("a first line")
+            .text(source);
+        let missing_at = first_line
+            .char_indices()
+            .nth(1)
+            .map_or(first_line.len(), |(i, _)| i) as u32;
         let mut scripts: Vec<_> = [&component.module, &component.instance]
             .into_iter()
             .flatten()
             .map(|script| (script.span, script.attributes.as_slice()))
             .collect();
         scripts.sort_by_key(|(span, _)| span.start_offset);
-        self.script.check(source, &scripts, reporter);
+        self.script.check(source, missing_at, &scripts, reporter);
         let styles: Vec<_> = component
             .style
             .iter()
             .map(|style| (style.span, style.attributes.as_slice()))
             .collect();
-        self.style.check(source, &styles, reporter);
+        self.style.check(source, missing_at, &styles, reporter);
     }
 }
 
@@ -108,6 +120,7 @@ impl Block {
     fn check(
         &self,
         source: &str,
+        missing_at: u32,
         blocks: &[(Span, &[TagAttributes])],
         reporter: &mut Reporter<'_>,
     ) {
@@ -123,8 +136,7 @@ impl Block {
                 format!(
                     "The <{tag}> block should be present and its lang attribute should be {langs}."
                 ),
-                // `ESLint`'s `{ line: 1, column: 1 }`: the second character of the first line.
-                source.find(['\n', '\r']).unwrap_or(source.len()).min(1) as u32,
+                missing_at,
             );
             for lang in self.named() {
                 report = report.suggest(Suggestion {
@@ -228,3 +240,6 @@ impl Block {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
