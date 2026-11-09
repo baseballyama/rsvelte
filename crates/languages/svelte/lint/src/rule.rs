@@ -237,10 +237,13 @@ impl<'a> File<'a> {
         ))
     }
 
-    /// The document's `svelte.config.js`, as the host provides it.
+    /// The document's `svelte.config.js` as the host provides it, or why the host cannot read
+    /// it; `None` when no host provides it.
     #[must_use]
-    pub fn svelte_config(&self) -> Option<&'a SvelteConfig> {
-        self.context.facet::<SvelteConfiguration>()
+    pub fn svelte_config(&self) -> Option<Result<&'a SvelteConfig, &'a str>> {
+        self.context
+            .facet::<SvelteConfiguration>()
+            .map(|config| config.as_ref().map_err(String::as_str))
     }
 
     /// The parent of each node of [`File::javascript`].

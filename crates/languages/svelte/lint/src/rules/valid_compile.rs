@@ -39,7 +39,11 @@ impl SvelteRule for ValidCompile {
         };
         let component = file.component().expect("a component rule");
         let source = file.source();
-        let config = file.svelte_config();
+        let config = match file.svelte_config() {
+            Some(Err(why)) => return reporter.fail(why),
+            Some(Ok(config)) => Some(config),
+            None => None,
+        };
         let experimental_async = config.is_some_and(|c| c.experimental_async);
         let applied = apply(
             file,

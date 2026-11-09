@@ -12,9 +12,11 @@ pub use extension::EXTENSION;
 pub mod external;
 mod pattern;
 pub use pattern::Pattern;
+pub mod project;
 pub mod rule;
 mod rules;
 mod settings;
+pub mod svelte_config;
 pub use settings::{
     CompileOptions, Kit, KitFiles, LintSettings, Postcss, SvelteConfig, Warning, WarningHandler,
 };

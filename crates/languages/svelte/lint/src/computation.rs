@@ -117,12 +117,13 @@ impl Artifact for ModuleParents {
     }
 }
 
-/// The document's `svelte.config.js`, as `svelte-eslint-parser` finds it; the host loads it.
+/// The document's `svelte.config.js`, as `svelte-eslint-parser` finds it, or why it cannot be
+/// read. The host loads it ([`crate::project::register_file_system`] from the files).
 #[derive(Debug)]
 pub struct SvelteConfiguration;
 
 impl Facet for SvelteConfiguration {
-    type Output = SvelteConfig;
+    type Output = Result<SvelteConfig, String>;
 
     const NAME: &'static str = "svelte.lint.svelte_config";
 }

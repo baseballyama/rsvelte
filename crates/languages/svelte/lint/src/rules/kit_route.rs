@@ -1,7 +1,8 @@
 //! `SvelteKit` route components, as `eslint-plugin-svelte` recognizes them.
 
+use rsvelte_lint_runner::rule::Reporter;
+
 use crate::LintSettings;
-use crate::computation::SvelteConfiguration;
 use crate::rule::File;
 
 #[cfg(test)]
@@ -15,10 +16,26 @@ pub(super) enum RouteFile {
 }
 
 /// The route component `file` is: a `+page.svelte`, `+layout.svelte` or `+error.svelte` under the
-/// routes directory of `settings` and the file's `svelte.config.js`.
-pub(super) fn route_file(settings: &LintSettings, file: &File<'_>) -> Option<RouteFile> {
+/// routes directory of `settings` and the file's `svelte.config.js`. Without the host's
+/// `svelte.config.js`, the rule fails instead of guessing the routes directory.
+pub(super) fn route_file(
+    settings: &LintSettings,
+    file: &File<'_>,
+    reporter: &mut Reporter<'_>,
+) -> Option<RouteFile> {
     let kind = route_file_name(file.path())?;
-    let routes = settings.routes(file.context.facet::<SvelteConfiguration>());
+    let svelte_config = match file.svelte_config() {
+        Some(Ok(config)) => config,
+        Some(Err(why)) => {
+            reporter.fail(why);
+            return None;
+        }
+        None => {
+            reporter.fail("no host provides the document's svelte.config.js");
+            return None;
+        }
+    };
+    let routes = settings.routes(Some(svelte_config));
     under(routes, file.path()).then_some(kind)
 }
 

@@ -37,7 +37,7 @@ impl SvelteRule for ValidPropNames {
         let Some(instance) = &component.instance else {
             return;
         };
-        let Some(route) = route_file(&self.settings, file) else {
+        let Some(route) = route_file(&self.settings, file, reporter) else {
             return;
         };
         let expected = match route {

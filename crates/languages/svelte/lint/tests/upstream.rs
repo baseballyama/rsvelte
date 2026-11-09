@@ -875,9 +875,9 @@ fn lint(
 ) -> Result<Vec<Finding>, rsvelte_kernel::diagnostics::Diagnostic> {
     let mut registry = Registry::new();
     rsvelte_svelte_lint::register_artifacts(&mut registry);
-    if let Some(svelte_config) = svelte_config {
-        registry.provide::<SvelteConfiguration>("test", |_| true, move |_| svelte_config.clone());
-    }
+    // Upstream's parser finds no `svelte.config.js` above its fixtures.
+    let svelte_config = svelte_config.unwrap_or_default();
+    registry.provide::<SvelteConfiguration>("test", |_| true, move |_| Ok(svelte_config.clone()));
     let context = DocumentContext::new(document, registry.artifacts());
     rsvelte_svelte_lint::lint(&context, configuration)
 }

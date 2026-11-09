@@ -34,7 +34,11 @@ impl SvelteRule for NoUnusedSvelteIgnore {
         let Some(compile) = file.compile_warnings() else {
             return;
         };
-        let experimental_async = file.svelte_config().is_some_and(|c| c.experimental_async);
+        let experimental_async = match file.svelte_config() {
+            Some(Err(why)) => return reporter.fail(why),
+            Some(Ok(config)) => config.experimental_async,
+            None => false,
+        };
         let applied = apply(file, compile, &ignores, experimental_async);
         if applied.error.is_some() {
             return;

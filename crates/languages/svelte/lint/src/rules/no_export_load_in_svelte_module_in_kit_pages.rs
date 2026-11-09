@@ -31,7 +31,7 @@ impl SvelteRule for NoExportLoad {
         let Some(module) = &component.module else {
             return;
         };
-        if route_file(&self.settings, file).is_none() {
+        if route_file(&self.settings, file, reporter).is_none() {
             return;
         }
         let tree = &component.javascript;

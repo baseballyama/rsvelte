@@ -133,6 +133,12 @@ fn registry(plugins: &[&str]) -> Registry {
                 rsvelte_svelte_compile::register(&mut reg);
                 rsvelte_svelte_format::register(&mut reg);
                 rsvelte_svelte_lint::register(&mut reg);
+                // A page has no files, so no `svelte.config.js` either.
+                reg.provide::<rsvelte_svelte_lint::computation::SvelteConfiguration>(
+                    "browser",
+                    |_| true,
+                    |_| Ok(rsvelte_svelte_lint::SvelteConfig::default()),
+                );
                 rsvelte_svelte_typecheck::register(
                     &mut reg,
                     &rsvelte_svelte_typecheck::Configuration::default(),
