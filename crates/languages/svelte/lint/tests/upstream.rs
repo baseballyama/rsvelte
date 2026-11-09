@@ -13,6 +13,7 @@ use std::sync::Arc;
 
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
+use rsvelte_kernel::computation::task::Task;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_lint_runner::finding::{Finding, apply_fix, apply_fixes};
@@ -193,7 +194,7 @@ fn main() -> ExitCode {
             deviation.reason
         );
     }
-    failed += conflicting_module_names();
+    failed += conflicting_module_names(&mut counted);
     for (document, (label, reason)) in &counted {
         failed += 1;
         eprintln!("UNKNOWN {label} {document}: no case of an implemented rule ({reason})");
@@ -662,12 +663,60 @@ fn javascript_config(path: &Path, root: &Path) -> Option<SvelteConfig> {
 /// `tests/src/rules/no-conflicting-module-names.ts` rather than as fixtures: the rule looks at the
 /// files beside the document, so each case lints a real file of the fixture directory, at its
 /// absolute path as upstream's do.
-fn conflicting_module_names() -> usize {
+fn conflicting_module_names(counted: &mut BTreeMap<String, (&'static str, String)>) -> usize {
     const RULE: &str = "svelte/no-conflicting-module-names";
     if rsvelte_svelte_lint::definition(RULE, &[]).is_none() {
         return 0;
     }
     let root = Path::new(UPSTREAM).join("no-conflicting-module-names");
+    let cases = conflicting_module_names_cases();
+    let mut configuration = Configuration::new(LintSettings::default());
+    configuration
+        .rule(RULE, Severity::Error, &[], &[])
+        .expect("the rule takes no options");
+    let (mut failed, mut waiting) = (0, 0);
+    for (file, code, expected) in &cases {
+        let document_name = format!("no-conflicting-module-names/{file}");
+        let path = root.join(file);
+        let source = code.map_or_else(|| read(&path), str::to_owned);
+        let document = Document::new(path.to_str().expect("UTF-8 path").to_owned(), source)
+            .expect("a case is small");
+        let project = Project::on_disk(&path, None);
+        let actual: Vec<(String, u32)> = match lint(&document, &configuration, project) {
+            Ok(findings) => findings
+                .iter()
+                .map(|f| (f.diagnostic.message.clone(), f.diagnostic.span.start_offset))
+                .collect(),
+            Err(error) => vec![(format!("does not lint: {}", error.message), 0)],
+        };
+        // Upstream expects line 1, column 1.
+        let expected: Vec<(String, u32)> = expected.iter().map(|m| (m.clone(), 0)).collect();
+        let pass = actual == expected;
+        if let Some((label, reason)) = counted.remove(&document_name) {
+            if pass {
+                failed += 1;
+                eprintln!("STALE {label} {document_name}: passes, but is listed ({reason})");
+            } else {
+                waiting += 1;
+                eprintln!("COUNTED {document_name}: {label} ({reason})");
+            }
+        } else if !pass {
+            failed += 1;
+            eprintln!("FAIL {document_name}: expected {expected:?}, found {actual:?}");
+        }
+    }
+    eprintln!(
+        "  no-conflicting-module-names (inline cases): {} of {} pass, {failed} fail, {waiting} \
+         counted",
+        cases.len() - failed - waiting,
+        cases.len()
+    );
+    failed
+}
+
+/// Upstream's inline cases of `no-conflicting-module-names`: the file, the code when the file
+/// does not exist, and the expected message.
+fn conflicting_module_names_cases() -> Vec<(String, Option<&'static str>, Option<String>)> {
     let component = |module: &str| {
         format!(
             "The module `{module}` has the same name as this component. TypeScript resolves the \
@@ -677,7 +726,6 @@ fn conflicting_module_names() -> usize {
     let module = "This module has the same name as the component `Foo.svelte`. TypeScript \
                   resolves the import `./Foo.svelte` to this module, not to the component. \
                   Rename this file.";
-    // (file, the code when the file does not exist, the expected message)
     let mut cases: Vec<(String, Option<&str>, Option<String>)> = vec![
         ("valid/no-sibling/Foo.svelte".to_owned(), None, None),
         ("valid/different-module/Foo.svelte".to_owned(), None, None),
@@ -732,39 +780,7 @@ fn conflicting_module_names() -> usize {
             Some(module.to_owned()),
         ));
     }
-    let mut configuration = Configuration::new(LintSettings::default());
-    configuration
-        .rule(RULE, Severity::Error, &[], &[])
-        .expect("the rule takes no options");
-    let mut failed = 0;
-    for (file, code, expected) in &cases {
-        let path = root.join(file);
-        let source = code.map_or_else(|| read(&path), str::to_owned);
-        let document = Document::new(path.to_str().expect("UTF-8 path").to_owned(), source)
-            .expect("a case is small");
-        let project = Project::on_disk(&path, None);
-        let actual: Vec<(String, u32)> = match lint(&document, &configuration, project) {
-            Ok(findings) => findings
-                .iter()
-                .map(|f| (f.diagnostic.message.clone(), f.diagnostic.span.start_offset))
-                .collect(),
-            Err(error) => vec![(format!("does not lint: {}", error.message), 0)],
-        };
-        // Upstream expects line 1, column 1.
-        let expected: Vec<(String, u32)> = expected.iter().map(|m| (m.clone(), 0)).collect();
-        if actual != expected {
-            failed += 1;
-            eprintln!(
-                "FAIL no-conflicting-module-names/{file}: expected {expected:?}, found {actual:?}"
-            );
-        }
-    }
-    eprintln!(
-        "  no-conflicting-module-names (inline cases): {} of {} pass",
-        cases.len() - failed,
-        cases.len()
-    );
-    failed
+    cases
 }
 
 /// `svelte-eslint-parser`'s `svelteConfig` option, else what it reads from the nearest file; the
@@ -826,6 +842,13 @@ fn lint(
 ) -> Result<Vec<Finding>, rsvelte_kernel::diagnostics::Diagnostic> {
     let mut registry = Registry::new();
     rsvelte_svelte_lint::register_artifacts(&mut registry);
+    // The product lints only the documents its task takes.
+    let task = rsvelte_svelte_lint::Lint {
+        modules: configuration.lints_modules(),
+    };
+    if !task.applies(document) {
+        return Ok(Vec::new());
+    }
     let Project { svelte_config, kit } = project;
     registry.provide::<SvelteConfiguration>("test", |_| true, move |_| svelte_config.clone());
     registry.provide::<SvelteKit>("test", |_| true, move |_| kit.clone());
