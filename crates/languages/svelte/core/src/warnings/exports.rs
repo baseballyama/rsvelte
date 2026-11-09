@@ -83,10 +83,14 @@ pub(super) fn unused_exports(
             Kind::Control(Control::ExportList {
                 specifiers: list,
                 source: None,
+                ..
             }) => {
                 for &specifier in list {
-                    let Kind::Control(Control::ExportSpecifier { local, .. }) =
-                        javascript.kind(specifier)
+                    let Kind::Control(Control::ExportSpecifier {
+                        local,
+                        type_only: false,
+                        ..
+                    }) = javascript.kind(specifier)
                     else {
                         continue;
                     };

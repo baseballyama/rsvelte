@@ -92,14 +92,19 @@ impl Parser<'_, '_> {
                         syntax_tree.call(e, arguments, false, span)
                     });
                 }
-                T::Template { .. } => return self.fail("tagged templates are not supported"),
+                T::Template { .. } if calls => {
+                    let quasi = self.template()?;
+                    e = self
+                        .syntax_tree
+                        .tagged_template(e, quasi, self.span_from(start_offset));
+                }
                 T::Op
                     if self.typescript
                         && self.text(self.token) == "!"
                         && !self.token.newline_before =>
                 {
                     let bang = self.bump()?;
-                    self.typescript(e, TypeScriptKind::NonNull, bang.span);
+                    self.typescript(e, TypeScriptKind::NonNull, bang.span, NodeIdentifier::NONE);
                 }
                 T::Op
                     if calls
@@ -118,7 +123,7 @@ impl Parser<'_, '_> {
         match self.token.t {
             T::Identifier | T::PrivateName => {
                 let t = self.bump()?;
-                Ok(self.syntax_tree.ident(self.text(t), t.span))
+                Ok(self.ident_node(t))
             }
             _ => self.fail("expected property name"),
         }

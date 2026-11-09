@@ -96,7 +96,7 @@ fn templates_strings_and_members() {
 
 #[test]
 fn unsupported_syntax_is_an_error_not_a_panic() {
-    for source_text in ["for () {}", "class {}", "a`t`"] {
+    for source_text in ["for () {}", "class {}", "with (a) {}"] {
         let mut syntax_tree = SyntaxTree::new();
         assert!(
             parse_program(
@@ -292,4 +292,16 @@ fn same_name_property_prints_shorthand_except_proto() {
     ] {
         assert_eq!(stable(input, false), printed, "{input}");
     }
+}
+
+#[test]
+fn type_only_export_specifiers_are_erased() {
+    assert_eq!(
+        stable(
+            "export { type A, b } from 'm' with { type: 'json' }; export { type C };",
+            true
+        ),
+        "export { b } from 'm' with { type: 'json' };
+"
+    );
 }

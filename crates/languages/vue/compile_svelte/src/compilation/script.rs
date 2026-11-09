@@ -38,8 +38,7 @@ pub(crate) fn classify(
             Kind::Import {
                 type_only: true, ..
             }
-            | Kind::TypeScriptDeclaration
-            | Kind::TypeScriptInterface { .. } => {}
+            | Kind::TypeScriptDeclaration => {}
             Kind::Import {
                 specifiers, source, ..
             } => {

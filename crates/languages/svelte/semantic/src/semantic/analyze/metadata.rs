@@ -110,6 +110,15 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
                 }
                 self.visit(value);
             }
+            // Upstream `TaggedTemplateExpression`: a tag is a call.
+            Kind::TaggedTemplate { tag, quasi } => {
+                if COLLECT_METADATA && !self.is_pure(tag) {
+                    self.meta.has_call = true;
+                    self.meta.has_state = true;
+                }
+                self.visit(tag);
+                self.visit(quasi);
+            }
             // Upstream `SpreadElement`: `[...x]` reads like `[...x.values()]`. Its expression state
             // is cleared inside functions.
             Kind::Spread(arg) => {

@@ -266,12 +266,6 @@ impl Analyzer<'_> {
                     self.s.type_names.insert((scope, declarations[at].name));
                 }
             }
-            Kind::TypeScriptInterface { name, .. } => {
-                if let Some(name) = self.syntax_tree.atom(name) {
-                    let scope = self.cur();
-                    self.s.type_names.insert((scope, name));
-                }
-            }
             _ => return self.children_to_declare(identifier, work),
         }
         work[mark..].reverse();

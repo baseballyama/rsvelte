@@ -41,17 +41,23 @@ pub enum Control<'a> {
         body: NodeIdentifier,
     },
     Debugger,
+    /// `export { … }`, `export { … } from "m" with { … }`.
     ExportList {
         specifiers: &'a [NodeIdentifier],
         source: Option<NodeIdentifier>,
+        attributes: Option<NodeIdentifier>,
     },
+    /// `a as b`, or `type a` that erasing types removes.
     ExportSpecifier {
         local: NodeIdentifier,
         exported: NodeIdentifier,
+        type_only: bool,
     },
+    /// `export * as a from "m" with { … }`.
     ExportAll {
         source: NodeIdentifier,
         exported: Option<NodeIdentifier>,
+        attributes: Option<NodeIdentifier>,
     },
 }
 
@@ -73,8 +79,11 @@ enum ControlTag {
     Labeled,
     Debugger,
     ExportList,
+    ExportListWithAttributes,
     ExportSpecifier,
+    TypeExportSpecifier,
     ExportAll,
+    ExportAllWithAttributes,
 }
 
 impl SyntaxTree {
@@ -142,17 +151,45 @@ impl SyntaxTree {
             ),
             Control::Labeled { label, body } => (ControlTag::Labeled, [label.0, body.0]),
             Control::Debugger => (ControlTag::Debugger, [0, 0]),
-            Control::ExportList { specifiers, source } => (
-                ControlTag::ExportList,
-                [self.list(specifiers), source.unwrap_or(none).0],
-            ),
-            Control::ExportSpecifier { local, exported } => {
-                (ControlTag::ExportSpecifier, [local.0, exported.0])
+            Control::ExportList {
+                specifiers,
+                source,
+                attributes,
+            } => {
+                let list = self.list(specifiers);
+                let source = source.unwrap_or(none);
+                attributes.map_or((ControlTag::ExportList, [list, source.0]), |a| {
+                    (
+                        ControlTag::ExportListWithAttributes,
+                        [list, self.record(&[source, a])],
+                    )
+                })
             }
-            Control::ExportAll { source, exported } => (
-                ControlTag::ExportAll,
-                [source.0, exported.unwrap_or(none).0],
+            Control::ExportSpecifier {
+                local,
+                exported,
+                type_only,
+            } => (
+                if type_only {
+                    ControlTag::TypeExportSpecifier
+                } else {
+                    ControlTag::ExportSpecifier
+                },
+                [local.0, exported.0],
             ),
+            Control::ExportAll {
+                source,
+                exported,
+                attributes,
+            } => {
+                let exported = exported.unwrap_or(none);
+                attributes.map_or((ControlTag::ExportAll, [source.0, exported.0]), |a| {
+                    (
+                        ControlTag::ExportAllWithAttributes,
+                        [source.0, self.record(&[exported, a])],
+                    )
+                })
+            }
         };
         self.push(Tag::Control, tag as u8, data, location)
     }
@@ -208,14 +245,31 @@ impl SyntaxTree {
             x if x == ControlTag::ExportList as u8 => Control::ExportList {
                 specifiers: self.list_at(a),
                 source: NodeIdentifier(b).opt(),
+                attributes: None,
             },
-            x if x == ControlTag::ExportSpecifier as u8 => Control::ExportSpecifier {
-                local: NodeIdentifier(a),
-                exported: NodeIdentifier(b),
+            x if x == ControlTag::ExportListWithAttributes as u8 => Control::ExportList {
+                specifiers: self.list_at(a),
+                source: self.rec(b, 0).opt(),
+                attributes: Some(self.rec(b, 1)),
             },
+            x if x == ControlTag::ExportSpecifier as u8
+                || x == ControlTag::TypeExportSpecifier as u8 =>
+            {
+                Control::ExportSpecifier {
+                    local: NodeIdentifier(a),
+                    exported: NodeIdentifier(b),
+                    type_only: x == ControlTag::TypeExportSpecifier as u8,
+                }
+            }
             x if x == ControlTag::ExportAll as u8 => Control::ExportAll {
                 source: NodeIdentifier(a),
                 exported: NodeIdentifier(b).opt(),
+                attributes: None,
+            },
+            x if x == ControlTag::ExportAllWithAttributes as u8 => Control::ExportAll {
+                source: NodeIdentifier(a),
+                exported: self.rec(b, 0).opt(),
+                attributes: Some(self.rec(b, 1)),
             },
             _ => unreachable!("a control tag is set by its constructor"),
         }
@@ -279,17 +333,29 @@ impl Control<'_> {
                 }
             }
             Self::Labeled { body, .. } => f(body),
-            Self::ExportList { specifiers, source } => {
+            Self::ExportList {
+                specifiers,
+                source,
+                attributes,
+            } => {
                 for &n in specifiers {
                     f(n);
                 }
-                if let Some(n) = source {
-                    f(n);
-                }
+                source.into_iter().chain(attributes).for_each(f);
             }
-            Self::ExportSpecifier { local, .. } => f(local),
-            Self::ExportAll { source, .. } => f(source),
-            Self::Jump { .. } | Self::Debugger => {}
+            // A type-only specifier names a type, which no scope holds.
+            Self::ExportSpecifier {
+                local,
+                type_only: false,
+                ..
+            } => f(local),
+            Self::ExportAll {
+                source, attributes, ..
+            } => {
+                f(source);
+                attributes.into_iter().for_each(f);
+            }
+            Self::Jump { .. } | Self::Debugger | Self::ExportSpecifier { .. } => {}
         }
     }
 }

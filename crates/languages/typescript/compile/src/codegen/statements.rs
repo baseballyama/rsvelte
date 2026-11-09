@@ -153,10 +153,7 @@ impl Gen<'_> {
                     self.e.push(" from ");
                 }
                 self.expression(source, prec::PRIMARY);
-                if let Some(attributes) = attributes {
-                    self.e.push(" with ");
-                    self.expression(attributes, prec::PRIMARY);
-                }
+                self.attributes(attributes);
                 self.e.push(";");
             }
             Kind::ExportNamed(d) => {
@@ -175,7 +172,7 @@ impl Gen<'_> {
                     self.e.push(";");
                 }
             }
-            Kind::TypeScriptDeclaration | Kind::TypeScriptInterface { .. } => {}
+            Kind::TypeScriptDeclaration => {}
             _ => {
                 self.expression(identifier, prec::SEQ);
                 self.e.push(";");

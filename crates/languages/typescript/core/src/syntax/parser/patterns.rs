@@ -15,7 +15,7 @@ impl Parser<'_, '_> {
                         span: t.span,
                     });
                 }
-                Ok(self.syntax_tree.ident(self.text(t), t.span))
+                Ok(self.ident_node(t))
             }
             T::LBrace => {
                 self.bump()?;

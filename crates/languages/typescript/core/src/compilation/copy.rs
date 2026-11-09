@@ -197,20 +197,11 @@ pub fn copy_node<R: Rewrite + ?Sized>(
                 let export = copy(f, to, rw, export);
                 to.type_only_export(export, span)
             }
-            None => to.typescript_declaration(span),
+            // Compilation erases types, so the copy keeps the statement, not what it declares.
+            None => to.typescript_declaration(None, span),
         },
-        Kind::TypeScriptInterface { name, members } => {
-            let n = copy_node(f, to, rw, name);
-            let m = members
-                .iter()
-                .map(|&m| copy_node(f, to, rw, m))
-                .collect::<Vec<_>>();
-            to.typescript_interface(n, &m, span)
-        }
-        Kind::TypeScriptPropertySignature { key, optional } => {
-            let k = copy_node(f, to, rw, key);
-            to.typescript_prop_sig(k, optional, span)
-        }
+        Kind::Type(_) => unreachable!("no value node has type syntax as a child"),
+        Kind::Jsx(_) => unreachable!("compilation refuses JSX before it copies"),
         Kind::Identifier(a) => to.ident(f.atoms.get(a), span),
         Kind::Number(v) => to.write_number(v, span),
         Kind::String => {
@@ -225,6 +216,11 @@ pub fn copy_node<R: Rewrite + ?Sized>(
         Kind::Boolean(b) => to.write_boolean(b, span),
         Kind::Null => to.null(span),
         Kind::This => to.this(span),
+        Kind::TaggedTemplate { tag, quasi } => {
+            let t = copy(f, to, rw, tag);
+            let q = copy(f, to, rw, quasi);
+            to.tagged_template(t, q, span)
+        }
         Kind::Template {
             quasis,
             expressions,

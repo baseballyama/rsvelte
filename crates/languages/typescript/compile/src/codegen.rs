@@ -6,7 +6,7 @@
 
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_typescript::operators::{BinaryOperator, LogicalOperator, UnaryOperator};
-use rsvelte_typescript::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, Tag, flag};
+use rsvelte_typescript::syntax_tree::{Control, Kind, NodeIdentifier, SyntaxTree, Tag, flag};
 
 #[must_use]
 pub fn print_program(
@@ -86,7 +86,7 @@ impl Gen<'_> {
     /// Whether a statement produces output (TypeScript-only statements do not).
     fn emits(&self, s: NodeIdentifier) -> bool {
         match self.syntax_tree.kind(s) {
-            Kind::TypeScriptDeclaration | Kind::TypeScriptInterface { .. } => false,
+            Kind::TypeScriptDeclaration => false,
             Kind::Import {
                 specifiers,
                 type_only,
@@ -98,8 +98,29 @@ impl Gen<'_> {
                             .iter()
                             .any(|&sp| self.syntax_tree.flags(sp) & flag::TYPE_ONLY == 0))
             }
+            Kind::Control(Control::ExportList { specifiers, .. }) => {
+                specifiers.is_empty() || specifiers.iter().any(|&sp| !self.is_type_export(sp))
+            }
             Kind::ExportNamed(d) => self.emits(d),
             _ => true,
+        }
+    }
+
+    fn is_type_export(&self, specifier: NodeIdentifier) -> bool {
+        matches!(
+            self.syntax_tree.kind(specifier),
+            Kind::Control(Control::ExportSpecifier {
+                type_only: true,
+                ..
+            })
+        )
+    }
+
+    /// ` with { … }` after a module source.
+    fn attributes(&mut self, attributes: Option<NodeIdentifier>) {
+        if let Some(attributes) = attributes {
+            self.e.push(" with ");
+            self.expression(attributes, prec::PRIMARY);
         }
     }
 }

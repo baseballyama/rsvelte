@@ -148,8 +148,11 @@ fn props(file: &File<'_>) -> FxHashSet<BindingIdentifier> {
             }
             Kind::Control(Control::ExportList { specifiers, .. }) => {
                 for &specifier in specifiers {
-                    if let Kind::Control(Control::ExportSpecifier { local, .. }) =
-                        tree.kind(specifier)
+                    if let Kind::Control(Control::ExportSpecifier {
+                        local,
+                        type_only: false,
+                        ..
+                    }) = tree.kind(specifier)
                     {
                         props.extend(scope.and_then(|scope| lookup(tree, sem, scope, local)));
                     }

@@ -154,11 +154,25 @@ pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnosti
     Ok(())
 }
 
-/// Upstream `remove_typescript_nodes` erases types and refuses what has a runtime value.
+/// Upstream `remove_typescript_nodes` erases types and refuses what has a runtime value; what it
+/// keeps for esrap to print, this compiler does not lower.
 fn typescript_invalid_feature(t: &TypeScriptRuntime) -> Diagnostic {
     let feature = match t.feature {
         TypeScriptFeature::Enum => "enums",
         TypeScriptFeature::NamespaceWithValues => "namespaces with non-type nodes",
+        TypeScriptFeature::Decorator => "decorators (related TSC proposal is not stage 4 yet)",
+        TypeScriptFeature::Accessor => "accessor fields (related TSC proposal is not stage 4 yet)",
+        TypeScriptFeature::ParameterProperty => "accessibility modifiers on constructor parameters",
+        TypeScriptFeature::ImportEquals => {
+            return Diagnostic::error(
+                "unsupported",
+                "`import name = …` is not supported yet",
+                t.span,
+            );
+        }
+        TypeScriptFeature::ExportAssignment => {
+            return Diagnostic::error("unsupported", "`export = …` is not supported yet", t.span);
+        }
     };
     Diagnostic::error(
         "typescript_invalid_feature",

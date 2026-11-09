@@ -222,34 +222,18 @@ impl SyntaxTree {
         self.push(Tag::ExportDefault, 0, [declaration.0, 0], source_location)
     }
 
+    /// A TypeScript statement that declares `declaration`, a [`super::Type`] or, for `declare`,
+    /// an overload or a declaration-only class, the value node.
     pub fn typescript_declaration(
         &mut self,
+        declaration: Option<NodeIdentifier>,
         source_location: impl Into<SourceLocation>,
     ) -> NodeIdentifier {
-        self.push(Tag::TypeScriptDeclaration, 0, [0, 0], source_location)
-    }
-
-    pub fn typescript_interface(
-        &mut self,
-        name: NodeIdentifier,
-        members: &[NodeIdentifier],
-        source_location: impl Into<SourceLocation>,
-    ) -> NodeIdentifier {
-        let l = self.list(members);
-        self.push(Tag::TypeScriptInterface, 0, [name.0, l], source_location)
-    }
-
-    pub fn typescript_prop_sig(
-        &mut self,
-        key: NodeIdentifier,
-        optional: bool,
-        source_location: impl Into<SourceLocation>,
-    ) -> NodeIdentifier {
-        let f = if optional { flag::OPTIONAL } else { 0 };
+        let declaration = declaration.unwrap_or(NodeIdentifier::NONE);
         self.push(
-            Tag::TypeScriptPropertySignature,
-            f,
-            [key.0, 0],
+            Tag::TypeScriptDeclaration,
+            0,
+            [declaration.0, 0],
             source_location,
         )
     }

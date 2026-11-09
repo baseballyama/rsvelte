@@ -48,6 +48,11 @@ impl Task for Compile {
             let feature = match runtime.feature {
                 TypeScriptFeature::Enum => "enums",
                 TypeScriptFeature::NamespaceWithValues => "namespaces with values",
+                TypeScriptFeature::Decorator => "decorators",
+                TypeScriptFeature::Accessor => "accessor fields",
+                TypeScriptFeature::ParameterProperty => "parameter properties",
+                TypeScriptFeature::ImportEquals => "import assignments",
+                TypeScriptFeature::ExportAssignment => "export assignments",
             };
             out.diagnostics.push(Diagnostic::error(
                 "compile_unsupported",

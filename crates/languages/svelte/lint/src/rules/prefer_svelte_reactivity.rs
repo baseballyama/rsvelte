@@ -160,7 +160,11 @@ fn exported_declarations(
                 export(Some(declaration));
             }
         }
-        Kind::Control(Control::ExportSpecifier { local, .. }) if tree.is_identifier(local) => {
+        Kind::Control(Control::ExportSpecifier {
+            local,
+            type_only: false,
+            ..
+        }) if tree.is_identifier(local) => {
             export(definition(local));
         }
         _ => {}

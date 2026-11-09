@@ -79,7 +79,11 @@ impl Parser<'_, '_> {
         } else {
             false
         };
-        let type_parameters = if self.typescript && self.is_op("<") && self.generic_arrow_ahead()? {
+        let type_parameters = if self.typescript
+            && self.is_op("<")
+            && !self.starts_jsx()
+            && self.generic_arrow_ahead()?
+        {
             self.maybe_type_parameters()?
         } else {
             None
@@ -91,12 +95,12 @@ impl Parser<'_, '_> {
         {
             let t = self.bump()?;
             let parameters = self.open();
-            let p = self.syntax_tree.ident(self.text(t), t.span);
+            let p = self.ident_node(t);
             self.item(p);
             parameters
         } else if self.token.t == T::LParen && Self::paren_arrow_ahead(self.lex, &mut Vec::new())? {
             let p = self.parameters()?;
-            ret = self.maybe_return_type(true)?;
+            ret = self.maybe_return_type()?;
             p
         } else {
             return Ok(None);
@@ -197,8 +201,8 @@ impl Parser<'_, '_> {
                 };
                 self.bump()?;
                 let tlo = self.token.span.start_offset;
-                self.skip_type(true)?;
-                self.typescript(left, kind, Span::new(tlo, self.prev_end));
+                let ty = self.ty()?;
+                self.typescript(left, kind, Span::new(tlo, self.prev_end), ty);
                 continue;
             }
             let Some((prec, op)) = self.binary_op() else {

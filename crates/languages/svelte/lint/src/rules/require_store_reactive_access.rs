@@ -159,6 +159,7 @@ impl Check<'_, '_, '_> {
                     self.verify(expression, true, false);
                 }
             }
+            Kind::TaggedTemplate { tag, .. } => self.verify(tag, true, false),
             Kind::Property {
                 key,
                 computed: true,
