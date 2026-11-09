@@ -25,7 +25,7 @@ const applySuggestion = (code: string, { range, text }: Fix) =>
 function applyFixes(code: string, fixes: Fix[]): string {
 	let output = '';
 	let last = Number.NEGATIVE_INFINITY;
-	const sorted = [...fixes].sort((a, b) => a.range[0] - b.range[0] || a.range[1] - b.range[1]);
+	const sorted = fixes.toSorted((a, b) => a.range[0] - b.range[0] || a.range[1] - b.range[1]);
 	for (const { range, text } of sorted) {
 		if (last >= range[0] || range[0] > range[1]) continue;
 		output += code.slice(Math.max(0, last), Math.max(0, range[0])) + text;
@@ -118,7 +118,13 @@ export async function main(args: string[]): Promise<void> {
 				const output = sibling(input, `output${path.extname(input)}`);
 				const fixable = plugin.rules[rule].meta?.fixable != null;
 				if (fixable && (!fs.existsSync(output) || values.update)) {
-					fs.writeFileSync(output, applyFixes(code, messages.flatMap((m) => (m.fix ? [m.fix] : []))));
+					fs.writeFileSync(
+						output,
+						applyFixes(
+							code,
+							messages.flatMap((m) => (m.fix ? [m.fix] : [])),
+						),
+					);
 					written++;
 				}
 			}
