@@ -67,6 +67,9 @@ struct OpenTagElementShape {
     self_closing: bool,
     hug_open: bool,
     empty: bool,
+    // A whitespace body is prettier's `line` after a glued `>`, not the empty
+    // hug, so neither the `>` nor `</tag>` count against the open tag's fit.
+    whitespace_body: bool,
 }
 struct OpenTagFormatConstraints {
     has_line_comment: bool,
@@ -75,9 +78,10 @@ struct OpenTagFormatConstraints {
 
 impl OpenTagLayoutPlan {
     fn new(input: &OpenTagShapeInput<'_>) -> Self {
+        let empty = input.element.empty && !input.element.whitespace_body;
         let fit_width = if !input.element.self_closing
             && input.one_liner.ends_with('>')
-            && (input.element.hug_open || input.element.empty)
+            && (input.element.hug_open || empty)
         {
             input.open_one_line_width - 1
         } else {
@@ -90,8 +94,8 @@ impl OpenTagLayoutPlan {
                 .iter()
                 .any(|attribute| attribute.contains('\n'))
             && open_fits;
-        let close_width = usize::from(input.element.empty && !input.element.self_closing)
-            * (input.tag_name.len() + 3);
+        let close_width =
+            usize::from(empty && !input.element.self_closing) * (input.tag_name.len() + 3);
         let element_overflows =
             close_width > 0 && input.open_one_line_width + close_width > input.line_width;
         let shape_two = !input.rendered_attrs.is_empty()
@@ -460,6 +464,7 @@ pub(super) fn push_open_tag(
             self_closing,
             hug_open,
             empty: empty_element,
+            whitespace_body: empty_nonhug && tag_name != "textarea",
         },
         constraints: OpenTagFormatConstraints {
             has_line_comment,

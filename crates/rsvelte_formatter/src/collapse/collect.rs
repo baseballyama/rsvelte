@@ -660,6 +660,13 @@ pub(super) fn collect(
     }
 }
 
+/// The leading whitespace of the line containing byte `pos` of `out`.
+fn line_indent(out: &str, pos: usize) -> &str {
+    let line_start = out[..pos].rfind('\n').map_or(0, |i| i + 1);
+    let line = &out[line_start..pos];
+    &line[..line.len() - line.trim_start_matches([' ', '\t']).len()]
+}
+
 /// Re-lay-out a pure-text element: render it on one line when it fits, else
 /// break the content onto its own indented line(s) (word-fill). Returns the edit
 /// when the ideal layout differs from the element's current rendering in `out`.
@@ -733,8 +740,15 @@ pub(super) fn try_collapse(
                 // Case 3: wrapped open tag — leave as-is.
                 return None;
             }
-            // Case 2: inline open tag — insert one space between `>` and `</tag>`.
-            let result = format!("{open} {close}");
+            // Case 2: inline open tag. The body is prettier's `line` inside the
+            // element group, so it is one space when `<tag …> </tag>` fits and a
+            // break to the line's indent when it does not.
+            let flat = format!("{open} {close}");
+            let result = if current_column(out, start, tw) + flat.visual_width(tw) <= line_width {
+                flat
+            } else {
+                format!("{open}\n{}{close}", line_indent(out, s))
+            };
             return (result != whole).then_some((start, end, result));
         }
         // Case 1: block/component/slot. When a wrapped open tag glued its `>` to
@@ -752,12 +766,7 @@ pub(super) fn try_collapse(
                 .next()
                 .is_some_and(|last| last.trim() != ">");
         if bracket_glued {
-            let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
-            let indent: String = out[line_start..s]
-                .chars()
-                .take_while(|c| *c == ' ' || *c == '\t')
-                .collect();
-            let result = format!("{open}\n{indent}{close}");
+            let result = format!("{open}\n{}{close}", line_indent(out, s));
             return (result != whole).then_some((start, end, result));
         }
         let result = format!("{open}{close}");
