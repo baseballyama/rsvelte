@@ -6,6 +6,7 @@
 #![expect(clippy::print_stderr, reason = "a test harness reports on stderr")]
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -30,6 +31,28 @@ const DEVIATIONS: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/tests/upstream_deviations.json"
 );
+/// Cases a rule need not pass yet, by what they need that rsvelte lacks, each a list of
+/// documents with why. A listed case that fails is counted; one that passes is stale.
+const NOT_REQUIRED: [(&str, &str); 3] = [
+    // Type information only a type checker computes.
+    (
+        "typed",
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/upstream_typed.json"),
+    ),
+    // A preprocessor, such as one that turns other style languages into CSS.
+    (
+        "preprocessor",
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/upstream_preprocessor.json"
+        ),
+    ),
+    // Syntax the TypeScript parser does not support yet.
+    (
+        "parser",
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/upstream_parser.json"),
+    ),
+];
 /// Rules whose verdicts are counted but do not fail: type-aware rules do not follow
 /// `svelte-eslint-parser`'s virtual code.
 const TYPED: &[&str] = &["@typescript-eslint/no-unnecessary-condition"];
@@ -121,17 +144,29 @@ fn main() -> ExitCode {
     );
     let mut deviations: BTreeMap<String, String> =
         serde_json::from_str(&read(Path::new(DEVIATIONS))).expect("deviations are an object");
+    let mut not_required = NOT_REQUIRED.map(|(_, path)| {
+        serde_json::from_str::<BTreeMap<String, String>>(&read(Path::new(path)))
+            .expect("a list of cases not required is an object")
+    });
     let mut failed = suite(
         &label,
         Path::new(UPSTREAM),
         &upstream.versions,
         &mut deviations,
+        &mut not_required,
     ) + suite(
         "this crate's cases",
         Path::new(OWN),
         &upstream.versions,
         &mut BTreeMap::new(),
+        &mut Default::default(),
     );
+    for ((list, _), cases) in NOT_REQUIRED.iter().zip(&not_required) {
+        for (document, reason) in cases {
+            failed += 1;
+            eprintln!("UNKNOWN {list} CASE {document}: no case of an implemented rule ({reason})");
+        }
+    }
     for (document, reason) in &deviations {
         failed += 1;
         eprintln!("UNKNOWN DEVIATION {document}: no case of an implemented rule ({reason})");
@@ -149,6 +184,7 @@ fn suite(
     root: &Path,
     versions: &BTreeMap<String, String>,
     deviations: &mut BTreeMap<String, String>,
+    not_required: &mut [BTreeMap<String, String>; 3],
 ) -> usize {
     let cases = cases(root);
     let mut by_rule: BTreeMap<&str, Counts> = BTreeMap::new();
@@ -165,9 +201,26 @@ fn suite(
         }
         let document = case.document();
         let deviation = deviations.remove(&document);
+        let listed = not_required
+            .iter_mut()
+            .enumerate()
+            .find_map(|(list, cases)| Some((list, cases.remove(&document)?)));
         let typed = TYPED.contains(&case.rule.as_str());
         let counts = by_rule.entry(&case.rule).or_default();
         counts.total += 1;
+        if let Some((list, reason)) = listed {
+            if matches!(verdict, Verdict::Pass) {
+                counts.fail += 1;
+                failed += 1;
+                eprintln!(
+                    "STALE {} CASE {document}: passes, but is listed ({reason})",
+                    NOT_REQUIRED[list].0
+                );
+            } else {
+                counts.not_required[list] += 1;
+            }
+            continue;
+        }
         match (verdict, deviation) {
             (Verdict::NotImplemented, _) => unreachable!("counted above"),
             (Verdict::Pass, None) => counts.pass += 1,
@@ -206,8 +259,13 @@ fn suite(
         } else {
             ""
         };
+        let mut not_required = String::new();
+        for ((list, _), n) in NOT_REQUIRED.iter().zip(c.not_required) {
+            write!(not_required, ", {n} {list}").expect("a String takes any text");
+        }
         eprintln!(
-            "  {rule}: {} of {} pass, {} fail, {} unmeasured, {} deviate{typed}",
+            "  {rule}: {} of {} pass, {} fail, {} unmeasured, {} deviate{not_required} \
+             (not required){typed}",
             c.pass, c.total, c.fail, c.unmeasured, c.deviation
         );
     }
@@ -224,6 +282,8 @@ struct Counts {
     fail: usize,
     unmeasured: usize,
     deviation: usize,
+    /// Listed cases that do not pass, by list in [`NOT_REQUIRED`].
+    not_required: [usize; 3],
     total: usize,
 }
 
