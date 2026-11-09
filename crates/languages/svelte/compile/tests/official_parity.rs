@@ -102,6 +102,18 @@ fn a_loop_head_that_assigns_a_signal_is_refused_on_both_targets() {
 }
 
 #[test]
+fn a_keyframe_step_scopes_no_element() {
+    for step in ["0%", "from"] {
+        let source =
+            format!("<div>a</div><style>@keyframes fade {{ {step} {{ opacity: 0; }} }}</style>");
+        assert!(
+            squashed(&source, Target::Server).contains("<div>a</div>"),
+            "{source}"
+        );
+    }
+}
+
+#[test]
 fn a_derived_keeps_its_arrow_only_when_the_callee_may_change() {
     let source = "<script>import A from './A.svelte'; const g = () => 1; let f = () => 1; function swap() { f = () => 2; } let d = $derived(g()); let e = $derived(f()); let l = $derived(h()); const h = () => 3;</script><A a={f()} b={g()} t={$effect.tracking()} {d} {e} {l} {swap} />";
     let client = squashed(source, Target::Client);

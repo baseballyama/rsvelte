@@ -512,7 +512,6 @@ svelte/bits-ui/docs/src/lib/components/examples/command/theme-switcher.svelte	re
 svelte/bits-ui/docs/src/lib/components/examples/command/vercel/item.svelte	refused
 svelte/bits-ui/docs/src/lib/components/examples/command/vercel/vercel-command.svelte	refused
 svelte/bits-ui/docs/src/lib/components/homepage/card-air.svelte	refused
-svelte/bits-ui/docs/src/lib/components/homepage/card-timer.svelte	mismatch
 svelte/bits-ui/docs/src/lib/components/homepage/card-toggle.svelte	refused
 svelte/bits-ui/docs/src/lib/components/homepage/home-select.svelte	refused
 svelte/bits-ui/docs/src/lib/components/homepage/home-slider.svelte	refused
@@ -2726,7 +2725,6 @@ svelte/gitlight/src/lib/components/dashboard/LoadingScreen.svelte	missing
 svelte/gitlight/src/lib/components/settings/accounts/Accounts.svelte	refused
 svelte/gitlight/src/lib/components/settings/gitlab-settings/GitlabSettings.svelte	refused
 svelte/gitlight/src/routes/(tray)/tray/+page.svelte	refused
-svelte/gitlight/src/routes/+page.svelte	mismatch
 svelte/ha-fusion/src/lib/Components/Loader.svelte	refused
 svelte/ha-fusion/src/lib/Drawer/AppearanceButton.svelte	refused
 svelte/ha-fusion/src/lib/Drawer/CodeButton.svelte	refused
@@ -5182,7 +5180,6 @@ svelte/runed/packages/runed/src/routes/(test)/test-zod-codec/+page.svelte	refuse
 svelte/runed/sites/docs/src/lib/components/blueprint.svelte	refused
 svelte/runed/sites/docs/src/lib/components/demo-note.svelte	refused
 svelte/runed/sites/docs/src/lib/components/demos/animation-frames.svelte	refused
-svelte/runed/sites/docs/src/lib/components/demos/finite-state-machine.svelte	mismatch
 svelte/runed/sites/docs/src/lib/components/demos/is-focus-within.svelte	refused
 svelte/runed/sites/docs/src/lib/components/demos/is-in-viewport.svelte	refused
 svelte/runed/sites/docs/src/lib/components/demos/on-click-outside-dialog.svelte	refused
@@ -7017,7 +7014,6 @@ svelte/svelte-bits/src/lib/components/docs/preview/TabsLayout.svelte	refused
 svelte/svelte-bits/src/lib/components/landing/CTA/CTA.svelte	refused
 svelte/svelte-bits/src/lib/components/landing/Features/AITerminal.svelte	refused
 svelte/svelte-bits/src/lib/components/landing/Features/Features.svelte	refused
-svelte/svelte-bits/src/lib/components/landing/Features/VariantTabs.svelte	mismatch
 svelte/svelte-bits/src/lib/components/landing/Footer/Footer.svelte	refused
 svelte/svelte-bits/src/lib/components/landing/Hero/ColorValue.svelte	refused
 svelte/svelte-bits/src/lib/components/landing/Hero/EditableValue.svelte	refused
@@ -7350,7 +7346,6 @@ svelte/svelte-commerce/src/lib/core/components/image/lazy-img-with-zoom.svelte	r
 svelte/svelte-commerce/src/lib/core/components/image/lazy-img.svelte	refused
 svelte/svelte-commerce/src/lib/core/components/plugins/klaviyo-plugin.svelte	missing
 svelte/svelte-commerce/src/lib/core/components/plugins/share-button.svelte	refused
-svelte/svelte-commerce/src/lib/core/components/plugins/whatsapp-chat-button.svelte	mismatch
 svelte/svelte-commerce/src/lib/theme/ThemeSections.svelte	refused
 svelte/svelte-commerce/src/lib/theme/default/DefaultHomepage.svelte	refused
 svelte/svelte-commerce/src/lib/theme/default/DefaultProductCard.svelte	refused
