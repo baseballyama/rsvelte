@@ -241,6 +241,23 @@ pub const fn is_js_whitespace(c: char) -> bool {
     )
 }
 
+/// `SlotElement`'s check of a `<slot>`'s `name`, given its static text (`None` for any other
+/// value): the error's code and message.
+#[must_use]
+pub fn slot_name_error(name: Option<&str>) -> Option<(&'static str, &'static str)> {
+    match name {
+        None => Some((
+            "slot_element_invalid_name",
+            "slot attribute must be a static value",
+        )),
+        Some("default") => Some((
+            "slot_element_invalid_name_default",
+            "`default` is a reserved word — it cannot be used as a slot name",
+        )),
+        Some(_) => None,
+    }
+}
+
 fn warning(code: &'static str, message: &str, span: Span) -> Diagnostic {
     let message = format!("{message}\nhttps://svelte.dev/e/{code}");
     Diagnostic::warning(code, message, span)
@@ -1037,20 +1054,9 @@ impl<'a> Template<'a> {
                 },
                 AttributeValue::True => None,
             };
-            let found = match text {
-                None => error(
-                    "slot_element_invalid_name",
-                    "slot attribute must be a static value",
-                    attribute.span,
-                ),
-                Some(name) if name == "default" => error(
-                    "slot_element_invalid_name_default",
-                    "`default` is a reserved word — it cannot be used as a slot name",
-                    attribute.span,
-                ),
-                Some(_) => continue,
-            };
-            self.error(element, found);
+            if let Some((code, message)) = slot_name_error(text.as_deref()) {
+                self.error(element, error(code, message, attribute.span));
+            }
         }
     }
 
