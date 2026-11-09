@@ -447,6 +447,65 @@ pub(super) enum ScriptContext {
     Module,
 }
 
+/// The names an instance `export` declaration gives the component's exports, when it is one this
+/// port lowers: a `const` of plain names, or a named function. Upstream reads an exported class
+/// through a getter and a setter.
+fn exported_names(from: &SyntaxTree, declaration: NodeIdentifier) -> Option<Vec<NodeIdentifier>> {
+    match from.kind(declaration) {
+        Kind::VariableDeclaration { kind, declarations } if kind == flag::CONST => declarations
+            .iter()
+            .map(|&d| match from.kind(d) {
+                Kind::Declarator { identifier, .. } if from.is_identifier(identifier) => {
+                    Some(identifier)
+                }
+                _ => None,
+            })
+            .collect(),
+        Kind::Function {
+            name: Some(name), ..
+        } => Some(vec![name]),
+        _ => None,
+    }
+}
+
+/// Refuses an instance export this port does not lower: upstream raises an error for an exported
+/// `let`, and reads an exported signal through a getter.
+fn check_export(
+    from: &SyntaxTree,
+    res: &Resolution,
+    statement: NodeIdentifier,
+    declaration: NodeIdentifier,
+) -> Result<(), Diagnostic> {
+    let plain = exported_names(from, declaration).is_some_and(|names| {
+        names.iter().all(|&name| {
+            res.binding(name).is_some_and(|(_, info)| {
+                matches!(info.kind, BindingKind::Normal | BindingKind::RestProperty)
+            })
+        })
+    });
+    if plain {
+        return Ok(());
+    }
+    let Some(span) = from.source_location(statement).span() else {
+        unreachable!("a parsed statement has a source range")
+    };
+    unsupported("this export from the instance script", span)
+}
+
+/// The names the instance script exports, in source order.
+pub(super) fn instance_exports(from: &SyntaxTree, program: NodeIdentifier) -> Vec<NodeIdentifier> {
+    let Kind::Program(body) = from.kind(program) else {
+        unreachable!("scripts parse to programs")
+    };
+    (body.iter())
+        .filter_map(|&statement| match from.kind(statement) {
+            Kind::ExportNamed(declaration) => exported_names(from, declaration),
+            _ => None,
+        })
+        .flatten()
+        .collect()
+}
+
 /// Script statements share rune lowering; imports go to `hoisted`.
 ///
 /// # Errors
@@ -471,13 +530,19 @@ pub(super) fn lower_script(
     };
     let mut out = Vec::with_capacity(body.len());
     for &statement in body {
+        let statement = match from.kind(statement) {
+            Kind::ExportNamed(declaration) if context == ScriptContext::Instance => {
+                check_export(from, rw.res, statement, declaration)?;
+                declaration
+            }
+            _ => statement,
+        };
         match from.kind(statement) {
             Kind::TypeScriptDeclaration => {}
             Kind::Import { .. } => hoisted.push(copy(from, to, rw, statement)),
             // Upstream turns these into the component's exports; copying them would put an
             // `export` inside the component function.
-            Kind::ExportNamed(_)
-            | Kind::ExportDefault(_)
+            Kind::ExportDefault(_)
             | Kind::Control(
                 rsvelte_typescript_syntax::syntax_tree::Control::ExportList { .. }
                 | rsvelte_typescript_syntax::syntax_tree::Control::ExportAll { .. },

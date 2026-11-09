@@ -73,6 +73,7 @@ pub(super) fn prepare<'a>(
         module: module_statements,
         hoisted,
         instance,
+        exports: script::instance_exports(javascript, input.component.program),
         custom_element,
         component_name,
     })

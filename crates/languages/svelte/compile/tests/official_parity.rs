@@ -172,6 +172,48 @@ fn the_server_empties_an_effect_wherever_a_statement_stands() {
     );
 }
 
+/// Official 5.57.3 output: an instance export is returned on the client and bound on the server.
+#[test]
+fn an_instance_export_is_returned_and_bound() {
+    for (script, client, server) in [
+        (
+            "export const p = $props();",
+            "constp=$.rest_props($$props,rest_excludes);var$$exports={p};",
+            "const{$$slots,$$events,...p}=$$props;",
+        ),
+        (
+            "let n = $state(0); export function f() { n++; } export const a = 1, b = 2;",
+            "var$$exports={f,a,b};",
+            "$.bind_props($$props,{f,a,b});}",
+        ),
+    ] {
+        let source = format!("<script>{script}</script>{{n}}");
+        let client_output = squashed(&source, Target::Client);
+        assert!(client_output.contains(client), "{client_output}");
+        assert!(
+            client_output.contains("return$.pop($$exports);"),
+            "{client_output}"
+        );
+        let server_output = squashed(&source, Target::Server);
+        assert!(server_output.contains(server), "{server_output}");
+        assert!(
+            server_output.contains("($$renderer,$$props)"),
+            "{server_output}"
+        );
+    }
+    for script in [
+        "export class K {}",
+        "export let a = 1;",
+        "export const { a } = o;",
+    ] {
+        let source = format!("<script>{script}</script>");
+        assert_eq!(
+            compile(&source, Target::Client),
+            Err("unsupported".to_owned())
+        );
+    }
+}
+
 /// esrap skips an empty statement only in a block or program body, not in a `switch` case.
 #[test]
 fn an_empty_statement_is_dropped_from_a_block_or_program_body() {

@@ -191,6 +191,7 @@ pub(super) fn lower_prepared(
         module,
         hoisted,
         instance,
+        exports,
         custom_element,
         component_name,
     } = prepared;
@@ -221,9 +222,16 @@ pub(super) fn lower_prepared(
     let template = context.fragment(input.component.compiler_syntax_tree.root)?;
 
     let stylesheet = context.custom_element_stylesheet(facts.stylesheet);
-    let exports = context.custom_element_exports();
-    let func = context.component_function(instance, template, &exports, stylesheet.is_some());
-    let registration = context.custom_element_registration();
+    let mut returned: Vec<NodeIdentifier> = (exports.iter())
+        .map(|&name| {
+            let name = javascript.name(name);
+            let value = context.out.identifier(name);
+            init_property(&mut context.out, name, value)
+        })
+        .collect();
+    returned.extend(context.custom_element_exports());
+    let func = context.component_function(instance, template, &returned, stylesheet.is_some());
+    let registration = context.custom_element_registration(&exports);
     let o = &mut context.out;
 
     let mut program = Vec::new();

@@ -156,6 +156,8 @@ pub(crate) struct Prepared<'a> {
     module: Vec<NodeIdentifier>,
     hoisted: Vec<NodeIdentifier>,
     instance: Vec<NodeIdentifier>,
+    /// The names the instance script exports, in source order.
+    exports: Vec<NodeIdentifier>,
     custom_element: Option<&'a custom_element::CustomElement>,
     /// Upstream `analysis.name`: the component name, renamed if the source declares it.
     component_name: String,

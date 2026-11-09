@@ -106,6 +106,7 @@ pub(super) fn lower_prepared(
         module,
         hoisted,
         instance,
+        exports,
         component_name,
         ..
     } = prepared;
@@ -129,36 +130,13 @@ pub(super) fn lower_prepared(
     let o = &mut sx.out;
     let mut body: Vec<NodeIdentifier> = instance;
     body.extend(template);
-    // Upstream: in runes mode this only throws when `undefined` is passed to a bound prop that
-    // has a default.
-    let mut bound = Vec::new();
-    for (b, binding) in res.sem.bindings.iter_enumerated() {
-        let info = &res.bindings[b];
-        let name = javascript.atoms.get(binding.name);
-        if binding.scope != ScopeIdentifier::ROOT
-            || info.kind != BindingKind::BindableProperty
-            || name.starts_with("$$")
-        {
-            continue;
-        }
-        let key = info.prop_key.map_or_else(
-            || name.to_owned(),
-            |k| match javascript.kind(k) {
-                Kind::Identifier(_) => javascript.name(k).to_owned(),
-                _ => javascript
-                    .str_value(k, input.component.source_text)
-                    .to_owned(),
-            },
-        );
-        let value = o.identifier(name);
-        bound.push(init_property(o, &key, value));
-    }
-    if !bound.is_empty() {
-        let props = o.identifier("$$props");
-        let object = o.object(&bound, SourceLocation::SYNTHETIC);
-        let call = o.runtime("$", "bind_props", &[props, object]);
-        body.push(o.expression_statement(call));
-    }
+    body.extend(bind_props(
+        javascript,
+        input.component.source_text,
+        res,
+        &exports,
+        o,
+    ));
     if an.needs_context {
         let block = o.block(&body, SourceLocation::SYNTHETIC);
         let param = o.identifier("$$renderer");
@@ -169,7 +147,7 @@ pub(super) fn lower_prepared(
         body = vec![o.expression_statement(call)];
     }
     let mut parameters = vec![o.identifier("$$renderer")];
-    if an.needs_context || res.uses_props {
+    if an.needs_context || res.uses_props || !exports.is_empty() {
         parameters.push(o.identifier("$$props"));
     }
     let block = o.block(&body, SourceLocation::SYNTHETIC);
@@ -192,6 +170,49 @@ pub(super) fn lower_prepared(
     program.push(o.export_default(func, SourceLocation::SYNTHETIC));
     let root = o.program(&program, SourceLocation::SYNTHETIC);
     Ok((sx.out, root))
+}
+
+/// Upstream's `$.bind_props($$props, …)`: the bindable props, then the instance's exports. In runes
+/// mode it only throws when `undefined` is passed to a bound prop that has a default.
+fn bind_props(
+    javascript: &SyntaxTree,
+    source_text: &str,
+    res: &Resolution,
+    exports: &[NodeIdentifier],
+    o: &mut SyntaxTree,
+) -> Option<NodeIdentifier> {
+    let mut bound = Vec::new();
+    for (b, binding) in res.sem.bindings.iter_enumerated() {
+        let info = &res.bindings[b];
+        let name = javascript.atoms.get(binding.name);
+        if binding.scope != ScopeIdentifier::ROOT
+            || info.kind != BindingKind::BindableProperty
+            || name.starts_with("$$")
+        {
+            continue;
+        }
+        let key = info.prop_key.map_or_else(
+            || name.to_owned(),
+            |k| match javascript.kind(k) {
+                Kind::Identifier(_) => javascript.name(k).to_owned(),
+                _ => javascript.str_value(k, source_text).to_owned(),
+            },
+        );
+        let value = o.identifier(name);
+        bound.push(init_property(o, &key, value));
+    }
+    for &name in exports {
+        let name = javascript.name(name);
+        let value = o.identifier(name);
+        bound.push(init_property(o, name, value));
+    }
+    if bound.is_empty() {
+        return None;
+    }
+    let props = o.identifier("$$props");
+    let object = o.object(&bound, SourceLocation::SYNTHETIC);
+    let call = o.runtime("$", "bind_props", &[props, object]);
+    Some(o.expression_statement(call))
 }
 
 impl ServerCompilationContext<'_> {

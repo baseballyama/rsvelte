@@ -87,12 +87,18 @@ impl ClientCompilationContext<'_> {
         }
     }
 
-    pub(super) fn custom_element_registration(&mut self) -> Option<NodeIdentifier> {
+    pub(super) fn custom_element_registration(
+        &mut self,
+        exports: &[NodeIdentifier],
+    ) -> Option<NodeIdentifier> {
         let ce = self.custom_element.take()?;
         let props = self.custom_element_properties(ce.props);
         let props = self.out.object(&props, SourceLocation::SYNTHETIC);
         let slots = self.out.array(&[], SourceLocation::SYNTHETIC);
-        let accessors = self.out.array(&[], SourceLocation::SYNTHETIC);
+        let exports: Vec<NodeIdentifier> = (exports.iter())
+            .map(|&name| self.out.write_string(self.javascript.name(name)))
+            .collect();
+        let accessors = self.out.array(&exports, SourceLocation::SYNTHETIC);
         let shadow = match &ce.shadow {
             Shadow::Open => {
                 let mode = self.out.write_string("open");

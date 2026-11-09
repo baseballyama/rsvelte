@@ -427,6 +427,8 @@ impl RuneWalk<'_> {
         let javascript = self.javascript;
         match (javascript.kind(e), parent) {
             (Kind::VariableDeclaration { .. }, Parent::InstanceBody) => Parent::TopDeclarator,
+            // Upstream asks for the instance scope, which an `export` does not leave.
+            (Kind::ExportNamed(_), Parent::InstanceBody) => Parent::InstanceBody,
             (
                 Kind::Declarator {
                     identifier,

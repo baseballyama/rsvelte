@@ -1,4 +1,4 @@
-# svelte.compile/client: 8513 match
+# svelte.compile/client: 8565 match
 svelte/animotion/src/lib/components/action.svelte	refused
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -1337,7 +1337,6 @@ svelte/cnblocks/src/lib/components/blocks/integration/card/integration-cardv5.sv
 svelte/cnblocks/src/lib/components/blocks/integration/card/integration-cardv7.svelte	refused
 svelte/cnblocks/src/lib/components/blocks/integration/integration-eight.svelte	refused
 svelte/cnblocks/src/lib/components/blocks/integration/integration-six.svelte	refused
-svelte/cnblocks/src/lib/components/blocks/logocloud/logocloud-three.svelte	refused
 svelte/cnblocks/src/lib/components/blocks/testimonial/testimonial-five.svelte	refused
 svelte/cnblocks/src/lib/components/blocks/testimonial/testimonial-six.svelte	refused
 svelte/cnblocks/src/lib/components/layout/DocsPageShell.svelte	refused
@@ -1833,12 +1832,10 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/n
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/var-slot01-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/invalid/svelte-config-from-parser-options/+page.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/invalid/test02/+page.svelte	missing
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test01/+page.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test02/+page.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test03/+page.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test04/+page.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test05/+page.svelte	missing
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test06/+page.svelte	refused
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test06/+page.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test07/+page.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test08/+page.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test09/+page.svelte	missing
@@ -1953,7 +1950,7 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/n
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-svelte4-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/missing-code-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/script-comment01-input.svelte	refused
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/script-comment01-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang01-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang02-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang03-input.svelte	missing
@@ -2593,7 +2590,6 @@ svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Default.svelte	r
 svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Full.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Icons.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Pills.svelte	refused
-svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Snapshot.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/components/tabs/Underline.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/components/timeline/Horizontal.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/components/timeline/TimelineColor.svelte	refused
@@ -2637,7 +2633,6 @@ svelte/flowbite-svelte/src/routes/docs-examples/forms/input-field/ElementRef.sve
 svelte/flowbite-svelte/src/routes/docs-examples/forms/input-field/Icon.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/input-field/IconClickHandler.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/input-field/Search.svelte	refused
-svelte/flowbite-svelte/src/routes/docs-examples/forms/input-field/Snapshot.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/phone-input/Select.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/radio/Bordered.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/radio/Colors.svelte	refused
@@ -2658,7 +2653,6 @@ svelte/flowbite-svelte/src/routes/docs-examples/forms/select/Default.svelte	miss
 svelte/flowbite-svelte/src/routes/docs-examples/forms/select/Preselect.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/textarea/Comment.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/textarea/Editor.svelte	refused
-svelte/flowbite-svelte/src/routes/docs-examples/forms/textarea/Snapshot.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/timepicker/Drawer.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/timepicker/Inline.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/timepicker/Modal.svelte	refused
@@ -2671,7 +2665,6 @@ svelte/flowbite-svelte/src/routes/docs-examples/utilities/toolbar/CommentBox.sve
 svelte/flowbite-svelte/src/routes/docs-examples/utilities/toolbar/Editor.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/utilities/toolbar/Groups.svelte	refused
 svelte/flowbite-svelte/src/routes/docs/+layout.svelte	refused
-svelte/flowbite-svelte/src/routes/docs/examples/snapshot-example/+page.svelte	refused
 svelte/flowbite-svelte/src/routes/docs/plugins/examples/datatable/Slots.svelte	refused
 svelte/flowbite-svelte/src/routes/docs/plugins/examples/wysiwyg/CharacterCount.svelte	refused
 svelte/flowbite-svelte/src/routes/docs/plugins/examples/wysiwyg/FullFeaturedTexteditor.svelte	refused
@@ -3089,7 +3082,6 @@ svelte/kite-public/src/lib/components/ChaosIndex.svelte	refused
 svelte/kite-public/src/lib/components/ClusteringExplainerModal.svelte	refused
 svelte/kite-public/src/lib/components/DataLoader.svelte	refused
 svelte/kite-public/src/lib/components/Header.svelte	refused
-svelte/kite-public/src/lib/components/HistoryManager.svelte	refused
 svelte/kite-public/src/lib/components/IntroScreen.svelte	refused
 svelte/kite-public/src/lib/components/KeyboardShortcutsHelp.svelte	refused
 svelte/kite-public/src/lib/components/LottieAnimation.svelte	refused
@@ -3167,8 +3159,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-wrong-usage/input.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-enhance-types/input.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bind-union/input.svelte	refused
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/Runes.svelte	refused
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/RunesGeneric.svelte	refused
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/input.svelte	missing
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/each-anytype/input.svelte	missing
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/input.svelte	refused
@@ -3274,9 +3264,7 @@ svelte/language-tools/packages/svelte-vscode/test/grammar/samples/style/input.sv
 svelte/language-tools/packages/svelte-vscode/test/grammar/samples/template-pug/input.svelte	refused
 svelte/language-tools/packages/svelte-vscode/test/grammar/samples/transition/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/repl/index.svelte	refused
-svelte/language-tools/packages/svelte2tsx/test/emitDts/samples/javascript-runes.v5/src/TestRunes.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/emitDts/samples/javascript/src/TestNoScript.svelte	refused
-svelte/language-tools/packages/svelte2tsx/test/emitDts/samples/typescript-runes-generics.v5/src/TestRunes.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/action-bare/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/action-nested/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/action-params/input.svelte	refused
@@ -3388,9 +3376,7 @@ svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/export-const-a
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/export-const-object-destructuring/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/export-list-runes.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/export-list/input.svelte	refused
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/generics-attribute.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/imports-module-instance/input.svelte	missing
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-sveltekit-autotypes-runes.v5/+page.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-various.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/module-snippet-component-instance-reference.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-destructured.v5/input.svelte	refused
@@ -3400,7 +3386,6 @@ svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/props-variable
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports-runes.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/rewrite-imports/input.svelte	missing
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/runes-only-export.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/runes-with-slots.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/script-in-rawhtml/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/script-inside-head-after-toplevel-script/input.svelte	refused
@@ -3423,13 +3408,10 @@ svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/style-tag-in-s
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/style/input.svelte	missing
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/svelte-element/input.svelte	missing
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/svelte-self-forward-event/input.svelte	refused
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes-$props-rune-no-changes.v5/+page.svelte	refused
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes-$props-rune.v5/+page.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-declaration-tag.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatcher-typed-non-literal/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-5.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-with-slot.v5/input.svelte	refused
-svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune.v5/+page.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-type-assertion/input.svelte	missing
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots-script/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots/input.svelte	refused
@@ -3916,15 +3898,12 @@ svelte/layerchart/docs/src/examples/components/Chart/facet-x.svelte	refused
 svelte/layerchart/docs/src/examples/components/Chart/facet-y.svelte	refused
 svelte/layerchart/docs/src/examples/components/Chart/mixed-marks-with-stack-long-data.svelte	refused
 svelte/layerchart/docs/src/examples/components/Chart/mixed-marks-with-stack.svelte	refused
-svelte/layerchart/docs/src/examples/components/ChartGroup/basic.svelte	refused
 svelte/layerchart/docs/src/examples/components/ChartGroup/coordinated-views.svelte	refused
 svelte/layerchart/docs/src/examples/components/ChartGroup/faceted-group.svelte	refused
 svelte/layerchart/docs/src/examples/components/ChartGroup/highlight-only.svelte	refused
 svelte/layerchart/docs/src/examples/components/ChartGroup/minimap.svelte	refused
-svelte/layerchart/docs/src/examples/components/ChartGroup/programmatic-control.svelte	refused
 svelte/layerchart/docs/src/examples/components/ChartGroup/synced-brushes.svelte	refused
 svelte/layerchart/docs/src/examples/components/ChartGroup/synced-legend.svelte	refused
-svelte/layerchart/docs/src/examples/components/ChartGroup/synced-zoom.svelte	refused
 svelte/layerchart/docs/src/examples/components/Chord/basic.svelte	refused
 svelte/layerchart/docs/src/examples/components/Chord/directed.svelte	refused
 svelte/layerchart/docs/src/examples/components/Chord/gradient.svelte	refused
@@ -6567,7 +6546,6 @@ svelte/skeleton/sites/plus.skeleton.dev/src/routes/(app)/account/api/+page.svelt
 svelte/skeleton/sites/plus.skeleton.dev/src/routes/(app)/account/billing/+page.svelte	refused
 svelte/skeleton/sites/plus.skeleton.dev/src/routes/(app)/account/notifications/+page.svelte	refused
 svelte/skeleton/sites/plus.skeleton.dev/src/routes/(app)/account/team/+page.svelte	refused
-svelte/skeleton/sites/plus.skeleton.dev/src/routes/(app)/overview/pricing/+page.svelte	refused
 svelte/skeleton/sites/plus.skeleton.dev/src/routes/+layout.svelte	refused
 svelte/skeleton/sites/plus.skeleton.dev/src/routes/auth/+layout.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/examples/design/spacing/default.svelte	refused
@@ -6667,7 +6645,6 @@ svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Controls/
 svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsTypography.svelte	refused
 svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Edges/EdgeOption.svelte	refused
 svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Edges/Edges.svelte	refused
-svelte/skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Preview/PreviewPalette.svelte	refused
 svelte/skeleton/sites/themes.skeleton.dev/src/routes/(app)/+layout.svelte	refused
 svelte/skeleton/sites/themes.skeleton.dev/src/routes/(generator)/themes/create/+layout.svelte	refused
 svelte/skeleton/sites/themes.skeleton.dev/src/routes/(generator)/themes/create/+page.svelte	refused
@@ -6809,7 +6786,6 @@ svelte/svar-grid/svelte/demos/custom/HeaderCheckboxCell.svelte	missing
 svelte/svar-grid/svelte/demos/custom/SelectionCheckboxBind.svelte	refused
 svelte/svar-grid/svelte/src/components/Cell.svelte	refused
 svelte/svar-grid/svelte/src/components/FooterCell.svelte	refused
-svelte/svar-grid/svelte/src/components/Grid.svelte	refused
 svelte/svar-grid/svelte/src/components/HeaderCell.svelte	refused
 svelte/svar-grid/svelte/src/components/HeaderFooter.svelte	refused
 svelte/svar-grid/svelte/src/components/Layout.svelte	refused
@@ -7891,7 +7867,6 @@ svelte/svelte-lexical/demos/qalam/src/lib/Sidebar.svelte	refused
 svelte/svelte-lexical/demos/qalam/src/lib/Toolbar.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/actionbar/ReadonlyButton.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPicker.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDialog.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDropDown.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/generic/colorpicker/MoveWrapper.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/generic/contextmenu/ContextMenu.svelte	refused
@@ -7940,18 +7915,13 @@ svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/Striket
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/Toolbar.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/UnderlineButton.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/UndoButton.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertBlueskyDialog.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertColumnsDialog.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageDialog.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageUploadedDialogBody.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageUriDialogBody.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertTableDialog.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertTweetDialog.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertYoutubeDialog.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/Composer.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/ContentEditable.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/NestedComposer.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/AutoLink/AutoLinkPlugin.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/BlockWithAlignableContents.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/CodeActionMenuPlugin.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuItem.svelte	refused
@@ -7968,7 +7938,6 @@ svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableHo
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TablePlugin.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeView.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/bluesky/BlueskyPostComponent.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsHistory.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditor.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/twitter/TweetComponent.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/routes/RichTextComposer.svelte	refused
@@ -8936,7 +8905,6 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/action-update-before-
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/action/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/animation-flip-2/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/animation-flip/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/assignment-in-init/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/attribute-after-property/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/attribute-boolean-false/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/attribute-boolean-true/main.svelte	refused
@@ -8954,11 +8922,10 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/await-then-destruct-r
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/await-then-destruct-string-props/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/await-then-no-context/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/await-then-shadowed/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/bind-export-const-with-spread/Test.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/bind-export-const-with-spread/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-circular/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-indirect-value/main.svelte	missing
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-input-checkbox-deep-contextual-b/main.svelte	refused
+svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-input-checkbox-deep-contextual-b/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-input-group-duplicate-value/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-input-group-each-13/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-input-group-each-14/main.svelte	refused
@@ -8973,8 +8940,6 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-select-from-l
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-select-late-4/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-store-deep/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-store/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-this-component-computed-key/Foo.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-this-component-each-block-value/Foo.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-this-each-block-property-component/Foo.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-this-each-object-spread/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/binding-this-legacy-component-api/main.svelte	refused
@@ -9112,16 +9077,15 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/context-api/TabPanel.
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/context-api/Tabs.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/deconflict-spread-i/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/destroy-twice/main.svelte	missing
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-2/main.svelte	refused
+svelte/svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-2/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-3/A.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-3/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-5/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/destructuring-assignment-array/main.svelte	refused
+svelte/svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-3/main.svelte	missing
+svelte/svelte/packages/svelte/tests/runtime-legacy/samples/destructured-props-5/main.svelte	missing
+svelte/svelte/packages/svelte/tests/runtime-legacy/samples/destructuring-assignment-array/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/destructuring-one-value-reactive/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-component-events/Bar.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-component-events/Foo.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-component-in-if-initial-falsy/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-component-ref/Foo.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-component-slot/Bar.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-component-slot/Foo.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-component-this/main.svelte	refused
@@ -9131,7 +9095,7 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-element-store
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-element-svg-inherit-namespace-2/svg.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-element-svg-inherit-namespace/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/each-block-after-let/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/each-block-component-no-props/main.svelte	refused
+svelte/svelte/packages/svelte/tests/runtime-legacy/samples/each-block-component-no-props/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/each-block-destructured-default-before-initialised/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/each-block-destructured-object-reserved-key/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/each-block-keyed-dynamic-2/main.svelte	refused
@@ -9142,7 +9106,7 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/empty-style-block/mai
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/escape-template-literals/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-async/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-destructured/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-dynamic-bound-var/Nested.svelte	refused
+svelte/svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-dynamic-bound-var/Nested.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-dynamic-bound-var/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-dynamic-expression/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-dynamic-hash/main.svelte	refused
@@ -9159,7 +9123,6 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-shortha
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-shorthand-sanitized/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-this-methods/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-undefined/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/export-function-hoisting/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/flush-sync-each-block/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/function-expression-inline/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/html-entities-inside-component-slot/Component.svelte	refused
@@ -9216,12 +9179,12 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/reactive-assignment-i
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/reactive-assignment-in-declaration/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/reactive-assignment-in-for-loop-head/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/reactive-import-statement-module/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/reactive-value-function/main.svelte	refused
+svelte/svelte/packages/svelte/tests/runtime-legacy/samples/reactive-value-function/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/renamed-instance-exports/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/rest-props-without-props/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/script-style-non-top-level/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/select-lazy-options/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/select-spread-preserve-selection/main.svelte	refused
+svelte/svelte/packages/svelte/tests/runtime-legacy/samples/select-spread-preserve-selection/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/slot-children-prop/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/slot-let-forwarding/inner.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/slot-let-forwarding/main.svelte	refused
@@ -9235,7 +9198,6 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/store-assignment-upda
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/store-assignment-updates-property/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/store-auto-resubscribe-immediate/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-event-callback/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-in-reactive-declaration-2/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/store-each-binding-deep/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/store-each-binding-logical/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/store-each-binding/main.svelte	refused
@@ -9270,7 +9232,7 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/transition-js-intro-e
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/transition-js-intro-skipped-by-default-nested/Widget.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/transition-js-local-nested-component/Widget.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/transition-js-nested-intro/Child.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/transition-js-slot-2/main.svelte	refused
+svelte/svelte/packages/svelte/tests/runtime-legacy/samples/transition-js-slot-2/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/transition-js-slot-3/Nested.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/transition-js-slot-3/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/transition-js-slot-fallback/main.svelte	refused
@@ -9293,7 +9255,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/action-void-element/ma
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/ambiguous-source/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/animate-no-transition-events/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-attach-hydration-mismatch/Inner.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-attach-hydration-mismatch/Trigger.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-block-effect-queueing/A.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-component-exports/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/async-derived-unowned/Component.svelte	missing
@@ -9335,22 +9296,16 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-getter-setter/Chi
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-getter-setter/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-state-property/CheckBox.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-state-property/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-this-component-in-state-dev/Child.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-this-component-in-state-dev/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-this-destroy-timing/Inner.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-this-destroy-timing/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-this-destroy-timing2/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-this-no-state/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-this-order/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-this-proxy-deep/Component.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-this-proxy-deep/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-this-proxy/Component.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-this-proxy/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-this-raw/ComponentA.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-this-raw/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-value-input-type-dynamic/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bind-value-state/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/bindable-prop-and-export/Component.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bindable-prop-and-export/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-interop-derived/Comp.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-interop-derived/main.svelte	refused
@@ -9366,7 +9321,7 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/bindings-form-reset/ma
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bound-store-sub/Child.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bound-store-sub/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/checkbox-binding-derived/checkbox.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/class-directive-mutations/main.svelte	refused
+svelte/svelte/packages/svelte/tests/runtime-runes/samples/class-directive-mutations/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/class-disabinguate-private-method-definition/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/class-private-fields-assignment-shorthand/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/class-private-fields-logical-assignment/main.svelte	refused
@@ -9564,7 +9519,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/event-used-in-componen
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/event-without-params-clash/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/exports-1/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/exports-1/sub.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/exports-2/sub.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/exports-3/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/exports-3/sub.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/exports-4/main.svelte	refused
@@ -9624,7 +9578,7 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/key-unchanged-value/ma
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/labeled-statement-derived/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/legacy-class-transformation/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/legacy-runes-ambiguous-explicit-false/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/legacy-runes-ambiguous-export-const/main.svelte	refused
+svelte/svelte/packages/svelte/tests/runtime-runes/samples/legacy-runes-ambiguous-export-const/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/legacy-runes-ambiguous-export-let/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/legacy-runes-ambiguous/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/lifecycle-render-order-for-children-6/main.svelte	refused
@@ -9675,7 +9629,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/props-id-prefix/main.s
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/props-rest/Component.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/props-spread-fallback/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/proxy-array-length/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/proxy-coercive-assignment-warning/Test.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/proxy-coercive-assignment-warning/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/reactive-map/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/read-version-previous-reaction/main.svelte	refused
@@ -9889,9 +9842,7 @@ svelte/svelte/packages/svelte/tests/snapshot/samples/props-identifier/index.svel
 svelte/svelte/packages/svelte/tests/snapshot/samples/select-with-rich-content/index.svelte	refused
 svelte/svelte/packages/svelte/tests/snapshot/samples/skip-static-subtree/index.svelte	refused
 svelte/svelte/packages/svelte/tests/sourcemaps/samples/attached-sourcemap/input.svelte	missing
-svelte/svelte/packages/svelte/tests/sourcemaps/samples/css-injected-map/input.svelte	refused
 svelte/svelte/packages/svelte/tests/sourcemaps/samples/external/input.svelte	unexpected
-svelte/svelte/packages/svelte/tests/sourcemaps/samples/preprocessed-styles/input.svelte	refused
 svelte/svelte/packages/svelte/tests/sourcemaps/samples/sourcemap-basename/input.svelte	unexpected
 svelte/svelte/packages/svelte/tests/sourcemaps/samples/typescript/input.svelte	missing
 svelte/svelte/packages/svelte/tests/types/bindings.svelte	refused
@@ -10099,7 +10050,6 @@ svelte/sveltekit/packages/kit/test/apps/basics/src/routes/shallow-routing/replac
 svelte/sveltekit/packages/kit/test/apps/basics/src/routes/snapshot/+layout.svelte	refused
 svelte/sveltekit/packages/kit/test/apps/basics/src/routes/snapshot/a/+page.svelte	refused
 svelte/sveltekit/packages/kit/test/apps/basics/src/routes/snapshot/helper/+layout.svelte	refused
-svelte/sveltekit/packages/kit/test/apps/basics/src/routes/snapshot/order/+page.svelte	refused
 svelte/sveltekit/packages/kit/test/apps/basics/src/routes/state/data/+layout.svelte	refused
 svelte/sveltekit/packages/kit/test/apps/basics/src/routes/state/data/state-update/+layout.svelte	refused
 svelte/sveltekit/packages/kit/test/apps/basics/src/routes/state/navigating/+layout.svelte	refused
@@ -10742,9 +10692,7 @@ svelte/threlte/apps/docs/src/examples/misc/gaussian-splatting/Splat/Splat.svelte
 svelte/threlte/apps/docs/src/examples/postprocessing/outline/CustomRenderer.svelte	refused
 svelte/threlte/apps/docs/src/examples/postprocessing/outline/Scene.svelte	refused
 svelte/threlte/apps/docs/src/examples/postprocessing/screen-quad/Scene.svelte	refused
-svelte/threlte/apps/docs/src/examples/rapier/attractor/AdvancedScene.svelte	refused
 svelte/threlte/apps/docs/src/examples/rapier/attractor/App.svelte	refused
-svelte/threlte/apps/docs/src/examples/rapier/attractor/BasicScene.svelte	refused
 svelte/threlte/apps/docs/src/examples/rapier/auto-colliders/App.svelte	refused
 svelte/threlte/apps/docs/src/examples/rapier/auto-colliders/Scene.svelte	refused
 svelte/threlte/apps/docs/src/examples/rapier/collider/App.svelte	refused
