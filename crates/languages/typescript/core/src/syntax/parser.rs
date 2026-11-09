@@ -10,7 +10,9 @@
 //! Anything outside the subset is a [`ParseError`], never a panic.
 
 use rsvelte_kernel::source::positions::Span;
-use rustc_hash::FxHashSet;
+use std::cell::RefCell;
+
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::lexer::{LexedToken, Lexer, LexicalError, T, decode_string};
 use crate::operators::{
@@ -74,6 +76,9 @@ pub struct Parser<'a, 'b> {
     base: usize,
     /// How many [`Parser::nested`] calls are open.
     depth: u32,
+    /// Per lexer position just after an opening bracket: the position after its closing one, as
+    /// [`Parser::lookahead_group`] found it.
+    groups: RefCell<FxHashMap<u32, u32>>,
     /// The links of the assignment chains being read, innermost last; each chain pops its own.
     links: Vec<expressions::Link>,
     /// The prefix operators of the unary expressions being read, likewise.
@@ -327,6 +332,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             end: range.end_offset,
             cover_initializers: FxHashSet::default(),
             depth: 0,
+            groups: RefCell::default(),
             links: Vec::new(),
             prefixes: Vec::new(),
         })

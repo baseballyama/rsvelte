@@ -157,7 +157,7 @@ impl Parser<'_, '_> {
             let arrow_follows = if after.t == T::Identifier {
                 l.next(&mut scratch)?.t == T::Arrow
             } else {
-                Self::paren_arrow_ahead(l, &mut scratch)?
+                self.paren_arrow_ahead(l, &mut scratch)?
             };
             if !arrow_follows {
                 return Ok(None);
@@ -186,7 +186,7 @@ impl Parser<'_, '_> {
             let p = self.ident_node(t);
             self.item(p);
             parameters
-        } else if self.token.t == T::LParen && Self::paren_arrow_ahead(self.lex, &mut Vec::new())? {
+        } else if self.token.t == T::LParen && self.paren_arrow_ahead(self.lex, &mut Vec::new())? {
             let p = self.parameters()?;
             ret = self.maybe_return_type()?;
             p
@@ -223,8 +223,8 @@ impl Parser<'_, '_> {
 
     /// With the lexer positioned just after a `(`, whether the matching `)` is followed by `=>`
     /// (or, in TypeScript, by a return type and then `=>`).
-    pub(super) fn paren_arrow_ahead(mut l: Lexer<'_>, scratch: &mut Vec<Span>) -> R<bool> {
-        Self::lookahead_group(&mut l, scratch)?;
+    pub(super) fn paren_arrow_ahead(&self, mut l: Lexer<'_>, scratch: &mut Vec<Span>) -> R<bool> {
+        self.lookahead_group(&mut l, scratch)?;
         let t = l.next(scratch)?;
         match t.t {
             T::Arrow => Ok(!t.newline_before),
@@ -419,6 +419,6 @@ impl Parser<'_, '_> {
         if token.t != T::LParen {
             return Ok(false);
         }
-        Self::paren_arrow_ahead(lexer, &mut comments)
+        self.paren_arrow_ahead(lexer, &mut comments)
     }
 }

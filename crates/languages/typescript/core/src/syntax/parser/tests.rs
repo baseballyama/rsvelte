@@ -259,3 +259,13 @@ fn nesting_grows_the_stack_up_to_a_limit() {
     let message = error_on_a_small_stack(deep, false).expect("too deep");
     assert!(message.contains("nest too deeply"), "{message}");
 }
+
+#[test]
+fn nested_parentheses_are_read_in_linear_time() {
+    let n = 20_000;
+    let source_text = format!("{}x{};", "(".repeat(n), ")".repeat(n));
+    let started = std::time::Instant::now();
+    assert_eq!(error_on_a_small_stack(source_text, false), None);
+    // Looking for `=>` after each `(` from scratch takes over ten seconds here.
+    assert!(started.elapsed().as_secs() < 2, "{:?}", started.elapsed());
+}
