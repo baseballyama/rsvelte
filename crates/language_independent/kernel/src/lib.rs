@@ -5,7 +5,7 @@
 //!
 //! 1. `performance`, `index`
 //! 2. `source`
-//! 3. `diagnostics`, `output`
+//! 3. `diagnostics`, `output`, `computation::file_facts`
 //! 4. `computation::plugins`, `computation::database`
 //! 5. `computation::task`
 //! 6. `computation::registry`
@@ -15,6 +15,7 @@
 /// Registration, cached computation, and task execution.
 pub mod computation {
     pub mod database;
+    pub mod file_facts;
     pub mod pipeline;
     pub mod plugins;
     pub mod registry;

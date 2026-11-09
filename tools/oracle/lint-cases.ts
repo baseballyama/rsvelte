@@ -1,8 +1,8 @@
 // `oracle lint-cases [--update]`: write ESLint's verdict for the lint crate's own rule cases
 // (crates/languages/svelte/lint/tests/cases), which follow eslint-plugin-svelte's fixture layout:
-// `<rule>/{valid,invalid}/…/<name>-input.svelte`, options in `<name>-config.json` or
-// `_config.json`, the reports in `<name>-errors.yaml` and the fixed code, when a fix changes it, in
-// `<name>-output.svelte`. As upstream's runner does, a missing file is written and an existing one
+// `<rule>/{valid,invalid}/…/<name>-input.svelte` (or a module, `<name>-input.svelte.js`,
+// `<name>-input.cjs`, …), options in `<name>-config.json` or `_config.json`, the reports in
+// `<name>-errors.yaml` and the fixed code, when a fix changes it, in `<name>-output.svelte`. As upstream's runner does, a missing file is written and an existing one
 // is kept unless --update; a valid case must report nothing and an invalid one something. A case in
 // tests/cases_deviations.json keeps the crate's answer where ESLint's is an upstream bug: it is never
 // written, and it fails once ESLint agrees on both the reports and the fixed code.
@@ -38,14 +38,22 @@ function applyFixes(code: string, fixes: Fix[]): string {
 	return output + code.slice(Math.max(0, last));
 }
 
+// upstream's fileNameSuffix: `.svelte.js` and `.svelte.ts` count as one extension.
+const suffix = (name: string) => /\.svelte\.[jt]s$/u.exec(name)?.[0] ?? path.extname(name);
+
+// upstream's listupInput, as the crate's harness reads it: a component or a module.
 function inputs(directory: string): string[] {
 	return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
 		if (entry.name.startsWith('_')) return [];
 		const file = path.join(directory, entry.name);
-		if (/(?:input|^\+.*)\.svelte$/u.test(entry.name)) return [file];
+		const base = entry.name.slice(0, entry.name.length - suffix(entry.name).length);
+		if (base.endsWith('input') || base.startsWith('+')) return [file];
 		return entry.isDirectory() ? inputs(file) : [];
 	});
 }
+
+// What eslint-plugin-svelte's configs give svelte-eslint-parser: components and runes modules.
+const svelteFile = (input: string) => /\.svelte(?:\.[jt]s)?$/u.test(input);
 
 function options(input: string): unknown[] {
 	const file = [sibling(input, 'config.json'), path.join(path.dirname(input), '_config.json')].find(
@@ -167,13 +175,21 @@ export async function main(args: string[]): Promise<void> {
 							files: ['**'],
 							plugins: { svelte: plugin },
 							rules: ruleConfig,
-							languageOptions: {
-								globals: globals.browser,
-								ecmaVersion: 'latest',
-								sourceType: 'module',
-								parser: svelteParser,
-								parserOptions: { parser: { ts: '@typescript-eslint/parser', js: 'espree' } },
-							},
+							// A plain module keeps ESLint's own source type for its extension (`**/*.cjs` is
+							// CommonJS), as in a project that uses eslint-plugin-svelte's configs.
+							languageOptions: svelteFile(input)
+								? {
+										globals: globals.browser,
+										ecmaVersion: 'latest',
+										sourceType: 'module',
+										parser: svelteParser,
+										parserOptions: { parser: { ts: '@typescript-eslint/parser', js: 'espree' } },
+									}
+								: {
+										globals: globals.browser,
+										ecmaVersion: 'latest',
+										...(/\.[cm]?ts$/u.test(input) ? { parser: typescriptParser } : {}),
+									},
 						},
 						// A case with a project of its own is read where it is, as the crate's test reads
 						// it; another takes the path that upstream's runner gives its fixtures.
@@ -186,7 +202,7 @@ export async function main(args: string[]): Promise<void> {
 				if (fatal) throw new Error(`${input}: ${fatal.message}`);
 				const relative = path.relative(ROOT, input);
 				const errors = sibling(input, 'errors.yaml');
-				const output = sibling(input, `output${path.extname(input)}`);
+				const output = sibling(input, `output${suffix(input)}`);
 				// The harness reads a missing output as the input: the rule must not fix.
 				const fixed = plugin.rules[rule].meta?.fixable
 					? applyFixes(
