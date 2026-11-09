@@ -11,7 +11,9 @@ mod prefer_class_directive;
 mod prefer_style_directive;
 mod require_optimized_style_attribute;
 pub(crate) mod style_attribute;
+pub(crate) mod style_sheet;
 mod valid_each_key;
+mod valid_style_parse;
 
 /// Every built-in rule.
 pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
@@ -25,4 +27,5 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &prefer_style_directive::RULE,
     &require_optimized_style_attribute::RULE,
     &valid_each_key::RULE,
+    &valid_style_parse::RULE,
 ];

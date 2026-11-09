@@ -9,6 +9,7 @@ use rsvelte_kernel::source::document::Document;
 use crate::Configuration;
 use crate::computation::{LintConfiguration, ModuleParents, Parents};
 use crate::rules::style_attribute::InlineStyles;
+use crate::rules::style_sheet::StyleSheetVerdict;
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.lint",
@@ -38,7 +39,8 @@ pub fn register_artifacts(registry: &mut Registry) {
     registry
         .artifact::<Parents>()
         .artifact::<ModuleParents>()
-        .artifact::<InlineStyles>();
+        .artifact::<InlineStyles>()
+        .artifact::<StyleSheetVerdict>();
 }
 
 /// Turns on `svelte.lint/default` with `configuration`. It lints modules only when a configured
