@@ -106,6 +106,13 @@ fn a_comment_may_hold_any_character() {
 }
 
 #[test]
+fn many_missed_semicolons_split_without_recursion() {
+    let source = "a: b ".repeat(100_000);
+    let nodes = inline(&source, whole(&source), &[]).expect("a declaration list");
+    assert_eq!(nodes.len(), 100_000);
+}
+
+#[test]
 fn many_open_parentheses_stay_linear() {
     let source = format!("a {{ b: {} }}", "(".repeat(200_000));
     assert!(check(&source, whole(&source), Dialect::Css).is_err());

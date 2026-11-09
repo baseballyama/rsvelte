@@ -712,7 +712,7 @@ impl<'a> Parser<'a> {
                     brackets.push(b'}');
                 }
                 kind if brackets.is_empty() => match kind {
-                    Kind::Semicolon if colon => return self.declaration(tokens, custom_property),
+                    Kind::Semicolon if colon => return self.declaration(&tokens, custom_property),
                     Kind::Semicolon => break,
                     Kind::Open(b'{') => return self.rule(tokens),
                     Kind::Close(b'}') => {
@@ -751,7 +751,7 @@ impl<'a> Parser<'a> {
                     self.back(last);
                 }
             }
-            self.declaration(tokens, custom_property)
+            self.declaration(&tokens, custom_property)
         } else {
             self.unknown_word(&tokens)
         }
@@ -808,26 +808,45 @@ impl<'a> Parser<'a> {
         {
             return Ok(false);
         }
-        let mut rest: Vec<Token> = tokens[colon + 1..]
+        let rest = &tokens[colon + 1..];
+        let first = rest
             .iter()
-            .copied()
-            .skip_while(|t| matches!(t.kind, Kind::Space | Kind::Comment | Kind::InlineComment))
-            .collect();
-        self.important(&mut rest);
-        if self.raw_value(&rest, false).contains(':') {
-            self.missed_semicolon(&rest)?;
+            .position(|t| !matches!(t.kind, Kind::Space | Kind::Comment | Kind::InlineComment))
+            .unwrap_or(rest.len());
+        let rest = &rest[first..];
+        let rest = &rest[..self.important(rest).0];
+        if self.raw_value(rest, false).contains(':') {
+            self.missed_semicolon(rest)?;
         }
         Ok(true)
     }
 
-    fn declaration(&mut self, mut tokens: Vec<Token>, custom_property: bool) -> R<()> {
+    /// `a: b c: d` in safe mode is two declarations, each read in turn, not one inside the other.
+    fn declaration(&mut self, tokens: &[Token], custom_property: bool) -> R<()> {
+        let mut next = Some(tokens);
+        let mut custom_property = custom_property;
+        while let Some(tokens) = next {
+            next = self.one_declaration(tokens, custom_property)?;
+            custom_property = false;
+        }
+        Ok(())
+    }
+
+    /// Reads one declaration; returns the tokens `postcss-safe-parser` splits off after it.
+    fn one_declaration<'t>(
+        &mut self,
+        tokens: &'t [Token],
+        custom_property: bool,
+    ) -> R<Option<&'t [Token]>> {
         if !self.strict() && (tokens.len() < 2 || !tokens.iter().any(|t| t.kind == Kind::Word)) {
-            return Ok(());
+            return Ok(None);
         }
         let last = *tokens.last().expect("a declaration has tokens");
-        if last.kind == Kind::Semicolon {
-            tokens.pop();
-        }
+        let tokens = if last.kind == Kind::Semicolon {
+            &tokens[..tokens.len() - 1]
+        } else {
+            tokens
+        };
         let end = if last.kind == Kind::Space {
             tokens
                 .iter()
@@ -837,15 +856,70 @@ impl<'a> Parser<'a> {
         } else {
             last.end
         };
-        let mut rest = &*tokens;
+        let mut rest = tokens;
         while rest[0].kind != Kind::Word {
             if rest.len() == 1 {
-                return self.unknown_word(rest);
+                return self.unknown_word(rest).map(|()| None);
             }
             rest = &rest[1..];
         }
         let start = rest[0].start;
-        let property_end = rest
+        let (property, after_colon, rest) = self.property(rest)?;
+        let first_value = rest
+            .iter()
+            .position(|t| !matches!(t.kind, Kind::Space | Kind::Comment | Kind::InlineComment))
+            .unwrap_or(rest.len());
+        let (first_spaces, mut value) = (&rest[..first_value], &rest[first_value..]);
+        let split = if self.strict() {
+            None
+        } else {
+            self.split_missed_semicolon(value)?.map(|(before, after)| {
+                value = before;
+                after
+            })
+        };
+        let (kept, important) = self.important(value);
+        let value = &value[..kept];
+        let has_word = value
+            .iter()
+            .any(|t| !matches!(t.kind, Kind::Space | Kind::Comment | Kind::InlineComment));
+        if self.strict() {
+            if !custom_property && self.raw_value(value, custom_property).contains(':') {
+                self.missed_semicolon(value)?;
+            }
+            return Ok(None);
+        }
+        let value_span = if has_word {
+            let last = value
+                .iter()
+                .rposition(|t| t.kind != Kind::Space)
+                .expect("a value with a word");
+            Span::new(value[0].start, value[last].end)
+        } else {
+            match (
+                first_spaces.first().or_else(|| value.first()),
+                value.last().or_else(|| first_spaces.last()),
+            ) {
+                (Some(first), Some(last)) => Span::new(first.start, last.end),
+                _ => Span::new(after_colon, after_colon),
+            }
+        };
+        let declaration = InlineNode::Declaration(Declaration {
+            span: Span::new(start, end),
+            property,
+            value: value_span,
+            important,
+            property_holes: 0,
+            other_holes: 0,
+        });
+        self.nodes.push(declaration);
+        Ok(split)
+    }
+
+    /// The property from the first word, where its value starts, and the tokens after the `:`.
+    fn property<'t>(&self, tokens: &'t [Token]) -> R<(Span, u32, &'t [Token])> {
+        let start = tokens[0].start;
+        let property_end = tokens
             .iter()
             .position(|t| {
                 matches!(
@@ -853,12 +927,12 @@ impl<'a> Parser<'a> {
                     Kind::Colon | Kind::Space | Kind::Comment | Kind::InlineComment
                 )
             })
-            .unwrap_or(rest.len());
-        let mut property = Span::new(start, rest[property_end - 1].end);
+            .unwrap_or(tokens.len());
+        let mut property = Span::new(start, tokens[property_end - 1].end);
         if matches!(self.b[start as usize], b'_' | b'*') {
             property.start_offset += 1;
         }
-        rest = &rest[property_end..];
+        let mut rest = &tokens[property_end..];
         let mut after_colon = property.end_offset;
         while let Some((&token, after)) = rest.split_first() {
             rest = after;
@@ -875,90 +949,48 @@ impl<'a> Parser<'a> {
                 self.unknown_word(&[token])?;
             }
         }
-        let first_value = rest
-            .iter()
-            .position(|t| !matches!(t.kind, Kind::Space | Kind::Comment | Kind::InlineComment))
-            .unwrap_or(rest.len());
-        let (first_spaces, mut value) = (&rest[..first_value], rest[first_value..].to_vec());
-        if !self.strict() {
-            self.split_missed_semicolon(&mut value)?;
-        }
-        let important = self.important(&mut value);
-        let has_word = value
-            .iter()
-            .any(|t| !matches!(t.kind, Kind::Space | Kind::Comment | Kind::InlineComment));
-        if self.strict() {
-            if !custom_property && self.raw_value(&value, custom_property).contains(':') {
-                self.missed_semicolon(&value)?;
-            }
-            return Ok(());
-        }
-        let value_span = if has_word {
-            let last = value
-                .iter()
-                .rposition(|t| t.kind != Kind::Space)
-                .expect("a value with a word");
-            Span::new(value[0].start, value[last].end)
-        } else {
-            let spaces: Vec<Token> = first_spaces.iter().chain(&value).copied().collect();
-            match (spaces.first(), spaces.last()) {
-                (Some(first), Some(last)) => Span::new(first.start, last.end),
-                _ => Span::new(after_colon, after_colon),
-            }
-        };
-        let declaration = InlineNode::Declaration(Declaration {
-            span: Span::new(start, end),
-            property,
-            value: value_span,
-            important,
-            property_holes: 0,
-            other_holes: 0,
-        });
-        // A declaration split off from this one's value is already pushed and comes after it.
-        let at = self
-            .nodes
-            .iter()
-            .rposition(|n| n.span().start_offset < start)
-            .map_or(0, |i| i + 1);
-        self.nodes.insert(at, declaration);
-        Ok(())
+        Ok((property, after_colon, rest))
     }
 
-    /// `postcss-safe-parser`'s `precheckMissedSemicolon`: `a: b c: d` is two declarations.
-    fn split_missed_semicolon(&mut self, tokens: &mut Vec<Token>) -> R<bool> {
+    /// `postcss-safe-parser`'s `precheckMissedSemicolon`: the value of `a: b c: d` splits into
+    /// `b` and the declaration `c: d`.
+    fn split_missed_semicolon<'t>(
+        &self,
+        tokens: &'t [Token],
+    ) -> R<Option<(&'t [Token], &'t [Token])>> {
         let Some(colon) = self.colon(tokens)? else {
-            return Ok(false);
+            return Ok(None);
         };
         let Some(next_start) = tokens[..colon].iter().rposition(|t| t.kind == Kind::Word) else {
-            return Ok(false);
+            return Ok(None);
         };
         if next_start == 0 {
-            return Ok(false);
+            return Ok(None);
         }
         let previous_end = tokens[..next_start]
             .iter()
             .rposition(|t| t.kind != Kind::Space)
             .map_or(0, |i| i + 1);
-        let other = tokens[next_start..].to_vec();
-        tokens.truncate(previous_end);
-        self.declaration(other, false)?;
-        Ok(true)
+        Ok(Some((&tokens[..previous_end], &tokens[next_start..])))
     }
 
-    /// Removes a trailing `!important` and reports whether there was one.
-    fn important(&self, tokens: &mut Vec<Token>) -> bool {
+    /// How many tokens stay once a trailing `!important` is removed, and whether there was one.
+    fn important(&self, tokens: &[Token]) -> (usize, bool) {
+        let mut kept = tokens.len();
+        let mut important = false;
         for i in (0..tokens.len()).rev() {
             let token = tokens[i];
             let text = self.text(token);
             if text.eq_ignore_ascii_case("!important") {
-                tokens.truncate(i);
-                while tokens.last().is_some_and(|t| t.kind == Kind::Space) {
-                    tokens.pop();
+                let mut cut = i;
+                while cut > 0 && tokens[cut - 1].kind == Kind::Space {
+                    cut -= 1;
                 }
-                return true;
+                return (cut, true);
             }
             if text.eq_ignore_ascii_case("important") {
-                let mut cut = tokens.len();
+                // As upstream, the text before is rebuilt from the end; its cost matches upstream's.
+                let mut cut = kept;
                 let mut text = String::new();
                 for j in (1..=i).rev() {
                     if text.trim().starts_with('!') && tokens[j].kind != Kind::Space {
@@ -968,8 +1000,8 @@ impl<'a> Parser<'a> {
                     text.insert_str(0, self.text(tokens[cut]));
                 }
                 if text.trim().starts_with('!') {
-                    tokens.truncate(cut);
-                    return true;
+                    kept = cut;
+                    important = true;
                 }
             }
             if !matches!(
@@ -979,7 +1011,7 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        false
+        (kept, important)
     }
 
     /// `Parser#raw`'s cleaned value: comments next to nothing or spaces, and a last space, dropped.
