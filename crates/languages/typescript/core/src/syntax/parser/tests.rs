@@ -269,3 +269,13 @@ fn nested_parentheses_are_read_in_linear_time() {
     // Looking for `=>` after each `(` from scratch takes over ten seconds here.
     assert!(started.elapsed().as_secs() < 2, "{:?}", started.elapsed());
 }
+
+#[test]
+fn comparison_chains_are_read_in_linear_time() {
+    let n = 20_000;
+    let source_text = format!("x = a{};", " < a".repeat(n));
+    let started = std::time::Instant::now();
+    assert_eq!(error_on_a_small_stack(source_text, true), None);
+    // Looking for the `>` that closes type arguments after each `<` from scratch takes minutes here.
+    assert!(started.elapsed().as_secs() < 2, "{:?}", started.elapsed());
+}

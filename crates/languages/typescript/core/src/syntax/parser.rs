@@ -79,6 +79,8 @@ pub struct Parser<'a, 'b> {
     /// Per lexer position just after an opening bracket: the position after its closing one, as
     /// [`Parser::lookahead_group`] found it.
     groups: RefCell<FxHashMap<u32, u32>>,
+    /// What [`Parser::type_arguments_before_call`] has read.
+    angles: RefCell<type_arguments::Angles>,
     /// The links of the assignment chains being read, innermost last; each chain pops its own.
     links: Vec<expressions::Link>,
     /// The prefix operators of the unary expressions being read, likewise.
@@ -333,6 +335,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             cover_initializers: FxHashSet::default(),
             depth: 0,
             groups: RefCell::default(),
+            angles: RefCell::default(),
             links: Vec::new(),
             prefixes: Vec::new(),
         })
@@ -586,6 +589,7 @@ mod lookahead;
 mod members;
 mod patterns;
 mod statements;
+mod type_arguments;
 mod types;
 mod typescript;
 
