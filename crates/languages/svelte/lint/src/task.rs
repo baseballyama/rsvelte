@@ -98,7 +98,9 @@ impl Task for Lint {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_svelte::matches(document) || (self.modules && rsvelte_typescript::matches(document))
+        rsvelte_svelte::matches(document)
+            || (self.modules
+                && (rsvelte_typescript::matches(document) || rsvelte_typescript::is_jsx(document)))
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {

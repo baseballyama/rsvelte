@@ -79,7 +79,11 @@ impl Parser<'_, '_> {
         } else {
             false
         };
-        let type_parameters = if self.typescript && self.is_op("<") && self.generic_arrow_ahead()? {
+        let type_parameters = if self.typescript
+            && self.is_op("<")
+            && !self.starts_jsx()
+            && self.generic_arrow_ahead()?
+        {
             self.maybe_type_parameters()?
         } else {
             None

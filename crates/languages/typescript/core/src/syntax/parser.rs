@@ -60,6 +60,8 @@ pub struct Parser<'a, 'b> {
     declared: bool,
     syntax_tree: &'b mut SyntaxTree,
     typescript: bool,
+    /// A `<` in an expression starts JSX.
+    jsx: bool,
     allow_in: bool,
     end: u32,
     /// `{ a = 1 }` shorthand properties not yet read as patterns; any left at the end is an error.
@@ -105,7 +107,29 @@ pub fn parse_program(
 ) -> R<NodeIdentifier> {
     // Svelte components average a token per 4.8 bytes (the lossless corpus test prints both).
     syntax_tree.tokens.reserve(range.len() as usize / 4);
+    program(
+        Parser::new(syntax_tree, source_text, range, typescript)?,
+        range,
+    )
+}
+
+/// [`parse_program`] for a `.jsx` or `.tsx` document, whose expressions may be JSX.
+///
+/// # Errors
+///
+/// [`ParseError`] at the first lexical or syntax error, or at syntax this parser does not support.
+pub fn parse_jsx_program(
+    syntax_tree: &mut SyntaxTree,
+    source_text: &str,
+    range: Span,
+    typescript: bool,
+) -> R<NodeIdentifier> {
     let mut p = Parser::new(syntax_tree, source_text, range, typescript)?;
+    p.jsx = true;
+    program(p, range)
+}
+
+fn program(mut p: Parser<'_, '_>, range: Span) -> R<NodeIdentifier> {
     let body = p.open();
     while p.token.t != T::Eof {
         let s = p.statement()?;
@@ -288,6 +312,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             base: syntax_tree.scratch.len(),
             syntax_tree,
             typescript,
+            jsx: false,
             allow_in: true,
             end: range.end_offset,
             cover_initializers: FxHashSet::default(),
@@ -517,6 +542,7 @@ impl<'a, 'b> Parser<'a, 'b> {
 mod classes;
 mod control;
 mod expressions;
+mod jsx;
 mod literals;
 mod lookahead;
 mod members;

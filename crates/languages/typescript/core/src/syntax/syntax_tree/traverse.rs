@@ -11,6 +11,7 @@ impl SyntaxTree {
                 each(&[source, options.unwrap_or(NodeIdentifier::NONE)]);
             }
             Kind::Yield { argument, .. } => each(&[argument.unwrap_or(NodeIdentifier::NONE)]),
+            Kind::Jsx(jsx) => self.for_each_jsx_child(jsx, &mut f),
             Kind::Class(class) => match class {
                 super::Class::Definition {
                     name,

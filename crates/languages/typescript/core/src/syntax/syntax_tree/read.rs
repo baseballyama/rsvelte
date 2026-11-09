@@ -135,6 +135,7 @@ impl SyntaxTree {
             Tag::ExportDefault => Kind::ExportDefault(Self::nid(a)),
             Tag::TypeScriptDeclaration => Kind::TypeScriptDeclaration,
             Tag::Type => Kind::Type(self.type_kind(identifier)),
+            Tag::Jsx => Kind::Jsx(self.jsx_kind(identifier)),
             Tag::Identifier => Kind::Identifier(Atom(a)),
             Tag::Number => Kind::Number(f64::from_bits(u64::from(a) | (u64::from(b) << 32))),
             Tag::String => Kind::String,

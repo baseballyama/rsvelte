@@ -76,6 +76,7 @@ pub enum Tag {
     TypeScriptDeclaration,
     /// Type syntax; see [`Type`].
     Type,
+    Jsx,
     Identifier,
     Number,
     String,
@@ -210,6 +211,7 @@ pub enum Kind<'a> {
     ExportDefault(NodeIdentifier),
     TypeScriptDeclaration,
     Type(Type<'a>),
+    Jsx(Jsx<'a>),
     Identifier(Atom),
     Number(f64),
     String,
@@ -567,6 +569,8 @@ const _: () = assert!(size_of::<NodeIdentifier>() == 4, "NodeIdentifier is a u32
 mod classes;
 mod control;
 mod expressions;
+mod jsx;
+pub use jsx::Jsx;
 mod read;
 mod statements;
 pub use classes::Class;

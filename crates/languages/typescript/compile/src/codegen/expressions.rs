@@ -455,6 +455,7 @@ impl Gen<'_> {
             | Kind::Type(_)) => {
                 unreachable!("statement in expression position: {k:?}")
             }
+            Kind::Jsx(_) => unreachable!("compilation refuses JSX before it prints"),
         }
     }
 }

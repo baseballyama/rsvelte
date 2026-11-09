@@ -201,6 +201,7 @@ pub fn copy_node<R: Rewrite + ?Sized>(
             None => to.typescript_declaration(None, span),
         },
         Kind::Type(_) => unreachable!("no value node has type syntax as a child"),
+        Kind::Jsx(_) => unreachable!("compilation refuses JSX before it copies"),
         Kind::Identifier(a) => to.ident(f.atoms.get(a), span),
         Kind::Number(v) => to.write_number(v, span),
         Kind::String => {

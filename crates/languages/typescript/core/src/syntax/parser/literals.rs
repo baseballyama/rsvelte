@@ -117,6 +117,7 @@ impl Parser<'_, '_> {
                 self.bump()?;
                 Ok(self.syntax_tree.regex(literal.pattern, literal.flags))
             }
+            T::Op if self.starts_jsx() => self.jsx_expression(),
             T::Op if self.typescript && self.text(t) == "<" => {
                 let start = self.token.span.start_offset;
                 self.in_type += 1;
