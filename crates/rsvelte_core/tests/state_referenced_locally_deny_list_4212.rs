@@ -68,6 +68,10 @@ const CELLS: &[(&str, bool)] = &[
     ("function () {}", true),
     ("(function () {})", true),
     ("undefined", true),
+    // `should_proxy` resolves an identifier through its binding to that
+    // binding's own initializer.
+    ("literal", true),
+    ("undef", true),
     // Proxied, so upstream deliberately stays quiet — these are what an
     // over-wide deny-list would break, and none of them may move.
     ("{}", false),
@@ -80,14 +84,6 @@ const CELLS: &[(&str, bool)] = &[
     ("x || {}", false),
     ("x ?? {}", false),
 ];
-
-/// The residue: `should_proxy` recurses through an identifier's binding to its
-/// own initializer, which rsvelte does not do, so a `const` holding a primitive
-/// still reads as proxyable. This is the other half of #4212 and is listed
-/// rather than fixed — without it a later fix that closes only the node-type
-/// half would look complete.
-#[rustfmt::skip]
-const RESIDUE: &[&str] = &["literal", "undef"];
 
 #[test]
 fn a_module_matches_upstreams_deny_list() {
@@ -131,17 +127,4 @@ fn a_component_instance_script_answers_the_same_way() {
 fn the_table_carries_both_answers() {
     assert!(CELLS.iter().any(|(_, w)| *w), "no warning cell");
     assert!(CELLS.iter().any(|(_, w)| !*w), "no silent cell");
-}
-
-/// Upstream warns for both of these; rsvelte does not. Pinned so that closing
-/// the recursion half shows up as this test failing rather than as silence.
-#[test]
-fn the_binding_recursion_half_is_still_open() {
-    for init in RESIDUE {
-        assert_eq!(
-            module_warnings(init),
-            Vec::<String>::new(),
-            "{init}: upstream warns here; if rsvelte now does too, move this cell into CELLS"
-        );
-    }
 }
