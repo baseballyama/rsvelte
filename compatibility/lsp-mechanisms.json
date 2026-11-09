@@ -4937,8 +4937,7 @@
 			"ts-render",
 			"ts-render-declaration-order",
 			"ts-render-overload-count",
-			"ts-render-union-order",
-			"ts-type-any"
+			"ts-render-union-order"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/demos/meter-demo.svelte|textDocument/hover|phase=edit": [
 			"official-empty",
@@ -8931,8 +8930,7 @@
 			"ts-render-local-modifier",
 			"ts-render-multiple",
 			"ts-render-overload-count",
-			"ts-symbol-name",
-			"ts-type-any"
+			"ts-symbol-name"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/doc-page-header.svelte|textDocument/hover|phase=edit": [
 			"html-data",
@@ -8944,8 +8942,7 @@
 			"ts-render-local-modifier",
 			"ts-render-multiple",
 			"ts-render-overload-count",
-			"ts-symbol-name",
-			"ts-type-any"
+			"ts-symbol-name"
 		],
 		"aggregate:corpus/bits-ui/docs/src/lib/components/doc-page.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
@@ -53358,7 +53355,6 @@
 			"completion-text-edit-range-start"
 		],
 		"aggregate:corpus/flowbite-svelte/src/lib/virtuallist/VirtualList.svelte|textDocument/completion|phase=edit": [
-			"completion-additional-text-edits-presence-official-only",
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
@@ -53377,10 +53373,8 @@
 			"completion-item-set-missing-html-close-tag",
 			"completion-item-set-missing-mixed",
 			"completion-item-set-missing-ts",
-			"completion-text-edit-new-text-ts",
 			"completion-text-edit-presence-rsvelte-only",
-			"completion-text-edit-range-end",
-			"completion-text-edit-range-start"
+			"completion-text-edit-range-end"
 		],
 		"aggregate:corpus/flowbite-svelte/src/lib/virtuallist/VirtualList.svelte|textDocument/definition": [
 			"official-empty",
@@ -53407,8 +53401,7 @@
 			"ts-render-import-line",
 			"ts-render-local-modifier",
 			"ts-render-overload-count",
-			"ts-symbol-name",
-			"ts-type-any"
+			"ts-symbol-name"
 		],
 		"aggregate:corpus/flowbite-svelte/src/lib/virtuallist/VirtualList.svelte|textDocument/hover|phase=edit": [
 			"official-empty",
@@ -55687,7 +55680,6 @@
 			"html-data",
 			"official-defect-svelte-ts-shadow",
 			"rsvelte-empty",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-local-modifier",
 			"ts-render-multiple",
@@ -55698,7 +55690,6 @@
 			"html-data",
 			"official-defect-svelte-ts-shadow",
 			"rsvelte-empty",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-local-modifier",
 			"ts-render-multiple",
@@ -56173,15 +56164,13 @@
 			"html-data",
 			"official-empty",
 			"ts-render-local-modifier",
-			"ts-render-overload-count",
-			"ts-type-any"
+			"ts-render-overload-count"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/admin-dashboard/utils/JSONView.svelte|textDocument/hover|phase=edit": [
 			"html-data",
 			"official-empty",
 			"ts-render-local-modifier",
-			"ts-render-overload-count",
-			"ts-type-any"
+			"ts-render-overload-count"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/admin-dashboard/utils/MetaTag.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -106593,15 +106582,13 @@
 			"html-data",
 			"official-empty",
 			"ts-render-local-modifier",
-			"ts-render-overload-count",
-			"ts-type-any"
+			"ts-render-overload-count"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/JSONView.svelte|textDocument/hover|phase=edit": [
 			"html-data",
 			"official-empty",
 			"ts-render-local-modifier",
-			"ts-render-overload-count",
-			"ts-type-any"
+			"ts-render-overload-count"
 		],
 		"aggregate:corpus/flowbite-svelte/src/routes/utils/LlmLink.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -115386,6 +115373,7 @@
 			"completion-item-pairing-key-kind+sort-text+filter-text-html",
 			"completion-item-pairing-key-kind+sort-text-ts",
 			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html",
 			"completion-item-set-extra-html-close-tag",
 			"completion-item-set-extra-mixed",
 			"completion-item-set-extra-ts",
@@ -115404,6 +115392,7 @@
 			"completion-item-pairing-key-kind+sort-text+filter-text-html",
 			"completion-item-pairing-key-kind+sort-text-ts",
 			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html",
 			"completion-item-set-extra-html-close-tag",
 			"completion-item-set-extra-mixed",
 			"completion-item-set-extra-ts",
@@ -115522,28 +115511,54 @@
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta-mobile.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
 			"completion-is-incomplete",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
 			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
 			"completion-item-set-extra-ts",
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-item-set-missing-html-close-tag",
 			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta-mobile.svelte|textDocument/completion|phase=edit": [
 			"completion-command-presence-official-only",
 			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
 			"completion-is-incomplete",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
 			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
 			"completion-item-set-extra-ts",
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-item-set-missing-html-close-tag",
 			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
 			"completion-text-edit-new-text-html",
 			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta-mobile.svelte|textDocument/definition": [
+			"official-empty",
+			"projection-target-position-declaration"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta-mobile.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"projection-target-position-declaration"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta-mobile.svelte|textDocument/hover": [
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta-mobile.svelte|textDocument/hover|phase=edit": [
+			"rsvelte-empty-import-only"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/cta.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -117403,6 +117418,50 @@
 			"ts-render-import-line",
 			"ts-type-any"
 		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/lock-button.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/lock-button.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/lock-button.svelte|textDocument/definition": [
+			"official-empty",
+			"projection-target-position-declaration",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/lock-button.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"projection-target-position-declaration",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/lock-button.svelte|textDocument/hover": [
+			"rsvelte-empty",
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/lock-button.svelte|textDocument/hover|phase=edit": [
+			"rsvelte-empty",
+			"rsvelte-empty-import-only"
+		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/logo.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
@@ -117724,14 +117783,12 @@
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/a.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-symbol-kind",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/a.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-symbol-kind",
@@ -117784,13 +117841,11 @@
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/blockquote.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/blockquote.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
@@ -117983,7 +118038,6 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/h1.svelte|textDocument/hover": [
 			"rsvelte-empty",
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
@@ -117992,7 +118046,6 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/h1.svelte|textDocument/hover|phase=edit": [
 			"rsvelte-empty",
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
@@ -118004,7 +118057,6 @@
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-item-data-name",
 			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
@@ -118027,7 +118079,6 @@
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-item-data-name",
 			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
@@ -118061,7 +118112,6 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/h2.svelte|textDocument/hover": [
 			"rsvelte-empty",
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
@@ -118070,7 +118120,6 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/h2.svelte|textDocument/hover|phase=edit": [
 			"rsvelte-empty",
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
@@ -118082,7 +118131,6 @@
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-item-data-name",
 			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
@@ -118105,7 +118153,6 @@
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-item-data-name",
 			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
@@ -118139,7 +118186,6 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/h3.svelte|textDocument/hover": [
 			"rsvelte-empty",
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
@@ -118148,7 +118194,6 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/h3.svelte|textDocument/hover|phase=edit": [
 			"rsvelte-empty",
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
@@ -118215,7 +118260,6 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/h4.svelte|textDocument/hover": [
 			"rsvelte-empty",
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
@@ -118224,7 +118268,6 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/h4.svelte|textDocument/hover|phase=edit": [
 			"rsvelte-empty",
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
@@ -118291,7 +118334,6 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/h5.svelte|textDocument/hover": [
 			"rsvelte-empty",
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
@@ -118300,7 +118342,6 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/h5.svelte|textDocument/hover|phase=edit": [
 			"rsvelte-empty",
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
@@ -118367,7 +118408,6 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/h6.svelte|textDocument/hover": [
 			"rsvelte-empty",
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
@@ -118376,7 +118416,6 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/h6.svelte|textDocument/hover|phase=edit": [
 			"rsvelte-empty",
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
@@ -118484,13 +118523,11 @@
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/hr.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/hr.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
@@ -118534,13 +118571,11 @@
 			"projection-target-position-declaration"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/img.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/img.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
@@ -118592,13 +118627,11 @@
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/li.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/li.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
@@ -118650,13 +118683,11 @@
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/ol.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/ol.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
@@ -118708,13 +118739,11 @@
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/p.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/p.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
@@ -118842,13 +118871,11 @@
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/strong.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/strong.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
@@ -118857,7 +118884,6 @@
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
 			"completion-item-pairing-key-kind-ts",
@@ -118876,7 +118902,6 @@
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
 			"completion-item-pairing-key-kind-ts",
@@ -118902,13 +118927,11 @@
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/table.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/table.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
@@ -118917,7 +118940,6 @@
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
 			"completion-item-pairing-key-kind-ts",
@@ -118933,7 +118955,6 @@
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
 			"completion-item-pairing-key-kind-ts",
@@ -118954,13 +118975,11 @@
 			"projection-target-position-declaration"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/td.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/td.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
@@ -118969,7 +118988,6 @@
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
 			"completion-item-pairing-key-kind-ts",
@@ -118985,7 +119003,6 @@
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
 			"completion-item-pairing-key-kind-ts",
@@ -119006,13 +119023,11 @@
 			"projection-target-position-declaration"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/th.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/th.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
@@ -119064,13 +119079,11 @@
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/tr.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/tr.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
@@ -119122,13 +119135,11 @@
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/ul.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/mdsx/ul.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
@@ -120039,6 +120050,604 @@
 			"ts-render-import-line",
 			"ts-type-any"
 		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-checkbox-item.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-checkbox-item.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-checkbox-item.svelte|textDocument/definition": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-checkbox-item.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-checkbox-item.svelte|textDocument/hover": [
+			"official-defect-svelte-ts-shadow",
+			"official-empty",
+			"projection-response-range",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-import-line",
+			"ts-symbol-name"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-checkbox-item.svelte|textDocument/hover|phase=edit": [
+			"official-defect-svelte-ts-shadow",
+			"official-empty",
+			"projection-response-range",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-import-line",
+			"ts-symbol-name"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-content.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-content.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-content.svelte|textDocument/definition": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-content.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-content.svelte|textDocument/hover": [
+			"official-defect-svelte-ts-shadow",
+			"official-empty",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-content.svelte|textDocument/hover|phase=edit": [
+			"official-defect-svelte-ts-shadow",
+			"official-empty",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-group.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-group.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-group.svelte|textDocument/definition": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-group.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-group.svelte|textDocument/hover": [
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-group.svelte|textDocument/hover|phase=edit": [
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-item.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-item.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-item.svelte|textDocument/definition": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-item.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-item.svelte|textDocument/hover": [
+			"official-defect-svelte-ts-shadow",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-item.svelte|textDocument/hover|phase=edit": [
+			"official-defect-svelte-ts-shadow",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-label.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-label.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-label.svelte|textDocument/definition": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-label.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-label.svelte|textDocument/hover": [
+			"official-defect-svelte-ts-shadow",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-label.svelte|textDocument/hover|phase=edit": [
+			"official-defect-svelte-ts-shadow",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-radio-group.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-radio-group.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-radio-group.svelte|textDocument/definition": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-radio-group.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-radio-group.svelte|textDocument/hover": [
+			"official-empty",
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-radio-group.svelte|textDocument/hover|phase=edit": [
+			"official-empty",
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-radio-item.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-radio-item.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-radio-item.svelte|textDocument/definition": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-radio-item.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-radio-item.svelte|textDocument/hover": [
+			"official-defect-svelte-ts-shadow",
+			"official-empty",
+			"projection-response-range",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-symbol-name"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-radio-item.svelte|textDocument/hover|phase=edit": [
+			"official-defect-svelte-ts-shadow",
+			"official-empty",
+			"projection-response-range",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-symbol-name"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-separator.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-separator.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-separator.svelte|textDocument/definition": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-separator.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-separator.svelte|textDocument/hover": [
+			"official-empty",
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-separator.svelte|textDocument/hover|phase=edit": [
+			"official-empty",
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-shortcut.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-shortcut.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-shortcut.svelte|textDocument/definition": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"rsvelte-empty",
+			"ts-lib-copy"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-shortcut.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"rsvelte-empty",
+			"ts-lib-copy"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-shortcut.svelte|textDocument/hover": [
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-import-line"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-shortcut.svelte|textDocument/hover|phase=edit": [
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-import-line"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-trigger.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-trigger.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-trigger.svelte|textDocument/definition": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-trigger.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-trigger.svelte|textDocument/hover": [
+			"official-defect-svelte-ts-shadow",
+			"official-empty",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker-trigger.svelte|textDocument/hover|phase=edit": [
+			"official-defect-svelte-ts-shadow",
+			"official-empty",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker.svelte|textDocument/definition": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"official-empty-target-is-the-request",
+			"projection-target-position-declaration"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker.svelte|textDocument/hover": [
+			"official-empty",
+			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/picker/picker.svelte|textDocument/hover|phase=edit": [
+			"official-empty",
+			"rsvelte-empty-import-only"
+		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/pm-add-comp.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
 			"completion-command-presence-rsvelte-only",
@@ -120525,65 +121134,25 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/site-footer.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-is-incomplete",
-			"completion-item-data-source-official-only",
-			"completion-item-documentation-presence-official-only",
-			"completion-item-pairing-key-filter-text-ts",
 			"completion-item-pairing-key-kind+sort-text+filter-text-html",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
 			"completion-item-set-extra-html-close-tag",
-			"completion-item-set-extra-mixed",
 			"completion-item-set-extra-ts",
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-item-set-missing-html-close-tag",
-			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/site-footer.svelte|textDocument/completion|phase=edit": [
 			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-is-incomplete",
-			"completion-item-data-source-official-only",
-			"completion-item-documentation-presence-official-only",
-			"completion-item-pairing-key-filter-text-ts",
 			"completion-item-pairing-key-kind+sort-text+filter-text-html",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
 			"completion-item-set-extra-html-close-tag",
-			"completion-item-set-extra-mixed",
 			"completion-item-set-extra-ts",
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-item-set-missing-html-close-tag",
-			"completion-item-set-missing-mixed",
 			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/site-footer.svelte|textDocument/definition": [
-			"official-empty",
-			"projection-target-position-declaration",
-			"ts-lib-copy"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/site-footer.svelte|textDocument/definition|phase=edit": [
-			"official-empty",
-			"projection-target-position-declaration",
-			"ts-lib-copy"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/site-footer.svelte|textDocument/hover": [
-			"html-data",
-			"rsvelte-empty-import-only",
-			"ts-render"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/site-footer.svelte|textDocument/hover|phase=edit": [
-			"html-data",
-			"rsvelte-empty-import-only",
-			"ts-render"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/site-header.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
@@ -120719,7 +121288,6 @@
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
 			"completion-item-pairing-key-kind-ts",
@@ -120738,7 +121306,6 @@
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
 			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
 			"completion-item-pairing-key-kind-ts",
@@ -120764,13 +121331,11 @@
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/step.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/components/step.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-type-any"
@@ -121233,6 +121798,7 @@
 			"completion-item-set-extra-mixed",
 			"completion-item-set-extra-ts",
 			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
 			"completion-item-set-missing-mixed",
 			"completion-item-set-missing-ts",
 			"completion-text-edit-new-text-ts",
@@ -121258,6 +121824,7 @@
 			"completion-item-set-extra-mixed",
 			"completion-item-set-extra-ts",
 			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
 			"completion-item-set-missing-mixed",
 			"completion-item-set-missing-ts",
 			"completion-text-edit-new-text-ts",
@@ -121296,6 +121863,352 @@
 			"ts-render-union-order",
 			"ts-symbol-kind",
 			"ts-symbol-name"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/control.svelte|textDocument/completion": [
+			"completion-additional-text-edits-presence-official-only",
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-is-incomplete",
+			"completion-item-data-name",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-filter-text-ts",
+			"completion-item-pairing-key-kind+sort-text+filter-text-html",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-new-text-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end",
+			"completion-text-edit-range-start"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/control.svelte|textDocument/completion|phase=edit": [
+			"completion-additional-text-edits-presence-official-only",
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-is-incomplete",
+			"completion-item-data-name",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-filter-text-ts",
+			"completion-item-pairing-key-kind+sort-text+filter-text-html",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-new-text-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end",
+			"completion-text-edit-range-start"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/control.svelte|textDocument/definition": [
+			"official-empty",
+			"projection-origin-range",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty",
+			"ts-lib-copy"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/control.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"projection-origin-range",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty",
+			"ts-lib-copy"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/control.svelte|textDocument/hover": [
+			"official-defect-svelte-ts-shadow",
+			"official-empty",
+			"projection-response-range",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-import-line",
+			"ts-render-jsdoc-tag",
+			"ts-render-local-modifier",
+			"ts-render-multiple",
+			"ts-render-overload-count",
+			"ts-render-union-order",
+			"ts-symbol-kind",
+			"ts-symbol-name"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/control.svelte|textDocument/hover|phase=edit": [
+			"official-defect-svelte-ts-shadow",
+			"official-empty",
+			"projection-response-range",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-import-line",
+			"ts-render-jsdoc-tag",
+			"ts-render-local-modifier",
+			"ts-render-multiple",
+			"ts-render-overload-count",
+			"ts-render-union-order",
+			"ts-symbol-kind",
+			"ts-symbol-name"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/docs-panel.svelte|textDocument/completion": [
+			"completion-additional-text-edits-presence-official-only",
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-is-incomplete",
+			"completion-item-data-name",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-filter-text-ts",
+			"completion-item-pairing-key-kind+sort-text-mixed",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-new-text-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end",
+			"completion-text-edit-range-start"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/docs-panel.svelte|textDocument/completion|phase=edit": [
+			"completion-additional-text-edits-presence-official-only",
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-is-incomplete",
+			"completion-item-data-name",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-filter-text-ts",
+			"completion-item-pairing-key-kind+sort-text-mixed",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-new-text-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end",
+			"completion-text-edit-range-start"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/docs-panel.svelte|textDocument/definition": [
+			"official-empty",
+			"projection-origin-range",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty",
+			"ts-lib-copy"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/docs-panel.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"projection-origin-range",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty",
+			"ts-lib-copy"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/docs-panel.svelte|textDocument/hover": [
+			"html-data",
+			"official-defect-svelte-ts-shadow",
+			"official-empty",
+			"projection-response-range",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-import-line",
+			"ts-render-local-modifier",
+			"ts-render-multiple",
+			"ts-render-overload-count",
+			"ts-render-union-order",
+			"ts-symbol-name",
+			"ts-type-any"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/docs-panel.svelte|textDocument/hover|phase=edit": [
+			"html-data",
+			"official-defect-svelte-ts-shadow",
+			"official-empty",
+			"projection-response-range",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-import-line",
+			"ts-render-local-modifier",
+			"ts-render-multiple",
+			"ts-render-overload-count",
+			"ts-render-union-order",
+			"ts-symbol-name",
+			"ts-type-any"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/get-code-drawer.svelte|textDocument/completion": [
+			"completion-additional-text-edits-presence-official-only",
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-is-incomplete",
+			"completion-item-data-name",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-pairing-key-sort-text-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-new-text-ts",
+			"completion-text-edit-range-end",
+			"completion-text-edit-range-start"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/get-code-drawer.svelte|textDocument/completion|phase=edit": [
+			"completion-additional-text-edits-presence-official-only",
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-is-incomplete",
+			"completion-item-data-name",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-pairing-key-sort-text-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-new-text-ts",
+			"completion-text-edit-range-end",
+			"completion-text-edit-range-start"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/get-code-drawer.svelte|textDocument/definition": [
+			"official-empty",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/get-code-drawer.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/get-code-drawer.svelte|textDocument/hover": [
+			"official-defect-svelte-ts-shadow",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render-import-line",
+			"ts-render-multiple"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/get-code-drawer.svelte|textDocument/hover|phase=edit": [
+			"official-defect-svelte-ts-shadow",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render-import-line",
+			"ts-render-multiple"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/main-menu.svelte|textDocument/completion": [
+			"completion-additional-text-edits-presence-official-only",
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-is-incomplete",
+			"completion-item-data-name",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text+filter-text-html",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-new-text-ts",
+			"completion-text-edit-range-end",
+			"completion-text-edit-range-start"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/main-menu.svelte|textDocument/completion|phase=edit": [
+			"completion-additional-text-edits-presence-official-only",
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-is-incomplete",
+			"completion-item-data-name",
+			"completion-item-data-source-official-only",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text+filter-text-html",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-new-text-ts",
+			"completion-text-edit-range-end",
+			"completion-text-edit-range-start"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/main-menu.svelte|textDocument/definition": [
+			"official-empty",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/main-menu.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/main-menu.svelte|textDocument/hover": [
+			"official-defect-svelte-ts-shadow",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render-import-line",
+			"ts-render-local-modifier",
+			"ts-render-union-order",
+			"ts-symbol-kind"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/features/typeset/main-menu.svelte|textDocument/hover|phase=edit": [
+			"official-defect-svelte-ts-shadow",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render-import-line",
+			"ts-render-local-modifier",
+			"ts-render-union-order",
+			"ts-symbol-kind"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/calendar-01.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -133786,6 +134699,7 @@
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
+			"ts-render",
 			"ts-symbol-name"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/blocks/sidebar-08/components/nav-main.svelte|textDocument/hover|phase=edit": [
@@ -147463,7 +148377,8 @@
 			"ts-render-import-line",
 			"ts-render-multiple",
 			"ts-symbol-kind",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/create/attachment/attachment-remove.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -160198,18 +161113,18 @@
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/create/elevenlabs/bar-visualizer-demo.svelte|textDocument/hover": [
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render-import-line",
-			"ts-render-multiple",
-			"ts-render-overload-count",
-			"ts-type-any"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/create/elevenlabs/bar-visualizer-demo.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty",
-			"rsvelte-empty-import-only",
 			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
 			"ts-render-overload-count"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/create/elevenlabs/bar-visualizer-demo.svelte|textDocument/hover|phase=edit": [
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render-import-line",
+			"ts-render-multiple",
+			"ts-render-overload-count",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/lib/registry/examples/create/elevenlabs/bar-visualizer.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -223835,39 +224750,35 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/base-color-picker.svelte|textDocument/definition": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/base-color-picker.svelte|textDocument/definition|phase=edit": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/base-color-picker.svelte|textDocument/hover": [
 			"official-empty",
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/base-color-picker.svelte|textDocument/hover|phase=edit": [
 			"official-empty",
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/chart-color-picker.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
@@ -223917,43 +224828,39 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/chart-color-picker.svelte|textDocument/definition": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/chart-color-picker.svelte|textDocument/definition|phase=edit": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/chart-color-picker.svelte|textDocument/hover": [
 			"official-empty",
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-local-modifier",
 			"ts-render-multiple",
 			"ts-render-union-order",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/chart-color-picker.svelte|textDocument/hover|phase=edit": [
 			"official-empty",
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-local-modifier",
 			"ts-render-multiple",
 			"ts-render-union-order",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/copy-preset.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -224311,22 +225218,18 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/font-picker.svelte|textDocument/definition": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
 			"projection-target-position-workspace",
 			"rsvelte-empty",
-			"target-file-mismatch",
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/font-picker.svelte|textDocument/definition|phase=edit": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
 			"projection-target-position-workspace",
 			"rsvelte-empty",
-			"target-file-mismatch",
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/font-picker.svelte|textDocument/hover": [
@@ -224339,7 +225242,8 @@
 			"ts-render-import-line",
 			"ts-render-multiple",
 			"ts-render-overload-count",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/font-picker.svelte|textDocument/hover|phase=edit": [
 			"official-empty",
@@ -224351,7 +225255,8 @@
 			"ts-render-import-line",
 			"ts-render-multiple",
 			"ts-render-overload-count",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/icon-library-picker.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
@@ -224401,22 +225306,18 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/icon-library-picker.svelte|textDocument/definition": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
 			"projection-target-position-workspace",
 			"rsvelte-empty",
-			"target-file-mismatch",
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/icon-library-picker.svelte|textDocument/definition|phase=edit": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
 			"projection-target-position-workspace",
 			"rsvelte-empty",
-			"target-file-mismatch",
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/icon-library-picker.svelte|textDocument/hover": [
@@ -224429,7 +225330,8 @@
 			"ts-render-multiple",
 			"ts-render-overload-count",
 			"ts-render-quote-style",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/icon-library-picker.svelte|textDocument/hover|phase=edit": [
 			"official-empty",
@@ -224441,7 +225343,8 @@
 			"ts-render-multiple",
 			"ts-render-overload-count",
 			"ts-render-quote-style",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/initialize-dialog.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
@@ -224609,7 +225512,6 @@
 			"completion-item-data-source-official-only",
 			"completion-item-data-uri",
 			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
 			"completion-item-set-extra-mixed",
 			"completion-item-set-extra-ts",
 			"completion-item-set-missing-html",
@@ -224624,7 +225526,6 @@
 			"completion-item-data-source-official-only",
 			"completion-item-data-uri",
 			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
 			"completion-item-set-extra-mixed",
 			"completion-item-set-extra-ts",
 			"completion-item-set-missing-html",
@@ -224633,20 +225534,16 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/lock-button.svelte|textDocument/definition": [
 			"official-empty",
-			"projection-target-position-declaration",
-			"rsvelte-empty"
+			"projection-target-position-declaration"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/lock-button.svelte|textDocument/definition|phase=edit": [
 			"official-empty",
-			"projection-target-position-declaration",
-			"rsvelte-empty"
+			"projection-target-position-declaration"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/lock-button.svelte|textDocument/hover": [
-			"rsvelte-empty",
 			"rsvelte-empty-import-only"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/lock-button.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty",
 			"rsvelte-empty-import-only"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/main-menu.svelte|textDocument/completion": [
@@ -224695,33 +225592,25 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/main-menu.svelte|textDocument/definition": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/main-menu.svelte|textDocument/definition|phase=edit": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/main-menu.svelte|textDocument/hover": [
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
-			"ts-render-local-modifier",
-			"ts-symbol-name"
+			"ts-render-local-modifier"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/main-menu.svelte|textDocument/hover|phase=edit": [
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
-			"ts-render-local-modifier",
-			"ts-symbol-name"
+			"ts-render-local-modifier"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/menu-accent-picker.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
@@ -224779,25 +225668,20 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/menu-accent-picker.svelte|textDocument/definition": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/menu-accent-picker.svelte|textDocument/definition|phase=edit": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/menu-accent-picker.svelte|textDocument/hover": [
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
 			"ts-render-union-order",
@@ -224807,7 +225691,6 @@
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
 			"ts-render-union-order",
@@ -224869,18 +225752,14 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/menu-color-picker.svelte|textDocument/definition": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-target-position-declaration",
 			"rsvelte-empty",
-			"target-file-mismatch",
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/menu-color-picker.svelte|textDocument/definition|phase=edit": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-target-position-declaration",
 			"rsvelte-empty",
-			"target-file-mismatch",
 			"ts-lib-copy"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/menu-color-picker.svelte|textDocument/hover": [
@@ -224890,8 +225769,7 @@
 			"ts-render-import-line",
 			"ts-render-local-modifier",
 			"ts-render-multiple",
-			"ts-render-overload-count",
-			"ts-symbol-name"
+			"ts-render-overload-count"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/menu-color-picker.svelte|textDocument/hover|phase=edit": [
 			"rsvelte-empty",
@@ -224900,8 +225778,7 @@
 			"ts-render-import-line",
 			"ts-render-local-modifier",
 			"ts-render-multiple",
-			"ts-render-overload-count",
-			"ts-symbol-name"
+			"ts-render-overload-count"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/menu-icon-default.svelte|textDocument/completion": [
 			"completion-command-presence-official-only",
@@ -225119,634 +225996,13 @@
 			"ts-symbol-kind",
 			"ts-symbol-name"
 		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-checkbox-item.svelte|textDocument/completion": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-source-official-only",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-html",
-			"completion-item-set-extra-html-close-tag",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-html-close-tag",
-			"completion-item-set-missing-mixed",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-presence-rsvelte-only",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-checkbox-item.svelte|textDocument/completion|phase=edit": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-source-official-only",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-html",
-			"completion-item-set-extra-html-close-tag",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-html-close-tag",
-			"completion-item-set-missing-mixed",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-presence-rsvelte-only",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-checkbox-item.svelte|textDocument/definition": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"projection-target-position-workspace",
-			"rsvelte-empty"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-checkbox-item.svelte|textDocument/definition|phase=edit": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"projection-target-position-workspace",
-			"rsvelte-empty"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-checkbox-item.svelte|textDocument/hover": [
-			"official-defect-svelte-ts-shadow",
-			"official-empty",
-			"projection-response-range",
-			"rsvelte-empty",
-			"rsvelte-empty-import-only",
-			"ts-render",
-			"ts-render-import-line",
-			"ts-symbol-name"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-checkbox-item.svelte|textDocument/hover|phase=edit": [
-			"official-defect-svelte-ts-shadow",
-			"official-empty",
-			"projection-response-range",
-			"rsvelte-empty",
-			"rsvelte-empty-import-only",
-			"ts-render",
-			"ts-render-import-line",
-			"ts-symbol-name"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-content.svelte|textDocument/completion": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-source-official-only",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-html-close-tag",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-html-close-tag",
-			"completion-item-set-missing-mixed",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-content.svelte|textDocument/completion|phase=edit": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-source-official-only",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-html-close-tag",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-html-close-tag",
-			"completion-item-set-missing-mixed",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-content.svelte|textDocument/definition": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"rsvelte-empty"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-content.svelte|textDocument/definition|phase=edit": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"rsvelte-empty"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-content.svelte|textDocument/hover": [
-			"official-defect-svelte-ts-shadow",
-			"official-empty",
-			"rsvelte-empty",
-			"rsvelte-empty-import-only"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-content.svelte|textDocument/hover|phase=edit": [
-			"official-defect-svelte-ts-shadow",
-			"official-empty",
-			"rsvelte-empty",
-			"rsvelte-empty-import-only"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-group.svelte|textDocument/completion": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-group.svelte|textDocument/completion|phase=edit": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-group.svelte|textDocument/definition": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-group.svelte|textDocument/definition|phase=edit": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-group.svelte|textDocument/hover": [
-			"rsvelte-empty-import-only"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-group.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty-import-only"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-item.svelte|textDocument/completion": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-item.svelte|textDocument/completion|phase=edit": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-item.svelte|textDocument/definition": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"rsvelte-empty"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-item.svelte|textDocument/definition|phase=edit": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"rsvelte-empty"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-item.svelte|textDocument/hover": [
-			"official-defect-svelte-ts-shadow",
-			"rsvelte-empty",
-			"rsvelte-empty-import-only"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-item.svelte|textDocument/hover|phase=edit": [
-			"official-defect-svelte-ts-shadow",
-			"rsvelte-empty",
-			"rsvelte-empty-import-only"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-label.svelte|textDocument/completion": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-label.svelte|textDocument/completion|phase=edit": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-label.svelte|textDocument/definition": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"rsvelte-empty"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-label.svelte|textDocument/definition|phase=edit": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"rsvelte-empty"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-label.svelte|textDocument/hover": [
-			"official-defect-svelte-ts-shadow",
-			"rsvelte-empty",
-			"rsvelte-empty-import-only"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-label.svelte|textDocument/hover|phase=edit": [
-			"official-defect-svelte-ts-shadow",
-			"rsvelte-empty",
-			"rsvelte-empty-import-only"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-radio-group.svelte|textDocument/completion": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-radio-group.svelte|textDocument/completion|phase=edit": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-radio-group.svelte|textDocument/definition": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-radio-group.svelte|textDocument/definition|phase=edit": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-radio-group.svelte|textDocument/hover": [
-			"official-empty",
-			"rsvelte-empty-import-only"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-radio-group.svelte|textDocument/hover|phase=edit": [
-			"official-empty",
-			"rsvelte-empty-import-only"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-radio-item.svelte|textDocument/completion": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-source-official-only",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-html",
-			"completion-item-set-extra-html-close-tag",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-html-close-tag",
-			"completion-item-set-missing-mixed",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-radio-item.svelte|textDocument/completion|phase=edit": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-source-official-only",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-html",
-			"completion-item-set-extra-html-close-tag",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-html-close-tag",
-			"completion-item-set-missing-mixed",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-radio-item.svelte|textDocument/definition": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"projection-target-position-workspace",
-			"rsvelte-empty"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-radio-item.svelte|textDocument/definition|phase=edit": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"projection-target-position-workspace",
-			"rsvelte-empty"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-radio-item.svelte|textDocument/hover": [
-			"official-empty",
-			"projection-response-range",
-			"rsvelte-empty",
-			"rsvelte-empty-import-only",
-			"ts-render",
-			"ts-symbol-name"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-radio-item.svelte|textDocument/hover|phase=edit": [
-			"official-empty",
-			"projection-response-range",
-			"rsvelte-empty",
-			"rsvelte-empty-import-only",
-			"ts-render",
-			"ts-symbol-name"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-separator.svelte|textDocument/completion": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-separator.svelte|textDocument/completion|phase=edit": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-separator.svelte|textDocument/definition": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-separator.svelte|textDocument/definition|phase=edit": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-separator.svelte|textDocument/hover": [
-			"official-empty",
-			"rsvelte-empty-import-only"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-separator.svelte|textDocument/hover|phase=edit": [
-			"official-empty",
-			"rsvelte-empty-import-only"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-shortcut.svelte|textDocument/completion": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-source-official-only",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-html",
-			"completion-item-set-extra-html-close-tag",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-html-close-tag",
-			"completion-item-set-missing-mixed",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-presence-rsvelte-only",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-shortcut.svelte|textDocument/completion|phase=edit": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-source-official-only",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-html",
-			"completion-item-set-extra-html-close-tag",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-html-close-tag",
-			"completion-item-set-missing-mixed",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-presence-rsvelte-only",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-shortcut.svelte|textDocument/definition": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"ts-lib-copy"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-shortcut.svelte|textDocument/definition|phase=edit": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"ts-lib-copy"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-shortcut.svelte|textDocument/hover": [
-			"rsvelte-empty",
-			"rsvelte-empty-import-only",
-			"ts-render",
-			"ts-render-import-line"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-shortcut.svelte|textDocument/hover|phase=edit": [
-			"rsvelte-empty",
-			"rsvelte-empty-import-only",
-			"ts-render",
-			"ts-render-import-line"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-trigger.svelte|textDocument/completion": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-trigger.svelte|textDocument/completion|phase=edit": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-commit-characters-value-other",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-trigger.svelte|textDocument/definition": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"rsvelte-empty"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-trigger.svelte|textDocument/definition|phase=edit": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration",
-			"rsvelte-empty"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-trigger.svelte|textDocument/hover": [
-			"official-defect-svelte-ts-shadow",
-			"official-empty",
-			"rsvelte-empty",
-			"rsvelte-empty-import-only",
-			"ts-render"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker-trigger.svelte|textDocument/hover|phase=edit": [
-			"official-defect-svelte-ts-shadow",
-			"official-empty",
-			"rsvelte-empty",
-			"rsvelte-empty-import-only",
-			"ts-render"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker.svelte|textDocument/completion": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker.svelte|textDocument/completion|phase=edit": [
-			"completion-command-presence-rsvelte-only",
-			"completion-commit-characters-presence-rsvelte-only",
-			"completion-commit-characters-value-extra-paren",
-			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
-			"completion-item-pairing-key-kind+sort-text-ts",
-			"completion-item-pairing-key-kind-ts",
-			"completion-item-set-extra-mixed",
-			"completion-item-set-extra-ts",
-			"completion-item-set-missing-html",
-			"completion-item-set-missing-ts",
-			"completion-text-edit-range-end"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker.svelte|textDocument/definition": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker.svelte|textDocument/definition|phase=edit": [
-			"official-empty",
-			"official-empty-target-is-the-request",
-			"projection-target-position-declaration"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker.svelte|textDocument/hover": [
-			"official-empty",
-			"rsvelte-empty-import-only"
-		],
-		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/picker/picker.svelte|textDocument/hover|phase=edit": [
-			"official-empty",
-			"rsvelte-empty-import-only"
-		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/preset-picker.svelte|textDocument/completion": [
-			"completion-additional-text-edits-presence-official-only",
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
 			"completion-commit-characters-value-other",
 			"completion-is-incomplete",
-			"completion-item-data-name",
 			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
 			"completion-item-pairing-key-kind-ts",
 			"completion-item-set-extra-html",
@@ -225755,20 +226011,15 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-item-set-missing-ts",
-			"completion-text-edit-new-text-ts",
-			"completion-text-edit-range-end",
-			"completion-text-edit-range-start"
+			"completion-text-edit-range-end"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/preset-picker.svelte|textDocument/completion|phase=edit": [
-			"completion-additional-text-edits-presence-official-only",
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
 			"completion-commit-characters-value-other",
 			"completion-is-incomplete",
-			"completion-item-data-name",
 			"completion-item-data-uri",
-			"completion-item-detail-presence-rsvelte-only",
 			"completion-item-pairing-key-kind+sort-text-ts",
 			"completion-item-pairing-key-kind-ts",
 			"completion-item-set-extra-html",
@@ -225777,31 +226028,24 @@
 			"completion-item-set-missing-emmet",
 			"completion-item-set-missing-html",
 			"completion-item-set-missing-ts",
-			"completion-text-edit-new-text-ts",
-			"completion-text-edit-range-end",
-			"completion-text-edit-range-start"
+			"completion-text-edit-range-end"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/preset-picker.svelte|textDocument/definition": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/preset-picker.svelte|textDocument/definition|phase=edit": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/preset-picker.svelte|textDocument/hover": [
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-local-modifier",
 			"ts-symbol-name"
 		],
@@ -225809,7 +226053,6 @@
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-local-modifier",
 			"ts-symbol-name"
 		],
@@ -225985,44 +226228,41 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/radius-picker.svelte|textDocument/definition": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/radius-picker.svelte|textDocument/definition|phase=edit": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/radius-picker.svelte|textDocument/hover": [
 			"official-empty",
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/radius-picker.svelte|textDocument/hover|phase=edit": [
 			"official-empty",
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/random-button.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
 			"completion-is-incomplete",
 			"completion-item-data-uri",
 			"completion-item-pairing-key-kind+sort-text-ts",
@@ -226038,6 +226278,7 @@
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
 			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
 			"completion-is-incomplete",
 			"completion-item-data-uri",
 			"completion-item-pairing-key-kind+sort-text-ts",
@@ -226227,41 +226468,37 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/style-picker.svelte|textDocument/definition": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
 			"projection-target-position-workspace",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/style-picker.svelte|textDocument/definition|phase=edit": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
 			"projection-target-position-workspace",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/style-picker.svelte|textDocument/hover": [
 			"official-empty",
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/style-picker.svelte|textDocument/hover|phase=edit": [
 			"official-empty",
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-multiple",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/theme-picker.svelte|textDocument/completion": [
 			"completion-additional-text-edits-presence-official-only",
@@ -226309,43 +226546,39 @@
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/theme-picker.svelte|textDocument/definition": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/theme-picker.svelte|textDocument/definition|phase=edit": [
 			"official-empty",
-			"official-empty-target-is-the-request",
 			"projection-origin-range",
 			"projection-target-position-declaration",
-			"rsvelte-empty",
-			"target-file-mismatch"
+			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/theme-picker.svelte|textDocument/hover": [
 			"official-empty",
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-local-modifier",
 			"ts-render-multiple",
 			"ts-symbol-kind",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/theme-picker.svelte|textDocument/hover|phase=edit": [
 			"official-empty",
 			"projection-response-range",
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
-			"ts-render",
 			"ts-render-import-line",
 			"ts-render-local-modifier",
 			"ts-render-multiple",
 			"ts-symbol-kind",
-			"ts-symbol-name"
+			"ts-symbol-name",
+			"ts-type-any"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/welcome-dialog.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -226456,10 +226689,12 @@
 			"rsvelte-empty"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/create/[item]/+page.svelte|textDocument/hover": [
+			"rsvelte-empty-import-only",
 			"ts-render-import-line",
 			"ts-render-multiple"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/create/[item]/+page.svelte|textDocument/hover|phase=edit": [
+			"rsvelte-empty-import-only",
 			"ts-render-import-line",
 			"ts-render-multiple"
 		],
@@ -232033,6 +232268,96 @@
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/themes/+page.svelte|textDocument/hover|phase=edit": [
 			"rsvelte-empty-import-only"
 		],
+		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/typeset/+page.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-is-incomplete",
+			"completion-item-data-uri",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-filter-text-ts",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/typeset/+page.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-is-incomplete",
+			"completion-item-data-uri",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-filter-text-ts",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-html",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/typeset/+page.svelte|textDocument/definition": [
+			"official-empty",
+			"projection-origin-range",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty",
+			"ts-lib-copy"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/typeset/+page.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"projection-origin-range",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty",
+			"ts-lib-copy"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/typeset/+page.svelte|textDocument/hover": [
+			"official-empty",
+			"projection-response-range",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-local-modifier",
+			"ts-render-multiple",
+			"ts-render-overload-count",
+			"ts-render-union-order",
+			"ts-symbol-kind",
+			"ts-symbol-name",
+			"ts-type-any"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/(layout)/typeset/+page.svelte|textDocument/hover|phase=edit": [
+			"official-empty",
+			"projection-response-range",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-local-modifier",
+			"ts-render-multiple",
+			"ts-render-overload-count",
+			"ts-render-union-order",
+			"ts-symbol-kind",
+			"ts-symbol-name",
+			"ts-type-any"
+		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(app)/+layout.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
 			"completion-commit-characters-presence-rsvelte-only",
@@ -232246,6 +232571,84 @@
 			"rsvelte-empty",
 			"rsvelte-empty-import-only",
 			"ts-render"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/routes/(view)/preview/typeset/[name]/+page.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-is-incomplete",
+			"completion-item-data-source-official-only",
+			"completion-item-data-uri",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-filter-text-ts",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-css",
+			"completion-item-set-extra-html",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/routes/(view)/preview/typeset/[name]/+page.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-is-incomplete",
+			"completion-item-data-source-official-only",
+			"completion-item-data-uri",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-filter-text-ts",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-set-extra-css",
+			"completion-item-set-extra-html",
+			"completion-item-set-extra-html-close-tag",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-html-close-tag",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/routes/(view)/preview/typeset/[name]/+page.svelte|textDocument/definition": [
+			"official-empty",
+			"projection-target-position-declaration",
+			"ts-lib-copy"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/routes/(view)/preview/typeset/[name]/+page.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"projection-target-position-declaration",
+			"ts-lib-copy"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/routes/(view)/preview/typeset/[name]/+page.svelte|textDocument/hover": [
+			"html-data",
+			"official-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-multiple",
+			"ts-render-overload-count",
+			"ts-symbol-kind",
+			"ts-symbol-name"
+		],
+		"aggregate:corpus/shadcn-svelte/docs/src/routes/(view)/preview/typeset/[name]/+page.svelte|textDocument/hover|phase=edit": [
+			"html-data",
+			"official-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-multiple",
+			"ts-render-overload-count",
+			"ts-symbol-kind",
+			"ts-symbol-name"
 		],
 		"aggregate:corpus/shadcn-svelte/docs/src/routes/(view)/view/[view=view]/+page.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
@@ -235194,6 +235597,152 @@
 		],
 		"aggregate:corpus/shadcn-svelte/repro/src/routes/+page.svelte|textDocument/hover|phase=edit": [
 			"rsvelte-empty-import-only"
+		],
+		"aggregate:corpus/shadcn-svelte/skills/shadcn-svelte/assets/showcase/color-pair.svelte|textDocument/completion": [
+			"completion-additional-text-edits-presence-official-only",
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-is-incomplete",
+			"completion-item-pairing-key-filter-text-ts",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-pairing-key-sort-text-ts",
+			"completion-item-set-extra-html",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-new-text-ts",
+			"completion-text-edit-range-end",
+			"completion-text-edit-range-start"
+		],
+		"aggregate:corpus/shadcn-svelte/skills/shadcn-svelte/assets/showcase/color-pair.svelte|textDocument/completion|phase=edit": [
+			"completion-additional-text-edits-presence-official-only",
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-commit-characters-value-other",
+			"completion-is-incomplete",
+			"completion-item-pairing-key-filter-text-ts",
+			"completion-item-pairing-key-kind+sort-text-ts",
+			"completion-item-pairing-key-kind-ts",
+			"completion-item-pairing-key-sort-text-ts",
+			"completion-item-set-extra-html",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-new-text-ts",
+			"completion-text-edit-range-end",
+			"completion-text-edit-range-start"
+		],
+		"aggregate:corpus/shadcn-svelte/skills/shadcn-svelte/assets/showcase/color-pair.svelte|textDocument/definition": [
+			"official-empty",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty",
+			"ts-lib-copy"
+		],
+		"aggregate:corpus/shadcn-svelte/skills/shadcn-svelte/assets/showcase/color-pair.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty",
+			"ts-lib-copy"
+		],
+		"aggregate:corpus/shadcn-svelte/skills/shadcn-svelte/assets/showcase/color-pair.svelte|textDocument/hover": [
+			"html-data",
+			"official-defect-svelte-ts-shadow",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-jsdoc-tag",
+			"ts-render-local-modifier",
+			"ts-render-overload-count",
+			"ts-render-union-order"
+		],
+		"aggregate:corpus/shadcn-svelte/skills/shadcn-svelte/assets/showcase/color-pair.svelte|textDocument/hover|phase=edit": [
+			"html-data",
+			"official-defect-svelte-ts-shadow",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-jsdoc-tag",
+			"ts-render-local-modifier",
+			"ts-render-overload-count",
+			"ts-render-union-order"
+		],
+		"aggregate:corpus/shadcn-svelte/skills/shadcn-svelte/assets/showcase/state-matrix.svelte|textDocument/completion": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-is-incomplete",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text+filter-text-html",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/skills/shadcn-svelte/assets/showcase/state-matrix.svelte|textDocument/completion|phase=edit": [
+			"completion-command-presence-rsvelte-only",
+			"completion-commit-characters-presence-rsvelte-only",
+			"completion-commit-characters-value-extra-paren",
+			"completion-is-incomplete",
+			"completion-item-detail-presence-rsvelte-only",
+			"completion-item-pairing-key-kind+sort-text+filter-text-html",
+			"completion-item-set-extra-mixed",
+			"completion-item-set-extra-ts",
+			"completion-item-set-missing-emmet",
+			"completion-item-set-missing-html",
+			"completion-item-set-missing-mixed",
+			"completion-item-set-missing-ts",
+			"completion-text-edit-presence-rsvelte-only",
+			"completion-text-edit-range-end"
+		],
+		"aggregate:corpus/shadcn-svelte/skills/shadcn-svelte/assets/showcase/state-matrix.svelte|textDocument/definition": [
+			"official-empty",
+			"projection-origin-range",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/skills/shadcn-svelte/assets/showcase/state-matrix.svelte|textDocument/definition|phase=edit": [
+			"official-empty",
+			"projection-origin-range",
+			"projection-target-position-declaration",
+			"projection-target-position-workspace",
+			"rsvelte-empty"
+		],
+		"aggregate:corpus/shadcn-svelte/skills/shadcn-svelte/assets/showcase/state-matrix.svelte|textDocument/hover": [
+			"official-empty",
+			"projection-response-range",
+			"provider-routing",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-import-line",
+			"ts-symbol-name"
+		],
+		"aggregate:corpus/shadcn-svelte/skills/shadcn-svelte/assets/showcase/state-matrix.svelte|textDocument/hover|phase=edit": [
+			"official-empty",
+			"projection-response-range",
+			"provider-routing",
+			"rsvelte-empty",
+			"rsvelte-empty-import-only",
+			"ts-render",
+			"ts-render-import-line",
+			"ts-symbol-name"
 		],
 		"aggregate:corpus/shadcn-svelte/sv-addons/registry/template/src/lib/registry/blocks/checkout-steps/checkout-steps.svelte|textDocument/completion": [
 			"completion-command-presence-rsvelte-only",
