@@ -23,7 +23,11 @@ impl Artifact for Projected {
             .get::<rsvelte_svelte_parser::Parsed>()
             .as_ref()
             .map_err(Clone::clone)?;
-        crate::lower(component, context.source_text()).map_err(|unsupported| {
+        let resolution = context
+            .get::<rsvelte_svelte::Resolved>()
+            .as_ref()
+            .expect("a parsed component resolves");
+        crate::lower_resolved(component, resolution, context.source_text()).map_err(|unsupported| {
             Diagnostic::error(
                 "check_unsupported",
                 format!(
@@ -54,7 +58,7 @@ pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.typescript_projection",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "svelte.parser",
+        identifier: "svelte",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
@@ -66,7 +70,7 @@ pub fn register(registry: &mut Registry) {
 
 pub fn register_artifacts(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_svelte_parser::register(registry);
+    rsvelte_svelte::register(registry);
     registry.artifact::<Projected>().artifact::<Printed>();
 }
 

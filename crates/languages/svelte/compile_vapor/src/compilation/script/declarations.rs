@@ -1,4 +1,4 @@
-use super::{Kind, NodeIdentifier, SyntaxTree, copy, flag, rune_call};
+use super::{Kind, NodeIdentifier, SyntaxTree, copy, flag};
 
 /// One declarator as its own statement: a rune as Vue's reactivity, `$props()` as nothing (its
 /// keys are in `defineProps`), anything else copied.
@@ -17,7 +17,7 @@ pub(super) fn declarator(
         unreachable!("a declarator")
     };
     let rune = initializer
-        .and_then(|i| rune_call(javascript, i))
+        .and_then(|i| rewriter.resolution.rune(javascript, i))
         .filter(|(name, _)| {
             matches!(
                 *name,

@@ -75,9 +75,8 @@ impl Builder<'_, '_> {
                         .map(|&name| copy(self.i.javascript, self.to, &mut Verbatim, name)),
                 );
                 let mut name = copy(self.i.javascript, self.to, &mut Verbatim, identifier);
-                let rune = initializer.and_then(|value| {
-                    rsvelte_svelte::semantic::resolve::rune_call(self.i.javascript, value)
-                });
+                let rune =
+                    initializer.and_then(|value| self.i.resolution.rune(self.i.javascript, value));
                 if let Some((rune, argument)) = rune
                     && crate::script::runes::value(rune)
                     && !matches!(self.i.javascript.kind(identifier), Kind::Identifier(_))

@@ -2,7 +2,7 @@ use rsvelte_typescript::operators::AssignmentOperator;
 use rsvelte_typescript::syntax_tree::Class;
 
 use super::{
-    FxHashMap, FxHashSet, Kind, NodeIdentifier, R, SyntaxTree, rune_call, span, unsupported, walk,
+    FxHashMap, FxHashSet, Kind, NodeIdentifier, R, Resolution, SyntaxTree, span, unsupported, walk,
 };
 
 #[derive(Debug, Default)]
@@ -18,7 +18,12 @@ pub(super) struct Field {
     pub rune: &'static str,
 }
 
-pub(super) fn collect(tree: &SyntaxTree, root: NodeIdentifier, plan: &mut Plan) -> R<()> {
+pub(super) fn collect(
+    tree: &SyntaxTree,
+    resolution: &Resolution,
+    root: NodeIdentifier,
+    plan: &mut Plan,
+) -> R<()> {
     walk(tree, root, &mut |node| {
         let Kind::Class(Class::Definition { members, .. }) = tree.kind(node) else {
             return Ok(());
@@ -61,7 +66,9 @@ pub(super) fn collect(tree: &SyntaxTree, root: NodeIdentifier, plan: &mut Plan) 
                 unreachable!()
             };
             for &statement in statements {
-                if let Some((expression, operator, property, rune)) = assignment(tree, statement) {
+                if let Some((expression, operator, property, rune)) =
+                    assignment(tree, resolution, statement)
+                {
                     if initialized.contains(tree.name(property))
                         || operator != AssignmentOperator::Assign
                     {
@@ -89,6 +96,7 @@ pub(super) fn collect(tree: &SyntaxTree, root: NodeIdentifier, plan: &mut Plan) 
 
 fn assignment(
     tree: &SyntaxTree,
+    resolution: &Resolution,
     statement: NodeIdentifier,
 ) -> Option<(
     NodeIdentifier,
@@ -103,7 +111,9 @@ fn assignment(
         return None;
     };
     let property = property(tree, target)?;
-    let (rune, _) = rune_call(tree, value).filter(|(name, _)| super::runes::value(name))?;
+    let (rune, _) = resolution
+        .rune(tree, value)
+        .filter(|(name, _)| super::runes::value(name))?;
     Some((expression, operator, property, rune))
 }
 
