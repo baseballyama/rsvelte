@@ -97,11 +97,13 @@ impl ServerCompilationContext<'_> {
     }
 }
 
-/// A class value with the stylesheet's hash, trimmed as upstream's `.trim()` does.
+/// A class value with the stylesheet's hash, trimmed as upstream's `.trim()` does; the hash has
+/// no whitespace to trim.
 fn scoped_class(value: &str, hash: &str) -> String {
-    format!("{value} {hash}")
-        .trim_matches(is_javascript_whitespace)
-        .to_owned()
+    match value.trim_start_matches(is_javascript_whitespace) {
+        "" => hash.to_owned(),
+        value => format!("{value} {hash}"),
+    }
 }
 
 fn attribute_text(data: &str, trim: bool) -> String {
