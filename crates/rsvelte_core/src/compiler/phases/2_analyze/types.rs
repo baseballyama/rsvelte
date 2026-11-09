@@ -2143,6 +2143,11 @@ pub struct ComponentAnalysis {
     /// Stores the start position of each await expression that needs $.save() wrapping.
     pub pickled_awaits: FxHashSet<u32>,
 
+    /// The `$state(arg)` argument of each declaration-tag binding, as
+    /// `(node type, identifier name)`: its `initial_node_type` records the whole
+    /// call, while `state_referenced_locally` asks about the argument.
+    pub declaration_tag_state_args: FxHashMap<usize, (String, Option<String>)>,
+
     /// Identifiers that make up bind:group expressions -> internal group binding name
     /// Maps from (key, bindings) to the generated identifier
     pub binding_groups: FxHashMap<String, String>,
@@ -2282,6 +2287,7 @@ impl ComponentAnalysis {
             immutable: options.immutable,
             accessors: options.accessors,
             pickled_awaits: FxHashSet::default(),
+            declaration_tag_state_args: FxHashMap::default(),
             binding_groups: FxHashMap::default(),
             binding_group_names: FxHashMap::default(),
             slot_names: indexmap::IndexMap::default(),

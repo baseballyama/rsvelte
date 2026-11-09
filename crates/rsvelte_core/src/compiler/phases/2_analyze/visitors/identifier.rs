@@ -311,35 +311,8 @@ fn visit_identifier_inner(
         // Check if the function depths match
         if absolute_context_depth == binding_scope_depth {
             // Check binding kind eligibility
-            let is_eligible_kind = match binding.kind {
-                // State: warn if reassigned, or if the initial value is a primitive
-                // (in the official compiler this checks should_proxy on the initial argument)
-                // We simplify: warn for all $state bindings that are reassigned
-                BindingKind::State => {
-                    binding.reassigned || {
-                        // Upstream asks `!should_proxy(initial.arguments[0])`, which is a
-                        // DENY-LIST defaulting to proxied; spelling it as an allow-list
-                        // silently dropped every shape nobody listed. Logical and
-                        // conditional expressions are absent on purpose — either branch
-                        // may produce a proxyable value, so upstream proxies them.
-                        binding.initial_node_type.as_deref().is_some_and(|t| {
-                            matches!(
-                                t,
-                                "Literal"
-                                    | "TemplateLiteral"
-                                    | "ArrowFunctionExpression"
-                                    | "FunctionExpression"
-                                    | "BinaryExpression"
-                                    | "UnaryExpression"
-                            ) || (t == "Identifier"
-                                && binding.initial_identifier_name.as_deref() == Some("undefined"))
-                        })
-                    }
-                }
-                BindingKind::RawState | BindingKind::Derived => true,
-                BindingKind::Prop | BindingKind::RestProp => true,
-                _ => false,
-            };
+            let is_eligible_kind =
+                state_read_can_warn(binding, &context.analysis.root, context.scope);
 
             // For var-hoisted bindings, skip warning if the reference appears before
             // the declaration in source order. The official Svelte compiler sets binding
@@ -675,4 +648,84 @@ fn check_const_tag_snippet_reference(
     }
 
     Ok(())
+}
+
+/// The binding-kind half of upstream's `state_referenced_locally` condition:
+/// a `$state` warns only when reassigned or when its initial value would not
+/// be proxied.
+pub(super) fn state_read_can_warn(
+    binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
+    root: &crate::compiler::phases::phase2_analyze::scope::ScopeRoot,
+    scope: usize,
+) -> bool {
+    state_read_can_warn_with(
+        binding,
+        binding.initial_node_type.as_deref(),
+        binding.initial_identifier_name.as_deref(),
+        root,
+        scope,
+    )
+}
+
+/// Upstream `should_proxy`'s deny-list, before it resolves an identifier.
+fn is_unproxyable(node_type: &str, identifier_name: Option<&str>) -> bool {
+    matches!(
+        node_type,
+        "Literal"
+            | "TemplateLiteral"
+            | "ArrowFunctionExpression"
+            | "FunctionExpression"
+            | "BinaryExpression"
+            | "UnaryExpression"
+    ) || (node_type == "Identifier" && identifier_name == Some("undefined"))
+}
+
+/// [`state_read_can_warn`] with the `$state` argument's node type supplied by
+/// the caller. `scope` is the read site's, where upstream resolves an
+/// identifier argument.
+pub(super) fn state_read_can_warn_with(
+    binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
+    initial_node_type: Option<&str>,
+    initial_identifier_name: Option<&str>,
+    root: &crate::compiler::phases::phase2_analyze::scope::ScopeRoot,
+    scope: usize,
+) -> bool {
+    match binding.kind {
+        BindingKind::State => {
+            binding.reassigned || {
+                // Upstream asks `!should_proxy(initial.arguments[0])`, which is a
+                // DENY-LIST defaulting to proxied; spelling it as an allow-list
+                // silently dropped every shape nobody listed. Logical and
+                // conditional expressions are absent on purpose — either branch
+                // may produce a proxyable value, so upstream proxies them.
+                initial_node_type.is_some_and(|t| {
+                    is_unproxyable(t, initial_identifier_name)
+                        || (t == "Identifier"
+                            && initial_identifier_name
+                                .and_then(|name| root.get_binding(name, scope))
+                                .is_some_and(|idx| {
+                                    // A `$state` / `$derived` binding's `initial` is the
+                                    // rune call, which upstream proxies; this field holds
+                                    // its argument. A prop's is its fallback in both.
+                                    let resolved = &root.bindings[idx];
+                                    !matches!(
+                                        resolved.kind,
+                                        BindingKind::State
+                                            | BindingKind::RawState
+                                            | BindingKind::Derived
+                                    ) && !resolved.reassigned
+                                        && resolved.initial_node_type.as_deref().is_some_and(|it| {
+                                            is_unproxyable(
+                                                it,
+                                                resolved.initial_identifier_name.as_deref(),
+                                            )
+                                        })
+                                }))
+                })
+            }
+        }
+        BindingKind::RawState | BindingKind::Derived => true,
+        BindingKind::Prop | BindingKind::RestProp => true,
+        _ => false,
+    }
 }
