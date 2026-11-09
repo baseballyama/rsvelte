@@ -1,7 +1,7 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_typescript_syntax::operators::UnaryOperator;
 
-use super::super::derived::callback;
+use super::super::derived::{Created, callback};
 
 use super::{
     Kind, NodeIdentifier, ScriptRewrite, SyntaxTree, Target, copy, rune_call, should_proxy,
@@ -96,7 +96,7 @@ pub(super) fn lower_value_declarator(
                 let Some(at) = from.source_location(d).span() else {
                     unreachable!("a declarator is parsed from source")
                 };
-                callback(from, rw.res, to, arg, v, at)
+                callback(from, rw.res, to, arg, v, Created::Script(at))
             } else {
                 v
             };

@@ -184,6 +184,9 @@ impl RenderPlan {
         self.source_regions.insert(children, identifier);
         for &node in tree.children(children) {
             match &tree.node(node).kind {
+                NodeKind::Element(element) if element.kind == ElementKind::Component => {
+                    self.region(input, element.children, Parent::Component, preserve);
+                }
                 NodeKind::Element(element) => {
                     let tag = element.name.text(input.component.source_text);
                     let tag = if tag.bytes().any(|byte| byte.is_ascii_uppercase()) {

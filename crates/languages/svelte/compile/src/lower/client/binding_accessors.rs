@@ -26,8 +26,26 @@ impl ClientCompilationContext<'_> {
         if let Kind::Sequence([_, set]) = self.javascript.kind(expression) {
             return self.expression(*set);
         }
+        let assignment = self.binding_assignment(expression, primitive);
+        let parameter = self.out.identifier("$$value");
+        let set = self.out.arrow(
+            &[parameter],
+            assignment,
+            true,
+            false,
+            SourceLocation::SYNTHETIC,
+        );
+        unthunk(&self.out, set)
+    }
+
+    /// `expression = $$value`, as the script rewrites an assignment to it.
+    pub(super) fn binding_assignment(
+        &mut self,
+        expression: NodeIdentifier,
+        primitive: bool,
+    ) -> NodeIdentifier {
         let value = self.out.identifier("$$value");
-        let assignment = if let Kind::Identifier(_) = self.javascript.kind(expression) {
+        if let Kind::Identifier(_) = self.javascript.kind(expression) {
             let target = self.out.identifier(self.javascript.name(expression));
             match self.res.binding(expression) {
                 Some((binding, info)) if self.res.is_state_source(binding) => {
@@ -55,15 +73,6 @@ impl ClientCompilationContext<'_> {
                 value,
                 SourceLocation::SYNTHETIC,
             )
-        };
-        let parameter = self.out.identifier("$$value");
-        let set = self.out.arrow(
-            &[parameter],
-            assignment,
-            true,
-            false,
-            SourceLocation::SYNTHETIC,
-        );
-        unthunk(&self.out, set)
+        }
     }
 }

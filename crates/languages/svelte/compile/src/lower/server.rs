@@ -4,6 +4,7 @@ mod attributes;
 mod blocks;
 mod boundary;
 mod children;
+mod component;
 mod directives;
 mod dynamic_element;
 mod elements {
@@ -28,7 +29,10 @@ use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte_syntax::parse::is_void;
 use rsvelte_typescript_compile::copy::copy;
 use rsvelte_typescript_semantic::scope::ScopeIdentifier;
-use rsvelte_typescript_syntax::operators::{BinaryOperator, UpdateOperator};
+use rsvelte_typescript_syntax::operators::{
+    AssignmentOperator, BinaryOperator, UnaryOperator, UpdateOperator,
+};
+use rsvelte_typescript_syntax::syntax_tree::Control;
 use rsvelte_typescript_syntax::syntax_tree::flag;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
@@ -37,7 +41,7 @@ use super::javascript::{call_arguments, init_property, runtime_call};
 use super::names::Names;
 use super::script::ScriptRewrite;
 use super::{
-    Item, Prepared, Target, check_binding, check_foreign_element, escape_markup, event_attribute,
+    Item, Prepared, Target, check_foreign_element, escape_markup, event_attribute,
     is_boolean_attribute, is_customizable_select, is_directive, is_load_error_element, needs_clsx,
     sanitize_template_string, synthetic_value, unsupported,
 };
@@ -48,6 +52,7 @@ type R<T> = Result<T, Diagnostic>;
 const BLOCK_OPEN: &str = "<!--[-->";
 const BLOCK_OPEN_ELSE: &str = "<!--[!-->";
 const BLOCK_CLOSE: &str = "<!--]-->";
+const EMPTY_COMMENT: &str = "<!---->";
 
 /// One piece of a server template before it is folded into `$$renderer.push(…)` calls.
 enum Piece {
@@ -116,7 +121,10 @@ pub(super) fn lower_prepared(
         plan,
         identity,
     };
-    let template = sx.fragment(input.component.compiler_syntax_tree.root)?;
+    let mut template = sx.fragment(input.component.compiler_syntax_tree.root)?;
+    if uses_component_bindings(input) {
+        template = sx.settle(&template);
+    }
 
     let o = &mut sx.out;
     let mut body: Vec<NodeIdentifier> = instance;
@@ -184,4 +192,96 @@ pub(super) fn lower_prepared(
     program.push(o.export_default(func, SourceLocation::SYNTHETIC));
     let root = o.program(&program, SourceLocation::SYNTHETIC);
     Ok((sx.out, root))
+}
+
+impl ServerCompilationContext<'_> {
+    /// `$$renderer.push(text)` with one string literal, which `build_template` would merge with
+    /// its neighbours.
+    pub(super) fn push_literal(&mut self, text: &str) -> NodeIdentifier {
+        let text = self.out.write_string(text);
+        let call = self.out.runtime("$$renderer", "push", &[text]);
+        self.out.expression_statement(call)
+    }
+
+    /// Renders the template until no child binding changes a value (`$$settled`).
+    fn settle(&mut self, template: &[NodeIdentifier]) -> Vec<NodeIdentifier> {
+        let o = &mut self.out;
+        let settled = o.identifier("$$settled");
+        let yes = o.write_boolean(true, SourceLocation::SYNTHETIC);
+        let declare_settled = o.let_(flag::LET, settled, Some(yes));
+        let inner = o.identifier("$$inner_renderer");
+        let declare_inner = o.let_(flag::LET, inner, None);
+        let body = o.block(template, SourceLocation::SYNTHETIC);
+        let name = o.identifier("$$render_inner");
+        let renderer = o.identifier("$$renderer");
+        let render_inner = o.function(
+            true,
+            Some(name),
+            &[renderer],
+            body,
+            false,
+            SourceLocation::SYNTHETIC,
+        );
+        let reset = set_settled(o, true);
+        let inner = o.identifier("$$inner_renderer");
+        let copy = o.runtime("$$renderer", "copy", &[]);
+        let copy = assign_statement(o, inner, copy);
+        let inner = o.identifier("$$inner_renderer");
+        let name = o.identifier("$$render_inner");
+        let render = o.call0(name, &[inner]);
+        let loop_body = [reset, copy, o.expression_statement(render)];
+        let loop_body = o.block(&loop_body, SourceLocation::SYNTHETIC);
+        let settled = o.identifier("$$settled");
+        let unsettled = o.unary(UnaryOperator::Not, settled, SourceLocation::SYNTHETIC);
+        let do_while = o.control(
+            Control::While {
+                test: unsettled,
+                body: loop_body,
+                is_do: true,
+            },
+            SourceLocation::SYNTHETIC,
+        );
+        let inner = o.identifier("$$inner_renderer");
+        let subsume = o.runtime("$$renderer", "subsume", &[inner]);
+        vec![
+            declare_settled,
+            declare_inner,
+            render_inner,
+            do_while,
+            o.expression_statement(subsume),
+        ]
+    }
+}
+
+fn assign_statement(
+    out: &mut SyntaxTree,
+    target: NodeIdentifier,
+    value: NodeIdentifier,
+) -> NodeIdentifier {
+    let assignment = out.assign(
+        AssignmentOperator::Assign,
+        target,
+        value,
+        SourceLocation::SYNTHETIC,
+    );
+    out.expression_statement(assignment)
+}
+
+/// `$$settled = value;`: a child binding that writes a value makes the render run again.
+fn set_settled(out: &mut SyntaxTree, value: bool) -> NodeIdentifier {
+    let settled = out.identifier("$$settled");
+    let value = out.write_boolean(value, SourceLocation::SYNTHETIC);
+    assign_statement(out, settled, value)
+}
+
+/// Upstream `analysis.uses_component_bindings`.
+fn uses_component_bindings(input: &super::CompileInput<'_>) -> bool {
+    let tree = input.component.compiler_syntax_tree;
+    tree.elements().any(|(_, element)| {
+        element.kind.renders_component()
+            && tree.attributes(element.attributes).iter().any(|a| {
+                matches!(a.value, AttributeValue::Bind(_))
+                    && a.name.text(input.component.source_text) != "this"
+            })
+    })
 }

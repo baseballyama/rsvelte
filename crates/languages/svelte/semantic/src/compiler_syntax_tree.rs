@@ -290,6 +290,17 @@ pub enum ElementKind {
     Metadata(Option<MetadataTag>),
 }
 
+impl ElementKind {
+    /// Upstream's `Component`, `SvelteComponent` and `SvelteSelf`: a tag that renders a component.
+    #[must_use]
+    pub const fn renders_component(self) -> bool {
+        matches!(
+            self,
+            Self::Component | Self::Metadata(Some(MetadataTag::Component | MetadataTag::SelfRef))
+        )
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MetadataTag {
     Head,
@@ -488,6 +499,13 @@ impl CompilerSyntaxTree {
             .binary_search_by_key(&identifier, |&(node, _)| node)
             .ok()?;
         Some(self.component_references[index].1)
+    }
+
+    /// The expression each component element names its component by.
+    pub fn component_references(&self) -> impl Iterator<Item = NodeIdentifier> + '_ {
+        self.component_references
+            .iter()
+            .map(|&(_, reference)| reference)
     }
 
     #[must_use]

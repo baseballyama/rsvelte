@@ -7,6 +7,14 @@ use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::javascript::unthunk;
 
+#[derive(Clone, Copy)]
+pub(super) enum Created {
+    /// At this declarator in the script.
+    Script(Span),
+    /// In the template, which runs after the script.
+    Template,
+}
+
 /// Upstream's `b.thunk(value)`, except that `() => f()` stays an arrow unless `source`, the
 /// expression `value` was built from, calls a function `$.derived(f)` may keep.
 pub(super) fn callback(
@@ -15,10 +23,10 @@ pub(super) fn callback(
     out: &mut SyntaxTree,
     source: Option<NodeIdentifier>,
     value: NodeIdentifier,
-    at: Span,
+    created: Created,
 ) -> NodeIdentifier {
     let arrow = out.arrow(&[], value, true, false, SourceLocation::SYNTHETIC);
-    if source.is_none_or(|source| final_callee(syntax_tree, res, source, at)) {
+    if source.is_none_or(|source| final_callee(syntax_tree, res, source, created)) {
         unthunk(out, arrow)
     } else {
         arrow
@@ -26,12 +34,13 @@ pub(super) fn callback(
 }
 
 /// Whether the callee of the call `source` already holds the function it keeps when the derived
-/// at `at` is created: one never reassigned, and a function, an import or declared before `at`.
+/// is created: one never reassigned, and a function, an import or declared before the derived.
+/// A global counts as final, as upstream treats it, although the component cannot see its writes.
 fn final_callee(
     syntax_tree: &SyntaxTree,
     res: &Resolution,
     source: NodeIdentifier,
-    at: Span,
+    created: Created,
 ) -> bool {
     let Kind::Call { callee, .. } = syntax_tree.kind(source) else {
         return true;
@@ -39,12 +48,17 @@ fn final_callee(
     res.sem.binding_of(callee).is_none_or(|b| {
         let binding = &res.sem.bindings[b];
         binding.writes == 0
-            && (matches!(
-                binding.kind,
-                DeclarationKind::Function | DeclarationKind::Import
-            ) || syntax_tree
-                .source_location(binding.node)
-                .span()
-                .is_some_and(|span| span.start_offset < at.start_offset))
+            && match created {
+                Created::Template => true,
+                Created::Script(at) => {
+                    matches!(
+                        binding.kind,
+                        DeclarationKind::Function | DeclarationKind::Import
+                    ) || syntax_tree
+                        .source_location(binding.node)
+                        .span()
+                        .is_some_and(|span| span.start_offset < at.start_offset)
+                }
+            }
     })
 }

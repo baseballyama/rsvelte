@@ -30,8 +30,6 @@ impl ClientCompilationContext<'_> {
             l.initializer.append(&mut l.after);
             return Ok(l.initializer);
         }
-        let close;
-
         let single_element = match items.as_ref() {
             [Item::Node(identifier)] => match &self.compiler_syntax_tree.node(*identifier).kind {
                 NodeKind::Element(e) if e.kind == super::ElementKind::Regular => {
@@ -41,7 +39,7 @@ impl ClientCompilationContext<'_> {
             },
             _ => None,
         };
-        if let Some((el, name)) = single_element {
+        let root = if let Some((el, name)) = single_element {
             let identifier = self.names.generate(name.text(self.source_text));
             self.element(el, &identifier, &mut frag, &mut l)?;
             let flags = if frag.tpl.needs_import_node {
@@ -50,17 +48,11 @@ impl ClientCompilationContext<'_> {
                 0
             };
             let callee = self.transform_template(&frag.tpl, "root", flags);
-            let call = self.out.call0(callee, &[]);
-            let declaration = self.var(&identifier, call);
-            l.initializer.insert(0, declaration);
-            close = self.append(&identifier);
+            Some((identifier, self.out.call0(callee, &[])))
         } else if let [Item::Text { data, .. }] = items.as_ref() {
             let identifier = self.names.generate("text");
             let s = self.out.write_string(data);
-            let call = self.call("text", vec![Some(s)]);
-            let declaration = self.var(&identifier, call);
-            l.initializer.insert(0, declaration);
-            close = self.append(&identifier);
+            Some((identifier, self.call("text", vec![Some(s)])))
         } else {
             let identifier = self.names.generate("fragment");
             let use_space_template = items.iter().any(|i| matches!(i, Item::Expression(_)))
@@ -69,39 +61,37 @@ impl ClientCompilationContext<'_> {
                     .all(|i| matches!(i, Item::Text { .. } | Item::Expression(_)));
             if use_space_template {
                 let text = self.names.generate("text");
-                self.process_children(
-                    items,
-                    Prev::Identifier(text.clone()),
-                    false,
-                    &mut frag,
-                    &mut l,
-                )?;
-                let call = self.call("text", vec![]);
-                let declaration = self.var(&text, call);
-                l.initializer.insert(0, declaration);
-                close = self.append(&text);
+                let initial = Prev::Identifier(text.clone());
+                self.process_children(items, initial, false, &mut frag, &mut l)?;
+                Some((text, self.call("text", vec![])))
+            } else if let Some(component) = super::super::component::standalone_component(
+                self.compiler_syntax_tree,
+                self.javascript,
+                self.res,
+                items,
+            ) {
+                // A lone static component has no markup to clone, so it mounts at the anchor.
+                self.component(component, "$$anchor", true, &mut frag, &mut l)?;
+                None
             } else {
-                self.process_children(
-                    items,
-                    Prev::Call {
-                        method: "first_child",
-                        of: identifier.clone(),
-                    },
-                    false,
-                    &mut frag,
-                    &mut l,
-                )?;
+                let initial = Prev::Call {
+                    method: "first_child",
+                    of: identifier.clone(),
+                };
+                self.process_children(items, initial, false, &mut frag, &mut l)?;
                 let mut flags = TEMPLATE_FRAGMENT;
                 if frag.tpl.needs_import_node {
                     flags |= TEMPLATE_USE_IMPORT_NODE;
                 }
                 let callee = self.transform_template(&frag.tpl, "root", flags);
-                let call = self.out.call0(callee, &[]);
-                let declaration = self.var(&identifier, call);
-                l.initializer.insert(0, declaration);
-                close = self.append(&identifier);
+                Some((identifier, self.out.call0(callee, &[])))
             }
-        }
+        };
+        let close = root.map(|(identifier, call)| {
+            let declaration = self.var(&identifier, call);
+            l.initializer.insert(0, declaration);
+            self.append(&identifier)
+        });
 
         let mut body = Vec::new();
         if cleaned.text_first {
@@ -114,7 +104,7 @@ impl ClientCompilationContext<'_> {
             body.push(effect);
         }
         body.append(&mut l.after);
-        body.push(close);
+        body.extend(close);
         Ok(body)
     }
 

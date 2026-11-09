@@ -5,6 +5,7 @@ mod binding_accessors;
 mod blocks;
 mod boundary;
 mod children;
+mod component;
 mod custom_element;
 mod directives;
 mod dynamic_element;
@@ -39,8 +40,8 @@ use super::javascript::{init_property, runtime_call, unthunk};
 use super::names::Names;
 use super::script::{Read, ScriptRewrite};
 use super::{
-    Item, Prepared, Target, check_binding, check_foreign_element, escape_markup, event_attribute,
-    has_dependency, is_customizable_select, is_directive, is_load_error_element, needs_clsx,
+    Item, Prepared, Target, check_foreign_element, escape_markup, event_attribute, has_dependency,
+    is_customizable_select, is_directive, is_load_error_element, needs_clsx,
     sanitize_template_string, synthetic_value, unsupported,
 };
 use crate::render_plan::RenderPlan;
@@ -80,10 +81,14 @@ struct Frag {
     memo: Memo,
 }
 
-/// The memoized expressions of one render effect.
+/// The memoized expressions of one render effect or one component's props, and how they are
+/// read.
 #[derive(Default)]
 struct Memo {
     values: Vec<NodeIdentifier>,
+    /// The source expression each value was built from, which a derived's callback reads.
+    sources: Vec<NodeIdentifier>,
+    reads: MemoReads,
 }
 
 impl Memo {
@@ -96,6 +101,17 @@ impl Memo {
     fn names(&self, out: &mut SyntaxTree) -> Vec<NodeIdentifier> {
         (0..self.values.len()).map(|i| Self::name(out, i)).collect()
     }
+}
+
+/// How memoized expressions are read: as the render effect's parameters, or, for a component's
+/// props, from deriveds that also hold a stateful value when `if_state`.
+#[derive(Clone, Copy, Default)]
+enum MemoReads {
+    #[default]
+    Effect,
+    Derived {
+        if_state: bool,
+    },
 }
 
 #[derive(Default)]

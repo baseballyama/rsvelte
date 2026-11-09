@@ -1,6 +1,6 @@
 use super::{
-    ClientCompilationContext, Memo, NodeIdentifier, ScriptRewrite, SourceLocation, Target, copy,
-    flag, runtime_call, unthunk,
+    ClientCompilationContext, Memo, MemoReads, NodeIdentifier, ScriptRewrite, SourceLocation,
+    Target, copy, flag, runtime_call, unthunk,
 };
 
 impl ClientCompilationContext<'_> {
@@ -65,11 +65,17 @@ impl ClientCompilationContext<'_> {
         source: NodeIdentifier,
         value: NodeIdentifier,
     ) -> NodeIdentifier {
-        if !self.an.meta(source).has_call {
+        let meta = self.an.meta(source);
+        let if_state = matches!(memo.reads, MemoReads::Derived { if_state: true });
+        if !(meta.has_call || if_state && meta.has_state) {
             return value;
         }
         let identifier = Memo::name(&mut self.out, memo.values.len());
         memo.values.push(value);
-        identifier
+        memo.sources.push(source);
+        match memo.reads {
+            MemoReads::Effect => identifier,
+            MemoReads::Derived { .. } => self.out.runtime("$", "get", &[identifier]),
+        }
     }
 }

@@ -1,6 +1,4 @@
-use super::{
-    Attribute, AttributeValue, ClientCompilationContext, Lists, NodeIdentifier, R, check_binding,
-};
+use super::{Attribute, AttributeValue, ClientCompilationContext, Lists, NodeIdentifier};
 
 impl ClientCompilationContext<'_> {
     /// The directives of upstream `RegularElement`'s `other_directives`, in attribute order.
@@ -9,7 +7,7 @@ impl ClientCompilationContext<'_> {
         attributes: &[Attribute],
         tag: &str,
         node: &str,
-    ) -> R<Lists> {
+    ) -> Lists {
         let mut directives = Lists::default();
         for a in attributes {
             match a.value {
@@ -23,7 +21,7 @@ impl ClientCompilationContext<'_> {
                     directives.initializer.push(self.statement(call));
                 }
                 AttributeValue::Bind(_) => {
-                    let call = self.binding(a, tag, attributes, node)?;
+                    let call = self.binding(a, tag, node);
                     directives.after.push(self.statement(call));
                 }
                 AttributeValue::Attach(e) => {
@@ -33,34 +31,23 @@ impl ClientCompilationContext<'_> {
                 _ => {}
             }
         }
-        Ok(directives)
+        directives
     }
 
-    /// Upstream `BindDirective` (client, non-dev) for the bindings [`check_binding`] admits.
-    fn binding(
-        &mut self,
-        a: &Attribute,
-        tag: &str,
-        attributes: &[Attribute],
-        node: &str,
-    ) -> R<NodeIdentifier> {
-        let e = check_binding(
-            self.javascript,
-            self.res,
-            self.source_text,
-            tag,
-            attributes,
-            a,
-        )?;
+    /// Upstream `BindDirective` (client, non-dev) for the bindings coverage admits.
+    fn binding(&mut self, a: &Attribute, tag: &str, node: &str) -> NodeIdentifier {
+        let AttributeValue::Bind(e) = a.value else {
+            unreachable!("called on bindings")
+        };
         let (get, set) = self.binding_accessors(e, true);
         let x = self.out.identifier(node);
         let method = match a.name.text(self.source_text) {
             "value" if tag == "select" => "bind_select_value",
             "value" => "bind_value",
             "checked" => "bind_checked",
-            p => unreachable!("`check_binding` admits no `bind:{p}`"),
+            p => unreachable!("coverage admits no `bind:{p}`"),
         };
-        Ok(self.call(method, vec![Some(x), Some(get), Some(set)]))
+        self.call(method, vec![Some(x), Some(get), Some(set)])
     }
 
     /// Upstream `AttachTag` (client).

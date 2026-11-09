@@ -36,19 +36,24 @@ fn squashed(source: &str, target: Target) -> String {
 
 #[test]
 fn a_derived_keeps_its_arrow_only_when_the_callee_may_change() {
-    let source = "<script>const g = () => 1; let f = () => 1; function swap() { f = () => 2; } let d = $derived(g()); let e = $derived(f()); let l = $derived(h()); const h = () => 3;</script>{d}{e}{l}<button onclick={swap}>s</button>";
-    for target in [Target::Client, Target::Server] {
-        let output = squashed(source, target);
-        for expected in [
-            "letd=$.derived(g);",
-            "lete=$.derived(()=>f());",
-            "letl=$.derived(()=>h());",
-        ] {
-            assert!(
-                output.contains(expected),
-                "{expected} on {target:?} in {output}"
-            );
-        }
+    let source = "<script>import A from './A.svelte'; const g = () => 1; let f = () => 1; function swap() { f = () => 2; } let d = $derived(g()); let e = $derived(f()); let l = $derived(h()); const h = () => 3;</script><A a={f()} b={g()} {d} {e} {l} {swap} />";
+    let client = squashed(source, Target::Client);
+    for expected in [
+        "letd=$.derived(g);",
+        "lete=$.derived(()=>f());",
+        "letl=$.derived(()=>h());",
+        "let$0=$.derived(()=>f());",
+        "let$1=$.derived(g);",
+    ] {
+        assert!(client.contains(expected), "{expected} in {client}");
+    }
+    let server = squashed(source, Target::Server);
+    for expected in [
+        "letd=$.derived(g);",
+        "lete=$.derived(()=>f());",
+        "letl=$.derived(()=>h());",
+    ] {
+        assert!(server.contains(expected), "{expected} in {server}");
     }
 }
 
@@ -112,6 +117,44 @@ fn a_grouped_optional_chain_is_neither_pure_nor_safe() {
 }
 
 #[test]
+fn each_component_attribute_not_lowered_yet_is_refused_on_both_targets() {
+    for attribute in [
+        "bind:this={c}",
+        "bind:group={c}",
+        "bind:v={1}",
+        "{@attach f}",
+        "class:x",
+        "on:click={f}",
+        "use:f",
+        "transition:f",
+        "animate:f",
+        "style:color=\"red\"",
+        "let:x",
+        "--color=\"red\"",
+        "slot=\"x\"",
+    ] {
+        let source = format!(
+            "<script>import C from './C.svelte'; let c; function f() {{}}</script><C {attribute} />"
+        );
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(
+                compile(&source, target),
+                Err("unsupported".to_owned()),
+                "{source} on {target:?}"
+            );
+        }
+    }
+    let children = "<script>import C from './C.svelte';</script><C children={1}>a</C>";
+    for target in [Target::Client, Target::Server] {
+        assert_eq!(
+            compile(children, target),
+            Err("unsupported".to_owned()),
+            "{target:?}"
+        );
+    }
+}
+
+#[test]
 fn only_the_instance_splits_a_declaration_into_one_per_declarator() {
     let source = "<script module>let m = 1, n = 2;</script><script>let p = 1, q = 2; function f() { let r = 1, s = 2; return r + s; }</script>{m}{n}{p}{q}{f()}";
     for target in [Target::Client, Target::Server] {
@@ -123,4 +166,18 @@ fn only_the_instance_splits_a_declaration_into_one_per_declarator() {
             );
         }
     }
+}
+
+#[test]
+fn a_grouped_optional_chain_in_a_prop_is_a_member() {
+    let source = "<script>import C from './C.svelte'; let { a } = $props();</script><C x={(a?.b).c} y={a?.b} />";
+    let client = squashed(source, Target::Client);
+    for expected in [
+        "let$0=$.derived(()=>$$props.a?.b);",
+        "getx(){return($$props.a?.b).c;}",
+        "gety(){return$.get($0);}",
+    ] {
+        assert!(client.contains(expected), "{expected} in {client}");
+    }
+    assert!(squashed(source, Target::Server).contains("x:(a?.b).c,y:a?.b"));
 }

@@ -115,15 +115,4 @@ impl ServerCompilationContext<'_> {
             SourceLocation::SYNTHETIC,
         )
     }
-
-    /// `$$renderer.push('…')`.
-    fn push_literal(&mut self, text: &str) -> NodeIdentifier {
-        let r = self.out.identifier("$$renderer");
-        let callee = self.out.dot(r, "push");
-        let m = self.out.write_string(text);
-        let call = self
-            .out
-            .call(callee, &[m], false, SourceLocation::SYNTHETIC);
-        self.out.expression_statement(call)
-    }
 }

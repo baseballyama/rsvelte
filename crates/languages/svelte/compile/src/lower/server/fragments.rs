@@ -1,8 +1,7 @@
 use super::{
-    NodeIdentifier, Piece, R, ServerCompilationContext, SourceLocation, sanitize_template_string,
+    EMPTY_COMMENT, NodeIdentifier, Piece, R, ServerCompilationContext, SourceLocation,
+    sanitize_template_string,
 };
-
-const EMPTY_COMMENT: &str = "<!---->";
 
 impl ServerCompilationContext<'_> {
     pub(super) fn fragment(
@@ -33,7 +32,16 @@ impl ServerCompilationContext<'_> {
         if cleaned.text_first {
             template.push(Piece::Text(EMPTY_COMMENT.into()));
         }
-        self.process_children(&cleaned.items, &mut template)?;
+        if let Some(component) = super::super::component::standalone_component(
+            self.compiler_syntax_tree,
+            self.javascript,
+            self.res,
+            &cleaned.items,
+        ) {
+            self.component(component, true, &mut template)?;
+        } else {
+            self.process_children(&cleaned.items, &mut template)?;
+        }
         Ok(self.build_template(template))
     }
 

@@ -5,6 +5,7 @@
 //! the client, string pushing on the server) live in `client` and `server`.
 
 mod client;
+mod component;
 mod coverage;
 mod custom_element;
 mod derived;
@@ -128,7 +129,7 @@ pub(crate) fn validate(
     res: &Resolution,
 ) -> Result<ValidatedOptions, Diagnostic> {
     let custom_element = special::validate(input)?;
-    coverage::check(input)?;
+    coverage::check(input, res)?;
     validation::check_typescript(input)?;
     check_stores(
         input.component.javascript,
@@ -172,8 +173,8 @@ pub use template::{
     DOM_BOOLEAN_ATTRIBUTES, is_boolean_attribute, is_customizable_select, sanitize_template_string,
 };
 use template::{
-    check_binding, event_attribute, has_dependency, is_directive, is_dom_property,
-    is_load_error_element, synthetic_value,
+    event_attribute, has_dependency, is_directive, is_dom_property, is_load_error_element,
+    synthetic_value,
 };
 pub(crate) use validation::check_foreign_element;
 use validation::{check_runes, check_stores};

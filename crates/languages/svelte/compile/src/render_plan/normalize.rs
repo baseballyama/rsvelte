@@ -29,6 +29,8 @@ pub enum Parent<'a> {
     /// The body or the fallback of an `{#each}`.
     Each,
     Snippet,
+    /// A component's children.
+    Component,
 }
 
 #[derive(Debug)]
@@ -184,7 +186,11 @@ pub fn clean_nodes<'a>(
 
     let text_first = matches!(
         parent,
-        Parent::Root | Parent::Each | Parent::Snippet | Parent::Element("svelte:boundary")
+        Parent::Root
+            | Parent::Each
+            | Parent::Snippet
+            | Parent::Component
+            | Parent::Element("svelte:boundary")
     ) && matches!(
         trimmed.first(),
         Some(Item::Text { .. } | Item::Expression(_))

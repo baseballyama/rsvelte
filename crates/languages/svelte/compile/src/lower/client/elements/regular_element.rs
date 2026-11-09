@@ -47,7 +47,7 @@ impl ClientCompilationContext<'_> {
                 !is_directive(&attribute.value) && attribute.name.text(self.source_text) == "is"
             });
         // Upstream visits directives into their own lists, which follow the children's.
-        let mut directives = self.element_directives(attribute_list, &tag, node)?;
+        let mut directives = self.element_directives(attribute_list, &tag, node);
         let has_spread = attribute_list
             .iter()
             .any(|a| matches!(a.value, AttributeValue::Spread(_)));
