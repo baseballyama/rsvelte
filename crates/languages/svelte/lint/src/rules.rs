@@ -5,6 +5,7 @@ mod first_attribute_linebreak;
 mod max_attributes_per_line;
 mod no_spaces_around_equal_signs_in_attribute;
 mod no_unused_variables;
+mod sort_attributes;
 mod tags;
 mod valid_each_key;
 
@@ -15,5 +16,6 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &first_attribute_linebreak::RULE,
     &max_attributes_per_line::RULE,
     &no_spaces_around_equal_signs_in_attribute::RULE,
+    &sort_attributes::RULE,
     &valid_each_key::RULE,
 ];
