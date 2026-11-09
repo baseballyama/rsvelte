@@ -13,6 +13,7 @@ pub(crate) use rsvelte_svelte_syntax::names::is_component_name;
 pub use rsvelte_svelte_syntax::syntax_tree::Part;
 use rsvelte_svelte_syntax::syntax_tree::{TemplateNodeIdentifier, decode_text};
 use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 newtype_index!(
     pub struct CompilerNodeIdentifier;
@@ -569,6 +570,13 @@ impl NodeKind {
             }
             _ => None,
         }
+    }
+
+    /// A `Text` node that upstream's `data.trim() === ''` calls empty.
+    #[must_use]
+    pub fn is_blank_text(&self, source_text: &str) -> bool {
+        self.text(source_text)
+            .is_some_and(|text| text.chars().all(is_javascript_whitespace))
     }
 }
 

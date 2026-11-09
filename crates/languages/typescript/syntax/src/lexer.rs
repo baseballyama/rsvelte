@@ -6,6 +6,22 @@
 
 use rsvelte_kernel::source::positions::Span;
 
+/// What JavaScript's `String.prototype.trim` removes: `WhiteSpace` and `LineTerminator`.
+#[must_use]
+pub const fn is_javascript_whitespace(c: char) -> bool {
+    matches!(
+        c,
+        '\t' | '\n' | '\u{B}' | '\u{C}' | '\r' | ' ' | '\u{A0}' | '\u{1680}' | '\u{2000}'
+            ..='\u{200A}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{202F}'
+                | '\u{205F}'
+                | '\u{3000}'
+                | '\u{FEFF}'
+    )
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum T {
     Eof,

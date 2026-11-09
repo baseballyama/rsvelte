@@ -257,9 +257,8 @@ pub fn is_customizable_select(
                 | NodeKind::Debug { .. }
                 | NodeKind::Const { .. }
                 | NodeKind::Declaration { .. } => {}
-                NodeKind::Text { raw, decoded, .. } => {
-                    let data = decoded.as_deref().unwrap_or_else(|| raw.text(source_text));
-                    if !data.trim().is_empty() {
+                kind @ NodeKind::Text { .. } => {
+                    if !kind.is_blank_text(source_text) {
                         out.push(identifier);
                     }
                 }
