@@ -155,10 +155,7 @@ pub fn copy_node<R: Rewrite + ?Sized>(
             let body = copy(f, to, rw, body);
             to.for_(initializer, test, update, body, span)
         }
-        Kind::Block(body) => {
-            let b = copy_all(f, to, rw, body);
-            to.block(&b, span)
-        }
+        Kind::Block(body) => copy_block(f, to, rw, identifier, body),
         Kind::Empty => to.empty(span),
         Kind::Import {
             specifiers,
@@ -364,6 +361,60 @@ pub fn copy_node<R: Rewrite + ?Sized>(
     }
 }
 
+/// A block, with the blocks nested directly in it copied from a stack: `{{{…}}}` nests thousands
+/// deep in real input. Each nested block still goes to the rewriter first, as [`copy`] does.
+fn copy_block<R: Rewrite + ?Sized>(
+    f: &SyntaxTree,
+    to: &mut SyntaxTree,
+    rw: &mut R,
+    identifier: NodeIdentifier,
+    body: &[NodeIdentifier],
+) -> NodeIdentifier {
+    struct Open<'a> {
+        identifier: NodeIdentifier,
+        body: &'a [NodeIdentifier],
+        copied: Vec<NodeIdentifier>,
+    }
+    let mut open = vec![Open {
+        identifier,
+        body,
+        copied: Vec::with_capacity(body.len()),
+    }];
+    loop {
+        let innermost = open.last_mut().expect("the outermost block closes last");
+        if let Some((&child, rest)) = innermost.body.split_first() {
+            innermost.body = rest;
+            let Kind::Block(body) = f.kind(child) else {
+                let copied = copy(f, to, rw, child);
+                innermost.copied.push(copied);
+                continue;
+            };
+            match rw.rewrite(f, to, child) {
+                Some(rewritten) => innermost.copied.push(rewritten),
+                None => open.push(Open {
+                    identifier: child,
+                    body,
+                    copied: Vec::with_capacity(body.len()),
+                }),
+            }
+            continue;
+        }
+        let closed = open.pop().expect("the outermost block closes last");
+        let block = to.block(&closed.copied, f.source_location(closed.identifier));
+        let Some(parent) = open.last_mut() else {
+            // The outermost block's own flags are applied by `copy_node`.
+            return block;
+        };
+        parent
+            .copied
+            .push(if f.flags(closed.identifier) & flag::GROUPED != 0 {
+                to.grouped(block)
+            } else {
+                block
+            });
+    }
+}
+
 fn copy_template_element(f: &SyntaxTree, to: &mut SyntaxTree, q: NodeIdentifier) -> NodeIdentifier {
     let tail = f.flags(q) & flag::TAIL != 0;
     if f.flags(q) & flag::OWNED != 0 {
@@ -383,3 +434,6 @@ use control::copy_control;
 
 mod classes;
 use classes::copy_class;
+
+#[cfg(test)]
+mod tests;
