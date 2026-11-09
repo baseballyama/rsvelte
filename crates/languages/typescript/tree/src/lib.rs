@@ -6,7 +6,7 @@
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Expression, Program};
 use oxc_diagnostics::OxcDiagnostic;
-use oxc_parser::Parser;
+use oxc_parser::{ParseOptions, Parser};
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
@@ -20,20 +20,20 @@ mod cell {
 
     use oxc_allocator::Allocator;
 
-    use super::Parsed;
+    use super::Trees;
 
     self_cell::self_cell!(
         pub(super) struct Cell {
             owner: Allocator,
             #[covariant]
-            dependent: Parsed,
+            dependent: Trees,
         }
     );
 }
 
 use cell::Cell;
 
-struct Parsed<'a> {
+struct Trees<'a> {
     source_text: &'a str,
     programs: Vec<Program<'a>>,
     expressions: Vec<Expression<'a>>,
@@ -86,7 +86,7 @@ impl Tree {
                 expressions: Vec::new(),
             };
             parse(&mut builder)?;
-            Ok(Parsed {
+            Ok(Trees {
                 source_text: builder.source_text,
                 programs: builder.programs,
                 expressions: builder.expressions,
@@ -100,12 +100,23 @@ impl Tree {
     /// # Errors
     ///
     /// The first syntax error.
-    pub fn program(document: &Document, source_type: SourceType) -> Result<Self, Diagnostic> {
-        Self::build(document, |builder| {
+    pub fn program(
+        document: &Document,
+        source_type: SourceType,
+    ) -> Result<(Self, ProgramIdentifier), Diagnostic> {
+        let tree = Self::build(document, |builder| {
             builder
                 .parse_program(builder.source_text, 0, source_type)
                 .map(drop)
-        })
+        })?;
+        // The first program a builder parses.
+        Ok((tree, ProgramIdentifier(0)))
+    }
+
+    /// The arena the trees live in, where a task such as the formatter allocates what it builds.
+    #[must_use]
+    pub fn allocator(&self) -> &Allocator {
+        self.0.borrow_owner()
     }
 
     #[must_use]
@@ -156,6 +167,7 @@ impl<'a> Builder<'a> {
         source_type: SourceType,
     ) -> Result<ProgramIdentifier, Diagnostic> {
         let parsed = Parser::new(self.allocator, text, source_type)
+            .with_options(options())
             .with_start(start)
             .parse();
         if !parsed.diagnostics.is_empty() {
@@ -177,11 +189,20 @@ impl<'a> Builder<'a> {
         source_type: SourceType,
     ) -> Result<(ExpressionIdentifier, u32), Diagnostic> {
         let (expression, end) = Parser::new(self.allocator, self.source_text, source_type)
+            .with_options(options())
             .parse_expression_at(start)
             .map_err(|errors| diagnostic(errors, start))?;
         let identifier = ExpressionIdentifier(identifier(self.expressions.len()));
         self.expressions.push(expression);
         Ok((identifier, end))
+    }
+}
+
+/// `ESTree` has no parentheses, and the formatter requires that they are not kept.
+fn options() -> ParseOptions {
+    ParseOptions {
+        preserve_parens: false,
+        ..ParseOptions::default()
     }
 }
 
@@ -205,6 +226,9 @@ fn diagnostic(errors: impl IntoIterator<Item = OxcDiagnostic>, fallback: u32) ->
     );
     Diagnostic::error("parse_error", error.message.to_string(), span)
 }
+
+mod computation;
+pub use computation::{PLUGIN, Parsed, Script, register};
 
 #[cfg(test)]
 mod tests;

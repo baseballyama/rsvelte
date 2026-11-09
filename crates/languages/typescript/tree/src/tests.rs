@@ -48,11 +48,21 @@ fn an_error_points_into_the_document() {
 }
 
 #[test]
-fn a_typescript_file_is_one_program() {
-    let tree = Tree::program(
-        &document("type A = { b: string };\nlet c: A;\n"),
-        SourceType::ts(),
-    )
-    .expect("parses");
-    assert_eq!(tree.get_program(super::ProgramIdentifier(0)).body.len(), 2);
+fn a_typescript_file_is_one_program_without_parentheses() {
+    let (tree, root) =
+        Tree::program(&document("let c = (1 + 2) * 3;\n"), SourceType::ts()).expect("parses");
+    let program = tree.get_program(root);
+    assert_eq!(program.body.len(), 1);
+    let oxc_ast::ast::Statement::VariableDeclaration(declaration) = &program.body[0] else {
+        panic!("a declaration");
+    };
+    let Some(oxc_ast::ast::Expression::BinaryExpression(product)) =
+        &declaration.declarations[0].init
+    else {
+        panic!("a product");
+    };
+    assert!(matches!(
+        product.left,
+        oxc_ast::ast::Expression::BinaryExpression(_)
+    ));
 }
