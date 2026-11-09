@@ -469,3 +469,63 @@ fn a_binding_needs_a_name_or_a_member_chain_on_both_targets() {
         }
     }
 }
+
+#[test]
+fn a_reserved_or_legacy_name_raises_upstreams_error_on_both_targets() {
+    for (source, code) in [
+        (
+            "<script>let $y = 1;</script><p>{$y}</p>",
+            Some("dollar_prefix_invalid"),
+        ),
+        (
+            "<script>let $ = 1;</script>",
+            Some("dollar_binding_invalid"),
+        ),
+        (
+            "<script>function f() { function g() { let $z; } }</script>",
+            Some("dollar_prefix_invalid"),
+        ),
+        (
+            "<script>const f = function $g() {};</script>",
+            Some("dollar_prefix_invalid"),
+        ),
+        (
+            "<script>try {} catch ($e) {}</script>",
+            Some("dollar_prefix_invalid"),
+        ),
+        (
+            "<script module>function f() { try {} catch ($e) {} }</script>",
+            Some("dollar_prefix_invalid"),
+        ),
+        (
+            "<script>import $a from './a';</script>",
+            Some("dollar_prefix_invalid"),
+        ),
+        ("<p>{$$props.x}</p>", Some("legacy_props_invalid")),
+        ("<p>{$$restProps.x}</p>", Some("legacy_rest_props_invalid")),
+        // A name the scope does not check waits for the analysis walk, after `$$props`.
+        (
+            "<script>function f() { let $z; }</script><p>{$$props.x}</p>",
+            Some("legacy_props_invalid"),
+        ),
+        (
+            "<script>function f() { try {} catch ($e) {} }</script>",
+            None,
+        ),
+        ("<script>const c = class $C {};</script>", None),
+        (
+            "<script lang=\"ts\">import { type $T } from './a';</script>",
+            None,
+        ),
+        ("<script>const f = ($p) => $p;</script>", None),
+        ("{#each [1] as $x}{$x}{/each}", None),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(
+                compile(source, target).err().as_deref(),
+                code,
+                "{source} on {target:?}"
+            );
+        }
+    }
+}

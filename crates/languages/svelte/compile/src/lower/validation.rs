@@ -1,6 +1,8 @@
+use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
 use rsvelte_svelte_semantic::resolve::{BindingKind, RUNES, for_each_pattern_target};
-use rsvelte_typescript_semantic::scope::{DeclarationKind, ScopeIdentifier};
-use rsvelte_typescript_syntax::syntax_tree::{Control, TypeScriptFeature, TypeScriptRuntime};
+use rsvelte_typescript_semantic::scope::{Binding, DeclarationKind, ScopeIdentifier, Semantic};
+use rsvelte_typescript_syntax::syntax_tree::{Control, TypeScriptFeature, TypeScriptRuntime, flag};
+use rustc_hash::FxHashSet;
 
 use crate::render_plan::{is_mathml, is_svg};
 
@@ -25,6 +27,186 @@ pub(crate) fn check_foreign_element(source_text: &str, name: Span) -> Result<(),
         return unsupported(&format!("`<{text}>` outside `<svg>` or `<math>`"), name);
     }
     Ok(())
+}
+
+/// Upstream's name errors in runes mode, in its order: `validate_identifier_name` where the scope
+/// declares a name, `$$props` and `$$restProps`, then `validate_identifier_name` where the
+/// analysis walk meets a declaration.
+///
+/// # Errors
+///
+/// `dollar_binding_invalid`, `dollar_prefix_invalid`, `legacy_props_invalid` or
+/// `legacy_rest_props_invalid` at the first such name.
+pub(super) fn check_names(input: &CompileInput<'_>, res: &Resolution) -> Result<(), Diagnostic> {
+    let javascript = input.component.javascript;
+    let mut reserved = res
+        .sem
+        .bindings
+        .iter()
+        .filter(|b| {
+            javascript.atoms.get(b.name).starts_with('$')
+                && !matches!(b.kind, DeclarationKind::Param | DeclarationKind::Host)
+        })
+        .peekable();
+    if reserved.peek().is_some() {
+        let unchecked = unchecked_declarations(input);
+        let reserved: Vec<&Binding> = reserved
+            .filter(|b| {
+                !unchecked.contains(&b.node)
+                    && !b.declaration.is_some_and(|d| unchecked.contains(&d))
+                    && !names_class_expression(javascript, &res.sem, b)
+            })
+            .collect();
+        // The scope checks names down to function depth 1: the module's function bodies and the
+        // instance's top level.
+        if let Some(b) = reserved
+            .iter()
+            .find(|b| function_depth(javascript, &res.sem, b) <= 1)
+        {
+            return reserved_name(javascript, b);
+        }
+        check_legacy_props(javascript, res)?;
+        if let Some(b) = reserved.iter().find(|b| {
+            b.declaration.is_some()
+                || !(names_function_expression(javascript, &res.sem, b)
+                    || is_catch_parameter(javascript, &res.sem, b))
+        }) {
+            return reserved_name(javascript, b);
+        }
+        return Ok(());
+    }
+    check_legacy_props(javascript, res)
+}
+
+/// Upstream `legacy_props_invalid` and `legacy_rest_props_invalid` at a name no script declares.
+fn check_legacy_props(javascript: &SyntaxTree, res: &Resolution) -> Result<(), Diagnostic> {
+    for r in res.sem.references.iter().filter(|r| r.binding.is_none()) {
+        let (code, message) = match javascript.name(r.node) {
+            "$$props" => ("legacy_props_invalid", "Cannot use `$$props` in runes mode"),
+            "$$restProps" => (
+                "legacy_rest_props_invalid",
+                "Cannot use `$$restProps` in runes mode",
+            ),
+            _ => continue,
+        };
+        let Some(span) = javascript.source_location(r.node).span() else {
+            unreachable!("a reference is parsed from source")
+        };
+        return super::special::invalid(code, message, span);
+    }
+    Ok(())
+}
+
+fn reserved_name<T>(javascript: &SyntaxTree, b: &Binding) -> Result<T, Diagnostic> {
+    let Some(span) = javascript.source_location(b.node).span() else {
+        unreachable!("a declared name is parsed from source")
+    };
+    if javascript.atoms.get(b.name) == "$" {
+        super::special::invalid(
+            "dollar_binding_invalid",
+            "The $ name is reserved, and cannot be used for variables and imports",
+            span,
+        )
+    } else {
+        super::special::invalid(
+            "dollar_prefix_invalid",
+            "The $ prefix is reserved, and cannot be used for variables and imports",
+            span,
+        )
+    }
+}
+
+/// Upstream `function_depth` where `b` is declared: 0 in the module script and 1 in the instance,
+/// plus one per function body around it. A function expression's name is outside its body.
+fn function_depth(javascript: &SyntaxTree, sem: &Semantic, b: &Binding) -> usize {
+    let mut depth = 0;
+    let mut scope = b.scope;
+    loop {
+        if scope == ScopeIdentifier::ROOT {
+            depth += 1;
+            break;
+        }
+        let Some(parent) = sem.scopes[scope].parent else {
+            break;
+        };
+        depth += usize::from(sem.scopes[scope].function);
+        scope = parent;
+    }
+    depth - usize::from(names_function_expression(javascript, sem, b))
+}
+
+/// The name of the function expression whose scope declares it.
+fn names_function_expression(javascript: &SyntaxTree, sem: &Semantic, b: &Binding) -> bool {
+    let node = sem.scopes[b.scope].node;
+    !node.is_none()
+        && matches!(
+            javascript.kind(node),
+            Kind::Function { name: Some(name), declaration: false, .. } if name == b.node
+        )
+}
+
+/// A catch clause's parameter, which no declaration the analysis walk visits declares.
+fn is_catch_parameter(javascript: &SyntaxTree, sem: &Semantic, b: &Binding) -> bool {
+    let node = sem.scopes[b.scope].node;
+    !node.is_none() && matches!(javascript.kind(node), Kind::Control(Control::Catch { .. }))
+}
+
+/// A class expression's name, which the class's own scope declares.
+fn names_class_expression(javascript: &SyntaxTree, sem: &Semantic, b: &Binding) -> bool {
+    let node = sem.scopes[b.scope].node;
+    !node.is_none()
+        && matches!(
+            javascript.kind(node),
+            Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition {
+                name: Some(name),
+                declaration: false,
+                ..
+            }) if name == b.node
+        )
+}
+
+/// The names and declarators upstream never checks besides a class expression's name: a snippet's
+/// name, a `{@const}` and a type-only import.
+fn unchecked_declarations(input: &CompileInput<'_>) -> FxHashSet<NodeIdentifier> {
+    let javascript = input.component.javascript;
+    let mut unchecked = FxHashSet::default();
+    for n in &input.component.compiler_syntax_tree.nodes {
+        match &n.kind {
+            NodeKind::Snippet(s) => {
+                unchecked.insert(s.name);
+            }
+            &NodeKind::Const { declaration } => {
+                if let Kind::VariableDeclaration { declarations, .. } = javascript.kind(declaration)
+                {
+                    unchecked.extend(declarations.iter().copied());
+                }
+            }
+            _ => {}
+        }
+    }
+    for program in input
+        .component
+        .module
+        .into_iter()
+        .chain([input.component.program])
+    {
+        let Kind::Program(statements) = javascript.kind(program) else {
+            continue;
+        };
+        for &statement in statements {
+            if let Kind::Import {
+                specifiers,
+                type_only,
+                ..
+            } = javascript.kind(statement)
+            {
+                unchecked.extend(specifiers.iter().copied().filter(|&specifier| {
+                    type_only || javascript.flags(specifier) & flag::TYPE_ONLY != 0
+                }));
+            }
+        }
+    }
+    unchecked
 }
 
 /// Refuses a `$name` reference that upstream's analysis turns into a store subscription (its
