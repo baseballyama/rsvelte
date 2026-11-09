@@ -103,6 +103,40 @@ fn long_chains_analyze_on_a_small_stack() {
 }
 
 #[test]
+fn a_call_chain_in_markup_is_judged_pure_once_per_link() {
+    // Purity does not allocate, so this bounds time: linear takes about a second even
+    // unoptimized, while judging every link per enclosing call takes minutes.
+    const BUDGET: std::time::Duration = std::time::Duration::from_secs(30);
+    let source = format!(
+        "<script>let f = () => f;</script>{{f{}}}",
+        "()".repeat(100_000)
+    );
+    let elapsed = std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .stack_size(1 << 30)
+            .spawn_scoped(scope, || {
+                let component = rsvelte_svelte::syntax::parse::parse(&source).expect("parses");
+                let tree =
+                    rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, &source);
+                let input = rsvelte_svelte::svelte_input(&component, &tree, &source, "App.svelte");
+                let resolution = rsvelte_svelte::semantic::resolve::resolve(
+                    &component.javascript,
+                    &source,
+                    component.program,
+                    &tree,
+                );
+                let start = std::time::Instant::now();
+                let _analysis = rsvelte_svelte::semantic::analyze::analyze(&input, &resolution);
+                start.elapsed()
+            })
+            .expect("spawns")
+            .join()
+            .expect("analyzes")
+    });
+    assert!(elapsed < BUDGET, "analysis took {elapsed:?}");
+}
+
+#[test]
 fn long_chains_compile_on_a_small_stack() {
     for chain in [
         format!("a{}", ".b".repeat(LINKS)),
