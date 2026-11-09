@@ -54,7 +54,7 @@ fn main() -> ExitCode {
         &document,
         registry.artifacts(),
     );
-    let c = match context.get::<rsvelte_svelte::Parsed>() {
+    let c = match rsvelte_svelte::fully_parsed(&context) {
         Ok(c) => c,
         Err(d) => {
             eprintln!("{path}: {}", d.message);

@@ -4,6 +4,7 @@
 //! every JavaScript expression (script and template) lives in the one [`SyntaxTree`] of the
 //! component, so a single scope analysis sees both.
 
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{TokenKind, Tokens};
@@ -286,7 +287,19 @@ pub struct Script {
 pub struct Style {
     pub span: Span,
     pub attributes: Vec<TagAttributes>,
-    pub sheet: StyleSheet,
+    /// The text between the tags.
+    pub content: Span,
+    /// The CSS parser's error stays here, so a tool that does not read the style sheet still
+    /// gets the component, as `svelte-eslint-parser` does.
+    pub sheet: Result<StyleSheet, Diagnostic>,
+}
+
+impl Component {
+    /// The style sheet's parse error, which the compiler reports as the component's.
+    #[must_use]
+    pub fn style_error(&self) -> Option<&Diagnostic> {
+        self.style.as_ref()?.sheet.as_ref().err()
+    }
 }
 
 #[derive(Debug)]

@@ -3,7 +3,7 @@
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
-pub use rsvelte_svelte_parser::{Parsed, matches};
+pub use rsvelte_svelte_parser::{Parsed, fully_parsed, matches};
 
 use crate::compilation::compiler_syntax_tree;
 use crate::semantic::{analyze, input, resolve};
@@ -93,7 +93,7 @@ impl Artifact for Warned {
 /// [`Normalized`]. `None` when the document did not parse.
 #[must_use]
 pub fn component_input<'a>(context: &'a DocumentContext<'_>) -> Option<input::ComponentInput<'a>> {
-    let c = context.get::<Parsed>().as_ref().ok()?;
+    let c = fully_parsed(context).ok()?;
     let compiler_syntax_tree = context.get::<Normalized>().as_ref()?;
     Some(svelte_input(
         c,
@@ -116,7 +116,7 @@ pub fn svelte_input<'a>(
         program: c.program,
         module: c.module.as_ref().map(|s| s.program),
         compiler_syntax_tree,
-        style: c.style.as_ref().map(|s| &s.sheet),
+        style: c.style.as_ref().and_then(|s| s.sheet.as_ref().ok()),
         template_expressions: &c.template_expressions,
         source_text,
         filename,

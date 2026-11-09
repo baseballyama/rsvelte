@@ -171,7 +171,14 @@ impl Printer<'_, '_> {
         }) {
             return Err(Unsupported::at("a style language other than CSS", *n));
         }
-        let text = style.sheet.content.text(self.source_text);
+        // The task formats only a component whose style sheet parsed.
+        let Ok(sheet) = &style.sheet else {
+            return Err(Unsupported::at(
+                "a style sheet that does not parse",
+                style.content,
+            ));
+        };
+        let text = style.content.text(self.source_text);
         if text.trim().is_empty() {
             return Ok(if text.is_empty() {
                 self.d().nil()
@@ -179,8 +186,7 @@ impl Printer<'_, '_> {
                 self.d().hardline()
             });
         }
-        let stylesheet =
-            rsvelte_stylesheet_format::format(self.source_text, &style.sheet, "", "  ")?;
+        let stylesheet = rsvelte_stylesheet_format::format(self.source_text, sheet, "", "  ")?;
         // The CSS printer makes no width decisions; it is exact only while no line has to wrap.
         if stylesheet
             .lines()

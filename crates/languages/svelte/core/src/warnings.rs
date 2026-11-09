@@ -178,8 +178,10 @@ pub fn warnings(
     if !runes {
         unused_exports(component, resolution, &mut out.warnings);
     }
-    if let (Some(style), Some(analysis)) = (&component.style, analysis) {
-        unused_selectors(&style.sheet.rules, analysis, source, &mut out.warnings);
+    if let (Some(Ok(sheet)), Some(analysis)) =
+        (component.style.as_ref().map(|s| &s.sheet), analysis)
+    {
+        unused_selectors(&sheet.rules, analysis, source, &mut out.warnings);
     }
     out
 }

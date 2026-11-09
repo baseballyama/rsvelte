@@ -4,7 +4,6 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_svelte::Parsed;
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.format",
@@ -34,7 +33,7 @@ impl Task for Format {
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        let c = match context.get::<Parsed>() {
+        let c = match rsvelte_svelte::fully_parsed(context) {
             Ok(c) => c,
             Err(e) => {
                 out.diagnostics.push(e.clone());
