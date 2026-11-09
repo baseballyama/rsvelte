@@ -1,46 +1,46 @@
 # Upstream issues
 
-Behaviour of eslint-plugin-svelte 3.23.1 that this crate does not reproduce. Each entry is a
-candidate issue for eslint-plugin-svelte. The upstream output was taken with ESLint and
-svelte-eslint-parser (`oracle lint-cases`). The decoded values come from `svelte/compiler`'s
-`parse`. The test that holds this crate's behaviour is named in each entry.
+These are the behaviors of eslint-plugin-svelte 3.23.1 that this crate does not reproduce. Each
+entry is a candidate issue for eslint-plugin-svelte. ESLint with svelte-eslint-parser gave the
+upstream output (`oracle lint-cases`), and `svelte/compiler`'s `parse` gave the decoded values.
+Each entry names the test that holds this crate's behavior.
 
-## svelte/no-useless-mustaches: the fix decodes to another string
+## A mustache fix that decodes to another string (`svelte/no-useless-mustaches`)
 
-| Input                    | Upstream fix          | Compiler reads input as | Compiler reads fix as |
-| ------------------------ | --------------------- | ----------------------- | --------------------- |
-| `<p>{'&amp;'}</p>`       | `<p>&amp;</p>`        | `&amp;`                 | `&`                   |
-| `<p title={'&amp;'}>`    | `<p title="&amp;">`   | `&amp;`                 | `&`                   |
-| `<p title="x{'&lt;'}">`  | `<p title="x&lt;">`   | `x&lt;`                 | `x<`                  |
-| `<p>&am{'p;'}</p>`       | `<p>&amp;</p>`        | `&amp;`                 | `&`                   |
-| `<p>{'&am'}{'p;'}</p>`   | `<p>&amp;</p>`        | `&amp;`                 | `&`                   |
-| `<p>{'\0'}</p>`          | `<p>0</p>`            | U+0000                  | `0`                   |
+| Input                  | Upstream fix        | Compiler reads input as | Compiler reads fix as |
+| ---------------------- | ------------------- | ----------------------- | --------------------- |
+| `<p>{'&amp;'}</p>`     | `<p>&amp;</p>`      | `&amp;`                 | `&`                   |
+| `<p title={'&amp;'}>`  | `<p title="&amp;">` | `&amp;`                 | `&`                   |
+| `<p title="x{'&lt;'}">` | `<p title="x&lt;">` | `x&lt;`                | `x<`                  |
+| `<p>&am{'p;'}</p>`     | `<p>&amp;</p>`      | `&amp;`                 | `&`                   |
+| `<p>{'&am'}{'p;'}</p>` | `<p>&amp;</p>`      | `&amp;`                 | `&`                   |
+| `<p>{'\0'}</p>`        | `<p>0</p>`          | U+0000                  | `0`                   |
 
 The fix writes the literal's text into markup, and markup decodes character references. A fix
 should not change the value. This crate withholds such a fix and keeps the report. For a reference
 split across two mustaches, it fixes only the second one.
-Test: `no_useless_mustaches::tests::a_fix_that_would_decode_differently_is_withheld` and
+Tests: `no_useless_mustaches::tests::a_fix_that_would_decode_differently_is_withheld` and
 `a_reference_split_between_mustaches_keeps_its_first_half`.
 
-## svelte/no-useless-mustaches: `ignoreStringEscape` does not see `\0`
+## An option that misses `\0` (`svelte/no-useless-mustaches`)
 
 With `[{ "ignoreStringEscape": true }]`, upstream reports `<p>{'\0'}</p>` and fixes it to `0`.
 The escape list (`nrvtbfux`) leaves out `\0`, the one digit escape that strict code allows. This
 crate counts `\0` as an escape and does not report it.
 Test: `no_useless_mustaches::tests::a_digit_escape_is_a_string_escape`.
 
-## svelte/shorthand-attribute: the fix writes a shorthand that does not compile
+## A shorthand that does not compile (`svelte/shorthand-attribute`)
 
-| Input                 | Upstream fix       | `svelte/compiler` on the fix |
-| --------------------- | ------------------ | ---------------------------- |
+| Input                 | Upstream fix        | `svelte/compiler` on the fix |
+| --------------------- | ------------------- | ---------------------------- |
 | `<div a={(a)}></div>` | `<div {(a)}></div>` | `attribute_empty_shorthand`  |
-| `<div a={/*x*/a}>`    | `<div {/*x*/a}>`   | `attribute_empty_shorthand`  |
+| `<div a={/*x*/a}>`    | `<div {/*x*/a}>`    | `attribute_empty_shorthand`  |
 
 A shorthand holds a name and nothing else, apart from whitespace. This crate reports these
 attributes and writes no fix.
 Test: `shorthand_attribute::tests::a_shorthand_that_would_not_compile_is_not_written`.
 
-## svelte-eslint-parser: a rune named in some types turns runes mode on
+## Runes mode from a rune named in some types (svelte-eslint-parser)
 
 `hasRunesSymbol` walks the script with ESLint's visitor keys. Those keys skip an identifier's
 annotation, a return type and type arguments, but they fall back to every key of a TypeScript node.
@@ -50,39 +50,41 @@ So `let o: $state;` leaves runes mode off, while each of these turns it on:
 - `type T = $state;`
 - `interface I { a: $state }`
 
-A name in a type names no rune. This crate leaves runes mode off for all three, and for the three
+A name in a type names no rune. This crate leaves runes mode off for these three and for the three
 that upstream already skips.
-Test: `runes_mode::tests::a_rune_named_in_a_type_does_not`. The agreeing half is the own cases
-`no-at-const-tags/valid/rune-names-in-types` and `no-inspect/valid/rune-name-in-a-type`.
+Test: `runes_mode::tests::a_rune_named_in_a_type_does_not`. The own cases
+`no-at-const-tags/valid/rune-names-in-types` and `no-inspect/valid/rune-name-in-a-type` hold the
+half that agrees with upstream.
 
-## svelte/no-not-function-handler: a destructured name is taken for its whole initializer
+## A destructured name read as the whole object (`svelte/no-not-function-handler`)
 
 `findRootExpression` follows `const { h } = { h: 1 }` to `{ h: 1 }` and reports "Unexpected
 object in event handler." for `onclick={h}`. `const [h] = [1]` gets "array". Here `h` is 1. This
 crate does not follow a destructured name, and reports nothing.
 Test: `no_not_function_handler::tests::a_destructured_name_is_not_its_initializer`.
 
-## svelte/no-not-function-handler: a `{@const}` is not followed
+## A `{@const}` that the rule does not follow (`svelte/no-not-function-handler`)
 
 `{#if 1}{@const h = 1}<button onclick={h}></button>{/if}` gets no report, because the variable's
-definition is not a script `const`. A `{@const}` is just as constant, so this crate follows it and
-reports "Unexpected number value in event handler.".
+definition is not a script `const`. A `{@const}` is as constant as a script `const`, so this crate
+follows it and reports "Unexpected number value in event handler.".
 Test: `no_not_function_handler::tests::a_const_tag_is_followed`.
 
-## svelte/shorthand-directive: with `prefer: never`, the value lands before the modifiers
+## A value written before the modifiers (`svelte/shorthand-directive`)
 
-Upstream fixes `<div style:color|important>` to `<div style:color={color}|important>`. The compiler
-accepts that, but it reads the value as the text `{color}|important`, so the directive loses
-`|important`. This crate writes `style:color|important={color}`.
+With `prefer: never`, upstream fixes `<div style:color|important>` to
+`<div style:color={color}|important>`. The compiler accepts that, but it reads the value as the
+text `{color}|important`, so the directive loses `|important`. This crate writes
+`style:color|important={color}`.
 Test: `shorthand_directive::tests::the_value_goes_after_the_modifiers`.
 
-## svelte/no-dynamic-slot-name: the fix breaks the attribute
+## A slot name fix that breaks the attribute (`svelte/no-dynamic-slot-name`)
 
-| Input                         | Upstream fix          | What breaks                                 |
-| ----------------------------- | --------------------- | ------------------------------------------- |
-| `<slot name={'a"b'} />`       | `<slot name="a"b" />` | the inner `"` ends the value                |
-| `<slot name="x{'a"b'}" />`    | `<slot name="xa"b" />` | the inner `"` ends the value               |
-| `<slot name=x{"a b"}y />`     | `<slot name=xa by />` | the space makes `by` a second attribute     |
+| Input                      | Upstream fix           | What breaks                             |
+| -------------------------- | ---------------------- | --------------------------------------- |
+| `<slot name={'a"b'} />`    | `<slot name="a"b" />`  | the inner `"` ends the value            |
+| `<slot name="x{'a"b'}" />` | `<slot name="xa"b" />` | the inner `"` ends the value            |
+| `<slot name=x{"a b"}y />`  | `<slot name=xa by />`  | the space makes `by` a second attribute |
 
 This crate reports these and writes no fix.
 Test: `no_dynamic_slot_name::tests::a_name_that_the_markup_cannot_hold_as_written_is_not_fixed`.
