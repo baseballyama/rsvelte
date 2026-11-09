@@ -183,12 +183,25 @@ pub(super) fn apply<'a>(
             )
         })
     });
-    let first_error = compile
-        .errors
-        .iter()
-        .cloned()
-        .chain(awaits.into_iter().flatten())
-        .min_by_key(|e| e.span.start_offset);
+    let stripped = component
+        .style
+        .as_ref()
+        .filter(|style| !is_css(style.attributes.as_slice(), source))
+        .map(|style| style.span);
+    // A style sheet that does not parse fails the compile before analysis; a stripped one is
+    // never parsed.
+    let parse_error = component
+        .style_error()
+        .filter(|_| stripped.is_none())
+        .cloned();
+    let first_error = parse_error.or_else(|| {
+        compile
+            .errors
+            .iter()
+            .cloned()
+            .chain(awaits.into_iter().flatten())
+            .min_by_key(|e| e.span.start_offset)
+    });
     if let Some(error) = first_error {
         return Applied {
             warnings: Vec::new(),
@@ -196,11 +209,6 @@ pub(super) fn apply<'a>(
             used,
         };
     }
-    let stripped = component
-        .style
-        .as_ref()
-        .filter(|style| !is_css(style.attributes.as_slice(), source))
-        .map(|style| style.span);
     let targets = Targets { component };
     let mut warnings = Vec::new();
     for warning in &compile.warnings {

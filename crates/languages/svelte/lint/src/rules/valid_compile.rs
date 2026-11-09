@@ -9,6 +9,9 @@ use crate::LintSettings;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 use crate::settings::Warning;
 
+#[cfg(test)]
+mod tests;
+
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/valid-compile",
     files: Files::Components,
