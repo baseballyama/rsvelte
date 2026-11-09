@@ -65,7 +65,7 @@ impl Parser<'_> {
         let rest = self.rest();
         let len = memchr::memchr2(b'<', b'{', rest.as_bytes()).unwrap_or(rest.len());
         self.position += len;
-        self.token(TokenType::Text, start_offset);
+        self.words(TokenType::Text, start_offset);
         self.push_node(TemplateNode::Text {
             span: Span::new(start_offset as u32, self.position as u32),
         })

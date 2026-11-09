@@ -54,7 +54,7 @@ fn check(f: &Path) -> Verdict {
         Ok(()) => c.tokens.iter().find_map(|t| {
             let text = t.span.text(&source_text);
             let ok = match t.kind {
-                TokenType::Whitespace => text.bytes().all(|b| b.is_ascii_whitespace()),
+                TokenType::Whitespace => text.chars().all(|c| c.is_whitespace() || c == '\u{feff}'),
                 TokenType::JavaScriptComment => text.starts_with("//") || text.starts_with("/*"),
                 TokenType::MarkupComment => text.starts_with("<!--") && text.ends_with("-->"),
                 _ => true,

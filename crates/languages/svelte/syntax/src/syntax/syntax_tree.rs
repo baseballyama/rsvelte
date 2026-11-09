@@ -319,6 +319,7 @@ pub struct Component {
 /// [`TokenType::MustacheClose`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TokenType {
+    /// A word of text; the whitespace between words is [`TokenType::Whitespace`].
     Text,
     MarkupComment,
     /// `<`
@@ -334,7 +335,7 @@ pub enum TokenType {
     /// `=`
     Eq,
     Quote,
-    /// The text chunks of an attribute value.
+    /// A word of an attribute value's text.
     AttributeText,
     /// `{`
     MustacheOpen,

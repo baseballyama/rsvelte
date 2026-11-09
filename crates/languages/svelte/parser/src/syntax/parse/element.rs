@@ -167,7 +167,7 @@ impl Parser<'_> {
                     }
                 }
                 self.position += end;
-                self.token(TokenType::Text, start_offset);
+                self.words(TokenType::Text, start_offset);
                 self.push_node(TemplateNode::Text {
                     span: Span::new(start_offset as u32, self.position as u32),
                 })
