@@ -4,7 +4,7 @@ mod buffers;
 pub mod content_mapper;
 mod lower;
 pub mod syntax_tree;
-pub use lower::{lower, lower_resolved};
+pub use lower::lower;
 mod emit;
 pub use emit::emit;
 mod computation;

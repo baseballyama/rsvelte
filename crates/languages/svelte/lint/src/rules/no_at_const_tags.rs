@@ -5,7 +5,7 @@ use rsvelte_svelte::syntax::syntax_tree::{TemplateNode, TokenType};
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::expressions::Expressions;
-use super::runes_mode::runes;
+use super::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

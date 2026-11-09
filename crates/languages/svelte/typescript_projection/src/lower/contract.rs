@@ -359,7 +359,7 @@ impl Builder<'_> {
     }
 
     fn is_rune(&self, node: SourceNode, name: &str) -> bool {
-        self.resolution
+        self.runes
             .rune(&self.component.javascript, node)
             .is_some_and(|(rune, _)| rune == name)
     }

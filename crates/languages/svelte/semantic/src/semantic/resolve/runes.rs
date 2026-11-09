@@ -94,8 +94,8 @@ pub fn rune_call(
     Some((rune, arguments.first().copied()))
 }
 
-/// The names in [`RUNES`] a reference can spell: the part before any `.`.
-const ROOTS: &[&str] = &[
+/// The identifiers a rune starts with: each name in [`RUNES`] up to its first `.` or `(`.
+pub const RUNE_ROOTS: &[&str] = &[
     "$state",
     "$derived",
     "$props",
@@ -116,7 +116,7 @@ pub(super) fn subscribed(
     program: NodeIdentifier,
     module: Option<NodeIdentifier>,
 ) -> Vec<&'static str> {
-    ROOTS
+    RUNE_ROOTS
         .iter()
         .copied()
         .filter(|&name| {

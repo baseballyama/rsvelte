@@ -9,7 +9,7 @@ use serde::Deserialize;
 
 use super::javascript::span;
 use super::legacy_reactivity::{bindings, legacy, property_name};
-use super::runes_mode::runes_mode;
+use super::runes::runes_mode;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
