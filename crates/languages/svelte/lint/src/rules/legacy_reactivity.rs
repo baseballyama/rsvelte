@@ -32,6 +32,15 @@ pub(super) fn bindings(component: &Component) -> FxHashMap<NodeIdentifier, Span>
         .collect()
 }
 
+/// Whether an element named `name` is an HTML element, `<svelte:element>` included, rather than a
+/// component or another special element.
+pub(super) fn is_html_element(name: &str) -> bool {
+    name == "svelte:element"
+        || !(name.starts_with("svelte:")
+            || name.contains('.')
+            || name.starts_with(|c: char| c.is_ascii_uppercase()))
+}
+
 /// `getPropertyName`: a member's static property name.
 pub(super) fn property_name<'t>(
     javascript: &'t SyntaxTree,

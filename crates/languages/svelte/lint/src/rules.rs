@@ -6,6 +6,7 @@ mod infinite_reactive_loop;
 mod javascript;
 mod legacy_reactivity;
 mod no_add_event_listener;
+mod no_dom_manipulating;
 mod no_extra_reactive_curlies;
 mod no_ignored_unsubscribe;
 mod no_immutable_reactive_statements;
@@ -28,6 +29,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &derived_has_same_inputs_outputs::RULE,
     &infinite_reactive_loop::RULE,
     &no_add_event_listener::RULE,
+    &no_dom_manipulating::RULE,
     &no_extra_reactive_curlies::RULE,
     &no_ignored_unsubscribe::RULE,
     &no_immutable_reactive_statements::RULE,
