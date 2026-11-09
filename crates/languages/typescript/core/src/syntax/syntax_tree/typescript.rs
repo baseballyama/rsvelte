@@ -1,40 +1,77 @@
-use rsvelte_kernel::index::TypedIndex;
-
-use super::{Atom, Kind, NodeIdentifier, Span, SyntaxTree};
-use crate::lexer::T;
+use super::{Atom, Kind, NodeIdentifier, SourceLocation, Span, SyntaxTree, Tag};
 
 #[cfg(test)]
 mod tests;
 
+/// What a [`Kind::TypeScriptDeclaration`] declares, as the parser recorded it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TypeScriptDeclared {
+    /// `type X = …` or `declare type X = …`, with the name `X`.
+    TypeAlias(NodeIdentifier),
+    /// `interface X …` that is not a [`Kind::TypeScriptInterface`], with the name `X`.
+    Interface(NodeIdentifier),
+    /// `export type { … }` or `export type * from …`, with the export that erasing types drops.
+    TypeExport(NodeIdentifier),
+    /// Anything else: `enum`, `namespace`, `declare const`, an overload signature, ….
+    Other,
+}
+
+impl TypeScriptDeclared {
+    const fn encode(self) -> (u8, u32) {
+        match self {
+            Self::TypeAlias(n) => (1, n.0),
+            Self::Interface(n) => (2, n.0),
+            Self::TypeExport(n) => (3, n.0),
+            Self::Other => (0, 0),
+        }
+    }
+}
+
 impl SyntaxTree {
+    pub fn typescript_declaration_of(
+        &mut self,
+        declared: TypeScriptDeclared,
+        source_location: impl Into<SourceLocation>,
+    ) -> NodeIdentifier {
+        let (flags, node) = declared.encode();
+        self.push(
+            Tag::TypeScriptDeclaration,
+            flags,
+            [node, 0],
+            source_location,
+        )
+    }
+
+    /// What `declaration` declares; `None` when it is not a [`Kind::TypeScriptDeclaration`].
+    #[must_use]
+    pub fn typescript_declared(&self, declaration: NodeIdentifier) -> Option<TypeScriptDeclared> {
+        let i = declaration.index();
+        if self.tags[i] != Tag::TypeScriptDeclaration {
+            return None;
+        }
+        let node = NodeIdentifier(self.data[i][0]);
+        Some(match self.flags[i] {
+            1 => TypeScriptDeclared::TypeAlias(node),
+            2 => TypeScriptDeclared::Interface(node),
+            3 => TypeScriptDeclared::TypeExport(node),
+            _ => TypeScriptDeclared::Other,
+        })
+    }
+
     /// The name a `type` alias or an `interface` declares (`X` in `type X = …` or `declare
     /// interface X {…}`); `None` for any other node, enums and namespaces among them.
     #[must_use]
-    pub fn declared_type_name<'s>(
-        &self,
-        declaration: NodeIdentifier,
-        source_text: &'s str,
-    ) -> Option<&'s str> {
-        let span = match self.kind(declaration) {
-            Kind::TypeScriptInterface { name, .. } => {
-                return Some(self.source_location(name).span()?.text(source_text));
-            }
-            Kind::TypeScriptDeclaration => self.source_location(declaration).span()?,
-            _ => return None,
-        };
-        let first = self.tokens.after(span.start_offset)?;
-        let mut tokens = self
-            .tokens
-            .since(first.index())
-            .iter()
-            .take_while(|t| t.span.end_offset <= span.end_offset);
-        let mut keyword = tokens.next()?.span.text(source_text);
-        if keyword == "declare" {
-            keyword = tokens.next()?.span.text(source_text);
+    pub fn declared_type_name(&self, declaration: NodeIdentifier) -> Option<&str> {
+        match self.kind(declaration) {
+            Kind::TypeScriptInterface { name, .. } => Some(self.name(name)),
+            Kind::TypeScriptDeclaration => match self.typescript_declared(declaration)? {
+                TypeScriptDeclared::TypeAlias(name) | TypeScriptDeclared::Interface(name) => {
+                    Some(self.name(name))
+                }
+                TypeScriptDeclared::TypeExport(_) | TypeScriptDeclared::Other => None,
+            },
+            _ => None,
         }
-        let name = tokens.next()?;
-        (matches!(keyword, "type" | "interface") && name.kind == T::Identifier)
-            .then(|| name.span.text(source_text))
     }
 }
 

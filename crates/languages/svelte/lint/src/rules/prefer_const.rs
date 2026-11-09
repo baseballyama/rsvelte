@@ -80,7 +80,6 @@ impl SvelteRule for PreferConst {
         rsvelte_typescript_lint::prefer_const(
             &facts,
             &roots(file),
-            file.source(),
             self.core,
             statements,
             |declaration| self.initialised_by_excluded_rune(tree, declaration),

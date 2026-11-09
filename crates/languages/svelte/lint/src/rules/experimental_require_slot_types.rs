@@ -36,7 +36,7 @@ impl SvelteRule for ExperimentalRequireSlotTypes {
         let tree = file.javascript();
         let mut declared = false;
         walk(file, |node| {
-            declared = declared || tree.declared_type_name(node, source) == Some("$$Slots");
+            declared = declared || tree.declared_type_name(node) == Some("$$Slots");
         });
         if !declared {
             // Upstream reports at `{ line: 1, column: 1 }`, the document's second character.

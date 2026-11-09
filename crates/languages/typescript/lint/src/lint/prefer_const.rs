@@ -44,14 +44,9 @@ enum Name<'a> {
 
 /// `ESLint`'s `prefer-const` over the `let` declarations under `roots` that `skip` does not
 /// exclude. A variable `written_by_host` (a Svelte prop, which its parent writes) is never const.
-#[expect(
-    clippy::too_many_arguments,
-    reason = "each fact the host supplies is one argument"
-)]
 pub fn prefer_const(
     f: &JavaScriptFacts<'_>,
     roots: &[NodeIdentifier],
-    source: &str,
     options: PreferConstOptions,
     statements: ProgramStatements,
     skip: impl Fn(NodeIdentifier) -> bool,
@@ -113,7 +108,7 @@ pub fn prefer_const(
         count: 0,
     };
     for (_, nodes) in &groups {
-        check_group(f, source, options, nodes, &mut state, reporter);
+        check_group(f, options, nodes, &mut state, reporter);
     }
 }
 
@@ -126,7 +121,6 @@ struct GroupState<'a> {
 /// `checkGroup`, with the counters `ESLint` keeps across groups.
 fn check_group<'a>(
     f: &JavaScriptFacts<'a>,
-    source: &str,
     options: PreferConstOptions,
     nodes: &[Option<NodeIdentifier>],
     state: &mut GroupState<'a>,
@@ -205,15 +199,18 @@ fn check_group<'a>(
             f.span(node),
         )
         .message_id("useConst");
-        if should_fix && let Some(declaration) = declaration {
+        if should_fix
+            && let Some(declaration) = declaration
+            && let Kind::VariableDeclaration { kind, .. } = tree.kind(declaration)
+        {
+            // A declaration starts with its keyword, which `ESLint` replaces whatever it is.
             let range = f.span(declaration);
-            let keyword = Span::new(range.start_offset, range.start_offset + 3);
-            if keyword.text(source) == "let" {
-                // The fix covers the whole declaration so that no other fix in the pass touches it.
-                let mut fix = Fix::replace(keyword, "const");
-                fix.push(Span::new(range.end_offset, range.end_offset), "");
-                report = report.fix(fix);
-            }
+            let length = if kind == flag::CONST { 5 } else { 3 };
+            let keyword = Span::new(range.start_offset, range.start_offset + length);
+            // The fix covers the whole declaration so that no other fix in the pass touches it.
+            let mut fix = Fix::replace(keyword, "const");
+            fix.push(Span::new(range.end_offset, range.end_offset), "");
+            report = report.fix(fix);
         }
         reporter.report(report);
     }

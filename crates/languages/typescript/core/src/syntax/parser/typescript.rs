@@ -1,6 +1,6 @@
 use super::{
-    Kind, NodeIdentifier, Parser, R, Span, SyntaxTree, T, TypeScriptFeature, TypeScriptKind,
-    TypeScriptRuntime, TypeScriptSyntax, parse_program,
+    Kind, LexedToken, NodeIdentifier, Parser, R, Span, SyntaxTree, T, TypeScriptDeclared,
+    TypeScriptFeature, TypeScriptKind, TypeScriptRuntime, TypeScriptSyntax, parse_program,
 };
 
 impl Parser<'_, '_> {
@@ -15,6 +15,7 @@ impl Parser<'_, '_> {
         let is_interface = kw == "interface";
         let is_namespace = matches!(kw, "namespace" | "module");
         self.bump()?;
+        let name = self.declared_name(kw);
         let is_enum = kw == "enum" || (kw == "declare" && self.is_kw("enum"));
         let mut body: Option<(u32, u32)> = None;
         if is_interface {
@@ -97,7 +98,27 @@ impl Parser<'_, '_> {
         } else if let (true, Some((open, close))) = (is_namespace, body) {
             self.namespace_runtime(Span::new(open, close), span)?;
         }
-        Ok(self.syntax_tree.typescript_declaration(span))
+        let declared = name.map_or(TypeScriptDeclared::Other, |(alias, token)| {
+            let name = self.syntax_tree.ident(self.text(token), token.span);
+            if alias {
+                TypeScriptDeclared::TypeAlias(name)
+            } else {
+                TypeScriptDeclared::Interface(name)
+            }
+        });
+        Ok(self.syntax_tree.typescript_declaration_of(declared, span))
+    }
+
+    /// The name token of a `type` alias or an `interface`, read after its first keyword `kw`;
+    /// after `declare`, the next keyword says what is declared. `true` for an alias.
+    fn declared_name(&self, kw: &str) -> Option<(bool, LexedToken)> {
+        let (keyword, name) = if kw == "declare" {
+            (self.text(self.token), self.peek())
+        } else {
+            (kw, self.token)
+        };
+        (matches!(keyword, "type" | "interface") && name.t == T::Identifier)
+            .then_some((keyword == "type", name))
     }
 
     /// Records the first construct in a namespace body that erasing types cannot remove: an enum

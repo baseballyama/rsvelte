@@ -9,7 +9,7 @@
 
 use rsvelte_kernel::source::positions::Span;
 
-use crate::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, flag};
+use crate::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, TypeScriptDeclared, flag};
 
 pub trait Rewrite {
     fn rewrite(
@@ -192,7 +192,22 @@ pub fn copy_node<R: Rewrite + ?Sized>(
             let d = copy(f, to, rw, d);
             to.export_default(d, span)
         }
-        Kind::TypeScriptDeclaration => to.typescript_declaration(span),
+        Kind::TypeScriptDeclaration => {
+            let declared = f.typescript_declared(identifier);
+            let declared = match declared.unwrap_or(TypeScriptDeclared::Other) {
+                TypeScriptDeclared::TypeAlias(name) => {
+                    TypeScriptDeclared::TypeAlias(copy_node(f, to, rw, name))
+                }
+                TypeScriptDeclared::Interface(name) => {
+                    TypeScriptDeclared::Interface(copy_node(f, to, rw, name))
+                }
+                TypeScriptDeclared::TypeExport(export) => {
+                    TypeScriptDeclared::TypeExport(copy(f, to, rw, export))
+                }
+                TypeScriptDeclared::Other => TypeScriptDeclared::Other,
+            };
+            to.typescript_declaration_of(declared, span)
+        }
         Kind::TypeScriptInterface { name, members } => {
             let n = copy_node(f, to, rw, name);
             let m = members
