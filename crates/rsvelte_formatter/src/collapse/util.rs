@@ -198,6 +198,12 @@ pub(super) fn trims_edge_whitespace(tag: &str) -> bool {
     is_block_display(tag) || matches!(tag, "slot" | "title" | "svelte:boundary")
 }
 
+/// Whether a whitespace-only body survives as prettier's `line`
+/// (`<span> </span>`); for the rest it is dropped and the element is empty.
+pub fn keeps_edge_whitespace(tag: &str) -> bool {
+    !trims_edge_whitespace(tag) && !is_component_tag(tag)
+}
+
 /// Whether `tag` names a Svelte component (or component-like element) rather
 /// than a plain HTML element: a capitalized name (`Button`), a member access
 /// (`Foo.Bar`), or a `svelte:*` special element. prettier treats these as not

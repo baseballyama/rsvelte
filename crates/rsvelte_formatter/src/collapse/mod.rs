@@ -67,7 +67,7 @@ use util::{
     trim_html_ws_end, trim_html_ws_start, trims_edge_whitespace,
 };
 
-pub use util::template_node_span;
+pub use util::{keeps_edge_whitespace, template_node_span};
 
 /// Conservative necessary condition for [`collapse_pure_text_elements`] to make
 /// any edit: some element (recursively) that a collapse pass could reflow. Three

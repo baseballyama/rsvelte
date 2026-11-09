@@ -6270,25 +6270,33 @@ fn create_function_expression<'a>(
 
     // params
     let mut params: Vec<JsNode> = func
-        .params
-        .items
-        .iter()
-        // The whole conversion is in the paren-wrapper's coordinates, as the
-        // `id` and rest spans above and below already are.
-        .map(|param| {
-            convert_binding_pattern(
+        .this_param
+        .as_deref()
+        .map(|p| {
+            expr_to_node(Expression::from_json(convert_this_param(
                 arena,
-                &param.pattern,
+                p,
                 AdjustedOffset::wrapped(offset, 1),
                 line_offsets,
-            )
+            )))
         })
+        .into_iter()
         .collect();
+    // The whole conversion is in the paren-wrapper's coordinates, as the
+    // `id` and rest spans above and below already are.
+    params.extend(func.params.items.iter().map(|param| {
+        expr_to_node(convert_formal_parameter(
+            arena,
+            param,
+            AdjustedOffset::wrapped(offset, 1),
+            line_offsets,
+        ))
+    }));
     // Handle rest parameter (`...args`).
     if let Some(rest) = &func.params.rest {
         let rest_start = offset + rest.span.start as usize - 1;
         let rest_end = offset + rest.span.end as usize - 1;
-        let argument = convert_binding_pattern(
+        let argument = convert_binding_pattern_for_param_as_node(
             arena,
             &rest.rest.argument,
             AdjustedOffset::wrapped(offset, 1),
@@ -7794,18 +7802,26 @@ fn convert_statement(
             });
 
             let mut params: Vec<JsNode> = func_decl
-                .params
-                .items
-                .iter()
-                .map(|param| {
-                    expr_to_node(convert_formal_parameter(
+                .this_param
+                .as_deref()
+                .map(|p| {
+                    expr_to_node(Expression::from_json(convert_this_param(
                         arena,
-                        param,
+                        p,
                         AdjustedOffset::wrapped(offset, 1),
                         line_offsets,
-                    ))
+                    )))
                 })
+                .into_iter()
                 .collect();
+            params.extend(func_decl.params.items.iter().map(|param| {
+                expr_to_node(convert_formal_parameter(
+                    arena,
+                    param,
+                    AdjustedOffset::wrapped(offset, 1),
+                    line_offsets,
+                ))
+            }));
             if let Some(rest) = &func_decl.params.rest {
                 let rest_start = offset + rest.span.start as usize - 1;
                 let rest_end = offset + rest.span.end as usize - 1;
