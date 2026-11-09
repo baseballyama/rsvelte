@@ -8,7 +8,17 @@ use rsvelte_typescript::scope::{DeclarationKind, HostRoot, HostScope};
 /// The template's expressions in document order, with the scopes the template opens (upstream
 /// `create_scopes`). A fragment gets a scope only when it declares names: the others would be
 /// empty, and an empty scope resolves nothing differently.
+///
+/// Fragments nest through here, so the stack grows as deep as the markup does.
 pub(super) fn template_roots(
+    compiler_syntax_tree: &CompilerSyntaxTree,
+    list: Children,
+    out: &mut Vec<HostRoot>,
+) {
+    rsvelte_kernel::performance::stack::grow(|| fragment_roots(compiler_syntax_tree, list, out));
+}
+
+fn fragment_roots(
     compiler_syntax_tree: &CompilerSyntaxTree,
     list: Children,
     out: &mut Vec<HostRoot>,

@@ -287,3 +287,30 @@ fn deeply_nested_input_is_analyzed_on_a_small_stack() {
         assert!(references >= 1);
     }
 }
+
+#[test]
+fn deeply_nested_host_scopes_are_analyzed_on_a_small_stack() {
+    let source_text = "let g;\ng";
+    let mut tree = SyntaxTree::new();
+    let program = parse_program(&mut tree, source_text, Span::new(0, 6), false).unwrap();
+    let g = parse_expression(&mut tree, source_text, Span::new(7, 8), false).unwrap();
+    let references = std::thread::Builder::new()
+        .stack_size(2 << 20)
+        .spawn(move || {
+            let mut host = vec![HostRoot::Expression(g)];
+            for _ in 0..200_000 {
+                host = vec![HostRoot::Scope(HostScope {
+                    node: None,
+                    parameters: Vec::new(),
+                    body: host,
+                })];
+            }
+            let sem = analyze(&tree, program, &host);
+            drop(host);
+            (sem.host_scopes.len(), sem.references.len())
+        })
+        .unwrap()
+        .join()
+        .expect("analyzed and dropped without overflowing the stack");
+    assert_eq!(references, (200_000, 1));
+}

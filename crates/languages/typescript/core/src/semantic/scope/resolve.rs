@@ -196,8 +196,17 @@ impl Analyzer<'_> {
         });
     }
 
+    /// Resolves the host roots in pass 1's order, walking their scopes on an explicit stack.
     pub(super) fn resolve_host(&mut self, roots: &[HostRoot]) {
-        for r in roots {
+        let mut bodies = vec![roots.iter()];
+        while let Some(body) = bodies.last_mut() {
+            let Some(r) = body.next() else {
+                bodies.pop();
+                if !bodies.is_empty() {
+                    self.close();
+                }
+                continue;
+            };
             match r {
                 HostRoot::Expression(e) => {
                     self.resolve(Resolve::Node(*e, ReferenceContext::Expression));
@@ -214,8 +223,7 @@ impl Analyzer<'_> {
                         let context = ReferenceContext::Pattern { initializer: false };
                         self.resolve(Resolve::Node(p, context));
                     }
-                    self.resolve_host(&h.body);
-                    self.close();
+                    bodies.push(h.body.iter());
                 }
             }
         }

@@ -118,6 +118,18 @@ pub struct HostScope {
     pub body: Vec<HostRoot>,
 }
 
+/// Frees nested bodies in a loop, so dropping scopes as deep as the markup does not recurse.
+impl Drop for HostScope {
+    fn drop(&mut self) {
+        let mut pending = std::mem::take(&mut self.body);
+        while let Some(root) = pending.pop() {
+            if let HostRoot::Scope(mut scope) = root {
+                pending.append(&mut scope.body);
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Semantic {
     pub scopes: IndexVector<ScopeIdentifier, Scope>,

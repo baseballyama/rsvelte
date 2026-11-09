@@ -70,8 +70,17 @@ impl Analyzer<'_> {
 
     // ---- pass 1 --------------------------------------------------------------------------------
 
+    /// Declares what the host roots declare, walking their scopes on an explicit stack.
     pub(super) fn declare_host(&mut self, roots: &[HostRoot]) {
-        for r in roots {
+        let mut bodies = vec![roots.iter()];
+        while let Some(body) = bodies.last_mut() {
+            let Some(r) = body.next() else {
+                bodies.pop();
+                if !bodies.is_empty() {
+                    self.stack.pop();
+                }
+                continue;
+            };
             match r {
                 HostRoot::Expression(e) | HostRoot::Bound(e) => self.declare(Declare::Node(*e)),
                 &HostRoot::Name(node, kind) => {
@@ -84,8 +93,7 @@ impl Analyzer<'_> {
                     for &p in &h.parameters {
                         self.declare(Declare::Pattern(p, DeclarationKind::Host));
                     }
-                    self.declare_host(&h.body);
-                    self.stack.pop();
+                    bodies.push(h.body.iter());
                 }
             }
         }
