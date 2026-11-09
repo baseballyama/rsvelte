@@ -3554,8 +3554,9 @@ sixteen and feeding each result back to `svelte@5.56.10`'s `parse({modern: true}
   `runtime-legacy/samples/block-expression-assign/main.svelte` is recorded as "oxfmt drops
   the closing paren in `{@const x = (h = 0)}`, producing `{@const x = (h = 0}` — invalid".
   Under 0.64.0 the output is `{@const x = h = 0}`, which parses and is semantically
-  identical (`=` is right-associative). The question is answered by the oxc 0.157.0
-  upgrade: both sides now print the paren-free `{@const x = h = 0}` byte-identically, so the
+  identical (`=` is right-associative). The question is answered, and not by the oxc 0.157.0
+  upgrade: both sides print the paren-free `{@const x = h = 0}` byte-identically, and the
+  `NOTICE` already fires under the `oxfmt` 0.67.0 oracle in the 2026-11-03 CI run, so the
   entry is deleted rather than re-worded (see the 2026-11-08 note at the top of this section).
 
 **A second stated reason was falsified on 2026-08-31, and that entry left this file.**
@@ -3615,8 +3616,9 @@ correct; file upstream at `oxformatter/oxfmt` or `prettier/prettier-plugin-svelt
   (`css-vars`); emits a single space before `{` after an escaped-unicode selector
   (`unicode-identifier`).
 - **oxfmt formats embedded CSS differently from standalone CSS.** For
-  `--arr: [1, 2]` / `--sel: a > b ~ c`, `oxfmt x.css` prints `[1 , 2]` /
-  `a > b ~ c` while `oxfmt --svelte` prints `[1, 2]` / `a > b ~c` — the same tool
+  `--sel: a > b ~ c`, `oxfmt x.css` prints `a > b ~ c` while `oxfmt --svelte`
+  prints `a > b ~c` (`--arr: [1, 2]` used to differ too; both paths print `[1, 2]`
+  since oxc 0.149) — the same tool
   disagreeing with itself, because the svelte path uses prettier's CSS printer
   and the `.css` path the oxc engine. rsvelte-fmt reproduces oxfmt's own `.css`
   output byte-for-byte, so parity against the svelte path is undefined here (and

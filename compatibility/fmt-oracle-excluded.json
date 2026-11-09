@@ -92,7 +92,7 @@
 	{
 		"id": "pattern/adversarial/css/css-custom-property-values.svelte",
 		"class": "oracle-bug",
-		"reason": "oxfmt formats the SAME custom-property value two ways depending on the host file: given `--arr: [1, 2]` and `--sel: a > b ~ c`, `oxfmt x.css` prints `[1 , 2]` / `a > b ~ c` (the oxc CSS engine, which is what rsvelte-fmt uses in-process and reproduces byte-for-byte), while `oxfmt --svelte` prints `[1, 2]` / `a > b ~c` (prettier's CSS printer, which also drops the space after `~` and so changes the token stream the value substitutes). The two oxfmt paths disagree with each other, so parity with the svelte path is undefined for these values."
+		"reason": "oxfmt formats the SAME custom-property value two ways depending on the host file: given `--sel: a > b ~ c`, `oxfmt x.css` prints `a > b ~ c` (the oxc CSS engine, which is what rsvelte-fmt uses in-process and reproduces byte-for-byte), while `oxfmt --svelte` prints `a > b ~c` (prettier's CSS printer, which also drops the space after `~` and so changes the token stream the value substitutes). The two oxfmt paths disagree with each other, so parity with the svelte path is undefined for these values."
 	},
 	{
 		"id": "pattern/issues/acorn-unchecked-ts-grammar-rule-in-a-template.svelte",
