@@ -247,33 +247,8 @@ pub fn copy_node<R: Rewrite + ?Sized>(
             let a = copy(f, to, rw, a);
             to.spread(a, span)
         }
-        Kind::Member {
-            object,
-            property,
-            computed,
-            optional,
-        } => {
-            let o = copy(f, to, rw, object);
-            let p = if computed {
-                copy(f, to, rw, property)
-            } else {
-                copy_node(f, to, rw, property)
-            };
-            to.member(o, p, computed, optional, span)
-        }
-        Kind::Call {
-            callee,
-            arguments,
-            optional,
-            pure,
-        } => {
-            let c = copy(f, to, rw, callee);
-            let a = copy_all(f, to, rw, arguments);
-            let call = to.call(c, &a, optional, span);
-            if pure {
-                to.mark_pure(call);
-            }
-            call
+        Kind::Member { .. } | Kind::Call { .. } | Kind::Binary(..) | Kind::Logical(..) => {
+            copy_chain(f, to, rw, identifier)
         }
         Kind::New { callee, arguments } => {
             let c = copy(f, to, rw, callee);
@@ -297,16 +272,6 @@ pub fn copy_node<R: Rewrite + ?Sized>(
         Kind::Update { op, prefix, arg } => {
             let a = copy(f, to, rw, arg);
             to.update(op, prefix, a, span)
-        }
-        Kind::Binary(op, l, r) => {
-            let l = copy(f, to, rw, l);
-            let r = copy(f, to, rw, r);
-            to.binary(op, l, r, span)
-        }
-        Kind::Logical(op, l, r) => {
-            let l = copy(f, to, rw, l);
-            let r = copy(f, to, rw, r);
-            to.logical(op, l, r, span)
         }
         Kind::Conditional {
             test,
@@ -430,6 +395,9 @@ use control::copy_control;
 
 mod classes;
 use classes::copy_class;
+
+mod chains;
+use chains::copy_chain;
 
 #[cfg(test)]
 mod tests;
