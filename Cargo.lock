@@ -1120,6 +1120,7 @@ dependencies = [
  "rsvelte_lint_runner",
  "rsvelte_plugin_interface",
  "rsvelte_typescript",
+ "rustc-hash",
 ]
 
 [[package]]

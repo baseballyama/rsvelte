@@ -6,6 +6,9 @@
 //! because the upstream plugins differ: svelte-eslint-parser puts `{#each}` names in the scope core
 //! rules read, while Vue's `v-for` names are reported by `vue/no-unused-variables` instead.
 
+mod prefer_const;
+pub use prefer_const::{PreferConstOptions, ProgramStatements, prefer_const};
+
 use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
