@@ -32,6 +32,8 @@ mod runes_mode;
 mod shorthand_attribute;
 mod shorthand_directive;
 mod string_escape;
+#[cfg(test)]
+mod testing;
 mod valid_each_key;
 
 /// Every built-in rule.

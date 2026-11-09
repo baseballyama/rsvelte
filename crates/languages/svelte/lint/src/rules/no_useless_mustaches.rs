@@ -1,8 +1,10 @@
+use std::borrow::Cow;
+
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::Component;
-use rsvelte_typescript::Kind;
+use rsvelte_svelte::syntax::syntax_tree::{Component, TokenType, decode_attribute, decode_text};
+use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use serde::Deserialize;
 
 use super::expressions::Expressions;
@@ -95,7 +97,8 @@ impl NoUselessMustaches {
         let fix = if comment || escape {
             None
         } else {
-            fix(component, source, mustache, text)
+            literal_value(javascript, source, expression)
+                .and_then(|value| fix(component, source, mustache, text, &value))
         };
         let report = Report::range(
             "Unexpected mustache interpolation with a string literal value.",
@@ -110,35 +113,97 @@ impl NoUselessMustaches {
 }
 
 /// The mustache as text: escaped for markup, and quoted when it becomes an attribute's value.
-fn fix(component: &Component, source: &str, mustache: Mustache<'_>, text: &str) -> Option<Fix> {
+/// `None` when the markup would not decode to the literal's value.
+fn fix(
+    component: &Component,
+    source: &str,
+    mustache: Mustache<'_>,
+    text: &str,
+    value: &str,
+) -> Option<Fix> {
     let text = strip_quotes(text)?;
     // Another rule (indentation, trailing spaces) may change spaces at either end.
     if text.contains('\n') || text.starts_with(is_space) || text.ends_with(is_space) {
         return None;
     }
     let unescaped = unescape(text);
+    // `\0` is not `0`.
+    if unescaped != value {
+        return None;
+    }
     let attribute = match mustache.holder {
         Holder::Attribute(attribute) | Holder::Style(attribute) => attribute,
         Holder::Text | Holder::Raw => {
-            return Some(Fix::replace(
+            let replacement = unescaped.replace('<', "&lt;").replace('>', "&gt;");
+            return decodes_to(
+                component,
+                source,
                 mustache.span,
-                unescaped.replace('<', "&lt;").replace('>', "&gt;"),
-            ));
+                &replacement,
+                value,
+                decode_text,
+            )
+            .then(|| Fix::replace(mustache.span, replacement));
         }
     };
-    Some(match quote(component, source, attribute) {
-        Some("'") => Fix::replace(mustache.span, unescaped.replace('\'', "&apos;")),
-        Some(_) => Fix::replace(mustache.span, unescaped.replace('"', "&quot;")),
-        None => {
-            let value = parts(component, attribute);
-            let start = part_span(value.first()?).start_offset;
-            let end = part_span(value.last()?).end_offset;
-            let mut fix = Fix::insert(start, "\"");
-            fix.push(mustache.span, unescaped.replace('"', "&quot;"));
-            fix.push(Span::new(end, end), "\"");
-            fix
-        }
-    })
+    let quote = quote(component, source, attribute);
+    let replacement = if quote == Some("'") {
+        unescaped.replace('\'', "&apos;")
+    } else {
+        unescaped.replace('"', "&quot;")
+    };
+    if !decodes_to(
+        component,
+        source,
+        mustache.span,
+        &replacement,
+        value,
+        decode_attribute,
+    ) {
+        return None;
+    }
+    if quote.is_some() {
+        return Some(Fix::replace(mustache.span, replacement));
+    }
+    let value = parts(component, attribute);
+    let start = part_span(value.first()?).start_offset;
+    let end = part_span(value.last()?).end_offset;
+    let mut fix = Fix::insert(start, "\"");
+    fix.push(mustache.span, replacement);
+    fix.push(Span::new(end, end), "\"");
+    Some(fix)
+}
+
+/// Whether `replacement` in place of the mustache at `span` decodes to `value` together with the
+/// markup text next to it: `&amp;` is `&`, and `&am{'p;'}` is not `&amp;`. A character reference
+/// that the next mustache could complete counts as not decoding.
+fn decodes_to(
+    component: &Component,
+    source: &str,
+    span: Span,
+    replacement: &str,
+    value: &str,
+    decode: fn(&str) -> Cow<'_, str>,
+) -> bool {
+    let tokens = &component.tokens;
+    let is_text = |kind| matches!(kind, TokenType::Text | TokenType::AttributeText);
+    let before = tokens
+        .within(Span::new(0, span.start_offset))
+        .last()
+        .filter(|t| t.span.end_offset == span.start_offset && is_text(t.kind))
+        .map_or("", |t| t.span.text(source));
+    let next = tokens
+        .within(Span::new(span.end_offset, span.end_offset + 1))
+        .first()
+        .filter(|t| t.span.start_offset == span.end_offset);
+    if replacement.contains('&') && next.is_some_and(|t| t.kind == TokenType::MustacheOpen) {
+        return false;
+    }
+    let after = next
+        .filter(|t| is_text(t.kind))
+        .map_or("", |t| t.span.text(source));
+    let joined = format!("{before}{replacement}{after}");
+    decode(&joined) == format!("{}{value}{}", decode(before), decode(after))
 }
 
 /// The text between matching quotes or backticks.
@@ -164,7 +229,24 @@ fn unescape(text: &str) -> String {
     out
 }
 
+/// The string a string or template literal holds.
+fn literal_value(javascript: &SyntaxTree, source: &str, literal: NodeIdentifier) -> Option<String> {
+    match javascript.kind(literal) {
+        Kind::String => Some(javascript.str_value(literal, source).to_owned()),
+        Kind::Template {
+            quasis: &[quasi], ..
+        } => {
+            let raw = javascript.str_value(quasi, source);
+            Some(rsvelte_typescript::lexer::decode_string(raw).unwrap_or_else(|| raw.to_owned()))
+        }
+        _ => None,
+    }
+}
+
 /// JavaScript's `\s`.
 const fn is_space(c: char) -> bool {
     c.is_whitespace() || c == '\u{feff}'
 }
+
+#[cfg(test)]
+mod tests;
