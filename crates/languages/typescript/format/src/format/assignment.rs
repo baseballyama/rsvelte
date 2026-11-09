@@ -50,6 +50,12 @@ impl Formatter<'_> {
                     ));
                 }
                 let sp = self.lit(" ");
+                // Measured: a target that breaks (`let {\n a,\n}: {…} = $props()`) breaks on
+                // its own and the value follows `=` on the last line.
+                if self.docs.will_break(left) {
+                    let right = self.docs.flat_only(right);
+                    return Ok(self.docs.group(&[left, op, sp, right]));
+                }
                 let flat = self.cat(&[left, op, sp, right]);
                 self.docs.flat_only(flat)
             }

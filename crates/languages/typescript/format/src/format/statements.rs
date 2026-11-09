@@ -104,7 +104,7 @@ impl Formatter<'_> {
                         self.syntax_tree.source_location(identifier),
                     ))
                 } else {
-                    Ok(self.import(specifiers, source, type_only))
+                    Ok(self.import(identifier, specifiers, source, type_only))
                 }
             }
             Kind::TypeScriptInterface { name, members } => self.interface(name, members),

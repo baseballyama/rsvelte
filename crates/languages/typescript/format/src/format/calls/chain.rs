@@ -85,6 +85,8 @@ impl Formatter<'_> {
             .iter()
             .filter_map(|l| match *l {
                 Link::Call(c) => Some(c),
+                // `callExpressions` counts a base such as `Array(100)` too.
+                Link::Base(b) if matches!(self.syntax_tree.kind(b), Kind::Call { .. }) => Some(b),
                 _ => None,
             })
             .collect();

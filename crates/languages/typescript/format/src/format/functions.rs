@@ -301,12 +301,21 @@ impl Formatter<'_> {
     /// Prettier's `printImportDeclaration`, without import attributes.
     pub(super) fn import(
         &mut self,
+        identifier: NodeIdentifier,
         specifiers: &[NodeIdentifier],
         source: NodeIdentifier,
         type_only: bool,
     ) -> LayoutInstructionIdentifier {
         let mut parts = vec![self.lit(if type_only { "import type" } else { "import" })];
-        if !specifiers.is_empty() {
+        // Prettier keeps written empty braces (`import {} from "x"`), which the tree has no node
+        // for.
+        let empty_braces = specifiers.is_empty()
+            && self.source_text[self.span(identifier).start_offset as usize
+                ..self.span(source).start_offset as usize]
+                .contains('{');
+        if empty_braces {
+            parts.push(self.lit(" {} from"));
+        } else if !specifiers.is_empty() {
             parts.push(self.lit(" "));
             let mut standalone = Vec::new();
             let mut named = Vec::new();
@@ -387,8 +396,16 @@ impl Formatter<'_> {
                 unreachable!("interface member")
             };
             inner.push(self.docs.hardline());
-            if i > 0 && self.blank_line_between(members[i - 1], m) {
-                inner.push(self.docs.hardline());
+            // A member's span ends at its key; its type may run over several lines.
+            if let Some(&previous) = i.checked_sub(1).and_then(|j| members.get(j)) {
+                let end = self
+                    .typescript_of(previous, TypeScriptKind::Annotation)
+                    .map_or_else(|| self.span(previous).end_offset, |t| t.end_offset);
+                let end = self.lines.line_column(end).line;
+                let start = self.lines.line_column(self.span(m).start_offset).line;
+                if start > end + 1 {
+                    inner.push(self.docs.hardline());
+                }
             }
             inner.push(self.docs.text(self.syntax_tree.name(key)));
             if optional {

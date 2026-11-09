@@ -217,6 +217,10 @@ impl Formatter<'_> {
             if i > 0 {
                 parts.push(self.lit(","));
                 parts.push(self.docs.line());
+                // `printArrayItems`: a blank line after an element stays when the array breaks.
+                if self.blank_line_between(items[i - 1], it) {
+                    parts.push(self.docs.softline());
+                }
             }
             parts.push(match self.syntax_tree.kind(it) {
                 Kind::Hole => {

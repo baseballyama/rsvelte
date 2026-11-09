@@ -260,3 +260,36 @@ fn review_f_shapes_are_refused() {
         refusal(source_text);
     }
 }
+
+/// Corpus files that printed otherwise; expected outputs from prettier-plugin-svelte 4.1.1.
+#[test]
+fn corpus_shapes_print_as_the_plugin_prints_them() {
+    for (source_text, want) in [
+        (
+            "<script lang=\"ts\">\n  let { a, b }: {\n a: string; b: number } = $props();\n</script>\n",
+            "<script lang=\"ts\">\n  let {\n    a,\n    b,\n  }: {\n    a: string;\n    b: number;\n  } = $props();\n</script>\n",
+        ),
+        (
+            "<script>\n  import {} from \"svelte\";\n</script>\n",
+            "<script>\n  import {} from \"svelte\";\n</script>\n",
+        ),
+        (
+            "<script lang=\"ts\">\n  interface P {\n    a: {\n      b: string;\n    };\n    c: number;\n  }\n</script>\n",
+            "<script lang=\"ts\">\n  interface P {\n    a: {\n      b: string;\n    };\n    c: number;\n  }\n</script>\n",
+        ),
+        (
+            "<script>\n  let a = [\n    { name: \"Online Stores\", help: \"Connect with third-party tools that you are already using.\" },\n\n    { name: \"Segmentation\" },\n  ];\n</script>\n",
+            "<script>\n  let a = [\n    {\n      name: \"Online Stores\",\n      help: \"Connect with third-party tools that you are already using.\",\n    },\n\n    { name: \"Segmentation\" },\n  ];\n</script>\n",
+        ),
+        (
+            "<script>\n  let a = [x,\n\n y];\n</script>\n",
+            "<script>\n  let a = [x, y];\n</script>\n",
+        ),
+    ] {
+        assert_eq!(formatted(source_text), want, "{source_text}");
+    }
+    // The plugin expands this chain: three calls, counting the base `Array(100)`.
+    refusal(
+        "<script>\n  const xs = Array(100).fill(0).map((_, index) => \"Item \" + index);\n</script>\n",
+    );
+}
