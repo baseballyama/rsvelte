@@ -2,7 +2,7 @@
 //! over them, for the rules that check markup layout.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_kernel::source::tokens::Tokens;
+use rsvelte_kernel::source::tokens::{Token, Tokens};
 use rsvelte_svelte::syntax::syntax_tree::{
     Attribute, AttributeKind, Component, TagAttributes, TemplateNode, TokenType,
 };
@@ -11,6 +11,7 @@ use rsvelte_svelte::syntax::syntax_tree::{
 pub(super) struct StartTag<'a> {
     pub(super) span: Span,
     pub(super) name: Span,
+    pub(super) self_closing: bool,
     pub(super) attributes: Attributes<'a>,
 }
 
@@ -82,6 +83,7 @@ pub(super) fn start_tags(component: &Component) -> impl Iterator<Item = StartTag
             name,
             attributes,
             start_tag,
+            self_closing,
             ..
         } = node
         else {
@@ -90,6 +92,7 @@ pub(super) fn start_tags(component: &Component) -> impl Iterator<Item = StartTag
         Some(StartTag {
             span: *start_tag,
             name: *name,
+            self_closing: *self_closing,
             attributes: Attributes::Template(component.attributes(*attributes)),
         })
     });
@@ -110,10 +113,34 @@ pub(super) fn start_tags(component: &Component) -> impl Iterator<Item = StartTag
         StartTag {
             span: Span::new(span.start_offset, end.span.end_offset),
             name: tokens[1].span,
+            self_closing: false,
             attributes: Attributes::Raw(attributes),
         }
     });
     elements.chain(raw)
+}
+
+/// Every end tag `</name>`, in document order.
+pub(super) fn end_tags(tokens: &Tokens<TokenType>) -> impl Iterator<Item = Span> + '_ {
+    let all = tokens.from_offset(0);
+    all.iter()
+        .enumerate()
+        .filter(|(_, open)| open.kind == TokenType::EndTagOpen)
+        .map(move |(i, open)| {
+            let end = all[i..]
+                .iter()
+                .find(|token| token.kind == TokenType::TagEnd)
+                .expect("an end tag ends with `>`");
+            Span::new(open.span.start_offset, end.span.end_offset)
+        })
+}
+
+/// The last token of a tag: `>` or `/>`.
+pub(super) fn closing_token(tokens: &Tokens<TokenType>, tag: Span) -> &Token<TokenType> {
+    tokens
+        .until_offset(tag.end_offset)
+        .last()
+        .expect("a tag has tokens")
 }
 
 /// The whitespace that ends at `offset`, empty at `offset` when there is none.

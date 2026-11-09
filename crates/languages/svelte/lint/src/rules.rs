@@ -2,6 +2,7 @@ use crate::rule::RuleDefinition;
 
 mod button_has_type;
 mod first_attribute_linebreak;
+mod html_closing_bracket_new_line;
 mod html_quotes;
 mod max_attributes_per_line;
 mod no_spaces_around_equal_signs_in_attribute;
@@ -15,6 +16,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_unused_variables::RULE,
     &button_has_type::RULE,
     &first_attribute_linebreak::RULE,
+    &html_closing_bracket_new_line::RULE,
     &html_quotes::RULE,
     &max_attributes_per_line::RULE,
     &no_spaces_around_equal_signs_in_attribute::RULE,
