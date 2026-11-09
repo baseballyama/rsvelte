@@ -48,3 +48,20 @@ fn an_optional_global_member_is_not_folded() {
         assert!(squashed(markup, Target::Client).contains(kept), "{markup}");
     }
 }
+
+#[test]
+fn a_grouped_optional_chain_is_neither_pure_nor_safe() {
+    for markup in [
+        "<p>{(Math?.PI).toFixed()}</p>",
+        "<p>{(Math?.max)(1, 2)}</p>",
+    ] {
+        let client = squashed(markup, Target::Client);
+        assert!(client.contains("$.push($$props,true);"), "{client}");
+        assert!(client.contains("$.template_effect(($0)=>"), "{client}");
+        let server = squashed(markup, Target::Server);
+        assert!(
+            server.contains("$$renderer.component(($$renderer)=>"),
+            "{server}"
+        );
+    }
+}

@@ -1,4 +1,4 @@
-# svelte.compile/client: 2943 match
+# svelte.compile/client: 2944 match
 svelte/animotion/src/lib/components/action.svelte	refused
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -14230,7 +14230,6 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/if-block-component-st
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/if-block-compound-outro-no-dependencies/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/if-block-else-update/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/if-block-static-with-else-and-outros/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/if-block-static-with-else/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/immutable-before-after-update/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/immutable-each-equals/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/immutable-mutate-object/main.svelte	missing
