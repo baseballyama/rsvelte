@@ -59,7 +59,7 @@ fn long_chains_print_without_recursing_per_link() {
                 cases.push((shape, e, format!("a{}", link.repeat(LINKS))));
             }
             for (shape, e, expected) in cases {
-                assert!(print_expression(&tree, "", e) == expected, "{shape}");
+                assert_eq!(print_expression(&tree, "", e), expected, "{shape}");
             }
         })
         .expect("spawns")
