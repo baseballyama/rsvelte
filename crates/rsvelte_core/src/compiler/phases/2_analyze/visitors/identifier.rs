@@ -704,17 +704,15 @@ pub(super) fn state_read_can_warn_with(
                             && initial_identifier_name
                                 .and_then(|name| root.get_binding(name, scope))
                                 .is_some_and(|idx| {
-                                    // A rune binding's `initial` is the rune call, which
-                                    // upstream proxies; this field holds its argument.
+                                    // A `$state` / `$derived` binding's `initial` is the
+                                    // rune call, which upstream proxies; this field holds
+                                    // its argument. A prop's is its fallback in both.
                                     let resolved = &root.bindings[idx];
                                     !matches!(
                                         resolved.kind,
                                         BindingKind::State
                                             | BindingKind::RawState
                                             | BindingKind::Derived
-                                            | BindingKind::Prop
-                                            | BindingKind::BindableProp
-                                            | BindingKind::RestProp
                                     ) && !resolved.reassigned
                                         && resolved.initial_node_type.as_deref().is_some_and(|it| {
                                             is_unproxyable(

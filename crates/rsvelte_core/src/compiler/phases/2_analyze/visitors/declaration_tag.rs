@@ -165,10 +165,21 @@ fn warn_local_state_reads(node: &serde_json::Value, kind: &str, context: &mut Vi
             let Some(name) = node.field("name").and_then(|n| n.as_str()) else {
                 return;
             };
+            let start = node
+                .field("start")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u32);
             let root = &context.analysis.root;
             let warns = root.get_binding(name, context.scope).is_some_and(|idx| {
                 let binding = &root.bindings[idx];
+                // Upstream gives a binding its rune kind when its declarator is
+                // visited, so a read ahead of the declaration sees a plain one.
+                let declared_before = binding
+                    .declaration_start
+                    .zip(start)
+                    .is_none_or(|(declared, read)| declared < read);
                 binding.scope_index == context.scope
+                    && declared_before
                     && match context.analysis.declaration_tag_state_args.get(&idx) {
                         Some((arg_type, ident)) => super::identifier::state_read_can_warn_with(
                             binding,
@@ -183,10 +194,6 @@ fn warn_local_state_reads(node: &serde_json::Value, kind: &str, context: &mut Vi
                     }
             });
             if warns {
-                let start = node
-                    .field("start")
-                    .and_then(|v| v.as_u64())
-                    .map(|v| v as u32);
                 let end = node.field("end").and_then(|v| v.as_u64()).map(|v| v as u32);
                 context
                     .analysis
@@ -194,9 +201,11 @@ fn warn_local_state_reads(node: &serde_json::Value, kind: &str, context: &mut Vi
                     .push(warnings::state_referenced_locally(name, kind, start, end));
             }
         }
+        // `import.meta` names no binding.
         Some("ArrowFunctionExpression")
         | Some("FunctionExpression")
-        | Some("FunctionDeclaration") => {}
+        | Some("FunctionDeclaration")
+        | Some("MetaProperty") => {}
         Some("CallExpression") => {
             if let Some(callee) = node.field("callee") {
                 warn_local_state_reads(callee, kind, context);
