@@ -99,6 +99,9 @@ fn deep_chains_copy_on_a_small_stack_in_the_order_recursion_offers_them() {
         format!("a{};", " + b".repeat(LINKS)),
         format!("a{};", " || b".repeat(LINKS)),
         "(a.b)(c)[d] + (e || f).g(h);".to_owned(),
+        // Nesting other than a chain, below the parser's limit.
+        format!("x = {}{};", "[".repeat(20_000), "]".repeat(20_000)),
+        format!("{}x;{}", "function f(){".repeat(20_000), "}".repeat(20_000)),
     ] {
         let (from, statement) = parse_one_statement(&source);
         let (copied, to, order) = std::thread::scope(|scope| {
