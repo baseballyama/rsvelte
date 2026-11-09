@@ -292,19 +292,19 @@ const $$v_n13 = $$v_template('<p>');
 
 const $$v_n15 = $$v_template(' ');
 
-const $$v_n17 = $$v_template('<span> </span>');
+const $$v_n18 = $$v_template('<span> </span>');
 
-const $$v_n20 = $$v_template('<span>');
+const $$v_n21 = $$v_template('<span>');
 
-const $$v_n22 = $$v_template(' ');
+const $$v_n23 = $$v_template(' ');
 
-const $$v_n24 = $$v_template('<span> </span>');
+const $$v_n25 = $$v_template('<span> </span>');
 
-const $$v_n27 = $$v_template('<output>');
+const $$v_n28 = $$v_template('<output>');
 
-const $$v_n29 = $$v_template('<span>effect</span>');
+const $$v_n30 = $$v_template('<span>effect</span>');
 
-const $$v_n33 = $$v_template('<span> </span>');
+const $$v_n34 = $$v_template('<span> </span>');
 
 export default $$v_defineVaporComponent({ inheritAttrs: false, setup(__props) {
 	const count = $$ref(0);
@@ -341,30 +341,32 @@ export default $$v_defineVaporComponent({ inheritAttrs: false, setup(__props) {
 	const $$v_n12 = $$v_n11.firstChild;
 	const $$v_n14 = $$v_n13();
 	const $$v_n16 = $$v_n15();
+	const $$v_n17 = $$v_computed(() => $$tracked(() => $$effect_tracking()));
 	$$v_insert([$$v_n16], $$v_n14);
-	const $$v_n18 = $$v_n17();
-	const $$v_n19 = $$v_n18.firstChild;
-	const $$v_n21 = $$v_n20();
-	const $$v_n23 = $$v_n22();
-	$$v_insert([$$v_n23], $$v_n21);
-	const $$v_n25 = $$v_n24();
-	const $$v_n26 = $$v_n25.firstChild;
-	const $$v_n28 = $$v_n27();
-	const $$v_n30 = $$v_n29();
-	const $$v_n31 = $$v_n30.firstChild;
-	$$v_insert([$$v_n31], $$v_n28);
-	const $$v_n32 = ($$el) => {
+	const $$v_n19 = $$v_n18();
+	const $$v_n20 = $$v_n19.firstChild;
+	const $$v_n22 = $$v_n21();
+	const $$v_n24 = $$v_n23();
+	$$v_insert([$$v_n24], $$v_n22);
+	const $$v_n26 = $$v_n25();
+	const $$v_n27 = $$v_n26.firstChild;
+	const $$v_n29 = $$v_n28();
+	const $$v_n31 = $$v_n30();
+	const $$v_n32 = $$v_n31.firstChild;
+	$$v_insert([$$v_n32], $$v_n29);
+	const $$v_n33 = ($$el) => {
 		element.value = $$el;
 	};
-	$$v_renderEffect(() => $$tracked(() => $$v_n32($$v_n28)));
-	$$v_onScopeDispose(() => $$v_n32(null));
-	const $$v_n34 = $$v_n33();
-	const $$v_n35 = $$v_n34.firstChild;
-	const $$v_n36 = $$v_createKeyedFragment(() => $$snippet_6, () => $$snippet_6 ? $$snippet_6() : []);
+	$$v_renderEffect(() => $$tracked(() => $$v_n33($$v_n29)));
+	$$v_onScopeDispose(() => $$v_n33(null));
+	const $$v_n35 = $$v_n34();
+	const $$v_n36 = $$v_n35.firstChild;
+	const $$v_n37 = $$v_createKeyedFragment(() => $$snippet_6, () => $$snippet_6 ? $$snippet_6() : []);
 	$$v_renderEffect(() => {
+		$$v_n17.value;
 		$$tracked(() => $$v_setText($$v_n9, `${count.value ?? ''}`));
-		$$tracked(() => $$v_setText($$v_n16, `${$$v_unref(setup) ?? ''}:${clicked.value ?? ''}:${$$effect_tracking() ?? ''}`));
-		$$tracked(() => $$v_setText($$v_n23, `${derived.value}:${derivedBy.value}`));
+		$$tracked(() => $$v_setText($$v_n16, `${$$v_unref(setup) ?? ''}:${clicked.value ?? ''}:${$$v_n17.value ?? ''}`));
+		$$tracked(() => $$v_setText($$v_n24, `${derived.value}:${derivedBy.value}`));
 	});
-	return [[], $$v_n7, $$v_n12, $$v_n14, $$v_n19, $$v_n21, $$v_n26, $$v_n28, $$v_n35, $$v_n36];
+	return [[], $$v_n7, $$v_n12, $$v_n14, $$v_n20, $$v_n22, $$v_n27, $$v_n29, $$v_n36, $$v_n37];
 } });

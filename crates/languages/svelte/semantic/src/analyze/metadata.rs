@@ -180,10 +180,17 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
             }
         } else if rune == Some("$effect.pending") {
             self.meta.has_state = true;
+        } else if COLLECT_METADATA && rune == Some("$effect.tracking") {
+            // Upstream's `is_pure` calls it impure, so it is read inside an effect.
+            self.meta.has_call = true;
+            self.meta.has_state = true;
         } else if matches!(rune, Some("$effect" | "$effect.pre" | "$bindable")) {
             self.needs_context = true;
         }
-        Visited { pure, root: None }
+        Visited {
+            pure: pure && rune != Some("$effect.tracking"),
+            root: None,
+        }
     }
 
     /// A member's object or a call's callee. A whole optional chain there is upstream's

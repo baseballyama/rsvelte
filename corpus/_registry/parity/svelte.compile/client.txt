@@ -1,4 +1,4 @@
-# svelte.compile/client: 8501 match
+# svelte.compile/client: 8504 match
 svelte/animotion/src/lib/components/action.svelte	refused
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -7537,7 +7537,6 @@ svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/docs/runes/01-$sta
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/docs/runes/02-$derived-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/docs/runes/02-2-$derived-by-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/docs/runes/03-1-$effect-input.svelte	refused
-svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/docs/runes/03-2-$effect-tracking-input.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/docs/runes/04-$effect-pre-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-id-input.svelte	refused
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-id-ts-input.svelte	refused
@@ -9538,7 +9537,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/effect-self-scheduling
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/effect-tracking-binding-set/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/effect-tracking-transition/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/effect-tracking-unowned/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/effect-tracking/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/effect-untrack-teardown/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/effect/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/effects-order/main.svelte	refused
@@ -9606,7 +9604,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/if-nested-template/mai
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/if-transition-inert/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/if-transition-undefined/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/img-loading-lazy-no-static/main.svelte	missing
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/inline-expressions/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/inspect-console-trace/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/inspect-deep-array/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/inspect-deep/main.svelte	refused

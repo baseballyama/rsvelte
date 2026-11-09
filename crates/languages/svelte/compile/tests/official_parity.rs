@@ -103,7 +103,7 @@ fn a_loop_head_that_assigns_a_signal_is_refused_on_both_targets() {
 
 #[test]
 fn a_derived_keeps_its_arrow_only_when_the_callee_may_change() {
-    let source = "<script>import A from './A.svelte'; const g = () => 1; let f = () => 1; function swap() { f = () => 2; } let d = $derived(g()); let e = $derived(f()); let l = $derived(h()); const h = () => 3;</script><A a={f()} b={g()} {d} {e} {l} {swap} />";
+    let source = "<script>import A from './A.svelte'; const g = () => 1; let f = () => 1; function swap() { f = () => 2; } let d = $derived(g()); let e = $derived(f()); let l = $derived(h()); const h = () => 3;</script><A a={f()} b={g()} t={$effect.tracking()} {d} {e} {l} {swap} />";
     let client = squashed(source, Target::Client);
     for expected in [
         "letd=$.derived(g);",
@@ -111,6 +111,7 @@ fn a_derived_keeps_its_arrow_only_when_the_callee_may_change() {
         "letl=$.derived(()=>h());",
         "let$0=$.derived(()=>f());",
         "let$1=$.derived(g);",
+        "let$2=$.derived($.effect_tracking);",
     ] {
         assert!(client.contains(expected), "{expected} in {client}");
     }
@@ -122,6 +123,17 @@ fn a_derived_keeps_its_arrow_only_when_the_callee_may_change() {
     ] {
         assert!(server.contains(expected), "{expected} in {server}");
     }
+}
+
+#[test]
+fn effect_tracking_is_read_inside_an_effect() {
+    let source = "<script>import C from './C.svelte';</script><C t={$effect.tracking()} /><p>{$effect.tracking()}</p>";
+    let client = squashed(source, Target::Client);
+    assert!(client.contains("gett()"), "{client}");
+    assert!(
+        !client.contains("textContent=$.effect_tracking()"),
+        "{client}"
+    );
 }
 
 #[test]
