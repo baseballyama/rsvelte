@@ -17,12 +17,18 @@ rsvelte_kernel.workspace = true
 rsvelte_document_printer.workspace = true
 rsvelte_typescript_format.workspace = true
 rsvelte_typescript_syntax.workspace = true
+serde.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
 rsvelte_test_harness.workspace = true
 
 [[test]]
 name = "fixtures"
+harness = false
+
+[[test]]
+name = "upstream"
 harness = false
 
 [lints]

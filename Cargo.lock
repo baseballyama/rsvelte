@@ -969,6 +969,8 @@ dependencies = [
  "rsvelte_test_harness",
  "rsvelte_typescript_format",
  "rsvelte_typescript_syntax",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

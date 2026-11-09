@@ -1,0 +1,309 @@
+pass	printer/action-with-expression.html
+pass	printer/action.html
+pass	printer/allow-shorthand-false.html
+pass	printer/allow-shorthand-true.html
+pass	printer/animation-with-expression.html
+pass	printer/animation.html
+pass	printer/attachment.html
+pass	printer/attribute-bracket-new-line.html
+pass	printer/attribute-bracket-no-new-line.html
+pass	printer/attribute-bracket-same-line.html
+refused	printer/attribute-comment.html	comments
+pass	printer/attribute-dynamic.html
+pass	printer/attribute-multiple.html
+pass	printer/attribute-several-bracket-new-line.html
+pass	printer/attribute-several-bracket-no-new-line.html
+pass	printer/attribute-several.html
+pass	printer/attribute-shorthand.html
+pass	printer/attribute-static-boolean.html
+pass	printer/attribute.html
+pass	printer/attributes-long-text-with-mustache.html
+pass	printer/attributes-nested-quotes.html
+pass	printer/await-block-no-args.html
+pass	printer/await-block-with-catch-without-pending.html
+pass	printer/await-block-with-only-pending.html
+pass	printer/await-block-without-catch.html
+pass	printer/await-block-without-pending.html
+pass	printer/await-block.html
+pass	printer/await-catch-without-pending.html
+pass	printer/await-inline-no-args.html
+pass	printer/await-inline-with-catch-without-pending.html
+pass	printer/await-inline-without-catch.html
+pass	printer/await-inline-without-pending.html
+pass	printer/await-inline.html
+pass	printer/await-then-destruct-array.html
+pass	printer/await-then-destruct-default.html
+pass	printer/await-then-destruct-object-reassignment.html
+pass	printer/await-then-destruct-object.html
+pass	printer/await-then-destruct-rest.html
+refused	printer/bind-sequence-leading-comment.html	comments in the template's JavaScript
+refused	printer/binding-get-set.html	a layout that does not fit on one line
+pass	printer/binding-shorthand.html
+pass	printer/binding.html
+pass	printer/class-shorthand.html
+pass	printer/class.html
+pass	printer/comment-at-end.html
+pass	printer/comment.html
+pass	printer/comments-above-html-block.html
+refused	printer/comments-multiple-above-blocks.html	comments attached to <script> or <style>
+pass	printer/component-style-script-tagname.html
+pass	printer/component.html
+pass	printer/const.html
+pass	printer/debug-tag-with-var.html
+pass	printer/debug-tag-with-vars.html
+pass	printer/debug-tag.html
+pass	printer/declaration-tag.html
+pass	printer/doctype.html
+pass	printer/each-block-destructured-computed-key.html
+pass	printer/each-block-destructured-default-value.html
+pass	printer/each-block-destructured-nested-rest.html
+pass	printer/each-block-destructured.html
+pass	printer/each-block-else-with-nested-if-block-else.html
+pass	printer/each-block-else-with-nested-if-block-elseif-else.html
+pass	printer/each-block-else-with-nested-if-block-elseif.html
+pass	printer/each-block-else-with-nested-if-block.html
+pass	printer/each-block-else-with-nested-if-inline-else.html
+pass	printer/each-block-else-with-nested-if-inline-elseif-else.html
+pass	printer/each-block-else-with-nested-if-inline-elseif.html
+pass	printer/each-block-else-with-nested-if-inline.html
+pass	printer/each-block-else.html
+pass	printer/each-block-indexed.html
+pass	printer/each-block-keyed.html
+pass	printer/each-block-without-as.html
+pass	printer/each-block.html
+pass	printer/each-inline-else.html
+pass	printer/each-inline-indexed.html
+pass	printer/each-inline-keyed.html
+pass	printer/each-inline.html
+pass	printer/element-many-attributes-bracket-new-line.html
+pass	printer/element-many-attributes-bracket-no-new-line.html
+pass	printer/element-siblings-spaced.html
+pass	printer/element-siblings.html
+pass	printer/element-with-attributes-and-mustache.html
+pass	printer/element-with-children-bracket-new-line.html
+pass	printer/element-with-children-bracket-no-new-line.html
+pass	printer/element-with-class-and-comment-inside.html
+pass	printer/element-with-element-mustache.html
+pass	printer/element-with-element-text-mustache.html
+pass	printer/element-with-element.html
+pass	printer/element-with-multi-mustache-no-space.html
+pass	printer/element-with-multi-mustache.html
+pass	printer/element-with-mustache-no-space.html
+pass	printer/element-with-mustache.html
+pass	printer/element-with-several-attributes-and-mustache.html
+pass	printer/element-with-text-and-inline-element.html
+pass	printer/element-with-text.html
+pass	printer/element.html
+pass	printer/empty-elements-no-newline.html
+pass	printer/empty-elements.html
+refused	printer/event-handler-comments.html	comments in the template's JavaScript
+pass	printer/event-handler-with-expression.html
+pass	printer/event-handler.html
+pass	printer/event-with-modifier.html
+pass	printer/event-with-modifiers.html
+pass	printer/hug-content-edge-cases.html
+pass	printer/if-block-else.html
+pass	printer/if-block-elseif-else.html
+pass	printer/if-block-elseif.html
+pass	printer/if-block-without-whitespace.html
+pass	printer/if-block.html
+pass	printer/if-inline-else.html
+pass	printer/if-inline-elseif-else.html
+pass	printer/if-inline-elseif.html
+pass	printer/if-inline.html
+pass	printer/if-nested.html
+pass	printer/indent-script-and-style.html
+pass	printer/inline-blocks-nested.html
+pass	printer/inline-element-single-text.html
+pass	printer/insert-pragma-present.html
+refused	printer/jsdoc-parens-in-script.html	comments
+pass	printer/key-block.html
+pass	printer/let-shorthand.html
+pass	printer/let.html
+pass	printer/long-control-blocks-dont-break.html
+unmeasured	printer/markdown.md
+pass	printer/nbsp-preservation.html
+pass	printer/nested-destructuring.html
+refused	printer/no-tag-snippings.html	<script> or <style> inside an element
+pass	printer/pre-element-inside-other-element.html
+pass	printer/pre-element-with-code-element.html
+pass	printer/pre-element.html
+refused	printer/prettier-ignore-nested.html	prettier-ignore comments
+refused	printer/prettier-ignore-range.html	prettier-ignore comments
+refused	printer/prettier-ignore-script.html	prettier-ignore comments
+refused	printer/prettier-ignore-style.html	prettier-ignore comments
+pass	printer/raw-mustaches.html
+refused	printer/region-markers.html	comments attached to <script> or <style>
+pass	printer/require-pragma-missing.html
+pass	printer/s-after-style-tag.html
+pass	printer/script-and-module.html
+pass	printer/script-and-style.html
+refused	printer/script-attributes-multiline.html	<script> or <style> inside an element
+pass	printer/script-inside-comment.html
+refused	printer/script-inside-element.html	<script> or <style> inside an element
+fail	printer/script-lang-typescript.html
+pass	printer/script-only.html
+refused	printer/script-style-inside-element-comment.html	<script> or <style> inside an element
+refused	printer/script-style-script-snipping.html	comments
+pass	printer/script-tag-generics.html
+fail	printer/script-type-typescript.html
+pass	printer/script-with-html-comment-and-style.html
+pass	printer/script.html
+pass	printer/self-closing-tags-lenient.html
+pass	printer/self-closing-tags.html
+pass	printer/single-attribute-per-line-bracket-no-new-line.html
+pass	printer/single-attribute-per-line.html
+refused	printer/single-quote.html	singleQuote
+refused	printer/snippet-ts.html	TypeScript type other than a plain reference, a union of them or a type literal
+pass	printer/snippet.html
+pass	printer/sort-order-markup-options-scripts-styles.html
+pass	printer/sort-order-markup-options-styles-scripts.html
+pass	printer/sort-order-markup-scripts-options-styles.html
+pass	printer/sort-order-markup-scripts-styles-options.html
+pass	printer/sort-order-markup-styles-options-scripts.html
+pass	printer/sort-order-markup-styles-scripts-options.html
+pass	printer/sort-order-none.html
+refused	printer/sort-order-none2.html	comments attached to <script> or <style>
+pass	printer/sort-order-none3.html
+pass	printer/sort-order-options-markup-scripts-styles.html
+pass	printer/sort-order-options-markup-styles-scripts.html
+pass	printer/sort-order-options-scripts-styles-markup.html
+pass	printer/sort-order-options-styles-markup-scripts.html
+pass	printer/sort-order-options-styles-scripts-markup.html
+pass	printer/sort-order-scripts-options-styles-markup.html
+pass	printer/sort-order-scripts-styles-markup-options.html
+pass	printer/sort-order-scripts-styles-options-markup.html
+pass	printer/sort-order-styles-markup-options-scripts.html
+pass	printer/sort-order-styles-markup-scripts-options.html
+pass	printer/sort-order-styles-options-markup-scripts.html
+pass	printer/sort-order-styles-options-scripts-markup.html
+pass	printer/sort-order-styles-scripts-markup-options.html
+pass	printer/sort-order-styles-scripts-options-markup.html
+pass	printer/spread.html
+pass	printer/style-directive.html
+pass	printer/style-inside-comment.html
+refused	printer/style-inside-element.html	<script> or <style> inside an element
+pass	printer/style-inside-script.html
+refused	printer/style-lang-less.html	a style language other than CSS
+fail	printer/style-lang-scss.html
+refused	printer/style-script-commented-out.html	comments attached to <script> or <style>
+refused	printer/style-scripts-snipping-spans.html	comments
+refused	printer/style-type-less.html	a style language other than CSS
+fail	printer/style-type-scss.html
+refused	printer/style-unclosed-inside-script.html	comments
+pass	printer/style-with-attributes.html
+pass	printer/style.html
+pass	printer/svelte-body-element.html
+pass	printer/svelte-boundary.html
+pass	printer/svelte-component-element.html
+pass	printer/svelte-document-element.html
+pass	printer/svelte-element-static-tag.html
+pass	printer/svelte-element.html
+pass	printer/svelte-fragment-element.html
+pass	printer/svelte-head-element.html
+refused	printer/svelte-head-script-content.html	<script> or <style> inside an element
+pass	printer/svelte-options-element.html
+pass	printer/svelte-self-element.html
+pass	printer/svelte-window-element.html
+refused	printer/template-empty-with-url.html	<template> with a language
+refused	printer/template-pug.html	<template> with a language
+pass	printer/text-html-entities.html
+pass	printer/textarea-preserve-whitespace.html
+pass	printer/toplevel-blocks.html
+pass	printer/toplevel-blocks2.html
+pass	printer/transition-in-local.html
+pass	printer/transition-in.html
+pass	printer/transition-local.html
+pass	printer/transition-out-local.html
+pass	printer/transition-out.html
+pass	printer/transition-with-expression-local.html
+pass	printer/transition-with-expression.html
+pass	printer/transition.html
+fail	printer/typescript-call-generic-function.html
+refused	printer/typescript-template.html	TypeScript syntax
+fail	printer/typescript-without-lang-attr.html
+fail	printer/typescript.html
+pass	printer/unicode-element.html
+pass	printer/unicode-mustache.html
+pass	printer/unicode-script.html
+pass	printer/unicode-style.html
+fail	printer/unsupported-language.html
+pass	formatting/all-elements-ignore-whitespace
+pass	formatting/all-elements-strict-whitespace
+pass	formatting/allow-shorthand-false
+pass	formatting/attribute-add-quotes
+pass	formatting/attribute-convert-single-quotes
+pass	formatting/attribute-remove-quotes
+pass	formatting/attribute-shorthand
+pass	formatting/attribute-with-linebreaks
+pass	formatting/attribute-wrap-several
+pass	formatting/attributes-bracket-same-line
+pass	formatting/attributes-class
+pass	formatting/attributes-newline
+pass	formatting/attributes-no-newline
+refused	formatting/attributes-without-quotes	a style language other than CSS
+pass	formatting/block-element-break-children
+pass	formatting/block-element-break-long
+pass	formatting/block-element-break-long-whitespace
+pass	formatting/block-element-break-subblocks
+pass	formatting/block-element-with-children-no-ws
+pass	formatting/block-element-with-children-ws
+pass	formatting/child-text-leading-whitespace
+pass	formatting/child-text-tailing-whitespace
+pass	formatting/collapse-attribute-shortand
+pass	formatting/collapse-bind-shorthand
+pass	formatting/collapse-class-shorthand
+pass	formatting/collapse-intra-mustache-whitespace
+pass	formatting/collapse-intra-text-whitespace
+pass	formatting/collapse-let-shorthand
+pass	formatting/component-ignore-whitespace
+pass	formatting/component-treated-as-inline-element
+refused	formatting/const	a layout that does not fit on one line
+pass	formatting/declaration-tag
+pass	formatting/do-not-add-whitespace-between-inline-elements
+pass	formatting/each-await-block-destructuring
+pass	formatting/empty-element
+pass	formatting/empty-element-whitespace
+pass	formatting/inline-element-break-children
+pass	formatting/inline-element-break-long
+pass	formatting/inline-element-break-long-nonewline
+pass	formatting/inline-element-break-long-whitespace
+pass	formatting/inline-element-with-children-no-ws
+pass	formatting/inline-element-with-children-ws
+pass	formatting/inline-element-with-hardline
+pass	formatting/inlineblock-element-break-subblocks
+pass	formatting/insert-pragma
+refused	formatting/long-attribute-value	a layout that does not fit on one line
+refused	formatting/long-mustache-value	a layout that does not fit on one line
+pass	formatting/move-options-to-top
+pass	formatting/no-html-whitespace-inside-inline-element
+pass	formatting/no-html-whitespace-outside-inline-element
+pass	formatting/pre-mustache
+refused	formatting/prettier-ignore	prettier-ignore comments
+refused	formatting/prettier-ignore-range-1	prettier-ignore comments
+refused	formatting/prettier-ignore-range-2	prettier-ignore comments
+refused	formatting/prettier-ignore-range-wrong	prettier-ignore comments
+refused	formatting/prettier-ignore-ranges-and-lines	prettier-ignore comments
+refused	formatting/region-markers	comments attached to <script> or <style>
+pass	formatting/require-pragma-present
+pass	formatting/script-only-extra-whitespace
+refused	formatting/script-style-tags-multiple-nested	comments attached to <script> or <style>
+pass	formatting/scripts-styles-empty-handling
+refused	formatting/scripts-styles-text-handling	comments attached to <script> or <style>
+pass	formatting/single-attribute-per-line
+pass	formatting/style-directive
+pass	formatting/svelte-await-block-break
+pass	formatting/svelte-each-block-break
+pass	formatting/svelte-if-block-break
+pass	formatting/svelte-key-block-break
+fail	formatting/syntax-error
+refused	formatting/top-level-comments	comments attached to <script> or <style>
+pass	formatting/trim-leading-whitespace
+pass	formatting/trim-line-breaks-elements
+pass	formatting/trim-line-breaks-text
+pass	formatting/trim-tailing-whitespace
+pass	formatting/trim-whitespace-after-script
+pass	formatting/trim-whitespace-after-style
+pass	formatting/whitespace-between-tags-and-text
+pass	formatting/whitespace-in-closing-script-style-tag
+pass	formatting/wrap-element-attributes-and-children

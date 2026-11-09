@@ -8,6 +8,8 @@ use rsvelte_kernel::source::positions::LineIndex;
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 
+use crate::Options;
+
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.format",
     version: env!("CARGO_PKG_VERSION"),
@@ -18,17 +20,27 @@ pub static PLUGIN: Plugin = Plugin {
 };
 
 pub fn register(registry: &mut Registry) {
+    register_with_options(registry, Options::default());
+}
+
+pub fn register_with_options(registry: &mut Registry, options: Options) {
     registry.plugin(&PLUGIN);
     rsvelte_svelte_syntax::register(registry);
-    registry.task(Format);
+    registry.task(Format { options });
 }
 
 #[derive(Debug)]
-pub struct Format;
+pub struct Format {
+    options: Options,
+}
+
+impl Format {
+    pub const IDENTIFIER: &'static str = "svelte.format/default";
+}
 
 impl Task for Format {
     fn identifier(&self) -> &'static str {
-        "svelte.format/default"
+        Self::IDENTIFIER
     }
 
     fn applies(&self, document: &Document) -> bool {
@@ -43,29 +55,40 @@ impl Task for Format {
                 return;
             }
         };
-        match formatted(c, context.source_text(), context.line_index()) {
+        match formatted(
+            c,
+            context.source_text(),
+            context.line_index(),
+            &self.options,
+        ) {
             Ok(text) => out.file("svelte", text),
             Err(diagnostic) => out.diagnostics.push(diagnostic),
         }
     }
 }
 
-/// Formats a component as prettier with prettier-plugin-svelte and the default options does.
+/// Formats a component as prettier with prettier-plugin-svelte and `options` does.
 ///
 /// # Errors
 ///
 /// The parse error, or the first construct the formatter does not handle yet.
-pub fn format(source_text: &str) -> Result<String, Diagnostic> {
+pub fn format(source_text: &str, options: &Options) -> Result<String, Diagnostic> {
     let component = rsvelte_svelte_syntax::parse::parse(source_text)?;
-    formatted(&component, source_text, &LineIndex::new(source_text))
+    formatted(
+        &component,
+        source_text,
+        &LineIndex::new(source_text),
+        options,
+    )
 }
 
 fn formatted(
     component: &Component,
     source_text: &str,
     lines: &LineIndex,
+    options: &Options,
 ) -> Result<String, Diagnostic> {
-    crate::format::format(component, source_text, lines).map_err(|u| {
+    crate::format::format(component, source_text, lines, options).map_err(|u| {
         Diagnostic::error(
             "format_unsupported",
             format!("not supported by the formatter yet: {}", u.what),
