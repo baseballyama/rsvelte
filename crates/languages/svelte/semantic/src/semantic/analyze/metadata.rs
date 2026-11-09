@@ -59,22 +59,38 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
                     self.reference(identifier);
                 }
             }
-            Kind::Member {
-                object,
-                property,
-                computed,
-                ..
-            } => {
-                self.visit(object);
-                if computed {
+            Kind::Member { .. } => {
+                // A chain `a.b.c…` is walked down by a loop: it nests thousands deep in real
+                // input. Every link shares the innermost one's root, so only that one is judged.
+                let (mut innermost, mut at) = (identifier, identifier);
+                let mut computed = Vec::new();
+                while let Kind::Member {
+                    object,
+                    property,
+                    computed: is_computed,
+                    ..
+                } = self.syntax_tree.kind(at)
+                {
+                    if is_computed {
+                        computed.push((at, property));
+                    }
+                    innermost = at;
+                    at = object;
+                }
+                self.visit(at);
+                let mut properties = computed.iter().rev().peekable();
+                if let Some(&(_, property)) = properties.next_if(|&&(m, _)| m == innermost) {
                     self.visit(property);
                 }
                 self.meta.has_member = true;
-                if COLLECT_METADATA && !self.is_pure(identifier) {
+                if COLLECT_METADATA && !self.is_pure(innermost) {
                     self.meta.has_state = true;
                 }
-                if !self.is_safe(identifier) {
+                if !self.is_safe(innermost) {
                     self.needs_context = true;
+                }
+                for &(_, property) in properties {
+                    self.visit(property);
                 }
             }
             Kind::Call {

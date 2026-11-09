@@ -25,6 +25,38 @@ fn allocations(script: &str) -> u64 {
 }
 
 #[test]
+fn a_member_chain_in_markup_analyzes_on_a_small_stack() {
+    let source = format!("<script>let a = {{}};</script>{{a{}}}", ".b".repeat(20_000));
+    let component = rsvelte_svelte::syntax::parse::parse(&source).expect("parses");
+    let tree = rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, &source);
+    let input = rsvelte_svelte::svelte_input(&component, &tree, &source, "App.svelte");
+    let resolution = std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .stack_size(1 << 30)
+            .spawn_scoped(scope, || {
+                rsvelte_svelte::semantic::resolve::resolve(
+                    &component.javascript,
+                    component.program,
+                    &tree,
+                )
+            })
+            .expect("spawns")
+            .join()
+            .expect("resolves on a large stack")
+    });
+    std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .stack_size(1 << 20)
+            .spawn_scoped(scope, || {
+                let _analysis = rsvelte_svelte::semantic::analyze::analyze(&input, &resolution);
+            })
+            .expect("spawns")
+            .join()
+            .expect("analyzes within a 1 MiB stack");
+    });
+}
+
+#[test]
 fn a_call_chain_compiles_in_allocations_linear_in_its_length() {
     // Allocation counts are deterministic; a quadratic pass makes the doubled input cost ~4x.
     let chain = |n: usize| format!("f{};", "()".repeat(n));
