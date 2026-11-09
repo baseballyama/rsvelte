@@ -72,7 +72,7 @@ fn unparseable_style_body_is_spliced_without_a_blank_line() {
     assert!(out.contains(".a:is(2n)"), "rule went missing:\n{out}");
 }
 
-/// The three `fmt-oracle-excluded.json` CSS entries. Each form below is
+/// The two `fmt-oracle-excluded.json` CSS entries. Each form below is
 /// `oxfmt <file>.css`'s own output byte-for-byte; `oxfmt(svelte: true)` — which
 /// prints embedded CSS through prettier's PostCSS printer — disagrees with oxfmt
 /// itself on `--bar` and `--sel`, so matching the oracle would mean matching a

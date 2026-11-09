@@ -108,15 +108,5 @@
 		"id": "svelte/packages/svelte/tests/migrate/samples/svelte-element/output.svelte",
 		"class": "oracle-bug",
 		"reason": "oxfmt/prettier-plugin-svelte rebuilds <svelte:element this=\"h{n}\"> from the parsed first chunk and deletes {n}; rsvelte-fmt leaves the opener as written"
-	},
-	{
-		"id": "svelte/packages/svelte/tests/compiler-errors/samples/each-block-duplicate-else/main.svelte",
-		"class": "invalid-input",
-		"reason": "compiler-errors fixture: a second `{:else}` in one `{#each}` is `block_duplicate_clause` since Svelte 5.57.3, so rsvelte-fmt's parser (the compiler's) rejects it and leaves the file verbatim. The oracle formats it and silently deletes the first `{:else}` branch (`A`), keeping only `B`."
-	},
-	{
-		"id": "svelte/packages/svelte/tests/compiler-errors/samples/if-block-else-before-else-if/main.svelte",
-		"class": "invalid-input",
-		"reason": "compiler-errors fixture: `{:else}` before `{:else if}` is `block_duplicate_clause` since Svelte 5.57.3, so rsvelte-fmt's parser (the compiler's) rejects it and leaves the file verbatim. The oracle formats it and silently deletes the `{:else}` branch (`B`), keeping `{:else if b}`."
 	}
 ]

@@ -9280,17 +9280,15 @@ that comparison would show the divergence is the oracle's inconsistency and not 
 
 ### The formatter declines an input its own parser rejects
 
-**Ratchet** `compatibility/fmt-oracle-excluded.json`, the five `invalid-input` entries and the
+**Ratchet** `compatibility/fmt-oracle-excluded.json`, the three `invalid-input` entries and the
 two `migrate` entries.
 **Pinned by** `compatibility/pattern-corpus/adversarial/css/rejected-global-keyframes-selector.svelte`
 and `crates/rsvelte_formatter/tests/style_block.rs`.
 
 #### Input
 
-Five inputs no compiler accepts — a snippet parameter written `c?: number = 5` (TS1015),
-snippet rest parameters (`snippet_invalid_rest_parameter`), `h1:nth-of-type(+12)`, and two
-Svelte `compiler-errors` fixtures that repeat `{:else}` (`block_duplicate_clause`, ported with
-Svelte 5.57.3) — and two
+Three inputs no compiler accepts — a snippet parameter written `c?: number = 5` (TS1015),
+`h1:nth-of-type(+12)`, and a type parameter named `string` (TS2368) — and two
 Svelte 4→5 **migrator outputs**, which use `let:` directives and `slot=` attributes. A fourth,
 `:global(@keyframes shared)` (`css_expected_identifier`, #3120), takes the same path and is no
 longer excluded: reindentation is the only thing the oracle does to that block, and the fallback
@@ -9298,9 +9296,7 @@ reindents too, so the two agree byte-for-byte and the id is scored like any othe
 
 #### Both outputs
 
-`prettier-plugin-svelte` formats all seven: it validates nothing beyond its own parse — on the two
-`{:else}` fixtures (oxfmt 0.67.0) it keeps one `{:else}` branch and deletes the other's body
-(`A` in `each-block-duplicate-else`, `B` in `if-block-else-before-else-if`). `rsvelte-fmt`
+`prettier-plugin-svelte` formats all five: it validates nothing beyond its own parse. `rsvelte-fmt`
 reports the parse error, or — where the CSS parser is the one that refuses — reindents the block
 to its nesting depth without reformatting the CSS inside it, which
 `crates/rsvelte_formatter/tests/style_block.rs` pins two-sidedly
@@ -9358,8 +9354,8 @@ The recorded justifications for the five entries then listed claimed a *semantic
 nested rest, an unclosed paren, a discarded `<script>` body). Re-measured on 2026-08-31, none of
 them reproduces: the bodies survive, the patterns survive, and the outputs agree. Two entries filed
 the same way have since converged byte-for-byte and left the list outright: `textarea-content`,
-and later `block-expression-assign` in the oxc 0.157.0 / `oxfmt` 0.76.0 bump (oxc now prints the
-`{@const}` body without the redundant parens, matching the oracle).
+and later `block-expression-assign` — both sides now print the paren-free `{@const x = h = 0}`,
+and the match already appears in the 2026-11-03 CI run, before the oxc 0.157.0 bump.
 
 #### Why no gate sees it
 

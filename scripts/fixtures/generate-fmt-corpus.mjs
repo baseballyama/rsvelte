@@ -52,9 +52,9 @@ const CONCURRENCY = Number(process.env.OXFMT_CONCURRENCY || 8);
 // Ids the corpus permanently excludes because the oxfmt oracle itself is buggy
 // or the input is invalid — the same list `scripts/compat-corpus/fmt-verify.mjs`
 // honors. The svelte.dev-scoped ones (prefix `svelte.dev/`) must be dropped here
-// too, otherwise the byte-exact `svelte_dev_corpus.rs` gate re-introduces them
-// (e.g. oxfmt's `--svelte` CSS path wraps a nested `calc()` differently from its
-// own raw-CSS path — an oracle inconsistency, not an rsvelte bug).
+// too, otherwise the byte-exact `svelte_dev_corpus.rs` gate re-introduces them.
+// (The list currently holds no svelte.dev entries; the filter stays because an
+// exclusion is how a future oracle inconsistency would be recorded.)
 const EXCLUDED_PATH = path.join(ROOT, 'compatibility', 'fmt-oracle-excluded.json');
 const EXCLUDED_REL = new Set(
   (fs.existsSync(EXCLUDED_PATH)

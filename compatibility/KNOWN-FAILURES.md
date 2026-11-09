@@ -3433,20 +3433,30 @@ entirely (neither matched nor failed). Each entry carries a `"class"`
 (`oracle-bug` | `invalid-input` | `migrate` | `engine-divergence`) and a
 `"reason"`; this file records the class-level rationale.
 
-**Current baseline: `fmt-oracle-excluded.json`, 24 entries.**
+**Current baseline: `fmt-oracle-excluded.json`, 22 entries.**
 
-**5 entries left on 2026-11-08, retired by the oxc 0.157.0 upgrade and its paired `oxfmt`
-0.76.0 oracle bump** — each verified byte-identical locally on macOS and on the Linux CI
-`main` run of the same day (all five printed `[fmt-verify] NOTICE: excluded id now matches
-oracle`). `block-expression-assign` and the svelte.dev `+layout` already matched under the
-0.67.0 oracle, so their mover is rsvelte's side: oxc now prints `{@const x = (h = 0)}`
-without the redundant parens, and oxc-project/oxc#27326 opens an over-wide `calc()`
-parenthesized operand the way the oracle's Svelte path does. The three
-`3515-props-*-line-comment` entries converged from both directions: rsvelte's oxc 0.157
-formatter keeps the comment in the separator slot (it previously attached it after the
-initializer) and `oxfmt` 0.76.0 no longer inserts the extra blank line — the two agree in
-the slot the #3515 compiler repros depend on, so their deliberate-divergence section in
-GATES.md is removed rather than re-worded.
+**7 entries left on 2026-11-08.** Five are retirements the oxc 0.157.0 upgrade and its
+paired `oxfmt` 0.76.0 oracle bump produced, each verified byte-identical locally on macOS
+and on the Linux CI `main` run of the same day (all five printed `[fmt-verify] NOTICE:
+excluded id now matches oracle`). The svelte.dev `+layout` matched only from this bump — its
+mover is rsvelte's side: oxc-project/oxc#27326 opens an over-wide `calc()` parenthesized
+operand the way the oracle's Svelte path does. `block-expression-assign` had converged
+earlier still: its NOTICE already fires in the 2026-11-03 CI run, before the bump, so the
+recorded oxfmt-0.64.0 defect (a dropped closing paren) had stopped reproducing on both sides
+some time before anyone re-measured it. The three `3515-props-*-line-comment` entries
+converged from both directions: rsvelte's oxc 0.157 formatter keeps the comment in the
+separator slot (it previously attached it after the initializer) and `oxfmt` 0.76.0 no
+longer inserts the extra blank line — the two agree in the slot the #3515 compiler repros
+depend on, so their deliberate-divergence section in GATES.md is removed rather than
+re-worded.
+
+The other two — the `{:else}`-repeating `compiler-errors` fixtures
+(`each-block-duplicate-else`, `if-block-else-before-else-if`) — are a different kind of
+stale. Since the Svelte 5.57.3 pin (#4813) the oracle parses Svelte with the same compiler
+that raises `block_duplicate_clause`, so it rejects both fixtures itself and they have not
+reached the parity set since: the `excluded id not in parity set` warning has fired on every
+run from that pin onward, on macOS and on Linux CI, and is absent from the 2026-11-03 run.
+An exclusion whose id cannot enter the parity set can never fire, so both are deleted.
 
 `fmt-verify.mjs` warns if an excluded id is no longer in the parity set (can be
 deleted) and notices if an excluded id now matches byte-for-byte (the oracle bug
@@ -3461,7 +3471,7 @@ Attribution of `fmt-oracle-excluded.json`:
 | n | target | cluster |
 |---|---|---|
 | 3 | [`deliberate-divergences`](#deliberate-divergences) | `engine-divergence` — oxc's line-breaking, not prettier's |
-| 7 | [`deliberate-divergences`](#deliberate-divergences) | `invalid-input` and `migrate` — inputs no compiler accepts, and Svelte 4 migrator output |
+| 5 | [`deliberate-divergences`](#deliberate-divergences) | `invalid-input` and `migrate` — inputs no compiler accepts, and Svelte 4 migrator output |
 | 4 | [`deliberate-divergences`](#deliberate-divergences) | both texts compile to byte-identical client and server `js` **and** `css` |
 | 2 | [`deliberate-divergences`](#deliberate-divergences) | rsvelte reproduces `oxfmt <file>.css` byte-for-byte; the oracle's Svelte path disagrees with oxfmt itself |
 | 2 | [`upstream_issues/3035-prettier-plugin-svelte-drops-a-nested-pattern-key-in-each.md`](../upstream_issues/3035-prettier-plugin-svelte-drops-a-nested-pattern-key-in-each.md) | `oracle-bug` — the `{#each}` head drops a nested pattern's property key |
@@ -3469,7 +3479,7 @@ Attribution of `fmt-oracle-excluded.json`:
 | 3 | [`upstream_issues/oxfmt-svelte-css-keeps-source-tabs-around-a-selector-comment.md`](../upstream_issues/oxfmt-svelte-css-keeps-source-tabs-around-a-selector-comment.md) | `oracle-bug` — source tabs survive on a comment-bearing selector under `useTabs: false` |
 | 2 | [`upstream_issues/4717-prettier-plugin-svelte-drops-svelte-element-this-interpolation.md`](../upstream_issues/4717-prettier-plugin-svelte-drops-svelte-element-this-interpolation.md) | `oracle-bug` — a quoted `<svelte:element this="h{n}">` keeps only its first chunk and `{n}` is deleted |
 
-**Every one of the 24 entries now carries a target.** The last one that did not —
+**Every one of the 22 entries now carries a target.** The last one that did not —
 `shadcn-svelte/.../theme-customizer-code.svelte` — was not an oracle bug at all, and it left
 this file for `fmt-known-failures.json`; the measurement is under *A second stated reason was
 falsified* below. The control that decides it is one character wide: replace the `<pre>` with a
