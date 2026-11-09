@@ -14,6 +14,7 @@ rsvelte_plugin_interface.workspace = true
 rsvelte_lint_runner.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+rustc-hash.workspace = true
 rsvelte_typescript.workspace = true
 rsvelte_svelte.workspace = true
 rsvelte_markup.workspace = true
