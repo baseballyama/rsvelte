@@ -23,9 +23,9 @@ cargo run -p rsvelte_command_line -- run input.ts --task ts.check/default \
   --options typescript.check '{"command": ["/path/to/tsc"]}'
 ```
 
-This is partial TypeScript support. Compile and lint use our own parser, which does not
-yet support full JavaScript or TypeScript syntax, such as classes; format uses oxc. JSX and
-TSX are not selected. Parse failures and unsupported compilation produce diagnostics and no
+Compile and lint use our own parser, which reads JavaScript and TypeScript syntax, classes,
+decorators and enums included; format uses oxc. The parser reads JSX in `.jsx` and `.tsx`
+modules, but only the Svelte lint task selects them. Parse failures and unsupported compilation produce diagnostics and no
 output file.
 
 The type-check view copies the original source with byte mappings. It does not need
