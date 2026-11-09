@@ -116,3 +116,78 @@ export function f(o) { [b] = o; }
         "counter leaked from a prior compile:\n{out}"
     );
 }
+
+// Expected lines are upstream's `compileModule` output for the same input.
+#[test]
+fn destructured_state_declarator_uses_are_signals() {
+    let out = compile_mod_client(
+        "let { a, b } = $state({ a: 1, b: 2 });\nb = 5;\nexport const sum = () => a + b;\n",
+    );
+    assert!(out.contains("$.set(b, 5);"), "{out}");
+    assert!(
+        out.contains("export const sum = () => a + $.get(b);"),
+        "{out}"
+    );
+
+    let out = compile_mod_client(
+        "let [x, y] = $state.raw([1, 2]);\nexport function f() { y = [9]; return y; }\n",
+    );
+    assert!(out.contains("$.set(y, [9]);"), "{out}");
+    assert!(out.contains("return $.get(y);"), "{out}");
+
+    let out = compile_mod_client(
+        "let [x, y] = $state([1, 2]);\nexport function f(y) { y = 2; return y; }\nexport function g() { y += 1; }\n",
+    );
+    assert!(
+        out.contains("\ty = 2;"),
+        "a parameter shadows the state name:\n{out}"
+    );
+    assert!(out.contains("$.set(y, $.get(y) + 1);"), "{out}");
+}
+
+// A same-named import, `$state.snapshot` local or non-reassigned `$state`
+// local (`$.proxy`) is a plain value, so it keeps the bare form. Expected lines
+// are upstream's `compileModule` output for the same input.
+#[test]
+fn same_named_plain_values_are_not_signals() {
+    let out = compile_mod_client(
+        "import { y } from \"./other.js\";\nexport function f() { let [y] = $state([1]); y = 2; return y; }\nexport const g = () => y;\n",
+    );
+    assert!(out.contains("$.set(y, 2);"), "{out}");
+    assert!(out.contains("export const g = () => y;"), "{out}");
+
+    let out = compile_mod_client(
+        "let a = $state(0);\nexport function f() { a = 1; return a; }\nexport function g(o) { let a = $state.snapshot(o); a = 5; return a; }\n",
+    );
+    assert!(out.contains("$.set(a, 1);"), "{out}");
+    assert!(
+        out.contains("let a = $.snapshot(o);\n\n\ta = 5;\n\n\treturn a;"),
+        "{out}"
+    );
+
+    let out = compile_mod_client(
+        "export function f() { let a = $state([1]); return a; }\nexport function g() { let a = $state([1]); a = 2; return a; }\n",
+    );
+    assert!(
+        out.contains("let a = $.proxy([1]);\n\n\treturn a;"),
+        "{out}"
+    );
+    assert!(out.contains("$.set(a, 2);\n\n\treturn $.get(a);"), "{out}");
+}
+
+// Declarators the `let x = $state(…)` text scan does not match.
+#[test]
+fn unscanned_flat_state_declarators_are_signals() {
+    let out = compile_mod_client(
+        "let z = 0, w = $state(1);\nexport function f() { w = 2; return w + z; }\n",
+    );
+    assert!(
+        out.contains("$.set(w, 2);\n\n\treturn $.get(w) + z;"),
+        "{out}"
+    );
+
+    let out = compile_mod_client(
+        "let w /* c */ = $state(1);\nexport function f() { w = 2; return w; }\n",
+    );
+    assert!(out.contains("$.set(w, 2);\n\n\treturn $.get(w);"), "{out}");
+}
