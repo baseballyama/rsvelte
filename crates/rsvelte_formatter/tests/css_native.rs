@@ -72,7 +72,7 @@ fn unparseable_style_body_is_spliced_without_a_blank_line() {
     assert!(out.contains(".a:is(2n)"), "rule went missing:\n{out}");
 }
 
-/// The three `fmt-oracle-excluded.json` CSS entries. Each form below is
+/// The two `fmt-oracle-excluded.json` CSS entries. Each form below is
 /// `oxfmt <file>.css`'s own output byte-for-byte; `oxfmt(svelte: true)` — which
 /// prints embedded CSS through prettier's PostCSS printer — disagrees with oxfmt
 /// itself on `--bar` and `--sel`, so matching the oracle would mean matching a
@@ -90,16 +90,30 @@ fn a_custom_property_value_follows_the_oxc_engine_not_postcss() {
     assert!(out.contains("--sel: a > b ~ c;"), "{out}");
 }
 
+/// `oxfmt x.css` and `oxfmt(svelte: true)` (0.76.0) both keep this group inline.
 #[test]
-fn a_nested_calc_group_stays_inline_like_the_oxc_engine() {
+fn a_nested_calc_group_that_fits_stays_inline() {
     let out = fmt(
         ".a{max-width: calc(min(100vw, var(--w)) - (100vw - var(--w) - var(--p) - var(--p)));}",
         CssDialect::Css,
     );
-    // The oracle breaks the parenthesized group onto lines of its own.
     assert!(
-        out.contains("(100vw - var(--w) - var(--p) -"),
+        out.contains("(100vw - var(--w) - var(--p) - var(--p))"),
         "inner group was broken out:\n{out}"
+    );
+}
+
+/// The retired svelte.dev `+layout.svelte` exclusion; the expected text is
+/// `oxfmt` 0.76.0's output for both `x.css` and `svelte: true`.
+#[test]
+fn an_over_wide_calc_group_opens_onto_its_own_lines() {
+    let out = fmt(
+        ".container{--sidebar-width: max(28rem, calc(0.5 * (100vw - var(--sk-page-content-width) - var(--sk-page-padding-side) - var(--sk-page-padding-side))));}",
+        CssDialect::Css,
+    );
+    assert_eq!(
+        out,
+        ".container {\n  --sidebar-width: max(\n    28rem,\n    calc(\n      0.5 *\n        (\n          100vw - var(--sk-page-content-width) - var(--sk-page-padding-side) -\n            var(--sk-page-padding-side)\n        )\n    )\n  );\n}\n"
     );
 }
 

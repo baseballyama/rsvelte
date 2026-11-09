@@ -2986,11 +2986,13 @@ the matrix gate, which solved the same problem by splitting `output-unparseable`
 `parseable.mjs`-style acceptance on the actual side and emit it as its own verdict. Cost:
 one compile per failing entry, i.e. per ratchet entry, not per corpus component.
 
-**Note on exclusions:** `fmt-oracle-excluded.json` holds 29 entries, each with a written
-justification, partitioned by the JSON's own `class` field (15 oracle-bug, 7 engine-divergence,
-5 invalid-input, 2 migrate). This is a *small, justified* set — noted
-here so it is not mistaken for a blind spot. Its staleness check is `console.warn` only
-(`fmt-verify.mjs:110-126`).
+**Note on exclusions:** `fmt-oracle-excluded.json` holds 22 entries, each with a written
+justification, partitioned by the JSON's own `class` field (14 oracle-bug, 3 engine-divergence,
+3 invalid-input, 2 migrate). This is a *small, justified* set — noted
+here so it is not mistaken for a blind spot. Its staleness check is `console.warn` /
+`console.log` only (the `Staleness checks for excluded entries` loop in `fmt-verify.mjs`): an
+excluded id that leaves the parity set or starts matching the oracle prints a line and the run
+stays green, which is how five matching and two absent ids sat in the list for days.
 
 **Tracked:** #2447. **Closing 9a:** assert `matched + failures.length + excluded === included.length`. Cost: trivial.
 
@@ -9238,47 +9240,9 @@ differences; adding severity to the key took it to 50 and surfaced the 21 real o
 
 ---
 
-### A `$props()` line comment keeps the separator slot the compiler reads
-
-**Ratchet** `compatibility/fmt-oracle-excluded.json`, the three
-`pattern/issues/3515-props-*-line-comment.svelte` entries.
-**Pinned by** `compatibility/pattern-corpus/issues/3515-props-default-line-comment.svelte`,
-`compatibility/pattern-corpus/issues/3515-props-plain-line-comment.svelte` and
-`compatibility/pattern-corpus/issues/3515-props-rest-line-comment.svelte`, which the
-compiler's own output-equality gate compiles on all four targets.
-
-#### Input
-
-```svelte
-<script>
-	let { a } =
-		// why the default is what it is
-		$props();
-</script>
-```
-
-#### Both outputs
-
-- `oxfmt(svelte: true)` — prettier for the Svelte structure — keeps the comment as a **leading
-  separator** of the initializer and inserts a blank line before it.
-- `rsvelte-fmt` — oxc for the embedded JS — attaches the same comment **after** the initializer
-  expression.
-
-Both are valid JavaScript and both round-trip. They differ in which slot the comment occupies.
-
-#### Why rsvelte's form is the correct one here
-
-The slot is not cosmetic: #3515 is a compiler defect whose repro depends on the comment sitting
-between the declarator and its `$props()` initializer. Moving it to prettier's slot makes the
-three repros stop reproducing what they exist to reproduce, so matching the oracle here would
-cost a compiler gate to buy a formatter gate. The formatter follows oxc for embedded JavaScript
-by design (see the section below); this is one instance of that decision, not a separate one.
-
----
-
 ### The formatter's JavaScript engine is oxc, not prettier
 
-**Ratchet** `compatibility/fmt-oracle-excluded.json`, the four `flowbite-svelte/…` entries.
+**Ratchet** `compatibility/fmt-oracle-excluded.json`, the three `flowbite-svelte/…` entries.
 **Pinned by** `crates/rsvelte_formatter/tests/expression.rs` and
 `crates/rsvelte_formatter/tests/css_native.rs`, which assert oxc's own line-breaking and CSS
 output rather than prettier's.
@@ -9286,12 +9250,12 @@ output rather than prettier's.
 #### Input
 
 Long expressions in Svelte positions — a ternary inside a `class=` attribute, an IIFE whose
-arrow takes one parameter, a template literal's `${}` inside `<script>`, and an `{#if}` header
-holding `unique && value.some(…)` beside a member chain.
+arrow takes one parameter, and an `{#if}` header holding `unique && value.some(…)` beside a
+member chain. (A fourth, a template literal's `${}` inside `<script>`, left the list in #4191.)
 
 #### Both outputs, measured by `scripts/compat-corpus/fmt.mjs`
 
-Four different break points, all valid, none reachable from the other by changing the print
+Three different break points, all valid, none reachable from the other by changing the print
 width: the oracle breaks a ternary's **condition** at `===`, the arrow's **parameter list**, and
 **only** the inner member chain in the `{#if}` header; `oxc_formatter` breaks the nested
 conditions, the IIFE's **call argument**, and the `&&` / call-args respectively.
@@ -9318,17 +9282,17 @@ that comparison would show the divergence is the oracle's inconsistency and not 
 
 ### The formatter declines an input its own parser rejects
 
-**Ratchet** `compatibility/fmt-oracle-excluded.json`, the five `invalid-input` entries and the
+**Ratchet** `compatibility/fmt-oracle-excluded.json`, the three `invalid-input` entries and the
 two `migrate` entries.
 **Pinned by** `compatibility/pattern-corpus/adversarial/css/rejected-global-keyframes-selector.svelte`
 and `crates/rsvelte_formatter/tests/style_block.rs`.
 
 #### Input
 
-Five inputs no compiler accepts — a snippet parameter written `c?: number = 5` (TS1015),
-snippet rest parameters (`snippet_invalid_rest_parameter`), `h1:nth-of-type(+12)`, and two
-Svelte `compiler-errors` fixtures that repeat `{:else}` (`block_duplicate_clause`, ported with
-Svelte 5.57.3) — and two
+Three inputs whose embedded code the formatter's own parser rejects — a snippet parameter
+written `c?: number = 5` (TS1015), `h1:nth-of-type(+12)`, and a type parameter named `string`
+(TS2368, which the Svelte compiler accepts only because acorn-typescript does not implement the
+rule) — and two
 Svelte 4→5 **migrator outputs**, which use `let:` directives and `slot=` attributes. A fourth,
 `:global(@keyframes shared)` (`css_expected_identifier`, #3120), takes the same path and is no
 longer excluded: reindentation is the only thing the oracle does to that block, and the fallback
@@ -9336,9 +9300,7 @@ reindents too, so the two agree byte-for-byte and the id is scored like any othe
 
 #### Both outputs
 
-`prettier-plugin-svelte` formats all seven: it validates nothing beyond its own parse — on the two
-`{:else}` fixtures (oxfmt 0.67.0) it keeps one `{:else}` branch and deletes the other's body
-(`A` in `each-block-duplicate-else`, `B` in `if-block-else-before-else-if`). `rsvelte-fmt`
+`prettier-plugin-svelte` formats all five: it validates nothing beyond its own parse. `rsvelte-fmt`
 reports the parse error, or — where the CSS parser is the one that refuses — reindents the block
 to its nesting depth without reformatting the CSS inside it, which
 `crates/rsvelte_formatter/tests/style_block.rs` pins two-sidedly
@@ -9357,19 +9319,23 @@ not an input `rsvelte-fmt` is required to format.
 
 The parity gate's unit is (source, oracle output); an input the subject declines has no output to
 compare, so the pair can only be excluded or scored as a failure. Excluding it is what keeps the
-gate's remaining population meaningful — and the exclusion list is shrink-only in both
-directions, so an entry that starts formatting fails the run.
+gate's remaining population meaningful. The exclusion list is **not** a two-sided ratchet:
+an entry that starts formatting, or starts matching, only prints a `fmt-verify.mjs` NOTICE or
+WARNING and the run stays green, so retiring one is a manual read of that output.
+
+---
+
 ### A formatter difference the compiler cannot see
 
-**Ratchet** `compatibility/fmt-oracle-excluded.json`, five `oracle-bug` entries:
-`await-then-destruct-array-nested-rest`, `block-expression-assign`,
+**Ratchet** `compatibility/fmt-oracle-excluded.json`, four `oracle-bug` entries:
+`await-then-destruct-array-nested-rest`,
 `whitespace-after-script-tag`, `whitespace-after-style-tag`, `textarea-end-tag`.
 **Pinned by** `crates/rsvelte_formatter/tests/render_neutral_divergences.rs`.
 
 #### Input
 
-An array pattern with elisions (`...[,, c, ...{ length }]`), an assignment used as a
-`{@const}` body (`{@const y = h = 0}`), a `<script>` and a `<style>` whose close tag carries
+An array pattern with elisions (`...[,, c, ...{ length }]`), a `<script>` and a
+`<style>` whose close tag carries
 whitespace and newlines before `>` (`</script     \n\n>`), and a `<textarea>` whose close tag is
 split the same way.
 
@@ -9378,7 +9344,6 @@ split the same way.
 | entry | `oxfmt(svelte: true)` | `rsvelte-fmt` |
 |---|---|---|
 | elisions | `...[, , c, ...{ length }]` | `...[,, c, ...{ length }]` |
-| `{@const}` | `{@const x = h = 0}` | `{@const x = (h = 0)}` |
 | `</script   >` | rewritten to `</script>` | preserved verbatim |
 | `</style   >` | rewritten to `</style>` | preserved verbatim |
 | `</textarea` split | the tail is deleted | the element is closed |
@@ -9386,18 +9351,19 @@ split the same way.
 #### Why rsvelte's form is the correct one
 
 It is not a claim about which text reads better: **each pair compiles to byte-identical output**.
-Both texts of all five were run through
+Both texts of all four were run through
 `submodules/svelte/packages/svelte/src/compiler/index.js` for `generate: 'client'` and
 `'server'`, and `js.code` and `css.code` are equal on every one of the four comparisons. The
 divergence is therefore invisible to every consumer of the file, and rsvelte's side of it is the
 one its own engines produce — `oxc_formatter` for the JavaScript, and the source text for a close
 tag it has no reason to rewrite.
 
-The recorded justifications for all five claimed a *semantic* loss (a dropped nested rest, an
-unclosed paren, a discarded `<script>` body). Re-measured on 2026-08-31, none of them reproduces:
-the bodies survive, the patterns survive, and the outputs agree. A sixth entry filed the same way,
-`textarea-content`, now matches the oracle byte-for-byte and has been removed from the list
-outright.
+The recorded justifications for the five entries then listed claimed a *semantic* loss (a dropped
+nested rest, an unclosed paren, a discarded `<script>` body). Re-measured on 2026-08-31, none of
+them reproduces: the bodies survive, the patterns survive, and the outputs agree. Two entries filed
+the same way have since converged byte-for-byte and left the list outright: `textarea-content`,
+and later `block-expression-assign` — both sides now print the paren-free `{@const x = h = 0}`,
+and the match already appears in the 2026-11-03 CI run, before the oxc 0.157.0 bump.
 
 #### Why no gate sees it
 
@@ -9410,9 +9376,11 @@ measurement above had to be written for this row.
 
 ### The formatter's CSS engine is oxc, not prettier's PostCSS
 
-**Ratchet** `compatibility/fmt-oracle-excluded.json`, three `oracle-bug` entries: `css-vars`,
-`svelte.dev .../docs/[topic]/[...path=documentation]/+layout.svelte`, and
-`pattern/adversarial/css/css-custom-property-values`.
+**Ratchet** `compatibility/fmt-oracle-excluded.json`, two `oracle-bug` entries: `css-vars` and
+`pattern/adversarial/css/css-custom-property-values`. The third, the svelte.dev `+layout.svelte`
+nested-`calc()` entry, converged in the oxc 0.157.0 upgrade: oxc-project/oxc#27326 opens an
+over-wide `calc()` parenthesized operand the way the oracle's Svelte path does, and the two now
+agree byte-for-byte.
 **Pinned by** `crates/rsvelte_formatter/tests/css_native.rs`.
 
 **Ratchet** `compatibility/fmt-known-failures.json`, four entries over three facets of the same
@@ -9460,20 +9428,22 @@ the ratchet and is described there as a limitation.
 #### Input
 
 One declaration block carrying an empty custom-property value (`--bar:   !important`), a bracket
-value (`--arr: [1, 2]`), a selector-shaped value (`--sel: a > b ~ c`), and a nested `calc()` with
-a parenthesized subtraction group.
+value (`--arr: [1, 2]`) and a selector-shaped value (`--sel: a > b ~ c`).
 
 #### Both outputs, measured on the same bytes
 
-| | `--bar` | `--arr` | `--sel` | nested `calc()` group |
-|---|---|---|---|---|
-| `oxfmt x.css` | `--bar: !important;` | `[1 , 2]` | `a > b ~ c` | kept inline |
-| `rsvelte-fmt x.css` | `--bar: !important;` | `[1 , 2]` | `a > b ~ c` | kept inline |
-| `oxfmt(svelte: true)` | `--bar:    !important;` | `[1, 2]` | `a > b ~c` | broken onto its own lines |
+| | `--bar` | `--arr` | `--sel` |
+|---|---|---|---|
+| `oxfmt x.css` | `--bar: !important;` | `[1, 2]` | `a > b ~ c` |
+| `rsvelte-fmt x.css` | `--bar: !important;` | `[1, 2]` | `a > b ~ c` |
+| `oxfmt(svelte: true)` | `--bar:    !important;` | `[1, 2]` | `a > b ~c` |
+
+Measured with `oxfmt` 0.76.0. `--arr` no longer diverges (oxc 0.149 stopped padding the
+comma); it stays in the table, and in `css_native.rs`, to pin that it stays converged.
 
 #### Why rsvelte's form is the correct one
 
-`rsvelte-fmt` reproduces **oxfmt's own standalone CSS output byte-for-byte**, on all four. The
+`rsvelte-fmt` reproduces **oxfmt's own standalone CSS output byte-for-byte**, on all three. The
 oracle is the same tool answering differently, because its Svelte path prints embedded CSS through
 prettier's PostCSS printer while its `.css` path uses the oxc engine — the engine `rsvelte-fmt`
 also uses, on purpose. Parity against the Svelte path is therefore undefined: matching it would
