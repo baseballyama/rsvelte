@@ -4,11 +4,10 @@ use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{Token, TokenIdentifier, Tokens};
 use rsvelte_svelte::semantic::legacy::reactive_body;
-use rsvelte_svelte::semantic::resolve::RUNES;
-use rsvelte_svelte::syntax::syntax_tree::{
-    AttributeKind, AttributeValue, Component, Part, TemplateNode, TokenType,
-};
+use rsvelte_svelte::syntax::syntax_tree::{Component, TokenType};
 use rsvelte_typescript::{Kind, NodeIdentifier};
+
+use super::runes_mode::runes_mode;
 
 /// The scripts' programs, the module script's first.
 pub(super) fn programs(component: &Component) -> impl Iterator<Item = NodeIdentifier> + '_ {
@@ -25,7 +24,7 @@ pub(super) fn reactive_statements<'a>(
     component: &'a Component,
     source: &str,
 ) -> impl Iterator<Item = (NodeIdentifier, NodeIdentifier)> + 'a {
-    let runes = runes(component, source);
+    let runes = runes_mode(component, source);
     let javascript = &component.javascript;
     programs(component)
         .filter(move |_| !runes)
@@ -69,55 +68,4 @@ pub(super) fn between(
     (first..tokens.len())
         .map(|i| tokens.get(TokenIdentifier::new(i)))
         .take_while(move |token| token.span.end_offset <= end)
-}
-
-/// Runes mode, as the compiler decides it: `<svelte:options runes>`, or else a script that calls
-/// a rune.
-pub(super) fn runes(component: &Component, source: &str) -> bool {
-    for node in &component.nodes {
-        let TemplateNode::Element {
-            name, attributes, ..
-        } = node
-        else {
-            continue;
-        };
-        if name.text(source) != "svelte:options" {
-            continue;
-        }
-        for attribute in component.attributes(*attributes) {
-            if attribute.kind != AttributeKind::Attribute || attribute.name.text(source) != "runes"
-            {
-                continue;
-            }
-            return match attribute.value {
-                AttributeValue::True => true,
-                AttributeValue::Parts(parts) => match component.parts(parts) {
-                    [Part::Expression { expression, .. }] => {
-                        !matches!(component.javascript.kind(*expression), Kind::Boolean(false))
-                    }
-                    _ => true,
-                },
-            };
-        }
-    }
-    let javascript = &component.javascript;
-    let mut pending: Vec<NodeIdentifier> = programs(component).collect();
-    while let Some(node) = pending.pop() {
-        if let Kind::Call { callee, .. } = javascript.kind(node) {
-            let root = match javascript.kind(callee) {
-                Kind::Member { object, .. } => object,
-                _ => callee,
-            };
-            if javascript.atom(root).is_some_and(|atom| {
-                let name = javascript.atoms.get(atom);
-                RUNES
-                    .iter()
-                    .any(|rune| rune.split('.').next() == Some(name))
-            }) {
-                return true;
-            }
-        }
-        javascript.for_each_child(node, |child| pending.push(child));
-    }
-    false
 }

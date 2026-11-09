@@ -9,7 +9,7 @@ use serde::Deserialize;
 
 use super::javascript::span;
 use super::legacy_reactivity::{bindings, legacy, property_name};
-use super::reactive_statements::runes;
+use super::runes_mode::runes_mode;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -52,7 +52,7 @@ const MUTATORS: &[&str] = &[
 impl SvelteRule for NoReactiveReassign {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
-        if runes(component, file.source()) {
+        if runes_mode(component, file.source()) {
             return;
         }
         let legacy = legacy(file);

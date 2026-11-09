@@ -20,6 +20,7 @@ mod reactive_statements;
 mod require_store_callbacks_use_set_param;
 mod require_store_reactive_access;
 mod require_stores_init;
+mod runes_mode;
 mod svelte_store;
 mod valid_each_key;
 

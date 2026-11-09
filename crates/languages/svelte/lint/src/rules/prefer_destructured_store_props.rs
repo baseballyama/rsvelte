@@ -11,7 +11,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::javascript::span;
 use super::legacy_reactivity::{legacy, property_name};
-use super::reactive_statements::runes;
+use super::runes_mode::{RUNE_SYMBOLS, runes_mode};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -28,17 +28,6 @@ fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
 #[derive(Debug)]
 struct PreferDestructuredStoreProps;
 
-/// Upstream's `SVELTE_RUNES`, which runes mode does not count as stores.
-const RUNES: &[&str] = &[
-    "$state",
-    "$derived",
-    "$effect",
-    "$props",
-    "$bindable",
-    "$inspect",
-    "$host",
-];
-
 impl SvelteRule for PreferDestructuredStoreProps {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let javascript = file.javascript();
@@ -46,7 +35,7 @@ impl SvelteRule for PreferDestructuredStoreProps {
         let (roots, runes) = match (file.component(), file.module()) {
             (Some(component), _) => (
                 component.template_expressions.clone(),
-                runes(component, file.source()),
+                runes_mode(component, file.source()),
             ),
             (None, Some(module)) => (
                 vec![module.root],
@@ -94,7 +83,7 @@ fn store_object(javascript: &SyntaxTree, node: NodeIdentifier, runes: bool) -> O
     };
     let name = javascript.atoms.get(javascript.atom(object)?);
     let rest = name.strip_prefix('$')?;
-    if rest.is_empty() || rest.starts_with('$') || (runes && RUNES.contains(&name)) {
+    if rest.is_empty() || rest.starts_with('$') || (runes && RUNE_SYMBOLS.contains(&name)) {
         return None;
     }
     Some(name)
