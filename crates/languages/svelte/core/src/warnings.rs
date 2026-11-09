@@ -31,14 +31,18 @@ pub struct CompileWarnings {
 impl CompileWarnings {
     /// The warning codes this module checks.
     pub const CODES: &[&str] = &[
+        "a11y_accesskey",
         "a11y_autofocus",
         "a11y_label_has_associated_control",
+        "a11y_misplaced_scope",
         "a11y_missing_attribute",
         "a11y_no_noninteractive_tabindex",
+        "a11y_positive_tabindex",
         "block_empty",
         "css_unused_selector",
         "custom_element_props_identifier",
         "export_let_unused",
+        "svelte_element_invalid_this",
     ];
 
     /// Every code Svelte 5.57.0 warns with, the runtime warnings `svelte-ignore` also names
@@ -593,6 +597,25 @@ impl<'a> Template<'a> {
         }
     }
 
+    /// `<svelte:element this="div">`: a string where an expression belongs.
+    fn dynamic_this(&mut self, attributes: Range) {
+        let component = self.component;
+        let this = component
+            .attributes(attributes)
+            .iter()
+            .find(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "this");
+        if let Some(this) = this
+            && !matches!(this.value, AttributeValue::True)
+            && !a11y::is_expression(component, this)
+        {
+            self.out.push(warning(
+                "svelte_element_invalid_this",
+                "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte",
+                this.span,
+            ));
+        }
+    }
+
     fn node(&mut self, child: u32, parent: a11y::Parent<'a>) {
         let component = self.component;
         match *component.node(child) {
@@ -624,6 +647,9 @@ impl<'a> Template<'a> {
                 }
                 if name == "slot" {
                     self.slot(attributes);
+                }
+                if dynamic {
+                    self.dynamic_this(attributes);
                 }
                 let inner = if dynamic {
                     a11y::Parent::Dynamic

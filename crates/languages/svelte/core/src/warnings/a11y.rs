@@ -1,6 +1,7 @@
 //! Svelte's `check_element` (`a11y/index.js`): the checks of an element's own attributes and
-//! content. Only `a11y_autofocus`, `a11y_missing_attribute`, `a11y_no_noninteractive_tabindex`
-//! and `a11y_label_has_associated_control` are ported.
+//! content. Only `a11y_accesskey`, `a11y_autofocus`, `a11y_misplaced_scope`,
+//! `a11y_positive_tabindex`, `a11y_missing_attribute`, `a11y_no_noninteractive_tabindex` and
+//! `a11y_label_has_associated_control` are ported.
 
 use std::borrow::Cow;
 
@@ -72,18 +73,10 @@ impl<'a> Attributes<'a> {
         self.get(name).is_some()
     }
 
-    /// `get_static_value`.
     fn value(&self, name: &str) -> Static<'a> {
-        let Some(attribute) = self.get(name) else {
-            return Static::Unknown;
-        };
-        match attribute.value {
-            AttributeValue::True => Static::Bare,
-            AttributeValue::Parts(parts) => match self.component.parts(parts) {
-                [Part::Text(span)] => Static::Text(decode_attribute(span.text(self.source))),
-                _ => Static::Unknown,
-            },
-        }
+        self.get(name).map_or(Static::Unknown, |attribute| {
+            static_value(self.component, self.source, attribute)
+        })
     }
 
     /// `get_static_text_value`: the text, or `None` for no attribute, no value or an expression.
@@ -113,11 +106,21 @@ enum Static<'a> {
     Text(Cow<'a, str>),
 }
 
-/// `is_expression_attribute`: `a={x}`, not `a="{x}"`.
-fn is_expression(component: &Component, attribute: &Attribute) -> bool {
-    !attribute.quoted
-        && matches!(attribute.value, AttributeValue::Parts(parts)
-            if matches!(component.parts(parts), [Part::Expression { .. }]))
+/// `get_static_value`.
+fn static_value<'a>(component: &Component, source: &'a str, attribute: &Attribute) -> Static<'a> {
+    match attribute.value {
+        AttributeValue::True => Static::Bare,
+        AttributeValue::Parts(parts) => match component.parts(parts) {
+            [Part::Text(span)] => Static::Text(decode_attribute(span.text(source))),
+            _ => Static::Unknown,
+        },
+    }
+}
+
+/// `is_expression_attribute`: one expression, quoted or not.
+pub(super) fn is_expression(component: &Component, attribute: &Attribute) -> bool {
+    matches!(attribute.value, AttributeValue::Parts(parts)
+        if matches!(component.parts(parts), [Part::Expression { .. }]))
 }
 
 #[derive(PartialEq, Eq)]
@@ -150,32 +153,46 @@ fn interactivity(name: &str, attributes: &Attributes<'_>) -> Interactivity {
     }
 }
 
-/// JavaScript's `Number(text) >= 0`.
-fn non_negative(text: &str) -> bool {
+/// JavaScript's `Number(text)`.
+fn number(text: &str) -> f64 {
     let text = text.trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}');
     if text.is_empty() {
-        return true;
+        return 0.0;
     }
-    let unsigned = text.strip_prefix('+').unwrap_or(text);
-    if ["0x", "0X", "0o", "0O", "0b", "0B"]
+    if let Some(radix) = ["0x", "0X", "0o", "0O", "0b", "0B"]
         .iter()
         .any(|p| text.starts_with(p))
-    {
-        let radix = match text.as_bytes()[1] {
+        .then(|| match text.as_bytes()[1] {
             b'x' | b'X' => 16,
             b'o' | b'O' => 8,
             _ => 2,
-        };
-        return u128::from_str_radix(&text[2..], radix).is_ok();
+        })
+    {
+        let digits = &text[2..];
+        if digits.is_empty() {
+            return f64::NAN;
+        }
+        return digits
+            .chars()
+            .try_fold(0.0_f64, |n, c| {
+                c.to_digit(radix)
+                    .map(|d| n.mul_add(f64::from(radix), f64::from(d)))
+            })
+            .unwrap_or(f64::NAN);
     }
-    if unsigned == "Infinity" {
-        return true;
+    match text.strip_prefix(['+', '-']).unwrap_or(text) {
+        "Infinity" if text.starts_with('-') => return f64::NEG_INFINITY,
+        "Infinity" => return f64::INFINITY,
+        _ => {}
     }
-    let numeric = !text.is_empty()
-        && text
-            .bytes()
-            .all(|b| b.is_ascii_digit() || matches!(b, b'+' | b'-' | b'.' | b'e' | b'E'));
-    numeric && text.parse::<f64>().is_ok_and(|n| n >= 0.0)
+    let numeric = text
+        .bytes()
+        .all(|b| b.is_ascii_digit() || matches!(b, b'+' | b'-' | b'.' | b'e' | b'E'));
+    if numeric {
+        text.parse::<f64>().unwrap_or(f64::NAN)
+    } else {
+        f64::NAN
+    }
 }
 
 const REQUIRED: &[(&str, &[&str])] = &[
@@ -208,29 +225,7 @@ pub(super) fn check_element(
 ) {
     let map = Attributes::new(component, source, attributes);
     let interactivity = interactivity(name, &map);
-    for attribute in component.attributes(attributes) {
-        if attribute.kind != AttributeKind::Attribute {
-            continue;
-        }
-        if attribute
-            .name
-            .text(source)
-            .eq_ignore_ascii_case("autofocus")
-        {
-            let in_dialog = match parent {
-                Parent::None => false,
-                Parent::Regular(parent) => parent == "dialog",
-                Parent::Dynamic => true,
-            };
-            if name != "dialog" && !in_dialog {
-                out.push(warning(
-                    "a11y_autofocus",
-                    "Avoid using autofocus",
-                    attribute.span,
-                ));
-            }
-        }
-    }
+    attribute_checks(component, source, name, attributes, dynamic, parent, out);
     let role = map.text("role");
     let interactive_role = role
         .as_deref()
@@ -241,7 +236,7 @@ pub(super) fn check_element(
         && map.has("tabindex")
         && map
             .text("tabindex")
-            .is_none_or(|value| non_negative(&value))
+            .is_none_or(|value| number(&value) >= 0.0)
     {
         out.push(warning(
             "a11y_no_noninteractive_tabindex",
@@ -285,6 +280,66 @@ pub(super) fn check_element(
         && !required.iter().any(|r| map.has(r))
     {
         missing(name, required, span, out);
+    }
+}
+
+/// The checks of one attribute at a time.
+fn attribute_checks(
+    component: &Component,
+    source: &str,
+    name: &str,
+    attributes: Range,
+    dynamic: bool,
+    parent: Parent<'_>,
+    out: &mut Vec<Diagnostic>,
+) {
+    for attribute in component.attributes(attributes) {
+        if attribute.kind != AttributeKind::Attribute {
+            continue;
+        }
+        let attribute_name = attribute.name.text(source).to_ascii_lowercase();
+        match attribute_name.as_str() {
+            "accesskey" => out.push(warning(
+                "a11y_accesskey",
+                "Avoid using accesskey",
+                attribute.span,
+            )),
+            "autofocus" => {
+                let in_dialog = match parent {
+                    Parent::None => false,
+                    Parent::Regular(parent) => parent == "dialog",
+                    Parent::Dynamic => true,
+                };
+                if name != "dialog" && !in_dialog {
+                    out.push(warning(
+                        "a11y_autofocus",
+                        "Avoid using autofocus",
+                        attribute.span,
+                    ));
+                }
+            }
+            "scope" if !dynamic && name != "th" => out.push(warning(
+                "a11y_misplaced_scope",
+                "The scope attribute should only be used with `<th>` elements",
+                attribute.span,
+            )),
+            "tabindex" => {
+                // `+value > 0`, where a valueless attribute's value is `true`.
+                let positive = match static_value(component, source, attribute) {
+                    Static::Bare => true,
+                    Static::Text(text) => number(&text) > 0.0,
+                    Static::Unknown => false,
+                };
+                if positive {
+                    out.push(warning(
+                        "a11y_positive_tabindex",
+                        "Avoid tabindex values above zero",
+                        attribute.span,
+                    ));
+                }
+            }
+            _ => {}
+        }
     }
 }
 

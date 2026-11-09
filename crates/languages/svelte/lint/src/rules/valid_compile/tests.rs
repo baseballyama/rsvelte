@@ -57,3 +57,56 @@ fn a_style_in_another_language_is_not_parsed() {
     ));
     assert_eq!(found, []);
 }
+
+/// Each finding's code, line and 0-based column, as `svelte`'s `compile` prints its warnings.
+fn codes(code: &str) -> Vec<(String, u32, u32)> {
+    let mut found: Vec<_> = lint(code)
+        .into_iter()
+        .map(|(line, column, message)| {
+            let code = message
+                .rsplit_once('(')
+                .expect("a code")
+                .1
+                .trim_end_matches(')')
+                .to_owned();
+            (code, line, column - 1)
+        })
+        .collect();
+    found.sort_by_key(|a| (a.1, a.2));
+    found
+}
+
+#[test]
+fn checks_attributes_as_the_compiler_does() {
+    let code = "<div tabindex></div>
+<div tabindex=\"1\"></div>
+<div tabindex=\"+2e0\"></div>
+<div tabindex=\"abc\"></div>
+<div tabindex={3}></div>
+<td scope=\"row\"></td>
+<th scope=\"row\"></th>
+<svelte:element this={\"td\"} scope=\"x\" accesskey=\"k\"></svelte:element>
+<svelte:element this=\"{tag}\"></svelte:element>
+<svelte:element this=\"td\"></svelte:element>
+<div ACCESSKEY=\"a\" TabIndex=\"0x1\"></div>
+";
+    let expected = [
+        ("a11y_no_noninteractive_tabindex", 1, 0),
+        ("a11y_positive_tabindex", 1, 5),
+        ("a11y_no_noninteractive_tabindex", 2, 0),
+        ("a11y_positive_tabindex", 2, 5),
+        ("a11y_no_noninteractive_tabindex", 3, 0),
+        ("a11y_positive_tabindex", 3, 5),
+        ("a11y_no_noninteractive_tabindex", 5, 0),
+        ("a11y_misplaced_scope", 6, 4),
+        ("a11y_accesskey", 8, 38),
+        ("svelte_element_invalid_this", 10, 16),
+        ("a11y_accesskey", 11, 5),
+        ("a11y_positive_tabindex", 11, 19),
+    ];
+    let expected: Vec<_> = expected
+        .iter()
+        .map(|&(code, line, column)| (code.to_owned(), line, column))
+        .collect();
+    assert_eq!(codes(code), expected);
+}
