@@ -83,3 +83,26 @@ fn directives_are_split_and_every_node_points_back() {
         ]
     );
 }
+
+#[test]
+fn text_and_attribute_values_decode_references_as_compiler_core_does() {
+    // What @vue/compiler-sfc 3.5.44 reads: `&copy=` is a reference in text only, `&#0;` is U+FFFD.
+    let source_text = "<template><p title=\"&copy=&#0;&fjlig;\">&copy=&#0;&fjlig;</p></template>";
+    let (_, h) = compiler_syntax_tree(source_text);
+    let NodeKind::Element(el) = &h.node(h.root()[0]).kind else {
+        panic!("an element")
+    };
+    let title = h
+        .props(el.props)
+        .iter()
+        .find_map(|p| match &p.kind {
+            PropertyKind::Attribute { value, .. } => value.as_ref(),
+            PropertyKind::Directive(_) => None,
+        })
+        .expect("a value");
+    assert_eq!(title.text(source_text), "&copy=\u{fffd}fj");
+    let NodeKind::Text(text) = &h.node(h.children(el.children)[0]).kind else {
+        panic!("a text")
+    };
+    assert_eq!(text.text(source_text), "©=\u{fffd}fj");
+}

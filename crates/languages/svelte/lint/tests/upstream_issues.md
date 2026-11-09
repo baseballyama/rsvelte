@@ -460,3 +460,22 @@ The rule takes an identifier key as the prop's name even in brackets, so it repo
 `k`. A computed key names the value of its expression, here `data`, which a page takes. This crate
 does not check a computed key.
 Test in `svelte_kit.rs`: `a_computed_prop_name_is_not_reported`.
+
+## A legacy reference inside a longer name in an attribute (`@vue/compiler-core`)
+
+This one is not eslint-plugin-svelte's. `@vue/compiler-sfc` 3.5.44 parses templates with
+`entities` 7.0.1, which decodes these attribute values:
+
+| Input               | Upstream reads | The HTML spec reads |
+| ------------------- | -------------- | ------------------- |
+| `title="&notinvb"`  | `¬invb`        | `&notinvb`          |
+| `title="&timesb"`   | `×b`           | `&timesb`           |
+| `title="&gtques9"`  | `>ques9`       | `&gtques9`          |
+
+In an attribute, a name without its semicolon is not a reference when a letter or digit or `=`
+follows it. Each input above stops partway through a longer name (`notinvb;` and `timesb;` and
+`gtquest;`). There the decoder skips that check. Guess from reading `entities`: the check is
+missing from the branch that matches a run of letters. Of 199924 generated attribute values,
+1356 differ from the spec. Of those, 1324 are what the spec gives for text. This crate follows
+the spec.
+Test in `rsvelte_markup`: `character_references::tests::html_follows_the_spec_where_compiler_core_does_not`.
