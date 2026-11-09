@@ -90,3 +90,23 @@ fn byte_inverts_utf16_on_character_boundaries() {
     assert_eq!(lines.byte(3), None);
     assert_eq!(lines.byte(6), None);
 }
+
+#[test]
+fn ecmascript_lines_also_end_at_a_lone_cr_and_the_unicode_separators() {
+    let source_text = "a\rb\u{2028}c\u{2029}d\r\ne\nf";
+    let newline = LineIndex::new(source_text);
+    let ecmascript = LineIndex::with_breaks(source_text, LineBreaks::Ecmascript);
+    let f = source_text.find('f').unwrap() as u32;
+    assert_eq!((newline.line(f), newline.line_count()), (3, 3));
+    assert_eq!((ecmascript.line(f), ecmascript.line_count()), (6, 6));
+    for (ch, line) in [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5), ('f', 6)] {
+        let at = source_text.find(ch).unwrap() as u32;
+        let lc = ecmascript.line_column(at);
+        assert_eq!((lc.line, lc.column), (line, 0), "{ch}");
+        assert_eq!(ecmascript.line(at), line, "{ch}");
+        assert_eq!(ecmascript.offset(line, 0), Some(at), "{ch}");
+        // Each line is one character long: its terminator is not part of it.
+        assert_eq!(ecmascript.offset(line, 1), Some(at + 1), "{ch}");
+        assert_eq!(ecmascript.offset(line, 2), None, "{ch}");
+    }
+}
