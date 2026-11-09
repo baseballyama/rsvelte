@@ -81,3 +81,24 @@ case of this crate (`tests/cases`, or a rule's unit test). Nobody has filed them
   which Svelte rejects as a duplicate attribute.
 - Correct: no fix; the report stays.
 - Why: the fix does not look at the element's other directives.
+
+## Quirks of the CSS parsers upstream uses
+
+A differential fuzz finds these. It compares this crate's PostCSS port with postcss 8.5.32,
+postcss-scss 4.0.9 and eslint-plugin-svelte 3.23.1's inline-style reader on 173,841 inputs: corpus
+style bodies, their mutations and random strings. The fuzz harness is not in the repository, and
+no lint case covers these quirks.
+
+- An escaped astral character splits a surrogate pair. For `\😀&`, PostCSS reports
+  `Unknown word \�`. This crate reports `Unknown word \😀`.
+- Some errors have no position. For `:<FF>;<TAB>,{{`, PostCSS reports
+  `undefined:undefined: Unknown word`. This crate reports line 1, column 2.
+- postcss-scss throws a `TypeError` on a nested declaration without a word, for example
+  `{:]{/_`. This crate reports `Unknown word /_` at line 1, column 5.
+- In an inline style, eslint-plugin-svelte's `convertChild` places a declaration's value from the
+  property's end. With a hack prefix (`*a: b`), that end moves one character left. This crate
+  places the value where it is written.
+- The safe parser ends an unclosed comment one character past the source. For `a: b /* c`, the
+  end is 10. This crate ends it at the source's end, 9.
+- An at-rule in an inline style, such as `style="@media x"`, has no end, and `convertChild`
+  throws. This crate does not convert that style.
