@@ -147,6 +147,29 @@ impl<K: TokenKind> Tokens<K> {
             .map(|i| TokenIdentifier::new(start + i))
     }
 
+    /// The tokens that start at or after `offset`, in order.
+    #[must_use]
+    pub fn from_offset(&self, offset: u32) -> &[Token<K>] {
+        let raw = self.tokens.raw();
+        &raw[raw.partition_point(|t| t.span.start_offset < offset)..]
+    }
+
+    /// The tokens that end at or before `offset`, in order.
+    #[must_use]
+    pub fn until_offset(&self, offset: u32) -> &[Token<K>] {
+        let raw = self.tokens.raw();
+        &raw[..raw.partition_point(|t| t.span.end_offset <= offset)]
+    }
+
+    /// The tokens inside `span`, in order.
+    #[must_use]
+    pub fn within(&self, span: Span) -> &[Token<K>] {
+        let raw = self.tokens.raw();
+        let start = raw.partition_point(|t| t.span.start_offset < span.start_offset);
+        let end = raw.partition_point(|t| t.span.end_offset <= span.end_offset);
+        &raw[start..end.max(start)]
+    }
+
     /// The tokens are the source: contiguous from 0 to `source_text.len()`.
     ///
     /// # Errors
