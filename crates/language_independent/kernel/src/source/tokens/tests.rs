@@ -44,6 +44,22 @@ fn lookups_skip_trivia() {
 }
 
 #[test]
+fn slices_by_offset() {
+    let source_text = "ab  cd e";
+    let t = words(source_text);
+    let texts = |tokens: &[Token<K>]| {
+        tokens
+            .iter()
+            .map(|token| token.span.text(source_text))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(texts(t.from_offset(3)), ["cd", " ", "e"]);
+    assert_eq!(texts(t.until_offset(5)), ["ab", "  "]);
+    assert_eq!(texts(t.within(Span::new(2, 7))), ["  ", "cd", " "]);
+    assert_eq!(texts(t.within(Span::new(3, 3))), Vec::<&str>::new());
+}
+
+#[test]
 fn a_gap_or_a_short_table_is_reported() {
     let mut t = Tokens::new();
     t.push(K::Word, Span::new(0, 2));
