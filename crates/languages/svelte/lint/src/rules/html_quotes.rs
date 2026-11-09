@@ -98,7 +98,9 @@ impl SvelteRule for HtmlQuotes {
                     }
                 }
                 Attributes::Raw(attributes) => {
-                    for value in attributes.iter().filter_map(|(_, value)| *value) {
+                    // `lang=""` has no value to check.
+                    let values = attributes.iter().filter_map(|(_, value)| *value);
+                    for value in values.filter(|value| !value.is_empty()) {
                         let value = if raw_value_is_quoted(tokens, value) {
                             quoted(
                                 source,
@@ -167,6 +169,10 @@ impl HtmlQuotes {
         };
         let start = part_span(first).start_offset;
         let end = part_span(last).end_offset;
+        // `a=""` has no value to check.
+        if start == end {
+            return None;
+        }
         let value = if attribute.quoted {
             quoted(source, Span::new(start - 1, end + 1))
         } else {
