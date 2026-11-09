@@ -220,18 +220,17 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
         return;
     }
 
-    // A multi-declarator declaration tag (`{let a = …, b = …}`) is lowered by
-    // the instance-script transform into separate `let`/`const` statements
-    // (`let a = …;\nlet b = …;`). Upstream keeps it as one comma-separated
-    // declaration, so rejoin them — continuation declarators go on their own
-    // line indented one extra level, which matches esrap's output once the
-    // codegen re-indents the raw block. Only genuine top-level-comma
-    // declarations are rejoined. (Svelte 5.56.1 #18348.)
-    let raw = if body_has_top_level_comma(body) {
-        rejoin_declarators(trimmed)
-    } else {
-        layout_expanded_declarators(trimmed).unwrap_or_else(|| trimmed.to_string())
+    // The instance-script transform splits a multi-declarator tag
+    // (`{let a = …, b = …}`) into one statement per declarator; upstream keeps
+    // the tag as one declaration. (Svelte 5.56.1 #18348.)
+    let raw = match layout_expanded_declarators(trimmed) {
+        Some(raw) => raw,
+        None if body_has_top_level_comma(body) => rejoin_declarators(trimmed),
+        None => trimmed.to_string(),
     };
+    if raw.contains('\n') {
+        crate::compiler::phases::phase3_transform::client::note_multiline_declaration_tag();
+    }
 
     context.state.consts.push(JsStatement::Raw(raw.into()));
     register_signal_transforms(node, context);
@@ -621,41 +620,46 @@ fn numbered_temp(base: &str, index: usize) -> String {
     }
 }
 
-/// One source declarator the pipeline expanded into several (a destructured
-/// `$state` / `$derived` becomes its temps plus one leaf per path), laid out
-/// the way esrap prints a multi-declarator declaration: on one line unless it
-/// is longer than 50 columns, otherwise one continuation declarator per line.
+/// The pipeline's output for one tag (a destructured `$state` / `$derived`
+/// expands into its temps plus one leaf per path, and a comma-separated tag is
+/// split into one statement per declarator) as the single declaration upstream
+/// emits, laid out the way esrap prints one: on one line unless it is longer
+/// than 50 columns, otherwise one continuation declarator per line.
 fn layout_expanded_declarators(s: &str) -> Option<String> {
-    use oxc_ast::ast::Statement;
+    use oxc_ast::ast::{Statement, VariableDeclarationKind};
     let allocator = oxc_allocator::Allocator::default();
     let parsed = oxc_parser::Parser::new(&allocator, s, oxc_span::SourceType::mjs()).parse();
     if !parsed.diagnostics.is_empty() {
         return None;
     }
-    let [Statement::VariableDeclaration(decl)] = parsed.program.body.as_slice() else {
-        return None;
-    };
-    if decl.declarations.len() < 2 {
-        return None;
-    }
-    let keyword = match decl.kind {
-        oxc_ast::ast::VariableDeclarationKind::Let => "let ",
-        oxc_ast::ast::VariableDeclarationKind::Const => "const ",
-        oxc_ast::ast::VariableDeclarationKind::Var => "var ",
-        _ => return None,
-    };
-    let mut parts = Vec::with_capacity(decl.declarations.len());
-    for declarator in &decl.declarations {
-        let text = s.get(declarator.span.start as usize..declarator.span.end as usize)?;
-        if text.contains('\n') {
+    let mut kind = None;
+    let mut parts = Vec::new();
+    for stmt in &parsed.program.body {
+        let Statement::VariableDeclaration(decl) = stmt else {
+            return None;
+        };
+        if kind.is_some_and(|k| k != decl.kind) {
             return None;
         }
-        parts.push(text);
+        kind = Some(decl.kind);
+        for declarator in &decl.declarations {
+            parts.push(s.get(declarator.span.start as usize..declarator.span.end as usize)?);
+        }
     }
+    if parts.len() < 2 {
+        return None;
+    }
+    let keyword = match kind? {
+        VariableDeclarationKind::Let => "let ",
+        VariableDeclarationKind::Const => "const ",
+        VariableDeclarationKind::Var => "var ",
+        _ => return None,
+    };
     let length = keyword.len()
         + parts.iter().map(|p| p.chars().count()).sum::<usize>()
         + 2 * (parts.len() - 1);
-    let separator = if length > 50 { ",\n\t" } else { ", " };
+    let multiline = length > 50 || parts.iter().any(|p| p.contains('\n'));
+    let separator = if multiline { ",\n\t" } else { ", " };
     Some(format!("{keyword}{};", parts.join(separator)))
 }
 
