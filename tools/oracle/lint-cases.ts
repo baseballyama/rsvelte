@@ -51,6 +51,7 @@ export async function main(args: string[]): Promise<void> {
 			if (!fs.existsSync(directory)) continue;
 			for (const input of inputs(directory)) {
 				cases++;
+				const relative = path.relative(ROOT, input);
 				// upstream's writeFixtures, without a TypeScript project: no case here uses type information.
 				const messages: LinterType.LintMessage[] = linter.verify(
 					fs.readFileSync(input, 'utf8'),
@@ -66,11 +67,11 @@ export async function main(args: string[]): Promise<void> {
 							parserOptions: { parser: { ts: '@typescript-eslint/parser', js: 'espree' } },
 						},
 					},
-					input,
+					// The path the lint crate's test names, which upstream's runner gives its fixtures.
+					path.join('tests/fixtures/rules', relative),
 				);
 				const fatal = messages.find((m) => m.fatal);
 				if (fatal) throw new Error(`${input}: ${fatal.message}`);
-				const relative = path.relative(ROOT, input);
 				if (kind === 'valid') {
 					if (messages.length)
 						throw new Error(`${relative} is valid but reports ${messages.length}`);
