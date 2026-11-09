@@ -3,6 +3,7 @@ use rsvelte_typescript::scope::Semantic;
 use rsvelte_typescript::semantic::globals::global;
 use rsvelte_typescript::syntax_tree::Control;
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rustc_hash::FxHashMap;
 
 use super::nodes::{span, walk};
 use super::reference_tracker::{Access, Found, ReferenceTracker, Trace};
@@ -104,7 +105,7 @@ impl SvelteRule for PreferSvelteReactivity {
         let sem = file.semantic();
         let parents = file.parents();
         let exported = if file.is_component() {
-            Vec::new()
+            FxHashMap::default()
         } else {
             exported_declarations(file, tree, sem, parents)
         };
@@ -129,12 +130,15 @@ impl SvelteRule for PreferSvelteReactivity {
                 "URL" => "mutableURLUsed",
                 _ => "mutableURLSearchParamsUsed",
             };
-            for &declaration in &exported {
-                if is_in(parents, node, declaration) {
+            // Upstream reports once for each export the construction is in.
+            let mut at = Some(node);
+            while let Some(current) = at {
+                for _ in 0..exported.get(&current).copied().unwrap_or(0) {
                     reporter.report(
                         Report::range(message.clone(), span(tree, node)).message_id(message_id),
                     );
                 }
+                at = parents[current.index()].opt();
             }
             uses.clear();
             let mutated = if class == "URL" {
@@ -160,45 +164,39 @@ impl SvelteRule for PreferSvelteReactivity {
     }
 }
 
-/// What a `.svelte.js` module exports: declarations, and the definitions of exported names.
+/// What a `.svelte.js` module exports, declarations and the definitions of exported names, with
+/// how many times each is exported.
 fn exported_declarations(
     file: &File<'_>,
     tree: &SyntaxTree,
     sem: &Semantic,
     parents: &[NodeIdentifier],
-) -> Vec<NodeIdentifier> {
+) -> FxHashMap<NodeIdentifier, usize> {
     let definition = |identifier: NodeIdentifier| {
         let binding = &sem.bindings[sem.binding_of(identifier)?];
         binding
             .declaration
             .or_else(|| parents[binding.node.index()].opt())
     };
-    let mut exported = Vec::new();
+    let mut exported = FxHashMap::default();
+    let mut export = |declaration: Option<NodeIdentifier>| {
+        if let Some(declaration) = declaration {
+            *exported.entry(declaration).or_default() += 1;
+        }
+    };
     walk(file, |node| match tree.kind(node) {
-        Kind::ExportNamed(declaration) => exported.push(declaration),
+        Kind::ExportNamed(declaration) => export(Some(declaration)),
         Kind::ExportDefault(declaration) => {
             if tree.is_identifier(declaration) {
-                exported.extend(definition(declaration));
+                export(definition(declaration));
             } else {
-                exported.push(declaration);
+                export(Some(declaration));
             }
         }
         Kind::Control(Control::ExportSpecifier { local, .. }) if tree.is_identifier(local) => {
-            exported.extend(definition(local));
+            export(definition(local));
         }
         _ => {}
     });
     exported
-}
-
-/// `isIn`: `node` is `ancestor` or below it.
-fn is_in(parents: &[NodeIdentifier], node: NodeIdentifier, ancestor: NodeIdentifier) -> bool {
-    let mut at = Some(node);
-    while let Some(current) = at {
-        if current == ancestor {
-            return true;
-        }
-        at = parents[current.index()].opt();
-    }
-    false
 }
