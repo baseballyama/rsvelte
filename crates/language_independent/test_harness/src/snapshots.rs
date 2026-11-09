@@ -25,6 +25,9 @@ pub(crate) struct Snapshot {
     /// Whether rsvelte implements the task. One it does not stays in the ratchet: its units are
     /// `missing`.
     pub(crate) implemented: bool,
+    /// The one official file a corpus unit compares this task with, when the task writes what
+    /// another task's oracle reports: that task and the file's extension.
+    pub(crate) official: Option<(&'static str, &'static str)>,
 }
 
 impl Snapshot {
@@ -32,12 +35,22 @@ impl Snapshot {
     fn prefix(&self, kind: Kind) -> String {
         match kind {
             Kind::HandWritten => format!("{}.", self.name),
-            Kind::Corpus => {
-                let (dir, variant) = task_files::location(self.task);
-                format!("{dir}/{variant}.")
-            }
+            Kind::Corpus => corpus_prefix(self.task),
         }
     }
+
+    /// What the names of the official files this snapshot compares with start with.
+    fn official_prefix(&self, kind: Kind) -> String {
+        match (kind, self.official) {
+            (Kind::Corpus, Some((task, _))) => corpus_prefix(task),
+            _ => self.prefix(kind),
+        }
+    }
+}
+
+fn corpus_prefix(task: &str) -> String {
+    let (dir, variant) = task_files::location(task);
+    format!("{dir}/{variant}.")
 }
 
 /// How the units of one task and variant compare with the official output.
@@ -174,12 +187,22 @@ fn compare_with_official(
 ) {
     let mut measured = false;
     for s in snapshots {
-        let prefix = s.prefix(case.kind);
+        let prefix = s.official_prefix(case.kind);
         if case.skips(s.task) || !existing.iter().any(|e| e.starts_with(prefix.as_str())) {
             continue;
         }
+        let rows = match s.official {
+            None => oracle::rows(expected_dir, &prefix, existing, produced),
+            Some((_, file)) => {
+                let ours = s.prefix(case.kind);
+                match file_rows(expected_dir, &prefix, &ours, file, existing, produced) {
+                    Some(rows) => rows,
+                    None => continue,
+                }
+            }
+        };
         measured = true;
-        let rows = match oracle::rows(expected_dir, &prefix, existing, produced) {
+        let rows = match rows {
             Ok(r) => r,
             Err(e) => {
                 outcome.problem(case, &e);
@@ -207,6 +230,30 @@ fn compare_with_official(
             .verdicts
             .push(format!("unmeasured {} oracle", case.name));
     }
+}
+
+/// The rows of one official file, `<official><file>`, against rsvelte's `<ours><file>`; `None`
+/// when the official tool reported an error, which is the other task's verdict.
+fn file_rows(
+    expected_dir: &Path,
+    official: &str,
+    ours: &str,
+    file: &str,
+    existing: &[String],
+    produced: &[(String, String)],
+) -> Option<Result<Vec<oracle::Row>, String>> {
+    if existing.contains(&format!("{official}{}", oracle::ERROR)) {
+        return None;
+    }
+    let name = format!("{official}{file}");
+    let ours = format!("{ours}{file}");
+    let existing: Vec<String> = existing.iter().filter(|e| **e == name).cloned().collect();
+    let produced: Vec<(String, String)> = produced
+        .iter()
+        .filter(|(n, _)| *n == ours)
+        .map(|(_, text)| (name.clone(), text.clone()))
+        .collect();
+    Some(oracle::rows(expected_dir, official, &existing, &produced))
 }
 
 /// Makes `dir` hold exactly `produced`. Most runs change few files, and creating and removing
@@ -404,7 +451,7 @@ fn existing_snapshots(
 ) -> Result<Vec<String>, String> {
     let mut names = Vec::new();
     for s in snapshots {
-        let prefix = s.prefix(kind);
+        let prefix = s.official_prefix(kind);
         let (dir, start) = prefix.rsplit_once('/').unwrap_or(("", prefix.as_str()));
         let directory = expected.join(dir);
         let read = match std::fs::read_dir(&directory) {

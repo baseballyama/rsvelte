@@ -132,7 +132,9 @@ fn main() -> ExitCode {
 To add a task for Svelte files to the corpus, add a `snapshot` in
 [`command_line/tests/corpus.rs`](../hosts/command_line/tests/corpus.rs). For a task of the
 official tool that rsvelte does not have yet, add a `not_implemented`. Its units then stay in the
-ratchet as `missing`.
+ratchet as `missing`. For a task that writes one file of another task's official output, such
+as the compiler's `warnings.json`, add an `official_file`; a unit where that oracle reported an
+error is not measured.
 
 Type-check tasks need native TypeScript 7.1 and the framework packages.
 `NodePackages::locate()` finds them in `tools/oracle/node_modules`; install them with

@@ -161,6 +161,28 @@ impl Fixtures {
         self.add(task, variant, false)
     }
 
+    /// Runs `task` and compares a corpus unit's `<file>` from it with the official
+    /// `<official>/<variant>.<file>`: one file of another task's official output. A unit where
+    /// that task's oracle reported an error is not measured; one without the file expects none.
+    ///
+    /// # Panics
+    ///
+    /// As [`Fixtures::snapshot`].
+    #[must_use]
+    pub fn official_file(
+        self,
+        task: &'static str,
+        name: &'static str,
+        official: &'static str,
+        file: &'static str,
+    ) -> Self {
+        let mut fixtures = self.add(task, name, true);
+        if let Some(last) = fixtures.snapshots.last_mut() {
+            last.official = Some((official, file));
+        }
+        fixtures
+    }
+
     fn add(mut self, task: &'static str, name: &'static str, implemented: bool) -> Self {
         assert!(
             !name.is_empty()
@@ -180,6 +202,7 @@ impl Fixtures {
             task,
             name,
             implemented,
+            official: None,
         });
         self
     }
