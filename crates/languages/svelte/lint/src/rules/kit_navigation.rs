@@ -91,14 +91,31 @@ impl<'a> Script<'a> {
         }
     }
 
-    /// The expressions that read `exports` of `$app/paths`, sorted for [`Script::reads`].
+    /// The expressions that read `exports` of `$app/paths`, sorted for [`Script::reads`]: the
+    /// tracker's, and the reads of a variable destructured from the module's namespace.
     pub(super) fn path_reads(&self, exports: &[&str]) -> Vec<NodeIdentifier> {
-        let mut reads: Vec<NodeIdentifier> = self
-            .imports("$app/paths", exports)
-            .into_iter()
-            .map(|reference| reference.node)
-            .collect();
+        let mut reads = Vec::new();
+        for reference in self.imports("$app/paths", exports) {
+            reads.push(reference.node);
+            // The tracker reports `base` in `const { base } = paths` but not what reads it.
+            let Kind::Property { value, .. } = self.tree.kind(reference.node) else {
+                continue;
+            };
+            let mut target = value;
+            while let Kind::AssignPattern(left, _) = self.tree.kind(target) {
+                target = left;
+            }
+            if let Some(binding) = self.sem.binding_of(target) {
+                reads.extend(
+                    self.sem
+                        .references_to(binding)
+                        .filter(|r| r.read)
+                        .map(|r| r.node),
+                );
+            }
+        }
         reads.sort_unstable();
+        reads.dedup();
         reads
     }
 

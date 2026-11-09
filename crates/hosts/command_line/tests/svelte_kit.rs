@@ -238,3 +238,27 @@ fn a_navigation_assigned_to_a_variable_is_followed() {
         ]
     );
 }
+
+/// A name destructured from the namespace of `$app/paths` is that name: upstream reports
+/// `goto(base + "/x")` here, though it allows it after `import { base }`.
+#[test]
+fn a_path_destructured_from_the_namespace_is_followed() {
+    let project = Project::new(&[
+        ("package.json", KIT_2),
+        (
+            "src/lib/Go.svelte",
+            concat!(
+                "<script>import * as p from '$app/paths'; import { goto } from '$app/navigation';",
+                " const { base, resolve } = p; goto(base + '/x'); goto(resolve('/y'));</script>"
+            ),
+        ),
+    ]);
+    assert_eq!(
+        project.rules(".", "src/lib/Go.svelte", NAVIGATION_RULES),
+        [
+            "svelte/no-navigation-without-resolve",
+            "svelte/no-goto-without-base",
+            "svelte/no-navigation-without-base"
+        ]
+    );
+}
