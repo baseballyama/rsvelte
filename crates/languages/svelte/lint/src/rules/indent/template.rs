@@ -1,5 +1,6 @@
 //! How the markup lays out its tokens: elements, attributes, blocks and tags.
 
+use rsvelte_kernel::source::characters::trim_ecmascript;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte::syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, Range, Script as ScriptElement,
@@ -593,7 +594,7 @@ impl<'a> Template<'_, 'a> {
                 .children(children)
                 .iter()
                 .map(|&c| component.node(c))
-                .filter(|n| !matches!(n, TemplateNode::Text { span } if span.text(source).trim().is_empty()))
+                .filter(|n| !matches!(n, TemplateNode::Text { span } if trim_ecmascript(span.text(source)).is_empty()))
                 .map(|n| Some(Item::Node(n.span())))
                 .collect();
             self.script.layout.list(

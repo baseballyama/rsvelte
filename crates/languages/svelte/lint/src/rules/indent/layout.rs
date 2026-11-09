@@ -4,6 +4,7 @@
 //! [`Layout::list`], [`Layout::start`], [`Layout::ignore`]); a line is then checked against the
 //! offset of its first token that has one.
 
+use rsvelte_kernel::source::characters::{is_ecmascript_whitespace, trim_ecmascript};
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
@@ -349,7 +350,7 @@ impl<'a> Layout<'a> {
                     .start_offset;
                 let leading = tokens.source[line_start as usize..]
                     .chars()
-                    .take_while(|c| c.is_whitespace())
+                    .take_while(|&c| is_ecmascript_whitespace(c))
                     .map(char::len_utf16)
                     .sum::<usize>() as u32;
                 aligned = Some(tokens.column(start) - leading);
@@ -539,7 +540,7 @@ impl<'a> Layout<'a> {
             .expect("an existing line")
             .start_offset;
         let indent = &tokens.source[line_start as usize..start as usize];
-        if !indent.trim().is_empty() {
+        if !trim_ecmascript(indent).is_empty() {
             return;
         }
         let character = self.options.character;

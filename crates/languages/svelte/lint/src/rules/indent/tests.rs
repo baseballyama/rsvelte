@@ -2,9 +2,10 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_lint_runner::finding::{Finding, apply_fixes};
 
-/// The lines `svelte/indent` reports, 1-based.
-fn reported_lines(source_text: &str) -> Vec<u32> {
+/// What `svelte/indent` reports, with the line of each, 1-based.
+fn findings(source_text: &str) -> Vec<(u32, Finding)> {
     let mut registry = Registry::new();
     crate::register(&mut registry);
     let document =
@@ -17,9 +18,18 @@ fn reported_lines(source_text: &str) -> Vec<u32> {
     let lines = context.ecmascript_line_index();
     crate::lint(&context, &configuration)
         .expect("source parses")
-        .iter()
-        .map(|f| lines.line_column(f.diagnostic.span.start_offset).line)
+        .into_iter()
+        .map(|f| (lines.line(f.diagnostic.span.start_offset), f))
         .collect()
+}
+
+fn reported_lines(source_text: &str) -> Vec<u32> {
+    findings(source_text).into_iter().map(|(l, _)| l).collect()
+}
+
+fn fixed(source_text: &str) -> String {
+    let findings: Vec<Finding> = findings(source_text).into_iter().map(|(_, f)| f).collect();
+    apply_fixes(source_text, &findings)
 }
 
 #[test]
@@ -85,4 +95,17 @@ fn lines_end_at_every_ecmascript_line_terminator() {
         let source = source.replace('\n', terminator);
         assert_eq!(reported_lines(&source), [2, 5], "{terminator:?}");
     }
+}
+
+#[test]
+fn indentation_is_ecmascript_whitespace() {
+    // U+0085 is text to JavaScript, so the fix keeps it; U+FEFF is indentation.
+    assert_eq!(
+        fixed("<div>\n\u{85}<p>x</p>\n</div>\n"),
+        "<div>\n  \u{85}<p>x</p>\n</div>\n"
+    );
+    assert_eq!(
+        fixed("<div>\n\u{feff}<p>x</p>\n</div>\n"),
+        "<div>\n  <p>x</p>\n</div>\n"
+    );
 }

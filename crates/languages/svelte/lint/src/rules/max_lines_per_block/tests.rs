@@ -40,3 +40,16 @@ fn lines_end_at_every_ecmascript_line_terminator() {
         );
     }
 }
+
+#[test]
+fn a_line_of_u0085_is_not_blank() {
+    let options = r#"{"script":1,"skipBlankLines":true}"#;
+    assert_eq!(
+        messages("<script>\nlet a;\n\u{85}\n</script>\n", options),
+        ["<script> block has too many lines (2). Maximum allowed is 1."]
+    );
+    assert_eq!(
+        messages("<script>\nlet a;\n\u{feff}\n</script>\n", options),
+        [""; 0]
+    );
+}

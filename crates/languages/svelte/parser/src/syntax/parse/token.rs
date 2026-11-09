@@ -1,3 +1,4 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
 use rsvelte_svelte_syntax::syntax_tree::TokenType;
@@ -19,8 +20,7 @@ impl Parser<'_> {
         let mut at = start_offset;
         let mut blank = None;
         for (i, c) in text.char_indices() {
-            // JavaScript's `trim` also removes U+FEFF.
-            let is_blank = c.is_whitespace() || c == '\u{feff}';
+            let is_blank = is_ecmascript_whitespace(c);
             if blank != Some(is_blank) {
                 let start = start_offset + i;
                 self.push_word(blank, at, start, kind);

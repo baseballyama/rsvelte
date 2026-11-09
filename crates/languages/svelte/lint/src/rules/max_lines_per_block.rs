@@ -1,3 +1,4 @@
+use rsvelte_kernel::source::characters::trim_ecmascript;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte::syntax::syntax_tree::{Component, TemplateNode, TokenType};
@@ -75,7 +76,7 @@ impl Lines<'_> {
 
     /// Whether `line` counts when blank lines are skipped or not.
     fn counts(&self, line: u32, skip_blank_lines: bool) -> bool {
-        !skip_blank_lines || !self.text(line).trim().is_empty()
+        !skip_blank_lines || !trim_ecmascript(self.text(line)).is_empty()
     }
 
     /// `isFullLineComment`: nothing but whitespace beside `comment` on `line`.
@@ -84,8 +85,10 @@ impl Lines<'_> {
         let end = start + self.text(line).len() as u32;
         let before = Span::new(start, comment.start_offset.max(start));
         let after = Span::new(comment.end_offset.min(end), end);
-        (self.line(comment.start_offset) < line || before.text(self.source).trim().is_empty())
-            && (self.line(comment.end_offset) > line || after.text(self.source).trim().is_empty())
+        (self.line(comment.start_offset) < line
+            || trim_ecmascript(before.text(self.source)).is_empty())
+            && (self.line(comment.end_offset) > line
+                || trim_ecmascript(after.text(self.source)).is_empty())
     }
 }
 
@@ -183,16 +186,14 @@ fn css_comment_only(lines: &Lines<'_>, comments: &[Span], line: u32) -> bool {
         .take_while(|c| c.start_offset < end);
     for comment in overlapping {
         covered = true;
-        if !Span::new(at, comment.start_offset.max(at))
-            .text(lines.source)
-            .trim()
+        if !trim_ecmascript(Span::new(at, comment.start_offset.max(at)).text(lines.source))
             .is_empty()
         {
             return false;
         }
         at = comment.end_offset.min(end);
     }
-    covered && Span::new(at, end).text(lines.source).trim().is_empty()
+    covered && trim_ecmascript(Span::new(at, end).text(lines.source)).is_empty()
 }
 
 fn check_template(

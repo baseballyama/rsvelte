@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_svelte::syntax::syntax_tree::TokenType;
 
 /// A corpus unit is a directory with one `input.*`; its `expected/` and `actual/` are not searched.
@@ -54,7 +55,7 @@ fn check(f: &Path) -> Verdict {
         Ok(()) => c.tokens.iter().find_map(|t| {
             let text = t.span.text(&source_text);
             let ok = match t.kind {
-                TokenType::Whitespace => text.chars().all(|c| c.is_whitespace() || c == '\u{feff}'),
+                TokenType::Whitespace => text.chars().all(is_ecmascript_whitespace),
                 TokenType::JavaScriptComment => text.starts_with("//") || text.starts_with("/*"),
                 TokenType::MarkupComment => text.starts_with("<!--") && text.ends_with("-->"),
                 _ => true,
