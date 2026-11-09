@@ -78,9 +78,22 @@ fn an_inline_style_keeps_declarations_comments_and_holes() {
 }
 
 #[test]
-fn an_inline_style_with_a_rule_is_not_converted() {
-    let source = "a { b: c }";
+fn a_stray_brace_in_an_inline_style_runs_to_the_end_as_one_word() {
+    let source = "a: b; } c: d";
+    let nodes = inline(source, whole(source), &[]).expect("a declaration list");
+    assert_eq!(nodes.len(), 1);
+}
+
+#[test]
+fn an_inline_style_with_an_at_rule_is_not_converted() {
+    let source = "@media x; a: b";
     assert!(inline(source, whole(source), &[]).is_none());
+    // A block is a word to the template tokenizer, so no rule ever opens.
+    let source = "a { b: c }";
+    assert_eq!(
+        inline(source, whole(source), &[]).map(|nodes| nodes.len()),
+        Some(0)
+    );
 }
 
 #[test]

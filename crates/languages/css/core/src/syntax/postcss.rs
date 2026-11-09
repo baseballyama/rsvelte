@@ -7,7 +7,8 @@
 //! It follows the versions eslint-plugin-svelte 3.23.1 resolves in `tools/oracle`: postcss 8.5.32,
 //! postcss-scss 4.0.9 and postcss-safe-parser 7.1.0.
 //!
-//! Text between holes is tokenized as `PostCSS` does; a hole (a template expression) is one word.
+//! An inline style is tokenized as eslint-plugin-svelte's template tokenizer does: `PostCSS`'s
+//! tokens, with each `{…}` (a mustache or a template's `${…}`) merged into one word.
 
 use rsvelte_kernel::source::positions::Span;
 
@@ -35,7 +36,7 @@ pub struct SyntaxError {
 ///
 /// The [`SyntaxError`] the parser throws.
 pub fn check(source: &str, content: Span, dialect: Dialect) -> Result<(), SyntaxError> {
-    let mut parser = Parser::new(source, content, &[], Mode::Strict(dialect));
+    let mut parser = Parser::new(source, content, Mode::Strict(dialect));
     parser.parse().map_err(|Thrown { reason, offset }| {
         // One past a comma can fall inside the next character, one UTF-16 unit into it.
         let boundary = source.floor_char_boundary(offset as usize);
@@ -90,7 +91,7 @@ pub struct Declaration {
 /// holds a rule, an at-rule or a hole in a comment, which upstream does not convert.
 #[must_use]
 pub fn inline(source: &str, content: Span, holes: &[Span]) -> Option<Vec<InlineNode>> {
-    let mut parser = Parser::new(source, content, holes, Mode::Safe);
+    let mut parser = Parser::new(source, content, Mode::Safe);
     parser.parse().ok()?;
     let mut out = Vec::with_capacity(parser.nodes.len() + holes.len());
     let mut pending = holes
@@ -177,9 +178,6 @@ struct Parser<'a> {
     b: &'a [u8],
     position: usize,
     end: usize,
-    holes: &'a [Span],
-    /// The next hole at or after `position`.
-    hole: usize,
     returned: Vec<Token>,
     /// Words the tokenizer read; each `(` takes the last one, which decides `url(`.
     words: Vec<Token>,
@@ -218,14 +216,12 @@ const fn is_space(c: u8) -> bool {
 }
 
 impl<'a> Parser<'a> {
-    const fn new(source: &'a str, content: Span, holes: &'a [Span], mode: Mode) -> Self {
+    const fn new(source: &'a str, content: Span, mode: Mode) -> Self {
         Self {
             source,
             b: source.as_bytes(),
             position: content.start_offset as usize,
             end: content.end_offset as usize,
-            holes,
-            hole: 0,
             returned: Vec::new(),
             words: Vec::new(),
             mode,
@@ -253,45 +249,9 @@ impl<'a> Parser<'a> {
         (at < self.end).then(|| self.b[at])
     }
 
-    /// The hole that starts at `at`, if one does.
-    fn hole_at(&mut self, at: usize) -> Option<Span> {
-        while self
-            .holes
-            .get(self.hole)
-            .is_some_and(|h| (h.start_offset as usize) < at)
-        {
-            self.hole += 1;
-        }
-        self.holes
-            .get(self.hole)
-            .filter(|h| h.start_offset as usize == at)
-            .copied()
-    }
-
-    /// The first `at >= from` outside holes where `found` holds.
+    /// The first `at >= from` where `found` holds.
     fn find(&self, from: usize, found: impl Fn(usize) -> bool) -> Option<usize> {
-        let mut hole = self.hole;
-        let mut at = from;
-        while at < self.end {
-            while self
-                .holes
-                .get(hole)
-                .is_some_and(|h| (h.end_offset as usize) <= at)
-            {
-                hole += 1;
-            }
-            if let Some(h) = self.holes.get(hole)
-                && h.start_offset as usize <= at
-            {
-                at = h.end_offset as usize;
-                continue;
-            }
-            if found(at) {
-                return Some(at);
-            }
-            at += 1;
-        }
-        None
+        (from..self.end).find(|&at| found(at))
     }
 
     /// The next unescaped `quote` after `from`.
@@ -328,11 +288,41 @@ impl<'a> Parser<'a> {
         self.returned.is_empty() && self.position >= self.end
     }
 
+    /// The next token; in safe mode, a `{…}` with what it holds is one word.
+    fn next_token(&mut self) -> R<Option<Token>> {
+        let token = self.raw_token()?;
+        if self.strict() {
+            return Ok(token);
+        }
+        let depth = |token: Token| match token.kind {
+            Kind::Open(b'{') => 1,
+            Kind::Close(b'}') => -1,
+            _ => 0,
+        };
+        let Some(first) = token.filter(|&t| depth(t) != 0) else {
+            return Ok(token);
+        };
+        // A stray `}` takes the depth below zero, so the word runs on as upstream's does.
+        let mut open = depth(first);
+        let mut end = first.end;
+        while open != 0
+            && let Some(next) = self.raw_token()?
+        {
+            open += depth(next);
+            end = next.end;
+        }
+        Ok(Some(Token {
+            kind: Kind::Word,
+            start: first.start,
+            end,
+        }))
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "one arm per token kind, as `PostCSS` reads them"
     )]
-    fn next_token(&mut self) -> R<Option<Token>> {
+    fn raw_token(&mut self) -> R<Option<Token>> {
         if let Some(token) = self.returned.pop() {
             return Ok(Some(token));
         }
@@ -340,9 +330,6 @@ impl<'a> Parser<'a> {
         let Some(c) = self.byte(pos) else {
             return Ok(None);
         };
-        if let Some(hole) = self.hole_at(pos) {
-            return Ok(Some(self.token(Kind::Word, pos, hole.end_offset as usize)));
-        }
         let scss = self.scss();
         let ignore = !self.strict();
         let next = self.byte(pos + 1);
@@ -509,12 +496,7 @@ impl<'a> Parser<'a> {
 
     fn word_end(&self, from: usize) -> usize {
         let scss = self.scss();
-        let next_hole = self
-            .holes
-            .get(self.hole..)
-            .and_then(|rest| rest.iter().find(|h| h.start_offset as usize >= from))
-            .map_or(self.end, |h| h.start_offset as usize);
-        (from..next_hole)
+        (from..self.end)
             .find(|&i| {
                 let c = self.b[i];
                 matches!(
@@ -541,10 +523,10 @@ impl<'a> Parser<'a> {
                 ) || (c == b',' && scss)
                     || (c == b'/' && self.byte(i + 1) == Some(b'*'))
             })
-            .unwrap_or(next_hole)
+            .unwrap_or(self.end)
     }
 
-    /// The first `)` at or after `from`, outside holes.
+    /// The first `)` at or after `from`.
     fn next_close(&mut self, from: usize) -> Option<usize> {
         if let Some((start, found)) = self.close_search
             && start <= from
@@ -1035,8 +1017,8 @@ impl<'a> Parser<'a> {
         let mut after_colon = property.end_offset;
         while let Some((&token, after)) = rest.split_first() {
             rest = after;
+            after_colon = token.end;
             if token.kind == Kind::Colon {
-                after_colon = token.end;
                 break;
             }
             if token.kind == Kind::Word
