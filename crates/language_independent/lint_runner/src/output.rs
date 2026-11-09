@@ -12,6 +12,9 @@ const FINDING_BYTES: usize = 200;
 /// `{rules, findings: [{rule, message, start: {line, column}, end: {line, column}}]}` with
 /// `ESLint`'s positions: 1-based lines and 1-based UTF-16 columns.
 ///
+/// `lines` counts lines as `ESLint` does, with
+/// [`LineBreaks::Ecmascript`](rsvelte_kernel::source::positions::LineBreaks).
+///
 /// `end` is `null` for a finding without one ([`has_end`](rsvelte_kernel::diagnostics::Diagnostic::has_end)).
 ///
 /// `rules` are the rules that ran, so a comparison can tell a rule that found nothing from one

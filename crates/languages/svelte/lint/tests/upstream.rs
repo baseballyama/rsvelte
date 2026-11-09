@@ -433,7 +433,10 @@ fn run(case: &Case<'_>) -> Verdict {
     } else {
         Vec::new()
     };
-    let lines = rsvelte_kernel::source::positions::LineIndex::new(&source);
+    let lines = rsvelte_kernel::source::positions::LineIndex::with_breaks(
+        &source,
+        rsvelte_kernel::source::positions::LineBreaks::Ecmascript,
+    );
     let actual: Vec<ExpectedError> = findings
         .iter()
         .map(|f| {
