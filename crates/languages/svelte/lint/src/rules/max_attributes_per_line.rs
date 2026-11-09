@@ -54,7 +54,7 @@ impl SvelteRule for MaxAttributesPerLine {
         let source = file.source();
         let lines = file.context.line_index();
         let line = |offset: u32| lines.line_column(offset).line;
-        let mut report = |attribute: TagAttribute| {
+        let mut report = |attribute: TagAttribute<'_>| {
             let gap = whitespace_before(tokens, attribute.span.start_offset);
             reporter.report(
                 Report::range(

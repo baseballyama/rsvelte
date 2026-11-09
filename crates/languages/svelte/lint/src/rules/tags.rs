@@ -21,17 +21,19 @@ pub(super) enum Attributes<'a> {
 
 /// One attribute as layout sees it.
 #[derive(Clone, Copy)]
-pub(super) struct TagAttribute {
+pub(super) struct TagAttribute<'a> {
     pub(super) span: Span,
     /// The name as written; the whole attribute for a spread or an `{@attach}`.
     pub(super) key: Span,
+    /// `None` for an attribute of `<script>` or `<style>`.
+    pub(super) template: Option<&'a Attribute>,
 }
 
 impl<'a> StartTag<'a> {
     pub(super) fn attributes(
         &self,
         tokens: &'a Tokens<TokenType>,
-    ) -> impl DoubleEndedIterator<Item = TagAttribute> + 'a {
+    ) -> impl DoubleEndedIterator<Item = TagAttribute<'a>> + 'a {
         let (template, raw): (&'a [Attribute], &'a [TagAttributes]) = match self.attributes {
             Attributes::Template(attributes) => (attributes, &[]),
             Attributes::Raw(attributes) => (&[], attributes),
@@ -46,6 +48,7 @@ impl<'a> StartTag<'a> {
             } else {
                 attribute.name
             },
+            template: Some(attribute),
         });
         let raw = raw.iter().map(move |&(name, value)| TagAttribute {
             span: Span::new(
@@ -55,6 +58,7 @@ impl<'a> StartTag<'a> {
                 }),
             ),
             key: name,
+            template: None,
         });
         template.chain(raw)
     }
