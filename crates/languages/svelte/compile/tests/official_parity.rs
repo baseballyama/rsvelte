@@ -179,6 +179,36 @@ fn only_svg_outside_an_svg_text_drops_whitespace_between_nodes() {
 }
 
 #[test]
+fn a_slot_attribute_needs_a_component_parent_or_a_custom_element() {
+    let script = "<script>import C from './C.svelte'; let x = $state(1);</script>";
+    for (markup, expected) in [
+        (
+            "<C>{#if x}<div slot=\"a\">x</div>{/if}</C>",
+            Some("slot_attribute_invalid_placement"),
+        ),
+        (
+            "<div slot=\"a\">x</div>",
+            Some("slot_attribute_invalid_placement"),
+        ),
+        ("<C><div slot=\"a\">x</div></C>", Some("unsupported")),
+        ("<my-element><div slot=\"a\">x</div></my-element>", None),
+    ] {
+        let source = format!("{script}{markup}");
+        for target in [Target::Client, Target::Server] {
+            let outcome = compile(&source, target);
+            match expected {
+                Some(code) => assert_eq!(outcome, Err(code.to_owned()), "{markup} on {target:?}"),
+                None => assert_ne!(
+                    outcome,
+                    Err("slot_attribute_invalid_placement".to_owned()),
+                    "{markup} on {target:?}"
+                ),
+            }
+        }
+    }
+}
+
+#[test]
 fn an_await_while_rendering_needs_async_mode() {
     for (source, error) in [
         (
@@ -335,6 +365,46 @@ fn an_element_takes_its_namespace_from_its_name_when_a_fragment_is_inferred() {
         let client = squashed(&source, Target::Client);
         for template in templates {
             assert!(client.contains(template), "{template} in {client}");
+        }
+    }
+}
+
+#[test]
+fn template_errors_come_from_the_template_on_both_targets() {
+    let script = "<script>import A from './A.svelte'; let v = $state(1); let el;</script>";
+    for (markup, expected) in [
+        ("<A x={1} x={2} />", Some("attribute_duplicate")),
+        (
+            "<A value={1} bind:value={v} />",
+            Some("attribute_duplicate"),
+        ),
+        ("<div x={1} x={2}></div>", Some("attribute_duplicate")),
+        ("<div class:a class:a></div>", Some("attribute_duplicate")),
+        (
+            "<div style:color=\"red\" style:color=\"blue\"></div>",
+            Some("attribute_duplicate"),
+        ),
+        ("<div class=\"a\" class:a></div>", None),
+        (
+            "<svelte:fragment slot=\"a\">x</svelte:fragment>",
+            Some("svelte_fragment_invalid_placement"),
+        ),
+        (
+            "<A>{#if v}<svelte:fragment slot=\"a\">x</svelte:fragment>{/if}</A>",
+            Some("svelte_fragment_invalid_placement"),
+        ),
+        (
+            "<button is=\"x-b\" class=\"a\">b</button>",
+            Some("unsupported"),
+        ),
+        ("<button is=\"x-b\">b</button>", None),
+        ("<my-el></my-el>", None),
+        ("<my-el a=\"1\"></my-el>", Some("unsupported")),
+    ] {
+        let source = format!("{script}{markup}");
+        for target in [Target::Client, Target::Server] {
+            let outcome = compile(&source, target).err();
+            assert_eq!(outcome.as_deref(), expected, "{markup} on {target:?}");
         }
     }
 }

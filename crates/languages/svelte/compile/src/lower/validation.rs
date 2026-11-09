@@ -4,6 +4,8 @@ use rsvelte_typescript_syntax::syntax_tree::{Control, TypeScriptFeature, TypeScr
 
 use crate::render_plan::{is_mathml, is_svg};
 
+pub(super) mod markup;
+
 use super::{
     CompileInput, Diagnostic, Kind, NodeIdentifier, Resolution, Span, SyntaxTree, Target,
     unsupported,

@@ -129,6 +129,7 @@ pub(crate) fn validate(
     res: &Resolution,
 ) -> Result<ValidatedOptions, Diagnostic> {
     let custom_element = special::validate(input)?;
+    validation::markup::check(input)?;
     coverage::check(input, res)?;
     validation::check_typescript(input)?;
     check_stores(
