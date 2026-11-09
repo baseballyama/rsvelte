@@ -122,6 +122,3 @@ fn is_bare_name(component: &Component, span: Span) -> bool {
             && close.kind == TokenType::MustacheClose
     )
 }
-
-#[cfg(test)]
-mod tests;

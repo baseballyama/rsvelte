@@ -1,11 +1,11 @@
 // `oracle lint-cases [--update]`: write ESLint's verdict for the lint crate's own rule cases
 // (crates/languages/svelte/lint/tests/cases), which follow eslint-plugin-svelte's fixture layout:
 // `<rule>/{valid,invalid}/…/<name>-input.svelte`, options in `<name>-config.json` or
-// `_config.json`, the reports in `<name>-errors.yaml` and a fixable rule's fixed code in
+// `_config.json`, the reports in `<name>-errors.yaml` and the fixed code, when a fix changes it, in
 // `<name>-output.svelte`. As upstream's runner does, a missing file is written and an existing one
 // is kept unless --update; a valid case must report nothing and an invalid one something. A case in
 // tests/cases_deviations.json keeps the crate's answer where ESLint's is an upstream bug: it is never
-// written, and it fails once ESLint agrees.
+// written, and it fails once ESLint agrees on both the reports and the fixed code.
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
@@ -66,6 +66,13 @@ function rules(directory: string): string[] {
 		.readdirSync(directory, { withFileTypes: true })
 		.filter((entry) => entry.isDirectory())
 		.flatMap((entry) => rules(path.join(directory, entry.name)));
+}
+
+// Whether a `package.json` sits between `input` and the rule's directory.
+function inProject(input: string, rule: string): boolean {
+	for (let directory = path.dirname(input); directory !== rule; directory = path.dirname(directory))
+		if (fs.existsSync(path.join(directory, 'package.json'))) return true;
+	return false;
 }
 
 // A type-aware rule reads a TypeScript project.
@@ -168,18 +175,32 @@ export async function main(args: string[]): Promise<void> {
 								parserOptions: { parser: { ts: '@typescript-eslint/parser', js: 'espree' } },
 							},
 						},
-						// The path the lint crate's test names, which upstream's runner gives its fixtures.
-						path.join('tests/fixtures/rules', path.relative(ROOT, input)),
+						// A case with a project of its own is read where it is, as the crate's test reads
+						// it; another takes the path that upstream's runner gives its fixtures.
+						inProject(input, path.join(ROOT, rule))
+							? input
+							: path.join('tests/fixtures/rules', path.relative(ROOT, input)),
 					);
 				}
 				const fatal = messages.find((m) => m.fatal);
 				if (fatal) throw new Error(`${input}: ${fatal.message}`);
 				const relative = path.relative(ROOT, input);
+				const errors = sibling(input, 'errors.yaml');
+				const output = sibling(input, `output${path.extname(input)}`);
+				// The harness reads a missing output as the input: the rule must not fix.
+				const fixed = plugin.rules[rule].meta?.fixable
+					? applyFixes(
+							text,
+							messages.flatMap((m) => (m.fix ? [m.fix] : [])),
+						)
+					: text;
 				if (deviations.delete(relative)) {
-					const actual = yaml.stringify(reports(messages, text));
-					const errors = sibling(input, 'errors.yaml');
 					const kept = fs.existsSync(errors) ? fs.readFileSync(errors, 'utf8') : yaml.stringify([]);
-					if (yaml.stringify(yaml.parse(kept)) === actual)
+					const keptOutput = fs.existsSync(output) ? fs.readFileSync(output, 'utf8') : text;
+					if (
+						yaml.stringify(yaml.parse(kept)) === yaml.stringify(reports(messages, text)) &&
+						keptOutput === fixed
+					)
 						throw new Error(`${relative} is listed as a deviation, but ESLint agrees`);
 					continue;
 				}
@@ -189,22 +210,15 @@ export async function main(args: string[]): Promise<void> {
 					continue;
 				}
 				if (!messages.length) throw new Error(`${relative} is invalid but reports nothing`);
-				const errors = sibling(input, 'errors.yaml');
 				if (!fs.existsSync(errors) || values.update) {
 					const report = reports(messages, text);
 					fs.writeFileSync(errors, yaml.stringify(report));
 					written++;
 				}
-				const output = sibling(input, `output${path.extname(input)}`);
-				const fixable = plugin.rules[rule].meta?.fixable != null;
-				if (fixable && (!fs.existsSync(output) || values.update)) {
-					fs.writeFileSync(
-						output,
-						applyFixes(
-							text,
-							messages.flatMap((m) => (m.fix ? [m.fix] : [])),
-						),
-					);
+				if (fixed === text) {
+					if (fs.existsSync(output)) throw new Error(`${relative} has an output, but no fix`);
+				} else if (!fs.existsSync(output) || values.update) {
+					fs.writeFileSync(output, fixed);
 					written++;
 				}
 			}

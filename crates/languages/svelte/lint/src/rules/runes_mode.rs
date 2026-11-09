@@ -71,6 +71,3 @@ pub(super) fn runes(file: &File<'_>) -> Option<bool> {
     };
     Some(runes_mode(component, file.source()))
 }
-
-#[cfg(test)]
-mod tests;
