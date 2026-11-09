@@ -8,6 +8,7 @@ mod html_quotes;
 mod html_self_closing;
 mod max_attributes_per_line;
 mod no_spaces_around_equal_signs_in_attribute;
+mod no_trailing_spaces;
 mod no_unused_variables;
 mod sort_attributes;
 mod spaced_html_comment;
@@ -25,6 +26,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &html_self_closing::RULE,
     &max_attributes_per_line::RULE,
     &no_spaces_around_equal_signs_in_attribute::RULE,
+    &no_trailing_spaces::RULE,
     &sort_attributes::RULE,
     &spaced_html_comment::RULE,
     &valid_each_key::RULE,
