@@ -216,15 +216,15 @@ impl<'a> File<'a> {
     }
 
     /// The condition type of each node of [`File::javascript`]: the host's type provider's, or
-    /// the built-in prototype's; `None` for a module.
+    /// the built-in prototype's; `None` for a module, and an error when the provider's facts do
+    /// not fit.
     #[must_use]
-    pub fn condition_types(&self) -> Option<&'a TypeFacts> {
+    pub fn condition_types(&self) -> Option<Result<&'a TypeFacts, &'a str>> {
         self.component()?;
-        Some(
-            self.context
-                .facet::<ConditionTypes>()
-                .unwrap_or_else(|| self.context.get::<NativeConditionTypes>()),
-        )
+        Some(self.context.facet::<ConditionTypes>().map_or_else(
+            || Ok(self.context.get::<NativeConditionTypes>()),
+            |provided| provided.as_ref().map_err(String::as_str),
+        ))
     }
 
     /// The parent of each node of [`File::javascript`].

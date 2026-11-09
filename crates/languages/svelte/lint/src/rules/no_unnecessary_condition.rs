@@ -22,8 +22,10 @@ struct NoUnnecessaryCondition;
 
 impl SvelteRule for NoUnnecessaryCondition {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        let types = file.condition_types().expect("a component rule");
-        check(file.javascript(), types, reporter);
+        match file.condition_types().expect("a component rule") {
+            Ok(types) => check(file.javascript(), types, reporter),
+            Err(why) => reporter.fail(why),
+        }
     }
 }
 

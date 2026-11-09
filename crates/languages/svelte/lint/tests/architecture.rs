@@ -1,11 +1,10 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use rsvelte_kernel::computation::database::{DocumentContext, Facet};
+use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_svelte_lint::computation::ConditionTypes;
 use rsvelte_svelte_lint::types::{ConditionType, TypeFacts};
 use rsvelte_svelte_lint::{Configuration, LintSettings};
 
@@ -172,10 +171,54 @@ fn a_type_provider_is_lazy_cached_and_replaces_the_built_in_types() {
         context
             .accesses()
             .iter()
-            .filter(|access| access.name == <ConditionTypes as Facet>::NAME && !access.cached)
+            .filter(|access| access.name == "svelte.lint.condition_types" && !access.cached)
             .count(),
         1
     );
+}
+
+#[test]
+fn type_facts_that_do_not_fit_the_component_fail_the_document() {
+    let mut registry = Registry::new();
+    rsvelte_svelte_lint::register_artifacts(&mut registry);
+    rsvelte_svelte_lint::register_type_provider(&mut registry, |_| TypeFacts::new(Vec::new()));
+    let document = Document::new(
+        "test.svelte".to_owned(),
+        "<script>if (true) console.log(1);</script><button/>".to_owned(),
+    )
+    .expect("valid input");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let typed = configuration(&[
+        ("svelte/button-has-type", Severity::Error),
+        (TYPED, Severity::Error),
+    ]);
+    let failure = rsvelte_svelte_lint::lint(&context, &typed).expect_err("the facts do not fit");
+    assert_eq!(failure.code, "rule_failed");
+    assert!(
+        failure
+            .message
+            .ends_with("the type provider gave 0 condition types for 9 JavaScript nodes"),
+        "{}",
+        failure.message
+    );
+}
+
+#[test]
+fn a_type_aware_report_covers_the_assertion_around_its_node() {
+    let mut registry = Registry::new();
+    rsvelte_svelte_lint::register(&mut registry);
+    let source = "<script lang=\"ts\">if (true as true) console.log(1);</script>";
+    let document = Document::new("test.svelte".to_owned(), source.to_owned()).expect("valid");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let findings = rsvelte_svelte_lint::lint(&context, &configuration(&[(TYPED, Severity::Error)]))
+        .expect("source parses");
+    let spans: Vec<_> = findings
+        .iter()
+        .map(|f| {
+            &source[f.diagnostic.span.start_offset as usize..f.diagnostic.span.end_offset as usize]
+        })
+        .collect();
+    assert_eq!(spans, ["true as true"]);
 }
 
 #[test]

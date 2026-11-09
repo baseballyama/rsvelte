@@ -43,13 +43,29 @@ pub fn register_artifacts(registry: &mut Registry) {
         .artifact::<NativeConditionTypes>();
 }
 
-/// Replaces the built-in prototype's condition types with `provider`'s. A rule that is off never
-/// calls it, and it runs at most once per document.
+/// Replaces the built-in prototype's condition types with `provider`'s.
+///
+/// A rule that is off never calls it, and it runs at most once per document. Facts that do not
+/// have one type per node of the component's JavaScript fail the rules that read them.
 pub fn register_type_provider(
     registry: &mut Registry,
     provider: impl Fn(&DocumentContext<'_>) -> TypeFacts + Send + Sync + 'static,
 ) {
-    registry.provide::<ConditionTypes>("svelte.lint", rsvelte_svelte::matches, provider);
+    registry.provide::<ConditionTypes>("svelte.lint", rsvelte_svelte::matches, move |context| {
+        let facts = provider(context);
+        let Ok(component) = context.get::<rsvelte_svelte::Parsed>() else {
+            return Err("the type provider ran on a component that does not parse".to_owned());
+        };
+        let nodes = component.javascript.len();
+        if facts.len() == nodes {
+            Ok(facts)
+        } else {
+            Err(format!(
+                "the type provider gave {} condition types for {nodes} JavaScript nodes",
+                facts.len()
+            ))
+        }
+    });
 }
 
 /// Turns on `svelte.lint/default` with `configuration`. It lints modules only when a configured

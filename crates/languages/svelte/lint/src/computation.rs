@@ -15,12 +15,13 @@ impl Facet for LintConfiguration {
 }
 
 /// The condition type of each JS/TS node of a component, from a host's type provider
-/// ([`crate::register_type_provider`]). Without one, rules use [`NativeConditionTypes`].
+/// ([`crate::register_type_provider`]), or why they do not fit the component. Without one, rules
+/// use [`NativeConditionTypes`].
 #[derive(Debug)]
-pub struct ConditionTypes;
+pub(crate) struct ConditionTypes;
 
 impl Facet for ConditionTypes {
-    type Output = TypeFacts;
+    type Output = Result<TypeFacts, String>;
 
     const NAME: &'static str = "svelte.lint.condition_types";
 }

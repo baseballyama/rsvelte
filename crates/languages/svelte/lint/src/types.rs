@@ -44,6 +44,17 @@ impl TypeFacts {
         Self { nodes }
     }
 
+    /// How many nodes have a condition type.
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
     #[must_use]
     pub fn get(&self, node: NodeIdentifier) -> ConditionType {
         self.nodes[node.index()]
