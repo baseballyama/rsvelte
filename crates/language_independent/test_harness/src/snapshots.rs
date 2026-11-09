@@ -31,7 +31,7 @@ impl Snapshot {
     /// What the names of this snapshot's files start with, relative to `expected/` and `actual/`.
     fn prefix(&self, kind: Kind) -> String {
         match kind {
-            Kind::HandWritten | Kind::Copied => format!("{}.", self.name),
+            Kind::HandWritten => format!("{}.", self.name),
             Kind::Corpus => {
                 let (dir, variant) = task_files::location(self.task);
                 format!("{dir}/{variant}.")
@@ -122,7 +122,7 @@ pub(crate) fn check(
     }
     let actual_dir = case.dir.join(ACTUAL_DIR);
     let written = match case.kind {
-        Kind::HandWritten | Kind::Copied => write_actual(&actual_dir, &produced),
+        Kind::HandWritten => write_actual(&actual_dir, &produced),
         // Other tasks' files in the unit's `actual/` are not this harness's to remove.
         Kind::Corpus if !corpus_actual => Ok(()),
         Kind::Corpus => snapshots
@@ -151,7 +151,7 @@ pub(crate) fn check(
                 &mut outcome,
             );
         }
-        Kind::Copied | Kind::Corpus => compare_with_official(
+        Kind::Corpus => compare_with_official(
             case,
             &expected_dir,
             &existing,
@@ -196,12 +196,10 @@ fn compare_with_official(
             Some(v) => tally.verdicts[v as usize] += 1,
             None => tally.refused += 1,
         }
-        if case.kind == Kind::Corpus {
-            let (task, variant) = task_files::location(s.task);
-            outcome
-                .parity
-                .push((format!("{task}/{variant} {}", case.name), verdict));
-        }
+        let (task, variant) = task_files::location(s.task);
+        outcome
+            .parity
+            .push((format!("{task}/{variant} {}", case.name), verdict));
     }
     if !measured {
         outcome.unmeasured += 1;

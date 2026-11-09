@@ -3,7 +3,7 @@
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
-pub use rsvelte_svelte_parser::{Parsed, matches};
+pub use rsvelte_svelte_parser::{Parsed, fully_parsed, matches};
 
 use crate::compilation::compiler_syntax_tree;
 use crate::semantic::{analyze, input, resolve};
@@ -61,11 +61,39 @@ impl Artifact for Analyzed {
     }
 }
 
+/// The compiler's warnings and analysis errors, without generating code.
+#[derive(Debug)]
+pub struct Warned;
+
+impl Artifact for Warned {
+    /// `None` when the document did not parse.
+    type Output = Option<crate::warnings::CompileWarnings>;
+
+    const NAME: &'static str = "svelte.warnings";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        let c = context.get::<Parsed>().as_ref().ok()?;
+        let res = context.get::<Resolved>().as_ref()?;
+        // Only the style sheet's selectors need the analysis.
+        let analysis = if c.style.is_some() {
+            context.get::<Analyzed>().as_ref()
+        } else {
+            None
+        };
+        Some(crate::warnings::warnings(
+            c,
+            res,
+            analysis,
+            context.source_text(),
+        ))
+    }
+}
+
 /// What the compiler reads of a Svelte component: its script from [`Parsed`], its template from
 /// [`Normalized`]. `None` when the document did not parse.
 #[must_use]
 pub fn component_input<'a>(context: &'a DocumentContext<'_>) -> Option<input::ComponentInput<'a>> {
-    let c = context.get::<Parsed>().as_ref().ok()?;
+    let c = fully_parsed(context).ok()?;
     let compiler_syntax_tree = context.get::<Normalized>().as_ref()?;
     Some(svelte_input(
         c,
@@ -88,7 +116,7 @@ pub fn svelte_input<'a>(
         program: c.program,
         module: c.module.as_ref().map(|s| s.program),
         compiler_syntax_tree,
-        style: c.style.as_ref().map(|s| &s.sheet),
+        style: c.style.as_ref().and_then(|s| s.sheet.as_ref().ok()),
         template_expressions: &c.template_expressions,
         source_text,
         filename,
@@ -109,5 +137,6 @@ pub fn register(reg: &mut Registry) {
     rsvelte_svelte_parser::register(reg);
     reg.artifact::<Resolved>()
         .artifact::<Normalized>()
-        .artifact::<Analyzed>();
+        .artifact::<Analyzed>()
+        .artifact::<Warned>();
 }

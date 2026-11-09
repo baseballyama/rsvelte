@@ -5,7 +5,7 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_svelte::{Analyzed, Parsed, Resolved};
+use rsvelte_svelte::{Analyzed, Resolved};
 
 use crate::computation::Validated;
 use crate::lower::{self, Target};
@@ -105,7 +105,7 @@ pub fn lower_document<'a>(
     context: &'a DocumentContext<'_>,
     target: Target,
 ) -> Result<crate::LoweredModule<'a>, Diagnostic> {
-    if let Err(e) = context.get::<Parsed>() {
+    if let Err(e) = rsvelte_svelte::fully_parsed(context) {
         return Err(e.clone());
     }
     let input = crate::CompileInput::from(

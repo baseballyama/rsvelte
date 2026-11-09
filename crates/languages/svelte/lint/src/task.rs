@@ -8,8 +8,10 @@ use rsvelte_kernel::source::document::Document;
 
 use crate::Configuration;
 use crate::computation::{
-    LintConfiguration, ModuleParents, Parents, SameNamedFile, same_named_file,
+    ConditionTypes, LegacyReactivity, LintConfiguration, ModuleParents, NativeConditionTypes,
+    Parents, SameNamedFile, same_named_file,
 };
+use crate::types::TypeFacts;
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.lint",
@@ -36,9 +38,38 @@ pub fn register_artifacts(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
     rsvelte_svelte::register(registry);
     rsvelte_typescript::register(registry);
-    registry.artifact::<Parents>().artifact::<ModuleParents>();
+    registry
+        .artifact::<Parents>()
+        .artifact::<ModuleParents>()
+        .artifact::<NativeConditionTypes>()
+        .artifact::<LegacyReactivity>();
     // Computed only when a rule asks, so other rules never touch the file system.
     registry.provide::<SameNamedFile>("svelte.lint", |_| true, same_named_file);
+}
+
+/// Replaces the built-in prototype's condition types with `provider`'s.
+///
+/// A rule that is off never calls it, and it runs at most once per document. Facts that do not
+/// have one type per node of the component's JavaScript fail the rules that read them.
+pub fn register_type_provider(
+    registry: &mut Registry,
+    provider: impl Fn(&DocumentContext<'_>) -> TypeFacts + Send + Sync + 'static,
+) {
+    registry.provide::<ConditionTypes>("svelte.lint", rsvelte_svelte::matches, move |context| {
+        let facts = provider(context);
+        let Ok(component) = context.get::<rsvelte_svelte::Parsed>() else {
+            return Err("the type provider ran on a component that does not parse".to_owned());
+        };
+        let nodes = component.javascript.len();
+        if facts.len() == nodes {
+            Ok(facts)
+        } else {
+            Err(format!(
+                "the type provider gave {} condition types for {nodes} JavaScript nodes",
+                facts.len()
+            ))
+        }
+    });
 }
 
 /// Turns on `svelte.lint/default` with `configuration`. It lints modules only when a configured
@@ -73,8 +104,11 @@ impl Task for Lint {
             .map_or(&*crate::configuration::DEFAULT, |configuration| {
                 configuration.as_ref()
             });
-        let findings = match crate::lint::lint(context, configuration) {
-            Ok(findings) => findings,
+        let (file, findings) = match crate::rule::File::new(context).and_then(|file| {
+            let findings = crate::lint::check(&file, configuration)?;
+            Ok((file, findings))
+        }) {
+            Ok(linted) => linted,
             Err(error) => {
                 out.diagnostics.push(error);
                 return;
@@ -83,13 +117,19 @@ impl Task for Lint {
         out.file(
             "lint.json",
             rsvelte_lint_runner::output::render_json(
-                context.line_index(),
+                context.ecmascript_line_index(),
+                // The rules that ran, so a report tells a rule that found nothing from one that
+                // does not run on this file.
                 configuration
                     .rules()
                     .iter()
+                    .filter(|rule| rule.applies(&file))
                     .map(crate::ConfiguredRule::name),
                 &findings,
             ),
         );
     }
 }
+
+#[cfg(test)]
+mod tests;

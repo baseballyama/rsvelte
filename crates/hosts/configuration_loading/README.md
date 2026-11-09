@@ -35,14 +35,13 @@ a runtime loader such as `tsx`; rsvelte does not install it. See
 Each key of `plugins` is a plugin identifier, and the plugin decodes its value. Paths in it start
 from the configuration file.
 
-| Plugin              | Options                                                                 |
-| ------------------- | ----------------------------------------------------------------------- |
-| `svelte.compile`    | `cssHash`: a function                                                   |
-| `svelte.lint`       | `rules`: ESLint levels by rule name                                     |
-| `svelte.lint.typed` | `rules`: ESLint levels by rule name                                     |
-| `typescript.check`  | `command`: the type checker and its own arguments; `tsconfig`           |
-| `svelte.typecheck`  | `svelte`: the package directory; `contentMapper`: the mapper executable |
-| `vue.check`         | `vue`: the package directory                                            |
+| Plugin             | Options                                                                 |
+| ------------------ | ----------------------------------------------------------------------- |
+| `svelte.compile`   | `cssHash`: a function                                                   |
+| `svelte.lint`      | `rules`: ESLint levels by rule name                                     |
+| `typescript.check` | `command`: the type checker and its own arguments; `tsconfig`           |
+| `svelte.typecheck` | `svelte`: the package directory; `contentMapper`: the mapper executable |
+| `vue.check`        | `vue`: the package directory                                            |
 
 ```json
 { "plugins": { "typescript.check": { "command": ["tsrs", "--fast"] } } }
@@ -76,10 +75,10 @@ configuration module. Functions stay in the Node process; transport data refers 
 other values fail. It sends the configuration's stdout to stderr, so the protocol stays intact.
 
 An explicit lint `rules` object replaces the defaults, and empty rules turn every rule off.
-Severity is `off`, `warn` or `error`, or `0`, `1` or `2`. Unknown fields, rules and severities
-fail before any task runs, and so do plugins that are not available. The CLI adapters so far
-cover Svelte compile, normal lint and typed lint. Typed lint needs the CLI's `lint-typed` Cargo
-feature.
+Severity is `off`, `warn` or `error`, or `0`, `1` or `2`. Unknown fields and severities, and
+unknown rules that are on, fail before any task runs, and so do plugins that are not available. As
+in ESLint, a rule that is off is not checked. The CLI adapters so far cover Svelte compile and
+lint.
 
 Settings apply to every matching language document. File overrides and adapters for other
 plugins do not exist yet. The transport supports named UTF-8 arguments and a UTF-8 result for

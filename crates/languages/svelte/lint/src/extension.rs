@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::source::interning::static_name;
-use rsvelte_lint_runner::configuration::RuleEntryList;
+use rsvelte_lint_runner::configuration::{RuleEntryList, Rules};
 use rsvelte_plugin_interface::{CallError, Extension, FunctionReference, Settings};
 use serde::Deserialize;
 use serde_json::value::RawValue;
@@ -19,7 +19,7 @@ pub static EXTENSION: Extension = Extension {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Options {
-    rules: Option<BTreeMap<String, Box<RawValue>>>,
+    rules: Option<Rules<Box<RawValue>>>,
     #[serde(default)]
     settings: LintSettings,
     /// Host functions as rules, by plugin prefix and then rule name.
@@ -52,27 +52,29 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
         return Ok(());
     };
     let mut configuration = Configuration::new(lint_settings);
+    let plugins = registry.contributions::<LintPlugins>().to_vec();
+    crate::configuration::check_plugins(&plugins)
+        .map_err(|e| CallError(format!("svelte.lint: {e}")))?;
     let mut external = BTreeMap::new();
     for (prefix, rules) in functions {
-        if prefix.is_empty() || prefix.contains('/') || prefix == "svelte" {
+        if !crate::configuration::is_prefix(&prefix)
+            || prefix == "svelte"
+            || plugins.iter().any(|plugin| plugin.prefix == prefix)
+        {
             return Err(CallError(format!(
-                "svelte.lint: `{prefix}` cannot prefix plugin rules"
+                "svelte.lint: `{prefix}` cannot prefix host rules: it is not a name, or another plugin has it"
             )));
         }
         for (rule, reference) in rules {
             external.insert(format!("{prefix}/{rule}"), reference);
         }
     }
-    let plugins = registry.contributions::<LintPlugins>().to_vec();
-    for (name, raw) in rules {
+    for (name, raw) in rules.0 {
         let error = |e: String| CallError(format!("svelte.lint rule `{name}`: {e}"));
         let entry: RuleEntryList<Box<RawValue>> =
             serde_json::from_str(raw.get()).map_err(|e| error(e.to_string()))?;
         let reference = external.remove(&name);
-        // As `ESLint`, an unknown rule fails even when it is off; an off rule's options are not read.
-        if reference.is_none() && crate::definition(&name, &plugins).is_none() {
-            return Err(CallError(format!("unknown Svelte lint rule `{name}`")));
-        }
+        // As `ESLint`, an off rule is not validated, so it may name a rule that does not exist.
         let Some(severity) = entry.level.severity() else {
             continue;
         };

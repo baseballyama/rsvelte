@@ -1,7 +1,11 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_svelte_lint::types::{ConditionType, TypeFacts};
 use rsvelte_svelte_lint::{Configuration, LintSettings};
 
 fn configuration(rules: &[(&str, Severity)]) -> Configuration {
@@ -125,8 +129,137 @@ fn scope_rules_distinguish_shadowed_bindings() {
     }
 }
 
+const TYPED: &str = "svelte/@typescript-eslint/no-unnecessary-condition";
+
 #[test]
-fn normal_lint_does_not_register_type_services_or_typed_lint() {
+fn a_type_provider_is_lazy_cached_and_replaces_the_built_in_types() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let provider_calls = Arc::clone(&calls);
+    let mut registry = Registry::new();
+    rsvelte_svelte_lint::register_artifacts(&mut registry);
+    rsvelte_svelte_lint::register_type_provider(&mut registry, move |context| {
+        provider_calls.fetch_add(1, Ordering::Relaxed);
+        let component = context
+            .get::<rsvelte_svelte::Parsed>()
+            .as_ref()
+            .expect("source parses");
+        TypeFacts::new(vec![ConditionType::Truthy; component.javascript.len()])
+    });
+    let document = Document::new(
+        "test.svelte".to_owned(),
+        "<script lang=\"ts\">if (external) console.log(external);</script>".to_owned(),
+    )
+    .expect("valid input");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    rsvelte_svelte_lint::lint(&context, &configuration(&[])).expect("source parses");
+    assert_eq!(calls.load(Ordering::Relaxed), 0);
+    let typed = configuration(&[(TYPED, Severity::Error)]);
+    for _ in 0..2 {
+        assert_eq!(
+            rsvelte_svelte_lint::lint(&context, &typed)
+                .expect("source parses")
+                .len(),
+            1
+        );
+    }
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
+    assert_eq!(
+        context.computed(),
+        ["svelte.parse", "svelte.lint.condition_types"]
+    );
+    assert_eq!(
+        context
+            .accesses()
+            .iter()
+            .filter(|access| access.name == "svelte.lint.condition_types" && !access.cached)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn type_facts_that_do_not_fit_the_component_fail_the_document() {
+    let mut registry = Registry::new();
+    rsvelte_svelte_lint::register_artifacts(&mut registry);
+    rsvelte_svelte_lint::register_type_provider(&mut registry, |_| TypeFacts::new(Vec::new()));
+    let document = Document::new(
+        "test.svelte".to_owned(),
+        "<script>if (true) console.log(1);</script><button/>".to_owned(),
+    )
+    .expect("valid input");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let typed = configuration(&[
+        ("svelte/button-has-type", Severity::Error),
+        (TYPED, Severity::Error),
+    ]);
+    let failure = rsvelte_svelte_lint::lint(&context, &typed).expect_err("the facts do not fit");
+    assert_eq!(failure.code, "rule_failed");
+    assert!(
+        failure
+            .message
+            .ends_with("the type provider gave 0 condition types for 9 JavaScript nodes"),
+        "{}",
+        failure.message
+    );
+}
+
+#[test]
+fn a_type_aware_report_covers_the_assertion_around_its_node() {
+    let mut registry = Registry::new();
+    rsvelte_svelte_lint::register(&mut registry);
+    let source = "<script lang=\"ts\">if (true as true) console.log(1);</script>";
+    let document = Document::new("test.svelte".to_owned(), source.to_owned()).expect("valid");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let findings = rsvelte_svelte_lint::lint(&context, &configuration(&[(TYPED, Severity::Error)]))
+        .expect("source parses");
+    let spans: Vec<_> = findings
+        .iter()
+        .map(|f| {
+            &source[f.diagnostic.span.start_offset as usize..f.diagnostic.span.end_offset as usize]
+        })
+        .collect();
+    assert_eq!(spans, ["true as true"]);
+}
+
+#[test]
+fn without_a_type_provider_the_built_in_types_are_computed_once_on_request() {
+    let mut registry = Registry::new();
+    rsvelte_svelte_lint::register(&mut registry);
+    let document = Document::new(
+        "test.svelte".to_owned(),
+        "<script>if (true) console.log(1);</script><button/>".to_owned(),
+    )
+    .expect("valid input");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let syntax = configuration(&[("svelte/button-has-type", Severity::Error)]);
+    rsvelte_svelte_lint::lint(&context, &syntax).expect("source parses");
+    assert_eq!(context.computed(), ["svelte.parse"]);
+    let typed = configuration(&[
+        ("svelte/button-has-type", Severity::Error),
+        (TYPED, Severity::Warning),
+    ]);
+    for _ in 0..2 {
+        let findings = rsvelte_svelte_lint::lint(&context, &typed).expect("source parses");
+        assert_eq!(findings.len(), 2);
+        assert_eq!(
+            findings[0].diagnostic.message,
+            "Unnecessary conditional, value is always truthy."
+        );
+        assert!(matches!(findings[0].diagnostic.severity, Severity::Warning));
+    }
+    assert_eq!(
+        context.computed(),
+        [
+            "svelte.parse",
+            "svelte.lint.native_condition_types",
+            "svelte.resolve",
+            "svelte.compiler_syntax_tree"
+        ]
+    );
+}
+
+#[test]
+fn lint_does_not_register_type_services() {
     let mut registry = Registry::new();
     rsvelte_svelte_lint::register(&mut registry);
     assert_eq!(registry.validate_plugins(), Ok(()));
@@ -138,4 +271,43 @@ fn normal_lint_does_not_register_type_services_or_typed_lint() {
             .collect::<Vec<_>>(),
         ["svelte", "svelte.lint", "svelte.parser", "typescript"]
     );
+}
+
+/// The markup layout rules read the surface tree and its tokens only, even on a component where
+/// each of them reports.
+#[test]
+fn markup_layout_rules_request_only_the_surface_tree() {
+    let mut registry = Registry::new();
+    rsvelte_svelte_lint::register(&mut registry);
+    let document = Document::new(
+        "test.svelte".to_owned(),
+        "<script lang='ts'>\nconst x = 1; \n</script>\n<div b a = \"1\"\n  c={ x }  ></div>\n\
+         <!--c-->\n<br>\n"
+            .to_owned(),
+    )
+    .expect("valid input");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let rules = [
+        "svelte/first-attribute-linebreak",
+        "svelte/html-closing-bracket-new-line",
+        "svelte/html-closing-bracket-spacing",
+        "svelte/html-quotes",
+        "svelte/html-self-closing",
+        "svelte/max-attributes-per-line",
+        "svelte/mustache-spacing",
+        "svelte/no-spaces-around-equal-signs-in-attribute",
+        "svelte/no-trailing-spaces",
+        "svelte/sort-attributes",
+        "svelte/spaced-html-comment",
+    ];
+    let configured: Vec<_> = rules.iter().map(|rule| (*rule, Severity::Error)).collect();
+    let findings =
+        rsvelte_svelte_lint::lint(&context, &configuration(&configured)).expect("source parses");
+    assert_eq!(context.computed(), ["svelte.parse"]);
+    for rule in rules {
+        assert!(
+            findings.iter().any(|f| f.diagnostic.code == rule),
+            "{rule} reports"
+        );
+    }
 }

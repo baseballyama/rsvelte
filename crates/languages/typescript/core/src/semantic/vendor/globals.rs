@@ -1,3 +1,4 @@
+// eslint 10.14.0, globals 16.4.0
 [
     ("AI", Global::Browser { node: false }),
     ("AICreateMonitor", Global::Browser { node: false }),

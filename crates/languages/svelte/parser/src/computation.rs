@@ -23,6 +23,19 @@ impl Artifact for Parsed {
     }
 }
 
+/// The component when every part of it parsed, its style sheet included.
+///
+/// The compiler, the formatter and the type checker read this. Lint reads [`Parsed`] and
+/// tolerates a style sheet's error, as `svelte-eslint-parser` does.
+///
+/// # Errors
+///
+/// The parse error, or the style sheet's.
+pub fn fully_parsed<'a>(context: &'a DocumentContext<'_>) -> Result<&'a Component, &'a Diagnostic> {
+    let component = context.get::<Parsed>().as_ref()?;
+    component.style_error().map_or(Ok(component), Err)
+}
+
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.parser",
     version: env!("CARGO_PKG_VERSION"),

@@ -2,6 +2,8 @@
 
 use rsvelte_kernel::performance::measurement;
 
+use rsvelte_kernel::diagnostics::Diagnostic;
+
 use crate::finding::Finding;
 use crate::rule::{Reporter, Rule};
 
@@ -9,6 +11,7 @@ use crate::rule::{Reporter, Rule};
 #[derive(Default, Debug)]
 pub struct Findings {
     out: Vec<Finding>,
+    failure: Option<Diagnostic>,
 }
 
 impl Findings {
@@ -29,18 +32,27 @@ impl Findings {
     {
         for rule in rules {
             let _phase = measurement::phase(rule.identifier());
-            rule.check(context, &mut Reporter::new(rule, &mut self.out));
+            rule.check(
+                context,
+                &mut Reporter::new(rule, &mut self.out, &mut self.failure),
+            );
         }
         self
     }
 
     /// Sorted by start offset; ties keep report order (layers in the order they ran, then rules
     /// in order), which is how `ESLint` sorts (by line, then column, stable).
-    #[must_use]
-    pub fn finish(self) -> Vec<Finding> {
+    ///
+    /// # Errors
+    ///
+    /// A rule failed ([`Reporter::fail`]); its findings would be incomplete.
+    pub fn finish(self) -> Result<Vec<Finding>, Diagnostic> {
+        if let Some(failure) = self.failure {
+            return Err(failure);
+        }
         let mut out = self.out;
         out.sort_by_key(|f| f.diagnostic.span.start_offset);
-        out
+        Ok(out)
     }
 }
 

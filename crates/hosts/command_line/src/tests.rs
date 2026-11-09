@@ -18,7 +18,7 @@ fn plugin_declarations_cover_the_registered_languages_and_tasks() {
     let reg = installed();
     assert_eq!(reg.validate_plugins(), Ok(()));
     let plugins: Vec<_> = reg.plugins().map(|plugin| plugin.identifier).collect();
-    let mut expected = vec![
+    let expected = [
         "svelte",
         "svelte.compile",
         "svelte.format",
@@ -39,10 +39,6 @@ fn plugin_declarations_cover_the_registered_languages_and_tasks() {
         "vue.lint",
         "vuelte",
     ];
-    if cfg!(feature = "lint-typed") {
-        expected.push("svelte.lint.typed");
-    }
-    expected.sort_unstable();
     assert_eq!(plugins, expected);
 }
 
@@ -114,11 +110,7 @@ fn plugin_tasks_and_type_views_select_their_own_documents() {
             .iter()
             .map(|(identifier, _)| *identifier)
             .collect();
-        let mut expected = task_identifiers;
-        if cfg!(feature = "lint-typed") && path.ends_with(".svelte") {
-            expected.insert(4, "svelte.lint.typed/default");
-        }
-        assert_eq!(identifiers, expected, "{path}");
+        assert_eq!(identifiers, task_identifiers, "{path}");
     }
 }
 

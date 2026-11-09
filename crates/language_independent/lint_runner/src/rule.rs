@@ -28,6 +28,7 @@ pub struct Reporter<'a> {
     rule: &'static str,
     severity: Severity,
     out: &'a mut Vec<Finding>,
+    failure: &'a mut Option<Diagnostic>,
 }
 
 /// One report before the reporter stamps it: `ESLint`'s `context.report` descriptor.
@@ -76,18 +77,38 @@ impl Report {
         self
     }
 
+    /// A suggestion without edits is dropped, as `ESLint` drops one whose fixer returns nothing.
     pub fn suggest(mut self, suggestion: Suggestion) -> Self {
-        self.suggestions.push(suggestion);
+        if !suggestion.fix.is_empty() {
+            self.suggestions.push(suggestion);
+        }
         self
     }
 }
 
 impl<'a> Reporter<'a> {
-    pub(crate) fn new<C: ?Sized, R: Rule<C> + ?Sized>(rule: &R, out: &'a mut Vec<Finding>) -> Self {
+    pub(crate) fn new<C: ?Sized, R: Rule<C> + ?Sized>(
+        rule: &R,
+        out: &'a mut Vec<Finding>,
+        failure: &'a mut Option<Diagnostic>,
+    ) -> Self {
         Self {
             rule: rule.identifier(),
             severity: rule.severity(),
             out,
+            failure,
+        }
+    }
+
+    /// The rule could not check the document, as when an `ESLint` rule throws: linting the
+    /// document fails instead of reporting a finding. The first failure wins.
+    pub fn fail(&mut self, message: impl std::fmt::Display) {
+        if self.failure.is_none() {
+            *self.failure = Some(Diagnostic::error(
+                "rule_failed",
+                format!("rule `{}` failed: {message}", self.rule),
+                Span::new(0, 0),
+            ));
         }
     }
 

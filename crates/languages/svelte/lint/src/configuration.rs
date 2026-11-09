@@ -121,6 +121,48 @@ impl Configuration {
     }
 }
 
+/// Whether `prefix` can prefix plugin rules: a non-empty name without `/`.
+pub(crate) fn is_prefix(prefix: &str) -> bool {
+    !prefix.is_empty() && !prefix.contains('/')
+}
+
+/// Plugins name their rules `<prefix>/<rule>` under a prefix of their own, never `svelte`, so no
+/// plugin rule can stand for another rule.
+///
+/// # Errors
+///
+/// A plugin's prefix or rule name breaks that, or two plugins share a prefix.
+pub fn check_plugins(plugins: &[&'static LintPlugin]) -> Result<(), String> {
+    for (i, plugin) in plugins.iter().enumerate() {
+        if !is_prefix(plugin.prefix) || plugin.prefix == "svelte" {
+            return Err(format!(
+                "a plugin cannot use the prefix `{}`",
+                plugin.prefix
+            ));
+        }
+        if plugins[..i]
+            .iter()
+            .any(|other| other.prefix == plugin.prefix)
+        {
+            return Err(format!("two plugins use the prefix `{}`", plugin.prefix));
+        }
+        for rule in plugin.rules {
+            let named = rule
+                .name
+                .strip_prefix(plugin.prefix)
+                .and_then(|rest| rest.strip_prefix('/'))
+                .is_some_and(|rest| !rest.is_empty());
+            if !named {
+                return Err(format!(
+                    "plugin `{}` names a rule `{}` outside its prefix",
+                    plugin.prefix, rule.name
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 /// The built-in rule or plugin rule called `name`.
 #[must_use]
 pub fn definition(name: &str, plugins: &[&'static LintPlugin]) -> Option<&'static RuleDefinition> {
@@ -159,3 +201,6 @@ impl Default for Configuration {
         Self::with_default_rules(LintSettings::default())
     }
 }
+
+#[cfg(test)]
+mod tests;

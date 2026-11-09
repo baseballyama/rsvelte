@@ -6,4 +6,4 @@ pub mod syntax {
 pub use syntax::parse;
 
 mod computation;
-pub use computation::{PLUGIN, Parsed, matches, register};
+pub use computation::{PLUGIN, Parsed, fully_parsed, matches, register};

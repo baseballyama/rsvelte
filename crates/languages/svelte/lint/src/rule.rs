@@ -9,14 +9,18 @@ use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte::compilation::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_svelte::semantic::resolve::Resolution;
 use rsvelte_svelte::syntax::syntax_tree::Component;
-use rsvelte_svelte::{Normalized, Parsed, Resolved};
+use rsvelte_svelte::warnings::CompileWarnings;
+use rsvelte_svelte::{Normalized, Parsed, Resolved, Warned};
 use rsvelte_typescript::NodeIdentifier;
 use rsvelte_typescript::scope::Semantic;
 use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 
-use crate::LintSettings;
-use crate::computation::{ModuleParents, Parents};
+use crate::computation::{
+    ConditionTypes, ModuleParents, NativeConditionTypes, Parents, SvelteConfiguration,
+};
+use crate::types::TypeFacts;
+use crate::{LintSettings, SvelteConfig};
 
 /// A configured rule. It holds its options and the settings it needs.
 pub trait SvelteRule: Send + Sync + std::fmt::Debug {
@@ -41,9 +45,11 @@ pub enum Files {
     All,
 }
 
-/// Rules a plugin adds, named `<prefix>/<rule>` in configuration.
+/// Rules a plugin adds. Each rule's name is `<prefix>/<rule>`.
 #[derive(Debug)]
 pub struct LintPlugin {
+    /// Not `svelte`, and no other plugin's.
+    pub prefix: &'static str,
     pub rules: &'static [&'static RuleDefinition],
 }
 
@@ -142,6 +148,15 @@ impl<'a> File<'a> {
         &self.context.document.path
     }
 
+    /// A `.svelte.js` or `.svelte.ts` module, whose runes Svelte compiles.
+    #[must_use]
+    pub fn is_svelte_module(&self) -> bool {
+        !self.is_component()
+            && [".svelte.js", ".svelte.ts"]
+                .iter()
+                .any(|suffix| self.path().ends_with(suffix))
+    }
+
     #[must_use]
     pub const fn is_component(&self) -> bool {
         matches!(self.parsed, Source::Component(_))
@@ -170,6 +185,13 @@ impl<'a> File<'a> {
     pub fn normalized(&self) -> Option<&'a CompilerSyntaxTree> {
         self.component()?;
         self.context.get::<Normalized>().as_ref()
+    }
+
+    /// The compiler's warnings and analysis errors of the component; `None` for a module.
+    #[must_use]
+    pub fn compile_warnings(&self) -> Option<&'a CompileWarnings> {
+        self.component()?;
+        self.context.get::<Warned>().as_ref()
     }
 
     /// The component's resolution: scopes with the template's bindings; `None` for a module.
@@ -201,6 +223,24 @@ impl<'a> File<'a> {
             Source::Module(_) => self.context.get::<rsvelte_typescript::Resolved>().as_ref(),
         };
         semantic.expect("a parsed document resolves")
+    }
+
+    /// The condition type of each node of [`File::javascript`]: the host's type provider's, or
+    /// the built-in prototype's; `None` for a module, and an error when the provider's facts do
+    /// not fit.
+    #[must_use]
+    pub fn condition_types(&self) -> Option<Result<&'a TypeFacts, &'a str>> {
+        self.component()?;
+        Some(self.context.facet::<ConditionTypes>().map_or_else(
+            || Ok(self.context.get::<NativeConditionTypes>()),
+            |provided| provided.as_ref().map_err(String::as_str),
+        ))
+    }
+
+    /// The document's `svelte.config.js`, as the host provides it.
+    #[must_use]
+    pub fn svelte_config(&self) -> Option<&'a SvelteConfig> {
+        self.context.facet::<SvelteConfiguration>()
     }
 
     /// The parent of each node of [`File::javascript`].

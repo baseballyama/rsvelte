@@ -216,6 +216,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
+name = "foldhash"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
+
+[[package]]
 name = "granit-parser"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -223,6 +229,17 @@ checksum = "05f05586d4d4df3d47123207826c40b252728b438a1a07bad3c01ee6bea401df"
 dependencies = [
  "arraydeque",
  "smallvec",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash",
 ]
 
 [[package]]
@@ -338,7 +355,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
 dependencies = [
  "equivalent",
- "hashbrown",
+ "hashbrown 0.17.1",
 ]
 
 [[package]]
@@ -434,7 +451,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10ec74ff7b9107ea8cfee79737b7eff78cc38aa8ba9866ba68ccec5fa1aff703"
 dependencies = [
  "allocator-api2",
- "hashbrown",
+ "hashbrown 0.17.1",
  "oxc_data_structures",
  "rustc-hash",
 ]
@@ -600,7 +617,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b840f3ac441b53e08f49c8f63349fa24ae4b943886a54f28a885ba36cf125af4"
 dependencies = [
  "compact_str",
- "hashbrown",
+ "hashbrown 0.17.1",
  "memchr",
  "oxc_allocator",
  "oxc_estree",
@@ -725,6 +742,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "regress"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "158a764437582235e3501f683b93a0a6f8d825d04a789dbe5ed30b8799b8908a"
+dependencies = [
+ "hashbrown 0.16.1",
+ "memchr",
+]
+
+[[package]]
 name = "rsvelte_command_line"
 version = "0.0.0"
 dependencies = [
@@ -741,7 +768,6 @@ dependencies = [
  "rsvelte_svelte_compile_vapor",
  "rsvelte_svelte_format",
  "rsvelte_svelte_lint",
- "rsvelte_svelte_lint_typed",
  "rsvelte_svelte_parser",
  "rsvelte_svelte_typecheck",
  "rsvelte_svelte_typescript_projection",
@@ -871,11 +897,13 @@ name = "rsvelte_svelte"
 version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
+ "rsvelte_stylesheet",
  "rsvelte_svelte_compiler_syntax_tree",
  "rsvelte_svelte_parser",
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
  "rsvelte_typescript",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -937,6 +965,7 @@ dependencies = [
 name = "rsvelte_svelte_lint"
 version = "0.0.0"
 dependencies = [
+ "regress",
  "rsvelte_kernel",
  "rsvelte_lint_runner",
  "rsvelte_markup",
@@ -945,26 +974,11 @@ dependencies = [
  "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_lint",
+ "rustc-hash",
  "semver",
  "serde",
  "serde-saphyr",
  "serde_json",
-]
-
-[[package]]
-name = "rsvelte_svelte_lint_typed"
-version = "0.0.0"
-dependencies = [
- "rsvelte_kernel",
- "rsvelte_lint_runner",
- "rsvelte_markup",
- "rsvelte_plugin_interface",
- "rsvelte_svelte",
- "rsvelte_svelte_lint",
- "rsvelte_test_harness",
- "rsvelte_typescript",
- "rsvelte_typescript_check",
- "serde",
 ]
 
 [[package]]
@@ -1119,6 +1133,7 @@ dependencies = [
  "rsvelte_lint_runner",
  "rsvelte_plugin_interface",
  "rsvelte_typescript",
+ "rustc-hash",
 ]
 
 [[package]]

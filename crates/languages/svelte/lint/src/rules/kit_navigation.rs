@@ -5,7 +5,7 @@ use rsvelte_svelte::syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode,
 };
 use rsvelte_typescript::scope::{BindingIdentifier, Semantic};
-use rsvelte_typescript::semantic::imports::import_references;
+use rsvelte_typescript::semantic::reference_tracker::import_references;
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use serde::Deserialize;
 
@@ -73,7 +73,7 @@ impl<'a> Script<'a> {
             .filter_map(|reference| {
                 let call = reference.call?;
                 matches!(self.tree.kind(call), Kind::Call { .. }).then_some(())?;
-                let navigation = match reference.export {
+                let navigation = match reference.name {
                     "goto" => Navigation::Goto,
                     "pushState" => Navigation::PushState,
                     _ => Navigation::ReplaceState,
@@ -106,7 +106,7 @@ impl<'a> Script<'a> {
         &self,
         specifier: &str,
         exports: &[&'e str],
-    ) -> Vec<rsvelte_typescript::semantic::imports::ImportReference<'e>> {
+    ) -> Vec<rsvelte_typescript::semantic::reference_tracker::TrackedReference<'e>> {
         import_references(
             self.tree,
             self.sem,

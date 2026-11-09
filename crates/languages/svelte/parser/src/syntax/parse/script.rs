@@ -90,9 +90,11 @@ impl Parser<'_> {
                                 return self.err("unterminated attribute value");
                             };
                             value = Some(Span::new(value_start as u32, (value_start + len) as u32));
-                            self.eat_token(TokenType::Quote, 1);
-                            self.eat_token(TokenType::AttributeText, len);
-                            self.eat_token(TokenType::Quote, 1);
+                            let quote = super::attribute::quote_token(quote);
+                            self.eat_token(quote, 1);
+                            self.position += len;
+                            self.words(TokenType::AttributeText, value_start);
+                            self.eat_token(quote, 1);
                         } else {
                             let value_start = self.position;
                             let len = self
@@ -103,7 +105,8 @@ impl Parser<'_> {
                                 return self.err("expected an attribute value");
                             }
                             value = Some(Span::new(value_start as u32, (value_start + len) as u32));
-                            self.eat_token(TokenType::AttributeText, len);
+                            self.position += len;
+                            self.words(TokenType::AttributeText, value_start);
                         }
                     }
                     attributes.push((name, value));
@@ -201,10 +204,11 @@ impl Parser<'_> {
         self.component.tokens.push(TokenType::Stylesheet, content);
         self.close_raw("style");
         let sheet = rsvelte_stylesheet::parse(self.source_text, content)
-            .map_err(|e| Diagnostic::error("css_parse_error", e.message, e.span))?;
+            .map_err(|e| Diagnostic::error("css_parse_error", e.message, e.span));
         self.component.style = Some(Style {
             span: Span::new(start_offset as u32, self.position as u32),
             attributes,
+            content,
             sheet,
         });
         Ok(())
