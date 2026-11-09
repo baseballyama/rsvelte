@@ -25,12 +25,16 @@ impl Builder<'_, '_> {
             ids,
             preserve_whitespace,
         );
-        self.i
-            .plan
-            .namespaces
-            .as_ref()
-            .expect("translation uses a checked plan")
-            .clean_foreign_whitespace(&mut cleaned, compiler_syntax_tree, preserve_whitespace);
+        if !preserve_whitespace {
+            let namespaces = self
+                .i
+                .plan
+                .namespaces
+                .as_ref()
+                .expect("translation uses a checked plan");
+            let namespace = namespaces.infer(compiler_syntax_tree, source_text, ids);
+            namespaces.drop_foreign_whitespace(&mut cleaned, namespace, ids);
+        }
         if let Some(&tag) = cleaned.hoisted.iter().find(|&&h| {
             !matches!(
                 compiler_syntax_tree.node(h).kind,

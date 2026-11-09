@@ -12,6 +12,7 @@ use crate::input::CompileInput;
 mod namespace;
 mod normalize;
 pub use namespace::Namespace;
+pub(crate) use namespace::{is_mathml, is_svg};
 pub use normalize::{Cleaned, Item, Parent, clean_nodes};
 
 newtype_index!(
@@ -23,6 +24,8 @@ pub struct Region {
     pub hoisted: Box<[rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier]>,
     pub items: Box<[Item<'static>]>,
     pub text_first: bool,
+    /// Upstream's inferred fragment namespace, which picks the template function.
+    pub namespace: Namespace,
 }
 
 #[derive(Debug)]
@@ -42,31 +45,25 @@ impl NamespacePlan {
         self.0.get(node)
     }
 
-    pub fn clean_foreign_whitespace(
+    /// Upstream `infer_namespace` for the fragment `nodes`, which their parent node holds.
+    #[must_use]
+    pub fn infer(
+        &self,
+        tree: &rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree,
+        source_text: &str,
+        nodes: &[rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier],
+    ) -> Namespace {
+        self.0.infer(tree, source_text, nodes)
+    }
+
+    /// Drops the whitespace-only text between `nodes` that their `namespace` drops.
+    pub fn drop_foreign_whitespace(
         &self,
         cleaned: &mut Cleaned<'_>,
-        tree: &rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree,
-        preserve: bool,
+        namespace: Namespace,
+        nodes: &[rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier],
     ) {
-        if matches!(self.0, namespace::Namespaces::AllDefault) {
-            return;
-        }
-        let mut namespaces = cleaned
-            .items
-            .iter()
-            .filter_map(|item| {
-                if let Item::Node(node) = item
-                    && matches!(tree.node(*node).kind, NodeKind::Element(_))
-                {
-                    Some(self.get(*node))
-                } else {
-                    None
-                }
-            })
-            .peekable();
-        let foreign =
-            namespaces.peek().is_some() && namespaces.all(|namespace| namespace != Namespace::Html);
-        if foreign && !preserve {
+        if self.0.drops_whitespace(namespace, nodes) {
             cleaned.items.retain(|item| match item {
                 Item::Text { data, .. } => !data.chars().all(char::is_whitespace),
                 _ => true,
@@ -162,8 +159,14 @@ impl RenderPlan {
             tree.children(children),
             preserve,
         );
-        self.namespaces
-            .clean_foreign_whitespace(&mut cleaned, tree, preserve);
+        let nodes = tree.children(children);
+        let namespace = self
+            .namespaces
+            .infer(tree, input.component.source_text, nodes);
+        if !preserve {
+            self.namespaces
+                .drop_foreign_whitespace(&mut cleaned, namespace, nodes);
+        }
         let region = Region {
             hoisted: cleaned.hoisted,
             items: cleaned
@@ -179,6 +182,7 @@ impl RenderPlan {
                 })
                 .collect(),
             text_first: cleaned.text_first,
+            namespace,
         };
         let identifier = self.regions.push(region);
         self.source_regions.insert(children, identifier);

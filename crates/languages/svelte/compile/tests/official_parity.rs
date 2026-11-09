@@ -125,6 +125,48 @@ fn a_derived_keeps_its_arrow_only_when_the_callee_may_change() {
 }
 
 #[test]
+fn only_svg_outside_an_svg_text_drops_whitespace_between_nodes() {
+    for (markup, client, server) in [
+        (
+            "<math> <mi>x</mi> <mo>+</mo> </math>\n<p>a</p>",
+            "$.from_html(`<math><mi>x</mi> <mo>+</mo></math> <p>a</p>`",
+            "<math><mi>x</mi> <mo>+</mo></math> <p>a</p>",
+        ),
+        (
+            "<math><mi>x</mi></math>\n<C />",
+            "$.from_mathml(`<math><mi>x</mi></math> <!>`",
+            "<math><mi>x</mi></math> ",
+        ),
+        (
+            "{#if x}<div></div>{/if}\n<svg></svg>",
+            "$.from_html(`<!> <svg></svg>`",
+            "<!--]--> <svg></svg>",
+        ),
+        (
+            "<svg><text><tspan>a</tspan> <tspan>b</tspan></text></svg>",
+            "<tspan>a</tspan> <tspan>b</tspan>",
+            "<tspan>a</tspan> <tspan>b</tspan>",
+        ),
+        (
+            "{#if x}<svg></svg> <C />{/if}",
+            "$.from_svg(`<svg></svg><!>`",
+            "<!--[0--><svg></svg>`",
+        ),
+    ] {
+        let source =
+            format!("<script>import C from './C.svelte'; let x = $state(1);</script>\n{markup}\n");
+        assert!(
+            compiled(&source, Target::Client).contains(client),
+            "{markup} on the client"
+        );
+        assert!(
+            compiled(&source, Target::Server).contains(server),
+            "{markup} on the server"
+        );
+    }
+}
+
+#[test]
 fn an_await_while_rendering_needs_async_mode() {
     for (source, error) in [
         (
@@ -254,6 +296,33 @@ fn only_the_instance_splits_a_declaration_into_one_per_declarator() {
                 output.contains(expected),
                 "{expected} on {target:?} in {output}"
             );
+        }
+    }
+}
+
+#[test]
+fn an_element_takes_its_namespace_from_its_name_when_a_fragment_is_inferred() {
+    for (markup, templates) in [
+        (
+            "<svg><C><div></div></C></svg>",
+            &["$.from_html(`<div></div>`)", "$.from_svg(`<svg><!></svg>`)"][..],
+        ),
+        (
+            "<svg>{#if x}<circle />{:else}<div></div>{/if}</svg>",
+            &[
+                "$.from_svg(`<circle></circle>`)",
+                "$.from_html(`<div></div>`)",
+            ],
+        ),
+        (
+            "<svg><svelte:element this={'g'}><a href='x'>t</a></svelte:element><C><a>u</a></C></svg>",
+            &["$.from_svg(`<ahref=\"x\">t</a>`)", "$.from_svg(`<a>u</a>`)"],
+        ),
+    ] {
+        let source = format!("<script>import C from './C.svelte'; let x = true;</script>{markup}");
+        let client = squashed(&source, Target::Client);
+        for template in templates {
+            assert!(client.contains(template), "{template} in {client}");
         }
     }
 }

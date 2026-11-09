@@ -1,4 +1,4 @@
-# svelte.compile/client: 8493 match
+# svelte.compile/client: 8501 match
 svelte/animotion/src/lib/components/action.svelte	refused
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -1699,8 +1699,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/h
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/test01-input.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/test01-output.svelte	refused
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/valid/test01-input.svelte	refused
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/math-never/svelte-never-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/math-never/svelte-never-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/normal-always/component-never-output.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/normal-ignore/normal-any-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/normal-ignore/normal-any-output.svelte	missing
@@ -1709,8 +1707,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/h
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/presets/html/preset-html-output.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/presets/none/preset-none-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/presets/none/preset-none-output.svelte	missing
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/svg-never/svelte-never-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/svg-never/svelte-never-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/test01-input.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/test01-output.svelte	missing
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/void-never/void-never-input.svelte	missing
@@ -2637,7 +2633,6 @@ svelte/flowbite-svelte/src/routes/docs-examples/extend/virtual-masonry/Default.s
 svelte/flowbite-svelte/src/routes/docs-examples/forms/checkbox/CheckboxButton.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/checkbox/Group.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/checkbox/ListGroup2.svelte	refused
-svelte/flowbite-svelte/src/routes/docs-examples/forms/file-input/Dropzone.svelte	mismatch
 svelte/flowbite-svelte/src/routes/docs-examples/forms/input-field/Advanced.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/input-field/ComboboxIcon.svelte	refused
 svelte/flowbite-svelte/src/routes/docs-examples/forms/input-field/ElementRef.svelte	refused
@@ -3139,7 +3134,6 @@ svelte/kite-public/src/lib/components/settings/SettingsContentFilter.svelte	refu
 svelte/kite-public/src/lib/components/settings/SettingsFilters.svelte	refused
 svelte/kite-public/src/lib/components/settings/SettingsLanguage.svelte	refused
 svelte/kite-public/src/lib/components/settings/SettingsSections.svelte	refused
-svelte/kite-public/src/lib/components/settings/SettingsStories.svelte	mismatch
 svelte/kite-public/src/lib/components/settings/snippets/DataLanguageSelector.svelte	refused
 svelte/kite-public/src/lib/components/settings/snippets/SectionsList.svelte	refused
 svelte/kite-public/src/lib/components/story/CitationText.svelte	refused
@@ -5353,7 +5347,6 @@ svelte/shadcn-svelte-extras/src/lib/components/ui/form/form-element-field.svelte
 svelte/shadcn-svelte-extras/src/lib/components/ui/form/form-field-errors.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/ui/form/form-field.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/ui/form/form-label.svelte	refused
-svelte/shadcn-svelte-extras/src/lib/components/ui/github-button/github-button.svelte	mismatch
 svelte/shadcn-svelte-extras/src/lib/components/ui/image-cropper/image-cropper-controls.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/ui/image-cropper/image-cropper-dialog.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/ui/image-cropper/image-cropper-preview.svelte	refused
@@ -9278,7 +9271,6 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/store-updated-in-reac
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/svg-html-tag4/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/svg-slot-namespace/Widget.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/svg-slot-namespace/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/svg-tspan-preserve-space/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/template/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/textarea-bind-value-escape/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/textarea-content/main.svelte	refused

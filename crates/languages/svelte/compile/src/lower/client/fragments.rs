@@ -47,7 +47,7 @@ impl ClientCompilationContext<'_> {
             } else {
                 0
             };
-            let callee = self.transform_template(&frag.tpl, "root", flags);
+            let callee = self.transform_template(&frag.tpl, cleaned.namespace, "root", flags);
             Some((identifier, self.out.call0(callee, &[])))
         } else if let [Item::Text { data, .. }] = items.as_ref() {
             let identifier = self.names.generate("text");
@@ -83,7 +83,7 @@ impl ClientCompilationContext<'_> {
                 if frag.tpl.needs_import_node {
                     flags |= TEMPLATE_USE_IMPORT_NODE;
                 }
-                let callee = self.transform_template(&frag.tpl, "root", flags);
+                let callee = self.transform_template(&frag.tpl, cleaned.namespace, "root", flags);
                 Some((identifier, self.out.call0(callee, &[])))
             }
         };
@@ -177,13 +177,19 @@ impl ClientCompilationContext<'_> {
 
     /// Upstream `transform_template`: hoists `var root = $.from_html(…)` (shared by identical
     /// templates) and returns the callee that builds the fragment.
-    fn transform_template(&mut self, tpl: &Template, name: &str, flags: u32) -> NodeIdentifier {
+    fn transform_template(
+        &mut self,
+        tpl: &Template,
+        namespace: crate::render_plan::Namespace,
+        name: &str,
+        flags: u32,
+    ) -> NodeIdentifier {
         if tpl.is_lone_comment() {
             let ns = self.out.identifier("$");
             return self.out.dot(ns, "comment");
         }
         let markup = tpl.markup();
-        let namespace = match tpl.namespace.unwrap_or_default() {
+        let namespace = match namespace {
             crate::render_plan::Namespace::Html => "html",
             crate::render_plan::Namespace::Svg => "svg",
             crate::render_plan::Namespace::Mathml => "mathml",

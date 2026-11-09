@@ -8,7 +8,6 @@ pub(super) struct Template {
     roots: Vec<usize>,
     stack: Vec<usize>,
     pub(super) needs_import_node: bool,
-    pub(super) namespace: Option<Namespace>,
 }
 
 enum TplNode {
@@ -37,12 +36,6 @@ impl Template {
     }
 
     pub(super) fn push_element(&mut self, name: &str, namespace: Namespace) {
-        if self.stack.is_empty() {
-            self.namespace = Some(match self.namespace {
-                Some(previous) if previous != namespace => Namespace::Html,
-                _ => namespace,
-            });
-        }
         let i = self.add(TplNode::Element {
             namespace,
             name: name.to_owned(),
