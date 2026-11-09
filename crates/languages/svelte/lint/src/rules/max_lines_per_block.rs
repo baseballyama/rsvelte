@@ -207,7 +207,8 @@ fn check_template(
     let source = lines.source;
     let is_options = |node: &TemplateNode| matches!(node, TemplateNode::Element { name, .. } if name.text(source) == "svelte:options");
     let root = component.children(component.root);
-    let excluded: Vec<Span> = [&component.module, &component.instance]
+    // By first and last line.
+    let excluded: Vec<(u32, u32)> = [&component.module, &component.instance]
         .into_iter()
         .flatten()
         .map(|script| script.span)
@@ -218,17 +219,12 @@ fn check_template(
                 .filter(|n| is_options(n))
                 .map(TemplateNode::span),
         )
-        .map(|span| {
-            Span::new(
-                lines.line(span.start_offset),
-                lines.line(span.end_offset) + 1,
-            )
-        })
+        .map(|span| (lines.line(span.start_offset), lines.line(span.end_offset)))
         .collect();
     let is_excluded = |line: u32| {
         excluded
             .iter()
-            .any(|l| l.start_offset <= line && line < l.end_offset)
+            .any(|&(first, last)| first <= line && line <= last)
     };
     let comment_lines = if options.skip_comments {
         full_comment_lines(lines, comments(component, true), |line| !is_excluded(line))
@@ -242,10 +238,15 @@ fn check_template(
                 && comment_lines.get(line as usize) != Some(&true)
         })
         .count() as u32;
+    // svelte-eslint-parser leaves out the blank text that ends the file.
+    let trailing_blank = |node: &TemplateNode| {
+        matches!(node, TemplateNode::Text { span } if span.end_offset as usize == source.len()
+            && trim_ecmascript(span.text(source)).is_empty())
+    };
     let first = root
         .iter()
         .map(|&n| component.node(n))
-        .find(|n| !is_options(n));
+        .find(|n| !is_options(n) && !trailing_blank(n));
     if let Some(first) = first {
         report(reporter, "template", count, max, first.span());
     }

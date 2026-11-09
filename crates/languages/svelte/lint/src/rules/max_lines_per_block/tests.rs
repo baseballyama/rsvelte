@@ -53,3 +53,36 @@ fn a_line_of_u0085_is_not_blank() {
         [""; 0]
     );
 }
+
+#[test]
+fn blank_text_that_ends_the_file_is_not_a_template() {
+    let options = r#"{"template":1}"#;
+    let report = |n: u32| {
+        vec![format!(
+            "template block has too many lines ({n}). Maximum allowed is 1."
+        )]
+    };
+    assert_eq!(
+        messages("<script>\nlet a;\n</script>\n\n\n", options),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        messages("\n\n<script>\nlet a;\n</script>\n", options),
+        report(3)
+    );
+    assert_eq!(
+        messages(
+            "<script>\nlet a;\n</script>\n\n\n<style>\n</style>\n",
+            options
+        ),
+        report(3)
+    );
+    assert_eq!(
+        messages("<script>\nlet a;\n</script>\n\n<div></div>\n\n\n", options),
+        report(5)
+    );
+    assert_eq!(
+        messages("<script>\nlet a;\n</script>\n \n<!-- c -->\n", options),
+        report(3)
+    );
+}
