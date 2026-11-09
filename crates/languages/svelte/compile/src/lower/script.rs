@@ -362,48 +362,7 @@ fn binary_of(op: AssignmentOperator) -> BinaryOperator {
 /// Upstream `should_proxy`.
 #[must_use]
 pub(super) fn should_proxy(syntax_tree: &SyntaxTree, res: &Resolution, e: NodeIdentifier) -> bool {
-    proxyable(syntax_tree, Some(res), e)
-}
-
-/// `res` is `None` for a binding's initial value, which upstream checks without a scope.
-fn proxyable(syntax_tree: &SyntaxTree, res: Option<&Resolution>, e: NodeIdentifier) -> bool {
-    match syntax_tree.kind(e) {
-        Kind::String
-        | Kind::Regex { .. }
-        | Kind::BigInt
-        | Kind::Number(_)
-        | Kind::Boolean(_)
-        | Kind::Null
-        | Kind::Template { .. }
-        | Kind::Arrow { .. }
-        | Kind::Unary(..)
-        | Kind::Binary(..)
-        | Kind::Function {
-            declaration: false, ..
-        } => false,
-        Kind::Identifier(_) if syntax_tree.name(e) == "undefined" => false,
-        Kind::Identifier(_) => {
-            let Some(res) = res else {
-                return true;
-            };
-            let Some((b, info)) = res.binding(e) else {
-                return true;
-            };
-            let s = &res.sem.bindings[b];
-            if s.writes > 0 {
-                return true;
-            }
-            // Analysis rewires a prop's initial from `$props()` to its default.
-            let initial = match info.kind {
-                BindingKind::Property
-                | BindingKind::BindableProperty
-                | BindingKind::RestProperty => info.initial,
-                _ => s.initializer(syntax_tree),
-            };
-            initial.is_none_or(|initializer| proxyable(syntax_tree, None, initializer))
-        }
-        _ => true,
-    }
+    res.should_proxy(syntax_tree, e)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
