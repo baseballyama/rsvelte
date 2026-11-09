@@ -467,17 +467,15 @@ impl RuneWalk<'_> {
         place: Place,
     ) -> Result<(), Diagnostic> {
         let javascript = self.javascript;
-        // A rune call a frontend wrote has no source, and raises nothing.
-        let span = javascript.source_location(e).span();
         let Kind::Call { arguments, .. } = javascript.kind(e) else {
             unreachable!("a rune is a call")
         };
         let spread = (arguments.iter()).any(|&a| matches!(javascript.kind(a), Kind::Spread(_)));
         if rune != "$inspect" && spread {
-            return invalid_rune(
+            return super::special::invalid(
                 "rune_invalid_spread",
                 &format!("`{rune}` cannot be called with a spread argument"),
-                span,
+                span_of(javascript, e),
             );
         }
         // Upstream's parent of an optional call is its `ChainExpression`.
@@ -488,23 +486,23 @@ impl RuneWalk<'_> {
         };
         // Upstream counts the arguments of these two before it asks where they are.
         if matches!(rune, "$bindable" | "$host") {
-            check_rune_arguments(rune, arguments.len(), span)?;
-            self.check_rune_placement(rune, parent, place, span)?;
+            check_rune_arguments(javascript, e, rune, arguments.len())?;
+            self.check_rune_placement(e, rune, parent, place)?;
         } else {
-            self.check_rune_placement(rune, parent, place, span)?;
-            check_rune_arguments(rune, arguments.len(), span)?;
+            self.check_rune_placement(e, rune, parent, place)?;
+            check_rune_arguments(javascript, e, rune, arguments.len())?;
         }
-        self.refuse_unlowered(e, rune, place, span);
+        self.refuse_unlowered(e, rune, place);
         Ok(())
     }
 
     /// Upstream's placement errors, and its errors for a second `$props()` or `$props.id()`.
     fn check_rune_placement(
         &mut self,
+        e: NodeIdentifier,
         rune: &'static str,
         parent: Parent,
         place: Place,
-        span: Option<Span>,
     ) -> Result<(), Diagnostic> {
         let top = matches!(parent, Parent::Initializer { top: true, .. }) && !place.module;
         let (code, message) = match rune {
@@ -564,17 +562,11 @@ impl RuneWalk<'_> {
             ),
             _ => return Ok(()),
         };
-        invalid_rune(code, &message, span)
+        super::special::invalid(code, &message, span_of(self.javascript, e))
     }
 
     /// Keeps the first rune call this port does not lower, refused when the walk ends.
-    fn refuse_unlowered(
-        &mut self,
-        e: NodeIdentifier,
-        rune: &'static str,
-        place: Place,
-        span: Option<Span>,
-    ) {
+    fn refuse_unlowered(&mut self, e: NodeIdentifier, rune: &'static str, place: Place) {
         let lowered = rune_call(self.javascript, e).is_some();
         let supported = lowered
             && match rune {
@@ -596,22 +588,23 @@ impl RuneWalk<'_> {
         } else {
             format!("`{rune}` in an optional chain")
         };
-        self.refused = unsupported::<()>(&what, located(span)).err();
+        self.refused = unsupported::<()>(&what, span_of(self.javascript, e)).err();
     }
 }
 
 /// Upstream's errors for a rune called with the wrong number of arguments.
 fn check_rune_arguments(
+    javascript: &SyntaxTree,
+    e: NodeIdentifier,
     rune: &'static str,
     count: usize,
-    span: Option<Span>,
 ) -> Result<(), Diagnostic> {
     let expected = match rune {
         "$props" | "$props.id" | "$host" | "$effect.tracking" if count > 0 => {
-            return invalid_rune(
+            return super::special::invalid(
                 "rune_invalid_arguments",
                 &format!("`{rune}` cannot be called with arguments"),
-                span,
+                span_of(javascript, e),
             );
         }
         "$derived" | "$derived.by" | "$effect" | "$effect.pre" | "$effect.root"
@@ -626,27 +619,17 @@ fn check_rune_arguments(
         "$inspect" if count < 1 => "one or more arguments",
         _ => return Ok(()),
     };
-    invalid_rune(
+    super::special::invalid(
         "rune_invalid_arguments_length",
         &format!("`{rune}` must be called with {expected}"),
-        span,
+        span_of(javascript, e),
     )
 }
 
+/// The span of a node an error names; a frontend writes rune calls only where none is raised.
 fn span_of(javascript: &SyntaxTree, e: NodeIdentifier) -> Span {
     let Some(span) = javascript.source_location(e).span() else {
-        unreachable!("a checked node is parsed from source")
-    };
-    span
-}
-
-fn invalid_rune(code: &'static str, message: &str, span: Option<Span>) -> Result<(), Diagnostic> {
-    super::special::invalid(code, message, located(span))
-}
-
-fn located(span: Option<Span>) -> Span {
-    let Some(span) = span else {
-        unreachable!("a refused rune call is parsed from source")
+        unreachable!("a node an error names is parsed from source")
     };
     span
 }
