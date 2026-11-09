@@ -9,9 +9,10 @@ pub use syntax_tree::StyleSheet;
 
 pub mod syntax {
     pub mod parser;
+    pub mod postcss;
     pub mod syntax_tree;
 }
-pub use syntax::{parser, syntax_tree};
+pub use syntax::{parser, postcss, syntax_tree};
 
 pub mod semantic {
     pub mod matcher;
