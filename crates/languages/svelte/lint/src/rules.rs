@@ -5,6 +5,7 @@ mod first_attribute_linebreak;
 mod html_closing_bracket_new_line;
 mod html_closing_bracket_spacing;
 mod html_quotes;
+mod html_self_closing;
 mod max_attributes_per_line;
 mod no_spaces_around_equal_signs_in_attribute;
 mod no_unused_variables;
@@ -20,6 +21,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &html_closing_bracket_new_line::RULE,
     &html_closing_bracket_spacing::RULE,
     &html_quotes::RULE,
+    &html_self_closing::RULE,
     &max_attributes_per_line::RULE,
     &no_spaces_around_equal_signs_in_attribute::RULE,
     &sort_attributes::RULE,
