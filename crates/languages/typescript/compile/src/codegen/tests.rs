@@ -1,8 +1,9 @@
-use rsvelte_kernel::source::positions::SourceLocation;
+use rsvelte_kernel::source::positions::{SourceLocation, Span};
 use rsvelte_typescript::operators::{BinaryOperator, LogicalOperator};
+use rsvelte_typescript::parser::parse_program;
 use rsvelte_typescript::syntax_tree::SyntaxTree;
 
-use super::{number, print_expression};
+use super::{number, print_expression, print_program};
 
 #[test]
 fn number_to_string_matches_javascript() {
@@ -65,4 +66,46 @@ fn long_chains_print_without_recursing_per_link() {
         .expect("spawns")
         .join()
         .expect("prints within a 1 MiB stack");
+}
+
+/// Prints `source` on a stack of `stack` bytes, after parsing it on a large one.
+fn print_on(source: &str, stack: usize) -> String {
+    let mut tree = SyntaxTree::new();
+    let program = std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .stack_size(1 << 30)
+            .spawn_scoped(scope, || {
+                let range = Span::new(0, u32::try_from(source.len()).expect("small source"));
+                parse_program(&mut tree, source, range, false).expect("parses")
+            })
+            .expect("spawns")
+            .join()
+            .expect("parses on a large stack")
+    });
+    std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .stack_size(stack)
+            .spawn_scoped(scope, || print_program(&tree, source, program).out)
+            .expect("spawns")
+            .join()
+            .expect("prints")
+    })
+}
+
+#[test]
+fn deep_nesting_prints_on_a_small_stack_as_on_a_large_one() {
+    const DEPTH: usize = 20_000;
+    // Each nested statement is indented, so their output grows with the square of the depth.
+    const STATEMENTS: usize = 5_000;
+    for source in [
+        format!("x = {}{};", "[".repeat(DEPTH), "]".repeat(DEPTH)),
+        format!(
+            "{}x;{}",
+            "function f(){".repeat(STATEMENTS),
+            "}".repeat(STATEMENTS)
+        ),
+        format!("{}x;{}", "{".repeat(STATEMENTS), "}".repeat(STATEMENTS)),
+    ] {
+        assert_eq!(print_on(&source, 1 << 20), print_on(&source, 1 << 30));
+    }
 }

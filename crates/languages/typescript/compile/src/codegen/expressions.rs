@@ -231,8 +231,13 @@ impl Gen<'_> {
         }
     }
 
-    #[expect(clippy::too_many_lines, reason = "one arm per expression kind")]
+    /// Every nesting cycle through expressions passes here; the parser bounds its depth.
     pub(super) fn expression_inner(&mut self, identifier: NodeIdentifier) {
+        rsvelte_kernel::performance::stack::grow(|| self.expression_kind(identifier));
+    }
+
+    #[expect(clippy::too_many_lines, reason = "one arm per expression kind")]
+    fn expression_kind(&mut self, identifier: NodeIdentifier) {
         self.mark(identifier);
         match self.syntax_tree.kind(identifier) {
             Kind::Class(class) => self.class(class),
