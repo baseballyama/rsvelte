@@ -52,7 +52,7 @@ impl Builder<'_> {
         let element = self.to.call0(factory, &[name, config]);
         let property = self.to.dot(name, "element");
         let assign = self.to.assign(
-            rsvelte_typescript::operators::AssignmentOperator::Assign,
+            rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
             property,
             element,
             SYNTHETIC,

@@ -2,15 +2,15 @@
 //! `PostCSS` declarations. The rules that read inline styles share them.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_stylesheet::postcss::{self, InlineNode};
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_stylesheet_syntax::postcss::{self, InlineNode};
+use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part,
 };
-use rsvelte_typescript::syntax_tree::{Kind, Tag};
-use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::syntax_tree::{Kind, Tag};
+use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
-use rsvelte_svelte::Parsed;
+use rsvelte_svelte_syntax::Parsed;
 
 use super::markup::part_span;
 use crate::rule::File;
@@ -156,7 +156,7 @@ pub(super) type Property<'a> = (&'a str, Span);
 /// and one for each expression of a `style` attribute (what all its literals declare).
 pub(super) fn property_sets<'a>(
     file: &File<'a>,
-    attributes: rsvelte_svelte::syntax::syntax_tree::Range,
+    attributes: rsvelte_svelte_syntax::syntax_tree::Range,
     mut visit: impl FnMut(&[Property<'a>]),
 ) {
     let component = file.component().expect("a component rule");

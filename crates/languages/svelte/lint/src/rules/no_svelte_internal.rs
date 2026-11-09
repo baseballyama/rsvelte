@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript::Kind;
-use rsvelte_typescript::syntax_tree::Control;
+use rsvelte_typescript_syntax::Kind;
+use rsvelte_typescript_syntax::syntax_tree::Control;
 
 use super::nodes::{span, walk};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};

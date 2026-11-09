@@ -1,8 +1,0 @@
-
-	div .foo.svelte-7fd1nv {
-		color: red;
-	}
-
-	div > .foo.svelte-7fd1nv {
-		font-weight: bold;
-	}

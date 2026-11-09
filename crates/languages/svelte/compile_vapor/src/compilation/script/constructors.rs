@@ -1,5 +1,5 @@
-use rsvelte_typescript::operators::AssignmentOperator;
-use rsvelte_typescript::syntax_tree::Class;
+use rsvelte_typescript_syntax::operators::AssignmentOperator;
+use rsvelte_typescript_syntax::syntax_tree::Class;
 
 use super::{
     FxHashMap, FxHashSet, Kind, NodeIdentifier, R, Resolution, SyntaxTree, span, unsupported, walk,

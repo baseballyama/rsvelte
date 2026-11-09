@@ -1,8 +1,8 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript::scope::{BindingIdentifier, ScopeIdentifier};
-use rsvelte_typescript::syntax_tree::{Class, Control, Kind, NodeIdentifier, flag};
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, ScopeIdentifier};
+use rsvelte_typescript_syntax::syntax_tree::{Class, Control, Kind, NodeIdentifier, flag};
 use rustc_hash::FxHashMap;
 
 use super::JavaScriptFacts;
@@ -369,7 +369,7 @@ fn destructures_outer_or_member(
         f.sem.lookup(scope, atom).is_some_and(|b| {
             let binding = &f.sem.bindings[b];
             binding.scope != scope
-                || binding.kind == rsvelte_typescript::scope::DeclarationKind::Param
+                || binding.kind == rsvelte_typescript_semantic::scope::DeclarationKind::Param
         })
     });
     outer || has_member_assignment(f, left)

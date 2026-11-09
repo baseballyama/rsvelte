@@ -1,7 +1,7 @@
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte::syntax::syntax_tree::{Part, decode_attribute};
-use rsvelte_typescript::scope::BindingIdentifier;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_svelte_syntax::syntax_tree::{Part, decode_attribute};
+use rsvelte_typescript_semantic::scope::BindingIdentifier;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::kit_navigation::{Navigation, Options, Script, first_part, has_scheme, links};
 use super::kit_route::{BASE_VERSIONS, runs_for};

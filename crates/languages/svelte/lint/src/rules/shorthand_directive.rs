@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::{Attribute, AttributeKind, Component, Part, TokenType};
+use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, Component, Part, TokenType};
 
 use super::expressions::Expressions;
 use super::markup::{parts, value_span};

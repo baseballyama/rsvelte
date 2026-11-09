@@ -1,5 +1,5 @@
-// A model of `buffer_pool::take_keyed` / `buffer_pool::give_keyed` for one key (one column type of `rsvelte_typescript::SyntaxTree`)
-// on one worker, driven by the order in which rsvelte_svelte creates and drops `SyntaxTree`s for a document:
+// A model of `buffer_pool::take_keyed` / `buffer_pool::give_keyed` for one key (one column type of `rsvelte_typescript_syntax::SyntaxTree`)
+// on one worker, driven by the order in which rsvelte_svelte_syntax creates and drops `SyntaxTree`s for a document:
 // the parsed tree lives until the document ends; each compile target lowers into a fresh tree that
 // is dropped after printing. Growth follows Rust's `Vec` (amortised doubling, first allocation of 4
 // for small elements). The byte budget is counted in elements here; the real one is `MAXIMUM_BYTES`,

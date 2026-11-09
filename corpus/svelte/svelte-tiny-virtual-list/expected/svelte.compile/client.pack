@@ -1,0 +1,1787 @@
+# rsvelte pack 1
+=== 221 src/lib/VirtualList.svelte	css
+
+	.virtual-list-wrapper.svelte-16nckvm {
+		overflow: auto;
+		will-change: transform;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.virtual-list-inner.svelte-16nckvm {
+		position: relative;
+		display: flex;
+		width: 100%;
+	}
+
+=== 11710 src/lib/VirtualList.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { untrack } from 'svelte';
+import SizeAndPositionManager from './SizeAndPositionManager.js';
+
+import {
+	ALIGNMENT,
+	DIRECTION,
+	SCROLL_CHANGE_REASON,
+	SCROLL_PROP,
+	SCROLL_PROP_LEGACY
+} from './constants.js';
+
+var root = $.from_html(`<div class="virtual-list-wrapper svelte-16nckvm"><!> <div class="virtual-list-inner svelte-16nckvm"></div> <!></div>`);
+
+export default function VirtualList($$anchor, $$props) {
+	$.push($$props, true);
+
+	/** @import { VirtualListProps, VirtualListEvents, VirtualListSnippets } from './types.js'; */
+	/** @type {VirtualListProps & VirtualListEvents & VirtualListSnippets} */
+	let /* Props: */
+		height = $.prop($$props, 'height', 3, '100%'),
+		width = $.prop($$props, 'width', 3, '100%'),
+		stickyIndices = $.prop($$props, 'stickyIndices', 19, () => []),
+		scrollDirection = $.prop($$props, 'scrollDirection', 19, () => DIRECTION.VERTICAL),
+		scrollToAlignment = $.prop($$props, 'scrollToAlignment', 19, () => ALIGNMENT.START),
+		scrollToBehaviour = $.prop($$props, 'scrollToBehaviour', 3, 'instant'),
+		overscanCount = $.prop($$props, 'overscanCount', 3, 3);
+
+	/* Events: */
+	// DEPRECATED
+	/* Snippets: */
+	// DEPRECATED
+	let estimatedItemSize = $.derived(() => $$props.estimatedItemSize || typeof $$props.itemSize === 'number' && $$props.itemSize || 50);
+
+	const sizeAndPositionManager = new SizeAndPositionManager($$props.itemSize, $$props.itemCount, $.get(estimatedItemSize));
+
+	/** @type {HTMLDivElement} */
+	let wrapper;
+
+	let wrapperHeight = $.state(400);
+	let wrapperWidth = $.state(400);
+
+	/** @type {{ index: number, style: string }[]} */
+	let items = $.state([]);
+
+	/** @type {{ offset: number, changeReason: number }} */
+	let scroll = $.state({
+		offset: $$props.scrollOffset || $$props.scrollToIndex !== undefined && getOffsetForIndex($$props.scrollToIndex) || 0,
+		changeReason: SCROLL_CHANGE_REASON.REQUESTED
+	});
+
+	let prevScroll = $.snapshot($.get(scroll));
+	let heightNumber = $.derived(() => Number.isFinite(height()) ? Number(height()) : $.get(wrapperHeight));
+	let widthNumber = $.derived(() => Number.isFinite(width()) ? Number(width()) : $.get(wrapperWidth));
+
+	let prevProps = {
+		scrollToIndex: $.snapshot($$props.scrollToIndex),
+		scrollToAlignment: $.snapshot(scrollToAlignment()),
+		scrollOffset: $.snapshot($$props.scrollOffset),
+		itemCount: $.snapshot($$props.itemCount),
+		itemSize: typeof $$props.itemSize === 'function' ? $$props.itemSize : $.snapshot($$props.itemSize),
+		estimatedItemSize: $.snapshot($.get(estimatedItemSize)),
+		heightNumber: $.snapshot($.get(heightNumber)),
+		widthNumber: $.snapshot($.get(widthNumber)),
+		stickyIndices: $.snapshot(stickyIndices())
+	};
+
+	/** @type {Record<number, string>} */
+	let styleCache = $.state($.proxy({}));
+
+	let wrapperStyle = $.state('');
+	let innerStyle = $.state('');
+
+	// Effect 0: Event listener
+	$.user_effect(() => {
+		/** @type {number | undefined} */
+		let frame;
+
+		/** @param {Event} event */
+		const handleScrollAsync = (event) => {
+			if (frame !== undefined) {
+				cancelAnimationFrame(frame);
+			}
+
+			frame = requestAnimationFrame(() => {
+				handleScroll(event);
+				frame = undefined;
+			});
+		};
+
+		const options = { passive: true };
+
+		wrapper.addEventListener('scroll', handleScrollAsync, options);
+
+		return () => {
+			// @ts-expect-error because options is not really needed, but maybe in the future
+			wrapper.removeEventListener('scroll', handleScrollAsync, options);
+		};
+	});
+
+	// Effect 1: Update props from user provided props
+	$.user_effect(() => {
+		$$props.scrollToIndex;
+		scrollToAlignment();
+		$$props.scrollOffset;
+		$$props.itemCount;
+		$$props.itemSize;
+		$.get(estimatedItemSize);
+		$.get(heightNumber);
+		$.get(widthNumber);
+		stickyIndices();
+		untrack(propsUpdated);
+	});
+
+	// Effect 2: Update scroll
+	$.user_effect(() => {
+		$.get(scroll);
+		untrack(scrollUpdated);
+	});
+
+	function propsUpdated() {
+		const scrollPropsHaveChanged = prevProps.scrollToIndex !== $$props.scrollToIndex || prevProps.scrollToAlignment !== scrollToAlignment();
+		const itemPropsHaveChanged = prevProps.itemCount !== $$props.itemCount || prevProps.itemSize !== $$props.itemSize || prevProps.estimatedItemSize !== $.get(estimatedItemSize);
+		let forceRecomputeSizes = false;
+
+		if (itemPropsHaveChanged) {
+			sizeAndPositionManager.updateConfig($$props.itemSize, $$props.itemCount, $.get(estimatedItemSize));
+			forceRecomputeSizes = true;
+		}
+
+		if (prevProps.scrollOffset !== $$props.scrollOffset) {
+			$.set(scroll, {
+				offset: $$props.scrollOffset || 0,
+				changeReason: SCROLL_CHANGE_REASON.REQUESTED
+			});
+		} else if (typeof $$props.scrollToIndex === 'number' && (scrollPropsHaveChanged || itemPropsHaveChanged)) {
+			$.set(scroll, {
+				offset: getOffsetForIndex($$props.scrollToIndex),
+				changeReason: SCROLL_CHANGE_REASON.REQUESTED
+			});
+		}
+
+		if (forceRecomputeSizes || prevProps.heightNumber !== $.get(heightNumber) || prevProps.widthNumber !== $.get(widthNumber) || prevProps.stickyIndices.toString() !== $.snapshot(stickyIndices()).toString()) {
+			recomputeSizes();
+		}
+
+		prevProps = {
+			scrollToIndex: $.snapshot($$props.scrollToIndex),
+			scrollToAlignment: $.snapshot(scrollToAlignment()),
+			scrollOffset: $.snapshot($$props.scrollOffset),
+			itemCount: $.snapshot($$props.itemCount),
+			itemSize: typeof $$props.itemSize === 'function' ? $$props.itemSize : $.snapshot($$props.itemSize),
+			estimatedItemSize: $.snapshot($.get(estimatedItemSize)),
+			heightNumber: $.snapshot($.get(heightNumber)),
+			widthNumber: $.snapshot($.get(widthNumber)),
+			stickyIndices: $.snapshot(stickyIndices())
+		};
+	}
+
+	function scrollUpdated() {
+		if (prevScroll.offset !== $.get(scroll).offset || prevScroll.changeReason !== $.get(scroll).changeReason) {
+			refresh();
+		}
+
+		if (prevScroll.offset !== $.get(scroll).offset && $.get(scroll).changeReason === SCROLL_CHANGE_REASON.REQUESTED) {
+			wrapper.scroll({
+				[SCROLL_PROP[scrollDirection()]]: $.get(scroll).offset,
+				behavior: scrollToBehaviour()
+			});
+		}
+
+		prevScroll = $.snapshot($.get(scroll));
+	}
+
+	/**
+	 * Recomputes the sizes of the items and updates the visible items.
+	 */
+	function refresh() {
+		const containerSize = scrollDirection() === DIRECTION.VERTICAL ? $.get(heightNumber) : $.get(widthNumber);
+		const totalSize = sizeAndPositionManager.getTotalSize();
+		const maxOffset = Math.max(0, totalSize - containerSize);
+		const clampedOffset = Math.min($.get(scroll).offset, maxOffset);
+		const { start, end } = sizeAndPositionManager.getVisibleRange(containerSize, clampedOffset, overscanCount());
+
+		/** @type {{ index: number, style: string }[]} */
+		const visibleItems = [];
+
+		const heightUnit = typeof height() === 'number' ? 'px' : '';
+		const widthUnit = typeof width() === 'number' ? 'px' : '';
+
+		$.set(wrapperStyle, `height:${height()}${heightUnit};width:${width()}${widthUnit};`);
+
+		if (scrollDirection() === DIRECTION.VERTICAL) {
+			$.set(innerStyle, `flex-direction:column;height:${totalSize}px;`);
+		} else {
+			$.set(innerStyle, `min-height:100%;width:${totalSize}px;`);
+		}
+
+		const hasStickyIndices = stickyIndices().length > 0;
+
+		if (hasStickyIndices) {
+			for (const index of stickyIndices()) {
+				visibleItems.push({ index, style: getStyle(index, true) });
+			}
+		}
+
+		if (start !== undefined && end !== undefined) {
+			for (let index = start; index <= end; index++) {
+				if (hasStickyIndices && stickyIndices().includes(index)) continue;
+
+				visibleItems.push({ index, style: getStyle(index, false) });
+			}
+
+			if ($$props.onItemsUpdated) $$props.onItemsUpdated({ start, end });
+			if ($$props.onListItemsUpdate) $$props.onListItemsUpdate({ start, end }); // DEPRECATED
+		}
+
+		$.set(items, visibleItems);
+	}
+
+	/**
+	 * Recomputes the sizes of the items in the list.
+	 */
+	function recomputeSizes(startIndex = $$props.scrollToIndex) {
+		$.set(styleCache, {}, true);
+
+		if (startIndex !== undefined && startIndex >= 0) {
+			sizeAndPositionManager.resetItem(startIndex);
+		}
+
+		refresh();
+	}
+
+	/**
+	 * Calculates the offset for a given index based on the scroll direction and alignment.
+	 * @param {number} index
+	 */
+	function getOffsetForIndex(index) {
+		if (index < 0 || index >= $$props.itemCount) index = 0;
+
+		return sizeAndPositionManager.getUpdatedOffsetForIndex(scrollToAlignment(), scrollDirection() === DIRECTION.VERTICAL ? $.get(heightNumber) : $.get(widthNumber), $.get(scroll).offset || 0, index);
+	}
+
+	/**
+	 * Handles the scroll event on the wrapper element.
+	 * @param {Event} event
+	 */
+	function handleScroll(event) {
+		const offset = wrapper[SCROLL_PROP_LEGACY[scrollDirection()]];
+
+		if (offset < 0 || $.get(scroll).offset === offset || event.target !== wrapper) return;
+
+		$.set(scroll, { offset, changeReason: SCROLL_CHANGE_REASON.OBSERVED });
+
+		if ($$props.onAfterScroll) $$props.onAfterScroll({ offset, event });
+	}
+
+	/**
+	 * Returns the style for a given item index.
+	 * @param {number} index The index of the item
+	 * @param {boolean} sticky Whether the item should be sticky or not
+	 */
+	function getStyle(index, sticky) {
+		if ($.get(styleCache)[index]) return $.get(styleCache)[index];
+
+		const { size, offset } = sizeAndPositionManager.getSizeAndPositionForIndex(index);
+		let style;
+
+		if (scrollDirection() === DIRECTION.VERTICAL) {
+			style = `left:0;width:100%;height:${size}px;`;
+
+			if (sticky) {
+				style += `position:sticky;flex-grow:0;z-index:1;top:0;margin-top:${offset}px;margin-bottom:${-(offset + size)}px;`;
+			} else {
+				style += `position:absolute;top:${offset}px;`;
+			}
+		} else {
+			style = `top:0;width:${size}px;`;
+
+			if (sticky) {
+				style += `position:sticky;z-index:1;left:0;margin-left:${offset}px;margin-right:${-(offset + size)}px;`;
+			} else {
+				style += `position:absolute;height:100%;left:${offset}px;`;
+			}
+		}
+
+		$.get(styleCache)[index] = style;
+
+		return $.get(styleCache)[index];
+	}
+
+	var $$exports = { recomputeSizes };
+	var div = root();
+	var node = $.child(div);
+
+	{
+		var consequent = ($$anchor) => {
+			var fragment = $.comment();
+			var node_1 = $.first_child(fragment);
+
+			$.snippet(node_1, () => $$props.header);
+			$.append($$anchor, fragment);
+		};
+
+		$.if(node, ($$render) => {
+			if ($$props.header) $$render(consequent);
+		});
+	}
+
+	var div_1 = $.sibling(node, 2);
+
+	$.each(div_1, 21, () => $.get(items), (item) => $$props.getKey ? $$props.getKey(item.index) : item.index, ($$anchor, item) => {
+		var fragment_1 = $.comment();
+		var node_2 = $.first_child(fragment_1);
+
+		{
+			var consequent_1 = ($$anchor) => {
+				var fragment_2 = $.comment();
+				var node_3 = $.first_child(fragment_2);
+
+				$.snippet(node_3, () => $$props.item || $$props.children, () => ({ style: $.get(item).style, index: $.get(item).index }));
+				$.append($$anchor, fragment_2);
+			};
+
+			$.if(node_2, ($$render) => {
+				if ($.get(item).index < $$props.itemCount) $$render(consequent_1);
+			});
+		}
+
+		$.append($$anchor, fragment_1);
+	});
+
+	$.reset(div_1);
+
+	var node_4 = $.sibling(div_1, 2);
+
+	{
+		var consequent_2 = ($$anchor) => {
+			var fragment_3 = $.comment();
+			var node_5 = $.first_child(fragment_3);
+
+			$.snippet(node_5, () => $$props.footer);
+			$.append($$anchor, fragment_3);
+		};
+
+		$.if(node_4, ($$render) => {
+			if ($$props.footer) $$render(consequent_2);
+		});
+	}
+
+	$.reset(div);
+	$.bind_this(div, ($$value) => wrapper = $$value, () => wrapper);
+
+	$.template_effect(() => {
+		$.set_style(div, $.get(wrapperStyle));
+		$.set_style(div_1, $.get(innerStyle));
+	});
+
+	$.bind_element_size(div, 'offsetHeight', ($$value) => $.set(wrapperHeight, $$value));
+	$.bind_element_size(div, 'offsetWidth', ($$value) => $.set(wrapperWidth, $$value));
+	$.append($$anchor, div);
+
+	return $.pop($$exports);
+}
+=== 6617 src/lib/VirtualList.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 53,
+			"column": 59,
+			"character": 1208
+		},
+		"end": {
+			"line": 53,
+			"column": 67,
+			"character": 1216
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemCount`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 53,
+			"column": 69,
+			"character": 1218
+		},
+		"end": {
+			"line": 53,
+			"column": 78,
+			"character": 1227
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `estimatedItemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 53,
+			"column": 80,
+			"character": 1229
+		},
+		"end": {
+			"line": 53,
+			"column": 97,
+			"character": 1246
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollOffset`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 64,
+			"column": 10,
+			"character": 1537
+		},
+		"end": {
+			"line": 64,
+			"column": 22,
+			"character": 1549
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollToIndex`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 64,
+			"column": 27,
+			"character": 1554
+		},
+		"end": {
+			"line": 64,
+			"column": 40,
+			"character": 1567
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollToIndex`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 64,
+			"column": 76,
+			"character": 1603
+		},
+		"end": {
+			"line": 64,
+			"column": 89,
+			"character": 1616
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scroll`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 67,
+			"column": 34,
+			"character": 1711
+		},
+		"end": {
+			"line": 67,
+			"column": 40,
+			"character": 1717
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollToIndex`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 72,
+			"column": 33,
+			"character": 1945
+		},
+		"end": {
+			"line": 72,
+			"column": 46,
+			"character": 1958
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollToAlignment`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 73,
+			"column": 37,
+			"character": 1998
+		},
+		"end": {
+			"line": 73,
+			"column": 54,
+			"character": 2015
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `scrollOffset`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 74,
+			"column": 32,
+			"character": 2050
+		},
+		"end": {
+			"line": 74,
+			"column": 44,
+			"character": 2062
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemCount`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 75,
+			"column": 29,
+			"character": 2094
+		},
+		"end": {
+			"line": 75,
+			"column": 38,
+			"character": 2103
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 76,
+			"column": 19,
+			"character": 2125
+		},
+		"end": {
+			"line": 76,
+			"column": 27,
+			"character": 2133
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 76,
+			"column": 45,
+			"character": 2151
+		},
+		"end": {
+			"line": 76,
+			"column": 53,
+			"character": 2159
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `itemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 76,
+			"column": 72,
+			"character": 2178
+		},
+		"end": {
+			"line": 76,
+			"column": 80,
+			"character": 2186
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `estimatedItemSize`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 77,
+			"column": 37,
+			"character": 2226
+		},
+		"end": {
+			"line": 77,
+			"column": 54,
+			"character": 2243
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `heightNumber`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 78,
+			"column": 32,
+			"character": 2278
+		},
+		"end": {
+			"line": 78,
+			"column": 44,
+			"character": 2290
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `widthNumber`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 79,
+			"column": 31,
+			"character": 2324
+		},
+		"end": {
+			"line": 79,
+			"column": 42,
+			"character": 2335
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `stickyIndices`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 80,
+			"column": 33,
+			"character": 2371
+		},
+		"end": {
+			"line": 80,
+			"column": 46,
+			"character": 2384
+		}
+	}
+]
+
+=== 1487 src/lib/VirtualList.test.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import VirtualList from './VirtualList.svelte';
+
+var root = $.from_html(` <div> </div>`, 1);
+var root_1 = $.from_html(`<div style="height: 400px; width: 400px;"><!></div>`);
+
+export default function VirtualList_test($$anchor, $$props) {
+	$.push($$props, true);
+
+	/** @type {{ data: { id: number, label: string }[], scrollOffset: number, onItemRender: (index: number) => void }} */
+	let data = $.prop($$props, 'data', 19, () => []),
+		onItemRender = $.prop($$props, 'onItemRender', 3, () => {});
+
+	var div = root_1();
+	var node = $.child(div);
+
+	{
+		const item = ($$anchor, $$arg0) => {
+			let index = () => ($$arg0?.()).index;
+			let style = () => ($$arg0?.()).style;
+
+			$.next();
+
+			var fragment = root();
+			var text = $.first_child(fragment);
+			var div_1 = $.sibling(text);
+			var text_1 = $.only_child(div_1, true);
+
+			$.template_effect(
+				($0) => {
+					$.set_text(text, `${$0 ?? ''} `);
+					$.set_style(div_1, style());
+					$.set_text(text_1, data()[index()]?.label);
+				},
+				[() => (onItemRender()(index()), '')]
+			);
+
+			$.append($$anchor, fragment);
+		};
+
+		VirtualList(node, {
+			height: '200px',
+			width: 300,
+			scrollDirection: 'horizontal',
+			get itemCount() {
+				return data().length;
+			},
+			itemSize: 50,
+			get scrollOffset() {
+				return $$props.scrollOffset;
+			},
+			item,
+			$$slots: { item: true }
+		});
+	}
+
+	$.reset(div);
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 24 src/routes/+layout.svelte	css
+
+	@import '../app.css';
+
+=== 12218 src/routes/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { asset, resolve } from '$app/paths';
+import { page } from '$app/state';
+import { browser } from '$app/environment';
+
+var root = $.from_html(`<nav class="left drawer l"><header class="fixed"><nav><i aria-hidden="true"><img alt="Logo"/></i> <h6>svelte-tiny-virtual-list</h6></nav></header> <a><i aria-hidden="true">description</i> <div>README</div></a> <a href="https://github.com/jonasgeiler/svelte-tiny-virtual-list" target="_blank"><i aria-hidden="true"><svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg></i> <div>GitHub <i aria-hidden="true" class="tiny">launch</i></div></a> <a href="https://npmjs.com/package/svelte-tiny-virtual-list" target="_blank"><i aria-hidden="true"><svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474c.977 0 1.763-.786 1.763-1.763V1.763C24 .786 23.214 0 22.237 0zM5.13 5.323l13.837.019-.009 13.836h-3.464l.01-10.382h-3.456L12.04 19.17H5.113z"></path></svg></i> <div>npm <i aria-hidden="true" class="tiny">launch</i></div></a> <div class="small-divider"></div> <label for="">Examples</label> <a><i aria-hidden="true">view_headline</i> <div>Elements of equal height</div></a> <a><i aria-hidden="true">view_day</i> <div>Variable heights</div></a> <a><i aria-hidden="true">view_week</i> <div>Horizontal list</div></a> <a><i aria-hidden="true">pin</i> <div>Scroll to index</div></a> <a><i aria-hidden="true">unfold_more</i> <div>Controlled scroll offset</div></a> <div class="small-divider"></div> <label for="">Demos</label> <a><i aria-hidden="true">newspaper</i> <div>Hacker News</div></a> <div class="max"></div> <button class="circle border"><i aria-hidden="true"> </i></button></nav> <nav class="top s m left-align"><button class="circle transparent"><i aria-hidden="true">menu</i></button> <i aria-hidden="true"><img alt="Logo"/></i> <h6 class="m">svelte-tiny-virtual-list</h6> <div class="max"></div> <button class="circle border"><i aria-hidden="true"> </i></button></nav> <dialog><header class="fixed"><nav><i aria-hidden="true"><img alt="Logo"/></i> <h6 class="m">svelte-tiny-virtual-list</h6> <div class="max"></div> <button class="transparent circle"><i aria-hidden="true">close</i></button></nav></header> <nav class="drawer no-padding no-margin"><a><i aria-hidden="true">description</i> <div>README</div></a> <a href="https://github.com/jonasgeiler/svelte-tiny-virtual-list" target="_blank"><i aria-hidden="true"><svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg></i> <div>GitHub <i aria-hidden="true" class="tiny">launch</i></div></a> <a href="https://npmjs.com/package/svelte-tiny-virtual-list" target="_blank"><i aria-hidden="true"><svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474c.977 0 1.763-.786 1.763-1.763V1.763C24 .786 23.214 0 22.237 0zM5.13 5.323l13.837.019-.009 13.836h-3.464l.01-10.382h-3.456L12.04 19.17H5.113z"></path></svg></i> <div>npm <i aria-hidden="true" class="tiny">launch</i></div></a> <div class="small-divider"></div> <label for="">Examples</label> <a><i aria-hidden="true">view_headline</i> <div>Elements of equal height</div></a> <a><i aria-hidden="true">view_day</i> <div>Variable heights</div></a> <a><i aria-hidden="true">view_week</i> <div>Horizontal list</div></a> <a><i aria-hidden="true">pin</i> <div>Scroll to index</div></a> <a><i aria-hidden="true">unfold_more</i> <div>Controlled scroll offset</div></a> <div class="small-divider"></div> <label for="">Demos</label> <a><i aria-hidden="true">newspaper</i> <div>Hacker News</div></a></nav></dialog> <main id="content" class="responsive flex flex-column"><!></main>`, 1);
+
+export default function _layout($$anchor, $$props) {
+	$.push($$props, true);
+
+	if (browser) import('beercss');
+
+	let darkMode = $.state(true);
+	let mobileMenuOpen = $.state(false);
+
+	function handleSwitchDarkMode() {
+		$.set(darkMode, !$.get(darkMode));
+		localStorage.setItem('theme', $.get(darkMode) ? 'dark' : 'light');
+
+		$.get(darkMode)
+			? document.body.classList.add('dark')
+			: document.body.classList.remove('dark');
+	}
+
+	if (browser) {
+		if (localStorage.theme === 'dark' || !('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+			document.body.classList.add('dark');
+			$.set(darkMode, true);
+		} else {
+			document.body.classList.remove('dark');
+			$.set(darkMode, false);
+		}
+	}
+
+	var fragment = root();
+	var nav = $.first_child(fragment);
+	var header = $.child(nav);
+	var nav_1 = $.child(header);
+	var i = $.child(nav_1);
+	var img = $.only_child(i);
+
+	$.next(2);
+	$.reset(nav_1);
+	$.reset(header);
+
+	var a = $.sibling(header, 2);
+	let classes;
+	var a_1 = $.sibling(a, 10);
+	let classes_1;
+	var a_2 = $.sibling(a_1, 2);
+	let classes_2;
+	var a_3 = $.sibling(a_2, 2);
+	let classes_3;
+	var a_4 = $.sibling(a_3, 2);
+	let classes_4;
+	var a_5 = $.sibling(a_4, 2);
+	let classes_5;
+	var a_6 = $.sibling(a_5, 6);
+	let classes_6;
+	var button = $.sibling(a_6, 4);
+	var i_1 = $.child(button);
+	var text = $.only_child(i_1, true);
+
+	$.reset(button);
+	$.reset(nav);
+
+	var nav_2 = $.sibling(nav, 2);
+	var button_1 = $.child(nav_2);
+	var i_2 = $.sibling(button_1, 2);
+	var img_1 = $.only_child(i_2);
+	var button_2 = $.sibling(i_2, 6);
+	var i_3 = $.child(button_2);
+	var text_1 = $.only_child(i_3, true);
+
+	$.reset(button_2);
+	$.reset(nav_2);
+
+	var dialog = $.sibling(nav_2, 2);
+	let classes_7;
+	var header_1 = $.child(dialog);
+	var nav_3 = $.child(header_1);
+	var i_4 = $.child(nav_3);
+	var img_2 = $.only_child(i_4);
+	var button_3 = $.sibling(i_4, 6);
+
+	$.reset(nav_3);
+	$.reset(header_1);
+
+	var nav_4 = $.sibling(header_1, 2);
+	var a_7 = $.child(nav_4);
+	let classes_8;
+	var a_8 = $.sibling(a_7, 10);
+	let classes_9;
+	var a_9 = $.sibling(a_8, 2);
+	let classes_10;
+	var a_10 = $.sibling(a_9, 2);
+	let classes_11;
+	var a_11 = $.sibling(a_10, 2);
+	let classes_12;
+	var a_12 = $.sibling(a_11, 2);
+	let classes_13;
+	var a_13 = $.sibling(a_12, 6);
+	let classes_14;
+
+	$.reset(nav_4);
+	$.reset(dialog);
+
+	var main = $.sibling(dialog, 2);
+	var node = $.child(main);
+
+	$.snippet(node, () => $$props.children);
+	$.reset(main);
+
+	$.template_effect(
+		(
+			$0,
+			$1,
+			$2,
+			$3,
+			$4,
+			$5,
+			$6,
+			$7,
+			$8,
+			$9,
+			$10,
+			$11,
+			$12,
+			$13,
+			$14,
+			$15,
+			$16,
+			$17,
+			$18,
+			$19
+		) => {
+			$.set_attribute(img, 'src', $0);
+			$.set_attribute(img, 'srcset', `${$1 ?? ''} 2x`);
+			$.set_attribute(a, 'href', $2);
+			classes = $.set_class(a, 1, '', null, classes, { active: page.route.id === '/' });
+			$.set_attribute(a_1, 'href', $3);
+
+			classes_1 = $.set_class(a_1, 1, '', null, classes_1, {
+				active: page.route.id === '/examples/elements-of-equal-height'
+			});
+
+			$.set_attribute(a_2, 'href', $4);
+			classes_2 = $.set_class(a_2, 1, '', null, classes_2, { active: page.route.id === '/examples/variable-heights' });
+			$.set_attribute(a_3, 'href', $5);
+			classes_3 = $.set_class(a_3, 1, '', null, classes_3, { active: page.route.id === '/examples/horizontal-list' });
+			$.set_attribute(a_4, 'href', $6);
+			classes_4 = $.set_class(a_4, 1, '', null, classes_4, { active: page.route.id === '/examples/scroll-to-index' });
+			$.set_attribute(a_5, 'href', $7);
+
+			classes_5 = $.set_class(a_5, 1, '', null, classes_5, {
+				active: page.route.id === '/examples/controlled-scroll-offset'
+			});
+
+			$.set_attribute(a_6, 'href', $8);
+			classes_6 = $.set_class(a_6, 1, '', null, classes_6, { active: page.route.id === '/demos/hacker-news' });
+			$.set_text(text, $.get(darkMode) ? 'light_mode' : 'dark_mode');
+			$.set_attribute(img_1, 'src', $9);
+			$.set_attribute(img_1, 'srcset', `${$10 ?? ''} 2x`);
+			$.set_text(text_1, $.get(darkMode) ? 'light_mode' : 'dark_mode');
+			classes_7 = $.set_class(dialog, 1, 'left s m', null, classes_7, { active: $.get(mobileMenuOpen) });
+			$.set_attribute(img_2, 'src', $11);
+			$.set_attribute(img_2, 'srcset', `${$12 ?? ''} 2x`);
+			$.set_attribute(a_7, 'href', $13);
+			classes_8 = $.set_class(a_7, 1, '', null, classes_8, { active: page.route.id === '/' });
+			$.set_attribute(a_8, 'href', $14);
+
+			classes_9 = $.set_class(a_8, 1, '', null, classes_9, {
+				active: page.route.id === '/examples/elements-of-equal-height'
+			});
+
+			$.set_attribute(a_9, 'href', $15);
+			classes_10 = $.set_class(a_9, 1, '', null, classes_10, { active: page.route.id === '/examples/variable-heights' });
+			$.set_attribute(a_10, 'href', $16);
+			classes_11 = $.set_class(a_10, 1, '', null, classes_11, { active: page.route.id === '/examples/horizontal-list' });
+			$.set_attribute(a_11, 'href', $17);
+			classes_12 = $.set_class(a_11, 1, '', null, classes_12, { active: page.route.id === '/examples/scroll-to-index' });
+			$.set_attribute(a_12, 'href', $18);
+
+			classes_13 = $.set_class(a_12, 1, '', null, classes_13, {
+				active: page.route.id === '/examples/controlled-scroll-offset'
+			});
+
+			$.set_attribute(a_13, 'href', $19);
+			classes_14 = $.set_class(a_13, 1, '', null, classes_14, { active: page.route.id === '/demos/hacker-news' });
+		},
+		[
+			() => asset('/logo.svg'),
+			() => asset('/logo.svg'),
+			() => resolve('/'),
+			() => resolve('/examples/elements-of-equal-height'),
+			() => resolve('/examples/variable-heights'),
+			() => resolve('/examples/horizontal-list'),
+			() => resolve('/examples/scroll-to-index'),
+			() => resolve('/examples/controlled-scroll-offset'),
+			() => resolve('/demos/hacker-news'),
+			() => asset('/logo.svg'),
+			() => asset('/logo.svg'),
+			() => asset('/logo.svg'),
+			() => asset('/logo.svg'),
+			() => resolve('/'),
+			() => resolve('/examples/elements-of-equal-height'),
+			() => resolve('/examples/variable-heights'),
+			() => resolve('/examples/horizontal-list'),
+			() => resolve('/examples/scroll-to-index'),
+			() => resolve('/examples/controlled-scroll-offset'),
+			() => resolve('/demos/hacker-news')
+		]
+	);
+
+	$.delegated('click', button, handleSwitchDarkMode);
+	$.delegated('click', button_1, () => $.set(mobileMenuOpen, true));
+	$.delegated('click', button_2, handleSwitchDarkMode);
+	$.delegated('click', button_3, () => $.set(mobileMenuOpen, false));
+	$.delegated('click', a_7, () => $.set(mobileMenuOpen, false));
+	$.delegated('click', a_8, () => $.set(mobileMenuOpen, false));
+	$.delegated('click', a_9, () => $.set(mobileMenuOpen, false));
+	$.delegated('click', a_10, () => $.set(mobileMenuOpen, false));
+	$.delegated('click', a_11, () => $.set(mobileMenuOpen, false));
+	$.delegated('click', a_12, () => $.set(mobileMenuOpen, false));
+	$.delegated('click', a_13, () => $.set(mobileMenuOpen, false));
+	$.append($$anchor, fragment);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 2060 src/routes/+page.svelte	css
+
+	.markdown-body.svelte-1uha8ag {
+		overflow: auto;
+		font-size: 1rem;
+		line-height: 1.5;
+		word-wrap: break-word;
+	}
+
+	/* Text */
+	.markdown-body p,
+	.markdown-body blockquote,
+	.markdown-body ul,
+	.markdown-body ol,
+	.markdown-body dl,
+	.markdown-body table,
+	.markdown-body pre,
+	.markdown-body details {
+		margin-top: 0;
+		margin-bottom: 16px;
+	}
+
+	/* Lists */
+	.markdown-body ul,
+	.markdown-body ol {
+		padding-left: 2em;
+	}
+	.markdown-body ul ul,
+	.markdown-body ul ol,
+	.markdown-body ol ol,
+	.markdown-body ol ul {
+		margin-top: 0;
+		margin-bottom: 0;
+	}
+
+	/* Headings */
+	.markdown-body h1,
+	.markdown-body h2,
+	.markdown-body h3,
+	.markdown-body h4,
+	.markdown-body h5,
+	.markdown-body h6 {
+		margin-top: 24px;
+		margin-bottom: 16px;
+		font-weight: 600;
+		line-height: 1.25;
+	}
+
+	/* Links */
+	.markdown-body a {
+		text-decoration: underline;
+		text-underline-offset: 0.2rem;
+		color: var(--primary);
+	}
+
+	/* Code blocks */
+	.markdown-body pre {
+		padding: 16px;
+		overflow: auto;
+		font-size: 85%;
+		line-height: 1.45;
+		color: var(--on-surface-variant);
+		background-color: var(--surface-variant);
+		border-radius: 6px;
+		display: flex;
+		justify-content: space-between;
+	}
+	.markdown-body code,
+	.markdown-body tt {
+		padding: 0.2em 0.4em;
+		margin: 0;
+		font-size: 85%;
+		white-space: break-spaces;
+		color: var(--on-surface-variant);
+		background-color: var(--surface-variant);
+		border-radius: 6px;
+	}
+	.markdown-body pre code {
+		padding: 0;
+		font-size: inherit;
+	}
+
+	/* Blockquotes */
+	.markdown-body blockquote {
+		padding: 0 1em;
+		border-left: 0.25em solid var(--primary);
+	}
+	.markdown-body blockquote > :first-child {
+		margin-top: 0;
+	}
+	.markdown-body blockquote > :last-child {
+		margin-bottom: 0;
+	}
+
+	/* Tables */
+	.markdown-body table > tbody > tr:nth-child(2n + 1) {
+		background-color: var(---stripes);
+	}
+	.markdown-body table > tbody > tr:not(:last-child) > td {
+		border-block-end: 0.0625rem solid var(--outline);
+	}
+
+	/* Fix title alignment */
+	.markdown-body h2[align='center'] {
+		display: block;
+		text-align: center;
+	}
+
+=== 941 src/routes/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import readme from '../../README.md?raw';
+import { marked } from 'marked';
+import { baseUrl } from 'marked-base-url';
+import { base } from '$app/paths';
+import { gfmHeadingId } from 'marked-gfm-heading-id';
+
+var root = $.from_html(`<div id="readme" class="docs-page markdown-body svelte-1uha8ag"></div>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+	marked.use(baseUrl(base));
+	marked.use(gfmHeadingId());
+
+	const readmeHtml = marked.parse(readme.// eslint-disable-next-line no-misleading-character-class
+	replace(/^[\u200B\u200C\u200D\u200E\u200F\uFEFF]/, '').replace(/.\/static\//g, './'));
+
+	var div = root();
+
+	$.head('1uha8ag', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'svelte-tiny-virtual-list';
+		});
+	});
+
+	$.html(div, () => readmeHtml, true);
+	$.reset(div);
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 2672 src/routes/demos/hacker-news/+page.svelte	css
+
+	body #hacker-news-demo.svelte-1i8y5ma {
+		--primary: #a33e00;
+		--on-primary: #ffffff;
+		--primary-container: #ffdbcd;
+		--on-primary-container: #360f00;
+		--secondary: #77574a;
+		--on-secondary: #ffffff;
+		--secondary-container: #ffdbcd;
+		--on-secondary-container: #2c160c;
+		--tertiary: #675f30;
+		--on-tertiary: #ffffff;
+		--tertiary-container: #efe3a9;
+		--on-tertiary-container: #201c00;
+		--error: #ba1a1a;
+		--on-error: #ffffff;
+		--error-container: #ffdad6;
+		--on-error-container: #410002;
+		--background: #fffbff;
+		--on-background: #201a18;
+		--surface: #fff8f6;
+		--on-surface: #201a18;
+		--surface-variant: #f5ded5;
+		--on-surface-variant: #53443d;
+		--outline: #85736c;
+		--outline-variant: #d8c2ba;
+		--shadow: #000000;
+		--scrim: #000000;
+		--inverse-surface: #362f2c;
+		--inverse-on-surface: #fbeeea;
+		--inverse-primary: #ffb596;
+		--surface-dim: #e4d7d3;
+		--surface-bright: #fff8f6;
+		--surface-container-lowest: #ffffff;
+		--surface-container-low: #fef1ec;
+		--surface-container: #f8ebe7;
+		--surface-container-high: #f2e5e1;
+		--surface-container-highest: #ede0db;
+	}
+
+	body.dark #hacker-news-demo.svelte-1i8y5ma {
+		--primary: #ffb596;
+		--on-primary: #581e00;
+		--primary-container: #7c2e00;
+		--on-primary-container: #ffdbcd;
+		--secondary: #e6bead;
+		--on-secondary: #442a1f;
+		--secondary-container: #5d4034;
+		--on-secondary-container: #ffdbcd;
+		--tertiary: #d2c78f;
+		--on-tertiary: #373106;
+		--tertiary-container: #4e471b;
+		--on-tertiary-container: #efe3a9;
+		--error: #ffb4ab;
+		--on-error: #690005;
+		--error-container: #93000a;
+		--on-error-container: #ffb4ab;
+		--background: #201a18;
+		--on-background: #ede0db;
+		--surface: #181210;
+		--on-surface: #ede0db;
+		--surface-variant: #53443d;
+		--on-surface-variant: #d8c2ba;
+		--outline: #a08d85;
+		--outline-variant: #53443d;
+		--shadow: #000000;
+		--scrim: #000000;
+		--inverse-surface: #ede0db;
+		--inverse-on-surface: #362f2c;
+		--inverse-primary: #a33e00;
+		--surface-dim: #181210;
+		--surface-bright: #3f3835;
+		--surface-container-lowest: #120d0b;
+		--surface-container-low: #201a18;
+		--surface-container: #251e1c;
+		--surface-container-high: #2f2926;
+		--surface-container-highest: #3a3330;
+	}
+
+	.hacker-news-item.svelte-1i8y5ma {
+		---padding: 0.5rem;
+		--number-width: 2.5rem;
+		padding-left: calc(var(---padding) + var(--number-width)) !important;
+	}
+
+	.hacker-news-item.svelte-1i8y5ma::before {
+		content: attr(data-num) '. ';
+		margin-left: calc(-1 * var(--number-width));
+		width: calc(var(--number-width) - var(---padding));
+		color: var(--on-surface);
+		float: left;
+		text-align: right;
+	}
+
+	.hacker-news-link.svelte-1i8y5ma:hover {
+		text-decoration: underline;
+	}
+
+=== 6560 src/routes/demos/hacker-news/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import VirtualList from '$lib/VirtualList.svelte';
+import InfiniteLoading from 'svelte-infinite-loading';
+import { asset } from '$app/paths';
+
+var root = $.from_html(`(<a class="hacker-news-link svelte-1i8y5ma" target="_blank"> </a>)`, 1);
+var root_1 = $.from_html(`<div><article class="hacker-news-item margin svelte-1i8y5ma"><div class="truncate"><a class="inline link" rel="external noopener noreferrer nofollow" target="_blank"> </a> <!></div> <div class="truncate"> <a class="hacker-news-link svelte-1i8y5ma" target="_blank"> </a> <a class="hacker-news-link svelte-1i8y5ma" target="_blank"> </a> | <a class="hacker-news-link svelte-1i8y5ma" target="_blank"> </a></div></article></div>`);
+var root_2 = $.from_html(`<div><!></div>`);
+var root_3 = $.from_html(`<div id="hacker-news-demo" class="demo-page flex-1 flex flex-column svelte-1i8y5ma"><header class="primary"><nav><i class="border white-border" aria-hidden="true"><img alt="Hacker News Logo"/></i> <h5>Hacker News</h5></nav></header> <div class="flex-1"><!></div></div>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	const api = 'https://hn.algolia.com/api/v1/search_by_date' + '?tags=story' + `&numericFilters=created_at_i<=${Math.floor(Date.now() / 1000)}`;
+	let page = $.state(1);
+	let listHeight = $.state(0);
+
+	/** @type {{story_id: string, created_at: string, title: string, author: string, url: string, points: number, num_comments: number}[]} */
+	let list = $.state($.proxy([]));
+
+	/**
+	 * @param {CustomEvent<{ loaded: () => void; complete: () => void; error: () => void }>} event
+	 */
+	function infiniteHandler({ detail: { loaded, complete, error } }) {
+		fetch(`${api}&page=${$.get(page)}`).then((response) => response.json()).then((data) => {
+			if (data.hits.length) {
+				$.set(page, $.get(page) + 1);
+				$.set(list, [...$.get(list), ...data.hits], true);
+				loaded();
+			} else {
+				complete();
+			}
+		}).catch(() => error());
+	}
+
+	/**
+	 * @param {string} url
+	 */
+	function formatSite(url) {
+		const domain = new URL(url).hostname;
+
+		return domain.startsWith('www.') ? domain.slice(4) : domain;
+	}
+
+	const dateFormatter = new Intl.RelativeTimeFormat('en', { style: 'long' });
+
+	/**
+	 * @param {string} createdAt
+	 */
+	function formatCreatedAt(createdAt) {
+		const seconds = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
+
+		if (seconds <= 60) {
+			return dateFormatter.format(-seconds, 'second');
+		} else if (seconds <= 3600) {
+			return dateFormatter.format(-Math.floor(seconds / 60), 'minute');
+		} else if (seconds <= 86400) {
+			return dateFormatter.format(-Math.floor(seconds / 3600), 'hour');
+		} else if (seconds <= 604800) {
+			return dateFormatter.format(-Math.floor(seconds / 86400), 'day');
+		} else if (seconds <= 2592000) {
+			return dateFormatter.format(-Math.floor(seconds / 604800), 'week');
+		} else if (seconds <= 31536000) {
+			return dateFormatter.format(-Math.floor(seconds / 2592000), 'month');
+		} else {
+			return dateFormatter.format(-Math.floor(seconds / 31536000), 'year');
+		}
+	}
+
+	var div = root_3();
+
+	$.head('1i8y5ma', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Hacker News | svelte-tiny-virtual-list';
+		});
+	});
+
+	var header = $.child(div);
+	var nav = $.child(header);
+	var i = $.child(nav);
+	var img = $.only_child(i);
+
+	$.next(2);
+	$.reset(nav);
+	$.reset(header);
+
+	var div_1 = $.sibling(header, 2);
+	var node = $.child(div_1);
+
+	{
+		const item = ($$anchor, $$arg0) => {
+			let style = () => ($$arg0?.()).style;
+			let index = () => ($$arg0?.()).index;
+			var div_2 = root_1();
+			var article = $.child(div_2);
+			var div_3 = $.child(article);
+			var a = $.child(div_3);
+			var text = $.only_child(a, true);
+			var node_1 = $.sibling(a, 2);
+
+			{
+				var consequent = ($$anchor) => {
+					var fragment = root();
+					var a_1 = $.sibling($.first_child(fragment));
+					var text_1 = $.only_child(a_1, true);
+
+					$.next();
+
+					$.template_effect(
+						($0, $1) => {
+							$.set_attribute(a_1, 'href', `https://news.ycombinator.com/from?site=${$0 ?? ''}`);
+							$.set_text(text_1, $1);
+						},
+						[
+							() => formatSite($.get(list)[index()].url),
+							() => formatSite($.get(list)[index()].url)
+						]
+					);
+
+					$.append($$anchor, fragment);
+				};
+
+				$.if(node_1, ($$render) => {
+					if ($.get(list)[index()].url) $$render(consequent);
+				});
+			}
+
+			$.reset(div_3);
+
+			var div_4 = $.sibling(div_3, 2);
+			var text_2 = $.child(div_4);
+			var a_2 = $.sibling(text_2);
+			var text_3 = $.only_child(a_2, true);
+			var a_3 = $.sibling(a_2, 2);
+			var text_4 = $.only_child(a_3, true);
+			var a_4 = $.sibling(a_3, 2);
+			var text_5 = $.only_child(a_4);
+
+			$.reset(div_4);
+			$.reset(article);
+			$.reset(div_2);
+
+			$.template_effect(
+				($0) => {
+					$.set_style(div_2, style());
+					$.set_attribute(article, 'data-num', index() + 1);
+					$.set_attribute(a, 'href', $.get(list)[index()].url || `https://news.ycombinator.com/item?id=${$.get(list)[index()].story_id}`);
+					$.set_text(text, $.get(list)[index()].title);
+					$.set_text(text_2, `${$.get(list)[index()].points ?? ''} points by `);
+					$.set_attribute(a_2, 'href', `https://news.ycombinator.com/user?id=${$.get(list)[index()].author ?? ''}`);
+					$.set_text(text_3, $.get(list)[index()].author);
+					$.set_attribute(a_3, 'title', $.get(list)[index()].created_at);
+					$.set_attribute(a_3, 'href', `https://news.ycombinator.com/item?id=${$.get(list)[index()].story_id ?? ''}`);
+					$.set_text(text_4, $0);
+					$.set_attribute(a_4, 'href', `https://news.ycombinator.com/item?id=${$.get(list)[index()].story_id ?? ''}`);
+					$.set_text(text_5, `${$.get(list)[index()].num_comments ?? ''} comments`);
+				},
+				[() => formatCreatedAt($.get(list)[index()].created_at)]
+			);
+
+			$.append($$anchor, div_2);
+		};
+
+		const footer = ($$anchor) => {
+			var div_5 = root_2();
+			var node_2 = $.child(div_5);
+
+			InfiniteLoading(node_2, { $$events: { infinite: infiniteHandler } });
+			$.reset(div_5);
+			$.append($$anchor, div_5);
+		};
+
+		VirtualList(node, {
+			get height() {
+				return $.get(listHeight);
+			},
+			itemSize: 90,
+			get itemCount() {
+				return $.get(list).length;
+			},
+			item,
+			footer,
+			$$slots: { item: true, footer: true }
+		});
+	}
+
+	$.reset(div_1);
+	$.reset(div);
+	$.template_effect(($0) => $.set_attribute(img, 'src', $0), [() => asset('/y18.svg')]);
+	$.bind_element_size(div_1, 'clientHeight', ($$value) => $.set(listHeight, $$value));
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 1943 src/routes/examples/controlled-scroll-offset/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import VirtualList from '$lib/VirtualList.svelte';
+
+var root = $.from_html(`<div class="virtual-list-row"> </div>`);
+var root_1 = $.from_html(`<div id="controlled-scroll-offset-example" class="example-page"><h3>Controlled scroll offset</h3> <div class="field label border"><input id="scroll-offset" type="number"/> <label for="scroll-offset">Scroll to offset...</label></div> <article><!></article></div>`);
+
+export default function _page($$anchor) {
+	/** @type {number[]} */
+	let rowHeights = $.state($.proxy([]));
+
+	let scrollOffset = $.state(void 0);
+
+	randomize();
+
+	function randomize() {
+		let newRowHeights = [];
+
+		for (let i = 0; i < 10000; i++) {
+			newRowHeights.push(Math.random() * (155 - 50) + 50);
+		}
+
+		$.set(rowHeights, newRowHeights, true);
+	}
+
+	var div = root_1();
+
+	$.head('1dy3z6r', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Controlled scroll offset | svelte-tiny-virtual-list';
+		});
+	});
+
+	var div_1 = $.sibling($.child(div), 2);
+	var input = $.child(div_1);
+
+	$.remove_input_defaults(input);
+	$.next(2);
+	$.reset(div_1);
+
+	var article = $.sibling(div_1, 2);
+	var node = $.child(article);
+
+	{
+		const item = ($$anchor, $$arg0) => {
+			let style = () => ($$arg0?.()).style;
+			let index = () => ($$arg0?.()).index;
+			var div_2 = root();
+			var text = $.only_child(div_2);
+
+			$.template_effect(() => {
+				$.set_style(div_2, style());
+				$.set_text(text, `Item #${index() ?? ''}`);
+			});
+
+			$.append($$anchor, div_2);
+		};
+
+		VirtualList(node, {
+			height: 500,
+			width: 'auto',
+			itemCount: 10000,
+			itemSize: (index) => $.get(rowHeights)[index],
+			get scrollOffset() {
+				return $.get(scrollOffset);
+			},
+			item,
+			$$slots: { item: true }
+		});
+	}
+
+	$.reset(article);
+	$.reset(div);
+	$.bind_value(input, () => $.get(scrollOffset), ($$value) => $.set(scrollOffset, $$value));
+	$.append($$anchor, div);
+}
+=== 1667 src/routes/examples/elements-of-equal-height/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import VirtualList from '$lib/VirtualList.svelte';
+
+var root = $.from_html(`<div class="virtual-list-row"> </div>`);
+var root_1 = $.from_html(`<div id="elements-of-equal-height-example" class="example-page"><h3>Elements of equal height</h3> <div class="range-field"><label for="item-size">Item size</label> <div class="slider"><input id="item-size" type="range" step="5" min="50" max="155"/> <span></span></div></div> <article><!></article></div>`);
+
+export default function _page($$anchor) {
+	let itemSize = 50;
+	var div = root_1();
+
+	$.head('1pqhz2b', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Elements of equal height | svelte-tiny-virtual-list';
+		});
+	});
+
+	var div_1 = $.sibling($.child(div), 2);
+	var div_2 = $.sibling($.child(div_1), 2);
+	var input = $.child(div_2);
+
+	$.remove_input_defaults(input);
+	$.next(2);
+	$.reset(div_2);
+	$.reset(div_1);
+
+	var article = $.sibling(div_1, 2);
+	var node = $.child(article);
+
+	{
+		const item = ($$anchor, $$arg0) => {
+			let style = () => ($$arg0?.()).style;
+			let index = () => ($$arg0?.()).index;
+			var div_3 = root();
+			var text = $.only_child(div_3);
+
+			$.template_effect(() => {
+				$.set_style(div_3, style());
+				$.set_text(text, `Item #${index() ?? ''}`);
+			});
+
+			$.append($$anchor, div_3);
+		};
+
+		VirtualList(node, {
+			height: 500,
+			width: 'auto',
+			itemCount: 100000,
+			get itemSize() {
+				return itemSize;
+			},
+			item,
+			$$slots: { item: true }
+		});
+	}
+
+	$.reset(article);
+	$.reset(div);
+	$.bind_value(input, () => itemSize, ($$value) => itemSize = $$value);
+	$.append($$anchor, div);
+}
+=== 350 src/routes/examples/elements-of-equal-height/+page.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`itemSize` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 67
+		},
+		"end": {
+			"line": 4,
+			"column": 13,
+			"character": 75
+		}
+	}
+]
+
+=== 1406 src/routes/examples/horizontal-list/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import VirtualList from '$lib/VirtualList.svelte';
+
+var root = $.from_html(`<div class="virtual-list-col"> </div>`);
+var root_1 = $.from_html(`<div id="horizontal-list-example" class="example-page"><h3>Horizontal list</h3> <article><div class="row scroll"><!></div></article></div>`);
+
+export default function _page($$anchor) {
+	let width = $.state(500);
+	var div = root_1();
+
+	$.head('61hm4s', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Horizontal list | svelte-tiny-virtual-list';
+		});
+	});
+
+	var article = $.sibling($.child(div), 2);
+	var div_1 = $.child(article);
+	var node = $.child(div_1);
+
+	{
+		const item = ($$anchor, $$arg0) => {
+			let style = () => ($$arg0?.()).style;
+			let index = () => ($$arg0?.()).index;
+			var div_2 = root();
+			var text = $.only_child(div_2);
+
+			$.template_effect(() => {
+				$.set_style(div_2, style());
+				$.set_text(text, `Item #${index() ?? ''}`);
+			});
+
+			$.append($$anchor, div_2);
+		};
+
+		VirtualList(node, {
+			height: '200px',
+			get width() {
+				return $.get(width);
+			},
+			scrollDirection: 'horizontal',
+			itemCount: 100000,
+			itemSize: 150,
+			item,
+			$$slots: { item: true }
+		});
+	}
+
+	$.reset(div_1);
+	$.reset(article);
+	$.reset(div);
+	$.bind_element_size(div_1, 'clientWidth', ($$value) => $.set(width, $$value));
+	$.append($$anchor, div);
+}
+=== 3895 src/routes/examples/scroll-to-index/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import VirtualList from '$lib/VirtualList.svelte';
+
+var root = $.from_html(`<div> </div>`);
+var root_1 = $.from_html(`<div id="scroll-to-index-example" class="example-page"><h3>Scroll to index</h3> <div class="field label border"><input id="scroll-to-index" type="number"/> <label for="scroll-to-index">Scroll to index...</label></div> <div class="field label suffix border"><select id="alignment"><option>start</option><option>center</option><option>end</option><option>auto</option></select> <label for="alignment">Alignment</label> <i>arrow_drop_down</i></div> <div class="field label suffix border"><select id="behaviour"><option>auto</option><option>smooth</option><option>instant</option></select> <label for="behaviour">Behaviour</label> <i>arrow_drop_down</i></div> <article><!></article></div>`);
+
+export default function _page($$anchor) {
+	/** @type {number[]} */
+	let rowHeights = $.state([]);
+
+	let scrollToIndex = $.state(void 0);
+
+	/** @type {'start' | 'center' | 'end' | 'auto'} */
+	let scrollToAlignment = $.state('start');
+
+	/** @type {'auto' | 'smooth' | 'instant'} */
+	let scrollToBehaviour = $.state('instant');
+
+	const NUM_ROWS = 10000;
+
+	function randomize() {
+		const newRowHeights = [];
+
+		for (let i = 0; i < NUM_ROWS; i++) newRowHeights.push(Math.random() * (155 - 50) + 50);
+
+		$.set(rowHeights, newRowHeights);
+	}
+
+	randomize();
+
+	var div = root_1();
+
+	$.head('dh3z01', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Scroll to index | svelte-tiny-virtual-list';
+		});
+	});
+
+	var div_1 = $.sibling($.child(div), 2);
+	var input = $.child(div_1);
+
+	$.remove_input_defaults(input);
+	$.next(2);
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 2);
+	var select = $.child(div_2);
+	var option = $.child(select);
+
+	option.value = option.__value = 'start';
+
+	var option_1 = $.sibling(option);
+
+	option_1.value = option_1.__value = 'center';
+
+	var option_2 = $.sibling(option_1);
+
+	option_2.value = option_2.__value = 'end';
+
+	var option_3 = $.sibling(option_2);
+
+	option_3.value = option_3.__value = 'auto';
+	$.reset(select);
+	$.init_select(select);
+	$.next(4);
+	$.reset(div_2);
+
+	var div_3 = $.sibling(div_2, 2);
+	var select_1 = $.child(div_3);
+	var option_4 = $.child(select_1);
+
+	option_4.value = option_4.__value = 'auto';
+
+	var option_5 = $.sibling(option_4);
+
+	option_5.value = option_5.__value = 'smooth';
+
+	var option_6 = $.sibling(option_5);
+
+	option_6.value = option_6.__value = 'instant';
+	$.reset(select_1);
+	$.init_select(select_1);
+	$.next(4);
+	$.reset(div_3);
+
+	var article = $.sibling(div_3, 2);
+	var node = $.child(article);
+
+	{
+		const item = ($$anchor, $$arg0) => {
+			let style = () => ($$arg0?.()).style;
+			let index = () => ($$arg0?.()).index;
+			var div_4 = root();
+			let classes;
+			var text = $.only_child(div_4);
+
+			$.template_effect(() => {
+				$.set_style(div_4, style());
+				classes = $.set_class(div_4, 1, 'virtual-list-row', null, classes, { highlighted: index() === $.get(scrollToIndex) });
+				$.set_text(text, `Item #${index() ?? ''}`);
+			});
+
+			$.append($$anchor, div_4);
+		};
+
+		VirtualList(node, {
+			height: 500,
+			width: 'auto',
+			itemCount: 10000,
+			itemSize: (index) => $.get(rowHeights)[index],
+			get scrollToIndex() {
+				return $.get(scrollToIndex);
+			},
+
+			get scrollToAlignment() {
+				return $.get(scrollToAlignment);
+			},
+
+			get scrollToBehaviour() {
+				return $.get(scrollToBehaviour);
+			},
+			item,
+			$$slots: { item: true }
+		});
+	}
+
+	$.reset(article);
+	$.reset(div);
+	$.bind_value(input, () => $.get(scrollToIndex), ($$value) => $.set(scrollToIndex, $$value));
+	$.bind_select_value(select, () => $.get(scrollToAlignment), ($$value) => $.set(scrollToAlignment, $$value));
+	$.bind_select_value(select_1, () => $.get(scrollToBehaviour), ($$value) => $.set(scrollToBehaviour, $$value));
+	$.append($$anchor, div);
+}
+=== 1681 src/routes/examples/variable-heights/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import VirtualList from '$lib/VirtualList.svelte';
+
+var root = $.from_html(`<div class="virtual-list-row"> </div>`);
+var root_1 = $.from_html(`<div id="variable-heights-example" class="example-page"><h3>Variable heights</h3> <button class="responsive margin"><i aria-hidden="true">shuffle</i> <span>Randomize heights</span></button> <article><!></article></div>`);
+
+export default function _page($$anchor) {
+	/** @type {number[]} */
+	let rowHeights = $.state($.proxy([]));
+
+	randomize();
+
+	function randomize() {
+		let newRowHeights = [];
+
+		for (let i = 0; i < 10000; i++) {
+			newRowHeights.push(Math.random() * (155 - 50) + 50);
+		}
+
+		$.set(rowHeights, newRowHeights, true);
+	}
+
+	var div = root_1();
+
+	$.head('140sny6', ($$anchor) => {
+		$.effect(() => {
+			$.document.title = 'Variable heights | svelte-tiny-virtual-list';
+		});
+	});
+
+	var button = $.sibling($.child(div), 2);
+	var article = $.sibling(button, 2);
+	var node = $.child(article);
+
+	{
+		const item = ($$anchor, $$arg0) => {
+			let style = () => ($$arg0?.()).style;
+			let index = () => ($$arg0?.()).index;
+			var div_1 = root();
+			var text = $.only_child(div_1);
+
+			$.template_effect(() => {
+				$.set_style(div_1, style());
+				$.set_text(text, `Item #${index() ?? ''}`);
+			});
+
+			$.append($$anchor, div_1);
+		};
+
+		VirtualList(node, {
+			height: 500,
+			width: 'auto',
+			itemCount: 10000,
+			get itemSize() {
+				return $.get(rowHeights);
+			},
+			item,
+			$$slots: { item: true }
+		});
+	}
+
+	$.reset(article);
+	$.reset(div);
+	$.delegated('click', button, randomize);
+	$.append($$anchor, div);
+}
+
+$.delegate(['click']);

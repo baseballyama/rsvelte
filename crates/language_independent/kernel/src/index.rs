@@ -122,21 +122,12 @@ impl<I: TypedIndex, T> IndexVector<I, T> {
         self.raw.is_empty()
     }
 
-    #[inline]
-    pub fn get(&self, identifier: I) -> Option<&T> {
-        self.raw.get(identifier.index())
-    }
-
     pub fn iter(&self) -> std::slice::Iter<'_, T> {
         self.raw.iter()
     }
 
     pub fn iter_enumerated(&self) -> impl DoubleEndedIterator<Item = (I, &T)> + ExactSizeIterator {
         self.raw.iter().enumerate().map(|(i, t)| (I::new(i), t))
-    }
-
-    pub fn identifiers(&self) -> impl DoubleEndedIterator<Item = I> + ExactSizeIterator + 'static {
-        (0..self.raw.len()).map(I::new)
     }
 
     /// The elements `range` names, which must have been pushed contiguously.
@@ -150,7 +141,7 @@ impl<I: TypedIndex, T> IndexVector<I, T> {
     }
 
     #[must_use]
-    pub fn into_raw(self) -> Vec<T> {
+    pub(crate) fn into_raw(self) -> Vec<T> {
         self.raw
     }
 
@@ -159,12 +150,12 @@ impl<I: TypedIndex, T> IndexVector<I, T> {
         self.raw.capacity()
     }
 
-    pub fn reserve(&mut self, n: usize) {
+    pub(crate) fn reserve(&mut self, n: usize) {
         self.raw.reserve(n);
     }
 
     /// Keeps the first `len` elements.
-    pub fn truncate(&mut self, len: usize) {
+    pub(crate) fn truncate(&mut self, len: usize) {
         self.raw.truncate(len);
     }
 }
@@ -245,10 +236,6 @@ impl<I: TypedIndex> IndexRange<I> {
     pub fn new(start: I, end: I) -> Self {
         assert!(start <= end, "{start:?}..{end:?} is backwards");
         Self { start, end }
-    }
-
-    pub const fn empty(at: I) -> Self {
-        Self { start: at, end: at }
     }
 
     pub fn len(self) -> usize {

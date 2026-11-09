@@ -479,11 +479,11 @@ follows it. Each input above stops partway through a longer name (`notinvb;` and
 missing from the branch that matches a run of letters. Of 199924 generated attribute values,
 1356 differ from the spec. Of those, 1324 are what the spec gives for text. This crate follows
 the spec.
-Test in `rsvelte_markup`: `character_references::tests::html_follows_the_spec_where_compiler_core_does_not`.
+Test in `rsvelte_markup_syntax`: `character_references::tests::html_follows_the_spec_where_compiler_core_does_not`.
 
 ## Svelte's compiler: what `svelte.compile` warns, which `svelte/valid-compile` reports
 
-These are behaviors of `svelte` 5.57.3 (`tools/oracle`) that `rsvelte_svelte`'s warnings do not
+These are behaviors of `svelte` 5.57.3 (`tools/oracle`) that `rsvelte_svelte_semantic`'s warnings do not
 reproduce. Each is a candidate issue for `sveltejs/svelte`. `svelte.compile` gave the upstream
 output (`corpus/**/expected/svelte.compile/client.warnings.json`).
 

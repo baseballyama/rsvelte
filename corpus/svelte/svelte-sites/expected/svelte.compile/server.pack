@@ -1,0 +1,876 @@
+# rsvelte pack 1
+=== 1174 sites/hn.svelte.dev/src/lib/Nav.svelte	css
+
+	nav.svelte-1escm0m {
+		/* background-color: rgba(255, 102, 0, 0.05); */
+		border-bottom: 1px solid #ff6600;
+		color: var(--fg-light);
+		font-weight: 300;
+		padding: 0 1em;
+	}
+
+	.icon.svelte-1escm0m {
+		display: block;
+		width: 1em;
+		height: 1em;
+		float: left;
+		font-size: 2em;
+		position: relative;
+		top: 0.4em;
+		box-sizing: border-box;
+		margin: 0 0.5em 0 0;
+	}
+
+	ul.svelte-1escm0m {
+		margin: 0;
+		padding: 0;
+	}
+
+	ul.svelte-1escm0m::after {
+		content: '';
+		display: block;
+		clear: both;
+	}
+
+	li.svelte-1escm0m {
+		display: block;
+		float: left;
+	}
+
+	.about.svelte-1escm0m {
+		float: right;
+	}
+
+	.selected.svelte-1escm0m {
+		position: relative;
+		display: inline-block;
+		color: var(--fg);
+	}
+
+	.selected.svelte-1escm0m::after {
+		position: absolute;
+		content: '';
+		width: calc(100% - 1em);
+		height: 2px;
+		background-color: #ff6600;
+		display: block;
+		bottom: 0;
+	}
+
+	li.svelte-1escm0m a:where(.svelte-1escm0m) {
+		color: inherit;
+		text-decoration: none;
+		padding: 1em 0.5em;
+		display: block;
+		font-weight: 500;
+	}
+
+	@media (min-width: 400px) {
+		.icon.svelte-1escm0m {
+			margin: 0 0.5em 0 0;
+		}
+
+		li.svelte-1escm0m {
+			display: inline-block;
+		}
+	}
+
+=== 1107 sites/hn.svelte.dev/src/lib/Nav.svelte	js
+import * as $ from 'svelte/internal/server';
+import { resolve } from '$app/paths';
+
+export default function Nav($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const { section } = $$props;
+		const lists = ['top', 'new', 'best', 'show', 'ask', 'jobs'];
+
+		$$renderer.push(`<nav class="svelte-1escm0m"><a${$.attr('href', resolve('/'))}><img alt="Svelte Hacker News logo" class="icon svelte-1escm0m" src="/favicon.png"/></a> <ul class="svelte-1escm0m"><!--[-->`);
+
+		const each_array = $.ensure_array_like(lists);
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let list = each_array[$$index];
+
+			$$renderer.push(`<li class="svelte-1escm0m"><a${$.attr('href', resolve('/[list=category]/[page=numeric]', { list, page: '1' }))}${$.attr_class('svelte-1escm0m', void 0, { 'selected': section === list })}>${$.escape(list)}</a></li>`);
+		}
+
+		$$renderer.push(`<!--]--> <li class="about svelte-1escm0m"><a${$.attr('href', resolve('/about'))}${$.attr_class('svelte-1escm0m', void 0, { 'selected': section === 'about' })}>about</a></li></ul></nav>`);
+	});
+}
+=== 650 sites/hn.svelte.dev/src/lib/PreloadingIndicator.svelte	css
+
+	.progress-container.svelte-1mgdynx {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 4px;
+		z-index: 999;
+	}
+
+	.progress.svelte-1mgdynx {
+		position: absolute;
+		left: 0;
+		top: 0;
+		height: 100%;
+		background-color: #ff6600;
+		transition: width 0.4s;
+	}
+
+	.fade.svelte-1mgdynx {
+		position: fixed;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(255, 255, 255, 0.3);
+		pointer-events: none;
+		z-index: 998;
+		animation: svelte-1mgdynx-fade 0.4s;
+	}
+
+	html.dark .fade.svelte-1mgdynx {
+		background-color: rgba(0, 0, 0, 0.3);
+	}
+
+	@keyframes svelte-1mgdynx-fade {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+=== 884 sites/hn.svelte.dev/src/lib/PreloadingIndicator.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from 'svelte';
+
+export default function PreloadingIndicator($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let p = 0;
+		let visible = false;
+
+		onMount(() => {
+			visible = true;
+
+			function next() {
+				p += 0.1;
+
+				const remaining = 1 - p;
+
+				if (remaining > 0.15) setTimeout(next, 500 / remaining);
+			}
+
+			setTimeout(next, 250);
+		});
+
+		if (visible) {
+			$$renderer.push(`<!--[0--><div class="progress-container svelte-1mgdynx"><div class="progress svelte-1mgdynx"${$.attr_style(`width: ${$.stringify(p * 100)}%`)}></div></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> `);
+
+		if (p >= 0.4) {
+			$$renderer.push(`<!--[0--><div class="fade svelte-1mgdynx"></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}
+=== 2819 sites/hn.svelte.dev/src/lib/SubsetHTML.svelte	js
+import * as $ from 'svelte/internal/server';
+import { parse } from './htmlSubsetParse';
+import { resolve } from '$app/paths';
+
+export default function SubsetHTML($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const { content } = $$props;
+		const parsedContent = $.derived(() => parse(content));
+		const HN_HOSTNAME = 'news.ycombinator.com';
+
+		function tryRewriteLink(originalUrl) {
+			const { hostname, pathname, searchParams, hash, href } = originalUrl;
+
+			if (hostname === HN_HOSTNAME && pathname === '/item') {
+				// for the purposes of typescript control flow,
+				// .has() does not impact .get()
+				const itemId = searchParams.get('id');
+
+				if (itemId) {
+					// only support rewriting /item?id= links
+					// which actually covers most legitimate uses
+					return {
+						href: `${resolve('/item/[id=numeric]', { id: itemId })}${hash}`,
+						rel: undefined
+					};
+				}
+			}
+
+			// otherwise spit back original
+			return { href, rel: 'external' };
+		}
+
+		function inline($$renderer, child) {
+			if (child.type === 'text') {
+				$$renderer.push(`<!--[0-->${$.escape(child.text)}`);
+			} else if (child.type === 'link') {
+				$$renderer.push('<!--[1-->');
+
+				const originalUrl = new URL(child.href);
+
+				if (['http:', 'https:'].includes(originalUrl.protocol)) {
+					$$renderer.push('<!--[0-->');
+
+					const { href, rel } = tryRewriteLink(originalUrl);
+
+					$$renderer.push(`<a${$.attr('href', href)}${$.attr('rel', rel)}>${$.escape(child.text)}</a>`);
+				} else {
+					$$renderer.push(`<!--[-1--><del>${$.escape(child.text)}</del>`);
+				}
+
+				$$renderer.push(`<!--]-->`);
+			} else if (child.type === 'italic') {
+				$$renderer.push(`<!--[2--><!--[-->`);
+
+				const each_array = $.ensure_array_like(child.children);
+
+				for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+					let subchild = each_array[$$index];
+
+					inline($$renderer, subchild);
+				}
+
+				$$renderer.push(`<!--]-->`);
+			} else {
+				$$renderer.push('<!--[-1-->');
+			}
+
+			$$renderer.push(`<!--]-->`);
+		}
+
+		$$renderer.push(`<!--[-->`);
+
+		const each_array_1 = $.ensure_array_like(parsedContent());
+
+		for (let $$index_2 = 0, $$length = each_array_1.length; $$index_2 < $$length; $$index_2++) {
+			let block = each_array_1[$$index_2];
+
+			if (block.type === 'paragraph') {
+				$$renderer.push(`<!--[0--><p><!--[-->`);
+
+				const each_array_2 = $.ensure_array_like(block.children);
+
+				for (let $$index_1 = 0, $$length = each_array_2.length; $$index_1 < $$length; $$index_1++) {
+					let child = each_array_2[$$index_1];
+
+					inline($$renderer, child);
+				}
+
+				$$renderer.push(`<!--]--></p>`);
+			} else {
+				$$renderer.push(`<!--[-1--><pre><code>${$.escape(block.text)}</code></pre>`);
+			}
+
+			$$renderer.push(`<!--]-->`);
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}
+=== 512 sites/hn.svelte.dev/src/lib/ThemeToggler.svelte	css
+
+	button.svelte-1hcnzc8 {
+		position: fixed;
+		right: 1em;
+		bottom: 1em;
+		width: 2em;
+		height: 2em;
+		text-indent: -9999px;
+		background-color: transparent;
+		border: none;
+		opacity: 0.4;
+	}
+
+	.nice.svelte-1hcnzc8 {
+		outline: none;
+	}
+
+	svg.svelte-1hcnzc8 {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		right: 0;
+		bottom: 0;
+	}
+
+	path.svelte-1hcnzc8 {
+		fill: var(--fg);
+		transition: opacity 0.6s;
+	}
+
+	.dark.svelte-1hcnzc8 {
+		opacity: 0;
+	}
+
+	html.dark .dark.svelte-1hcnzc8 {
+		opacity: 1;
+	}
+
+=== 1427 sites/hn.svelte.dev/src/lib/ThemeToggler.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function ThemeToggler($$renderer) {
+	// preserve the focus ring for keyboard users because a11y,
+	// but hide for mouse users because fugly
+	let nice = false;
+
+	let theme = 'light';
+
+	try {
+		theme = localStorage.theme;
+	} catch(e) {
+		// ignore — could be SSR, or e.g. Firefox with restrictive permissions
+	}
+
+	const toggle = () => {
+		const { classList } = document.documentElement;
+
+		if (classList.length === 0) {
+			theme = 'dark';
+		} else {
+			classList.remove(theme);
+			theme = theme === 'light' ? 'dark' : 'light';
+		}
+
+		classList.add(theme);
+
+		try {
+			localStorage.theme = theme;
+		} catch(e) {
+			// ignore
+		}
+	};
+
+	$$renderer.push(`<button aria-label="Toggle theme" title="Toggle theme"${$.attr_class('svelte-1hcnzc8', void 0, { 'nice': nice })}>toggle theme <svg viewBox="0 0 24 24" class="svelte-1hcnzc8"><path class="light svelte-1hcnzc8" d="M12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,15.31L23.31,12L20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31Z"></path><path class="dark svelte-1hcnzc8" d="M12,18C11.11,18 10.26,17.8 9.5,17.45C11.56,16.5 13,14.42 13,12C13,9.58 11.56,7.5 9.5,6.55C10.26,6.2 11.11,6 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31L23.31,12L20,8.69Z"></path></svg></button>`);
+}
+=== 209 sites/hn.svelte.dev/src/routes/+error.svelte	css
+
+	h1.svelte-1oilzc3 {
+		margin: 0 auto;
+	}
+
+	h1.svelte-1oilzc3 {
+		font-size: 2.8em;
+		font-weight: 700;
+		margin: 0 0 0.5em 0;
+	}
+
+	@media (min-width: 480px) {
+		h1.svelte-1oilzc3 {
+			font-size: 4em;
+		}
+	}
+
+=== 672 sites/hn.svelte.dev/src/routes/+error.svelte	js
+import * as $ from 'svelte/internal/server';
+import { page } from '$app/state';
+
+export default function _error($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+		const title = offline ? 'Offline' : page.status;
+
+		const message = offline
+			? 'Find the internet and try again'
+			: page.error?.message;
+
+		$.head('1oilzc3', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(title)}</title>`);
+			});
+		});
+
+		$$renderer.push(`<h1 class="svelte-1oilzc3">${$.escape(title)}</h1> <pre>${$.escape(message)}</pre>`);
+	});
+}
+=== 127 sites/hn.svelte.dev/src/routes/+layout.svelte	css
+
+	main.svelte-ugx4i7 {
+		position: relative;
+		max-width: 56em;
+		padding: 2em;
+		margin: 0 auto;
+		box-sizing: border-box;
+	}
+
+=== 878 sites/hn.svelte.dev/src/routes/+layout.svelte	js
+import * as $ from 'svelte/internal/server';
+import { page, navigating } from '$app/state';
+import Nav from '$lib/Nav.svelte';
+import PreloadingIndicator from '$lib/PreloadingIndicator.svelte';
+import ThemeToggler from '$lib/ThemeToggler.svelte';
+import '../app.css';
+
+export default function _layout($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const { children } = $$props;
+		const section = $.derived(() => page.url.pathname.split('/')[1]);
+
+		Nav($$renderer, { section: section() });
+		$$renderer.push(`<!----> `);
+
+		if (navigating.from) {
+			$$renderer.push('<!--[0-->');
+			PreloadingIndicator($$renderer, {});
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> <main class="svelte-ugx4i7">`);
+		children($$renderer);
+		$$renderer.push(`<!----></main> `);
+		ThemeToggler($$renderer, {});
+		$$renderer.push(`<!---->`);
+	});
+}
+=== 1665 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import { resolve } from '$app/paths';
+import ItemSummary from './ItemSummary.svelte';
+import NullItem from './NullItem.svelte';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const { data } = $$props;
+		const PAGE_SIZE = 30;
+
+		const list = $.derived(() => data.list),
+			items = $.derived(() => data.items),
+			page = $.derived(() => data.page),
+			now = $.derived(() => data.now);
+
+		const start = $.derived(() => 1 + (page() - 1) * PAGE_SIZE);
+
+		$.head('1n9hwi2', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>Svelte Hacker News</title>`);
+			});
+
+			$$renderer.push(`<meta name="description"${$.attr('content', `Latest Hacker News stories in the ${$.stringify(list())} category`)}/>`);
+		});
+
+		$$renderer.push(`<!--[-->`);
+
+		const each_array = $.ensure_array_like(items());
+
+		for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+			let item = each_array[i];
+
+			if (item.type !== 'null') {
+				$$renderer.push('<!--[0-->');
+				ItemSummary($$renderer, { item, index: start() + i, now: now() });
+			} else {
+				$$renderer.push('<!--[-1-->');
+				NullItem($$renderer, { id: item.id, index: start() + i });
+			}
+
+			$$renderer.push(`<!--]-->`);
+		}
+
+		$$renderer.push(`<!--]--> `);
+
+		if (items().length >= PAGE_SIZE) {
+			$$renderer.push(`<!--[0--><a class="more"${$.attr('href', resolve('/[list=category]/[page=numeric]', { list: list(), page: `${page() + 1}` }))}>More...</a>`);
+		} else {
+			$$renderer.push(`<!--[-1--><p>That's all we can find...</p>`);
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}
+=== 646 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/ItemSummary.svelte	css
+
+	article.svelte-qvpc2r {
+		position: relative;
+		padding: 0 0 0 4em;
+		margin: 0 0 1.5em 0;
+	}
+
+	h2.svelte-qvpc2r {
+		font-size: 1em;
+		font-weight: 500;
+		margin: 0 0 0.5em 0;
+		color: var(--fg);
+	}
+
+	h2.svelte-qvpc2r a:where(.svelte-qvpc2r) {
+		text-decoration: none;
+	}
+
+	p.svelte-qvpc2r {
+		font-size: 0.8em;
+		color: var(--fg-light);
+		margin: 0;
+		font-weight: 300;
+	}
+
+	small.svelte-qvpc2r {
+		color: var(--fg-light);
+		font-weight: 300;
+	}
+
+	.index.svelte-qvpc2r {
+		position: absolute;
+		font-size: 1.6em;
+		font-weight: 200;
+		color: var(--fg-light);
+		left: 0.2em;
+		top: 0;
+		text-align: right;
+		width: 0.75em;
+		line-height: 1;
+	}
+
+=== 1427 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/ItemSummary.svelte	js
+import * as $ from 'svelte/internal/server';
+import { resolve } from '$app/paths';
+import { timeAgo } from '$lib/utils';
+
+export default function ItemSummary($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const { item, index, now } = $$props;
+
+		$$renderer.push(`<article class="svelte-qvpc2r"><h2 class="svelte-qvpc2r">`);
+
+		if (item.type !== 'poll' && item.url) {
+			$$renderer.push(`<!--[0--><a rel="external"${$.attr('href', item.url)} class="svelte-qvpc2r">${$.escape(item.title)} <small class="svelte-qvpc2r">${$.escape(new URL(item.url).hostname)}</small></a>`);
+		} else {
+			$$renderer.push(`<!--[-1--><a${$.attr('href', resolve('/item/[id=numeric]', { id: `${item.id}` }))} class="svelte-qvpc2r">${$.escape(item.title)}</a>`);
+		}
+
+		$$renderer.push(`<!--]--></h2> <p class="svelte-qvpc2r">${$.escape(item.score)}
+		${$.escape(item.score === 1 ? 'point' : 'points')} by <a${$.attr('href', resolve('/user/[name]', { name: item.by }))}>${$.escape(item.by)}</a> ${$.escape(timeAgo(now - item.time))} `);
+
+		if (item.type !== 'job') {
+			$$renderer.push(`<!--[0-->| <a${$.attr('href', resolve('/item/[id=numeric]', { id: `${item.id}` }))}>${$.escape(item.descendants)}
+				${$.escape(item.descendants === 1 ? 'comment' : 'comments')}</a>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></p> <span class="index svelte-qvpc2r">${$.escape(index)}</span></article>`);
+	});
+}
+=== 521 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/NullItem.svelte	css
+
+	article.svelte-16n4ane {
+		position: relative;
+		padding: 0 0 0 4em;
+		margin: 0 0 1.5em 0;
+
+		opacity: 0.5;
+	}
+
+	h2.svelte-16n4ane {
+		font-size: 1em;
+		font-weight: 500;
+		margin: 0 0 0.5em 0;
+		color: var(--fg);
+	}
+
+	p.svelte-16n4ane {
+		font-size: 0.8em;
+		color: var(--fg-light);
+		margin: 0;
+		font-weight: 300;
+	}
+
+	.index.svelte-16n4ane {
+		position: absolute;
+		font-size: 1.6em;
+		font-weight: 200;
+		color: var(--fg-light);
+		left: 0.2em;
+		top: 0;
+		text-align: right;
+		width: 0.75em;
+		line-height: 1;
+	}
+
+=== 404 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/NullItem.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function NullItem($$renderer, $$props) {
+	const { id, index } = $$props;
+
+	$$renderer.push(`<article class="svelte-16n4ane"><h2 class="svelte-16n4ane">Item #${$.escape(id)} Unavailable</h2> <p class="svelte-16n4ane">API failed to return this item - maybe deleted?</p> <span class="index svelte-16n4ane">${$.escape(index)}</span></article>`);
+}
+=== 1086 sites/hn.svelte.dev/src/routes/about/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _page($$renderer) {
+	$.head('1d5i9po', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>About • Svelte Hacker News</title>`);
+		});
+	});
+
+	$$renderer.push(`<h1>About this site</h1> <p>This is a simple Hacker News clone, built with <a rel="external" href="https://kit.svelte.dev">SvelteKit</a>, an application framework for <a rel="external" href="https://svelte.dev">Svelte</a>.</p> <p>Svelte is a new kind of framework, one that compiles your component templates into fast, compact
+	JavaScript — either client-side or server-side. You can read more about the design and philosophy
+	in the <a rel="external" href="https://svelte.dev/tutorial">introductory tutorial</a>.</p> <p>We're using a combination of the <a rel="external" href="https://github.com/hackernews/api">Firebase HN API</a> and the <a rel="external" href="https://hn.algolia.com/api">Algolia HN API</a> as a backend. The app is hosted on <a rel="external" href="https://vercel.com">Vercel</a>.</p>`);
+}
+=== 574 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.svelte	css
+
+	h1.svelte-1d2597w {
+		font-weight: 500;
+	}
+
+	.item.svelte-1d2597w {
+		border-bottom: 1em solid rgba(0, 0, 0, 0.1);
+		margin: 0 -2em 2em -2em;
+		padding: 0 2em 2em 2em;
+	}
+
+	html.dark .item.svelte-1d2597w {
+		border-bottom: 1em solid rgba(255, 255, 255, 0.1);
+	}
+
+	.main-link.svelte-1d2597w {
+		display: block;
+		text-decoration: none;
+	}
+
+	small.svelte-1d2597w {
+		display: block;
+		font-size: 14px;
+	}
+
+	.meta.svelte-1d2597w {
+		font-size: 0.8em;
+		font-weight: 300;
+		color: var(--fg-light);
+	}
+
+	.comments.svelte-1d2597w > .comment:first-child {
+		border-top: none;
+	}
+
+=== 2791 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import { resolve } from '$app/paths';
+import SubsetHTML from '$lib/SubsetHTML.svelte';
+import { timeAgo } from '$lib/utils';
+import CommentElement from './Comment.svelte';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const { data } = $$props;
+
+		const algoliaItem = $.derived(() => data.algoliaItem),
+			pollOptions = $.derived(() => data.pollOptions),
+			now = $.derived(() => data.now);
+
+		$.head('1d2597w', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(algoliaItem().title)} | Svelte Hacker News</title>`);
+			});
+		});
+
+		$$renderer.push(`<div><article class="item svelte-1d2597w"><a class="main-link svelte-1d2597w" rel="external"${$.attr('href', algoliaItem().url)}><h1 class="svelte-1d2597w">${$.escape(algoliaItem().title)}</h1> `);
+
+		if (algoliaItem().url) {
+			$$renderer.push(`<!--[0--><small class="svelte-1d2597w">${$.escape(new URL(algoliaItem().url).hostname)}</small>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></a> <p class="meta svelte-1d2597w">${$.escape(algoliaItem().points)}
+			${$.escape(algoliaItem().points === 1 ? 'point' : 'points')} by <a${$.attr('href', resolve('/user/[name]', { name: algoliaItem().author }))}>${$.escape(algoliaItem().author)}</a> ${$.escape(timeAgo(now() - algoliaItem().created_at_i))}</p> `);
+
+		if (algoliaItem().text) {
+			$$renderer.push('<!--[0-->');
+			SubsetHTML($$renderer, { content: algoliaItem().text });
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> `);
+
+		if (algoliaItem().options && algoliaItem().options.length > 0) {
+			$$renderer.push(`<!--[0--><!--[-->`);
+
+			const each_array = $.ensure_array_like(pollOptions());
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let pollOption = each_array[$$index];
+
+				SubsetHTML($$renderer, { content: pollOption.text });
+				$$renderer.push(`<!----> <small class="svelte-1d2597w">${$.escape(pollOption.score)} points</small>`);
+			}
+
+			$$renderer.push(`<!--]-->`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></article> `);
+
+		if (algoliaItem().children && algoliaItem().children.length > 0) {
+			$$renderer.push(`<!--[0--><div class="comments svelte-1d2597w"><!--[-->`);
+
+			const each_array_1 = $.ensure_array_like(algoliaItem().children);
+
+			for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+				let comment = each_array_1[$$index_1];
+
+				CommentElement($$renderer, { comment, now: now() });
+			}
+
+			$$renderer.push(`<!--]--></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+	});
+}
+=== 1388 sites/hn.svelte.dev/src/routes/item/[id=numeric]/Comment.svelte	css
+
+	.comment.svelte-bp2yyv {
+		border-top: 1px solid rgba(0, 0, 0, 0.1);
+	}
+
+	html.dark .comment.svelte-bp2yyv {
+		border-top: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.meta-bar.svelte-bp2yyv {
+		padding: 1em 0;
+		cursor: pointer;
+		background: 100% 50% no-repeat url(./unfold.svg);
+		background-size: 1em 1em;
+	}
+
+	.comment.svelte-bp2yyv details[open]:where(.svelte-bp2yyv) > summary:where(.svelte-bp2yyv) > .meta-bar:where(.svelte-bp2yyv) {
+		background-image: url(./fold.svg);
+	}
+
+	.comment.svelte-bp2yyv details:where(.svelte-bp2yyv) > summary:where(.svelte-bp2yyv) {
+		list-style-type: none;
+	}
+
+	.comment.svelte-bp2yyv details:where(.svelte-bp2yyv) > summary:where(.svelte-bp2yyv)::marker,
+	.comment.svelte-bp2yyv details:where(.svelte-bp2yyv) > summary:where(.svelte-bp2yyv)::-webkit-details-marker {
+		display: none;
+	}
+
+	.comment.svelte-bp2yyv .children:where(.svelte-bp2yyv) {
+		padding: 0 0 0 1em;
+		margin: 0;
+	}
+
+	@media (min-width: 720px) {
+		.comment.svelte-bp2yyv .children:where(.svelte-bp2yyv) {
+			padding: 0 0 0 2em;
+		}
+	}
+
+	li.svelte-bp2yyv {
+		list-style: none;
+	}
+
+	.meta.svelte-bp2yyv {
+		display: block;
+		font-size: 14px;
+		color: var(--fg-light);
+	}
+
+	a.svelte-bp2yyv {
+		color: var(--fg-light);
+	}
+
+	/* prevent crazy overflow layout bug on mobile */
+	.body.svelte-bp2yyv * {
+		overflow-wrap: break-word;
+	}
+
+	.comment.svelte-bp2yyv pre {
+		overflow-x: auto;
+	}
+
+=== 1687 sites/hn.svelte.dev/src/routes/item/[id=numeric]/Comment.svelte	js
+import * as $ from 'svelte/internal/server';
+import SubsetHTML from '$lib/SubsetHTML.svelte';
+import CommentElement from './Comment.svelte';
+import { resolve } from '$app/paths';
+import { timeAgo } from '$lib/utils';
+
+export default function Comment($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const { comment, now } = $$props;
+
+		if (typeof comment !== null) {
+			$$renderer.push(`<!--[0--><article${$.attr('id', `${comment.id}`)} class="comment svelte-bp2yyv"><details open="" class="svelte-bp2yyv"><summary class="svelte-bp2yyv"><div class="meta-bar svelte-bp2yyv" role="button" tabindex="0"><span class="meta svelte-bp2yyv"><a${$.attr('href', resolve('/user/[name]', { name: comment.author }))} class="svelte-bp2yyv">${$.escape(comment.author)}</a> ${$.escape(timeAgo(now - comment.created_at_i))}</span></div></summary> <div class="body svelte-bp2yyv">`);
+			SubsetHTML($$renderer, { content: comment.text });
+			$$renderer.push(`<!----></div> `);
+
+			if (comment.children && comment.children.length > 0) {
+				$$renderer.push(`<!--[0--><ul class="children svelte-bp2yyv"><!--[-->`);
+
+				const each_array = $.ensure_array_like(comment.children);
+
+				for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+					let child = each_array[$$index];
+
+					$$renderer.push(`<li class="svelte-bp2yyv">`);
+					CommentElement($$renderer, { comment: child, now });
+					$$renderer.push(`<!----></li>`);
+				}
+
+				$$renderer.push(`<!--]--></ul>`);
+			} else {
+				$$renderer.push('<!--[-1-->');
+			}
+
+			$$renderer.push(`<!--]--></details></article>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}
+=== 1349 sites/hn.svelte.dev/src/routes/user/[name]/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import SubsetHTML from '$lib/SubsetHTML.svelte';
+import { timeAgo } from '$lib/utils';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const { data } = $$props;
+
+		const user = $.derived(() => data.user),
+			now = $.derived(() => data.now);
+
+		$.head('1qch8zw', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>${$.escape(user().id)} • Svelte Hacker News</title>`);
+			});
+		});
+
+		$$renderer.push(`<h1>${$.escape(user().id)}</h1> <div><p>...joined <strong>${$.escape(timeAgo(now() - user().created))}</strong>, and has <strong>${$.escape(user().karma)}</strong> karma</p> <p><a rel="external"${$.attr('href', `https://news.ycombinator.com/submitted?id=${$.stringify(user().id)}`)}>submissions</a> / <a rel="external"${$.attr('href', `https://news.ycombinator.com/threads?id=${$.stringify(user().id)}`)}>comments</a> / <a rel="external"${$.attr('href', `https://news.ycombinator.com/favorites?id=${$.stringify(user().id)}`)}>favourites</a></p> `);
+
+		if (user().about) {
+			$$renderer.push(`<!--[0--><div class="about">`);
+			SubsetHTML($$renderer, { content: user().about });
+			$$renderer.push(`<!----></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+	});
+}

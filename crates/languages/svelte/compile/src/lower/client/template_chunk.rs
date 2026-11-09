@@ -108,10 +108,10 @@ impl<'a> ClientCompilationContext<'a> {
         )
     }
 
-    fn template_string(value: &rsvelte_svelte::semantic::evaluate::Value) -> String {
+    fn template_string(value: &rsvelte_svelte_semantic::evaluate::Value) -> String {
         match value {
-            rsvelte_svelte::semantic::evaluate::Value::Null
-            | rsvelte_svelte::semantic::evaluate::Value::Undefined => String::new(),
+            rsvelte_svelte_semantic::evaluate::Value::Null
+            | rsvelte_svelte_semantic::evaluate::Value::Undefined => String::new(),
             value => value.to_javascript_string(),
         }
     }

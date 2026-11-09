@@ -4,12 +4,12 @@ use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_space;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Part, TemplateNode,
 };
-use rsvelte_typescript::operators::{BinaryOperator, UnaryOperator};
-use rsvelte_typescript::syntax_tree::{Kind, Tag};
-use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::operators::{BinaryOperator, UnaryOperator};
+use rsvelte_typescript_syntax::syntax_tree::{Kind, Tag};
+use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
@@ -127,7 +127,7 @@ impl<'a> Values<'a> {
                 let mut text = String::new();
                 for (i, &quasi) in quasis.iter().enumerate() {
                     let raw = self.javascript.str_value(quasi, self.source);
-                    text.push_str(&rsvelte_typescript::lexer::cook_template(raw));
+                    text.push_str(&rsvelte_typescript_syntax::lexer::cook_template(raw));
                     if let Some(&expression) = expressions.get(i) {
                         text.push_str(&self.constant(expression)?);
                     }
@@ -163,7 +163,9 @@ impl<'a> Values<'a> {
     fn strings(&self, part: &Part) -> Option<Vec<Cow<'a, str>>> {
         let mut out = Vec::new();
         match *part {
-            Part::Text(span) => out.push(rsvelte_markup::decode_attribute(span.text(self.source))),
+            Part::Text(span) => out.push(rsvelte_markup_syntax::decode_attribute(
+                span.text(self.source),
+            )),
             Part::Expression { expression, .. } => self.branches(expression, &mut out)?,
         }
         Some(out)

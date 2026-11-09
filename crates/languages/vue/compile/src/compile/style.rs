@@ -2,7 +2,7 @@
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::output::edits::Edits;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_stylesheet::syntax_tree::{Rule, RuleKind, Simple};
+use rsvelte_stylesheet_syntax::syntax_tree::{Rule, RuleKind, Simple};
 
 use super::StyleInput;
 

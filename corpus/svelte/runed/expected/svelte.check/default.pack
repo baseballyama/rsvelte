@@ -1,0 +1,1265 @@
+# rsvelte pack 1
+=== 469 packages/runed/src/routes/(test)/test-search/[mode]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utilities/use-search-params/use-search-params.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 8
+		},
+		"end": {
+			"line": 6,
+			"character": 67
+		}
+	}
+]
+
+=== 1219 packages/runed/src/routes/(test)/test-zod-codec/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utilities/use-search-params/use-search-params.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 92
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'zod' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'isoString' implicitly has an 'any' type.",
+		"start": {
+			"line": 9,
+			"character": 12
+		},
+		"end": {
+			"line": 9,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'date' implicitly has an 'any' type.",
+		"start": {
+			"line": 10,
+			"character": 12
+		},
+		"end": {
+			"line": 10,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'isoString' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 12
+		},
+		"end": {
+			"line": 19,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'date' implicitly has an 'any' type.",
+		"start": {
+			"line": 20,
+			"character": 12
+		},
+		"end": {
+			"line": 20,
+			"character": 16
+		}
+	}
+]
+
+=== 219 sites/docs/src/lib/components/blueprint.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 109
+		},
+		"end": {
+			"line": 2,
+			"character": 125
+		}
+	}
+]
+
+=== 3 sites/docs/src/lib/components/demo-note.svelte	json
+[]
+
+=== 422 sites/docs/src/lib/components/demos/active-element.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	}
+]
+
+=== 1244 sites/docs/src/lib/components/demos/animation-frames.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 47
+		},
+		"end": {
+			"line": 2,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'phosphor-svelte/lib/Pause' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'phosphor-svelte/lib/Play' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 44
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'args' implicitly has an 'any' type.",
+		"start": {
+			"line": 11,
+			"character": 3
+		},
+		"end": {
+			"line": 11,
+			"character": 7
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 59,
+			"character": 18
+		},
+		"end": {
+			"line": 59,
+			"character": 23
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/debounced.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 38
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/element-rect.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 57
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/element-size.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 57
+		}
+	}
+]
+
+=== 871 sites/docs/src/lib/components/demos/finite-state-machine.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 47
+		},
+		"end": {
+			"line": 2,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'phosphor-svelte/lib/Play' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'phosphor-svelte/lib/Pause' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 46
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/is-document-visible.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/is-focus-within.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 53
+		},
+		"end": {
+			"line": 2,
+			"character": 69
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/is-idle.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/is-in-viewport.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/is-mounted.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/on-click-outside-dialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 39
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/on-click-outside.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 39
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/persisted-state.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 39
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	}
+]
+
+=== 661 sites/docs/src/lib/components/demos/pressed-keys.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/logos/runed-icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 64
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/previous.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 39
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	}
+]
+
+=== 604 sites/docs/src/lib/components/demos/resource.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 46
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'id' implicitly has an 'any' type.",
+		"start": {
+			"line": 8,
+			"character": 9
+		},
+		"end": {
+			"line": 8,
+			"character": 11
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/scroll-state.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 38
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 36
+		}
+	}
+]
+
+=== 602 sites/docs/src/lib/components/demos/state-history.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 39
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'c' implicitly has an 'any' type.",
+		"start": {
+			"line": 7,
+			"character": 3
+		},
+		"end": {
+			"line": 7,
+			"character": 4
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/textarea-autosize.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 57
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/throttled.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 45
+		},
+		"end": {
+			"line": 2,
+			"character": 61
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/use-debounce.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 53
+		},
+		"end": {
+			"line": 2,
+			"character": 69
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/use-event-listener.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/use-geolocation.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 39
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	}
+]
+
+=== 798 sites/docs/src/lib/components/demos/use-intersection-observer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 48
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'entry' implicitly has an 'any' type.",
+		"start": {
+			"line": 11,
+			"character": 4
+		},
+		"end": {
+			"line": 11,
+			"character": 9
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 29,
+			"character": 21
+		},
+		"end": {
+			"line": 29,
+			"character": 22
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/use-interval.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 53
+		},
+		"end": {
+			"line": 2,
+			"character": 69
+		}
+	}
+]
+
+=== 613 sites/docs/src/lib/components/demos/use-mutation-observer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'mutations' implicitly has an 'any' type.",
+		"start": {
+			"line": 11,
+			"character": 3
+		},
+		"end": {
+			"line": 11,
+			"character": 12
+		}
+	}
+]
+
+=== 609 sites/docs/src/lib/components/demos/use-resize-observer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 57
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'entries' implicitly has an 'any' type.",
+		"start": {
+			"line": 9,
+			"character": 3
+		},
+		"end": {
+			"line": 9,
+			"character": 10
+		}
+	}
+]
+
+=== 426 sites/docs/src/lib/components/demos/use-search-params.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 59
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 46
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	}
+]
+
+=== 422 sites/docs/src/lib/components/demos/use-throttle.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 45
+		},
+		"end": {
+			"line": 2,
+			"character": 61
+		}
+	}
+]
+
+=== 3 sites/docs/src/lib/components/logos/runed-dark.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/components/logos/runed-icon.svelte	json
+[]
+
+=== 3 sites/docs/src/lib/components/logos/runed-light.svelte	json
+[]
+
+=== 918 sites/docs/src/routes/(docs)/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/logos/runed-dark.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/logos/runed-light.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/config/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	}
+]
+
+=== 217 sites/docs/src/routes/(docs)/docs/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	}
+]
+
+=== 217 sites/docs/src/routes/(docs)/docs/[...slug]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	}
+]
+
+=== 866 sites/docs/src/routes/+layout.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../app.css'.",
+		"start": {
+			"line": 1,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"character": 20
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/config/site' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 39
+		}
+	}
+]
+

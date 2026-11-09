@@ -4,11 +4,11 @@
 //! Helpers adapt Svelte semantics to the Vue runtime without reparsing generated output.
 
 use rsvelte_kernel::source::positions::{SourceLocation, Span};
-use rsvelte_typescript::copy::{Rewrite, copy};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_compile::copy::{Rewrite, copy};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Helper {
+pub(crate) enum Helper {
     /// The client's `{#each}` conversion (`each`: `is_array(c) ? c : c == null ? [] :
     /// array_from(c)`).
     Each,
@@ -420,7 +420,7 @@ const SPREAD: &str = "     const $$invalid_name = (name) => name === '' || \
 
 /// The helpers `h` calls.
 #[must_use]
-pub const fn requires(h: Helper) -> &'static [Helper] {
+pub(crate) const fn requires(h: Helper) -> &'static [Helper] {
     match h {
         Helper::Animate => &[Helper::Transition, Helper::Lifecycle],
         Helper::Boundary
@@ -449,7 +449,7 @@ pub const fn requires(h: Helper) -> &'static [Helper] {
 /// # Panics
 ///
 /// If a helper's source does not parse, which the unit tests rule out.
-pub fn declarations(helpers: &[Helper], to: &mut SyntaxTree) -> Vec<NodeIdentifier> {
+pub(crate) fn declarations(helpers: &[Helper], to: &mut SyntaxTree) -> Vec<NodeIdentifier> {
     let mut out = Vec::new();
     for &h in helpers {
         if h == Helper::Spread {
@@ -468,7 +468,7 @@ pub(crate) fn boolean_names(name: &str, to: &mut SyntaxTree) -> NodeIdentifier {
     let value = to.array(&values, SourceLocation::SYNTHETIC);
     let name = to.identifier(name);
     to.let_(
-        rsvelte_typescript::syntax_tree::flag::CONST,
+        rsvelte_typescript_syntax::syntax_tree::flag::CONST,
         name,
         Some(value),
     )
@@ -478,7 +478,7 @@ pub(crate) fn source_declarations(source_text: &str, to: &mut SyntaxTree) -> Vec
     let mut scratch = SyntaxTree::new();
     let range = Span::new(0, u32::try_from(source_text.len()).expect("a short helper"));
     let program =
-        rsvelte_typescript::parser::parse_program(&mut scratch, source_text, range, false)
+        rsvelte_typescript_syntax::parser::parse_program(&mut scratch, source_text, range, false)
             .expect("helper sources parse");
     let Kind::Program(body) = scratch.kind(program) else {
         unreachable!("a program")

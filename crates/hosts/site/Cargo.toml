@@ -8,7 +8,8 @@ publish.workspace = true
 
 [dependencies]
 rsvelte_kernel.workspace = true
-rsvelte_svelte.workspace = true
+rsvelte_svelte_syntax.workspace = true
+rsvelte_svelte_semantic.workspace = true
 rsvelte_svelte_compile.workspace = true
 rsvelte_svelte_lint.workspace = true
 

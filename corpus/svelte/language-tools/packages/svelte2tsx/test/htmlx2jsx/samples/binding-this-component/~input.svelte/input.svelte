@@ -1,1 +1,0 @@
-<Component type="radio" bind:this={element} value="Plain"/>

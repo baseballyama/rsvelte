@@ -4,12 +4,12 @@
 
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{Token, Tokens};
-use rsvelte_svelte::syntax::names::is_component_name;
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_svelte_syntax::names::is_component_name;
+use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TagAttributes, TemplateNode,
     TokenType,
 };
-use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 /// `kind: "html"`: neither a component nor a `svelte:` element.
 pub(super) fn is_html(name: &str) -> bool {

@@ -13,7 +13,7 @@ doctest = false
 rsvelte_plugin_interface.workspace = true
 serde.workspace = true
 rsvelte_kernel.workspace = true
-rsvelte_typescript.workspace = true
+rsvelte_typescript_syntax.workspace = true
 rsvelte_typescript_content_mapper.workspace = true
 
 [dev-dependencies]

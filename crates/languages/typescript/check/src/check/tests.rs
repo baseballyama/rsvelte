@@ -125,18 +125,24 @@ fn only_a_typescript_older_than_7_1_is_refused() {
 }
 
 #[cfg(unix)]
+fn checker(program: &str) -> TypeChecker {
+    TypeChecker {
+        program: program.into(),
+        arguments: Vec::new(),
+    }
+}
+
+#[cfg(unix)]
 #[test]
 fn identify_says_what_to_change() {
-    let missing = TypeChecker::new("rsvelte-no-such-type-checker")
+    let missing = checker("rsvelte-no-such-type-checker")
         .identify()
         .unwrap_err();
     assert!(
         missing.contains("on PATH") && missing.contains("typescript.check"),
         "{missing}"
     );
-    let path = TypeChecker::new("/rsvelte/no/such/tsc")
-        .identify()
-        .unwrap_err();
+    let path = checker("/rsvelte/no/such/tsc").identify().unwrap_err();
     assert!(path.contains("does not exist"), "{path}");
     let shell = |script: &str| TypeChecker {
         program: "/bin/sh".into(),

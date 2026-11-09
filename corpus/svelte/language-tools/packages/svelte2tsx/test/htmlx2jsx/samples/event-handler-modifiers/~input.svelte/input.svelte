@@ -1,1 +1,0 @@
-<h1 on:click|preventDefault|stopPropagation={click}>Hello</h1>

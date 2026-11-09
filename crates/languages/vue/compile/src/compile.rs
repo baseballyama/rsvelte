@@ -4,23 +4,23 @@
 //! compileTemplate's render function), the plugin's `_export_sfc` tail, and compileStyle's CSS.
 
 mod style;
-pub mod template;
+pub(crate) mod template;
 
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_typescript::copy::{Rewrite, Verbatim, copy};
-use rsvelte_typescript::scope::{DeclarationKind, ScopeIdentifier};
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::compiler_syntax_tree::CompilerSyntaxTree;
-use rsvelte_vue::resolve::{BindingType, Resolution, call_name, is_static};
-use rsvelte_vue::syntax_tree::SingleFileComponent;
+use rsvelte_typescript_compile::copy::{Rewrite, Verbatim, copy};
+use rsvelte_typescript_semantic::scope::{DeclarationKind, ScopeIdentifier};
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTree;
+use rsvelte_vue_semantic::resolve::{BindingType, Resolution, call_name, is_static};
+use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
 
 type R<T> = Result<T, Unsupported>;
 
 /// The compiled component.
 #[derive(Debug)]
-pub struct Output {
+pub(crate) struct Output {
     pub javascript: String,
     /// compileStyle's result for each `<style>`, joined by newlines; `None` without a style.
     pub stylesheet: Option<String>,
@@ -29,9 +29,9 @@ pub struct Output {
 /// A component as the compiler reads it, whatever syntax it was written in.
 ///
 /// What a name in its expressions refers to is on the [`Resolution`] built from the same tree and
-/// HIR ([`rsvelte_vue::resolve::resolve`]).
+/// HIR ([`rsvelte_vue_semantic::resolve::resolve`]).
 #[derive(Debug)]
-pub struct CompileInput<'a> {
+pub(crate) struct CompileInput<'a> {
     /// Every JavaScript expression of the component, script and template.
     pub javascript: &'a SyntaxTree,
     /// The `<script setup>` program; `None` without one.
@@ -46,16 +46,16 @@ pub struct CompileInput<'a> {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct StyleInput<'a> {
-    pub sheet: &'a rsvelte_stylesheet::StyleSheet,
+pub(crate) struct StyleInput<'a> {
+    pub sheet: &'a rsvelte_stylesheet_syntax::StyleSheet,
     pub scoped: bool,
 }
 
 impl<'a> CompileInput<'a> {
     /// The Vue frontend's input: the parsed component and its HIR
-    /// ([`rsvelte_vue::compiler_syntax_tree::lower`]).
+    /// ([`rsvelte_vue_semantic::compiler_syntax_tree::lower`]).
     #[must_use]
-    pub fn from_single_file_component(
+    pub(crate) fn from_single_file_component(
         c: &'a SingleFileComponent,
         compiler_syntax_tree: Option<&'a CompilerSyntaxTree>,
         source_text: &'a str,
@@ -80,7 +80,7 @@ impl<'a> CompileInput<'a> {
 
 /// `@vitejs/plugin-vue`'s scope identifier: the first 8 hex digits of the SHA-256 of the path.
 #[must_use]
-pub fn scope_identifier(path: &str) -> String {
+pub(crate) fn scope_identifier(path: &str) -> String {
     let digest = crate::hashing::sha256(path.as_bytes());
     crate::hashing::hex(&digest[..4])
 }
@@ -88,7 +88,7 @@ pub fn scope_identifier(path: &str) -> String {
 /// # Errors
 ///
 /// [`Unsupported`] for what the port does not compile yet.
-pub fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) -> R<Output> {
+pub(crate) fn compile(input: &CompileInput<'_>, res: &Resolution, path: &str) -> R<Output> {
     let source_text = input.source_text;
     let identifier = scope_identifier(path);
     let scoped = input.styles.iter().any(|s| s.scoped);

@@ -1,4 +1,4 @@
-use rsvelte_svelte::compilation::compiler_syntax_tree::{Modifiers, StyleValue};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Modifiers, StyleValue};
 
 use super::{Attribute, AttributeValue, Builder, Helper, R, SourceLocation, Steps, unsupported};
 

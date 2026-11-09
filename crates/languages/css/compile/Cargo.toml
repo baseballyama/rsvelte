@@ -1,0 +1,18 @@
+[package]
+name = "rsvelte_stylesheet_compile"
+description = "Style sheet scoping"
+version = "0.0.0"
+edition.workspace = true
+publish = false
+
+[lib]
+doctest = false
+
+[dependencies]
+rsvelte_kernel.workspace = true
+rsvelte_stylesheet_syntax.workspace = true
+rsvelte_stylesheet_semantic.workspace = true
+rustc-hash.workspace = true
+
+[lints]
+workspace = true

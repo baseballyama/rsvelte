@@ -6,13 +6,14 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Contribution;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte::compilation::compiler_syntax_tree::CompilerSyntaxTree;
-use rsvelte_svelte::semantic::resolve::Resolution;
-use rsvelte_svelte::syntax::syntax_tree::Component;
-use rsvelte_svelte::warnings::CompileWarnings;
-use rsvelte_svelte::{Normalized, Parsed, Resolved, Warned};
-use rsvelte_typescript::NodeIdentifier;
-use rsvelte_typescript::scope::Semantic;
+use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
+use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_semantic::warnings::CompileWarnings;
+use rsvelte_svelte_semantic::{Lowered, Resolved, Warned};
+use rsvelte_svelte_syntax::Parsed;
+use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_typescript_semantic::scope::Semantic;
+use rsvelte_typescript_syntax::NodeIdentifier;
 use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 
@@ -116,7 +117,7 @@ pub struct File<'a> {
 #[derive(Debug)]
 enum Source<'a> {
     Component(&'a Component),
-    Module(&'a rsvelte_typescript::Program),
+    Module(&'a rsvelte_typescript_syntax::Program),
 }
 
 impl<'a> File<'a> {
@@ -126,12 +127,12 @@ impl<'a> File<'a> {
     ///
     /// The source does not parse.
     pub fn new(context: &'a DocumentContext<'a>) -> Result<Self, Diagnostic> {
-        let parsed = if rsvelte_svelte::matches(context.document) {
+        let parsed = if rsvelte_svelte_syntax::matches(context.document) {
             Source::Component(context.get::<Parsed>().as_ref().map_err(Clone::clone)?)
         } else {
             Source::Module(
                 context
-                    .get::<rsvelte_typescript::Parsed>()
+                    .get::<rsvelte_typescript_syntax::Parsed>()
                     .as_ref()
                     .map_err(Clone::clone)?,
             )
@@ -174,7 +175,7 @@ impl<'a> File<'a> {
 
     /// A module's program; `None` for a component.
     #[must_use]
-    pub const fn module(&self) -> Option<&'a rsvelte_typescript::Program> {
+    pub const fn module(&self) -> Option<&'a rsvelte_typescript_syntax::Program> {
         match self.parsed {
             Source::Module(module) => Some(module),
             Source::Component(_) => None,
@@ -185,7 +186,7 @@ impl<'a> File<'a> {
     #[must_use]
     pub fn normalized(&self) -> Option<&'a CompilerSyntaxTree> {
         self.component()?;
-        self.context.get::<Normalized>().as_ref()
+        self.context.get::<Lowered>().as_ref()
     }
 
     /// The compiler's warnings and analysis errors of the component; `None` for a module.
@@ -205,7 +206,7 @@ impl<'a> File<'a> {
     /// The JavaScript of the document: a component's scripts and template expressions, or a
     /// module's program.
     #[must_use]
-    pub const fn javascript(&self) -> &'a rsvelte_typescript::SyntaxTree {
+    pub const fn javascript(&self) -> &'a rsvelte_typescript_syntax::SyntaxTree {
         match self.parsed {
             Source::Component(component) => &component.javascript,
             Source::Module(module) => &module.syntax_tree,
@@ -221,7 +222,10 @@ impl<'a> File<'a> {
     pub fn semantic(&self) -> &'a Semantic {
         let semantic = match self.parsed {
             Source::Component(_) => self.resolution().map(|resolution| &resolution.sem),
-            Source::Module(_) => self.context.get::<rsvelte_typescript::Resolved>().as_ref(),
+            Source::Module(_) => self
+                .context
+                .get::<rsvelte_typescript_semantic::Resolved>()
+                .as_ref(),
         };
         semantic.expect("a parsed document resolves")
     }

@@ -1,8 +1,8 @@
 //! Functions, imports and control statements.
 
-use rsvelte_typescript::lexer::T;
-use rsvelte_typescript::syntax_tree::Control;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_typescript_syntax::lexer::T;
+use rsvelte_typescript_syntax::syntax_tree::Control;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::Script;
 use crate::rules::indent::layout::Item;

@@ -1,9 +1,9 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::semantic::legacy::Variable;
-use rsvelte_typescript::operators::{AssignmentOperator, UnaryOperator};
-use rsvelte_typescript::syntax_tree::Control;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_svelte_semantic::legacy::Variable;
+use rsvelte_typescript_syntax::operators::{AssignmentOperator, UnaryOperator};
+use rsvelte_typescript_syntax::syntax_tree::Control;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 

@@ -1,0 +1,224 @@
+# rsvelte pack 1
+=== 1041 src/routes/__layout.svelte	svelte
+<script>
+  import "@picocss/pico/css/pico.css";
+  import "@picocss/pico/docs/css/pico.docs.css";
+  import "../_variables.scss";
+</script>
+
+<div class="container">
+  <slot />
+</div>
+
+<style lang="scss">
+  /* the props */
+  /* @import 'open-props/style'; */
+
+  /* optional imports that use the props */
+  /* @import 'open-props/normalize';
+	@import 'open-props/buttons'; */
+
+  /* individual imports */
+  /* @import 'open-props/indigo';
+	@import 'open-props/easings';
+	@import 'open-props/animations';
+	@import 'open-props/sizes';
+	@import 'open-props/gradients'; */
+  /* see PropPacks for the full list */
+
+  /* :global(article) {
+		display: flex;
+		flex-flow: row wrap;
+		align-items: flex-start;
+		justify-content: space-around;
+		max-inline-size: calc(var(--size-content-1) * 6);
+		gap: var(--size-2);
+		padding: var(--size-2);
+	}
+	:global(article .col) {
+		background-color: var(--blue-0);
+		padding: var(--size-2);
+	} */
+
+  :global(form .error) {
+    margin-bottom: 1rem;
+    font-size: 0.75rem;
+    color: rgb(247, 63, 63);
+  }
+</style>
+
+=== 2013 src/routes/_index.svelte	svelte
+<script lang="ts">
+  import { Formly, type IField } from "svelte-formly-light";
+
+  let loading: boolean = false;
+  const form_name = "my_form_a";
+  const fields: IField[] = [
+    {
+      type: "file", // required
+      name: "name-file", // require
+      attributes: {
+        id: "id-field", // optional
+        classes: ["form-control"], // optional
+        label: "Image", // optional
+      },
+      extra: {
+        multiple: true, // optional
+        showPreview: true, // optional
+      },
+      rules: ["file"],
+      file: {
+        // need to add this attribute object if you need a file rule
+        types: "jpg,gif",
+        maxsize: 5,
+      },
+    },
+  ];
+
+  const form_name_b = "my_form_b";
+  const fields_b: IField[] = [
+    {
+      type: "input",
+      name: "country",
+      attributes: {
+        type: "text",
+        id: "country",
+        classes: ["form-control"],
+        placeholder: "Tap your country",
+      },
+      rules: ["required"],
+      messages: {
+        required: "The country is required",
+      },
+    },
+  ];
+
+  let data = {};
+  const onSubmit = ({ detail }: any) => {
+    console.log("detail onSubmit", detail);
+    data = detail;
+  };
+
+  const onUpdate = ({ detail }: any) => {
+    console.log("detail onUpdate", detail);
+    data = detail;
+  };
+</script>
+
+<!-- <pre><code>{JSON.stringify(data, null, 2)}</code></pre> -->
+
+<div class="grid">
+  <div class="col">
+    <article>
+      <p>
+        <code
+          ><i>fetch: </i><u
+            >{#if loading}
+              loading...
+            {:else}
+              done
+            {/if}</u
+          ></code
+        >
+      </p>
+      <Formly
+        {fields}
+        {form_name}
+        on:submit={onSubmit}
+        on:update={onUpdate}
+        realtime={true}
+      />
+    </article>
+  </div>
+  <div class="col">
+    <article>
+      <Formly
+        fields={fields_b}
+        form_name={form_name_b}
+        on:submit={onSubmit}
+        on:update={onUpdate}
+        realtime={true}
+      />
+    </article>
+  </div>
+</div>
+
+=== 1666 src/routes/index.svelte	svelte
+<script lang="ts">
+  import { Formly, type IField } from "$lib";
+  // import { Formly, type IField } from 'svelte-formly-light';
+
+  const form_name = "my_form_a";
+  const fields: IField[] = [
+    {
+      type: "autocomplete", // required
+      name: "name-field-autocomplete", // required
+      attributes: {
+        id: "id-field-autocomplete",
+        classes: ["class1", "class2"],
+        placeholder: "Tap keyword...",
+        autocomplete: "off",
+      },
+      extra: {
+        filter_length: 2,
+        loadItemes: [
+          // list items with id and title attributes.
+          {
+            value: 1,
+            title: "item 1",
+          },
+          {
+            value: 2,
+            title: "item 2",
+          },
+          {
+            value: 3,
+            title: "item 3",
+          },
+          {
+            value: 4,
+            title: "item 4",
+          },
+        ],
+      },
+    },
+  ];
+
+  let data = {};
+  const onSubmit = ({ detail }: any) => {
+    console.log("detail onSubmit", detail);
+    data = detail;
+  };
+
+  const onUpdate = ({ detail }: any) => {
+    console.log("detail onUpdate", detail);
+    data = detail;
+  };
+</script>
+
+<!-- <pre><code>{JSON.stringify(data, null, 2)}</code></pre> -->
+
+<div class="grid">
+  <div class="col">
+    <article>
+      <hgroup>
+        <h1>Sign in</h1>
+        <h2>Nibh risus velit metus euismod vitae eu urna.</h2>
+      </hgroup>
+      <Formly
+        {fields}
+        {form_name}
+        on:submit={onSubmit}
+        on:update={onUpdate}
+        realtime={false}
+      />
+    </article>
+  </div>
+</div>
+
+<style lang="scss">
+  :global(form .form-group) {
+    margin-bottom: 1rem;
+  }
+</style>
+

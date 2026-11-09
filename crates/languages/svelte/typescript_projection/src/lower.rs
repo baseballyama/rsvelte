@@ -4,12 +4,12 @@ use std::cell::OnceCell;
 
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_semantic::semantic::resolve::{self, Runes};
+use rsvelte_svelte_semantic::resolve::{self, Runes};
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, Range, TemplateNode,
 };
-use rsvelte_typescript::NodeIdentifier as SourceNode;
-use rsvelte_typescript::syntax_tree::TypeScriptKind;
+use rsvelte_typescript_syntax::NodeIdentifier as SourceNode;
+use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
 
 use crate::buffers::Buffer;
 use crate::syntax_tree::{Node, NodeIdentifier, SourceExpression, SyntaxTree};
@@ -305,7 +305,7 @@ impl Builder<'_> {
             {
                 if matches!(
                     self.component.javascript.kind(*expression),
-                    rsvelte_typescript::syntax_tree::Kind::Sequence(_)
+                    rsvelte_typescript_syntax::syntax_tree::Kind::Sequence(_)
                 ) {
                     return Err(Unsupported::at("function bindings", attribute.span));
                 }

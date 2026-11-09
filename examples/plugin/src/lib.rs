@@ -7,8 +7,8 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
 use rsvelte_plugin_interface::Extension;
-use rsvelte_svelte::Parsed;
-use rsvelte_svelte::syntax::syntax_tree::TemplateNode;
+use rsvelte_svelte_syntax::Parsed;
+use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 
 #[derive(Debug)]
 pub struct ElementCount;
@@ -39,11 +39,11 @@ impl Task for CountElements {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_svelte::matches(document)
+        rsvelte_svelte_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        if let Err(diagnostic) = rsvelte_svelte::fully_parsed(context) {
+        if let Err(diagnostic) = rsvelte_svelte_syntax::fully_parsed(context) {
             out.diagnostics.push(diagnostic.clone());
             return;
         }
@@ -58,14 +58,14 @@ pub static PLUGIN: Plugin = Plugin {
     identifier: "example.count_elements",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "svelte",
+        identifier: "svelte.syntax",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
 
 pub fn register(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_svelte::register(registry);
+    rsvelte_svelte_syntax::register(registry);
     registry.artifact::<ElementCount>().task(CountElements);
 }
 

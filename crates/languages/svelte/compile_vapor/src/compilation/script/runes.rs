@@ -1,4 +1,4 @@
-use rsvelte_typescript::copy::{Rewrite, copy};
+use rsvelte_typescript_compile::copy::{Rewrite, copy};
 use rustc_hash::FxHashSet;
 
 use super::{Kind, NodeIdentifier, Plan, R, Resolution, SyntaxTree, span, unsupported, walk};
@@ -27,7 +27,7 @@ pub(super) fn collect(
                 identifier: pattern,
                 initializer: Some(initializer),
             } => Some((pattern, initializer)),
-            Kind::Class(rsvelte_typescript::syntax_tree::Class::Field {
+            Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Field {
                 key,
                 value: Some(initializer),
                 computed: false,

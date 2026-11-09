@@ -1,0 +1,2288 @@
+# rsvelte pack 1
+=== 1555 examples/example-svelte/src/App.svelte	svelte
+<script>
+  import Nav from "./components/Nav.svelte";
+  import { Router, Route, navigate, Link } from "svelte-routing";
+  import LargeDataset from "./routes/LargeDataset.svelte";
+  import Dependencies from "./routes/Dependencies.svelte";
+  import External from "./routes/External.svelte";
+  import Events from "./routes/Events.svelte";
+  import Tree from "./routes/Tree.svelte";
+  import { writable } from "svelte/store";
+  import { setContext } from "svelte";
+
+  let showOptions = false;
+  function onToggleOptions() {
+    showOptions = !showOptions;
+  }
+
+  let optionsStream = new writable({});
+  function onChangeOptions(event) {
+    const opts = event.detail;
+    $optionsStream = opts;
+    optionsStream.set(opts);
+    console.log("onChangeOptions", opts);
+  }
+
+  setContext("options", { optionsStream, toggle: new writable(false) });
+
+  function onLoadRoute(event) {
+    navigate(event.detail.url);
+  }
+</script>
+
+<Nav
+  on:updateOptions={onChangeOptions}
+  on:toggleOptions={onToggleOptions}
+  on:loadRoute={onLoadRoute}
+/>
+<div class="container">
+  <Router basepath="/svelte-gantt">
+    <Route path="/" component={LargeDataset} />
+    <Route path="/dependencies" component={Dependencies} />
+    <Route path="/tree" component={Tree} />
+    <Route path="/external" component={External} />
+    <Route path="/events" component={Events} />
+  </Router>
+
+  {#if showOptions}
+    <!-- <GanttOptions options={options} on:change={onChangeOptions}/> -->
+  {/if}
+</div>
+
+<style>
+  .container {
+    display: flex;
+    overflow: auto;
+    flex: 1;
+  }
+</style>
+
+=== 3732 examples/example-svelte/src/routes/Dependencies.svelte	svelte
+<script>
+  import {
+    SvelteGantt,
+    SvelteGanttDependencies,
+    SvelteGanttExternal,
+    SvelteGanttTable,
+    MomentSvelteGanttDateAdapter,
+  } from "svelte-gantt";
+  import { onMount } from "svelte";
+  import { time } from "../utils";
+  import moment from "moment";
+  import GanttOptions from "../components/GanttOptions.svelte";
+
+  const currentStart = time("06:00");
+  const currentEnd = time("18:00");
+
+  const colors = ["blue", "green", "orange"];
+
+  const timeRanges = [
+    {
+      id: 0,
+      from: time("10:00"),
+      to: time("12:00"),
+      classes: null,
+      label: "Lunch",
+    },
+    {
+      id: 1,
+      from: time("15:00"),
+      to: time("17:00"),
+      classes: null,
+      label: "Dinner",
+    },
+  ];
+
+  export const data = {
+    rows: [
+      {
+        id: 1,
+        label: "Preparation and Planning",
+      },
+      {
+        id: 2,
+        label: "Development",
+      },
+      {
+        id: 3,
+        label: "Implementation",
+      },
+      {
+        id: 4,
+        label: "Training",
+      },
+      {
+        id: 5,
+        label: "Roll-out product",
+      },
+    ],
+    tasks: [
+      {
+        id: 1,
+        resourceId: 1,
+        label: "Preparation",
+        from: time("7:00"),
+        to: time("9:00"),
+        classes: "orange",
+      },
+      {
+        id: 2,
+        resourceId: 1,
+        label: "Planning",
+        from: time("9:30"),
+        to: time("11:00"),
+        classes: "orange",
+      },
+      {
+        id: 3,
+        resourceId: 2,
+        label: "Development",
+        from: time("12:00"),
+        to: time("13:30"),
+        classes: "orange",
+      },
+      {
+        id: 4,
+        resourceId: 3,
+        label: "Implementation",
+        from: time("13:45"),
+        to: time("15:45"),
+        classes: "orange",
+      },
+      {
+        id: 5,
+        resourceId: 5,
+        label: "Finish",
+        from: time("17:00"),
+        to: time("17:45"),
+        classes: "green",
+      },
+      {
+        id: 6,
+        resourceId: 4,
+        label: "Training",
+        from: time("7:00"),
+        to: time("10:00"),
+        classes: "blue",
+      },
+    ],
+    dependencies: [
+      {
+        id: 1,
+        fromId: 1,
+        toId: 2,
+      },
+      {
+        id: 2,
+        fromId: 2,
+        toId: 3,
+      },
+      {
+        id: 3,
+        fromId: 3,
+        toId: 4,
+      },
+      {
+        id: 4,
+        fromId: 4,
+        toId: 5,
+      },
+      {
+        id: 5,
+        fromId: 6,
+        toId: 5,
+      },
+    ],
+  };
+
+  let options = {
+    dateAdapter: new MomentSvelteGanttDateAdapter(moment),
+    rows: data.rows,
+    tasks: data.tasks,
+    dependencies: data.dependencies,
+    timeRanges,
+    columnOffset: 15,
+    magnetOffset: 15,
+    rowHeight: 52,
+    rowPadding: 6,
+    headers: [
+      { unit: "day", format: "MMMM Do" },
+      { unit: "hour", format: "H:mm" },
+    ],
+    fitWidth: true,
+    minWidth: 800,
+    from: currentStart,
+    to: currentEnd,
+    tableHeaders: [
+      { title: "Label", property: "label", width: 140, type: "tree" },
+    ],
+    tableWidth: 240,
+    ganttTableModules: [SvelteGanttTable],
+    ganttBodyModules: [SvelteGanttDependencies],
+  };
+
+  let gantt;
+  onMount(() => {
+    window.gantt = gantt = new SvelteGantt({
+      target: document.getElementById("example-gantt"),
+      props: options,
+    });
+  });
+
+  function onChangeOptions(event) {
+    const opts = event.detail;
+    Object.assign(options, opts);
+    gantt.$set(options);
+  }
+</script>
+
+<div class="container">
+  <div id="example-gantt"></div>
+  <GanttOptions {options} on:change={onChangeOptions} />
+</div>
+
+<style>
+  #example-gantt {
+    flex-grow: 1;
+    overflow: auto;
+  }
+
+  .container {
+    display: flex;
+    overflow: auto;
+    flex: 1;
+  }
+</style>
+
+=== 5928 examples/example-svelte/src/routes/Events.svelte	svelte
+<script>
+  import {
+    SvelteGantt,
+    SvelteGanttDependencies,
+    SvelteGanttExternal,
+    SvelteGanttTable,
+    MomentSvelteGanttDateAdapter,
+  } from "svelte-gantt";
+  import { onMount, getContext } from "svelte";
+  import { time } from "../utils";
+  import moment from "moment";
+  import GanttOptions from "../components/GanttOptions.svelte";
+
+  const currentStart = time("06:00");
+  const currentEnd = time("18:00");
+
+  export const data = {
+    rows: [
+      {
+        id: 1,
+        label: "Accounting",
+      },
+      {
+        id: 2,
+        label: "Business Development",
+      },
+      {
+        id: 3,
+        label: "Ida Flewan",
+      },
+      {
+        id: 4,
+        label: "Lauréna Shrigley",
+      },
+      {
+        id: 5,
+        label: "Ange Kembry",
+      },
+    ],
+    tasks: [
+      {
+        id: 3,
+        resourceId: 1,
+        label: "PET-CT",
+        from: time("13:30"),
+        to: time("15:00"),
+        classes: "orange",
+      },
+      {
+        id: 4,
+        resourceId: 1,
+        label: "Auditing",
+        from: time("9:30"),
+        to: time("11:30"),
+        classes: "orange",
+      },
+      {
+        id: 5,
+        resourceId: 2,
+        label: "Security Clearance",
+        from: time("15:15"),
+        to: time("16:00"),
+        classes: "green",
+      },
+      {
+        id: 6,
+        resourceId: 2,
+        label: "Policy Analysis",
+        from: time("14:00"),
+        to: time("17:00"),
+        classes: "blue",
+      },
+      {
+        id: 7,
+        resourceId: 2,
+        label: "Xbox 360",
+        from: time("13:00"),
+        to: time("14:00"),
+        classes: "blue",
+      },
+      {
+        id: 8,
+        resourceId: 3,
+        label: "GNU/Linux",
+        from: time("14:00"),
+        to: time("15:30"),
+        classes: "blue",
+      },
+      {
+        id: 9,
+        resourceId: 4,
+        label: "Electronic Trading",
+        from: time("15:00"),
+        to: time("17:00"),
+        classes: "green",
+      },
+      {
+        id: 10,
+        resourceId: 5,
+        label: "Alternative Medicine",
+        from: time("14:30"),
+        to: time("15:30"),
+        classes: "orange",
+      },
+    ],
+    dependencies: [],
+  };
+
+  let options = {
+    dateAdapter: new MomentSvelteGanttDateAdapter(moment),
+    rows: data.rows,
+    tasks: data.tasks,
+    dependencies: data.dependencies,
+    timeRanges: [],
+    columnOffset: 15,
+    magnetOffset: 15,
+    rowHeight: 52,
+    rowPadding: 6,
+    headers: [
+      { unit: "day", format: "MMMM Do" },
+      { unit: "hour", format: "H:mm" },
+    ],
+    fitWidth: true,
+    minWidth: 800,
+    from: currentStart,
+    to: currentEnd,
+    tableHeaders: [
+      { title: "Label", property: "label", width: 140, type: "tree" },
+    ],
+    tableWidth: 240,
+    ganttTableModules: [SvelteGanttTable],
+    ganttBodyModules: [SvelteGanttDependencies],
+    taskElementHook: (node, task) => {
+      let popup;
+      function onHover() {
+        console.log("[task] hover", task);
+        popup = createPopup(task, node);
+      }
+
+      function onLeave() {
+        console.log("[task] hover", task);
+        if (popup) {
+          popup.remove();
+        }
+      }
+
+      node.addEventListener("mouseenter", onHover);
+      node.addEventListener("mouseleave", onLeave);
+
+      return {
+        destroy() {
+          console.log("[task] destroy");
+          node.removeEventListener("mouseenter", onHover);
+          node.removeEventListener("mouseleave", onLeave);
+        },
+      };
+    },
+    // taskContent: (task) => `${task.label} ${task.from.format('HH:mm')}`
+  };
+
+  let gantt;
+  onMount(() => {
+    window.gantt = gantt = new SvelteGantt({
+      target: document.getElementById("example-gantt-events"),
+      props: options,
+    });
+
+    gantt.api.tasks.on.move((task) => console.log("Listener: task move", task));
+    //gantt.api.tasks.on.switchRow((task, row, previousRow) => console.log('Listener: task switched row', task));
+    gantt.api.tasks.on.select((task) =>
+      console.log("Listener: task selected", task),
+    );
+    //gantt.api.tasks.on.moveEnd((task) => console.log('Listener: task move end', task));
+    gantt.api.tasks.on.change(([data]) =>
+      console.log("Listener: task change", data),
+    );
+    gantt.api.tasks.on.changed((task) =>
+      console.log("Listener: task changed", task),
+    );
+    gantt.api.tasks.on.dblclicked((task) =>
+      console.log("Listener: task double clicked", task),
+    );
+  });
+
+  function createPopup(task, node) {
+    const rect = node.getBoundingClientRect();
+    const div = document.createElement("div");
+    div.className = "sg-popup";
+    div.innerHTML = `
+            <div class="sg-popup-title">${task.label}</div>
+            <div class="sg-popup-item">
+                <div class="sg-popup-item-label">From:</div>
+                <div class="sg-popup-item-value">${new Date(task.from).toLocaleTimeString()}</div>
+            </div>
+            <div class="sg-popup-item">
+                <div class="sg-popup-item-label">To:</div>
+                <div class="sg-popup-item-value">${new Date(task.to).toLocaleTimeString()}</div>
+            </div>
+        `;
+    div.style.position = "absolute";
+    div.style.top = `${rect.bottom}px`;
+    div.style.left = `${rect.left + rect.width / 2}px`;
+    document.body.appendChild(div);
+    return div;
+  }
+
+  function onChangeOptions(event) {
+    const opts = event.detail;
+    Object.assign(options, opts);
+    gantt.$set(options);
+  }
+</script>
+
+<div class="container">
+  <div id="example-gantt-events"></div>
+  <GanttOptions {options} on:change={onChangeOptions} />
+</div>
+
+<style>
+  #example-gantt-events {
+    flex-grow: 1;
+    overflow: auto;
+  }
+
+  .container {
+    display: flex;
+    overflow: auto;
+    flex: 1;
+  }
+
+  #example-gantt-events :global(.sg-hover) {
+    background-color: #00000008;
+  }
+
+  #example-gantt-events :global(.sg-hover .sg-table-body-cell) {
+    background-color: #00000008;
+  }
+</style>
+
+=== 4557 examples/example-svelte/src/routes/External.svelte	svelte
+<script>
+  import {
+    SvelteGantt,
+    SvelteGanttDependencies,
+    SvelteGanttExternal,
+    SvelteGanttTable,
+    MomentSvelteGanttDateAdapter,
+  } from "svelte-gantt";
+  import { onMount, getContext } from "svelte";
+  import { time } from "../utils";
+  import moment from "moment";
+  import GanttOptions from "../components/GanttOptions.svelte";
+
+  const currentStart = time("06:00");
+  const currentEnd = time("18:00");
+
+  const colors = ["blue", "green", "orange"];
+
+  let options2 = getContext("options");
+
+  export const data = {
+    rows: [
+      {
+        id: 1,
+        label: "Accounting",
+      },
+      {
+        id: 2,
+        label: "Business Development",
+      },
+      {
+        id: 3,
+        label: "Ida Flewan",
+      },
+      {
+        id: 4,
+        label: "Lauréna Shrigley",
+      },
+      {
+        id: 5,
+        label: "Ange Kembry",
+      },
+    ],
+    tasks: [
+      {
+        id: 3,
+        resourceId: 1,
+        label: "PET-CT",
+        from: time("13:30"),
+        to: time("15:00"),
+        classes: "orange",
+      },
+      {
+        id: 4,
+        resourceId: 1,
+        label: "Auditing",
+        from: time("9:30"),
+        to: time("11:30"),
+        classes: "orange",
+      },
+      {
+        id: 5,
+        resourceId: 2,
+        label: "Security Clearance",
+        from: time("15:15"),
+        to: time("16:00"),
+        classes: "green",
+      },
+      {
+        id: 6,
+        resourceId: 2,
+        label: "Policy Analysis",
+        from: time("14:00"),
+        to: time("17:00"),
+        classes: "blue",
+      },
+      {
+        id: 7,
+        resourceId: 2,
+        label: "Xbox 360",
+        from: time("13:00"),
+        to: time("14:00"),
+        classes: "blue",
+      },
+      {
+        id: 8,
+        resourceId: 3,
+        label: "GNU/Linux",
+        from: time("14:00"),
+        to: time("15:30"),
+        classes: "blue",
+      },
+      {
+        id: 9,
+        resourceId: 4,
+        label: "Electronic Trading",
+        from: time("15:00"),
+        to: time("17:00"),
+        classes: "green",
+      },
+      {
+        id: 10,
+        resourceId: 5,
+        label: "Alternative Medicine",
+        from: time("14:30"),
+        to: time("15:30"),
+        classes: "orange",
+      },
+    ],
+    dependencies: [],
+  };
+
+  let options = {
+    dateAdapter: new MomentSvelteGanttDateAdapter(moment),
+    rows: data.rows,
+    tasks: data.tasks,
+    dependencies: data.dependencies,
+    timeRanges: [],
+    columnOffset: 15,
+    magnetOffset: 15,
+    rowHeight: 52,
+    rowPadding: 6,
+    headers: [
+      { unit: "day", format: "MMMM Do" },
+      { unit: "hour", format: "H:mm" },
+    ],
+    fitWidth: true,
+    minWidth: 800,
+    from: currentStart,
+    to: currentEnd,
+    tableHeaders: [
+      { title: "Label", property: "label", width: 140, type: "tree" },
+    ],
+    tableWidth: 240,
+    ganttTableModules: [SvelteGanttTable],
+    ganttBodyModules: [SvelteGanttDependencies],
+  };
+
+  let gantt;
+  onMount(() => {
+    window.gantt = gantt = new SvelteGantt({
+      target: document.getElementById("example-gantt"),
+      props: options,
+    });
+    const external = new SvelteGanttExternal(
+      document.getElementById("new-task"),
+      {
+        gantt,
+        onsuccess: (row, date, gantt) => {
+          console.log(row.model.id, new Date(date).toISOString());
+          const id = 5000 + Math.floor(Math.random() * 1000);
+          gantt.updateTask({
+            id,
+            label: `Task #${id}`,
+            from: date,
+            to: date + 3 * 60 * 60 * 1000,
+            classes: colors[(Math.random() * colors.length) | 0],
+            resourceId: row.model.id,
+          });
+        },
+        elementContent: () => {
+          const element = document.createElement("div");
+          element.innerHTML = "New Task";
+          element.className = "sg-external-indicator";
+          return element;
+        },
+      },
+    );
+  });
+
+  function onChangeOptions(event) {
+    const opts = event.detail;
+    Object.assign(options, opts);
+    gantt.$set(options);
+  }
+</script>
+
+<div class="container">
+  <div id="example-gantt"></div>
+  <div id="new-task">Drag to gantt</div>
+  <GanttOptions {options} on:change={onChangeOptions} />
+</div>
+
+<style>
+  #example-gantt {
+    flex-grow: 1;
+    overflow: auto;
+  }
+
+  .container {
+    display: flex;
+    overflow: auto;
+    flex: 1;
+  }
+
+  #new-task {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    z-index: 1;
+    background-color: #ee6e73;
+    color: white;
+    padding: 1rem;
+    margin: 0.5rem;
+    cursor: grab;
+  }
+</style>
+
+=== 3101 examples/example-svelte/src/routes/LargeDataset.svelte	svelte
+<script>
+  import {
+    SvelteGantt,
+    SvelteGanttTable,
+    MomentSvelteGanttDateAdapter,
+  } from "svelte-gantt";
+  import { onMount } from "svelte";
+  import { time } from "../utils";
+  import moment from "moment";
+  import GanttOptions from "../components/GanttOptions.svelte";
+
+  const currentStart = time("06:00");
+  const currentEnd = time("18:00");
+  let generation = 0;
+  let rowCount = 100;
+  const colors = ["blue", "green", "orange"];
+
+  const timeRanges = [
+    {
+      id: 0,
+      from: time("10:00"),
+      to: time("12:00"),
+      classes: null,
+      label: "Lunch",
+    },
+    {
+      id: 1,
+      from: time("15:00"),
+      to: time("17:00"),
+      classes: null,
+      label: "Dinner",
+    },
+  ];
+
+  const data = generate();
+
+  let options = {
+    dateAdapter: new MomentSvelteGanttDateAdapter(moment),
+    rows: data.rows,
+    tasks: data.tasks,
+    timeRanges,
+    columnOffset: 15,
+    magnetOffset: 15,
+    rowHeight: 52,
+    rowPadding: 6,
+    headers: [
+      { unit: "day", format: "MMMM Do" },
+      { unit: "hour", format: "H:mm" },
+    ],
+    fitWidth: true,
+    minWidth: 800,
+    from: currentStart,
+    to: currentEnd,
+    tableHeaders: [
+      { title: "Label", property: "label", width: 140, type: "tree" },
+    ],
+    tableWidth: 240,
+    ganttTableModules: [SvelteGanttTable],
+  };
+
+  let gantt;
+  onMount(() => {
+    window.gantt = gantt = new SvelteGantt({
+      target: document.getElementById("example-gantt"),
+      props: options,
+    });
+  });
+
+  function shuffle(array) {
+    for (var i = array.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var temp = array[i];
+      array[i] = array[j];
+      array[j] = temp;
+    }
+  }
+
+  function generate() {
+    const rows = [];
+    const tasks = [];
+
+    const ids = [...Array(rowCount).keys()];
+    shuffle(ids);
+
+    for (let i = 0; i < rowCount; i++) {
+      let rand_bool = Math.random() < 0.2;
+
+      rows.push({
+        id: i,
+        label: "Row #" + i,
+        age: (Math.random() * 80) | 0,
+        imageSrc: "Content/joe.jpg",
+        classes: rand_bool ? ["row-disabled"] : undefined,
+        enableDragging: !rand_bool,
+        generation,
+      });
+
+      rand_bool = Math.random() > 0.5;
+
+      const rand_h = (Math.random() * 10) | 0;
+      const rand_d = (Math.random() * 5) | (0 + 1);
+
+      tasks.push({
+        type: "task",
+        id: ids[i],
+        resourceId: i,
+        label: "Task #" + ids[i],
+        from: time(`${7 + rand_h}:00`),
+        to: time(`${7 + rand_h + rand_d}:00`),
+        classes: colors[(Math.random() * colors.length) | 0],
+        generation,
+      });
+    }
+
+    generation += 1;
+
+    return { rows, tasks };
+  }
+
+  function onChangeOptions(event) {
+    const opts = event.detail;
+    Object.assign(options, opts);
+    gantt.$set(options);
+  }
+</script>
+
+<div class="container">
+  <div id="example-gantt"></div>
+  <GanttOptions {options} on:change={onChangeOptions} />
+</div>
+
+<style>
+  #example-gantt {
+    flex-grow: 1;
+    overflow: auto;
+  }
+
+  .container {
+    display: flex;
+    overflow: auto;
+    flex: 1;
+  }
+</style>
+
+=== 4912 examples/example-svelte/src/routes/Tree.svelte	svelte
+<script>
+  import {
+    SvelteGantt,
+    SvelteGanttDependencies,
+    SvelteGanttExternal,
+    SvelteGanttTable,
+    MomentSvelteGanttDateAdapter,
+  } from "svelte-gantt";
+  import { onMount, getContext } from "svelte";
+  import { time } from "../utils";
+  import moment from "moment";
+  import GanttOptions from "../components/GanttOptions.svelte";
+
+  const currentStart = time("06:00");
+  const currentEnd = time("18:00");
+
+  const colors = ["blue", "green", "orange"];
+
+  const timeRanges = [
+    {
+      id: 0,
+      from: time("10:00"),
+      to: time("12:00"),
+      classes: null,
+      label: "Lunch",
+    },
+    {
+      id: 1,
+      from: time("15:00"),
+      to: time("17:00"),
+      classes: null,
+      label: "Dinner",
+    },
+  ];
+
+  let options2 = getContext("options");
+
+  export const data = {
+    rows: [
+      {
+        id: 10,
+        label: "Accounting",
+        class: "row-group",
+        iconClass: "fas fa-calculator",
+        children: [
+          {
+            id: 11,
+            label: "Petunia Mulliner",
+          },
+          {
+            id: 12,
+            label: "Mélina Giacovetti",
+          },
+          {
+            id: 13,
+            label: "Marlène Lasslett",
+          },
+          {
+            id: 14,
+            label: "Adda Youell",
+          },
+        ],
+      },
+      {
+        id: 20,
+        label: "Business Development",
+        class: "row-group",
+        iconClass: "fas fa-user-tie",
+        children: [
+          {
+            id: 21,
+            label: "Pietra Fallow",
+          },
+          {
+            id: 22,
+            label: "Mariellen Torbard",
+          },
+          {
+            id: 23,
+            label: "Renate Humbee",
+          },
+        ],
+      },
+      {
+        id: 3,
+        label: "Ida Flewan",
+      },
+      {
+        id: 4,
+        label: "Lauréna Shrigley",
+      },
+      {
+        id: 5,
+        label: "Ange Kembry",
+      },
+    ],
+    tasks: [
+      {
+        id: 1,
+        resourceId: 11,
+        label: "LPCVD",
+        from: time("9:00"),
+        to: time("11:00"),
+        classes: "orange",
+      },
+      {
+        id: 2,
+        resourceId: 12,
+        label: "Entrepreneurship",
+        from: time("10:00"),
+        to: time("12:30"),
+        classes: "orange",
+      },
+      {
+        id: 3,
+        resourceId: 13,
+        label: "PET-CT",
+        from: time("13:30"),
+        to: time("15:00"),
+        classes: "orange",
+      },
+      {
+        id: 4,
+        resourceId: 14,
+        label: "Auditing",
+        from: time("9:30"),
+        to: time("11:30"),
+        classes: "orange",
+      },
+      {
+        id: 5,
+        resourceId: 21,
+        label: "Security Clearance",
+        from: time("15:15"),
+        to: time("16:00"),
+        classes: "green",
+      },
+      {
+        id: 6,
+        resourceId: 22,
+        label: "Policy Analysis",
+        from: time("14:00"),
+        to: time("17:00"),
+        classes: "blue",
+      },
+      {
+        id: 7,
+        resourceId: 23,
+        label: "Xbox 360",
+        from: time("13:30"),
+        to: time("14:30"),
+        classes: "blue",
+      },
+      {
+        id: 8,
+        resourceId: 3,
+        label: "GNU/Linux",
+        from: time("14:00"),
+        to: time("15:30"),
+        classes: "blue",
+      },
+      {
+        id: 9,
+        resourceId: 4,
+        label: "Electronic Trading",
+        from: time("15:00"),
+        to: time("17:00"),
+        classes: "green",
+      },
+      {
+        id: 10,
+        resourceId: 5,
+        label: "Alternative Medicine",
+        from: time("14:30"),
+        to: time("15:30"),
+        classes: "orange",
+      },
+    ],
+    dependencies: [],
+  };
+
+  let options = {
+    dateAdapter: new MomentSvelteGanttDateAdapter(moment),
+    rows: data.rows,
+    tasks: data.tasks,
+    dependencies: data.dependencies,
+    timeRanges,
+    columnOffset: 15,
+    magnetOffset: 15,
+    rowHeight: 52,
+    rowPadding: 6,
+    headers: [
+      { unit: "day", format: "MMMM Do" },
+      { unit: "hour", format: "H:mm" },
+    ],
+    fitWidth: true,
+    minWidth: 800,
+    from: currentStart,
+    to: currentEnd,
+    tableHeaders: [
+      { title: "Label", property: "label", width: 140, type: "tree" },
+    ],
+    tableWidth: 240,
+    ganttTableModules: [SvelteGanttTable],
+    ganttBodyModules: [SvelteGanttDependencies],
+  };
+
+  let gantt;
+  onMount(() => {
+    window.gantt = gantt = new SvelteGantt({
+      target: document.getElementById("example-gantt"),
+      props: options,
+    });
+  });
+
+  function onChangeOptions(event) {
+    const opts = event.detail;
+    Object.assign(options, opts);
+    gantt.$set(options);
+  }
+</script>
+
+<div class="container">
+  <div id="example-gantt"></div>
+  <GanttOptions {options} on:change={onChangeOptions} />
+</div>
+
+<style>
+  #example-gantt {
+    flex-grow: 1;
+    overflow: auto;
+  }
+
+  .container {
+    display: flex;
+    overflow: auto;
+    flex: 1;
+  }
+</style>
+
+=== 2385 examples/example-sveltekit/src/routes/+layout.svelte	svelte
+<script>
+  import "./../gantt-default.css";
+  import { showOptions, setView, moveView } from "./../stores/store";
+</script>
+
+<header class="header">
+  <div class="header-title">
+    <a href="https://github.com/ANovokmet/svelte-gantt">Svelte-gantt</a>
+  </div>
+  <div class="header-controls">
+    <a href="/"><button type="button">LargeDataset</button></a>
+    <a href="/dependencies"><button type="button">Dependencies</button></a>
+    <a href="/tree"><button type="button">Tree</button></a>
+    <a href="/external"><button type="button">External</button></a>
+    <a href="/events"><button type="button">Events</button></a>
+
+    <input
+      type="button"
+      value="<"
+      on:click={() => {
+        moveView.set("prevDay");
+      }}
+    />
+    <button
+      type="button"
+      value="Day view"
+      on:click={() => {
+        setView.set("day");
+      }}>Day view</button
+    >
+    <input
+      type="button"
+      value=">"
+      on:click={() => {
+        moveView.set("nextDay");
+      }}
+    />
+    <button
+      type="button"
+      value="Week view"
+      on:click={() => {
+        setView.set("week");
+      }}>Week view</button
+    >
+    <button
+      on:click={() => {
+        showOptions.set(!$showOptions);
+      }}>|||</button
+    >
+  </div>
+</header>
+<slot></slot>
+
+<style>
+  button,
+  input[type="button"] {
+    border: transparent;
+    font-size: 14px;
+    font-weight: 300;
+    padding: 6px 12px;
+    background: #cc595e;
+    color: #ffffff;
+    cursor: pointer;
+    transition: background 0.2s;
+    outline: none;
+  }
+
+  button:hover,
+  input[type="button"]:hover {
+    background-color: #b14d51;
+  }
+
+  button:active,
+  input[type="button"]:active {
+    background-color: #9d4548;
+  }
+
+  .header {
+    display: flex;
+    padding: 16px;
+    background: #ee6e73;
+  }
+
+  @media only screen and (max-width: 900px) {
+    .header {
+      flex-direction: column;
+    }
+
+    .header-title {
+      justify-content: center;
+      margin-bottom: 6px;
+    }
+
+    .header-controls {
+      justify-content: center;
+    }
+  }
+
+  .header-title {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    font-size: 36px;
+    padding: 0 16px;
+  }
+
+  .header-title a {
+    color: #ffffff;
+    text-decoration: none;
+  }
+
+  .header-controls {
+    display: flex;
+    align-items: center;
+  }
+
+  .header button,
+  .header input[type="button"] {
+    margin-right: 4px;
+  }
+</style>
+
+=== 2709 packages/demo/src/routes/+layout.svelte	svelte
+<script>
+  import "../gantt-default.css";
+  import "../main.css";
+  import { showOptions, options } from "./../stores/store";
+  import GanttViewNavigation from "../components/GanttViewNavigation.svelte";
+  import { base } from "$app/paths";
+
+  function onUpdateOptions(event) {
+    const opts = event.detail;
+    console.log("onUpdateOptions", opts);
+    $options = {
+      ...$options,
+      ...opts,
+    };
+  }
+</script>
+
+<div class="app">
+  <header class="header">
+    <div class="header-title">
+      <a href="https://github.com/ANovokmet/svelte-gantt">Svelte-gantt</a>
+    </div>
+    <div class="header-controls">
+      <div class="header-controls__row">
+        <a href="{base}/large-dataset"
+          ><button type="button">LargeDataset</button></a
+        >
+        <a href="{base}/dependencies"
+          ><button type="button">Dependencies</button></a
+        >
+        <a href="{base}/tree"><button type="button">Tree</button></a>
+        <a href="{base}/external"><button type="button">External</button></a>
+        <a href="{base}/events"><button type="button">Events</button></a>
+        <a href="{base}/multiple-charts"
+          ><button type="button">Multiple gantt</button></a
+        >
+        <a href="{base}/svelte-component"
+          ><button type="button">Usage as svelte component</button></a
+        >
+        <a href="{base}/column-styles"
+          ><button type="button">Column styles</button></a
+        >
+        <a href="{base}/pack-layout"><button type="button">Layouts</button></a>
+        <a href="{base}/create-tasks"
+          ><button type="button">Create tasks</button></a
+        >
+      </div>
+
+      <GanttViewNavigation
+        options={$options}
+        on:updateOptions={onUpdateOptions}
+      />
+
+      <button
+        on:click={() => {
+          showOptions.set(!$showOptions);
+        }}>|||</button
+      >
+    </div>
+  </header>
+  <slot></slot>
+</div>
+
+<style>
+  .app {
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    height: 100%;
+  }
+
+  .header {
+    display: flex;
+    padding: 16px;
+    background: #ee6e73;
+  }
+
+  @media only screen and (max-width: 900px) {
+    .header {
+      flex-direction: column;
+    }
+
+    .header-title {
+      justify-content: center;
+      margin-bottom: 6px;
+    }
+
+    .header-controls {
+      justify-content: center;
+    }
+  }
+
+  .header-title {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    font-size: 36px;
+    padding: 0 16px;
+  }
+
+  .header-title a {
+    color: #ffffff;
+    text-decoration: none;
+  }
+
+  .header-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .header button,
+  .header input[type="button"] {
+    margin-right: 4px;
+  }
+</style>
+
+=== 532 packages/demo/src/routes/+page.svelte	svelte
+<script>
+</script>
+
+<svelte:head>
+  <title>svelte-gantt</title>
+</svelte:head>
+<main>
+  <div class="container">
+    <h1>Svelte-gantt</h1>
+    <p>
+      A <b>lightweight</b> and <b>fast</b> interactive gantt chart/resource booking
+      component made with Svelte. Compatible with any JS library or framework. ZERO
+      dependencies.
+    </p>
+    <h2>Demo</h2>
+    <p>To see the examples check the links in the header.</p>
+  </div>
+</main>
+
+<style>
+  .container {
+  }
+
+  main {
+    width: 800px;
+    margin: 20px auto;
+  }
+</style>
+
+=== 246 packages/docs-mdsvex/src/lib/icons/CloseIcon.svelte	svelte
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  fill="none"
+  viewBox="0 0 24 24"
+  stroke-width="1.5"
+  stroke="currentColor"
+  class="size-6"
+>
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M6 18 18 6M6 6l12 12"
+  />
+</svg>
+
+=== 921 packages/docs-mdsvex/src/lib/icons/GithubIcon.svelte	svelte
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  fill="currentColor"
+  viewBox="0 0 24 24"
+  class="w-6 h-6"
+>
+  <path
+    fill-rule="evenodd"
+    clip-rule="evenodd"
+    d="M12 2C6.477 2 2 6.463 2 11.97c0 4.404 2.865 8.14 6.839 9.458.5.092.682-.216.682-.48 0-.236-.008-.864-.013-1.695-2.782.602-3.369-1.337-3.369-1.337-.454-1.151-1.11-1.458-1.11-1.458-.908-.618.069-.606.069-.606 1.003.07 1.531 1.027 1.531 1.027.892 1.524 2.341 1.084 2.91.828.092-.643.35-1.083.636-1.332-2.22-.251-4.555-1.107-4.555-4.927 0-1.088.39-1.979 1.029-2.675-.103-.252-.446-1.266.098-2.638 0 0 .84-.268 2.75 1.022A9.607 9.607 0 0 1 12 6.82c.85.004 1.705.114 2.504.336 1.909-1.29 2.747-1.022 2.747-1.022.546 1.372.202 2.386.1 2.638.64.696 1.028 1.587 1.028 2.675 0 3.83-2.339 4.673-4.566 4.92.359.307.678.915.678 1.846 0 1.332-.012 2.407-.012 2.734 0 .267.18.577.688.48 3.97-1.32 6.833-5.054 6.833-9.458C22 6.463 17.522 2 12 2Z"
+  >
+  </path>
+</svg>
+
+=== 270 packages/docs-mdsvex/src/lib/icons/MenuIcon.svelte	svelte
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  fill="none"
+  viewBox="0 0 24 24"
+  stroke-width="1.5"
+  stroke="currentColor"
+  class="size-6"
+>
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+  />
+</svg>
+
+=== 407 packages/docs-mdsvex/src/lib/icons/MoonIcon.svelte	svelte
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  fill="none"
+  viewBox="0 0 24 24"
+  stroke-width="1.5"
+  stroke="currentColor"
+  class="w-6 h-6"
+>
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"
+  />
+</svg>
+
+=== 420 packages/docs-mdsvex/src/lib/icons/SunIcon.svelte	svelte
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  fill="none"
+  viewBox="0 0 24 24"
+  stroke-width="1.5"
+  stroke="currentColor"
+  class="w-6 h-6"
+>
+  <path
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"
+  />
+</svg>
+
+=== 4715 packages/docs-mdsvex/src/routes/+page.svelte	svelte
+<script>
+  import { onDestroy, onMount } from "svelte";
+  import FeatureCard from "./FeatureCard.svelte";
+  import HeroExample from "./HeroExample.svelte";
+  import { base } from "$app/paths";
+
+  let expansionObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      entry.target.classList.remove("opacity-0", "translate-y-2");
+      entry.target.classList.add("opacity-100", "translate-y-0");
+    });
+  });
+
+  onMount(() => {
+    document.body.classList.add("landing-page");
+    document
+      .querySelectorAll(".loading")
+      .forEach((e) => expansionObserver.observe(e));
+  });
+
+  onDestroy(() => {
+    document.body.classList.remove("landing-page");
+  });
+</script>
+
+<main class="overflow-hidden flex flex-col min-h-screen">
+  <header class="relative">
+    <div class="px-4 sm:px-6 md:px-8 pt-12">
+      <div
+        class="absolute inset-0 bottom-10 bg-bottom bg-no-repeat bg-slate-200"
+      >
+        <div
+          class="absolute inset-0 bg-grid-slate-900/[0.04] bg-[bottom_1px_center] dark:bg-grid-slate-400/[0.05] dark:bg-bottom dark:border-b dark:border-slate-100/5"
+        ></div>
+      </div>
+      <div class="relative max-w-5xl mx-auto pt-20 sm:pt-24 lg:pt-32">
+        <h1
+          class="text-slate-900 font-extrabold text-4xl sm:text-5xl lg:text-6xl tracking-tight text-center dark:text-white"
+        >
+          Lightweight and fast interactive <span
+            class="bg-clip-text text-transparent bg-gradient-to-tr from-pink-500 to-violet-500"
+            >Gantt chart.</span
+          >
+        </h1>
+        <p
+          class="mt-6 text-lg text-slate-600 text-center max-w-3xl mx-auto dark:text-slate-400"
+        >
+          <span
+            class="font-medium bg-clip-text text-transparent bg-gradient-to-tr from-pink-500 to-violet-500"
+            >Svelte-gantt</span
+          > is a lightweight and fast interactive gantt chart/resource booking component
+          made with Svelte. Compatible with React, Angular, Vue, Svelte... Zero dependencies.
+        </p>
+
+        <div class="mt-6 sm:mt-10 flex justify-center space-x-6 text-sm">
+          <a
+            class="group text-white font-medium text-2xl transition-all hover:scale-105 px-6 py-3 text-soft mb-12 bg-gradient-to-tr from-pink-500 to-violet-500 hover:bg-violet-600 mx-auto transition-all"
+            href="{base}/docs/getting-started/installation"
+          >
+            <span
+              class="inline-block transform transition-transform duration-100 group-hover:translate-x-0"
+              >Get started</span
+            >
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 mt-20 sm:mt-24 lg:mt-32">
+      <div class="-mx-4 sm:mx-0">
+        <div
+          class="relative overflow-hidden shadow-xl flex bg-white max-h-[60vh] sm:rounded-xl lg:h-[34.6875rem] xl:h-[31.625rem] dark:bg-slate-900/70 dark:backdrop-blur dark:ring-1 dark:ring-inset dark:ring-white/10 !h-auto max-h-[none]"
+        >
+          <HeroExample />
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="grow">
+    <div
+      class="relative max-w-5xl mx-auto pt-20 sm:pt-24 lg:pt-32 mb-20 sm:mb-24 lg:mb-32 px-4 sm:px-6 md:px-8 lg:px-0"
+    >
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <FeatureCard>
+          <svelte:fragment slot="title">Interactive</svelte:fragment>
+          <svelte:fragment slot="subtitle"
+            >Items can be added, moved and resized. Select multiple to move them
+            at once.</svelte:fragment
+          >
+        </FeatureCard>
+        <FeatureCard>
+          <svelte:fragment slot="title">Fast</svelte:fragment>
+          <svelte:fragment slot="subtitle"
+            >Display thousands of tasks assigned to thousands of resources.
+            Update them in real-time.</svelte:fragment
+          >
+        </FeatureCard>
+        <FeatureCard>
+          <svelte:fragment slot="title">Zoom</svelte:fragment>
+          <svelte:fragment slot="subtitle"
+            >Zoom the chart in or out. Display different periods of time.</svelte:fragment
+          >
+        </FeatureCard>
+        <FeatureCard>
+          <svelte:fragment slot="title">Layouts</svelte:fragment>
+          <svelte:fragment slot="subtitle"
+            >Display tasks overlapped or spaced apart.</svelte:fragment
+          >
+        </FeatureCard>
+      </div>
+    </div>
+  </section>
+
+  <footer class="h-40 bg-slate-400 flex items-center justify-center">
+    <div class="relative max-w-5xl mx-auto">
+      <div class="text-slate-100">
+        @2024 Ante Novokmet - <a href="https://github.com/ANovokmet/"
+          >ANovokmet</a
+        >
+      </div>
+    </div>
+  </footer>
+</main>
+
+=== 205 packages/docs-mdsvex/src/routes/FeatureCard.svelte	svelte
+<div class="bg-slate-200/40 p-4">
+  <h2 class="text-lg font-medium text-slate-500">
+    <slot name="title"></slot>
+  </h2>
+  <p class="text-slate-400 pt-1">
+    <slot name="subtitle"></slot>
+  </p>
+</div>
+
+=== 1057 packages/docs-mdsvex/src/routes/docs/data/rows/RowsExample.svelte	svelte
+<script>
+  import { time } from "$lib";
+  import { SvelteGantt, SvelteGanttTable } from "svelte-gantt/svelte";
+</script>
+
+<div class="example border my-12">
+  <SvelteGantt
+    from={time("8:00")}
+    to={time("12:00")}
+    rows={[
+      { id: 1, label: "Using the label" },
+      { id: 2, label: "Apply custom classes", classes: "row-gradient" },
+      {
+        id: 3,
+        label: "With custom html content",
+        contentHtml:
+          '<div class="h-full flex justify-center items-center"><span class="bg-gradient-to-tr from-pink-500 to-violet-500 text-violet-50 px-1">Custom html content</span></div>',
+      },
+      {
+        id: 4,
+        headerHtml:
+          '<div class="h-full flex justify-center items-center"><span class="bg-gradient-to-tr from-pink-500 to-violet-500 text-violet-50 px-1">This time in header</span></div>',
+      },
+    ]}
+    ganttTableModules={[SvelteGanttTable]}
+  />
+</div>
+
+<style lang="postcss">
+  .example :global(.row-gradient) {
+    @apply bg-gradient-to-tr from-pink-500 to-violet-500 opacity-50;
+  }
+</style>
+
+=== 1839 packages/docs-mdsvex/src/routes/docs/data/rows/TreeExample.svelte	svelte
+<script>
+  import { time } from "$lib";
+  import { SvelteGantt, SvelteGanttTable } from "svelte-gantt/svelte";
+</script>
+
+<div class="example border my-12">
+  <div class="text-center border-b">
+    Click on row headers to expand and collapse.
+  </div>
+  <SvelteGantt
+    from={time("8:00")}
+    to={time("12:00")}
+    tableHeaders={[{ title: "Title", property: "label", type: "tree" }]}
+    rows={[
+      {
+        id: 1,
+        label: "Parent 1",
+        expanded: false,
+        children: [
+          { id: 11, label: "Child 1" },
+          { id: 12, label: "Child 2" },
+        ],
+      },
+      {
+        id: 2,
+        label: "Parent 2",
+        expanded: true,
+        children: [
+          {
+            id: 21,
+            label: "Child 1",
+            children: [{ id: 211, label: "Grandchild 1" }],
+          },
+          { id: 22, label: "Child 2" },
+          { id: 23, label: "Child 3" },
+        ],
+      },
+      { id: 3, label: "No children" },
+    ]}
+    ganttTableModules={[SvelteGanttTable]}
+  />
+</div>
+
+<style lang="postcss">
+  .example :global(.sg-tree-expander .fa-angle-right::before) {
+    display: block;
+    content: url('data:image/svg+xml; utf8, <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>');
+    width: 1rem;
+    height: 1rem;
+  }
+  .example :global(.sg-tree-expander .fa-angle-down::before) {
+    display: block;
+    content: url('data:image/svg+xml; utf8, <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>');
+    width: 1rem;
+    height: 1rem;
+  }
+</style>
+
+=== 1994 packages/docs-mdsvex/src/routes/docs/data/tasks/TaskComponentExample.svelte	svelte
+<script>
+  import { SvelteGantt } from "svelte-gantt/svelte";
+  import { time, format } from "$lib";
+  import "./TaskComponentExample.css";
+
+  function taskComponent(node, task) {
+    const div = document.createElement("div");
+    div.className = "";
+
+    function render(task) {
+      div.innerHTML = `
+<div class="task__header">
+    <div class="task__title">${task.title}</div>
+    <div class="task__subtitle">${format(task.from, "MMM DD")} - ${format(task.to, "H:mm")}</div>
+
+    <div class="task__menu">
+    <i class="fa fa-ellipsis-vertical"></i>
+    </div>
+</div>
+<div class="task__footer">
+    <div class="task__tags">
+    <span class="task__tag violet">
+        <i class="task__icon-archive-box"></i>
+    </span>
+    <span class="task__tag amber">
+        • ${task.priority}
+    </span>
+    </div>
+    <div class="task__assignees">
+        ${task.assignees.map((a) => `<span class="task__assignee">${a}</span>`)}
+    </div>
+</div>`;
+    }
+
+    render(task);
+    node.appendChild(div);
+
+    return {
+      update(task) {
+        console.log(task);
+        render(task);
+      },
+      destroy() {
+        node.remove();
+      },
+    };
+  }
+</script>
+
+<div class="example border">
+  <SvelteGantt
+    from={time("8:00")}
+    to={time("14:00")}
+    minWidth={200}
+    fitWidth={true}
+    rowHeight={140}
+    taskElementHook={taskComponent}
+    rows={[
+      { id: 1, label: "Row 1" },
+      { id: 2, label: "Row 2" },
+    ]}
+    tasks={[
+      {
+        id: 1,
+        resourceId: 1,
+        from: time("8:30"),
+        to: time("11:00"),
+        label: " ",
+        title: "Employee Details page",
+        classes: "task",
+        priority: "Medium",
+        assignees: ["AD", "BC", "TE"],
+      },
+      {
+        id: 2,
+        resourceId: 2,
+        from: time("9:30"),
+        to: time("13:00"),
+        label: " ",
+        title: "Documentation page",
+        classes: "task",
+        priority: "High",
+        assignees: ["AN", "TE"],
+      },
+    ]}
+  />
+</div>
+
+<style>
+</style>
+
+=== 1834 packages/docs-mdsvex/src/routes/docs/data/tasks/TasksExample.svelte	svelte
+<script>
+  import { time } from "$lib";
+  import { SvelteGantt, SvelteGanttTable } from "svelte-gantt/svelte";
+</script>
+
+<div class="example border my-12">
+  <SvelteGantt
+    from={time("8:00")}
+    to={time("14:00")}
+    minWidth={200}
+    fitWidth={true}
+    rows={[
+      { id: 1, label: "Row 1" },
+      { id: 2, label: "Row 2" },
+      { id: 3, label: "Row 3" },
+      { id: 4, label: "Row 4" },
+      { id: 5, label: "Row 4" },
+      { id: 6, label: "Row 4" },
+    ]}
+    tasks={[
+      {
+        id: 1,
+        resourceId: 1,
+        from: time("8:30"),
+        to: time("10:00"),
+        label: "Default",
+      },
+      {
+        id: 2,
+        resourceId: 2,
+        from: time("9:00"),
+        to: time("10:30"),
+        label: "25% done",
+        amountDone: 25,
+      },
+      {
+        id: 3,
+        resourceId: 3,
+        from: time("9:30"),
+        to: time("11:00"),
+        label: "Custom class",
+        classes: "gradient",
+      },
+      {
+        id: 4,
+        resourceId: 4,
+        from: time("10:00"),
+        to: time("11:30"),
+        html: '<span class="flex items-center gap-2"><span class="w-4 h-4 bg-blue-800"></span>Html content</span>',
+      },
+      {
+        id: 5,
+        resourceId: 5,
+        from: time("10:30"),
+        to: time("12:00"),
+        label: "Resizable but not draggable",
+        enableDragging: false,
+      },
+      {
+        id: 6,
+        resourceId: 6,
+        from: time("11:00"),
+        to: time("12:30"),
+        label: "Draggable but not resizable",
+        enableResize: false,
+      },
+    ]}
+  />
+</div>
+
+<style lang="postcss">
+  .example :global(.gradient) {
+    @apply bg-gradient-to-tr from-pink-500 to-violet-500 rounded-md;
+  }
+  .example :global(.gradient:hover) {
+    @apply bg-gradient-to-tr from-pink-600 to-violet-600 rounded-md shadow-xl;
+  }
+</style>
+
+=== 1069 packages/docs-mdsvex/src/routes/docs/data/time-ranges/TimeRangesExample.svelte	svelte
+<script>
+  import { time } from "$lib";
+  import { SvelteGantt } from "svelte-gantt/svelte";
+</script>
+
+<div class="example border my-12">
+  <SvelteGantt
+    from={time("8:00")}
+    to={time("14:00")}
+    minWidth={400}
+    fitWidth={true}
+    rows={[{ id: 1 }, { id: 2 }]}
+    timeRanges={[
+      {
+        id: 1,
+        from: time("8:00"),
+        to: time("9:00"),
+        classes: null,
+        label: "Breakfast",
+      },
+      {
+        id: 0,
+        from: time("10:00"),
+        to: time("11:00"),
+        classes: "time-range-lunch",
+        label: "Lunch",
+        resizable: false,
+      },
+      {
+        id: 2,
+        from: time("12:00"),
+        to: time("13:00"),
+        label: "Custom class",
+        classes: "gradient",
+      },
+    ]}
+  />
+</div>
+
+<style lang="postcss">
+  .example :global(.gradient) {
+    @apply bg-gradient-to-tr from-pink-500 to-violet-500 rounded-md;
+    background-size: unset !important;
+  }
+  .example :global(.gradient:hover) {
+    @apply bg-gradient-to-tr from-pink-600 to-violet-600 rounded-md shadow-xl;
+  }
+</style>
+
+=== 111 packages/docs-mdsvex/src/routes/docs/layout.svelte	svelte
+<script context="module">
+  import a from "$lib/components/A.svelte";
+  export { a };
+</script>
+
+<slot></slot>
+
+=== 1130 packages/docs-mdsvex/src/routes/docs/modules/create-tasks/CreateTasksExample.svelte	svelte
+<script>
+  import { time } from "$lib";
+  import moment from "moment";
+  import {
+    MomentSvelteGanttDateAdapter,
+    SvelteGantt,
+    SvelteGanttTable,
+  } from "svelte-gantt/svelte";
+
+  let id = 0;
+  const opts = {
+    enableCreateTask: true,
+    onCreateTask: (e) => {
+      id++;
+      return {
+        id: id,
+        label: `New task ${id}`,
+        ...e,
+      };
+    },
+    onCreatedTask: (task) => {
+      console.log("task created", task);
+    },
+  };
+</script>
+
+<div class="border">
+  <div class="text-center border-b">
+    Click and drag on the timeline to create a task.
+  </div>
+
+  <SvelteGantt
+    from={time("06:00")}
+    to={time("14:00")}
+    fitWidth={true}
+    minWidth={400}
+    dateAdapter={new MomentSvelteGanttDateAdapter(moment)}
+    rows={[
+      { id: 11, label: "Petunia Mulliner" },
+      { id: 12, label: "Mélina Giacovetti" },
+      { id: 13, label: "Marlène Lasslett" },
+      { id: 14, label: "Adda Youell" },
+    ]}
+    ganttTableModules={[SvelteGanttTable]}
+    enableCreateTask={opts.enableCreateTask}
+    onCreateTask={opts.onCreateTask}
+    onCreatedTask={opts.onCreatedTask}
+  />
+</div>
+
+=== 1236 packages/docs-mdsvex/src/routes/docs/modules/external/ExternalExample.svelte	svelte
+<script>
+  import {
+    SvelteGantt,
+    SvelteGanttTable,
+    SvelteGanttExternal,
+  } from "svelte-gantt/svelte";
+  import { defaultOptions, time } from "$lib";
+  import { onMount } from "svelte";
+
+  let element;
+  let gantt;
+  let tasks = [];
+
+  onMount(() => {
+    new SvelteGanttExternal(element, {
+      gantt,
+      onsuccess: (row, date, gantt) => {
+        console.log("success");
+        tasks = [
+          ...tasks,
+          {
+            id: tasks.length,
+            resourceId: row.model.id,
+            label: "New task",
+            from: date,
+            to: date + 60 * 60 * 1000,
+          },
+        ];
+      },
+      onfail: () => {},
+    });
+  });
+
+  // TODO:: make external accept any gantt implicitly
+</script>
+
+<div class="border">
+  <div class="flex p-2 border-b">
+    <div class="px-2 border bg-slate-100 select-none" bind:this={element}>
+      Drag to gantt
+    </div>
+  </div>
+
+  <SvelteGantt
+    bind:this={gantt}
+    from={time("8:00")}
+    to={time("14:00")}
+    {tasks}
+    rows={[
+      { id: 1, label: "Resource #1" },
+      { id: 2, label: "Resource #2" },
+      { id: 3, label: "Resource #3" },
+      { id: 4, label: "Resource #4" },
+    ]}
+    ganttTableModules={[SvelteGanttTable]}
+  />
+</div>
+
+=== 622 packages/docs-mdsvex/src/routes/docs/modules/table/TableExample.svelte	svelte
+<script>
+  import { SvelteGantt, SvelteGanttTable } from "svelte-gantt/svelte";
+  import { defaultOptions, time } from "$lib";
+</script>
+
+<div class="border">
+  <SvelteGantt
+    from={time("8:00")}
+    to={time("14:00")}
+    tableHeaders={[
+      { title: "Name", property: "label", width: 150 },
+      { title: "Age", property: "age", width: 50 },
+    ]}
+    rows={[
+      { id: 1, label: "Resource #1", age: 50 },
+      { id: 2, label: "Resource #2", age: 43 },
+      { id: 3, label: "Resource #3", age: 23 },
+      { id: 4, label: "Resource #4", age: 65 },
+    ]}
+    ganttTableModules={[SvelteGanttTable]}
+  />
+</div>
+
+=== 2376 packages/docs-mdsvex/src/routes/docs/options/layout/LayoutExample.svelte	svelte
+<script>
+  import { SvelteGantt, SvelteGanttTable } from "svelte-gantt/svelte";
+  import { defaultOptions, time } from "$lib";
+
+  let layout = "overlap";
+  const values = ["overlap", "pack", "expand"];
+</script>
+
+<div class="border">
+  <div class="flex gap-2 justify-center border-b p-2">
+    <span><code>layout</code>:</span>
+    {#each values as value}
+      <span>
+        <input id={value} type="radio" bind:group={layout} {value} />
+        <label for={value}><code>'{value}'</code> </label>
+      </span>
+    {/each}
+  </div>
+
+  <div class="example">
+    <SvelteGantt
+      from={time("8:00")}
+      to={time("14:00")}
+      {layout}
+      rows={[
+        { id: 1, label: "Resource #1" },
+        { id: 2, label: "Resource #2" },
+        { id: 3, label: "Resource #3" },
+        { id: 4, label: "Resource #4" },
+      ]}
+      tasks={[
+        {
+          id: 1,
+          resourceId: 1,
+          from: time("8:00"),
+          to: time("10:00"),
+          label: "Default",
+          classes: "blue",
+        },
+        {
+          id: 2,
+          resourceId: 1,
+          from: time("9:00"),
+          to: time("11:00"),
+          label: "Default",
+          classes: "orange",
+        },
+        {
+          id: 3,
+          resourceId: 1,
+          from: time("9:30"),
+          to: time("12:00"),
+          label: "Default",
+          classes: "violet",
+        },
+        {
+          id: 4,
+          resourceId: 2,
+          from: time("9:00"),
+          to: time("11:00"),
+          label: "Default",
+          classes: "blue",
+        },
+        {
+          id: 5,
+          resourceId: 2,
+          from: time("9:30"),
+          to: time("11:00"),
+          label: "Default",
+          classes: "orange",
+        },
+        {
+          id: 6,
+          resourceId: 2,
+          from: time("11:00"),
+          to: time("13:00"),
+          label: "Default",
+          classes: "violet",
+        },
+        {
+          id: 7,
+          resourceId: 3,
+          from: time("9:00"),
+          to: time("11:00"),
+          label: "Default",
+          classes: "blue",
+        },
+      ]}
+      ganttTableModules={[SvelteGanttTable]}
+    />
+  </div>
+</div>
+
+<style lang="postcss">
+  .example :global(.blue) {
+    @apply bg-blue-400;
+  }
+  .example :global(.orange) {
+    @apply bg-orange-400;
+  }
+  .example :global(.violet) {
+    @apply bg-violet-400;
+  }
+</style>
+
+=== 3340 packages/docs-mdsvex/src/routes/docs/options/zoom/ZoomExample.svelte	svelte
+<script context="module">
+  export const zoomLevels = [
+    {
+      headers: [{ unit: "month", format: "MMM YYYY" }],
+      minWidth: 800,
+      columnUnit: "day",
+      columnOffset: 1,
+    },
+    {
+      headers: [
+        { unit: "month", format: "MMM YYYY" },
+        { unit: "week", format: "[week] w" },
+        { unit: "day", format: "D" },
+      ],
+      minWidth: 3200,
+      columnUnit: "hour",
+      columnOffset: 4,
+    },
+    {
+      headers: [
+        { unit: "day", format: "MMM D, YYYY" },
+        { unit: "hour", format: "HH" },
+      ],
+      minWidth: 8000,
+      columnUnit: "hour",
+      columnOffset: 2,
+    },
+    {
+      headers: [
+        { unit: "day", format: "MMM D, YYYY" },
+        { unit: "hour", format: "HH" },
+      ],
+      minWidth: 16000,
+      columnUnit: "hour",
+      columnOffset: 2,
+    },
+    {
+      headers: [
+        { unit: "day", format: "MMM D, YYYY" },
+        { unit: "hour", format: "HH" },
+      ],
+      minWidth: 32000,
+      columnUnit: "hour",
+      columnOffset: 2,
+    },
+  ];
+</script>
+
+<script>
+  import { SvelteGantt, SvelteGanttTable } from "svelte-gantt/svelte";
+  import { defaultOptions, time } from "$lib";
+  import moment from "moment";
+
+  const values = ["hour", "day", "week", "month"];
+
+  let headers = [{ unit: "month", format: "MMM YYYY" }];
+  let minWidth = 800;
+  let fitWidth = true;
+  let columnUnit = "day";
+  let columnOffset = 1;
+  let from = moment().startOf("month");
+  let to = moment().endOf("month");
+
+  // TODO:: zoom focus is not right? always moves to right
+  // TODO:: allow click on header focus to be customized
+
+  function applyZoom(level) {
+    headers = level.headers;
+    minWidth = level.minWidth;
+    columnUnit = level.columnUnit;
+    columnOffset = level.columnOffset;
+  }
+</script>
+
+<div class="border">
+  <div class="flex gap-2 justify-center border-b p-2">
+    <span>Set zoom:</span>
+    {#each values as value, i}
+      <span>
+        <button
+          class="border hover:bg-slate-100 px-1 py-1 text-sm active:bg-slate-200"
+          on:click={() => applyZoom(zoomLevels[i])}>{value}</button
+        >
+      </span>
+    {/each}
+  </div>
+
+  <div class="example">
+    <SvelteGantt
+      {from}
+      {to}
+      rows={[
+        { id: 1, label: "Resource #1" },
+        { id: 2, label: "Resource #2" },
+        { id: 3, label: "Resource #3" },
+        { id: 4, label: "Resource #4" },
+      ]}
+      {headers}
+      {minWidth}
+      {fitWidth}
+      {columnUnit}
+      {columnOffset}
+      dateAdapter={defaultOptions.dateAdapter}
+      {zoomLevels}
+      tasks={[
+        {
+          id: 1,
+          resourceId: 1,
+          from: time("8:00"),
+          to: time("16:00"),
+          label: "Default",
+          classes: "blue",
+        },
+        {
+          id: 4,
+          resourceId: 2,
+          from: time("9:00"),
+          to: time("17:00"),
+          label: "Default",
+          classes: "orange",
+        },
+        {
+          id: 7,
+          resourceId: 3,
+          from: time("10:00"),
+          to: time("18:00"),
+          label: "Default",
+          classes: "blue",
+        },
+      ]}
+    />
+  </div>
+</div>
+
+<style lang="postcss">
+  .example :global(.blue) {
+    @apply bg-blue-400;
+  }
+  .example :global(.orange) {
+    @apply bg-orange-400;
+  }
+  .example :global(.violet) {
+    @apply bg-violet-400;
+  }
+</style>
+

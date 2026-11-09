@@ -1,8 +1,8 @@
 //! `{#if}` and `{#await}` blocks and their branches.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte::syntax::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
-use rsvelte_typescript::NodeIdentifier;
+use rsvelte_svelte_syntax::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
+use rsvelte_typescript_syntax::NodeIdentifier;
 
 use super::Template;
 use crate::rules::indent::tokens::Token;

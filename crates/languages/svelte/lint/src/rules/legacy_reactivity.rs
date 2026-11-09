@@ -1,9 +1,9 @@
 //! What the rules on legacy reactivity share: its facts, and how the template uses expressions.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte::semantic::legacy::Legacy;
-use rsvelte_svelte::syntax::syntax_tree::{AttributeKind, AttributeValue, Component, Part};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_svelte_semantic::legacy::Legacy;
+use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Component, Part};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
 use crate::computation::LegacyReactivity;

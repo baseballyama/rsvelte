@@ -68,7 +68,7 @@ impl Rewrite for UnwrapBindable<'_, '_> {
                     rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
                 );
                 to.unary(
-                    rsvelte_typescript::operators::UnaryOperator::Void,
+                    rsvelte_typescript_syntax::operators::UnaryOperator::Void,
                     zero,
                     rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
                 )

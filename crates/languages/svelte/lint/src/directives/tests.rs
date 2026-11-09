@@ -13,7 +13,7 @@ use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte::syntax::syntax_tree::TemplateNode;
+use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 use serde_json::value::RawValue;
 
 use crate::rule::{File, Files, SvelteRule};

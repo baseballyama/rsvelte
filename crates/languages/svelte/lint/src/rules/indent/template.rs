@@ -1,11 +1,11 @@
 //! How the markup lays out its tokens: elements, attributes, blocks and tags.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_svelte_syntax::syntax_tree::{
     Component, Range, Script as ScriptElement, TemplateNode, TemplateNodeIdentifier, TokenType,
 };
-use rsvelte_typescript::lexer::T;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_typescript_syntax::lexer::T;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::layout::Item;
 use super::script::Script;

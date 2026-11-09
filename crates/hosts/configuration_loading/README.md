@@ -40,7 +40,7 @@ from the configuration file.
 | `svelte.compile`   | `cssHash`: a function                                                   |
 | `svelte.lint`      | `rules`: ESLint levels by rule name                                     |
 | `typescript.check` | `command`: the type checker and its own arguments; `tsconfig`           |
-| `svelte.typecheck` | `svelte`: the package directory; `contentMapper`: the mapper executable |
+| `svelte.check`     | `svelte`: the package directory; `contentMapper`: the mapper executable |
 | `vue.check`        | `vue`: the package directory                                            |
 
 ```json

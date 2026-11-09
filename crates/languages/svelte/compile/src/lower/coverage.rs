@@ -1,7 +1,7 @@
 //! The template syntax this port does not lower yet, refused before lowering starts so neither
 //! target meets it.
 
-use rsvelte_svelte::compilation::compiler_syntax_tree::{ElementKind, MetadataTag};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
 
 use super::{AttributeValue, CompileInput, Diagnostic, NodeKind, unsupported};
 

@@ -1,1 +1,0 @@
-<a href='mailto:hello@example.com'>email</a>

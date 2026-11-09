@@ -6,8 +6,9 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::{LineColumn, LineIndex};
-use rsvelte_svelte::warnings::{self, Options};
-use rsvelte_svelte::{Analyzed, Parsed, Resolved};
+use rsvelte_svelte_semantic::warnings::{self, Options};
+use rsvelte_svelte_semantic::{Analyzed, Resolved};
+use rsvelte_svelte_syntax::Parsed;
 
 /// `warnings.json`: what `compile(source, { runes: true })` returns as `warnings`.
 #[derive(Debug)]
@@ -25,7 +26,7 @@ impl Task for Warn {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_svelte::matches(document)
+        rsvelte_svelte_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {

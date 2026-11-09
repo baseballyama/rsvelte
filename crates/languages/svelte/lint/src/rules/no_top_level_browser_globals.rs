@@ -2,17 +2,19 @@ use std::collections::BTreeMap;
 
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::{Component, Range, TemplateNode};
-use rsvelte_typescript::operators::BinaryOperator::{Eq, InstanceOf, NotEq, StrictEq, StrictNotEq};
-use rsvelte_typescript::operators::{LogicalOperator, UnaryOperator};
-use rsvelte_typescript::scope::Semantic;
-use rsvelte_typescript::semantic::globals::{Global, global};
-use rsvelte_typescript::semantic::reference_tracker::{
+use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
+use rsvelte_typescript_semantic::globals::{Global, global};
+use rsvelte_typescript_semantic::reference_tracker::{
     global_references_matching, import_references, property_references,
 };
-use rsvelte_typescript::semantic::static_value::{StaticValues, Value};
-use rsvelte_typescript::syntax_tree::Control;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::scope::Semantic;
+use rsvelte_typescript_semantic::static_value::{StaticValues, Value};
+use rsvelte_typescript_syntax::operators::BinaryOperator::{
+    Eq, InstanceOf, NotEq, StrictEq, StrictNotEq,
+};
+use rsvelte_typescript_syntax::operators::{LogicalOperator, UnaryOperator};
+use rsvelte_typescript_syntax::syntax_tree::Control;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::nodes::{is_named, roots, span, walk};

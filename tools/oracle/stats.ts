@@ -17,7 +17,5 @@ export async function main(): Promise<void> {
 	);
 	for (const t of TASKS)
 		for (const v of t.variants)
-			console.log(
-				`task ${t.id}/${v.id}: ${units.filter((u) => applies(t, v.id, u)).length} units (${t.storage})`,
-			);
+			console.log(`task ${t.id}/${v.id}: ${units.filter((u) => applies(t, v.id, u)).length} units`);
 }

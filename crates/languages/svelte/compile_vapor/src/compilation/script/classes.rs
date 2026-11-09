@@ -1,4 +1,4 @@
-use rsvelte_typescript::syntax_tree::Class;
+use rsvelte_typescript_syntax::syntax_tree::Class;
 
 use super::emit::ScriptRewrite;
 use super::{
@@ -265,7 +265,7 @@ fn accessors(
             let parameter = to.identifier("$$value");
             parameters.push(parameter);
             let assign = to.assign(
-                rsvelte_typescript::operators::AssignmentOperator::Assign,
+                rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
                 value,
                 parameter,
                 SourceLocation::SYNTHETIC,

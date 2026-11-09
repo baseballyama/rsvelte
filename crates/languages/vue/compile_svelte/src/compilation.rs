@@ -4,7 +4,7 @@ pub(crate) mod template;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_compile::{CompileInput, Target};
-use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 /// The component as the Svelte compiler reads it: a runes instance program and a Svelte HIR, in a
 /// tree of their own over the `.vue` document's text.
@@ -12,20 +12,20 @@ use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
 pub struct Translation {
     pub javascript: SyntaxTree,
     pub program: NodeIdentifier,
-    pub compiler_syntax_tree: rsvelte_svelte::compilation::compiler_syntax_tree::CompilerSyntaxTree,
+    pub compiler_syntax_tree: rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree,
     /// Every template expression, in document order.
     pub template_expressions: Vec<NodeIdentifier>,
 }
 
 impl Translation {
     #[must_use]
-    pub fn compile_input<'a>(
+    pub(crate) fn compile_input<'a>(
         &'a self,
         source_text: &'a str,
         filename: &'a str,
     ) -> CompileInput<'a> {
         CompileInput {
-            component: rsvelte_svelte::semantic::input::ComponentInput {
+            component: rsvelte_svelte_semantic::input::ComponentInput {
                 javascript: &self.javascript,
                 program: self.program,
                 module: None,
@@ -47,10 +47,10 @@ impl Translation {
 ///
 /// A `compile_unsupported` [`Diagnostic`] for what svue does not translate (the crate's doc lists
 /// every refusal).
-pub fn translate(
-    sfc: &rsvelte_vue::syntax_tree::SingleFileComponent,
-    compiler_syntax_tree: Option<&rsvelte_vue::compiler_syntax_tree::CompilerSyntaxTree>,
-    resolution: &rsvelte_vue::resolve::Resolution,
+pub(crate) fn translate(
+    sfc: &rsvelte_vue_syntax::syntax_tree::SingleFileComponent,
+    compiler_syntax_tree: Option<&rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTree>,
+    resolution: &rsvelte_vue_semantic::resolve::Resolution,
     source_text: &str,
     target: Target,
 ) -> Result<Translation, Diagnostic> {

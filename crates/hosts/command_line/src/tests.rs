@@ -19,24 +19,27 @@ fn plugin_declarations_cover_the_registered_languages_and_tasks() {
     assert_eq!(reg.validate_plugins(), Ok(()));
     let plugins: Vec<_> = reg.plugins().map(|plugin| plugin.identifier).collect();
     let expected = [
-        "svelte",
+        "svelte.check",
         "svelte.compile",
         "svelte.format",
         "svelte.lint",
-        "svelte.parser",
-        "svelte.typecheck",
+        "svelte.semantic",
+        "svelte.syntax",
         "svelte.typescript_projection",
         "svue",
-        "typescript",
         "typescript.check",
         "typescript.compile",
         "typescript.format",
         "typescript.lint",
-        "vue",
+        "typescript.semantic",
+        "typescript.syntax",
+        "typescript.tree",
         "vue.check",
         "vue.compile",
         "vue.format",
         "vue.lint",
+        "vue.semantic",
+        "vue.syntax",
         "vuelte",
     ];
     assert_eq!(plugins, expected);
@@ -116,14 +119,14 @@ fn plugin_tasks_and_type_views_select_their_own_documents() {
 }
 
 /// Names that sort around the separator (`-` and `.` below `/`, a letter and a non-ASCII byte
-/// above), nested three deep under a source directory, one unit in each: the walk yields them
-/// in `Path::cmp` order, with paths relative to the source and the `~` escape undone.
+/// above), nested three deep, one unit in each: the walk yields them in `Path::cmp` order, with
+/// paths relative to the root.
 #[test]
-fn units_come_in_path_order_relative_to_their_source() {
+fn units_come_in_path_order_relative_to_the_root() {
     let root = std::env::temp_dir().join(format!("rsvelte-units-{}", std::process::id()));
     let source = root.join("family").join("source");
     let names = ["a", "a-b", "a.b", "ab", "é", "~x"];
-    let mut dirs = vec![source.clone()];
+    let mut dirs = vec![source];
     for _ in 0..3 {
         let last = std::mem::take(&mut dirs);
         dirs = last
@@ -136,14 +139,13 @@ fn units_come_in_path_order_relative_to_their_source() {
             std::fs::write(d.join("actual").join("input.svelte"), "").unwrap();
         }
     }
-    std::fs::create_dir_all(root.join("_registry")).unwrap();
     let got = input::units(&root.join("family"));
     std::fs::remove_dir_all(&root).unwrap();
     assert_eq!(got.len(), 6 + 36 + 216);
     assert!(got.is_sorted_by(|a, b| a.input < b.input));
     for u in &got {
-        let rel = u.dir.strip_prefix(&source).unwrap();
-        let want = rel.to_str().unwrap().replace('~', "");
+        let rel = u.dir.strip_prefix(root.join("family")).unwrap();
+        let want = rel.to_str().unwrap();
         assert_eq!(u.path, want, "{}", u.input.display());
         assert_eq!(u.input.parent(), Some(u.dir.as_path()));
     }

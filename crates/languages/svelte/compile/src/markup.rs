@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 /// Upstream `escape_html`.
 #[must_use]
-pub fn escape_markup(s: &str, is_attribute: bool) -> Cow<'_, str> {
+pub(crate) fn escape_markup(s: &str, is_attribute: bool) -> Cow<'_, str> {
     let needs = |c: char| c == '&' || c == '<' || (is_attribute && c == '"');
     if !s.contains(needs) {
         return Cow::Borrowed(s);

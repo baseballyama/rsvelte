@@ -1,4 +1,4 @@
-use rsvelte_typescript::syntax_tree::{Kind, TypeScriptKind, flag};
+use rsvelte_typescript_syntax::syntax_tree::{Kind, TypeScriptKind, flag};
 
 use super::{
     Buffer, Builder, Node, NodeIdentifier, Range, Result, SourceNode, Span, Unsupported, resolve,

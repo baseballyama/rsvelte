@@ -1,0 +1,267 @@
+# rsvelte pack 1
+=== 806 src/routes/__layout.svelte	css
+
+	/* the props */
+	/* @import 'open-props/style'; */
+
+	/* optional imports that use the props */
+	/* @import 'open-props/normalize';
+	@import 'open-props/buttons'; */
+
+	/* individual imports */
+	/* @import 'open-props/indigo';
+	@import 'open-props/easings';
+	@import 'open-props/animations';
+	@import 'open-props/sizes';
+	@import 'open-props/gradients'; */
+	/* see PropPacks for the full list */
+
+	/* :global(article) {
+		display: flex;
+		flex-flow: row wrap;
+		align-items: flex-start;
+		justify-content: space-around;
+		max-inline-size: calc(var(--size-content-1) * 6);
+		gap: var(--size-2);
+		padding: var(--size-2);
+	}
+	:global(article .col) {
+		background-color: var(--blue-0);
+		padding: var(--size-2);
+	} */
+
+	form .error {
+		margin-bottom: 1rem;
+		font-size: 0.75rem;
+		color: rgb(247, 63, 63);
+	}
+
+=== 450 src/routes/__layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import '@picocss/pico/css/pico.css';
+import '@picocss/pico/docs/css/pico.docs.css';
+import '../_variables.scss';
+
+var root = $.from_html(`<div class="container"><!></div>`);
+
+export default function __layout($$anchor, $$props) {
+	var div = root();
+	var node = $.child(div);
+
+	$.slot(node, $$props, 'default', {}, null);
+	$.reset(div);
+	$.append($$anchor, div);
+}
+=== 330 src/routes/__layout.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 8,
+			"column": 1,
+			"character": 161
+		},
+		"end": {
+			"line": 8,
+			"column": 9,
+			"character": 169
+		}
+	}
+]
+
+=== 2499 src/routes/_index.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Formly } from 'svelte-formly-light';
+
+var root = $.from_html(`<div class="grid"><div class="col"><article><p><code><i>fetch:</i><u><!></u></code></p> <!></article></div> <div class="col"><article><!></article></div></div>`);
+
+export default function _index($$anchor) {
+	let loading = false;
+	const form_name = 'my_form_a';
+
+	const fields = [
+		{
+			type: 'file', // required
+			name: 'name-file', // require
+			attributes: {
+				id: 'id-field', // optional
+				classes: ['form-control'], // optional
+				label: 'Image' // optional
+			},
+			extra: { multiple: true, // optional
+			 showPreview: true // optional
+			 },
+			rules: ['file'],
+			file: {
+				// need to add this attribute object if you need a file rule
+				types: 'jpg,gif',
+				maxsize: 5
+			}
+		}
+	];
+
+	const form_name_b = 'my_form_b';
+
+	const fields_b = [
+		{
+			type: 'input',
+			name: 'country',
+			attributes: {
+				type: 'text',
+				id: 'country',
+				classes: ['form-control'],
+				placeholder: 'Tap your country'
+			},
+			rules: ['required'],
+			messages: { required: 'The country is required' }
+		}
+	];
+
+	let data = {};
+
+	const onSubmit = ({ detail }) => {
+		console.log('detail onSubmit', detail);
+		data = detail;
+	};
+
+	const onUpdate = ({ detail }) => {
+		console.log('detail onUpdate', detail);
+		data = detail;
+	};
+
+	var div = root();
+	var div_1 = $.child(div);
+	var article = $.child(div_1);
+	var p = $.child(article);
+	var code = $.child(p);
+	var u = $.sibling($.child(code));
+	var node = $.child(u);
+
+	{
+		var consequent = ($$anchor) => {
+			var text = $.text('loading...');
+
+			$.append($$anchor, text);
+		};
+
+		var alternate = ($$anchor) => {
+			var text_1 = $.text('done');
+
+			$.append($$anchor, text_1);
+		};
+
+		$.if(node, ($$render) => {
+			if (loading) $$render(consequent); else $$render(alternate, -1);
+		});
+	}
+
+	$.reset(u);
+	$.reset(code);
+	$.reset(p);
+
+	var node_1 = $.sibling(p, 2);
+
+	Formly(node_1, {
+		get fields() {
+			return fields;
+		},
+		form_name,
+		realtime: true,
+		$$events: { submit: onSubmit, update: onUpdate }
+	});
+
+	$.reset(article);
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 2);
+	var article_1 = $.child(div_2);
+	var node_2 = $.child(article_1);
+
+	Formly(node_2, {
+		get fields() {
+			return fields_b;
+		},
+		form_name: form_name_b,
+		realtime: true,
+		$$events: { submit: onSubmit, update: onUpdate }
+	});
+
+	$.reset(article_1);
+	$.reset(div_2);
+	$.reset(div);
+	$.append($$anchor, div);
+}
+=== 47 src/routes/index.svelte	css
+
+	form .form-group {
+		margin-bottom: 1rem;
+	}
+
+=== 1529 src/routes/index.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Formly } from '$lib';
+
+var root = $.from_html(`<div class="grid"><div class="col"><article><hgroup><h1>Sign in</h1> <h2>Nibh risus velit metus euismod vitae eu urna.</h2></hgroup> <!></article></div></div>`);
+
+export default function Routes($$anchor) {
+	// import { Formly, type IField } from 'svelte-formly-light';
+	const form_name = 'my_form_a';
+
+	const fields = [
+		{
+			type: 'autocomplete', // required
+			name: 'name-field-autocomplete', // required
+			attributes: {
+				id: 'id-field-autocomplete',
+				classes: ['class1', 'class2'],
+				placeholder: 'Tap keyword...',
+				autocomplete: 'off'
+			},
+			extra: {
+				filter_length: 2,
+				loadItemes: [
+					// list items with id and title attributes.
+					{ value: 1, title: 'item 1' },
+					{ value: 2, title: 'item 2' },
+					{ value: 3, title: 'item 3' },
+					{ value: 4, title: 'item 4' }
+				]
+			}
+		}
+	];
+
+	let data = {};
+
+	const onSubmit = ({ detail }) => {
+		console.log('detail onSubmit', detail);
+		data = detail;
+	};
+
+	const onUpdate = ({ detail }) => {
+		console.log('detail onUpdate', detail);
+		data = detail;
+	};
+
+	var div = root();
+	var div_1 = $.child(div);
+	var article = $.child(div_1);
+	var node = $.sibling($.child(article), 2);
+
+	Formly(node, {
+		get fields() {
+			return fields;
+		},
+		form_name,
+		realtime: false,
+		$$events: { submit: onSubmit, update: onUpdate }
+	});
+
+	$.reset(article);
+	$.reset(div_1);
+	$.reset(div);
+	$.append($$anchor, div);
+}

@@ -9,9 +9,9 @@
 //! extraction, CSS display, space sensitivity, simple-element merging) over a tree of its own,
 //! since the preprocessing rewrites text and removes nodes. `Printer` is `printChildren`,
 //! `printElement` and the tag helpers of `print/tag.js`, one function per upstream function.
-//! Script bodies and template expressions go through `rsvelte_typescript`'s formatter, style bodies
-//! through `rsvelte_stylesheet`'s; anything neither covers is an [`Unsupported`] error, never an
-//! approximation.
+//! Script bodies and template expressions go through `rsvelte_typescript_format`'s formatter, style
+//! bodies through `rsvelte_stylesheet_format`'s; anything neither covers is an [`Unsupported`]
+//! error, never an approximation.
 
 use std::borrow::Cow;
 
@@ -19,10 +19,10 @@ use rsvelte_document_printer::{
     GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions, PrintOptions, Refused,
 };
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
-pub use rsvelte_typescript_format::Unsupported;
+pub(crate) use rsvelte_typescript_format::Unsupported;
 use rsvelte_typescript_format::{Formatter, Options as JavaScriptOptions};
-use rsvelte_vue::syntax_tree::{
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_vue_syntax::syntax_tree::{
     Attribute, AttributeKind, DirectiveExpression, DirectiveName, SingleFileComponent,
     TagAttributes, TemplateNode, TemplateNodeIdentifier,
 };
@@ -42,7 +42,12 @@ const VOID_TAGS: &[&str] = &[
 ///
 /// [`Unsupported`] if the component holds a construct this formatter does not print.
 /// `lines` is `source_text`'s, which the pipeline builds once per document.
-pub fn format(c: &SingleFileComponent, source_text: &str, lines: &LineIndex) -> R<String> {
+pub(crate) fn format(c: &SingleFileComponent, source_text: &str, lines: &LineIndex) -> R<String> {
+    if rsvelte_document_printer::has_emoji_sequence(source_text) {
+        return Err(Unsupported::nowhere(
+            "an emoji sequence, which Prettier measures as one character",
+        ));
+    }
     let tree = Tree::build(c, source_text, lines)?;
     let mut docs = LayoutInstructions::new();
     let javascript = Formatter::new(

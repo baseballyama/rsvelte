@@ -2,7 +2,7 @@ mod custom_element;
 mod props;
 mod rune_values;
 use props::prop_declarations;
-pub use props::prop_member;
+pub(crate) use props::prop_member;
 pub(crate) use rune_values::{rune_value, tracked};
 
 use super::declarations::declarator;
@@ -17,7 +17,7 @@ use super::{
     clippy::too_many_lines,
     reason = "the program in output order, one statement kind at a time"
 )]
-pub fn emit(
+pub(crate) fn emit(
     c: &Component,
     resolution: &Resolution,
     plan: &Plan,
@@ -437,7 +437,7 @@ impl Rewrite for ScriptRewrite<'_> {
             Kind::Assign(..) if self.constructors.assignments.contains(&identifier) => {
                 Some(self.constructor_assignment(from, to, identifier))
             }
-            Kind::Class(rsvelte_typescript::syntax_tree::Class::Definition { .. }) => {
+            Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition { .. }) => {
                 Some(self.class(from, to, identifier))
             }
             Kind::Member {

@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::{Part, TemplateNode};
+use rsvelte_svelte_syntax::syntax_tree::{Part, TemplateNode};
 
 use super::constant_string::{root, string_if_constant};
 use super::expressions::Expressions;

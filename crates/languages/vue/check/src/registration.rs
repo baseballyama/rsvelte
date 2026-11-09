@@ -9,7 +9,8 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_check::{
     Check, Documents, TypeScriptDocument, TypeScriptEnv, TypeScriptView,
 };
-use rsvelte_vue::{Parsed, Resolved};
+use rsvelte_vue_semantic::Resolved;
+use rsvelte_vue_syntax::Parsed;
 
 use crate::Configuration;
 use crate::project::Projection;
@@ -19,7 +20,7 @@ pub static PLUGIN: Plugin = Plugin {
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[
         Dependency {
-            identifier: "vue",
+            identifier: "vue.semantic",
             requirement: concat!("=", env!("CARGO_PKG_VERSION")),
         },
         Dependency {
@@ -32,17 +33,17 @@ pub static PLUGIN: Plugin = Plugin {
 pub fn register(reg: &mut Registry, config: &Configuration) {
     reg.plugin(&PLUGIN);
     rsvelte_typescript_check::register_service(reg);
-    rsvelte_vue::register(reg);
+    rsvelte_vue_semantic::register(reg);
     reg.finish_task(Check {
         identifier: "vue.check/default",
-        documents: Documents::Matching(rsvelte_vue::matches),
+        documents: Documents::Matching(rsvelte_vue_syntax::matches),
         tsc: config.check.as_ref().map(|c| c.tsc.clone()),
     });
     let env = config
         .check
         .as_ref()
         .map(|c| Arc::new(typescript_env(&c.vue)));
-    reg.provide::<TypeScriptView>("vue", rsvelte_vue::matches, move |context| {
+    reg.provide::<TypeScriptView>("vue", rsvelte_vue_syntax::matches, move |context| {
         typescript_view(context, env.as_ref())
     });
 }

@@ -1,5 +1,5 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, Component, Part, TemplateNode, decode_attribute,
 };
 use serde::Deserialize;

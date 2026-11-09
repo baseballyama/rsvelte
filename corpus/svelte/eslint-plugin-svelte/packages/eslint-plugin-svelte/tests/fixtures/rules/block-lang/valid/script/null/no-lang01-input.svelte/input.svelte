@@ -1,3 +1,0 @@
-<script></script>
-
-<style></style>

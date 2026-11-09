@@ -1,0 +1,13 @@
+# rsvelte pack 1
+=== 3 src/lib/Confetti.svelte	json
+[]
+
+=== 3 src/routes/+page.svelte	json
+[]
+
+=== 3 src/routes/CodeBlock.svelte	json
+[]
+
+=== 3 src/routes/ConfettiOnClick.svelte	json
+[]
+

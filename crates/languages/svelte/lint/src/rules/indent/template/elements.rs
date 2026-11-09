@@ -2,7 +2,7 @@
 
 use rsvelte_kernel::source::characters::trim_ecmascript;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Part, Range, TemplateNode, TokenType,
 };
 

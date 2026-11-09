@@ -1,0 +1,1742 @@
+# rsvelte pack 1
+=== 881 src/lib/components/calendar/Calendar.svelte	css
+
+	.grid.svelte-1402ryx {
+		display: grid;
+		width: var(--sc-theme-calendar-width);
+		max-width: var(--sc-theme-calendar-maxWidth);
+		grid-template-rows: auto calc(
+				min(var(--sc-theme-calendar-maxWidth), var(--sc-theme-calendar-width)) * 6 / 7 +
+					var(--sc-theme-calendar-legend-height)
+			);
+		font-family: Rajdhani, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial,
+			sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+		box-shadow: var(--sc-theme-calendar-shadow);
+		background: var(--sc-theme-calendar-colors-background-primary);
+		text-align: center;
+		color: var(--sc-theme-calendar-colors-text-primary);
+	}
+	.contents.svelte-1402ryx {
+		display: grid;
+		overflow: hidden;
+	}
+	.grid.svelte-1402ryx .contents:where(.svelte-1402ryx) > * {
+		display: grid;
+		grid-row: 1;
+		grid-column: 1;
+		height: 100%;
+		grid-template: 1fr / 1fr;
+	}
+
+=== 2141 src/lib/components/calendar/Calendar.svelte	js
+import * as $ from 'svelte/internal/server';
+import DayPicker from '$lib/components/calendar/DayPicker.svelte';
+import ViewTransitionEffect from '$lib/components/generic/ViewTransitionEffect.svelte';
+import DatepickerControls from '$lib/components/calendar/CalendarControls.svelte';
+import { getContext } from 'svelte';
+import { storeContextKey } from '$lib/context';
+import CrossfadeProvider from '$lib/components/generic/crossfade/CrossfadeProvider.svelte';
+import MonthPicker from '$lib/components/calendar/MonthPicker.svelte';
+import YearPicker from '$lib/components/calendar/YearPicker.svelte';
+
+export default function Calendar($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+		const store = getContext(storeContextKey);
+
+		CrossfadeProvider($$renderer, {
+			children: $.invalid_default_snippet,
+			$$slots: {
+				default: ($$renderer, { key, send, receive }) => {
+					$$renderer.push(`<div class="grid svelte-1402ryx">`);
+					DatepickerControls($$renderer, {});
+					$$renderer.push(`<!----> <div class="contents svelte-1402ryx">`);
+
+					if ($.store_get($$store_subs ??= {}, '$store', store).activeView === 'days') {
+						$$renderer.push('<!--[0-->');
+
+						ViewTransitionEffect($$renderer, {
+							children: ($$renderer) => {
+								DayPicker($$renderer, {});
+							},
+							$$slots: { default: true }
+						});
+					} else if ($.store_get($$store_subs ??= {}, '$store', store).activeView === 'months') {
+						$$renderer.push('<!--[1-->');
+
+						ViewTransitionEffect($$renderer, {
+							children: ($$renderer) => {
+								MonthPicker($$renderer, {});
+							},
+							$$slots: { default: true }
+						});
+					} else if ($.store_get($$store_subs ??= {}, '$store', store).activeView === 'years') {
+						$$renderer.push('<!--[2-->');
+
+						ViewTransitionEffect($$renderer, {
+							children: ($$renderer) => {
+								YearPicker($$renderer, {});
+							},
+							$$slots: { default: true }
+						});
+					} else {
+						$$renderer.push('<!--[-1-->');
+					}
+
+					$$renderer.push(`<!--]--></div></div>`);
+				}
+			}
+		});
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 536 src/lib/components/generic/ViewTransitionEffect.svelte	js
+import * as $ from 'svelte/internal/server';
+import { scale } from 'svelte/transition';
+import { storeContextKey } from '$lib/context';
+import { getContext } from 'svelte';
+
+export default function ViewTransitionEffect($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+		const store = getContext(storeContextKey);
+
+		$$renderer.push(`<div><!--[-->`);
+		$.slot($$renderer, $$props, 'default', {}, null);
+		$$renderer.push(`<!--]--></div>`);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 332 src/lib/components/generic/ViewTransitionEffect.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 13,
+			"column": 1,
+			"character": 350
+		},
+		"end": {
+			"line": 13,
+			"column": 9,
+			"character": 358
+		}
+	}
+]
+
+=== 341 src/lib/components/generic/crossfade/CrossfadeBoundary.svelte	js
+import * as $ from 'svelte/internal/server';
+import { setContext } from 'svelte';
+
+export default function CrossfadeBoundary($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		setContext('crossfade', null);
+		$$renderer.push(`<!--[-->`);
+		$.slot($$renderer, $$props, 'default', {}, null);
+		$$renderer.push(`<!--]-->`);
+	});
+}
+=== 328 src/lib/components/generic/crossfade/CrossfadeBoundary.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 6,
+			"column": 0,
+			"character": 90
+		},
+		"end": {
+			"line": 6,
+			"column": 8,
+			"character": 98
+		}
+	}
+]
+
+=== 765 src/lib/components/generic/crossfade/CrossfadeProvider.svelte	js
+import * as $ from 'svelte/internal/server';
+import { getContext } from 'svelte';
+import { writable } from 'svelte/store';
+
+export default function CrossfadeProvider($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+		const noop = () => false;
+		const store = getContext('crossfade') || writable({ send: noop, receive: noop });
+
+		$$renderer.push(`<!--[-->`);
+
+		$.slot(
+			$$renderer,
+			$$props,
+			'default',
+			{
+				key: $.store_get($$store_subs ??= {}, '$store', store).key,
+				send: $.store_get($$store_subs ??= {}, '$store', store).send,
+				receive: $.store_get($$store_subs ??= {}, '$store', store).receive
+			},
+			null
+		);
+
+		$$renderer.push(`<!--]-->`);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 333 src/lib/components/generic/crossfade/CrossfadeProvider.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 10,
+			"column": 0,
+			"character": 212
+		},
+		"end": {
+			"line": 10,
+			"column": 69,
+			"character": 281
+		}
+	}
+]
+
+=== 1742 src/lib/docs/JSONEditorModal.svelte	css
+
+	.default-editor.svelte-xa8skv {
+		width: 850px;
+		max-width: 100%;
+		height: 225px;
+		box-shadow: var(--sc-theme-calendar-shadow);
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 3;
+		opacity: 1;
+		background: var(--sc-theme-calendar-colors-background-primary);
+		display: grid;
+		grid-template-rows: auto 1fr;
+		text-align: left;
+		align-items: center;
+	}
+
+	.default-editor.svelte-xa8skv .heading:where(.svelte-xa8skv) {
+		background: var(--sc-theme-calendar-colors-background-highlight);
+		color: #fff;
+		display: grid;
+		padding: 15px;
+		font-size: 1.2em;
+	}
+
+	.default-editor.svelte-xa8skv .heading:where(.svelte-xa8skv) .value:where(.svelte-xa8skv) {
+		font-size: 2.4em;
+	}
+
+	.default-editor.svelte-xa8skv .form:where(.svelte-xa8skv) {
+		width: 80%;
+		margin: 0 auto;
+		display: grid;
+		grid-template-columns: auto auto auto;
+		border: 1px solid #333;
+		box-shadow: var(--sc-theme-calendar-shadow);
+	}
+
+	.default-editor.svelte-xa8skv .form:where(.svelte-xa8skv) > :where(.svelte-xa8skv) {
+		border: none;
+		padding: 15px;
+	}
+
+	@media (max-width: 480px) {
+		.default-editor.svelte-xa8skv .form:where(.svelte-xa8skv) > :where(.svelte-xa8skv) {
+			padding: 5px;
+		}
+	}
+
+	.default-editor.svelte-xa8skv .form:where(.svelte-xa8skv) input:where(.svelte-xa8skv) {
+		outline: none;
+		border-right: 1px solid #333;
+	}
+
+	button.svelte-xa8skv {
+		background: var(--sc-theme-calendar-colors-background-highlight);
+		color: var(--sc-theme-calendar-colors-text-highlight);
+		font-size: 1.3em;
+		border: 0;
+		cursor: pointer;
+		border-radius: 0;
+	}
+
+	button.secondary.svelte-xa8skv {
+		background: var(--sc-theme-calendar-colors-background-primary);
+		color: var(--sc-theme-calendar-colors-text-primary);
+	}
+
+=== 1433 src/lib/docs/JSONEditorModal.svelte	js
+import * as $ from 'svelte/internal/server';
+import CrossfadeProvider from '$lib/components/generic/crossfade/CrossfadeProvider.svelte';
+import { storeContextKey } from '$lib/context';
+import autofocus from '$lib/directives/autofocus';
+import blurr from '$lib/directives/blurr';
+import { getContext } from 'svelte';
+
+export default function JSONEditorModal($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+		const store = getContext(storeContextKey);
+		const originalValue = $.store_get($$store_subs ??= {}, '$store', store).editing.value;
+		const path = $.store_get($$store_subs ??= {}, '$store', store).editing.mapping.path;
+		let newValue = $.store_get($$store_subs ??= {}, '$store', store).editing.newValue;
+
+		CrossfadeProvider($$renderer, {
+			children: $.invalid_default_snippet,
+			$$slots: {
+				default: ($$renderer, { key, send, receive }) => {
+					$$renderer.push(`<form><div class="default-editor svelte-xa8skv"><div class="heading svelte-xa8skv"><span class="label">${$.escape(path)}</span> <span class="value svelte-xa8skv">${$.escape(originalValue)}</span></div> <div class="form svelte-xa8skv"><input type="text"${$.attr('value', newValue)} class="svelte-xa8skv"/> <button type="submit" class="svelte-xa8skv">save</button> <button class="secondary svelte-xa8skv">revert</button></div></div></form>`);
+				}
+			}
+		});
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 2090 src/lib/docs/JSONEditorModal.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:submit` to listen to the submit event is deprecated. Use the event attribute `onsubmit` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 15,
+			"column": 7,
+			"character": 526
+		},
+		"end": {
+			"line": 15,
+			"column": 78,
+			"character": 597
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a keydown handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 16,
+			"column": 2,
+			"character": 601
+		},
+		"end": {
+			"line": 33,
+			"column": 8,
+			"character": 1152
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:blurr` to listen to the blurr event is deprecated. Use the event attribute `onblurr` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 18,
+			"column": 3,
+			"character": 622
+		},
+		"end": {
+			"line": 18,
+			"column": 38,
+			"character": 657
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 19,
+			"column": 3,
+			"character": 661
+		},
+		"end": {
+			"line": 19,
+			"column": 29,
+			"character": 687
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 31,
+			"column": 30,
+			"character": 1067
+		},
+		"end": {
+			"line": 31,
+			"column": 80,
+			"character": 1117
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`newValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 5,
+			"character": 423
+		},
+		"end": {
+			"line": 11,
+			"column": 13,
+			"character": 431
+		}
+	}
+]
+
+=== 820 src/lib/docs/NavBar.svelte	css
+
+	nav.svelte-i0n8wt {
+		background: #0f0b0c;
+		display: grid;
+		grid-template-columns: auto 1fr;
+		overflow-x: auto;
+	}
+	.flex.svelte-i0n8wt {
+		display: flex;
+	}
+
+	@media (max-width: 720px) {
+		nav.svelte-i0n8wt section:where(.svelte-i0n8wt):last-child {
+			display: none;
+		}
+		nav.svelte-i0n8wt::-webkit-scrollbar-track {
+			box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+			background-color: #333;
+		}
+
+		nav.svelte-i0n8wt::-webkit-scrollbar {
+			height: 3px;
+			background-color: #000;
+		}
+
+		nav.svelte-i0n8wt::-webkit-scrollbar-thumb {
+			background-color: #000;
+			background-image: -webkit-linear-gradient(
+				45deg,
+				rgba(255, 255, 255, 0.2) 25%,
+				transparent 25%,
+				transparent 50%,
+				rgba(255, 255, 255, 0.2) 50%,
+				rgba(255, 255, 255, 0.2) 75%,
+				transparent 75%,
+				transparent
+			);
+		}
+	}
+
+=== 790 src/lib/docs/NavBar.svelte	js
+import * as $ from 'svelte/internal/server';
+import { getStores } from '$app/stores';
+import Crossfade from '$lib/components/generic/crossfade/Crossfade.svelte';
+import { setContext } from 'svelte';
+import { elasticOut } from 'svelte/easing';
+
+export default function NavBar($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const { page } = getStores();
+
+		setContext('navbar', page);
+
+		Crossfade($$renderer, {
+			easing: elasticOut,
+			duration: 1250,
+			children: ($$renderer) => {
+				$$renderer.push(`<nav class="svelte-i0n8wt"><section class="flex svelte-i0n8wt"><!--[-->`);
+				$.slot($$renderer, $$props, 'default', {}, null);
+				$$renderer.push(`<!--]--></section> <section class="svelte-i0n8wt"></section></nav>`);
+			},
+			$$slots: { default: true }
+		});
+	});
+}
+=== 716 src/lib/docs/NavBar.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 14,
+			"column": 3,
+			"character": 366
+		},
+		"end": {
+			"line": 14,
+			"column": 11,
+			"character": 374
+		}
+	},
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<section ...></section>` rather than `<section ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 16,
+			"column": 2,
+			"character": 390
+		},
+		"end": {
+			"line": 16,
+			"column": 13,
+			"character": 401
+		}
+	}
+]
+
+=== 191 src/lib/docs/SvgThing.svelte	css
+
+	div.svelte-yc8gmx {
+		display: grid;
+		pointer-events: none;
+	}
+	svg.svelte-yc8gmx {
+		height: 100%;
+		width: 100%;
+	}
+	svg.svelte-yc8gmx circle:where(.svelte-yc8gmx) {
+		fill: #0f0b0c;
+	}
+
+=== 1462 src/lib/docs/SvgThing.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount, tick } from 'svelte';
+
+export default function SvgThing($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const rand = (start, end) => Math.random() * (end - start) + start;
+
+		const wrap = (val, limit) => {
+			if (val < 0) return limit;
+			if (val > limit) return 0;
+
+			return val;
+		};
+
+		let w;
+		let h;
+		let circles = [];
+
+		onMount(() => {
+			let rafId;
+
+			circles = Array(50).fill(0).map((_, i) => {
+				const r = rand(0.01, 8);
+
+				return {
+					cx: rand(0, w),
+					cy: rand(h, h * 1.1),
+					vx: rand(-0.25, 0.25),
+					vy: rand(-0.5, -5.8) / (r * 3),
+					r
+				};
+			});
+
+			const animate = async (t = Date.now()) => {
+				circles = circles.map((circle) => ({
+					...circle,
+					cx: wrap(circle.cx + circle.vx, w + circle.r * 2),
+					cy: wrap(circle.cy + circle.vy, h + circle.r * 2)
+				}));
+
+				await tick();
+				rafId = requestAnimationFrame(animate);
+			};
+
+			animate();
+
+			return cancelAnimationFrame(rafId);
+		});
+
+		$$renderer.push(`<div class="svelte-yc8gmx"><svg class="svelte-yc8gmx"><!--[-->`);
+
+		const each_array = $.ensure_array_like(circles);
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let { cx, cy, r } = each_array[$$index];
+
+			$$renderer.push(`<circle${$.attr('cx', cx)}${$.attr('cy', cy)}${$.attr('r', r)} class="svelte-yc8gmx"></circle>`);
+		}
+
+		$$renderer.push(`<!--]--></svg></div>`);
+	});
+}
+=== 1039 src/lib/docs/SvgThing.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`w` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 5,
+			"character": 234
+		},
+		"end": {
+			"line": 11,
+			"column": 6,
+			"character": 235
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`h` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 8,
+			"character": 237
+		},
+		"end": {
+			"line": 11,
+			"column": 9,
+			"character": 238
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`circles` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 5,
+			"character": 245
+		},
+		"end": {
+			"line": 12,
+			"column": 12,
+			"character": 252
+		}
+	}
+]
+
+=== 460 src/lib/docs/examples/CustomTheme.svelte	js
+import * as $ from 'svelte/internal/server';
+import { InlineCalendar } from '../../index';
+import { base } from '$app/paths';
+
+export default function CustomTheme($$renderer) {
+	const theme = {
+		calendar: { colors: { background: { highlight: 'purple' } } }
+	};
+
+	InlineCalendar($$renderer, { theme });
+	$$renderer.push(`<!----> <p>See <a${$.attr('href', `${$.stringify(base)}/docs/theme-editor/light`)}>theme-editor page</a> to design your own theme.</p>`);
+}
+=== 161 src/lib/docs/examples/CustomTrigger.svelte	css
+
+	button.svelte-wm2vmo {
+		background: purple;
+		color: #fff;
+		border: 0;
+		padding: 18px 30px;
+		font-size: 1.2em;
+		border-radius: 6px;
+		cursor: pointer;
+	}
+
+=== 1250 src/lib/docs/examples/CustomTrigger.svelte	js
+import * as $ from 'svelte/internal/server';
+import dayjs from 'dayjs';
+import { Datepicker } from '../../index';
+
+export default function CustomTrigger($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+		let store;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			Datepicker($$renderer, {
+				get store() {
+					return store;
+				},
+
+				set store($$value) {
+					store = $$value;
+					$$settled = false;
+				},
+				children: $.invalid_default_snippet,
+				$$slots: {
+					default: ($$renderer, { key, send, receive }) => {
+						$$renderer.push(`<button class="svelte-wm2vmo">`);
+
+						if ($.store_get($$store_subs ??= {}, '$store', store)?.hasChosen) {
+							$$renderer.push(`<!--[0-->${$.escape(dayjs($.store_get($$store_subs ??= {}, '$store', store).selected).format('ddd MMM D, YYYY'))}`);
+						} else {
+							$$renderer.push(`<!--[-1-->Pick a Date`);
+						}
+
+						$$renderer.push(`<!--]--></button>`);
+					}
+				}
+			});
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 347 src/lib/docs/examples/CustomTrigger.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`store` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 86
+		},
+		"end": {
+			"line": 5,
+			"column": 10,
+			"character": 91
+		}
+	}
+]
+
+=== 410 src/lib/docs/examples/DarkTheme.svelte	js
+import * as $ from 'svelte/internal/server';
+import { base } from '$app/paths';
+import { InlineCalendar, themes } from '../../index';
+
+export default function DarkTheme($$renderer) {
+	const { dark: theme } = themes;
+
+	InlineCalendar($$renderer, { theme });
+	$$renderer.push(`<!----> <p>Not your cup of tea? <a${$.attr('href', `${$.stringify(base)}/docs/theme-editor/light`)}>Design your own theme.</a></p>`);
+}
+=== 106 src/lib/docs/examples/Formatting.svelte	css
+
+	input.svelte-vh5avo {
+		height: 30px;
+		border: 1px solid #333;
+		padding: 18px;
+		background: #eee;
+	}
+
+=== 417 src/lib/docs/examples/Formatting.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Datepicker } from '../../index';
+
+export default function Formatting($$renderer) {
+	let format = 'dddd, MMMM D, YYYY';
+
+	Datepicker($$renderer, { format });
+	$$renderer.push(`<!----> <input type="text"${$.attr('value', format)} class="svelte-vh5avo"/> <p>See <a href="https://day.js.org/docs/en/display/format">dayjs</a> documentation for formatting docs</p>`);
+}
+=== 348 src/lib/docs/examples/Formatting.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`format` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 58
+		},
+		"end": {
+			"line": 4,
+			"column": 11,
+			"character": 64
+		}
+	}
+]
+
+=== 284 src/lib/docs/examples/InlineCalendar.svelte	js
+import * as $ from 'svelte/internal/server';
+import { InlineCalendar } from '../../index';
+
+export default function InlineCalendar_1($$renderer) {
+	const theme = {
+		calendar: { width: '600px', shadow: '0px 0px 5px rgba(0, 0, 0, 0.25)' }
+	};
+
+	InlineCalendar($$renderer, { theme });
+}
+=== 167 src/lib/docs/examples/QuickStart.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Datepicker } from '../../index';
+
+export default function QuickStart($$renderer) {
+	Datepicker($$renderer, {});
+}
+=== 359 src/lib/docs/examples/StartAndEnd.svelte	js
+import * as $ from 'svelte/internal/server';
+import dayjs from 'dayjs';
+import { Datepicker } from '../../index';
+
+export default function StartAndEnd($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const today = new Date();
+		const tomorrow = dayjs().add(1, 'day').toDate();
+
+		Datepicker($$renderer, { start: today, end: tomorrow });
+	});
+}
+=== 685 src/lib/docs/examples/Store.svelte	css
+
+	.grid.svelte-1l69wo8 {
+		background: #333;
+		color: #fff;
+		display: grid;
+		grid-template-columns: auto auto auto 1fr auto auto auto;
+		text-align: center;
+		align-items: center;
+		width: 600px;
+		max-width: var(--sc-theme-calendar-maxWidth);
+	}
+	button.svelte-1l69wo8 {
+		display: grid;
+		height: 100%;
+		align-items: center;
+		background: var(--sc-theme-calendar-colors-background-highlight);
+		border: 0;
+		padding: 18px;
+		color: var(--sc-theme-calendar-colors-text-highlight);
+		font-size: 1.1em;
+		cursor: pointer;
+	}
+	@media (max-width: 480px) {
+		.grid.svelte-1l69wo8 {
+			grid-template-columns: auto auto 1fr auto auto;
+		}
+		.day.svelte-1l69wo8 {
+			display: none;
+		}
+	}
+
+=== 1354 src/lib/docs/examples/Store.svelte	js
+import * as $ from 'svelte/internal/server';
+import { InlineCalendar } from '../../index';
+import dayjs from 'dayjs';
+
+export default function Store($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+
+		const theme = {
+			calendar: { width: '600px', shadow: '0px 0px 5px rgba(0, 0, 0, 0.25)' }
+		};
+
+		let store;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			InlineCalendar($$renderer, {
+				theme,
+				get store() {
+					return store;
+				},
+
+				set store($$value) {
+					store = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----> <div class="grid svelte-1l69wo8"><button class="svelte-1l69wo8">-1y</button> <button class="svelte-1l69wo8">-1m</button> <button class="day svelte-1l69wo8">-1d</button> <p>${$.escape(dayjs($.store_get($$store_subs ??= {}, '$store', store)?.selected).format('MM/DD/YYYY'))}</p> <button class="day svelte-1l69wo8">+1d</button> <button class="svelte-1l69wo8">+1m</button> <button class="svelte-1l69wo8">+1y</button></div> <p>You can access both the store's state and methods.</p>`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 2459 src/lib/docs/examples/Store.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 18,
+			"column": 9,
+			"character": 279
+		},
+		"end": {
+			"line": 18,
+			"column": 47,
+			"character": 317
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 19,
+			"column": 9,
+			"character": 340
+		},
+		"end": {
+			"line": 19,
+			"column": 48,
+			"character": 379
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 20,
+			"column": 21,
+			"character": 414
+		},
+		"end": {
+			"line": 20,
+			"column": 58,
+			"character": 451
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 24,
+			"column": 21,
+			"character": 546
+		},
+		"end": {
+			"line": 24,
+			"column": 57,
+			"character": 582
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 25,
+			"column": 9,
+			"character": 605
+		},
+		"end": {
+			"line": 25,
+			"column": 47,
+			"character": 643
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 26,
+			"column": 9,
+			"character": 666
+		},
+		"end": {
+			"line": 26,
+			"column": 46,
+			"character": 703
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`store` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 5,
+			"character": 194
+		},
+		"end": {
+			"line": 12,
+			"column": 10,
+			"character": 199
+		}
+	}
+]
+
+=== 2920 src/routes/docs/examples.svelte	css
+
+	.grid.svelte-1a5y3dx {
+		display: grid;
+		grid-template-columns: repeat(5, 1fr);
+		column-gap: 10px;
+		row-gap: 10px;
+	}
+	@media (max-width: 720px) {
+		.grid.svelte-1a5y3dx {
+			grid-template-columns: 1fr;
+		}
+	}
+	.grid.svelte-1a5y3dx > div:where(.svelte-1a5y3dx) {
+		background: var(--sc-theme-calendar-colors-background-primary);
+	}
+	a.svelte-1a5y3dx {
+		height: 80px;
+		text-align: center;
+		display: grid;
+		align-items: center;
+		background: var(--sc-theme-calendar-colors-background-primary);
+		color: var(--sc-theme-calendar-colors-text-primary);
+		box-shadow: var(--sc-theme-calendar-shadow);
+		font-size: 1.4em;
+		text-decoration: none;
+		transition: all 180ms linear;
+	}
+	a.svelte-1a5y3dx:hover {
+		background: var(--sc-theme-calendar-colors-background-hover);
+	}
+	.modal.svelte-1a5y3dx {
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: 95vw;
+		min-height: 700px;
+		background: #fff;
+		box-shadow: var(--sc-theme-calendar-shadow);
+		display: grid;
+		grid-template-columns: 1fr auto;
+		z-index: 3;
+	}
+
+	.modal.svelte-1a5y3dx .code:where(.svelte-1a5y3dx) {
+		display: grid;
+		height: 100%;
+		overflow-y: auto;
+	}
+
+	.modal.svelte-1a5y3dx .code:where(.svelte-1a5y3dx) > * {
+		padding: 35px;
+	}
+
+	.modal.svelte-1a5y3dx .result-column:where(.svelte-1a5y3dx) {
+		display: grid;
+		grid-template-rows: auto 1fr;
+		min-width: 57vw;
+	}
+
+	.modal.svelte-1a5y3dx .result-column:where(.svelte-1a5y3dx) h1:where(.svelte-1a5y3dx) {
+		margin: 0;
+		padding: 20px;
+		background: var(--sc-theme-calendar-colors-background-primary);
+		color: var(--sc-theme-calendar-colors-text-primary);
+		display: grid;
+		grid-template-columns: 1fr auto;
+		align-items: center;
+	}
+
+	.modal.svelte-1a5y3dx .result-column:where(.svelte-1a5y3dx) h1:where(.svelte-1a5y3dx) button:where(.svelte-1a5y3dx) {
+		background: var(--sc-theme-calendar-colors-background-primary);
+		color: var(--sc-theme-calendar-colors-text-primary);
+		box-shadow: 3px 3px 5px 5px rgba(0, 0, 0, 0.18);
+		border: 0;
+		padding: 14px;
+		border-radius: 8px;
+		font-size: 18px;
+		cursor: pointer;
+	}
+
+	.modal.svelte-1a5y3dx .example:where(.svelte-1a5y3dx) {
+		display: grid;
+		padding: 20px;
+		grid-template-rows: auto auto 1fr;
+		grid-template-rows: 1fr auto auto;
+		align-items: center;
+		height: 100%;
+		text-align: center;
+		align-items: center;
+	}
+
+	@media (min-width: 720px) {
+		/* (empty) .modal .example {
+		}*/
+	}
+
+	@media (max-width: 720px) {
+		.modal.svelte-1a5y3dx {
+			width: 100vw;
+			height: 100vh;
+			grid-template-columns: 1fr;
+			grid-template-rows: 1fr auto;
+		}
+		.modal.svelte-1a5y3dx .example:where(.svelte-1a5y3dx) {
+			padding: 20px 0;
+		}
+	}
+
+	.modal.svelte-1a5y3dx .example:where(.svelte-1a5y3dx) > * {
+		margin: 0 auto;
+	}
+
+	.modal.svelte-1a5y3dx .example:where(.svelte-1a5y3dx) > p {
+		margin-top: 30px;
+		color: #666;
+	}
+
+	.modal.svelte-1a5y3dx .example:where(.svelte-1a5y3dx) > p a {
+		font-weight: bold;
+	}
+
+=== 4327 src/routes/docs/examples.svelte	js
+import * as $ from 'svelte/internal/server';
+import Crossfade from '$lib/components/generic/crossfade/Crossfade.svelte';
+import Theme from '$lib/components/generic/Theme.svelte';
+import { dark } from '$lib/config/theme';
+import blurr from '$lib/directives/blurr';
+import Code from '$lib/docs/Code.svelte';
+import CodeExample from '$lib/docs/CodeExample.svelte';
+import DocPage from '$lib/docs/DocPage.svelte';
+
+export default function Examples($$renderer) {
+	// @example(quickStart, QuickStart.svelte)
+	// @example(startAndEnd, StartAndEnd.svelte)
+	// @example(inlineCalendar, InlineCalendar.svelte)
+	// @example(darkTheme, DarkTheme.svelte)
+	// @example(customTheme, CustomTheme.svelte)
+	// @example(formatting, Formatting.svelte)
+	// @example(storeExample, Store.svelte)
+	// @example(localeExample, Locale.svelte)
+	// @example(customTrigger, CustomTrigger.svelte)
+	let example = null;
+
+	const examples = [
+		{
+			title: 'Quick Start',
+			component: quickStart.component,
+			code: quickStart.code
+		},
+
+		{
+			title: 'Start & End',
+			component: startAndEnd.component,
+			code: startAndEnd.code
+		},
+
+		{
+			title: 'Inline Calendar',
+			component: inlineCalendar.component,
+			code: inlineCalendar.code
+		},
+
+		{
+			title: 'Dark Theme',
+			component: darkTheme.component,
+			code: darkTheme.code
+		},
+
+		{
+			title: 'Custom Theme',
+			component: customTheme.component,
+			code: customTheme.code
+		},
+
+		{
+			title: 'Formatting',
+			component: formatting.component,
+			code: formatting.code
+		},
+
+		{
+			title: 'Accessing Store',
+			component: storeExample.component,
+			code: storeExample.code
+		},
+
+		{
+			title: 'Locale',
+			component: localeExample.component,
+			code: localeExample.code
+		},
+
+		{
+			title: 'Custom Trigger',
+			component: customTrigger.component,
+			code: customTrigger.code
+		}
+	];
+
+	// todo: work out fix for switching between examples
+	const openExample = (ex) => () => {
+		example = ex;
+	};
+
+	const closeExample = () => {
+		example = null;
+	};
+
+	Crossfade($$renderer, {
+		children: $.invalid_default_snippet,
+		$$slots: {
+			default: ($$renderer, { key, send, receive }) => {
+				DocPage($$renderer, {
+					children: ($$renderer) => {
+						$$renderer.push(`<div class="grid svelte-1a5y3dx"><!--[-->`);
+
+						const each_array = $.ensure_array_like(examples);
+
+						for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+							let ex = each_array[$$index];
+
+							$$renderer.push(`<div class="svelte-1a5y3dx">`);
+
+							if (example !== ex) {
+								$$renderer.push(`<!--[0--><a href="#example" class="svelte-1a5y3dx">${$.escape(ex.title)}</a>`);
+							} else {
+								$$renderer.push('<!--[-1-->');
+							}
+
+							$$renderer.push(`<!--]--></div>`);
+						}
+
+						$$renderer.push(`<!--]--></div>`);
+					},
+
+					$$slots: {
+						default: true,
+						title: ($$renderer) => {
+							{
+								$$renderer.push(`Examples`);
+							}
+						}
+					}
+				});
+
+				$$renderer.push(`<!----> `);
+
+				if (example) {
+					$$renderer.push('<!--[0-->');
+
+					Theme($$renderer, {
+						theme: dark,
+						children: $.invalid_default_snippet,
+						$$slots: {
+							default: ($$renderer, { style }) => {
+								$$renderer.push(`<div class="modal svelte-1a5y3dx"${$.attr_style(style)}>`);
+
+								CodeExample($$renderer, {
+									children: ($$renderer) => {
+										$$renderer.push(`<div class="result-column svelte-1a5y3dx"><h1 class="svelte-1a5y3dx">${$.escape(example.title)} <button class="svelte-1a5y3dx">X</button></h1> <div class="example svelte-1a5y3dx">`);
+
+										if (example.component) {
+											$$renderer.push('<!--[-->');
+											example.component($$renderer, {});
+											$$renderer.push('<!--]-->');
+										} else {
+											$$renderer.push('<!--[!-->');
+											$$renderer.push('<!--]-->');
+										}
+
+										$$renderer.push(`</div></div>`);
+									},
+
+									$$slots: {
+										default: true,
+										code: ($$renderer) => {
+											$$renderer.push(`<div class="code svelte-1a5y3dx" slot="code">`);
+											Code($$renderer, { pretranslated: example.code });
+											$$renderer.push(`<!----></div>`);
+										}
+									}
+								});
+
+								$$renderer.push(`<!----></div>`);
+							}
+						}
+					});
+				} else {
+					$$renderer.push('<!--[-1-->');
+				}
+
+				$$renderer.push(`<!--]-->`);
+			}
+		}
+	});
+}
+=== 1758 src/routes/docs/examples.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 91,
+			"column": 7,
+			"character": 2197
+		},
+		"end": {
+			"line": 91,
+			"column": 48,
+			"character": 2238
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:blurr` to listen to the blurr event is deprecated. Use the event attribute `onblurr` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 104,
+			"column": 4,
+			"character": 2419
+		},
+		"end": {
+			"line": 104,
+			"column": 27,
+			"character": 2442
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 113,
+			"column": 15,
+			"character": 2687
+		},
+		"end": {
+			"line": 113,
+			"column": 38,
+			"character": 2710
+		}
+	},
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 116,
+			"column": 7,
+			"character": 2769
+		},
+		"end": {
+			"line": 116,
+			"column": 52,
+			"character": 2814
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`example` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 20,
+			"column": 5,
+			"character": 796
+		},
+		"end": {
+			"line": 20,
+			"column": 12,
+			"character": 803
+		}
+	}
+]
+
+=== 813 src/routes/docs/props.svelte	css
+
+	.table.svelte-all8a8 {
+		display: grid;
+		grid-template: auto / auto auto 1fr;
+		align-items: center;
+		row-gap: 2px;
+		column-gap: 2px;
+		font-size: 1.1em;
+		box-shadow: var(--sc-theme-calendar-shadow);
+	}
+
+	.table.svelte-all8a8 > :where(.svelte-all8a8) {
+		background: var(--sc-theme-calendar-colors-background-primary);
+		color: var(--sc-theme-calendar-colors-text-primary);
+	}
+
+	.table.svelte-all8a8 a {
+		color: var(--sc-theme-calendar-colors-text-primary);
+		text-decoration: none;
+		font-weight: bold;
+	}
+
+	.table.svelte-all8a8 > * {
+		padding: 18px;
+		height: 100%;
+		display: grid;
+		align-items: center;
+	}
+
+	.table-title.svelte-all8a8 {
+		background: var(--sc-theme-calendar-colors-background-hover);
+		color: var(--sc-theme-calendar-colors-text-primary);
+		font-weight: bold;
+		font-size: 1.3em;
+	}
+
+=== 2636 src/routes/docs/props.svelte	js
+import * as $ from 'svelte/internal/server';
+import Code from '$lib/docs/Code.svelte';
+import DocPage from '$lib/docs/DocPage.svelte';
+import { base } from '$app/paths';
+
+export const ssr = false;
+
+export default function Props($$renderer) {
+	const props = [
+		{
+			name: 'selected',
+			defaultVal: 'new Date()',
+			description: 'The currently-selected date.'
+		},
+
+		{
+			name: 'start',
+			defaultVal: "dayjs().add(-100, 'year').toDate()",
+			description: 'The minimum date a user can select.'
+		},
+
+		{
+			name: 'end',
+			defaultVal: "dayjs(start).add(100, 'year').toDate()",
+			description: 'The maximum date a user can select.'
+		},
+
+		{
+			name: 'format',
+			defaultVal: "'MM/DD/YYYY'",
+			description: 'A `dayjs` format expression.  Used when updating the read-only `formatted` prop.'
+		},
+
+		{
+			name: 'startOfWeekIndex',
+			defaultVal: '0',
+			description: 'Which date.getDay() should be considered the start of the week (eg: 1 would indicate week should start on Monday)'
+		},
+
+		{
+			name: 'formatted',
+			defaultVal: 'undefined',
+			description: 'Readonly prop which provides a formatted version of the currently-selected date.'
+		},
+
+		{
+			name: 'store',
+			defaultVal: 'datepickerStore.get({ selected, start, end, startOfWeekIndex })',
+			description: 'Readonly prop which provides access to the internal store.'
+		},
+
+		{
+			name: 'theme',
+			defaultVal: '{}',
+			description: `An object containing theme/style overrides for the component.  See <a href="${base}/docs/theme-editor/light">theme-editor documentation</a>`
+		},
+
+		{
+			name: 'defaultTheme',
+			defaultVal: 'undefined',
+			description: 'The default theme to extend with the `theme` prop.  When this prop is not set the `light` theme will be used by default.'
+		}
+	];
+
+	DocPage($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<div class="table svelte-all8a8"><div class="table-title svelte-all8a8">Name</div> <div class="table-title svelte-all8a8">Default</div> <div class="table-title svelte-all8a8">Description</div> <!--[-->`);
+
+			const each_array = $.ensure_array_like(props);
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let { name, defaultVal, description } = each_array[$$index];
+
+				$$renderer.push(`<div class="svelte-all8a8">${$.escape(name)}</div> `);
+				Code($$renderer, { source: defaultVal, language: 'js' });
+				$$renderer.push(`<!----> <div class="svelte-all8a8"><span>${$.html(description)}</span></div>`);
+			}
+
+			$$renderer.push(`<!--]--></div>`);
+		},
+
+		$$slots: {
+			default: true,
+			title: ($$renderer) => {
+				{
+					$$renderer.push(`Props`);
+				}
+			}
+		}
+	});
+}
+=== 315 src/routes/docs/props.svelte	warnings.json
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"column": 24,
+			"character": 24
+		}
+	}
+]
+
+=== 283 src/routes/docs/quick-start.svelte	css
+
+	h3.svelte-1tle3nc {
+		font-weight: normal;
+	}
+
+	a.svelte-1tle3nc {
+		color: var(--sc-theme-calendar-colors-text-primary);
+		text-decoration: none;
+		font-weight: bold;
+	}
+
+	@media (max-width: 720px) {
+		ol.svelte-1tle3nc {
+			margin: 0;
+			margin-left: 10px;
+			padding: 0;
+		}
+	}
+
+=== 1129 src/routes/docs/quick-start.svelte	js
+import * as $ from 'svelte/internal/server';
+import Code from '$lib/docs/Code.svelte';
+import DocPage from '$lib/docs/DocPage.svelte';
+import { base } from '$app/paths';
+
+export const ssr = false;
+
+export default function Quick_start($$renderer) {
+	// @example(quickStart, QuickStart.svelte)
+	const x = 10;
+
+	DocPage($$renderer, {
+		children: ($$renderer) => {
+			$$renderer.push(`<ol class="svelte-1tle3nc"><li><h3 class="svelte-1tle3nc">Install with NPM or Yarn</h3> `);
+			Code($$renderer, { source: 'npm i -D svelte-calendar' });
+			$$renderer.push(`<!----></li> <li><h3 class="svelte-1tle3nc">Import and implement the datepicker</h3> `);
+			Code($$renderer, { pretranslated: quickStart.code });
+
+			$$renderer.push(`<!----></li> <li><h3 class="svelte-1tle3nc">See <a${$.attr('href', `${$.stringify(base)}/docs/props`)} class="svelte-1tle3nc">props</a> &amp; <a${$.attr('href', `${$.stringify(base)}/docs/examples`)} class="svelte-1tle3nc">examples</a> for
+				more information</h3></li></ol>`);
+		},
+
+		$$slots: {
+			default: true,
+			title: ($$renderer) => {
+				{
+					$$renderer.push(`Quick-Start`);
+				}
+			}
+		}
+	});
+}
+=== 315 src/routes/docs/quick-start.svelte	warnings.json
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"column": 24,
+			"character": 24
+		}
+	}
+]
+
+=== 1895 src/routes/index.svelte	css
+
+	.grid.svelte-u5cdty {
+		display: grid;
+		grid-template-columns: 1fr 2fr;
+		align-items: center;
+		text-align: center;
+		height: 100%;
+		background: var(--sc-theme-calendar-colors-background-primary);
+	}
+	.column-primary.svelte-u5cdty {
+		display: grid;
+		grid-template: 1fr / 1fr;
+		text-align: left;
+		background: var(--sc-theme-calendar-colors-background-highlight);
+		margin: 0;
+		grid-column: 1;
+		display: grid;
+		height: 100%;
+		align-items: center;
+	}
+	.column-primary.svelte-u5cdty > * {
+		grid-column: 1;
+		grid-row: 1;
+		width: 100%;
+		height: 100%;
+	}
+	.column-secondary.svelte-u5cdty {
+		display: grid;
+		height: 100%;
+		align-items: center;
+	}
+	h1.svelte-u5cdty {
+		font-size: 8em;
+		line-height: 90px;
+		color: #fff;
+		display: inline-block;
+		margin: 0;
+		z-index: 2;
+		text-shadow: -5px -2px 3px rgb(0 0 0 / 18%);
+	}
+	.title-section.svelte-u5cdty {
+		align-items: center;
+		display: grid;
+		padding: 40px;
+		animation: 280ms svelte-u5cdty-slide-left 150ms forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+		opacity: 0;
+	}
+	pre.svelte-u5cdty {
+		background: #0f0b0c;
+		color: #fff;
+		font-size: 2.4em;
+		padding: 40px;
+		animation: 280ms svelte-u5cdty-slide-right 200ms forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+		opacity: 0;
+	}
+	@keyframes svelte-u5cdty-slide-left {
+		from {
+			opacity: 0;
+			transform: translateX(100px);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(0);
+		}
+	}
+	@keyframes svelte-u5cdty-slide-right {
+		from {
+			opacity: 0;
+			transform: translateX(-100px);
+		}
+		to {
+			opacity: 0.8;
+			transform: translateX(0);
+		}
+	}
+
+	@media (max-width: 720px) {
+		.grid.svelte-u5cdty {
+			grid-template-columns: 1fr;
+			grid-template-rows: auto 1fr;
+		}
+		.title-section.svelte-u5cdty {
+			padding: 30px 18px;
+		}
+		h1.svelte-u5cdty {
+			font-size: 4.5em;
+			line-height: 52px;
+			margin: 15px 0;
+		}
+		pre.svelte-u5cdty {
+			font-size: 1.45em;
+		}
+	}
+
+=== 1540 src/routes/index.svelte	js
+import * as $ from 'svelte/internal/server';
+import Datepicker from '$lib/components/Datepicker.svelte';
+import { dark } from '$lib/config/theme';
+import SvgThing from '$lib/docs/SvgThing.svelte';
+import dayjs from 'dayjs';
+
+export default function Routes($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const start = dayjs().add(-100, 'year').toDate();
+		const end = dayjs().add(100, 'year').toDate();
+		let selected;
+		let store;
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			$$renderer.push(`<div class="grid svelte-u5cdty"><div class="column-primary svelte-u5cdty">`);
+			SvgThing($$renderer, {});
+
+			$$renderer.push(`<!----> <div class="title-section svelte-u5cdty"><div><h1 class="svelte-u5cdty">SVELTE-CALENDAR</h1> <pre class="svelte-u5cdty">
+          npm i -D svelte-calendar
+        </pre></div></div></div> <div class="column-secondary svelte-u5cdty">`);
+
+			Datepicker($$renderer, {
+				defaultTheme: dark,
+				theme: { calendar: { width: '620px' } },
+				start,
+				end,
+				get store() {
+					return store;
+				},
+
+				set store($$value) {
+					store = $$value;
+					$$settled = false;
+				},
+
+				get selected() {
+					return selected;
+				},
+
+				set selected($$value) {
+					selected = $$value;
+					$$settled = false;
+				}
+			});
+
+			$$renderer.push(`<!----></div></div>`);
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 702 src/routes/index.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 5,
+			"character": 298
+		},
+		"end": {
+			"line": 10,
+			"column": 13,
+			"character": 306
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`store` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 5,
+			"character": 313
+		},
+		"end": {
+			"line": 11,
+			"column": 10,
+			"character": 318
+		}
+	}
+]
+

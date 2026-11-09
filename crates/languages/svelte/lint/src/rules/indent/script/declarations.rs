@@ -1,8 +1,8 @@
 //! What TypeScript declarations offset, as upstream's `indent-helpers/ts.js` does.
 
-use rsvelte_typescript::lexer::T;
-use rsvelte_typescript::syntax_tree::Type;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_typescript_syntax::lexer::T;
+use rsvelte_typescript_syntax::syntax_tree::Type;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::Script;
 use crate::rules::indent::layout::Item;

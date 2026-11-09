@@ -118,15 +118,15 @@ fn each_index_names(
 /// Upstream removes TypeScript-only imports before it builds scopes, so their names are free.
 fn erased_imports(
     javascript: &SyntaxTree,
-    programs: impl Iterator<Item = rsvelte_typescript::NodeIdentifier>,
-) -> rustc_hash::FxHashSet<rsvelte_typescript::NodeIdentifier> {
+    programs: impl Iterator<Item = rsvelte_typescript_syntax::NodeIdentifier>,
+) -> rustc_hash::FxHashSet<rsvelte_typescript_syntax::NodeIdentifier> {
     let mut erased = rustc_hash::FxHashSet::default();
     for program in programs {
-        let rsvelte_typescript::Kind::Program(statements) = javascript.kind(program) else {
+        let rsvelte_typescript_syntax::Kind::Program(statements) = javascript.kind(program) else {
             continue;
         };
         for &statement in statements {
-            if let rsvelte_typescript::Kind::Import {
+            if let rsvelte_typescript_syntax::Kind::Import {
                 specifiers,
                 type_only,
                 ..
@@ -135,7 +135,7 @@ fn erased_imports(
                 erased.extend(specifiers.iter().copied().filter(|&specifier| {
                     type_only
                         || javascript.flags(specifier)
-                            & rsvelte_typescript::syntax_tree::flag::TYPE_ONLY
+                            & rsvelte_typescript_syntax::syntax_tree::flag::TYPE_ONLY
                             != 0
                 }));
             }

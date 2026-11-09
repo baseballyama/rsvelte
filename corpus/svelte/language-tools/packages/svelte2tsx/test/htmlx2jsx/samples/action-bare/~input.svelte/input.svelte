@@ -1,1 +1,0 @@
-<h1 use:blink>Hello</h1>

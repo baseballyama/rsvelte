@@ -1,8 +1,8 @@
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript::operators::AssignmentOperator;
-use rsvelte_typescript::scope::DeclarationKind;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::scope::DeclarationKind;
+use rsvelte_typescript_syntax::operators::AssignmentOperator;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::nodes::{is_named, span, text, walk};
 use super::runes::runes_or_undetermined;

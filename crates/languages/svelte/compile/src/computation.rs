@@ -1,7 +1,7 @@
 //! Compile artifacts cached within a document.
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
-use rsvelte_svelte::{Analyzed, component_input};
+use rsvelte_svelte_semantic::{Analyzed, component_input};
 
 #[derive(Debug)]
 pub struct Planned;
@@ -12,10 +12,22 @@ impl Artifact for Planned {
     const NAME: &'static str = "svelte.render_plan";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        Some(crate::render_plan::RenderPlan::build(
-            &component_input(context)?.into(),
-        ))
+        Some(crate::render_plan::RenderPlan::build(&compile_input(
+            context,
+        )?))
     }
+}
+
+/// The document's component with the host's compile options.
+pub(crate) fn compile_input<'a>(
+    context: &'a DocumentContext<'_>,
+) -> Option<crate::CompileInput<'a>> {
+    Some(crate::CompileInput {
+        component: component_input(context)?,
+        preserve_whitespace: context
+            .facet::<CompileConfiguration>()
+            .is_some_and(|configuration| configuration.preserve_whitespace),
+    })
 }
 
 #[derive(Debug)]
@@ -34,9 +46,9 @@ impl Artifact for ScopedStylesheet {
             .ok()?
             .is_custom_element()
         {
-            rsvelte_stylesheet::scope::RenderMode::Minify
+            rsvelte_stylesheet_compile::scope::RenderMode::Minify
         } else {
-            rsvelte_stylesheet::scope::RenderMode::Preserve
+            rsvelte_stylesheet_compile::scope::RenderMode::Preserve
         };
         crate::stylesheet::scoped_stylesheet_with_mode(
             &component_input(context)?,
@@ -57,7 +69,7 @@ impl Artifact for Identified {
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let input = component_input(context).ok_or_else(|| {
-            rsvelte_svelte::fully_parsed(context)
+            rsvelte_svelte_syntax::fully_parsed(context)
                 .expect_err("missing input follows a parse error")
                 .clone()
         })?;
@@ -76,7 +88,7 @@ impl Artifact for Identified {
 }
 
 #[derive(Debug)]
-pub struct CompileConfiguration;
+pub(crate) struct CompileConfiguration;
 
 impl Facet for CompileConfiguration {
     type Output = std::sync::Arc<crate::Configuration>;
@@ -85,7 +97,7 @@ impl Facet for CompileConfiguration {
 }
 
 #[derive(Debug)]
-pub struct Validated;
+pub(crate) struct Validated;
 
 impl Artifact for Validated {
     type Output = Result<crate::lower::ValidatedOptions, rsvelte_kernel::diagnostics::Diagnostic>;
@@ -95,7 +107,7 @@ impl Artifact for Validated {
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let input = component_input(context).expect("a parsed component is lowered to HIR");
         let res = context
-            .get::<rsvelte_svelte::Resolved>()
+            .get::<rsvelte_svelte_semantic::Resolved>()
             .as_ref()
             .expect("a parsed component is resolved");
         crate::lower::validate(&input.into(), res)

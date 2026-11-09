@@ -1,6 +1,6 @@
 //! The condition type of each JS/TS node, which type-aware rules read.
 
-use rsvelte_typescript::NodeIdentifier;
+use rsvelte_typescript_syntax::NodeIdentifier;
 
 mod infer;
 
@@ -56,13 +56,8 @@ impl TypeFacts {
     }
 
     #[must_use]
-    pub fn get(&self, node: NodeIdentifier) -> ConditionType {
+    pub(crate) fn get(&self, node: NodeIdentifier) -> ConditionType {
         self.nodes[node.index()]
-    }
-
-    #[must_use]
-    pub const fn heap_bytes(&self) -> usize {
-        self.nodes.capacity() * size_of::<ConditionType>()
     }
 }
 

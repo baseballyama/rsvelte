@@ -14,7 +14,7 @@ fn push_hands_out_dense_identifiers_and_side_tables_line_up() {
     assert_eq!((x.index(), y.index()), (0, 1));
     let mut seen: IndexVector<A, bool> = IndexVector::from_element_n(false, v.len());
     seen[y] = true;
-    let got: Vec<(A, bool)> = v.identifiers().map(|i| (i, seen[i])).collect();
+    let got: Vec<(A, bool)> = v.iter_enumerated().map(|(i, _)| (i, seen[i])).collect();
     assert_eq!(got, [(x, false), (y, true)]);
     assert_eq!(format!("{v:?}"), r#"{A(0): "x", A(1): "y"}"#);
 }
@@ -28,5 +28,4 @@ fn a_range_slices_what_was_pushed_contiguously() {
         r.iter().map(TypedIndex::index).collect::<Vec<_>>(),
         [1, 2, 3]
     );
-    assert!(IndexRange::empty(B::new(2)).is_empty());
 }

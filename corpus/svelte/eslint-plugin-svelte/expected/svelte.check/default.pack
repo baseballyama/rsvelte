@@ -1,0 +1,6700 @@
+# rsvelte pack 1
+=== 3 docs-svelte-kit/src/lib/header/Header.svelte	json
+[]
+
+=== 3 docs-svelte-kit/src/routes/+error.svelte	json
+[]
+
+=== 3 docs-svelte-kit/src/routes/404/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/@typescript-eslint/no-unnecessary-condition/valid/template01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/enforce/no-script01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/javascript/javascript-as-style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/javascript/js01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/javascript/null01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/javascript/ts01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/javascript/typescript01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/js/javascript01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/js/js-as-style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/module-context/javascript01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/module-context/js01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/module-context/null01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/module-context/ts-as-style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/module-context/typescript01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/multiple/null-as-style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/multiple/ts-as-style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/multiple/typescript-as-style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/shorthand/ts-as-style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/script/typescript/typescript-as-style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/style/enforce/no-style01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/style/null/null-as-script-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/style/null/sass01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/style/null/scss01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/style/sass/sass-as-script-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/invalid/style/scss/scss-as-script-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/valid/script/javascript/correct-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/valid/script/javascript/no-script01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/valid/script/javascript/style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/valid/script/js/style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/valid/script/multiple/correct-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/valid/script/multiple/style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/valid/script/null/no-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/valid/script/ts/correct-lang02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/valid/script/ts/style-lang02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/valid/style/sass/correct-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/block-lang/valid/style/sass/script-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/button-has-type/invalid/button-false/invalid-button-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/button-has-type/invalid/reset-false/invalid-reset-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/button-has-type/invalid/submit-false/invalid-submit-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/button-has-type/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/button-has-type/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/invalid/global/should-be-id01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/invalid/global/should-be-type01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/invalid/id-class-type/should-be-id-combination01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/invalid/id-class-type/should-be-id01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/invalid/id-type-class/should-be-type01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/invalid/type-class-id/should-be-type01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/invalid/type-id-class/should-be-id-with-components01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/invalid/type-id-class/should-be-id01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/invalid/type-id-class/should-be-type-with-components01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/class-id-type/class-scss01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/class-id-type/class01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/id-class-type/class01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/id-class-type/id-scss01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/id-class-type/id01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/id-class-type/svelte-5/class01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/id-type-class/class01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/id-type-class/type01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-class-id/class01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-class-id/type-scss01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/class-dynamic-prefix01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/class-dynamic-suffix01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/class-dynamic-universal01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/class01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/global01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/id-dynamic-prefix01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/id-dynamic-suffix01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/id-dynamic-universal01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/id01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/recursive-loop01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id/class01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type/class01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-slot-types/invalid/no-slot-types01-input.svelte	json
+[]
+
+=== 223 packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-slot-types/valid/has-slot-types-with-alias01-input.svelte	json
+[
+	{
+		"code": 2345,
+		"message": "Argument of type '\"default\"' is not assignable to parameter of type '\"defalt\"'.",
+		"start": {
+			"line": 6,
+			"character": 0
+		},
+		"end": {
+			"line": 6,
+			"character": 0
+		}
+	}
+]
+
+=== 223 packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-slot-types/valid/has-slot-types01-input.svelte	json
+[
+	{
+		"code": 2345,
+		"message": "Argument of type '\"default\"' is not assignable to parameter of type '\"defalt\"'.",
+		"start": {
+			"line": 6,
+			"character": 0
+		},
+		"end": {
+			"line": 6,
+			"character": 0
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-slot-types/valid/named-slot01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-slot-types/valid/no-slots01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-slot-types/valid/no-typescript01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-strict-events/valid/has-events-interface01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-strict-events/valid/has-events-type-alias01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-strict-events/valid/has-strict-events01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-strict-events/valid/no-typescript01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/experimental-require-strict-events/valid/script-module-context01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/first-attribute-linebreak/invalid/below/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/first-attribute-linebreak/invalid/below/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/first-attribute-linebreak/invalid/beside/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/first-attribute-linebreak/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/first-attribute-linebreak/valid/below/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/first-attribute-linebreak/valid/beside/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/first-attribute-linebreak/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-new-line/invalid/multiline-never/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-new-line/invalid/multiline-never/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-new-line/invalid/self-closing/always/test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-new-line/invalid/self-closing/always/test-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-new-line/invalid/self-closing/never/test-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-new-line/invalid/singleline-always/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-new-line/invalid/singleline-always/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-new-line/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-new-line/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-new-line/invalid/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-new-line/invalid/test02-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-new-line/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-spacing/invalid/closing-ignore/closing-ignore-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-spacing/invalid/closing-ignore/closing-ignore-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-spacing/invalid/end-ignore/end-ignore-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-spacing/invalid/end-ignore/end-ignore-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-spacing/invalid/start-ignore/start-ignore-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-spacing/invalid/test-01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-spacing/invalid/test-01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-closing-bracket-spacing/valid/test-01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/all-quotes/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/all-quotes/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/all-quotes/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/all-quotes/test02-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/avoid-invalid-unquoted-in-html/inline-handlers-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/avoid-invalid-unquoted-in-html/inline-handlers-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/avoid-invalid-unquoted-in-html/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/avoid-invalid-unquoted-in-html/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/avoid-invalid-unquoted-in-html/test02-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/single/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-quotes/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/component-never/component-never-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/component-never/component-never-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/math-never/svelte-never-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/math-never/svelte-never-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/normal-always/component-never-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/normal-always/component-never-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/normal-ignore/normal-any-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/normal-ignore/normal-any-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/normal-never/component-never-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/normal-never/component-never-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/presets/html/preset-html-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/presets/html/preset-html-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/presets/none/preset-none-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/presets/none/preset-none-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/svelte-never/svelte-never-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/svelte-never/svelte-never-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/svg-never/svelte-never-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/svg-never/svelte-never-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/void-never/void-never-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/invalid/void-never/void-never-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/html-self-closing/valid/test01-input.svelte	json
+[]
+
+=== 643 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/4-indent/test01-input.svelte	json
+[
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 46,
+			"character": 10
+		},
+		"end": {
+			"line": 46,
+			"character": 10
+		}
+	},
+	{
+		"code": 1005,
+		"message": "':' expected.",
+		"start": {
+			"line": 47,
+			"character": 0
+		},
+		"end": {
+			"line": 54,
+			"character": 1
+		}
+	},
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 54,
+			"character": 1
+		},
+		"end": {
+			"line": 54,
+			"character": 1
+		}
+	},
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 55,
+			"character": 0
+		},
+		"end": {
+			"line": 55,
+			"character": 3
+		}
+	}
+]
+
+=== 649 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/4-indent/test01-output.svelte	json
+[
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 46,
+			"character": 26
+		},
+		"end": {
+			"line": 46,
+			"character": 26
+		}
+	},
+	{
+		"code": 1005,
+		"message": "':' expected.",
+		"start": {
+			"line": 47,
+			"character": 20
+		},
+		"end": {
+			"line": 54,
+			"character": 17
+		}
+	},
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 54,
+			"character": 17
+		},
+		"end": {
+			"line": 54,
+			"character": 17
+		}
+	},
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 55,
+			"character": 20
+		},
+		"end": {
+			"line": 55,
+			"character": 23
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/align-attributes-vertically/attrs01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/align-attributes-vertically/attrs01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/declaration-tag-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/declaration-tag-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/html-text02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/html-text02-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/import-declaration01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/import-declaration01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/indent-script/indent-script-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/indent-script/indent-script-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-array01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-array01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-binary01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-binary01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-binary02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-binary02-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-binary03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-binary03-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-block01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-block01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-break01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-break01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-call01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-call01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-class01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-class01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-conditional01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-conditional01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-do-while01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-do-while01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-export02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-export02-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-expr01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-expr01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-for01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-for01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-function01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-function01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-if01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-if01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-import01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-import01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-import02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-import02-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-member01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-member01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-methods01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-methods01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-prop01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-prop01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-switch01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-switch01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-try01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-try01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-unary01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-unary01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-yield-expression01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-yield-expression01-output.svelte	json
+[]
+
+=== 641 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/style-directive01-input.svelte	json
+[
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 41,
+			"character": 1
+		},
+		"end": {
+			"line": 41,
+			"character": 1
+		}
+	},
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 43,
+			"character": 0
+		},
+		"end": {
+			"line": 44,
+			"character": 1
+		}
+	},
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 44,
+			"character": 1
+		},
+		"end": {
+			"line": 44,
+			"character": 1
+		}
+	},
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 45,
+			"character": 1
+		},
+		"end": {
+			"line": 45,
+			"character": 6
+		}
+	}
+]
+
+=== 641 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/style-directive01-output.svelte	json
+[
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 41,
+			"character": 5
+		},
+		"end": {
+			"line": 41,
+			"character": 5
+		}
+	},
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 43,
+			"character": 4
+		},
+		"end": {
+			"line": 44,
+			"character": 1
+		}
+	},
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 44,
+			"character": 1
+		},
+		"end": {
+			"line": 44,
+			"character": 1
+		}
+	},
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 45,
+			"character": 1
+		},
+		"end": {
+			"line": 45,
+			"character": 6
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/switch-case/script-switch01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/switch-case/script-switch01-output.svelte	json
+[]
+
+=== 643 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test01-input.svelte	json
+[
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 46,
+			"character": 10
+		},
+		"end": {
+			"line": 46,
+			"character": 10
+		}
+	},
+	{
+		"code": 1005,
+		"message": "':' expected.",
+		"start": {
+			"line": 47,
+			"character": 0
+		},
+		"end": {
+			"line": 54,
+			"character": 1
+		}
+	},
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 54,
+			"character": 1
+		},
+		"end": {
+			"line": 54,
+			"character": 1
+		}
+	},
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 55,
+			"character": 0
+		},
+		"end": {
+			"line": 55,
+			"character": 3
+		}
+	}
+]
+
+=== 643 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test01-output.svelte	json
+[
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 46,
+			"character": 14
+		},
+		"end": {
+			"line": 46,
+			"character": 14
+		}
+	},
+	{
+		"code": 1005,
+		"message": "':' expected.",
+		"start": {
+			"line": 47,
+			"character": 5
+		},
+		"end": {
+			"line": 54,
+			"character": 5
+		}
+	},
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 54,
+			"character": 5
+		},
+		"end": {
+			"line": 54,
+			"character": 5
+		}
+	},
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 55,
+			"character": 5
+		},
+		"end": {
+			"line": 55,
+			"character": 8
+		}
+	}
+]
+
+=== 649 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test02-input.svelte	json
+[
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 46,
+			"character": 26
+		},
+		"end": {
+			"line": 46,
+			"character": 26
+		}
+	},
+	{
+		"code": 1005,
+		"message": "':' expected.",
+		"start": {
+			"line": 47,
+			"character": 20
+		},
+		"end": {
+			"line": 54,
+			"character": 17
+		}
+	},
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 54,
+			"character": 17
+		},
+		"end": {
+			"line": 54,
+			"character": 17
+		}
+	},
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 55,
+			"character": 20
+		},
+		"end": {
+			"line": 55,
+			"character": 23
+		}
+	}
+]
+
+=== 643 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/tab-indent/test02-output.svelte	json
+[
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 46,
+			"character": 14
+		},
+		"end": {
+			"line": 46,
+			"character": 14
+		}
+	},
+	{
+		"code": 1005,
+		"message": "':' expected.",
+		"start": {
+			"line": 47,
+			"character": 5
+		},
+		"end": {
+			"line": 54,
+			"character": 5
+		}
+	},
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 54,
+			"character": 5
+		},
+		"end": {
+			"line": 54,
+			"character": 5
+		}
+	},
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 55,
+			"character": 5
+		},
+		"end": {
+			"line": 55,
+			"character": 8
+		}
+	}
+]
+
+=== 643 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/test01-input.svelte	json
+[
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 46,
+			"character": 10
+		},
+		"end": {
+			"line": 46,
+			"character": 10
+		}
+	},
+	{
+		"code": 1005,
+		"message": "':' expected.",
+		"start": {
+			"line": 47,
+			"character": 0
+		},
+		"end": {
+			"line": 54,
+			"character": 1
+		}
+	},
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 54,
+			"character": 1
+		},
+		"end": {
+			"line": 54,
+			"character": 1
+		}
+	},
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 55,
+			"character": 0
+		},
+		"end": {
+			"line": 55,
+			"character": 3
+		}
+	}
+]
+
+=== 646 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/test01-output.svelte	json
+[
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 46,
+			"character": 18
+		},
+		"end": {
+			"line": 46,
+			"character": 18
+		}
+	},
+	{
+		"code": 1005,
+		"message": "':' expected.",
+		"start": {
+			"line": 47,
+			"character": 10
+		},
+		"end": {
+			"line": 54,
+			"character": 9
+		}
+	},
+	{
+		"code": 1002,
+		"message": "Unterminated string literal.",
+		"start": {
+			"line": 54,
+			"character": 9
+		},
+		"end": {
+			"line": 54,
+			"character": 9
+		}
+	},
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 55,
+			"character": 10
+		},
+		"end": {
+			"line": 55,
+			"character": 13
+		}
+	}
+]
+
+=== 409 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-abstract-accessor-property-input.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'accessor' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 9
+		},
+		"end": {
+			"line": 3,
+			"character": 17
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'foo' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 3
+		}
+	}
+]
+
+=== 410 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-abstract-accessor-property-output.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'accessor' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 13
+		},
+		"end": {
+			"line": 3,
+			"character": 21
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'foo' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 4,
+			"character": 4
+		},
+		"end": {
+			"line": 4,
+			"character": 7
+		}
+	}
+]
+
+=== 366 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property01-input.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'accessor' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 0
+		},
+		"end": {
+			"line": 3,
+			"character": 8
+		}
+	},
+	{
+		"code": 7008,
+		"message": "Member 'foo' implicitly has an 'any' type.",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 3
+		}
+	}
+]
+
+=== 367 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property01-output.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'accessor' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 4
+		},
+		"end": {
+			"line": 3,
+			"character": 12
+		}
+	},
+	{
+		"code": 7008,
+		"message": "Member 'foo' implicitly has an 'any' type.",
+		"start": {
+			"line": 4,
+			"character": 4
+		},
+		"end": {
+			"line": 4,
+			"character": 7
+		}
+	}
+]
+
+=== 187 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property02-input.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'accessor' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 0
+		},
+		"end": {
+			"line": 3,
+			"character": 8
+		}
+	}
+]
+
+=== 188 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property02-output.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'accessor' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 4
+		},
+		"end": {
+			"line": 3,
+			"character": 12
+		}
+	}
+]
+
+=== 409 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property03-input.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'accessor' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 8
+		},
+		"end": {
+			"line": 3,
+			"character": 16
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'foo' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 3
+		}
+	}
+]
+
+=== 410 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property03-output.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'accessor' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 12
+		},
+		"end": {
+			"line": 3,
+			"character": 20
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'foo' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 4,
+			"character": 4
+		},
+		"end": {
+			"line": 4,
+			"character": 7
+		}
+	}
+]
+
+=== 187 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property05-input.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'accessor' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 0
+		},
+		"end": {
+			"line": 3,
+			"character": 8
+		}
+	}
+]
+
+=== 188 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property05-output.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'accessor' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 4
+		},
+		"end": {
+			"line": 3,
+			"character": 12
+		}
+	}
+]
+
+=== 442 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './foo.json' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 16
+		},
+		"end": {
+			"line": 2,
+			"character": 28
+		}
+	},
+	{
+		"code": 2880,
+		"message": "Import assertions have been replaced by import attributes. Use 'with' instead of 'assert'.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	}
+]
+
+=== 442 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion01-output.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './foo.json' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 30
+		}
+	},
+	{
+		"code": 2880,
+		"message": "Import assertions have been replaced by import attributes. Use 'with' instead of 'assert'.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	}
+]
+
+=== 439 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion02-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './foo.json' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 0
+		},
+		"end": {
+			"line": 3,
+			"character": 12
+		}
+	},
+	{
+		"code": 2880,
+		"message": "Import assertions have been replaced by import attributes. Use 'with' instead of 'assert'.",
+		"start": {
+			"line": 5,
+			"character": 0
+		},
+		"end": {
+			"line": 5,
+			"character": 6
+		}
+	}
+]
+
+=== 440 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion02-output.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './foo.json' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 4
+		},
+		"end": {
+			"line": 3,
+			"character": 16
+		}
+	},
+	{
+		"code": 2880,
+		"message": "Import assertions have been replaced by import attributes. Use 'with' instead of 'assert'.",
+		"start": {
+			"line": 5,
+			"character": 6
+		},
+		"end": {
+			"line": 5,
+			"character": 12
+		}
+	}
+]
+
+=== 190 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion03-input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Cannot read properties of undefined (reading 'kind')",
+		"start": {
+			"line": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 0,
+			"character": 0
+		}
+	}
+]
+
+=== 190 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion03-output.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Cannot read properties of undefined (reading 'kind')",
+		"start": {
+			"line": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 0,
+			"character": 0
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion04-output.svelte	json
+[]
+
+=== 213 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './foo.json' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 16
+		},
+		"end": {
+			"line": 2,
+			"character": 28
+		}
+	}
+]
+
+=== 213 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes01-output.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './foo.json' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 30
+		}
+	}
+]
+
+=== 439 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes02-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './foo.json' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 0
+		},
+		"end": {
+			"line": 3,
+			"character": 12
+		}
+	},
+	{
+		"code": 2880,
+		"message": "Import assertions have been replaced by import attributes. Use 'with' instead of 'assert'.",
+		"start": {
+			"line": 5,
+			"character": 0
+		},
+		"end": {
+			"line": 5,
+			"character": 6
+		}
+	}
+]
+
+=== 440 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes02-output.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './foo.json' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 4
+		},
+		"end": {
+			"line": 3,
+			"character": 16
+		}
+	},
+	{
+		"code": 2880,
+		"message": "Import assertions have been replaced by import attributes. Use 'with' instead of 'assert'.",
+		"start": {
+			"line": 5,
+			"character": 6
+		},
+		"end": {
+			"line": 5,
+			"character": 12
+		}
+	}
+]
+
+=== 190 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes03-input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Cannot read properties of undefined (reading 'kind')",
+		"start": {
+			"line": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 0,
+			"character": 0
+		}
+	}
+]
+
+=== 190 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes03-output.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Cannot read properties of undefined (reading 'kind')",
+		"start": {
+			"line": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 0,
+			"character": 0
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes04-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes04-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-instantiation-expression01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-instantiation-expression01-output.svelte	json
+[]
+
+=== 325 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-satisfies-operators01-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Foo'.",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Bar'.",
+		"start": {
+			"line": 6,
+			"character": 13
+		},
+		"end": {
+			"line": 6,
+			"character": 16
+		}
+	}
+]
+
+=== 325 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-satisfies-operators01-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Foo'.",
+		"start": {
+			"line": 4,
+			"character": 6
+		},
+		"end": {
+			"line": 4,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Bar'.",
+		"start": {
+			"line": 6,
+			"character": 17
+		},
+		"end": {
+			"line": 6,
+			"character": 20
+		}
+	}
+]
+
+=== 1590 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-conditional-type01-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'A'.",
+		"start": {
+			"line": 2,
+			"character": 9
+		},
+		"end": {
+			"line": 2,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'B'.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 20
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'C'.",
+		"start": {
+			"line": 3,
+			"character": 0
+		},
+		"end": {
+			"line": 3,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'D'.",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 4,
+			"character": 10
+		},
+		"end": {
+			"line": 4,
+			"character": 11
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'F'.",
+		"start": {
+			"line": 5,
+			"character": 0
+		},
+		"end": {
+			"line": 5,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'G'.",
+		"start": {
+			"line": 6,
+			"character": 0
+		},
+		"end": {
+			"line": 6,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'H'.",
+		"start": {
+			"line": 6,
+			"character": 10
+		},
+		"end": {
+			"line": 6,
+			"character": 11
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'I'.",
+		"start": {
+			"line": 7,
+			"character": 0
+		},
+		"end": {
+			"line": 7,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'J'.",
+		"start": {
+			"line": 8,
+			"character": 0
+		},
+		"end": {
+			"line": 8,
+			"character": 1
+		}
+	}
+]
+
+=== 1591 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-conditional-type01-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'A'.",
+		"start": {
+			"line": 2,
+			"character": 11
+		},
+		"end": {
+			"line": 2,
+			"character": 12
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'B'.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 22
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'C'.",
+		"start": {
+			"line": 3,
+			"character": 4
+		},
+		"end": {
+			"line": 3,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'D'.",
+		"start": {
+			"line": 4,
+			"character": 6
+		},
+		"end": {
+			"line": 4,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 4,
+			"character": 16
+		},
+		"end": {
+			"line": 4,
+			"character": 17
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'F'.",
+		"start": {
+			"line": 5,
+			"character": 6
+		},
+		"end": {
+			"line": 5,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'G'.",
+		"start": {
+			"line": 6,
+			"character": 6
+		},
+		"end": {
+			"line": 6,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'H'.",
+		"start": {
+			"line": 6,
+			"character": 16
+		},
+		"end": {
+			"line": 6,
+			"character": 17
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'I'.",
+		"start": {
+			"line": 7,
+			"character": 6
+		},
+		"end": {
+			"line": 7,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'J'.",
+		"start": {
+			"line": 8,
+			"character": 6
+		},
+		"end": {
+			"line": 8,
+			"character": 7
+		}
+	}
+]
+
+=== 254 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-function02-input.svelte	json
+[
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 2,
+			"character": 0
+		},
+		"end": {
+			"line": 2,
+			"character": 7
+		}
+	}
+]
+
+=== 254 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-function02-output.svelte	json
+[
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 2,
+			"character": 2
+		},
+		"end": {
+			"line": 2,
+			"character": 9
+		}
+	}
+]
+
+=== 628 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-input.svelte	json
+[
+	{
+		"code": 1232,
+		"message": "An import declaration can only be used at the top level of a namespace or module.",
+		"start": {
+			"line": 2,
+			"character": 0
+		},
+		"end": {
+			"line": 2,
+			"character": 6
+		}
+	},
+	{
+		"code": 1231,
+		"message": "An export assignment must be at the top level of a file or module declaration.",
+		"start": {
+			"line": 10,
+			"character": 0
+		},
+		"end": {
+			"line": 10,
+			"character": 6
+		}
+	},
+	{
+		"code": 1316,
+		"message": "Global module exports may only appear at top level.",
+		"start": {
+			"line": 15,
+			"character": 0
+		},
+		"end": {
+			"line": 19,
+			"character": 1
+		}
+	}
+]
+
+=== 628 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-output.svelte	json
+[
+	{
+		"code": 1232,
+		"message": "An import declaration can only be used at the top level of a namespace or module.",
+		"start": {
+			"line": 2,
+			"character": 2
+		},
+		"end": {
+			"line": 2,
+			"character": 8
+		}
+	},
+	{
+		"code": 1231,
+		"message": "An export assignment must be at the top level of a file or module declaration.",
+		"start": {
+			"line": 10,
+			"character": 2
+		},
+		"end": {
+			"line": 10,
+			"character": 8
+		}
+	},
+	{
+		"code": 1316,
+		"message": "Global module exports may only appear at top level.",
+		"start": {
+			"line": 15,
+			"character": 2
+		},
+		"end": {
+			"line": 19,
+			"character": 3
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-type01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-type01-output.svelte	json
+[]
+
+=== 847 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-interface01-input.svelte	json
+[
+	{
+		"code": 2420,
+		"message": "Class 'Impl' incorrectly implements interface 'I2'.\n  Property 'bar' is protected in type 'Impl' but public in type 'I2'.",
+		"start": {
+			"line": 18,
+			"character": 0
+		},
+		"end": {
+			"line": 18,
+			"character": 4
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 20,
+			"character": 0
+		},
+		"end": {
+			"line": 20,
+			"character": 1
+		}
+	},
+	{
+		"code": 2420,
+		"message": "Class 'Impl2' incorrectly implements interface 'I2'.\n  Property 'bar' is protected in type 'Impl2' but public in type 'I2'.",
+		"start": {
+			"line": 39,
+			"character": 0
+		},
+		"end": {
+			"line": 39,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 41,
+			"character": 0
+		},
+		"end": {
+			"line": 41,
+			"character": 1
+		}
+	}
+]
+
+=== 847 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-interface01-output.svelte	json
+[
+	{
+		"code": 2420,
+		"message": "Class 'Impl' incorrectly implements interface 'I2'.\n  Property 'bar' is protected in type 'Impl' but public in type 'I2'.",
+		"start": {
+			"line": 18,
+			"character": 4
+		},
+		"end": {
+			"line": 18,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 20,
+			"character": 6
+		},
+		"end": {
+			"line": 20,
+			"character": 7
+		}
+	},
+	{
+		"code": 2420,
+		"message": "Class 'Impl2' incorrectly implements interface 'I2'.\n  Property 'bar' is protected in type 'Impl2' but public in type 'I2'.",
+		"start": {
+			"line": 39,
+			"character": 4
+		},
+		"end": {
+			"line": 39,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 41,
+			"character": 6
+		},
+		"end": {
+			"line": 41,
+			"character": 7
+		}
+	}
+]
+
+=== 483 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-interface02-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'U'.",
+		"start": {
+			"line": 29,
+			"character": 0
+		},
+		"end": {
+			"line": 29,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 34,
+			"character": 0
+		},
+		"end": {
+			"line": 34,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'R'.",
+		"start": {
+			"line": 37,
+			"character": 0
+		},
+		"end": {
+			"line": 37,
+			"character": 1
+		}
+	}
+]
+
+=== 487 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-interface02-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'U'.",
+		"start": {
+			"line": 29,
+			"character": 10
+		},
+		"end": {
+			"line": 29,
+			"character": 11
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 34,
+			"character": 10
+		},
+		"end": {
+			"line": 34,
+			"character": 11
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'R'.",
+		"start": {
+			"line": 37,
+			"character": 6
+		},
+		"end": {
+			"line": 37,
+			"character": 7
+		}
+	}
+]
+
+=== 163 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-interface03-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Bar'.",
+		"start": {
+			"line": 7,
+			"character": 0
+		},
+		"end": {
+			"line": 7,
+			"character": 3
+		}
+	}
+]
+
+=== 163 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-interface03-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Bar'.",
+		"start": {
+			"line": 7,
+			"character": 6
+		},
+		"end": {
+			"line": 7,
+			"character": 9
+		}
+	}
+]
+
+=== 323 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-static-block01-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'foo'.",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'arg'.",
+		"start": {
+			"line": 5,
+			"character": 0
+		},
+		"end": {
+			"line": 5,
+			"character": 3
+		}
+	}
+]
+
+=== 324 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-static-block01-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'foo'.",
+		"start": {
+			"line": 4,
+			"character": 6
+		},
+		"end": {
+			"line": 4,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'arg'.",
+		"start": {
+			"line": 5,
+			"character": 8
+		},
+		"end": {
+			"line": 5,
+			"character": 11
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-template-literal-type01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-template-literal-type01-output.svelte	json
+[]
+
+=== 801 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation01-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'T'.",
+		"start": {
+			"line": 5,
+			"character": 0
+		},
+		"end": {
+			"line": 5,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'T'.",
+		"start": {
+			"line": 16,
+			"character": 0
+		},
+		"end": {
+			"line": 16,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'T'.",
+		"start": {
+			"line": 20,
+			"character": 0
+		},
+		"end": {
+			"line": 20,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'D'.",
+		"start": {
+			"line": 27,
+			"character": 0
+		},
+		"end": {
+			"line": 27,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 28,
+			"character": 0
+		},
+		"end": {
+			"line": 28,
+			"character": 1
+		}
+	}
+]
+
+=== 801 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation01-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'T'.",
+		"start": {
+			"line": 5,
+			"character": 6
+		},
+		"end": {
+			"line": 5,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'T'.",
+		"start": {
+			"line": 16,
+			"character": 8
+		},
+		"end": {
+			"line": 16,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'T'.",
+		"start": {
+			"line": 20,
+			"character": 8
+		},
+		"end": {
+			"line": 20,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'D'.",
+		"start": {
+			"line": 27,
+			"character": 4
+		},
+		"end": {
+			"line": 27,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 28,
+			"character": 6
+		},
+		"end": {
+			"line": 28,
+			"character": 7
+		}
+	}
+]
+
+=== 786 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation03-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'arr'.",
+		"start": {
+			"line": 32,
+			"character": 2
+		},
+		"end": {
+			"line": 32,
+			"character": 5
+		}
+	},
+	{
+		"code": 2403,
+		"message": "Subsequent variable declarations must have the same type.  Variable 'foo' must be of type 'any', but here has type 'number'.",
+		"start": {
+			"line": 37,
+			"character": 0
+		},
+		"end": {
+			"line": 37,
+			"character": 3
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'bar' does not exist on type '{ foo: number; }'.",
+		"start": {
+			"line": 39,
+			"character": 0
+		},
+		"end": {
+			"line": 39,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'obj'.",
+		"start": {
+			"line": 46,
+			"character": 2
+		},
+		"end": {
+			"line": 46,
+			"character": 5
+		}
+	}
+]
+
+=== 788 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation03-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'arr'.",
+		"start": {
+			"line": 32,
+			"character": 8
+		},
+		"end": {
+			"line": 32,
+			"character": 11
+		}
+	},
+	{
+		"code": 2403,
+		"message": "Subsequent variable declarations must have the same type.  Variable 'foo' must be of type 'any', but here has type 'number'.",
+		"start": {
+			"line": 37,
+			"character": 6
+		},
+		"end": {
+			"line": 37,
+			"character": 9
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'bar' does not exist on type '{ foo: number; }'.",
+		"start": {
+			"line": 39,
+			"character": 6
+		},
+		"end": {
+			"line": 39,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'obj'.",
+		"start": {
+			"line": 46,
+			"character": 8
+		},
+		"end": {
+			"line": 46,
+			"character": 11
+		}
+	}
+]
+
+=== 204 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export02-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'foo' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 0
+		},
+		"end": {
+			"line": 8,
+			"character": 5
+		}
+	}
+]
+
+=== 204 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export02-output.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'foo' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 4
+		},
+		"end": {
+			"line": 8,
+			"character": 9
+		}
+	}
+]
+
+=== 204 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export03-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'foo' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 0
+		},
+		"end": {
+			"line": 9,
+			"character": 5
+		}
+	}
+]
+
+=== 204 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export03-output.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'foo' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 4
+		},
+		"end": {
+			"line": 9,
+			"character": 9
+		}
+	}
+]
+
+=== 639 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-parameters01-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'foo'.",
+		"start": {
+			"line": 2,
+			"character": 0
+		},
+		"end": {
+			"line": 2,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'T'.",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'U'.",
+		"start": {
+			"line": 6,
+			"character": 0
+		},
+		"end": {
+			"line": 6,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'arg'.",
+		"start": {
+			"line": 9,
+			"character": 0
+		},
+		"end": {
+			"line": 9,
+			"character": 3
+		}
+	}
+]
+
+=== 639 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-parameters01-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'foo'.",
+		"start": {
+			"line": 2,
+			"character": 2
+		},
+		"end": {
+			"line": 2,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'T'.",
+		"start": {
+			"line": 4,
+			"character": 6
+		},
+		"end": {
+			"line": 4,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'U'.",
+		"start": {
+			"line": 6,
+			"character": 6
+		},
+		"end": {
+			"line": 6,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'arg'.",
+		"start": {
+			"line": 9,
+			"character": 6
+		},
+		"end": {
+			"line": 9,
+			"character": 9
+		}
+	}
+]
+
+=== 641 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-parameters02-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Foo'.",
+		"start": {
+			"line": 3,
+			"character": 0
+		},
+		"end": {
+			"line": 3,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'T'.",
+		"start": {
+			"line": 5,
+			"character": 0
+		},
+		"end": {
+			"line": 5,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'U'.",
+		"start": {
+			"line": 7,
+			"character": 0
+		},
+		"end": {
+			"line": 7,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'arg'.",
+		"start": {
+			"line": 10,
+			"character": 0
+		},
+		"end": {
+			"line": 10,
+			"character": 3
+		}
+	}
+]
+
+=== 642 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-parameters02-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Foo'.",
+		"start": {
+			"line": 3,
+			"character": 4
+		},
+		"end": {
+			"line": 3,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'T'.",
+		"start": {
+			"line": 5,
+			"character": 8
+		},
+		"end": {
+			"line": 5,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'U'.",
+		"start": {
+			"line": 7,
+			"character": 8
+		},
+		"end": {
+			"line": 7,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'arg'.",
+		"start": {
+			"line": 10,
+			"character": 8
+		},
+		"end": {
+			"line": 10,
+			"character": 11
+		}
+	}
+]
+
+=== 2181 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types01-input.svelte	json
+[
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 10,
+			"character": 0
+		},
+		"end": {
+			"line": 10,
+			"character": 6
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'B'.",
+		"start": {
+			"line": 14,
+			"character": 0
+		},
+		"end": {
+			"line": 14,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'D'.",
+		"start": {
+			"line": 18,
+			"character": 0
+		},
+		"end": {
+			"line": 18,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 21,
+			"character": 0
+		},
+		"end": {
+			"line": 21,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'F'.",
+		"start": {
+			"line": 25,
+			"character": 2
+		},
+		"end": {
+			"line": 25,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'I'.",
+		"start": {
+			"line": 34,
+			"character": 0
+		},
+		"end": {
+			"line": 34,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'J'.",
+		"start": {
+			"line": 36,
+			"character": 0
+		},
+		"end": {
+			"line": 36,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'K'.",
+		"start": {
+			"line": 42,
+			"character": 0
+		},
+		"end": {
+			"line": 42,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'L'.",
+		"start": {
+			"line": 46,
+			"character": 0
+		},
+		"end": {
+			"line": 46,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'L'.",
+		"start": {
+			"line": 51,
+			"character": 0
+		},
+		"end": {
+			"line": 51,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'N'.",
+		"start": {
+			"line": 53,
+			"character": 0
+		},
+		"end": {
+			"line": 53,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'O'.",
+		"start": {
+			"line": 60,
+			"character": 0
+		},
+		"end": {
+			"line": 60,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'P'.",
+		"start": {
+			"line": 67,
+			"character": 0
+		},
+		"end": {
+			"line": 67,
+			"character": 1
+		}
+	}
+]
+
+=== 2193 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types01-output.svelte	json
+[
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 10,
+			"character": 2
+		},
+		"end": {
+			"line": 10,
+			"character": 8
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'B'.",
+		"start": {
+			"line": 14,
+			"character": 6
+		},
+		"end": {
+			"line": 14,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'D'.",
+		"start": {
+			"line": 18,
+			"character": 6
+		},
+		"end": {
+			"line": 18,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 21,
+			"character": 8
+		},
+		"end": {
+			"line": 21,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'F'.",
+		"start": {
+			"line": 25,
+			"character": 14
+		},
+		"end": {
+			"line": 25,
+			"character": 15
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'I'.",
+		"start": {
+			"line": 34,
+			"character": 8
+		},
+		"end": {
+			"line": 34,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'J'.",
+		"start": {
+			"line": 36,
+			"character": 8
+		},
+		"end": {
+			"line": 36,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'K'.",
+		"start": {
+			"line": 42,
+			"character": 10
+		},
+		"end": {
+			"line": 42,
+			"character": 11
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'L'.",
+		"start": {
+			"line": 46,
+			"character": 4
+		},
+		"end": {
+			"line": 46,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'L'.",
+		"start": {
+			"line": 51,
+			"character": 10
+		},
+		"end": {
+			"line": 51,
+			"character": 11
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'N'.",
+		"start": {
+			"line": 53,
+			"character": 12
+		},
+		"end": {
+			"line": 53,
+			"character": 13
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'O'.",
+		"start": {
+			"line": 60,
+			"character": 10
+		},
+		"end": {
+			"line": 60,
+			"character": 11
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'P'.",
+		"start": {
+			"line": 67,
+			"character": 12
+		},
+		"end": {
+			"line": 67,
+			"character": 13
+		}
+	}
+]
+
+=== 347 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types02-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'C'.",
+		"start": {
+			"line": 17,
+			"character": 0
+		},
+		"end": {
+			"line": 17,
+			"character": 1
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 10
+		},
+		"end": {
+			"line": 19,
+			"character": 11
+		}
+	}
+]
+
+=== 347 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types02-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'C'.",
+		"start": {
+			"line": 17,
+			"character": 6
+		},
+		"end": {
+			"line": 17,
+			"character": 7
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 12
+		},
+		"end": {
+			"line": 19,
+			"character": 13
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/valid/inline-style-tag-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/valid/pug01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-attributes-per-line/invalid/max3/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-attributes-per-line/invalid/max3/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-attributes-per-line/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-attributes-per-line/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/invalid/all-blocks-exceed/all01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/invalid/mixed-comment-code/mixed01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/invalid/script-too-long/script01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/invalid/skip-not-enough/skip01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/invalid/style-too-long/style01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/invalid/template-too-long/template01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/valid/default-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/valid/empty-block/empty01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/valid/no-style/no-style01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/valid/only-style/only-style01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/valid/skip-blank-lines/skip-blank01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/valid/skip-both/skip-both01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/max-lines-per-block/valid/skip-comments/skip-comments01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always-after-expression/snippet-render01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always-after-expression/snippet-render01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always-after-expression/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always-after-expression/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/declaration-tag-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/declaration-tag-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-add-event-listener/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-add-event-listener/invalid/typescript01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-add-event-listener/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-at-const-tags/invalid/const01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-at-const-tags/invalid/const01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-at-const-tags/valid/declaration-tag-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-at-debug-tags/invalid/debug01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-at-debug-tags/invalid/debug02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-bind-value-on-checkable-inputs/invalid/checkbox-bind-value-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-bind-value-on-checkable-inputs/invalid/radio-bind-value-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-bind-value-on-checkable-inputs/valid/checkbox-bind-checked.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-bind-value-on-checkable-inputs/valid/checkbox-bind-group.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-bind-value-on-checkable-inputs/valid/dynamic-type.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-bind-value-on-checkable-inputs/valid/no-bind.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-bind-value-on-checkable-inputs/valid/other-input-type.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-bind-value-on-checkable-inputs/valid/radio-bind-group.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/invalid/cjs/Foo.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/invalid/cts/Foo.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/invalid/js/Foo.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/invalid/jsx/Foo.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/invalid/mjs/Foo.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/invalid/mts/Foo.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/invalid/ts/Foo.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/invalid/tsx/Foo.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/valid/declaration-sibling-d-svelte/Bar.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/valid/different-module/Foo.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/valid/no-sibling/Foo.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dom-manipulating/invalid/chain01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dom-manipulating/invalid/remove-text01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dom-manipulating/invalid/remove01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dom-manipulating/invalid/well-known-method01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dom-manipulating/invalid/well-known-prop01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dom-manipulating/valid/computed-member01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dom-manipulating/valid/non-bind-this01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dom-manipulating/valid/non-element01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dom-manipulating/valid/remove-text01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dom-manipulating/valid/remove01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dom-manipulating/valid/unknown-method01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dom-manipulating/valid/unknown-prop01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dom-manipulating/valid/unknown-var01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-else-if-blocks/invalid/simple-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-on-directives/invalid/inline-expression-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-on-directives/invalid/modifier-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-on-directives/invalid/multiple-element-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-on-directives/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-on-directives/invalid/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-on-directives/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-on-directives/valid/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-style-properties/invalid/ternary01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-style-properties/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-style-properties/valid/empty01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-style-properties/valid/ternary01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-style-properties/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-style-properties/valid/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-use-directives/invalid/inline-expression-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-use-directives/invalid/multiple-element-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-use-directives/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-use-directives/invalid/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-use-directives/valid/inline-expression-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-use-directives/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/literal-slot01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/multi-report01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/var-slot01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/invalid/svelte-config-from-parser-options/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/invalid/test02/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test01/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test02/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test03/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test04/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test05/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test06/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test07/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test08/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test09/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-export-load-in-svelte-module-in-kit-pages/valid/test10/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-goto-without-base/invalid/aliased-goto01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-goto-without-base/invalid/base-not-prefixed01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-goto-without-base/invalid/no-base01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-goto-without-base/valid/absolute-uri01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-goto-without-base/valid/base-aliased01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-goto-without-base/valid/base-prefixed01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-ignored-unsubscribe/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-ignored-unsubscribe/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-ignored-unsubscribe/valid/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-ignored-unsubscribe/valid/test03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inline-styles/invalid/disallowed-transitions/transition01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inline-styles/invalid/style-attribute01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inline-styles/valid/class-attribute01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inline-styles/valid/class-directive01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inner-declarations/invalid/both/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inner-declarations/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inspect/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/invalid/goto-namespace-import01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/invalid/goto-no-base01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/invalid/link-base-not-as-prefix01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/invalid/link-no-base01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/invalid/link-with-fragment01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/invalid/pushState-aliased01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/invalid/pushState-base-not-as-prefix01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/invalid/pushState-namespace-import01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/invalid/pushState-no-base01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/invalid/replaceState-aliased01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/invalid/replaceState-base-not-as-prefix01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/invalid/replaceState-namespace-import01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/invalid/replaceState-no-base01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/goto-base-namespace-import01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/goto-base-prefixed01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/ignoreGoto/goto-ignored01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/ignoreLinks/link-ignored01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/ignorePushState/pushState-ignored01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/ignoreReplaceState/replaceState-ignored01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/link-absolute-url01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/link-base-aliased01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/link-base-namespace-import01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/link-base-prefixed01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/link-fragment-url01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/pushState-base-aliased01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/pushState-base-namespace-import01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/pushState-base-prefixed01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/pushState-empty-url01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/replaceState-base-aliased01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/replaceState-base-namespace-import01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/replaceState-base-prefixed01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-base/valid/replaceState-empty-url01-input.svelte	json
+[]
+
+=== 428 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/goto-nullish-resolved-pathname-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/goto-partial-resolve01-input.svelte	json
+[]
+
+=== 218 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/goto-resolved-pathname-wrong-module01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 218 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/goto-string-prop01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/goto-ternary-resolve-absolute01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/goto-ternary-resolve-empty01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/goto-ternary-resolve-plain01-input.svelte	json
+[]
+
+=== 428 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/goto-unresolved-pathname01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/link-absolute-url-invalid-operator01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/link-fragment-url-invalid-operator01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/link-nullish-like-literal01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/link-partial-asset01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/link-partial-resolve01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/link-resolved-pathname-wrong-module01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/link-string-prop01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/link-ternary-asset-plain01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/link-ternary-resolve-plain01-input.svelte	json
+[]
+
+=== 213 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/link-unresolved-pathname01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/link-with-fragment01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/link-without-resolve01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/pushState-partial-resolve01-input.svelte	json
+[]
+
+=== 218 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/pushState-resolved-pathname-wrong-module01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	}
+]
+
+=== 218 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/pushState-string-prop01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/pushState-ternary-resolve-absolute01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/pushState-ternary-resolve-plain01-input.svelte	json
+[]
+
+=== 428 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/pushState-unresolved-pathname01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 44
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/recursive-loop01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/replaceState-partial-resolve01-input.svelte	json
+[]
+
+=== 218 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/replaceState-resolved-pathname-wrong-module01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 218 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/replaceState-string-prop01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/replaceState-ternary-resolve-absolute01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/replaceState-ternary-resolve-plain01-input.svelte	json
+[]
+
+=== 428 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/invalid/replaceState-unresolved-pathname01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/goto-namespace-import01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/goto-resolve-aliased01-input.svelte	json
+[]
+
+=== 428 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/goto-resolved-pathname01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	}
+]
+
+=== 428 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/goto-resolved-pathname02-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/goto-resolved01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/goto-ternary-both-resolve01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-absolute-url01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-asset-aliased01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-asset01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-fragment-url01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-namespace-import01-input.svelte	json
+[]
+
+=== 213 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-nullish-resolved-pathname-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-nullish01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-nullish02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-rel-external01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-resolve-aliased01-input.svelte	json
+[]
+
+=== 213 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-resolved-pathname01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 213 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-resolved-pathname02-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-resolved01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-ternary-absolute-fragment01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-ternary-resolve-absolute01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-ternary-resolve-asset01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-ternary-resolve-fragment01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/link-ternary-resolve-nullish01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/pushState-namespace-import01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/pushState-resolve-aliased01-input.svelte	json
+[]
+
+=== 428 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/pushState-resolved-pathname01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 44
+		}
+	}
+]
+
+=== 428 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/pushState-resolved-pathname02-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 44
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/pushState-resolved01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/pushState-ternary-resolve-empty01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/replaceState-namespace-import01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/replaceState-resolve-aliased01-input.svelte	json
+[]
+
+=== 428 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/replaceState-resolved-pathname01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	}
+]
+
+=== 428 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/replaceState-resolved-pathname02-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/replaceState-resolved01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-navigation-without-resolve/valid/replaceState-ternary-resolve-empty01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-nested-style-tag/invalid/nested-in-element-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-nested-style-tag/invalid/nested-in-snippet-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-nested-style-tag/valid/no-style-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-nested-style-tag/valid/top-level-style-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/invalid/array01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/invalid/class01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/invalid/object01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/invalid/string01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/invalid/svelte5/array01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/invalid/svelte5/class01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/invalid/svelte5/object01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/invalid/svelte5/string01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/invalid/svelte5/value01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/invalid/value01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/valid/function01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/valid/null01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/valid/svelte5/function01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/valid/svelte5/null01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/invalid/array01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/invalid/class01-input.svelte	json
+[]
+
+=== 162 packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/invalid/function01-input.svelte	json
+[
+	{
+		"code": 1003,
+		"message": "Identifier expected.",
+		"start": {
+			"line": 5,
+			"character": 10
+		},
+		"end": {
+			"line": 5,
+			"character": 11
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/invalid/object01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/valid/object01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-object-in-text-mustaches/valid/string01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-raw-special-elements/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-raw-special-elements/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-raw-special-elements/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-reactive-functions/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-restricted-html-elements/invalid/array-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-restricted-html-elements/invalid/object-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-shorthand-style-property-overrides/invalid/ternary01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-shorthand-style-property-overrides/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-shorthand-style-property-overrides/valid/ternary01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-shorthand-style-property-overrides/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-shorthand-style-property-overrides/valid/test02-input.svelte	json
+[]
+
+=== 190 packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal04-input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Cannot read properties of undefined (reading 'kind')",
+		"start": {
+			"line": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 0,
+			"character": 0
+		}
+	}
+]
+
+=== 190 packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal05-input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Cannot read properties of undefined (reading 'kind')",
+		"start": {
+			"line": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 0,
+			"character": 0
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal06-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal07-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/valid/no-svelte-internal01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-target-blank/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-target-blank/valid/allow-referrer/allow-referrer-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-target-blank/valid/enforce-dynamic-links/enforce-dynamic-links-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-target-blank/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/env01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/env02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/env03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/guards01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/guards02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/guards03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/guards04-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/guards05-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/guards06-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/guards07-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/guards08-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/in-template01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/test03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/complex-guards01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/complex-guards02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/effect01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/env-guards01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/env01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/env02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/env03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/guards01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/guards02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/guards03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/guards04-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/guards05-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/guards06-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/guards07-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/guards08-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/in-template01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/in-template02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/in-template03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/on-mount01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/state-generic-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/ts01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-trailing-spaces/invalid/ignoreComments/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-trailing-spaces/invalid/ignoreComments/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-trailing-spaces/invalid/skipBlankLines/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-trailing-spaces/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-trailing-spaces/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unknown-style-directive-property/invalid/ignoreProperties/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unknown-style-directive-property/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unknown-style-directive-property/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unknown-style-directive-property/valid/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unnecessary-state-wrap/invalid/additional-class-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unnecessary-state-wrap/invalid/allow-reassign-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unnecessary-state-wrap/invalid/basic-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unnecessary-state-wrap/invalid/import-alias-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unnecessary-state-wrap/valid/additional-class-input.svelte	json
+[]
+
+=== 216 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unnecessary-state-wrap/valid/allow-reassign-bind1-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './Bug3.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 33
+		}
+	}
+]
+
+=== 216 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unnecessary-state-wrap/valid/allow-reassign-bind2-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './Bug3.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 33
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unnecessary-state-wrap/valid/allow-reassign-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unnecessary-state-wrap/valid/basic-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/invalid/allowed-class-names/partially-allowed-class-name01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/invalid/class-directive01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/invalid/duplicated-class-name-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/invalid/multiline-class-names01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/invalid/multiple-class-names01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/invalid/same-name-id01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/invalid/unused-class-name01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/invalid/used-unrelated-class-name01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/adjacent-sibling-combinator01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/allowed-class-names/allowed-class-name01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/child-combinator01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/descendant-combinator01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/general-sibling-combinator01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/multiple-class-names01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/no-class-name01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/pseudo-classes01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/pseudo-elements01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/scss-class-name01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/selector-list01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/used-class-name01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/alias-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/builtin-shadow-unused-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/builtin-types-unused-input.svelte	json
+[]
+
+=== 217 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/custom-config-combination-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './shared-types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/extends-unused-input.svelte	json
+[]
+
+=== 591 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/generic-props-unused-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './shared-types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'data' does not exist on type 'Props'.",
+		"start": {
+			"line": 5,
+			"character": 7
+		},
+		"end": {
+			"line": 5,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'loading' does not exist on type 'Props'.",
+		"start": {
+			"line": 5,
+			"character": 13
+		},
+		"end": {
+			"line": 5,
+			"character": 20
+		}
+	}
+]
+
+=== 401 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/ignore-external-type-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './shared-types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'foo' does not exist on type 'Props'.",
+		"start": {
+			"line": 8,
+			"character": 7
+		},
+		"end": {
+			"line": 8,
+			"character": 10
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/ignore-property-patterns-custom-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/ignored-type-patterns-custom-input.svelte	json
+[]
+
+=== 217 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/imported-type-check-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './shared-types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	}
+]
+
+=== 587 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/imported-type-unused-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './shared-types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'name' does not exist on type 'Props'.",
+		"start": {
+			"line": 5,
+			"character": 7
+		},
+		"end": {
+			"line": 5,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'age' does not exist on type 'Props'.",
+		"start": {
+			"line": 5,
+			"character": 13
+		},
+		"end": {
+			"line": 5,
+			"character": 16
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/index-signature-no-rest-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/intersection-unused-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/multiple-extends-unused-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/nested-unused-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/optional-unused-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/parent-interface-unused-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/simple-unused-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/unused-index-signature-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/alias-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/any-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/assignment-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/basic-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/bindable-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/builtin-types-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/component-props-any-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/computed-member-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/computed-property-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/conditional-type-input.svelte	json
+[]
+
+=== 217 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/custom-config-combination-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './shared-types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/default-value-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/extends-input.svelte	json
+[]
+
+=== 401 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/ignore-external-type-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './shared-types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'foo' does not exist on type 'Props'.",
+		"start": {
+			"line": 8,
+			"character": 7
+		},
+		"end": {
+			"line": 8,
+			"character": 10
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/ignore-property-patterns-custom-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/ignore-property-patterns-default-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/ignored-type-patterns-custom-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/ignored-type-patterns-custom2-input.svelte	json
+[]
+
+=== 402 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/imported-type-default-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './shared-types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'name' does not exist on type 'Props'.",
+		"start": {
+			"line": 5,
+			"character": 7
+		},
+		"end": {
+			"line": 5,
+			"character": 11
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/index-signature-rest-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/intersection-type-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/js-basic-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/js-jsdoc-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/js-no-types-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/member-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/module-script-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/multiple-index-signatures-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/nested-props-input.svelte	json
+[]
+
+=== 225 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/nested-props2-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './GenericPopout.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 225 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/nested-props3-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './GenericPopout.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 225 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/nested-props4-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './GenericPopout.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/nested-unused2-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/new-expression-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/optional-props-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/record-type-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/recursive-type-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/rename-unused-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/rest-and-index-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/rest-with-index-input.svelte	json
+[]
+
+=== 219 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/spread-nested1-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Test.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 36
+		}
+	}
+]
+
+=== 219 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/spread-nested2-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Test.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 36
+		}
+	}
+]
+
+=== 219 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/spread-nested3-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Test.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 36
+		}
+	}
+]
+
+=== 439 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/spread-nested5-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Test.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 36
+		}
+	},
+	{
+		"code": 2488,
+		"message": "Type 'Props' must have a '[Symbol.iterator]()' method that returns an iterator.",
+		"start": {
+			"line": 14,
+			"character": 16
+		},
+		"end": {
+			"line": 14,
+			"character": 21
+		}
+	}
+]
+
+=== 219 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/spread-root1-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Test.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	}
+]
+
+=== 437 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/spread-root3-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Test.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	},
+	{
+		"code": 2488,
+		"message": "Type 'Props' must have a '[Symbol.iterator]()' method that returns an iterator.",
+		"start": {
+			"line": 9,
+			"character": 16
+		},
+		"end": {
+			"line": 9,
+			"character": 21
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/template-usage-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/ts-basic-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/typed-props-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/union-type-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/used-index-signature-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/html-comment-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/html-comment-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore01-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore02-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/invalid-svelte-ignore03-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/missing-code-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/script-comment01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang05-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/transform-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/transform-test-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/element-ignore01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/element-ignore01-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/html-comment-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/html-comment-svelte4-input.svelte	json
+[]
+
+=== 442 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/reactive-component-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './MyComponent.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './MyComponent.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 9
+		},
+		"end": {
+			"line": 5,
+			"character": 31
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/script-comment-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang05-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore-comma-separated-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore-note-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore01-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore02-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore03-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore04-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore04-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore05-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore05-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore06-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore06-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore07-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore07-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/ts-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-children-snippet/invalid/children-snippet01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-children-snippet/valid/implicit-snippet01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-children-snippet/valid/named-snippet01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-children-snippet/valid/snippet-with-params01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-children-snippet/valid/standalone-snippet01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/invalid/comments01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/invalid/escape-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/invalid/escape-test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/invalid/invalid-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/invalid/quote-test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/invalid/quote-test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/invalid/quote-test02-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/invalid/spaces-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/invalid/spaces-test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/invalid/tag-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/invalid/tag-test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/valid/ignore-string-escape/escape-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/valid/valid-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-useless-mustaches/valid/valid-test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-attribute-interpolation/invalid/template-literal-attribute-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-attribute-interpolation/valid/boundaries-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/empty/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/empty/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/simple-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/simple-test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/svelte-element01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/svelte-element01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test02-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test03-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/transform-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/transform-test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/transform-test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/transform-test02-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/trim-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/trim-test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/trim-test01.2-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/trim-test01.2-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/valid/empty/ignore-test05-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/valid/ignore-component01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/valid/ignore-svelte-self01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/valid/ignore-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/valid/ignore-test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/valid/ignore-test03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/valid/ignore-test04-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-const/invalid/option1/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-const/invalid/option1/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-const/invalid/option2/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-const/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-const/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-const/valid/1238/input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-const/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-derived-over-derived-by/invalid/arrow-block-return-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-derived-over-derived-by/invalid/arrow-block-return-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-derived-over-derived-by/invalid/arrow-concise-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-derived-over-derived-by/invalid/function-expression-return-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-derived-over-derived-by/valid/arrow-with-params-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-derived-over-derived-by/valid/async-arrow-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-derived-over-derived-by/valid/conditional-return-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-derived-over-derived-by/valid/generator-function-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-derived-over-derived-by/valid/multi-statement-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/fixer-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/member01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/runes-with-store01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/valid/builtin-vars01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/complex-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/complex-test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/svelte-element01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/svelte-element01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/ternary01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/ternary01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/ternary02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/ternary02-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/ternary03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/ternary03-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/ternary04-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/ternary04-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/test02-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/test03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/test03-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/test04-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/test04-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/valid/ignore-component01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/valid/ignore-svelte-self01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/valid/invalid-style01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setDate01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setFullYear01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setFullYear02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setFullYear03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setHours01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setHours02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setHours03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setHours04-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setMilliseconds01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setMinutes01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setMinutes02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setMinutes03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setMonth01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setMonth02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setSeconds01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setSeconds02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setTime01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCDate01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCFullYear01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCFullYear02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCFullYear03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCHours01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCHours02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCHours03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCHours04-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCMilliseconds01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCMinutes01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCMinutes02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCMinutes03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCMonth01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCMonth02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCSeconds01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setUTCSeconds02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/date/setYear01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/map/clear01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/map/delete01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/map/set01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/set/add01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/set/clear01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/set/delete01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url-search-params/append01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url-search-params/delete01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url-search-params/delete02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url-search-params/set01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url-search-params/sort01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url/hash01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url/host01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url/hostname01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url/href01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url/password01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url/pathname01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url/port01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url/protocol01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url/search01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/invalid/url/username01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/aliased-date01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/aliased-map01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/aliased-set01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/aliased-url-search-params01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/aliased-url01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/date01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/map01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/set01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/svelte-date01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/svelte-map01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/svelte-set01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/svelte-url-search-params01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/svelte-url01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/unrelated-date01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/unrelated-map01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/unrelated-set01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/unrelated-url-search-params01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/unrelated-url01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/url-search-params01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-svelte-reactivity/valid/url01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-writable-derived/invalid/basic1-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-writable-derived/invalid/basic2-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-writable-derived/invalid/effect-pre1-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-writable-derived/invalid/effect-pre2-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-writable-derived/invalid/multiple-reassign1-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-writable-derived/invalid/multiple-reassign2-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-writable-derived/invalid/multiple-reassign3-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-writable-derived/valid/condition1-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-writable-derived/valid/condition2-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-each-key/invalid/each-block-without-key01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-each-key/valid/keyed-each-block01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-each-key/valid/svelte5/each-blocks-without-an-item-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-event-dispatcher-types/invalid/import-alias01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-event-dispatcher-types/invalid/no-types01-input.svelte	json
+[]
+
+=== 211 packages/eslint-plugin-svelte/tests/fixtures/rules/require-event-dispatcher-types/valid/has-types01-input.svelte	json
+[
+	{
+		"code": 2344,
+		"message": "Type 'unknown' does not satisfy the constraint 'Record<string, any>'.",
+		"start": {
+			"line": 6,
+			"character": 41
+		},
+		"end": {
+			"line": 6,
+			"character": 48
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-event-dispatcher-types/valid/no-typescript01-input.svelte	json
+[]
+
+=== 212 packages/eslint-plugin-svelte/tests/fixtures/rules/require-event-dispatcher-types/valid/non-svelte-dispatcher01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './unknown' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-event-prefix/invalid/checkAsyncFunctions/async-arrow01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-event-prefix/invalid/checkAsyncFunctions/async01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-event-prefix/invalid/no-prefix-arrow01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-event-prefix/invalid/no-prefix-inline-type01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-event-prefix/invalid/no-prefix01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-event-prefix/valid/any01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-event-prefix/valid/non-function01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-event-prefix/valid/with-prefix01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-optimized-style-attribute/invalid/comment01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-optimized-style-attribute/invalid/key01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-callbacks-use-set-param/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-callbacks-use-set-param/invalid/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-callbacks-use-set-param/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-callbacks-use-set-param/valid/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/attrs-store01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/attrs-store01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/await01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/await01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/calc01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/calc01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/directives-store01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/directives-store01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/for-in01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/for-in01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/for-of01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/for-of01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/if-block01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/if-block01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/if-statement01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/if-statement01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/import01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/import01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/props-store01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/props-store01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/spread01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/spread01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/svelte-component01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/svelte-component01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/switch01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/switch01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/tagged01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/tagged01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-class-directives01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-class-directives01-output.svelte	json
+[]
+
+=== 214 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-i18n-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-i18n' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 32
+		}
+	}
+]
+
+=== 214 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-i18n-output.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-i18n' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 32
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-if-block01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-if-block01-output.svelte	json
+[]
+
+=== 217 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-stores01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../ts/store' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	}
+]
+
+=== 217 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-test01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../ts/store' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 71
+		},
+		"end": {
+			"line": 1,
+			"character": 87
+		}
+	}
+]
+
+=== 217 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/ts/ts-test01-output.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../ts/store' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 71
+		},
+		"end": {
+			"line": 1,
+			"character": 87
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/attrs-store01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/directives-store01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/if-statement01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/import01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/props-store01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/svelte-element01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/test01-input.svelte	json
+[]
+
+=== 220 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/ts/ts-non-store01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../ts/non-store' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 8
+		},
+		"end": {
+			"line": 9,
+			"character": 28
+		}
+	}
+]
+
+=== 221 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/ts/ts-non-store02-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../ts/non-store' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 217 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/ts/ts-stores01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../ts/store' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	}
+]
+
+=== 217 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/ts/ts-test01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../ts/store' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 71
+		},
+		"end": {
+			"line": 1,
+			"character": 87
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/valid/unknown-values01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-stores-init/invalid/no-init01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-stores-init/valid/has-init01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-stores-init/valid/no-svelte-store01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-stores-init/valid/spread01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-attribute/invalid/always/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-attribute/invalid/always/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-attribute/invalid/never/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-attribute/invalid/never/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-attribute/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-attribute/valid/always/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-attribute/valid/never/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-directive/invalid/always/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-directive/invalid/always/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-directive/invalid/never/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-directive/invalid/never/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-directive/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-directive/valid/always/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-directive/valid/never/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/shorthand-directive/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/alphabetical-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/alphabetical-test-output.svelte	json
+[]
+
+=== 271 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-input.svelte	json
+[
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"foo\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 13,
+			"character": 5
+		},
+		"end": {
+			"line": 13,
+			"character": 8
+		}
+	}
+]
+
+=== 273 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/attach-tag-output.svelte	json
+[
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"foo\"' does not exist in type 'HTMLProps<\"div\", HTMLAttributes<any>>'.",
+		"start": {
+			"line": 13,
+			"character": 28
+		},
+		"end": {
+			"line": 13,
+			"character": 30
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/class-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/class-test-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/in-out-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/in-out-test-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/let-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/let-test-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/slot-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/slot-test-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/spread-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/spread-test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/spread-test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/spread-test02-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/spread-test03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/spread-test03-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/style-ptops-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/style-ptops-test-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/use-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/use-test-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/ignore-no-order-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/ignore-no-order-test-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/ignore-no-order-with-spread-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/ignore-no-order-with-spread-test-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/alphabetical-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/bind-on-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/class-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/ignore-spread-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/let-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/spread-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/style-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/ignore-no-order-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/spaced-html-comment/invalid/always/always-invalid-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/spaced-html-comment/invalid/always/always-invalid-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/spaced-html-comment/invalid/never/never-invalid-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/spaced-html-comment/valid/always/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/spaced-html-comment/valid/never/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/a11y01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/custom_element_props_identifier-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/invalid-svelte-ignore02-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/invalid-svelte-ignore03-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/style-without-global-01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/svelte-config-custom-warn/a11y-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/svelte-config-custom-warn/a11y-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/babel/class01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/global-style-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/no-false-custom_element_props_identifier-warning-without-custom-element-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/style-lang01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/style-lang02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/style-lang03-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/svelte-options-custom-element-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/ts/class01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/ts/test01-input.svelte	json
+[]
+
+=== 214 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/ts/ts-unused-in-script-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	}
+]
+
+=== 196 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/ts/type-only-import01-input.svelte	json
+[
+	{
+		"code": 2314,
+		"message": "Generic type 'Writable<T>' requires 1 type argument(s).",
+		"start": {
+			"line": 3,
+			"character": 9
+		},
+		"end": {
+			"line": 3,
+			"character": 17
+		}
+	}
+]
+
+=== 196 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/ts/type-only-import02-input.svelte	json
+[
+	{
+		"code": 2314,
+		"message": "Generic type 'Writable<T>' requires 1 type argument(s).",
+		"start": {
+			"line": 2,
+			"character": 9
+		},
+		"end": {
+			"line": 2,
+			"character": 17
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/undef01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/unuse01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/valid-custom-element-with-props-identifier-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-each-key/invalid/const-key01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-each-key/invalid/out-vars-key01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-each-key/valid/call-key01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-each-key/valid/destructure-key01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-each-key/valid/expression-key01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-each-key/valid/expression-key02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-each-key/valid/index-key01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-each-key/valid/member-key01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/invalid/svelte5-children-in-page/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/invalid/svelte5-error-invalid-prop/+error.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/invalid/svelte5/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/not-page/svelte5/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/svelte5-error/+error.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/svelte5-layout/+layout.svelte	json
+[]
+
+=== 170 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/svelte5-typescript/+page.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'PageData'.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/svelte5/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/test002-1/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/test002-2/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/test003-1/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/test003-2/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/test004-1/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/test004-2/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-style-parse/valid/no-style01-input.svelte	json
+[]
+

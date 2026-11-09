@@ -1,5 +1,5 @@
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte::compilation::compiler_syntax_tree::NodeKind;
+use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
 
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 

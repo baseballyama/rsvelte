@@ -1,14 +1,14 @@
 //! TypeScript the parser accepts: what compilation erases, what it must refuse, and which type
 //! names scope analysis sees. Printed and refused forms are the official compiler's (svelte 5.57.3
 //! on the same statements in `<script lang="ts">`); which names count as references is
-//! typescript-eslint's, checked through `no-unused-variables` in `rsvelte_svelte`'s lint tests.
+//! typescript-eslint's, checked through `no-unused-variables` in `rsvelte_svelte_lint`'s tests.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::parser::parse_program;
-use rsvelte_typescript::syntax_tree::{SyntaxTree, TypeScriptFeature};
 use rsvelte_typescript_compile::codegen::print_program;
+use rsvelte_typescript_syntax::parser::parse_program;
+use rsvelte_typescript_syntax::syntax_tree::{SyntaxTree, TypeScriptFeature};
 
-fn parse(source_text: &str) -> (SyntaxTree, rsvelte_typescript::NodeIdentifier) {
+fn parse(source_text: &str) -> (SyntaxTree, rsvelte_typescript_syntax::NodeIdentifier) {
     let mut syntax_tree = SyntaxTree::new();
     let p = parse_program(
         &mut syntax_tree,
@@ -102,7 +102,7 @@ fn an_interface_read_as_text_leaves_no_members_behind() {
     // `m(): void` is not a property signature, so the body is kept as text after `x` was read.
     let source_text = "interface A { x: number; m(): void }\nlet y = 1;";
     let (syntax_tree, p) = parse(source_text);
-    let rsvelte_typescript::syntax_tree::Kind::Program(body) = syntax_tree.kind(p) else {
+    let rsvelte_typescript_syntax::syntax_tree::Kind::Program(body) = syntax_tree.kind(p) else {
         panic!("not a program")
     };
     assert_eq!(body.len(), 2);

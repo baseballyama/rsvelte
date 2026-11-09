@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (initial_allocations, initial_bytes) = thread_allocations();
     for _ in 0..rounds {
         for source in &sources {
-            let component = rsvelte_svelte_parser::parse::parse(black_box(source))
+            let component = rsvelte_svelte_syntax::parse::parse(black_box(source))
                 .map_err(|diagnostic| diagnostic.message)?;
             let tree = rsvelte_svelte_typescript_projection::lower(&component, source)
                 .map_err(|unsupported| unsupported.what)?;

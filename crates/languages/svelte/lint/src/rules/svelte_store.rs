@@ -3,9 +3,9 @@
 use rsvelte_kernel::source::interning::Atom;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
-use rsvelte_typescript::scope::{BindingIdentifier, ScopeIdentifier};
-use rsvelte_typescript::semantic::reference_tracker::import_references;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_typescript_semantic::reference_tracker::import_references;
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, ScopeIdentifier};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::javascript::span;

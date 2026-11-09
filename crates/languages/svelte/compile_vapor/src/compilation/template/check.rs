@@ -86,7 +86,7 @@ const REFUSED_ELEMENTS: &[&str] = &[
 /// # Errors
 ///
 /// A `vuelte_unsupported` diagnostic at the first construct outside the mapping.
-pub fn check(
+pub(crate) fn check(
     compiler_syntax_tree: &CompilerSyntaxTree,
     javascript: &SyntaxTree,
     resolution: &Resolution,
@@ -252,7 +252,7 @@ fn check_slot_attribute(source_text: &str, a: &Attribute) -> R<()> {
             AttributeValue::Static(value) => Some(value.as_ref()),
             _ => None,
         };
-        if let Some((code, _)) = rsvelte_svelte::warnings::slot_name_error(text) {
+        if let Some((code, _)) = rsvelte_svelte_semantic::warnings::slot_name_error(text) {
             return Err(unsupported(code, a.span));
         }
     }

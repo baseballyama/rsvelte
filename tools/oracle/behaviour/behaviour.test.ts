@@ -39,6 +39,7 @@ const units: Unit[] = CASES.flatMap(({ dir, lang, ext }) =>
 		.toSorted()
 		.map((name) => {
 			const caseDir = path.join(ROOT, dir, name);
+			const sourceFile = path.join(caseDir, `input${ext}`);
 			const behaviourFile = path.join(caseDir, 'behaviour.toml');
 			const behaviour = fs.existsSync(behaviourFile)
 				? (parseToml(fs.readFileSync(behaviourFile, 'utf8')) as unknown as Behaviour)
@@ -49,10 +50,10 @@ const units: Unit[] = CASES.flatMap(({ dir, lang, ext }) =>
 				path: `${name}${ext}`,
 				lang,
 				ext,
-				sha256: '',
+				src: fs.readFileSync(sourceFile, 'utf8'),
 				mode: '',
 				fixture: { behaviour },
-				sourceFile: path.join(caseDir, `input${ext}`),
+				sourceFile,
 			};
 		}),
 );

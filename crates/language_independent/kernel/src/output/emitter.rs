@@ -3,7 +3,7 @@
 //! An output buffer that records where each piece came from, source map v3 encoding, and reverse
 //! lookup (generated → original, for mapping diagnostics of a generated file back).
 
-use crate::source::positions::{LineIndex, SourceLocation, Span};
+use crate::source::positions::{LineIndex, Span};
 
 /// `len > 0`: `len` bytes copied verbatim from `source_text`, so offsets inside map 1:1.
 /// `len == 0`: a point mapping (the generated position corresponds to `source_text`).
@@ -56,20 +56,12 @@ impl Emitter {
         self.out.push_str(span.text(source));
     }
 
-    /// Pushes text that stands for `span` (e.g. a renamed identifier), mapped to its start.
-    pub fn push_for(&mut self, s: &str, source_location: SourceLocation) {
-        if let Some(span) = source_location.span() {
-            self.mark(span.start_offset);
-        }
-        self.out.push_str(s);
-    }
-
     /// The original offset of the generated character at `position`, as a per-character source map
     /// answers it (greatest lower bound on the same generated line): inside a verbatim copy 1:1,
     /// in inserted text the last mapped character before it, and `None` when no mapping precedes
     /// it on its line. [`Emitter::source_map`] writes exactly these answers.
     #[must_use]
-    pub fn lookup(&self, position: u32) -> Option<u32> {
+    pub(crate) fn lookup(&self, position: u32) -> Option<u32> {
         let i = self.mappings.partition_point(|m| m.generated <= position);
         let m = self.mappings.get(i.checked_sub(1)?)?;
         if position < m.generated + m.len {
@@ -90,7 +82,7 @@ impl Emitter {
         (m.generated + m.len - back, m.source_text + m.len - back)
     }
 
-    /// Both ends through [`Emitter::lookup`], which is how language tools map a diagnostic back
+    /// Both ends through `Emitter::lookup`, which is how language tools map a diagnostic back
     /// through a source map. An end that falls in inserted text therefore lands on the start of the
     /// last mapped character, so a producer that wants exact ends marks the character after a copy.
     /// `None` when either end has no mapping before it on its line.

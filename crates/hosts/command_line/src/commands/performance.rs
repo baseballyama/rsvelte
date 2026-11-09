@@ -1,5 +1,5 @@
-//! `rsvelte performance <dir>... [rounds=N] [json=<file>]`: the deterministic performance counters
-//! CI ratchets (`tools/performance`).
+//! `rsvelte performance <dir>... [rounds=N] [every=N] [json=<file>]`: the deterministic performance
+//! counters CI ratchets (`tools/performance`). `every=N` keeps every N-th document, in path order.
 //!
 //! Wall time moves with the machine, so what gates is what does not: every document task over the
 //! population, serially, `rounds` times, and the allocations of the last round, which runs with
@@ -26,6 +26,7 @@ use rsvelte_kernel::source::document::Document;
 
 pub(crate) struct Options {
     rounds: usize,
+    every: usize,
     json: Option<PathBuf>,
     pub(crate) tools: Vec<rsvelte_plugin_interface::Tool>,
 }
@@ -34,6 +35,7 @@ impl Options {
     pub(crate) fn parse(arguments: &[&str]) -> Result<(Vec<PathBuf>, Self), String> {
         let mut o = Self {
             rounds: 2,
+            every: 1,
             json: None,
             tools: Vec::new(),
         };
@@ -44,6 +46,13 @@ impl Options {
                     o.rounds = n
                         .parse()
                         .map_err(|e| format!("rounds={n}: expected a whole number: {e}"))?;
+                }
+                Some(("every", n)) => {
+                    o.every = n
+                        .parse()
+                        .ok()
+                        .filter(|n| *n > 0)
+                        .ok_or_else(|| format!("every={n}: expected a whole number above 0"))?;
                 }
                 Some(("json", f)) => o.json = Some(PathBuf::from(f)),
                 Some(_) => return Err(format!("unknown performance option {a}")),
@@ -64,10 +73,13 @@ pub(crate) fn performance(
     options: &Options,
 ) -> ExitCode {
     let roots: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
-    let (docs, _, skipped) = match crate::load(reg, &roots) {
+    let (mut docs, _, skipped) = match crate::load(reg, &roots) {
         Ok(loaded) => loaded,
         Err(error) => return crate::usage(&error),
     };
+    if options.every > 1 {
+        docs = docs.into_iter().step_by(options.every).collect();
+    }
     if docs.is_empty() {
         eprintln!("rsvelte performance: no units below the given directories");
         return ExitCode::FAILURE;

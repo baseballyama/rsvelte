@@ -294,7 +294,7 @@ pub(super) fn vmodel(
     let lt = to.binary(BinaryOperator::Lt, iv, len, SourceLocation::SYNTHETIC);
     let iv = identifier(to, &i);
     let inc = to.update(
-        rsvelte_typescript::operators::UpdateOperator::Inc,
+        rsvelte_typescript_syntax::operators::UpdateOperator::Inc,
         false,
         iv,
         SourceLocation::SYNTHETIC,
@@ -357,7 +357,7 @@ pub(super) fn vmodel(
     let lt = to.binary(BinaryOperator::Lt, iv, len, SourceLocation::SYNTHETIC);
     let iv = identifier(to, &i);
     let inc = to.update(
-        rsvelte_typescript::operators::UpdateOperator::Inc,
+        rsvelte_typescript_syntax::operators::UpdateOperator::Inc,
         false,
         iv,
         SourceLocation::SYNTHETIC,

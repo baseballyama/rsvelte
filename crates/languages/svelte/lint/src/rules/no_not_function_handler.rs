@@ -1,7 +1,7 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::{AttributeKind, Part, TemplateNode};
-use rsvelte_typescript::syntax_tree::Class;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Part, TemplateNode};
+use rsvelte_typescript_syntax::syntax_tree::Class;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::constant_string::root;
 use super::expressions::Expressions;

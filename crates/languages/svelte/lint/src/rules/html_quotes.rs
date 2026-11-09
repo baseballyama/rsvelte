@@ -3,7 +3,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Token;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TokenType,
 };
 use serde::Deserialize;

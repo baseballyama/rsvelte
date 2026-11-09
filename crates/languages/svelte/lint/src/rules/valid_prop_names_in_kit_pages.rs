@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::kit_route::{RouteFile, route_file};
 use crate::LintSettings;

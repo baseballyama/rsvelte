@@ -1,11 +1,12 @@
 //! svue: a `.vue` component, with Vue's meaning, compiled to JavaScript for the Svelte runtime.
 //!
-//! svue reads the Vue plugin's artifacts ([`rsvelte_vue::Parsed`], [`rsvelte_vue::Lowered`],
-//! [`rsvelte_vue::Resolved`]) and writes what the Svelte compiler reads: a runes instance program
-//! and a Svelte HIR ([`Translation`]). [`rsvelte_svelte_compile::compile`] then lowers
-//! it, so the module has the shape `svelte/compiler` emits and imports only `svelte`, `svelte/*`,
-//! `vue` and `@vue/*`. The tasks are `svue.compile/client` and `svue.compile/server`, on `.vue`
-//! documents; the oracle is the component's DOM under Vue itself (`tools/oracle/behaviour`).
+//! svue reads the Vue plugin's artifacts ([`rsvelte_vue_syntax::Parsed`],
+//! [`rsvelte_vue_semantic::Lowered`], [`rsvelte_vue_semantic::Resolved`]) and writes what the
+//! Svelte compiler reads: a runes instance program and a Svelte HIR ([`Translation`]).
+//! [`rsvelte_svelte_compile::compile_input`] then lowers it, so the module has the shape
+//! `svelte/compiler` emits and imports only `svelte`, `svelte/*`, `vue` and `@vue/*`. The tasks are
+//! `svue.compile/client` and `svue.compile/server`, on `.vue` documents; the oracle is the
+//! component's DOM under Vue itself (`tools/oracle/behaviour`).
 //!
 //! What a translation cannot reproduce exactly it refuses with a `compile_unsupported`
 //! diagnostic, never an approximation, and it never panics.
@@ -27,7 +28,7 @@
 //!   is `false`; `''` and the hyphenated name are `true`).
 //!
 //! The template (text nodes carry Vue's condensed text, as
-//! [`rsvelte_svelte::compilation::compiler_syntax_tree::spelled_text`], and the Svelte compiler
+//! [`rsvelte_svelte_semantic::compiler_syntax_tree::spelled_text`], and the Svelte compiler
 //! runs with `preserveWhitespace` so that it does not condense it again):
 //! - `{{ e }}`: `{toDisplayString(e)}`, Vue's display rules, from `vue`.
 //! - `v-if` / `v-else-if` / `v-else`: `{#if}` / `{:else if}` / `{:else}`; a `<template>` carrying
@@ -101,9 +102,9 @@
 //! - A listener that falls through replaces the root's own listener for that event instead of being
 //!   merged with it.
 
-pub mod compilation;
-pub mod computation;
-pub use compilation::{Translation, translate};
+pub(crate) mod compilation;
+pub(crate) mod computation;
+pub use compilation::Translation;
 pub(crate) use compilation::{context, script, template};
 pub use computation::{
     Analyzed, Client, Compile, PLUGIN, Resolved, Server, Side, Translated, register,

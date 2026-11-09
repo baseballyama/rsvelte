@@ -1,9 +1,9 @@
 //! What each kind of type syntax offsets, as upstream's `indent-helpers/ts.js` does.
 
-use rsvelte_svelte::syntax::syntax_tree::TokenType;
-use rsvelte_typescript::lexer::T;
-use rsvelte_typescript::syntax_tree::{Signature, SignatureKind, Type};
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_svelte_syntax::syntax_tree::TokenType;
+use rsvelte_typescript_syntax::lexer::T;
+use rsvelte_typescript_syntax::syntax_tree::{Signature, SignatureKind, Type};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::Script;
 use crate::rules::indent::layout::Item;

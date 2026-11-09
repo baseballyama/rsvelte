@@ -1,24 +1,26 @@
 //! eslint-plugin-vue's rules, and the core rules as they see a Vue component.
 //!
 //! One layer: the surface tree with its name resolution. The core `no-unused-variables` is
-//! `rsvelte_typescript`'s, unchanged: template expressions are scope roots, so a script binding
-//! read only in the template is used (vue-eslint-parser marks such a variable used). It judges only
-//! the script's bindings; the `v-for` aliases are `vue/no-unused-variables`' to report.
+//! `rsvelte_typescript_lint`'s, unchanged: template expressions are scope roots, so a script
+//! binding read only in the template is used (vue-eslint-parser marks such a variable used). It
+//! judges only the script's bindings; the `v-for` aliases are `vue/no-unused-variables`' to report.
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
-use rsvelte_markup::button_type::{Allowed, Problem, check_static};
-use rsvelte_markup::character_references::{Place, Rules, decode};
-use rsvelte_typescript::scope::{DeclarationKind, HostRoot};
+use rsvelte_markup_lint::button_type::{Allowed, Problem, check_static};
+use rsvelte_markup_syntax::character_references::{Place, Rules, decode};
 use rsvelte_typescript_lint::JavaScriptFacts;
-use rsvelte_vue::resolve::Resolution;
-use rsvelte_vue::syntax_tree::{AttributeKind, DirectiveName, SingleFileComponent, TemplateNode};
+use rsvelte_typescript_semantic::scope::{DeclarationKind, HostRoot};
+use rsvelte_vue_semantic::resolve::Resolution;
+use rsvelte_vue_syntax::syntax_tree::{
+    AttributeKind, DirectiveName, SingleFileComponent, TemplateNode,
+};
 
 #[derive(Debug)]
-pub struct RuleContext<'a> {
+pub(crate) struct RuleContext<'a> {
     pub c: &'a SingleFileComponent,
     pub source_text: &'a str,
     /// The document's path: some rules read the file name.
@@ -40,18 +42,18 @@ static RULES: &[&VueRule] = &[
 /// # Errors
 ///
 /// A rule failed.
-pub fn lint(context: &RuleContext<'_>) -> Result<Vec<Finding>, Diagnostic> {
+pub(crate) fn lint(context: &RuleContext<'_>) -> Result<Vec<Finding>, Diagnostic> {
     let mut f = Findings::new();
     f.run(RULES.iter().copied(), context);
     f.finish()
 }
 
-pub fn rule_identifiers() -> impl Iterator<Item = &'static str> + Clone {
+pub(crate) fn rule_identifiers() -> impl Iterator<Item = &'static str> + Clone {
     RULES.iter().map(|r| r.identifier())
 }
 
 #[derive(Debug)]
-pub struct NoUnusedVariables;
+pub(crate) struct NoUnusedVariables;
 
 impl<'a> Rule<RuleContext<'a>> for NoUnusedVariables {
     fn identifier(&self) -> &'static str {
@@ -71,7 +73,7 @@ impl<'a> Rule<RuleContext<'a>> for NoUnusedVariables {
 /// With the default options (no `ignorePattern`). The template has no component tags yet, so
 /// upstream's `isUsedAsComponentTag` has nothing to find.
 #[derive(Debug)]
-pub struct VueNoUnusedVariables;
+pub(crate) struct VueNoUnusedVariables;
 
 impl<'a> Rule<RuleContext<'a>> for VueNoUnusedVariables {
     fn identifier(&self) -> &'static str {
@@ -120,13 +122,16 @@ impl<'a> Rule<RuleContext<'a>> for VueNoUnusedVariables {
 /// (upstream `isDestructuringVariable`).
 fn pattern_bindings(
     context: &RuleContext<'_>,
-    p: rsvelte_typescript::NodeIdentifier,
-) -> Vec<(rsvelte_typescript::scope::BindingIdentifier, bool)> {
+    p: rsvelte_typescript_syntax::NodeIdentifier,
+) -> Vec<(rsvelte_typescript_semantic::scope::BindingIdentifier, bool)> {
     let syntax_tree = context.javascript.syntax_tree;
     let mut out = Vec::new();
     let mut stack = vec![(p, false)];
     while let Some((n, destructured)) = stack.pop() {
-        if matches!(syntax_tree.kind(n), rsvelte_typescript::Kind::Identifier(_)) {
+        if matches!(
+            syntax_tree.kind(n),
+            rsvelte_typescript_syntax::Kind::Identifier(_)
+        ) {
             if let Some(b) = context.res.sem.binding_of(n) {
                 out.push((b, destructured));
             }
@@ -137,8 +142,8 @@ fn pattern_bindings(
         let inner = destructured
             || matches!(
                 syntax_tree.kind(n),
-                rsvelte_typescript::Kind::ObjectPattern(_)
-                    | rsvelte_typescript::Kind::ArrayPattern(_)
+                rsvelte_typescript_syntax::Kind::ObjectPattern(_)
+                    | rsvelte_typescript_syntax::Kind::ArrayPattern(_)
             );
         stack.extend(children.into_iter().rev().map(|k| (k, inner)));
     }
@@ -147,13 +152,13 @@ fn pattern_bindings(
 
 /// With the default options, so the `forbiddenTypeAttribute` message cannot fire.
 ///
-/// The judgement is [`rsvelte_markup::button_type`]'s, shared with `svelte/button-has-type`; what
-/// is Vue's is that a static `type` is looked for before a `:type`, and that a finding sits on the
-/// value when there is one. Attribute names compare without case, as vue-eslint-parser lowercases
-/// them in HTML. The parser refuses a directive without an expression, so upstream's empty `:type`
-/// branch has no input yet.
+/// The judgement is [`rsvelte_markup_lint::button_type`]'s, shared with `svelte/button-has-type`;
+/// what is Vue's is that a static `type` is looked for before a `:type`, and that a finding sits on
+/// the value when there is one. Attribute names compare without case, as vue-eslint-parser
+/// lowercases them in HTML. The parser refuses a directive without an expression, so upstream's
+/// empty `:type` branch has no input yet.
 #[derive(Debug)]
-pub struct MarkupButtonHasType;
+pub(crate) struct MarkupButtonHasType;
 
 impl<'a> Rule<RuleContext<'a>> for MarkupButtonHasType {
     fn identifier(&self) -> &'static str {
@@ -214,7 +219,7 @@ const fn value_node(v: Span, quoted: bool) -> Span {
 /// With the default options. A `<script setup>` component has no `name` option to read (the
 /// parser has no `defineOptions`), so the name is always the file's.
 #[derive(Debug)]
-pub struct MultiWordComponentNames;
+pub(crate) struct MultiWordComponentNames;
 
 /// eslint-plugin-vue's `VUE3_BUILTIN_COMPONENT_NAMES`.
 const BUILTIN: &[&str] = &[

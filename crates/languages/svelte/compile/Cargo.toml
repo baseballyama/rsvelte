@@ -14,11 +14,13 @@ rustc-hash.workspace = true
 rsvelte_plugin_interface.workspace = true
 serde.workspace = true
 rsvelte_typescript_compile.workspace = true
-rsvelte_markup.workspace = true
-rsvelte_stylesheet.workspace = true
-rsvelte_svelte.workspace = true
+rsvelte_markup_syntax.workspace = true
+rsvelte_stylesheet_compile.workspace = true
+rsvelte_svelte_syntax.workspace = true
+rsvelte_svelte_semantic.workspace = true
 rsvelte_kernel.workspace = true
-rsvelte_typescript.workspace = true
+rsvelte_typescript_syntax.workspace = true
+rsvelte_typescript_semantic.workspace = true
 
 [dev-dependencies]
 rsvelte_test_harness.workspace = true

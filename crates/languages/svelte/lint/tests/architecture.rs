@@ -140,7 +140,7 @@ fn a_type_provider_is_lazy_cached_and_replaces_the_built_in_types() {
     rsvelte_svelte_lint::register_type_provider(&mut registry, move |context| {
         provider_calls.fetch_add(1, Ordering::Relaxed);
         let component = context
-            .get::<rsvelte_svelte::Parsed>()
+            .get::<rsvelte_svelte_syntax::Parsed>()
             .as_ref()
             .expect("source parses");
         TypeFacts::new(vec![ConditionType::Truthy; component.javascript.len()])
@@ -269,7 +269,13 @@ fn lint_does_not_register_type_services() {
             .plugins()
             .map(|plugin| plugin.identifier)
             .collect::<Vec<_>>(),
-        ["svelte", "svelte.lint", "svelte.parser", "typescript"]
+        [
+            "svelte.lint",
+            "svelte.semantic",
+            "svelte.syntax",
+            "typescript.semantic",
+            "typescript.syntax"
+        ]
     );
 }
 

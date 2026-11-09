@@ -1,6 +1,6 @@
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_svelte_semantic::semantic::resolve::{RUNE_ROOTS, RUNES, rune_call};
-use rsvelte_typescript::SyntaxTree;
+use rsvelte_svelte_semantic::resolve::{RUNE_ROOTS, RUNES, rune_call};
+use rsvelte_typescript_syntax::SyntaxTree;
 
 #[test]
 fn every_public_rune_is_recognized_in_both_supported_shapes() {
@@ -62,11 +62,9 @@ fn ordinary_computed_and_nested_calls_are_not_runes() {
 #[test]
 fn destructured_runes_classify_every_leaf_without_classifying_keys() {
     use rsvelte_kernel::source::positions::Span;
-    use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
-        Children, CompilerSyntaxTreeBuilder,
-    };
-    use rsvelte_svelte_semantic::semantic::resolve::{self, BindingKind};
-    use rsvelte_typescript::parser;
+    use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
+    use rsvelte_svelte_semantic::resolve::{self, BindingKind};
+    use rsvelte_typescript_syntax::parser;
 
     let source = concat!(
         "let { first: a, nested: [b = 1, ...c], ...d } = $derived(value); ",
@@ -103,11 +101,9 @@ fn destructured_runes_classify_every_leaf_without_classifying_keys() {
 #[test]
 fn nested_runes_classify_bindings_in_their_own_scope() {
     use rsvelte_kernel::source::positions::Span;
-    use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
-        Children, CompilerSyntaxTreeBuilder,
-    };
-    use rsvelte_svelte_semantic::semantic::resolve::{self, BindingKind};
-    use rsvelte_typescript::parser;
+    use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
+    use rsvelte_svelte_semantic::resolve::{self, BindingKind};
+    use rsvelte_typescript_syntax::parser;
 
     let source = concat!(
         "function counter() { let value = $state(1); let [offset] = $derived([value]);",
@@ -149,16 +145,14 @@ fn store_or_rune(
     name: &str,
     rune: &str,
 ) -> (
-    rsvelte_svelte_semantic::semantic::resolve::BindingKind,
+    rsvelte_svelte_semantic::resolve::BindingKind,
     bool,
     Option<&'static str>,
 ) {
     use rsvelte_kernel::source::positions::Span;
-    use rsvelte_svelte_compiler_syntax_tree::compiler_syntax_tree::{
-        Children, CompilerSyntaxTreeBuilder,
-    };
-    use rsvelte_svelte_semantic::semantic::resolve;
-    use rsvelte_typescript::parser;
+    use rsvelte_svelte_semantic::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
+    use rsvelte_svelte_semantic::resolve;
+    use rsvelte_typescript_syntax::parser;
 
     let mut tree = SyntaxTree::new();
     let program =
@@ -188,7 +182,7 @@ fn store_or_rune(
 
 #[test]
 fn a_binding_named_after_a_rune_makes_the_rune_a_store_subscription() {
-    use rsvelte_svelte_semantic::semantic::resolve::BindingKind;
+    use rsvelte_svelte_semantic::resolve::BindingKind;
 
     let imported = "import { state } from './store.js'; let a = $state(0);";
     assert_eq!(
@@ -216,7 +210,7 @@ fn a_binding_named_after_a_rune_makes_the_rune_a_store_subscription() {
 
 #[test]
 fn derived_from_svelte_store_and_props_keep_their_runes() {
-    use rsvelte_svelte_semantic::semantic::resolve::BindingKind;
+    use rsvelte_svelte_semantic::resolve::BindingKind;
 
     let store = "import { derived } from 'svelte/store'; let a = $derived(0);";
     assert_eq!(

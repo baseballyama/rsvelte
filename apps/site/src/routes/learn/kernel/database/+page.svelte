@@ -58,7 +58,7 @@
 	<p>
 		<code>component_input</code> は計算結果ではありません。スクリプトを持つ <code>Parsed</code>
 		と、テンプレートを持つ
-		<code>Normalized</code
+		<code>Lowered</code
 		>（コンパイル用に整理した構文木）から借用を集めて束ねる関数です。コンパイラの解析と出力は、表層の構文木（ソースの書き方をそのまま写した木）ではなく、この入力だけを読みます。そのため、同じ形の入力を別の構文から組み立てれば、同じコンパイラを使えます。svue
 		は、この仕組みで Vue のファイルを Svelte のコンパイラでコンパイルします（<a
 			href="/learn/kernel/layers#svue">05 章</a
@@ -66,7 +66,7 @@
 	</p>
 </div>
 
-<Code item={data.code.compileInput} mark={['context.get::<Normalized>()']} />
+<Code item={data.code.compileInput} mark={['context.get::<Lowered>()']} />
 
 <div class="prose-learn">
 	<H2 id="registry" />
@@ -124,7 +124,7 @@
 
 <Code
 	item={data.code.eachKey}
-	mark={['.get::<Parsed>()', '.get::<Normalized>()', '.get::<Resolved>()']}
+	mark={['.get::<Parsed>()', '.get::<Lowered>()', '.get::<Resolved>()']}
 />
 
 <div class="prose-learn">

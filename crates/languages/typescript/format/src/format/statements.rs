@@ -1,42 +1,62 @@
 use super::{
-    Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, PatternContext, R, Slot,
+    Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, PatternContext, R, Slot, Span,
     Unsupported, flag,
 };
 
 impl Formatter<'_> {
-    /// Prettier's `printStatementSequence`. Blocks nest thousands deep in real input, so a block
+    /// Prettier's `printStatementSequence`; a program or function body (`directives`) starts
+    /// with its directive prologue. Blocks nest thousands deep in real input, so a block
     /// statement opens a sequence on a stack instead of recursing.
     pub(super) fn statements(
         &mut self,
         body: &[NodeIdentifier],
+        directives: bool,
     ) -> R<Vec<LayoutInstructionIdentifier>> {
         struct Open {
             block: Option<NodeIdentifier>,
             body: Vec<NodeIdentifier>,
+            /// How many statements of `body` are the directive prologue.
+            prologue: usize,
             next: usize,
             out: Vec<LayoutInstructionIdentifier>,
         }
+        let prologue = if directives {
+            body.iter()
+                .take_while(|&&s| self.directive(s).is_some())
+                .count()
+        } else {
+            0
+        };
         let mut open = vec![Open {
             block: None,
             body: self.non_empty(body),
+            prologue,
             next: 0,
             out: Vec::new(),
         }];
         loop {
             let innermost = open.last_mut().expect("the outermost sequence closes last");
             let printed = if let Some(&s) = innermost.body.get(innermost.next) {
+                let i = innermost.next;
                 innermost.next += 1;
-                if let Kind::Block(body) = self.syntax_tree.kind(s) {
+                // The prologue holds no empty statement, so it keeps its indices here.
+                if i < innermost.prologue
+                    && let Some(raw) = self.directive(s)
+                {
+                    self.print_directive(raw)
+                } else if let Kind::Block(body) = self.syntax_tree.kind(s) {
                     let body = self.non_empty(body);
                     open.push(Open {
                         block: Some(s),
                         body,
+                        prologue: 0,
                         next: 0,
                         out: Vec::new(),
                     });
                     continue;
+                } else {
+                    self.statement(s)?
                 }
-                self.statement(s)?
             } else {
                 let closed = open.pop().expect("the outermost sequence closes last");
                 if closed.block.is_none() {
@@ -65,6 +85,31 @@ impl Formatter<'_> {
             .collect()
     }
 
+    /// The raw text of a statement that reads as a directive: a string, not in parentheses.
+    fn directive(&self, statement: NodeIdentifier) -> Option<Span> {
+        let Kind::ExpressionStatement(e) = self.syntax_tree.kind(statement) else {
+            return None;
+        };
+        let span = self.span(e);
+        let parenthesized = self.source_text[..span.start_offset as usize]
+            .trim_end()
+            .ends_with('(');
+        (matches!(self.syntax_tree.kind(e), Kind::String) && !parenthesized).then_some(span)
+    }
+
+    /// Prettier's `printDirective`: the raw text, with the preferred quotes when it holds none.
+    fn print_directive(&mut self, raw: Span) -> LayoutInstructionIdentifier {
+        let raw = raw.text(self.source_text);
+        let content = &raw[1..raw.len() - 1];
+        let text = if content.contains(['"', '\'']) {
+            format!("{raw};")
+        } else {
+            let q = if self.options.single_quote { '\'' } else { '"' };
+            format!("{q}{content}{q};")
+        };
+        self.docs.text(&text)
+    }
+
     /// Every nesting cycle through statements passes here; the parser bounds its depth.
     pub(super) fn statement(
         &mut self,
@@ -79,8 +124,13 @@ impl Formatter<'_> {
                 self.var_declaration(kind, declarations)
             }
             Kind::ExpressionStatement(e) => {
+                // A statement nested in this one (in a function body) sets its own and gives
+                // this one back.
+                let saved = self.paren_leftmost;
                 self.paren_leftmost = self.leftmost_needing_parens(e, false);
-                let e = self.expression(e, Some(identifier), Slot::Statement)?;
+                let e = self.expression(e, Some(identifier), Slot::Statement);
+                self.paren_leftmost = saved;
+                let e = e?;
                 let semi = self.lit(";");
                 Ok(self.cat(&[e, semi]))
             }
@@ -104,7 +154,7 @@ impl Formatter<'_> {
                         self.syntax_tree.source_location(identifier),
                     ))
                 } else {
-                    Ok(self.import(specifiers, source, type_only))
+                    Ok(self.import(identifier, specifiers, source, type_only))
                 }
             }
             Kind::ExportNamed(d) => {
@@ -184,6 +234,6 @@ impl Formatter<'_> {
         };
         let right = self.expression(initializer, Some(identifier), Slot::Init)?;
         let op = self.lit(" =");
-        Ok(self.assignment(left, op, right, target, initializer))
+        self.assignment(left, op, right, target, initializer, true)
     }
 }

@@ -4,9 +4,9 @@
 //! Of the result, rules read `kit.files`, which is kept only when every property of it is static.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::parser::parse_program;
-use rsvelte_typescript::scope::{DeclarationKind, Semantic, analyze};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::scope::{DeclarationKind, Semantic, analyze};
+use rsvelte_typescript_syntax::parser::parse_program;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use crate::{Kit, KitFiles, SvelteConfig};
 

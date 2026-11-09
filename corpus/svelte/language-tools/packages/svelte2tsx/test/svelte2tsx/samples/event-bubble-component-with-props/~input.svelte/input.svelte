@@ -1,1 +1,0 @@
-<Component propA {propB} propC=val1 propD="val2" propE="a{a}b{b}" on:click />

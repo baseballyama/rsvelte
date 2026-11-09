@@ -1,26 +1,26 @@
 mod asynchronous;
-pub mod helpers;
+pub(crate) mod helpers;
 mod patterns;
-pub mod script;
-pub mod template;
+pub(crate) mod script;
+pub(crate) mod template;
 mod vapor;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte::compilation::compiler_syntax_tree::CompilerSyntaxTree;
-use rsvelte_svelte::semantic::analyze::Analysis;
-use rsvelte_svelte::semantic::resolve::Resolution;
-use rsvelte_svelte::syntax::syntax_tree::Component;
-use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rsvelte_svelte_semantic::analyze::Analysis;
+use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
+use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 /// The translated component: one JavaScript tree holding the `<script setup>` program and every
 /// template expression, and the template's Vue HIR.
 #[derive(Debug)]
-pub struct Translation {
+pub(crate) struct Translation {
     pub javascript: SyntaxTree,
     pub script: NodeIdentifier,
     pub module_script: Option<NodeIdentifier>,
-    pub compiler_syntax_tree: rsvelte_vue::compiler_syntax_tree::CompilerSyntaxTree,
+    pub compiler_syntax_tree: rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTree,
     pub server: bool,
     pub stylesheet: Option<String>,
     pub stylesheet_hash: Option<String>,
@@ -31,13 +31,13 @@ pub struct Translation {
     pub destroy: bool,
     pub helpers: Vec<helpers::Helper>,
     pub namespaces: rustc_hash::FxHashMap<
-        rsvelte_vue::compiler_syntax_tree::CompilerNodeIdentifier,
+        rsvelte_vue_semantic::compiler_syntax_tree::CompilerNodeIdentifier,
         rsvelte_svelte_compile::render_plan::Namespace,
     >,
     pub animation_loops:
-        rustc_hash::FxHashSet<rsvelte_vue::compiler_syntax_tree::CompilerNodeIdentifier>,
+        rustc_hash::FxHashSet<rsvelte_vue_semantic::compiler_syntax_tree::CompilerNodeIdentifier>,
     pub scopes: rustc_hash::FxHashMap<
-        rsvelte_vue::compiler_syntax_tree::CompilerNodeIdentifier,
+        rsvelte_vue_semantic::compiler_syntax_tree::CompilerNodeIdentifier,
         NodeIdentifier,
     >,
 }
@@ -57,7 +57,7 @@ pub(crate) fn unsupported(what: impl std::fmt::Display, span: Span) -> Diagnosti
 /// # Errors
 ///
 /// A `vuelte_unsupported` [`Diagnostic`] for a construct outside the mapping.
-pub fn check(
+pub(crate) fn check(
     c: &Component,
     compiler_syntax_tree: &CompilerSyntaxTree,
     resolution: &Resolution,
@@ -66,7 +66,7 @@ pub fn check(
     if let Some(t) = c.javascript.typescript_runtime.first() {
         return Err(unsupported("TypeScript with runtime semantics", t.span));
     }
-    let input = rsvelte_svelte::svelte_input(c, compiler_syntax_tree, source_text, "");
+    let input = rsvelte_svelte_semantic::svelte_input(c, compiler_syntax_tree, source_text, "");
     let namespaces = rsvelte_svelte_compile::render_plan::NamespacePlan::build(&input.into());
     let options = template::check(
         compiler_syntax_tree,
@@ -101,7 +101,7 @@ pub fn check(
     clippy::too_many_arguments,
     reason = "translation reads one file's trees and facts"
 )]
-pub fn translate(
+pub(crate) fn translate(
     c: &Component,
     compiler_syntax_tree: &CompilerSyntaxTree,
     resolution: &Resolution,
@@ -113,7 +113,7 @@ pub fn translate(
 ) -> R<Translation> {
     let mut to = SyntaxTree::new();
     let component_input =
-        rsvelte_svelte::svelte_input(c, compiler_syntax_tree, source_text, filename);
+        rsvelte_svelte_semantic::svelte_input(c, compiler_syntax_tree, source_text, filename);
     let identity = rsvelte_svelte_compile::OutputIdentity::build(&component_input);
     let stylesheet = rsvelte_svelte_compile::stylesheet::scoped_stylesheet(
         &component_input,
@@ -140,7 +140,7 @@ pub fn translate(
         server,
         source_text,
     );
-    let rsvelte_typescript::Kind::Program(statements) = to.kind(script) else {
+    let rsvelte_typescript_syntax::Kind::Program(statements) = to.kind(script) else {
         unreachable!()
     };
     let mut statements = statements.to_vec();
@@ -183,17 +183,13 @@ pub fn translate(
 }
 
 /// Emits a Vapor client module or a Vue SSR compatibility module.
-///
-/// # Errors
-///
-/// The Vue port's refusal, as a `vuelte_unsupported` [`Diagnostic`].
-pub fn compile(t: &Translation, source_text: &str, _path: &str) -> R<String> {
-    let resolution = rsvelte_vue::resolve::resolve_with_module(
+pub(crate) fn compile(t: &Translation, source_text: &str) -> String {
+    let resolution = rsvelte_vue_semantic::resolve::resolve_with_module(
         &t.javascript,
         t.script,
         t.module_script,
         Some(&t.compiler_syntax_tree),
         source_text,
     );
-    Ok(vapor::compile(t, &resolution, source_text))
+    vapor::compile(t, &resolution, source_text)
 }

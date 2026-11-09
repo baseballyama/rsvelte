@@ -1,0 +1,804 @@
+# rsvelte pack 1
+=== 238 src/routes/+layout.svelte	js
+import * as $ from 'svelte/internal/server';
+import "../styles.scss";
+
+export default function _layout($$renderer, $$props) {
+	$$renderer.push(`<!--[-->`);
+	$.slot($$renderer, $$props, 'default', {}, null);
+	$$renderer.push(`<!--]-->`);
+}
+=== 328 src/routes/+layout.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 5,
+			"column": 0,
+			"character": 57
+		},
+		"end": {
+			"line": 5,
+			"column": 8,
+			"character": 65
+		}
+	}
+]
+
+=== 518 src/routes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import Showcase from "./showcase.svelte";
+import Docs from "./docs.svelte";
+
+export default function _page($$renderer) {
+	$.head('1uha8ag', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>svelte-fa - Tiny FontAwesome component for Svelte</title>`);
+		});
+	});
+
+	$$renderer.push(`<div class="container my-4">`);
+	Showcase($$renderer, {});
+	$$renderer.push(`<!----> `);
+	Docs($$renderer, {});
+	$$renderer.push(`<!----></div>`);
+}
+=== 3031 src/routes/components/sections/additional-styling.svelte	js
+import * as $ from 'svelte/internal/server';
+import Fa from "$lib/fa.svelte";
+
+import {
+	faBook,
+	faCog,
+	faFlag,
+	faHome,
+	faInfo,
+	faPencilAlt,
+	faQuoteLeft,
+	faQuoteRight
+} from "@fortawesome/free-solid-svg-icons";
+
+import DocsCode from "../ui/docs-code.svelte";
+import DocsTitle from "../ui/docs-title.svelte";
+import codes from "./codes.js";
+
+export default function Additional_styling($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		DocsTitle($$renderer, { title: 'Additional Styling' });
+		$$renderer.push(`<!----> `);
+		DocsTitle($$renderer, { title: 'Icon Sizes', level: 3 });
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded">`);
+		Fa($$renderer, { icon: faFlag, size: 'xs' });
+		$$renderer.push(`<!----> `);
+		Fa($$renderer, { icon: faFlag, size: 'sm' });
+		$$renderer.push(`<!----> `);
+		Fa($$renderer, { icon: faFlag, size: 'lg' });
+		$$renderer.push(`<!----> `);
+		Fa($$renderer, { icon: faFlag, size: '2x' });
+		$$renderer.push(`<!----> `);
+		Fa($$renderer, { icon: faFlag, size: '2.5x' });
+		$$renderer.push(`<!----> `);
+		Fa($$renderer, { icon: faFlag, size: '5x' });
+		$$renderer.push(`<!----> `);
+		Fa($$renderer, { icon: faFlag, size: '7x' });
+		$$renderer.push(`<!----> `);
+		Fa($$renderer, { icon: faFlag, size: '10x' });
+		$$renderer.push(`<!----></div> `);
+		DocsCode($$renderer, { code: codes.additionalStyling[0] });
+		$$renderer.push(`<!----> `);
+		DocsTitle($$renderer, { title: 'Fixed Width Icons', level: 3 });
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded"><div>`);
+		Fa($$renderer, { icon: faHome, fw: true, style: 'background: mistyrose' });
+		$$renderer.push(`<!----> Home</div> <div>`);
+		Fa($$renderer, { icon: faInfo, fw: true, style: 'background: mistyrose' });
+		$$renderer.push(`<!----> Info</div> <div>`);
+		Fa($$renderer, { icon: faBook, fw: true, style: 'background: mistyrose' });
+		$$renderer.push(`<!----> Library</div> <div>`);
+		Fa($$renderer, { icon: faPencilAlt, fw: true, style: 'background: mistyrose' });
+		$$renderer.push(`<!----> Applications</div> <div>`);
+		Fa($$renderer, { icon: faCog, fw: true, style: 'background: mistyrose' });
+		$$renderer.push(`<!----> Settings</div></div> `);
+		DocsCode($$renderer, { code: codes.additionalStyling[1] });
+		$$renderer.push(`<!----> `);
+		DocsTitle($$renderer, { title: 'Pulled Icons', level: 3 });
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded">`);
+		Fa($$renderer, { icon: faQuoteLeft, pull: 'left', size: '2x' });
+		$$renderer.push(`<!----> `);
+		Fa($$renderer, { icon: faQuoteRight, pull: 'right', size: '2x' });
+
+		$$renderer.push(`<!----> Gatsby believed in the green light, the orgastic future that year by year recedes before us. It eluded
+  us then, but that’s no matter — tomorrow we will run faster, stretch our arms further... And one fine
+  morning — So we beat on, boats against the current, borne back ceaselessly into the past.</div> `);
+
+		DocsCode($$renderer, { code: codes.additionalStyling[2] });
+		$$renderer.push(`<!---->`);
+	});
+}
+=== 1211 src/routes/components/sections/animating-icons.svelte	js
+import * as $ from 'svelte/internal/server';
+import Fa from "$lib/fa.svelte";
+import { faCircleNotch, faCog, faSpinner, faStroopwafel, faSync } from "@fortawesome/free-solid-svg-icons";
+import DocsCode from "../ui/docs-code.svelte";
+import DocsTitle from "../ui/docs-title.svelte";
+import codes from "./codes.js";
+
+export default function Animating_icons($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		DocsTitle($$renderer, { title: 'Animating Icons' });
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded">`);
+		Fa($$renderer, { icon: faSpinner, size: '3x', spin: true });
+		$$renderer.push(`<!----> `);
+		Fa($$renderer, { icon: faCircleNotch, size: '3x', spin: true });
+		$$renderer.push(`<!----> `);
+		Fa($$renderer, { icon: faSync, size: '3x', spin: true });
+		$$renderer.push(`<!----> `);
+		Fa($$renderer, { icon: faCog, size: '3x', spin: true });
+		$$renderer.push(`<!----> `);
+		Fa($$renderer, { icon: faSpinner, size: '3x', pulse: true });
+		$$renderer.push(`<!----> `);
+		Fa($$renderer, { icon: faStroopwafel, size: '3x', spin: true });
+		$$renderer.push(`<!----></div> `);
+		DocsCode($$renderer, { code: codes.animatingIcons[0] });
+		$$renderer.push(`<!---->`);
+	});
+}
+=== 1220 src/routes/components/sections/basic-use.svelte	js
+import * as $ from 'svelte/internal/server';
+import Fa from "$lib/fa.svelte";
+import { faFlag } from "@fortawesome/free-solid-svg-icons";
+import DocsCode from "../ui/docs-code.svelte";
+import DocsTitle from "../ui/docs-title.svelte";
+import codes from "./codes.js";
+
+export default function Basic_use($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		DocsTitle($$renderer, { title: 'Basic Use' });
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded">`);
+		Fa($$renderer, { icon: faFlag });
+		$$renderer.push(`<!----> Flag</div> `);
+		DocsCode($$renderer, { code: codes.basicUse[0] });
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded">Icons import from <a href="https://www.npmjs.com/search?q=%40fortawesome%20svg%20icons" target="_blank">FontAwesome packages</a>, for example: @fortawesome/free-solid-svg-icons. <br/> Icons gallery: <a href="https://fontawesome.com/icons" target="_blank">FontAwesome icons</a></div> <div class="shadow-sm p-3 mb-3 rounded"><div style="font-size: 3em; color: tomato">`);
+		Fa($$renderer, { icon: faFlag });
+		$$renderer.push(`<!----></div></div> `);
+		DocsCode($$renderer, { code: codes.basicUse[1] });
+		$$renderer.push(`<!---->`);
+	});
+}
+=== 2846 src/routes/components/sections/duotone-icons.svelte	js
+import * as $ from 'svelte/internal/server';
+import DocsCode from "../ui/docs-code.svelte";
+import DocsImg from "../ui/docs-img.svelte";
+import DocsTitle from "../ui/docs-title.svelte";
+import codes from "./codes.js";
+
+export default function Duotone_icons($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		DocsTitle($$renderer, { title: 'Duotone Icons' });
+		$$renderer.push(`<!----> `);
+		DocsTitle($$renderer, { title: 'Basic Use', level: 3 });
+		$$renderer.push(`<!----> `);
+		DocsImg($$renderer, { src: 'assets/duotone-0.png', alt: 'duotone icons basic use' });
+		$$renderer.push(`<!----> `);
+		DocsCode($$renderer, { code: codes.duotoneIcons[0], lang: 'js' });
+		$$renderer.push(`<!----> `);
+		DocsCode($$renderer, { code: codes.duotoneIcons[1] });
+		$$renderer.push(`<!----> `);
+		DocsTitle($$renderer, { title: 'Swapping Layer Opacity', level: 3 });
+		$$renderer.push(`<!----> `);
+
+		DocsImg($$renderer, {
+			src: 'assets/duotone-1.png',
+			alt: 'swapping duotone icons layer opacity'
+		});
+
+		$$renderer.push(`<!----> `);
+		DocsCode($$renderer, { code: codes.duotoneIcons[2] });
+		$$renderer.push(`<!----> `);
+		DocsTitle($$renderer, { title: 'Changing Opacity', level: 3 });
+		$$renderer.push(`<!----> `);
+
+		DocsImg($$renderer, {
+			src: 'assets/duotone-2.png',
+			alt: 'changing duotone icons opacity'
+		});
+
+		$$renderer.push(`<!----> `);
+		DocsCode($$renderer, { code: codes.duotoneIcons[3] });
+		$$renderer.push(`<!----> `);
+
+		DocsImg($$renderer, {
+			src: 'assets/duotone-3.png',
+			alt: 'changing duotone icons opacity'
+		});
+
+		$$renderer.push(`<!----> `);
+		DocsCode($$renderer, { code: codes.duotoneIcons[4] });
+		$$renderer.push(`<!----> `);
+		DocsTitle($$renderer, { title: 'Coloring Duotone Icons', level: 3 });
+		$$renderer.push(`<!----> `);
+		DocsImg($$renderer, { src: 'assets/duotone-4.png', alt: 'coloring duotone icons' });
+		$$renderer.push(`<!----> `);
+		DocsCode($$renderer, { code: codes.duotoneIcons[5] });
+		$$renderer.push(`<!----> `);
+		DocsTitle($$renderer, { title: 'Advanced Use', level: 3 });
+		$$renderer.push(`<!----> `);
+
+		DocsImg($$renderer, {
+			src: 'assets/duotone-5.png',
+			alt: 'duotone icons advanced use'
+		});
+
+		$$renderer.push(`<!----> `);
+		DocsCode($$renderer, { code: codes.duotoneIcons[6] });
+		$$renderer.push(`<!----> `);
+
+		DocsImg($$renderer, {
+			src: 'assets/duotone-6.png',
+			alt: 'duotone icons advanced use'
+		});
+
+		$$renderer.push(`<!----> `);
+		DocsCode($$renderer, { code: codes.duotoneIcons[7] });
+		$$renderer.push(`<!----> `);
+
+		DocsImg($$renderer, {
+			src: 'assets/duotone-7.png',
+			alt: 'duotone icons advanced use'
+		});
+
+		$$renderer.push(`<!----> `);
+		DocsCode($$renderer, { code: codes.duotoneIcons[8], lang: 'js' });
+		$$renderer.push(`<!----> `);
+		DocsCode($$renderer, { code: codes.duotoneIcons[9] });
+		$$renderer.push(`<!---->`);
+	});
+}
+=== 1681 src/routes/components/sections/installation.svelte	js
+import * as $ from 'svelte/internal/server';
+import DocsCode from "../ui/docs-code.svelte";
+import DocsTitle from "../ui/docs-title.svelte";
+import codes from "./codes.js";
+
+export default function Installation($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		DocsTitle($$renderer, { title: 'Installation' });
+		$$renderer.push(`<!----> `);
+		DocsCode($$renderer, { code: codes.installation[0] });
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded">Install FontAwesome icons via <a href="https://www.npmjs.com/search?q=%40fortawesome%20svg%20icons" target="_blank">official packages</a>, for example:</div> `);
+		DocsCode($$renderer, { code: codes.installation[1] });
+
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded"><strong>Notice for <a href="https://sapper.svelte.dev/" target="_blank">Sapper</a> user:</strong> You
+  may need to install the component as a devDependency:</div> `);
+
+		DocsCode($$renderer, { code: codes.installation[2] });
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded"><strong>Notice for <a href="https://kit.svelte.dev/" target="_blank">SvelteKit</a>/<a href="https://www.npmjs.com/package/vite" target="_blank">Vite</a> user:</strong> You may need to import the component explicitly as below:</div> `);
+		DocsCode($$renderer, { code: codes.installation[3], lang: 'js' });
+
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded">When using typescript with SvelteKit/Vite, you may also needed to add type definitions that
+  redirect to the non-index.es export:</div> `);
+
+		DocsCode($$renderer, { code: codes.installation[4], lang: 'js' });
+		$$renderer.push(`<!---->`);
+	});
+}
+=== 4032 src/routes/components/sections/layering-and-text.svelte	js
+import * as $ from 'svelte/internal/server';
+import Fa from "$lib/fa.svelte";
+import FaLayers from "$lib/fa-layers.svelte";
+import FaLayersText from "$lib/fa-layers-text.svelte";
+
+import {
+	faBookmark,
+	faCalendar,
+	faCertificate,
+	faCircle,
+	faEnvelope,
+	faHeart,
+	faMoon,
+	faPlay,
+	faStar,
+	faSun,
+	faTimes
+} from "@fortawesome/free-solid-svg-icons";
+
+import DocsCode from "../ui/docs-code.svelte";
+import DocsTitle from "../ui/docs-title.svelte";
+import codes from "./codes.js";
+
+export default function Layering_and_text($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		DocsTitle($$renderer, { title: 'Layering & Text' });
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded">`);
+
+		FaLayers($$renderer, {
+			size: '4x',
+			style: 'background: mistyrose',
+			children: ($$renderer) => {
+				Fa($$renderer, { icon: faCircle, color: 'tomato' });
+				$$renderer.push(`<!----> `);
+				Fa($$renderer, { icon: faTimes, scale: 0.5, color: 'white' });
+				$$renderer.push(`<!---->`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> `);
+
+		FaLayers($$renderer, {
+			size: '4x',
+			style: 'background: mistyrose',
+			children: ($$renderer) => {
+				Fa($$renderer, { icon: faBookmark });
+				$$renderer.push(`<!----> `);
+				Fa($$renderer, { icon: faHeart, scale: 0.4, translateY: -0.1, color: 'tomato' });
+				$$renderer.push(`<!---->`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> `);
+
+		FaLayers($$renderer, {
+			size: '4x',
+			style: 'background: mistyrose',
+			children: ($$renderer) => {
+				Fa($$renderer, { icon: faPlay, scale: 1.2, rotate: -90 });
+				$$renderer.push(`<!----> `);
+				Fa($$renderer, { icon: faSun, scale: 0.35, translateY: -0.2, color: 'white' });
+				$$renderer.push(`<!----> `);
+
+				Fa($$renderer, {
+					icon: faMoon,
+					scale: 0.3,
+					translateX: -0.25,
+					translateY: 0.25,
+					color: 'white'
+				});
+
+				$$renderer.push(`<!----> `);
+
+				Fa($$renderer, {
+					icon: faStar,
+					scale: 0.3,
+					translateX: 0.25,
+					translateY: 0.25,
+					color: 'white'
+				});
+
+				$$renderer.push(`<!---->`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> `);
+
+		FaLayers($$renderer, {
+			size: '4x',
+			style: 'background: mistyrose',
+			children: ($$renderer) => {
+				Fa($$renderer, { icon: faCalendar });
+				$$renderer.push(`<!----> `);
+
+				FaLayersText($$renderer, {
+					scale: 0.45,
+					translateY: 0.1,
+					color: 'white',
+					style: 'font-weight: 900',
+					children: ($$renderer) => {
+						$$renderer.push(`<!---->27`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!---->`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> `);
+
+		FaLayers($$renderer, {
+			size: '4x',
+			style: 'background: mistyrose',
+			children: ($$renderer) => {
+				Fa($$renderer, { icon: faCertificate });
+				$$renderer.push(`<!----> `);
+
+				FaLayersText($$renderer, {
+					scale: 0.25,
+					rotate: -30,
+					color: 'white',
+					style: 'font-weight: 900',
+					children: ($$renderer) => {
+						$$renderer.push(`<!---->NEW`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!---->`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> `);
+
+		FaLayers($$renderer, {
+			size: '4x',
+			style: 'background: mistyrose',
+			children: ($$renderer) => {
+				Fa($$renderer, { icon: faEnvelope });
+				$$renderer.push(`<!----> `);
+
+				FaLayersText($$renderer, {
+					scale: 0.2,
+					translateX: 0.4,
+					translateY: -0.4,
+					color: 'white',
+					style: 'padding: 0 .2em; background: tomato; border-radius: 1em',
+					children: ($$renderer) => {
+						$$renderer.push(`<!---->1,419`);
+					},
+					$$slots: { default: true }
+				});
+
+				$$renderer.push(`<!---->`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----></div> `);
+		DocsCode($$renderer, { code: codes.layering[0], lang: 'js' });
+		$$renderer.push(`<!----> `);
+		DocsCode($$renderer, { code: codes.layering[1] });
+		$$renderer.push(`<!---->`);
+	});
+}
+=== 3687 src/routes/components/sections/power-transforms.svelte	js
+import * as $ from 'svelte/internal/server';
+import Fa from "$lib/fa.svelte";
+import { faSeedling } from "@fortawesome/free-solid-svg-icons";
+import DocsCode from "../ui/docs-code.svelte";
+import DocsTitle from "../ui/docs-title.svelte";
+import codes from "./codes.js";
+
+export default function Power_transforms($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		DocsTitle($$renderer, { title: 'Power Transforms' });
+		$$renderer.push(`<!----> `);
+		DocsTitle($$renderer, { title: 'Scaling', level: 3 });
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded">`);
+		Fa($$renderer, { icon: faSeedling, size: '4x', style: 'background: mistyrose' });
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			scale: 0.5,
+			size: '4x',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			scale: 1.2,
+			size: '4x',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----></div> `);
+		DocsCode($$renderer, { code: codes.powerTransforms[0] });
+		$$renderer.push(`<!----> `);
+		DocsTitle($$renderer, { title: 'Positioning', level: 3 });
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded">`);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			scale: 0.5,
+			size: '4x',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			scale: 0.5,
+			translateX: 0.2,
+			size: '4x',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			scale: 0.5,
+			translateX: -0.2,
+			size: '4x',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			scale: 0.5,
+			translateY: 0.2,
+			size: '4x',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			scale: 0.5,
+			translateY: -0.2,
+			size: '4x',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----></div> `);
+		DocsCode($$renderer, { code: codes.powerTransforms[1] });
+		$$renderer.push(`<!----> `);
+		DocsTitle($$renderer, { title: 'Rotating & Flipping', level: 3 });
+		$$renderer.push(`<!----> <div class="shadow-sm p-3 mb-3 rounded">`);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			rotate: 90,
+			size: '4x',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			rotate: 180,
+			size: '4x',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			size: '4x',
+			rotate: '270',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			size: '4x',
+			rotate: '30',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			size: '4x',
+			rotate: '-30',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			size: '4x',
+			flip: 'vertical',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			size: '4x',
+			flip: 'horizontal',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			size: '4x',
+			flip: 'both',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----> `);
+
+		Fa($$renderer, {
+			icon: faSeedling,
+			size: '4x',
+			flip: 'both',
+			rotate: '30',
+			style: 'background: mistyrose'
+		});
+
+		$$renderer.push(`<!----></div> `);
+		DocsCode($$renderer, { code: codes.powerTransforms[2] });
+		$$renderer.push(`<!---->`);
+	});
+}
+=== 1073 src/routes/docs.svelte	js
+import * as $ from 'svelte/internal/server';
+import AdditionalStyling from "./components/sections/additional-styling.svelte";
+import AnimatingIcons from "./components/sections/animating-icons.svelte";
+import BasicUse from "./components/sections/basic-use.svelte";
+import DuotoneIcons from "./components/sections/duotone-icons.svelte";
+import Installation from "./components/sections/installation.svelte";
+import LayeringAndText from "./components/sections/layering-and-text.svelte";
+import PowerTransforms from "./components/sections/power-transforms.svelte";
+
+export default function Docs($$renderer) {
+	$$renderer.push(`<div>`);
+	Installation($$renderer, {});
+	$$renderer.push(`<!----> `);
+	BasicUse($$renderer, {});
+	$$renderer.push(`<!----> `);
+	AdditionalStyling($$renderer, {});
+	$$renderer.push(`<!----> `);
+	AnimatingIcons($$renderer, {});
+	$$renderer.push(`<!----> `);
+	PowerTransforms($$renderer, {});
+	$$renderer.push(`<!----> `);
+	LayeringAndText($$renderer, {});
+	$$renderer.push(`<!----> `);
+	DuotoneIcons($$renderer, {});
+	$$renderer.push(`<!----></div>`);
+}
+=== 240 src/routes/showcase.svelte	css
+
+  .hue.svelte-8eaich {
+    color: #238ae6;
+    animation: svelte-8eaich-hue 30s infinite linear;
+  }
+
+  @keyframes svelte-8eaich-hue {
+    from {
+      filter: hue-rotate(0deg);
+    }
+
+    to {
+      filter: hue-rotate(-360deg);
+    }
+  }
+
+=== 4637 src/routes/showcase.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Fa } from "$lib/index.js";
+import { faFlag, faHome, faCog, faSeedling } from "@fortawesome/free-solid-svg-icons";
+
+export default function Showcase($$renderer) {
+	let model = { size: 5, pull: undefined, flip: undefined, rotate: 0 };
+	let pull = ["None", "Left", "Right"];
+	let flip = ["None", "Horizontal", "Vertical", "Both"];
+	let icons = [faFlag, faHome, faCog, faSeedling];
+	let iconsTitles = ["flag", "home", "cog", "seedling"];
+
+	function setPull(value) {
+		let pull = undefined;
+
+		if (value === "Left") {
+			pull = "left";
+		} else if (value === "Right") {
+			pull = "right";
+		}
+
+		model.pull = pull;
+	}
+
+	function setFlip(value) {
+		let flip = undefined;
+
+		if (value === "Horizontal") {
+			flip = "horizontal";
+		} else if (value === "Vertical") {
+			flip = "vertical";
+		} else if (value === "Both") {
+			flip = "both";
+		}
+
+		model.flip = flip;
+	}
+
+	$$renderer.push(`<div class="p-5 bg-body-tertiary rounded"><div class="row"><div class="col-md"><h1 class="hue svelte-8eaich"><strong><a href="https://github.com/Cweili/svelte-fa" target="_blank">svelte-fa</a></strong></h1> <p><a href="https://www.npmjs.com/package/svelte-fa" target="_blank"><img src="https://img.shields.io/npm/v/svelte-fa.svg" alt="npm version"/></a> <a href="https://bundlephobia.com/result?p=svelte-fa" target="_blank"><img src="https://img.shields.io/bundlephobia/minzip/svelte-fa.svg" alt="bundle size"/></a> <a href="https://github.com/Cweili/svelte-fa/blob/master/LICENSE" target="_blank"><img src="https://img.shields.io/npm/l/svelte-fa.svg" alt="MIT licence"/></a> <a href="https://www.npmjs.com/package/svelte-fa" target="_blank"><img src="https://img.shields.io/npm/dt/svelte-fa.svg" alt="npm downloads"/></a> <a href="https://github.com/Cweili/svelte-fa" target="_blank"><img src="https://img.shields.io/github/issues/Cweili/svelte-fa.svg" alt="github issues"/></a></p> <p class="lead mb-5">Tiny <a class="hue svelte-8eaich" href="https://fontawesome.com/" target="_blank">FontAwesome</a> component for <a class="hue svelte-8eaich" href="https://svelte.dev/" target="_blank">Svelte</a>.</p> <form><div class="row mb-3"><label for="iconSizeInput" class="col-sm-3 col-form-label">Icon Sizes</label> <div class="col-sm-9 row"><div class="col-md-8 py-2"><input${$.attr('value', model.size)} type="range" class="form-control-range" id="iconSizeInput" min="1" max="10" step="0.1"/></div> <div class="col-md-4"><div class="form-control text-center">${$.escape(model.size)}x</div></div></div></div> <div class="row mb-3"><span class="col-sm-3 col-form-label">Pulled Icons</span> <div class="col-sm-9"><div class="btn-group" role="group" aria-label="Basic example"><!--[-->`);
+
+	const each_array = $.ensure_array_like(pull);
+
+	for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+		let p = each_array[$$index];
+
+		$$renderer.push(`<button${$.attr_class(`btn btn-${model.pull == (p == "None" ? undefined : p.toLowerCase()) ? "primary" : "secondary"}`, 'svelte-8eaich')} type="button">${$.escape(p)}</button>`);
+	}
+
+	$$renderer.push(`<!--]--></div></div></div> <div class="row mb-3"><span class="col-sm-3 col-form-label">Flip</span> <div class="col-sm-9"><div class="btn-group" role="group" aria-label="Basic example"><!--[-->`);
+
+	const each_array_1 = $.ensure_array_like(flip);
+
+	for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+		let f = each_array_1[$$index_1];
+
+		$$renderer.push(`<button${$.attr_class(`btn btn-${model.flip == (f == "None" ? undefined : f.toLowerCase()) ? "primary" : "secondary"}`, 'svelte-8eaich')} type="button">${$.escape(f)}</button>`);
+	}
+
+	$$renderer.push(`<!--]--></div></div></div> <div class="row mb-3"><label for="rotateInput" class="col-sm-3 col-form-label">Rotate</label> <div class="col-sm-9 row"><div class="col-md-8 py-2"><input${$.attr('value', model.rotate)} type="range" class="form-control-range" id="rotateInput" min="-360" max="360" step="1"/></div> <div class="col-md-4"><div class="form-control text-center">${$.escape(model.rotate)}deg</div></div></div></div></form></div> <div class="col-md row"><!--[-->`);
+
+	const each_array_2 = $.ensure_array_like(icons);
+
+	for (let i = 0, $$length = each_array_2.length; i < $$length; i++) {
+		let icon = each_array_2[i];
+
+		$$renderer.push(`<div class="col text-center hue svelte-8eaich">`);
+
+		Fa($$renderer, {
+			icon,
+			flip: model.flip,
+			pull: model.pull,
+			rotate: model.rotate,
+			size: `${model.size}x`,
+			title: iconsTitles[i]
+		});
+
+		$$renderer.push(`<!----></div>`);
+	}
+
+	$$renderer.push(`<!--]--></div></div></div>`);
+}
+=== 1072 src/routes/showcase.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:submit` to listen to the submit event is deprecated. Use the event attribute `onsubmit` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 78,
+			"column": 12,
+			"character": 2629
+		},
+		"end": {
+			"line": 78,
+			"column": 36,
+			"character": 2653
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 111,
+			"column": 18,
+			"character": 3814
+		},
+		"end": {
+			"line": 111,
+			"column": 45,
+			"character": 3841
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 131,
+			"column": 18,
+			"character": 4498
+		},
+		"end": {
+			"line": 131,
+			"column": 45,
+			"character": 4525
+		}
+	}
+]
+

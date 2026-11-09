@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_stylesheet::postcss::InlineNode;
-use rsvelte_svelte::syntax::syntax_tree::{AttributeKind, AttributeValue};
+use rsvelte_stylesheet_syntax::postcss::InlineNode;
+use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue};
 
 use super::style_attribute::{inline_style, is_style};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};

@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::characters::trim_ecmascript;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte::syntax::syntax_tree::{Component, TemplateNode, TokenType};
+use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode, TokenType};
 use serde::Deserialize;
 
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};

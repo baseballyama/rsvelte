@@ -1,3 +1,0 @@
-<article>
-	{@html content}
-</article>

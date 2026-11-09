@@ -1,6 +1,6 @@
 // A model of `DocumentContext::get` with the Svelte plugin's artifacts and the `ts.view` facet. The call order
-// inside each task and each artifact's `compute` is transcribed from rsvelte_svelte (tasks.rs, lib.rs:
-// `compile_input` asks for the parse and the HIR) and rsvelte_typescript/check.rs; the kernel rule it models is
+// inside each task and each artifact's `compute` is transcribed from rsvelte_svelte_semantic (computation.rs:
+// `component_input` asks for the parse and the HIR) and rsvelte_typescript_check; the kernel rule it models is
 // computation/database.rs: the first request computes; later requests reuse the cached value.
 
 export type ArtifactName =
@@ -85,7 +85,7 @@ class SimulationContext {
 		this.cache.add(a);
 	}
 
-	/** `rsvelte_svelte::component_input`: the parse, then the HIR when it parsed. */
+	/** `rsvelte_svelte_semantic::component_input`: the parse, then the HIR when it parsed. */
 	compileInput(depth = 0): void {
 		this.get('svelte.parse', depth);
 		if (this.doc.parses) this.get('svelte.compiler_syntax_tree', depth);

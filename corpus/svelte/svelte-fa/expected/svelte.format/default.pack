@@ -1,0 +1,654 @@
+# rsvelte pack 1
+=== 66 src/routes/+layout.svelte	svelte
+<script lang="ts">
+  import "../styles.scss";
+</script>
+
+<slot />
+
+=== 259 src/routes/+page.svelte	svelte
+<script>
+  import Showcase from "./showcase.svelte";
+  import Docs from "./docs.svelte";
+</script>
+
+<svelte:head>
+  <title>svelte-fa - Tiny FontAwesome component for Svelte</title>
+</svelte:head>
+
+<div class="container my-4">
+  <Showcase />
+  <Docs />
+</div>
+
+=== 1922 src/routes/components/sections/additional-styling.svelte	svelte
+<script>
+  import Fa from "$lib/fa.svelte";
+  import {
+    faBook,
+    faCog,
+    faFlag,
+    faHome,
+    faInfo,
+    faPencilAlt,
+    faQuoteLeft,
+    faQuoteRight,
+  } from "@fortawesome/free-solid-svg-icons";
+
+  import DocsCode from "../ui/docs-code.svelte";
+  import DocsTitle from "../ui/docs-title.svelte";
+
+  import codes from "./codes.js";
+</script>
+
+<DocsTitle title="Additional Styling" />
+<DocsTitle title="Icon Sizes" level={3} />
+<div class="shadow-sm p-3 mb-3 rounded">
+  <Fa icon={faFlag} size="xs" />
+  <Fa icon={faFlag} size="sm" />
+  <Fa icon={faFlag} size="lg" />
+  <Fa icon={faFlag} size="2x" />
+  <Fa icon={faFlag} size="2.5x" />
+  <Fa icon={faFlag} size="5x" />
+  <Fa icon={faFlag} size="7x" />
+  <Fa icon={faFlag} size="10x" />
+</div>
+<DocsCode code={codes.additionalStyling[0]} />
+
+<DocsTitle title="Fixed Width Icons" level={3} />
+<div class="shadow-sm p-3 mb-3 rounded">
+  <div>
+    <Fa icon={faHome} fw style="background: mistyrose" /> Home
+  </div>
+  <div>
+    <Fa icon={faInfo} fw style="background: mistyrose" /> Info
+  </div>
+  <div>
+    <Fa icon={faBook} fw style="background: mistyrose" /> Library
+  </div>
+  <div>
+    <Fa icon={faPencilAlt} fw style="background: mistyrose" /> Applications
+  </div>
+  <div>
+    <Fa icon={faCog} fw style="background: mistyrose" /> Settings
+  </div>
+</div>
+<DocsCode code={codes.additionalStyling[1]} />
+
+<DocsTitle title="Pulled Icons" level={3} />
+<div class="shadow-sm p-3 mb-3 rounded">
+  <Fa icon={faQuoteLeft} pull="left" size="2x" />
+  <Fa icon={faQuoteRight} pull="right" size="2x" />
+  Gatsby believed in the green light, the orgastic future that year by year recedes
+  before us. It eluded us then, but that’s no matter — tomorrow we will run faster,
+  stretch our arms further... And one fine morning — So we beat on, boats against
+  the current, borne back ceaselessly into the past.
+</div>
+<DocsCode code={codes.additionalStyling[2]} />
+
+=== 702 src/routes/components/sections/animating-icons.svelte	svelte
+<script>
+  import Fa from "$lib/fa.svelte";
+  import {
+    faCircleNotch,
+    faCog,
+    faSpinner,
+    faStroopwafel,
+    faSync,
+  } from "@fortawesome/free-solid-svg-icons";
+
+  import DocsCode from "../ui/docs-code.svelte";
+  import DocsTitle from "../ui/docs-title.svelte";
+
+  import codes from "./codes.js";
+</script>
+
+<DocsTitle title="Animating Icons" />
+<div class="shadow-sm p-3 mb-3 rounded">
+  <Fa icon={faSpinner} size="3x" spin />
+  <Fa icon={faCircleNotch} size="3x" spin />
+  <Fa icon={faSync} size="3x" spin />
+  <Fa icon={faCog} size="3x" spin />
+  <Fa icon={faSpinner} size="3x" pulse />
+  <Fa icon={faStroopwafel} size="3x" spin />
+</div>
+<DocsCode code={codes.animatingIcons[0]} />
+
+=== 970 src/routes/components/sections/basic-use.svelte	svelte
+<script>
+  import Fa from "$lib/fa.svelte";
+  import { faFlag } from "@fortawesome/free-solid-svg-icons";
+
+  import DocsCode from "../ui/docs-code.svelte";
+  import DocsTitle from "../ui/docs-title.svelte";
+
+  import codes from "./codes.js";
+</script>
+
+<DocsTitle title="Basic Use" />
+<div class="shadow-sm p-3 mb-3 rounded">
+  <Fa icon={faFlag} /> Flag
+</div>
+<DocsCode code={codes.basicUse[0]} />
+<div class="shadow-sm p-3 mb-3 rounded">
+  Icons import from <a
+    href="https://www.npmjs.com/search?q=%40fortawesome%20svg%20icons"
+    target="_blank">FontAwesome packages</a
+  >, for example: @fortawesome/free-solid-svg-icons.
+  <br />
+  Icons gallery:
+  <a href="https://fontawesome.com/icons" target="_blank">FontAwesome icons</a>
+</div>
+<div class="shadow-sm p-3 mb-3 rounded">
+  <!-- eslint-disable-next-line svelte/no-inline-styles -->
+  <div style="font-size: 3em; color: tomato">
+    <Fa icon={faFlag} />
+  </div>
+</div>
+<DocsCode code={codes.basicUse[1]} />
+
+=== 1518 src/routes/components/sections/duotone-icons.svelte	svelte
+<script>
+  import DocsCode from "../ui/docs-code.svelte";
+  import DocsImg from "../ui/docs-img.svelte";
+  import DocsTitle from "../ui/docs-title.svelte";
+
+  import codes from "./codes.js";
+</script>
+
+<DocsTitle title="Duotone Icons" />
+<DocsTitle title="Basic Use" level={3} />
+<DocsImg src="assets/duotone-0.png" alt="duotone icons basic use" />
+<DocsCode code={codes.duotoneIcons[0]} lang="js" />
+<DocsCode code={codes.duotoneIcons[1]} />
+
+<DocsTitle title="Swapping Layer Opacity" level={3} />
+<DocsImg
+  src="assets/duotone-1.png"
+  alt="swapping duotone icons layer opacity"
+/>
+<DocsCode code={codes.duotoneIcons[2]} />
+
+<DocsTitle title="Changing Opacity" level={3} />
+<DocsImg src="assets/duotone-2.png" alt="changing duotone icons opacity" />
+<DocsCode code={codes.duotoneIcons[3]} />
+<DocsImg src="assets/duotone-3.png" alt="changing duotone icons opacity" />
+<DocsCode code={codes.duotoneIcons[4]} />
+
+<DocsTitle title="Coloring Duotone Icons" level={3} />
+<DocsImg src="assets/duotone-4.png" alt="coloring duotone icons" />
+<DocsCode code={codes.duotoneIcons[5]} />
+<DocsTitle title="Advanced Use" level={3} />
+<DocsImg src="assets/duotone-5.png" alt="duotone icons advanced use" />
+<DocsCode code={codes.duotoneIcons[6]} />
+<DocsImg src="assets/duotone-6.png" alt="duotone icons advanced use" />
+<DocsCode code={codes.duotoneIcons[7]} />
+<DocsImg src="assets/duotone-7.png" alt="duotone icons advanced use" />
+<DocsCode code={codes.duotoneIcons[8]} lang="js" />
+<DocsCode code={codes.duotoneIcons[9]} />
+
+=== 1317 src/routes/components/sections/installation.svelte	svelte
+<script>
+  import DocsCode from "../ui/docs-code.svelte";
+  import DocsTitle from "../ui/docs-title.svelte";
+
+  import codes from "./codes.js";
+</script>
+
+<DocsTitle title="Installation" />
+<DocsCode code={codes.installation[0]} />
+<div class="shadow-sm p-3 mb-3 rounded">
+  Install FontAwesome icons via <a
+    href="https://www.npmjs.com/search?q=%40fortawesome%20svg%20icons"
+    target="_blank">official packages</a
+  >, for example:
+</div>
+<DocsCode code={codes.installation[1]} />
+<div class="shadow-sm p-3 mb-3 rounded">
+  <strong
+    >Notice for <a href="https://sapper.svelte.dev/" target="_blank">Sapper</a> user:</strong
+  > You may need to install the component as a devDependency:
+</div>
+<DocsCode code={codes.installation[2]} />
+<div class="shadow-sm p-3 mb-3 rounded">
+  <strong
+    >Notice for <a href="https://kit.svelte.dev/" target="_blank">SvelteKit</a
+    >/<a href="https://www.npmjs.com/package/vite" target="_blank">Vite</a> user:</strong
+  > You may need to import the component explicitly as below:
+</div>
+<DocsCode code={codes.installation[3]} lang="js" />
+<div class="shadow-sm p-3 mb-3 rounded">
+  When using typescript with SvelteKit/Vite, you may also needed to add type
+  definitions that redirect to the non-index.es export:
+</div>
+<DocsCode code={codes.installation[4]} lang="js" />
+
+=== 2231 src/routes/components/sections/layering-and-text.svelte	svelte
+<script>
+  import Fa from "$lib/fa.svelte";
+  import FaLayers from "$lib/fa-layers.svelte";
+  import FaLayersText from "$lib/fa-layers-text.svelte";
+  import {
+    faBookmark,
+    faCalendar,
+    faCertificate,
+    faCircle,
+    faEnvelope,
+    faHeart,
+    faMoon,
+    faPlay,
+    faStar,
+    faSun,
+    faTimes,
+  } from "@fortawesome/free-solid-svg-icons";
+
+  import DocsCode from "../ui/docs-code.svelte";
+  import DocsTitle from "../ui/docs-title.svelte";
+
+  import codes from "./codes.js";
+</script>
+
+<DocsTitle title="Layering &amp; Text" />
+<div class="shadow-sm p-3 mb-3 rounded">
+  <FaLayers size="4x" style="background: mistyrose">
+    <Fa icon={faCircle} color="tomato" />
+    <Fa icon={faTimes} scale={0.5} color="white" />
+  </FaLayers>
+  <FaLayers size="4x" style="background: mistyrose">
+    <Fa icon={faBookmark} />
+    <Fa icon={faHeart} scale={0.4} translateY={-0.1} color="tomato" />
+  </FaLayers>
+  <FaLayers size="4x" style="background: mistyrose">
+    <Fa icon={faPlay} scale={1.2} rotate={-90} />
+    <Fa icon={faSun} scale={0.35} translateY={-0.2} color="white" />
+    <Fa
+      icon={faMoon}
+      scale={0.3}
+      translateX={-0.25}
+      translateY={0.25}
+      color="white"
+    />
+    <Fa
+      icon={faStar}
+      scale={0.3}
+      translateX={0.25}
+      translateY={0.25}
+      color="white"
+    />
+  </FaLayers>
+  <FaLayers size="4x" style="background: mistyrose">
+    <Fa icon={faCalendar} />
+    <FaLayersText
+      scale={0.45}
+      translateY={0.1}
+      color="white"
+      style="font-weight: 900"
+    >
+      27
+    </FaLayersText>
+  </FaLayers>
+  <FaLayers size="4x" style="background: mistyrose">
+    <Fa icon={faCertificate} />
+    <FaLayersText
+      scale={0.25}
+      rotate={-30}
+      color="white"
+      style="font-weight: 900"
+    >
+      NEW
+    </FaLayersText>
+  </FaLayers>
+  <FaLayers size="4x" style="background: mistyrose">
+    <Fa icon={faEnvelope} />
+    <FaLayersText
+      scale={0.2}
+      translateX={0.4}
+      translateY={-0.4}
+      color="white"
+      style="padding: 0 .2em; background: tomato; border-radius: 1em"
+    >
+      1,419
+    </FaLayersText>
+  </FaLayers>
+</div>
+<DocsCode code={codes.layering[0]} lang="js" />
+<DocsCode code={codes.layering[1]} />
+
+=== 2289 src/routes/components/sections/power-transforms.svelte	svelte
+<script>
+  import Fa from "$lib/fa.svelte";
+  import { faSeedling } from "@fortawesome/free-solid-svg-icons";
+
+  import DocsCode from "../ui/docs-code.svelte";
+  import DocsTitle from "../ui/docs-title.svelte";
+
+  import codes from "./codes.js";
+</script>
+
+<DocsTitle title="Power Transforms" />
+<DocsTitle title="Scaling" level={3} />
+<div class="shadow-sm p-3 mb-3 rounded">
+  <Fa icon={faSeedling} size="4x" style="background: mistyrose" />
+  <Fa icon={faSeedling} scale={0.5} size="4x" style="background: mistyrose" />
+  <Fa icon={faSeedling} scale={1.2} size="4x" style="background: mistyrose" />
+</div>
+<DocsCode code={codes.powerTransforms[0]} />
+
+<DocsTitle title="Positioning" level={3} />
+<div class="shadow-sm p-3 mb-3 rounded">
+  <Fa icon={faSeedling} scale={0.5} size="4x" style="background: mistyrose" />
+  <Fa
+    icon={faSeedling}
+    scale={0.5}
+    translateX={0.2}
+    size="4x"
+    style="background: mistyrose"
+  />
+  <Fa
+    icon={faSeedling}
+    scale={0.5}
+    translateX={-0.2}
+    size="4x"
+    style="background: mistyrose"
+  />
+  <Fa
+    icon={faSeedling}
+    scale={0.5}
+    translateY={0.2}
+    size="4x"
+    style="background: mistyrose"
+  />
+  <Fa
+    icon={faSeedling}
+    scale={0.5}
+    translateY={-0.2}
+    size="4x"
+    style="background: mistyrose"
+  />
+</div>
+<DocsCode code={codes.powerTransforms[1]} />
+
+<DocsTitle title="Rotating &amp; Flipping" level={3} />
+<div class="shadow-sm p-3 mb-3 rounded">
+  <Fa icon={faSeedling} rotate={90} size="4x" style="background: mistyrose" />
+  <Fa icon={faSeedling} rotate={180} size="4x" style="background: mistyrose" />
+  <Fa icon={faSeedling} size="4x" rotate="270" style="background: mistyrose" />
+  <Fa icon={faSeedling} size="4x" rotate="30" style="background: mistyrose" />
+  <Fa icon={faSeedling} size="4x" rotate="-30" style="background: mistyrose" />
+  <Fa
+    icon={faSeedling}
+    size="4x"
+    flip="vertical"
+    style="background: mistyrose"
+  />
+  <Fa
+    icon={faSeedling}
+    size="4x"
+    flip="horizontal"
+    style="background: mistyrose"
+  />
+  <Fa icon={faSeedling} size="4x" flip="both" style="background: mistyrose" />
+  <Fa
+    icon={faSeedling}
+    size="4x"
+    flip="both"
+    rotate="30"
+    style="background: mistyrose"
+  />
+</div>
+<DocsCode code={codes.powerTransforms[2]} />
+
+=== 710 src/routes/docs.svelte	svelte
+<script>
+  import AdditionalStyling from "./components/sections/additional-styling.svelte";
+  import AnimatingIcons from "./components/sections/animating-icons.svelte";
+  import BasicUse from "./components/sections/basic-use.svelte";
+  import DuotoneIcons from "./components/sections/duotone-icons.svelte";
+  import Installation from "./components/sections/installation.svelte";
+  import LayeringAndText from "./components/sections/layering-and-text.svelte";
+  import PowerTransforms from "./components/sections/power-transforms.svelte";
+</script>
+
+<div>
+  <Installation />
+
+  <BasicUse />
+
+  <AdditionalStyling />
+
+  <AnimatingIcons />
+
+  <PowerTransforms />
+
+  <LayeringAndText />
+
+  <DuotoneIcons />
+</div>
+
+=== 6263 src/routes/showcase.svelte	svelte
+<script lang="ts">
+  import { Fa } from "$lib/index.js";
+  import type { FlipDir, PullDir } from "$lib/types.js";
+  import {
+    faFlag,
+    faHome,
+    faCog,
+    faSeedling,
+  } from "@fortawesome/free-solid-svg-icons";
+
+  type Model = {
+    size: number;
+    pull: PullDir | undefined;
+    flip: FlipDir | undefined;
+    rotate: number;
+  };
+
+  let model: Model = {
+    size: 5,
+    pull: undefined,
+    flip: undefined,
+    rotate: 0,
+  };
+
+  let pull = ["None", "Left", "Right"];
+  let flip = ["None", "Horizontal", "Vertical", "Both"];
+  let icons = [faFlag, faHome, faCog, faSeedling];
+  let iconsTitles = ["flag", "home", "cog", "seedling"];
+
+  function setPull(value: string) {
+    let pull: "left" | "right" | undefined = undefined;
+    if (value === "Left") {
+      pull = "left";
+    } else if (value === "Right") {
+      pull = "right";
+    }
+    model.pull = pull;
+  }
+
+  function setFlip(value: string) {
+    let flip: "horizontal" | "vertical" | "both" | undefined = undefined;
+    if (value === "Horizontal") {
+      flip = "horizontal";
+    } else if (value === "Vertical") {
+      flip = "vertical";
+    } else if (value === "Both") {
+      flip = "both";
+    }
+    model.flip = flip;
+  }
+</script>
+
+<div class="p-5 bg-body-tertiary rounded">
+  <div class="row">
+    <div class="col-md">
+      <h1 class="hue">
+        <strong
+          ><a href="https://github.com/Cweili/svelte-fa" target="_blank"
+            >svelte-fa</a
+          ></strong
+        >
+      </h1>
+      <p>
+        <a href="https://www.npmjs.com/package/svelte-fa" target="_blank">
+          <img
+            src="https://img.shields.io/npm/v/svelte-fa.svg"
+            alt="npm version"
+          />
+        </a>
+        <a href="https://bundlephobia.com/result?p=svelte-fa" target="_blank">
+          <img
+            src="https://img.shields.io/bundlephobia/minzip/svelte-fa.svg"
+            alt="bundle size"
+          />
+        </a>
+        <a
+          href="https://github.com/Cweili/svelte-fa/blob/master/LICENSE"
+          target="_blank"
+        >
+          <img
+            src="https://img.shields.io/npm/l/svelte-fa.svg"
+            alt="MIT licence"
+          />
+        </a>
+        <a href="https://www.npmjs.com/package/svelte-fa" target="_blank">
+          <img
+            src="https://img.shields.io/npm/dt/svelte-fa.svg"
+            alt="npm downloads"
+          />
+        </a>
+        <a href="https://github.com/Cweili/svelte-fa" target="_blank">
+          <img
+            src="https://img.shields.io/github/issues/Cweili/svelte-fa.svg"
+            alt="github issues"
+          />
+        </a>
+      </p>
+      <p class="lead mb-5">
+        Tiny <a class="hue" href="https://fontawesome.com/" target="_blank"
+          >FontAwesome</a
+        >
+        component for
+        <a class="hue" href="https://svelte.dev/" target="_blank">Svelte</a>.
+      </p>
+      <form on:submit|preventDefault>
+        <div class="row mb-3">
+          <label for="iconSizeInput" class="col-sm-3 col-form-label"
+            >Icon Sizes</label
+          >
+          <div class="col-sm-9 row">
+            <div class="col-md-8 py-2">
+              <input
+                bind:value={model.size}
+                type="range"
+                class="form-control-range"
+                id="iconSizeInput"
+                min="1"
+                max="10"
+                step="0.1"
+              />
+            </div>
+            <div class="col-md-4">
+              <div class="form-control text-center">
+                {model.size}x
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row mb-3">
+          <span class="col-sm-3 col-form-label">Pulled Icons</span>
+          <div class="col-sm-9">
+            <div class="btn-group" role="group" aria-label="Basic example">
+              {#each pull as p (p)}
+                <button
+                  class={`btn btn-${
+                    model.pull == (p == "None" ? undefined : p.toLowerCase())
+                      ? "primary"
+                      : "secondary"
+                  }`}
+                  on:click={() => setPull(p)}
+                  type="button"
+                >
+                  {p}
+                </button>
+              {/each}
+            </div>
+          </div>
+        </div>
+        <div class="row mb-3">
+          <span class="col-sm-3 col-form-label">Flip</span>
+          <div class="col-sm-9">
+            <div class="btn-group" role="group" aria-label="Basic example">
+              {#each flip as f (f)}
+                <button
+                  class={`btn btn-${
+                    model.flip == (f == "None" ? undefined : f.toLowerCase())
+                      ? "primary"
+                      : "secondary"
+                  }`}
+                  on:click={() => setFlip(f)}
+                  type="button"
+                >
+                  {f}
+                </button>
+              {/each}
+            </div>
+          </div>
+        </div>
+        <div class="row mb-3">
+          <label for="rotateInput" class="col-sm-3 col-form-label">Rotate</label
+          >
+          <div class="col-sm-9 row">
+            <div class="col-md-8 py-2">
+              <input
+                bind:value={model.rotate}
+                type="range"
+                class="form-control-range"
+                id="rotateInput"
+                min="-360"
+                max="360"
+                step="1"
+              />
+            </div>
+            <div class="col-md-4">
+              <div class="form-control text-center">
+                {model.rotate}deg
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="col-md row">
+      {#each icons as icon, i}
+        <div class="col text-center hue">
+          <Fa
+            {icon}
+            flip={model.flip}
+            pull={model.pull}
+            rotate={model.rotate}
+            size={`${model.size}x`}
+            title={iconsTitles[i]}
+          />
+        </div>
+      {/each}
+    </div>
+  </div>
+</div>
+
+<style>
+  .hue {
+    color: #238ae6;
+    animation: hue 30s infinite linear;
+  }
+
+  @keyframes hue {
+    from {
+      filter: hue-rotate(0deg);
+    }
+
+    to {
+      filter: hue-rotate(-360deg);
+    }
+  }
+</style>
+

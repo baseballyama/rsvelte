@@ -1,21 +1,21 @@
-use rsvelte_typescript::SyntaxTree;
+use rsvelte_typescript_syntax::SyntaxTree;
 
 use super::*;
 use crate::helpers;
 
 /// The module for one target, or the refusal's message.
 fn run(source_text: &str, server: bool) -> Result<String, String> {
-    let c = rsvelte_svelte::syntax::parse::parse(source_text).map_err(|d| d.message)?;
+    let c = rsvelte_svelte_syntax::parse::parse(source_text).map_err(|d| d.message)?;
     let compiler_syntax_tree =
-        rsvelte_svelte::compilation::compiler_syntax_tree::lower(&c, source_text);
-    let resolution = rsvelte_svelte::semantic::resolve::resolve(
+        rsvelte_svelte_semantic::compiler_syntax_tree::lower(&c, source_text);
+    let resolution = rsvelte_svelte_semantic::resolve::resolve(
         &c.javascript,
         source_text,
         c.program,
         &compiler_syntax_tree,
     );
-    let analysis = rsvelte_svelte::semantic::analyze::analyze(
-        &rsvelte_svelte::svelte_input(&c, &compiler_syntax_tree, source_text, "A.svelte"),
+    let analysis = rsvelte_svelte_semantic::analyze::analyze(
+        &rsvelte_svelte_semantic::svelte_input(&c, &compiler_syntax_tree, source_text, "A.svelte"),
         &resolution,
     );
     let plan = check(&c, &compiler_syntax_tree, &resolution, source_text).map_err(|d| d.message)?;
@@ -30,7 +30,7 @@ fn run(source_text: &str, server: bool) -> Result<String, String> {
         "A.svelte",
     )
     .map_err(|d| d.message)?;
-    compile(&t, source_text, "A.svelte").map_err(|d| d.message)
+    Ok(compile(&t, source_text))
 }
 
 fn both(source_text: &str) -> (String, String) {
@@ -82,7 +82,7 @@ fn every_helper_parses() {
     ];
     assert_ne!(
         helpers::declarations(&all, &mut to),
-        Vec::<rsvelte_typescript::NodeIdentifier>::new()
+        Vec::<rsvelte_typescript_syntax::NodeIdentifier>::new()
     );
 }
 

@@ -1,9 +1,13 @@
 # AGENTS.md
 
-rsvelte (experimental) is a native toolchain written from scratch in Rust. It reads each file
+rsvelte (experimental) is a native toolchain for Svelte, written in Rust. It reads each file
 once and keeps immutable trees and a database of derived facts. Each task (compile, lint, format
 or type check) computes only what it needs, one file per thread. Svelte 5 comes first. The old
 port on `main` is only a diff oracle and a performance baseline; do not copy its design.
+
+Porting a Svelte tool means designing its ideal architecture, not translating its code. When a
+good Rust crate already does a general job, such as parsing JavaScript, use it instead of
+writing our own. Add a dependency only when it saves real work.
 
 ## Principles
 
@@ -14,7 +18,7 @@ port on `main` is only a diff oracle and a performance baseline; do not copy its
 | P3  | Shared trees are immutable. Never print text and parse it again.                                 |
 | P4  | One position type: `Span` (UTF-8 bytes, in one document). One integer never has two meanings.    |
 | P5  | No `serde_json::Value` inside. Write public JSON directly when printing.                         |
-| P6  | Semantic facts live in side tables, so trees stay `Sync`.                                        |
+| P6  | Semantic facts live in side tables, not in the trees.                                            |
 | P7  | Claims about speed or correctness need measurements.                                             |
 
 Non-goals:
@@ -29,11 +33,11 @@ Non-goals:
 
 - `corpus/` holds real Svelte 5 files under permissive licenses only (MIT, Apache-2.0, ISC,
   BSD-3-Clause or Unlicense). Expected output comes from the official tools; never edit it by
-  hand. `cargo test` compares every unit with it and records each verdict in the parity ratchet
-  (`corpus/_registry/parity.json`); a verdict that moves fails the test. To accept an intended
+  hand. `cargo test` compares every unit with it and records each verdict in the parity ledger
+  (`corpus/_registry/parity/`); a verdict that moves fails the test. To accept an intended
   change, run with `UPDATE_EXPECT=1`.
   See [corpus/README.md](corpus/README.md) and
-  [crates/language_independent/test_harness/README.md](crates/language_independent/test_harness/README.md).
+  [crates/language_independent/corpus/README.md](crates/language_independent/corpus/README.md).
 - Speed: compare the official tools, `main` and this rewrite. See
   [tools/performance/README.md](tools/performance/README.md).
 
@@ -41,8 +45,8 @@ Non-goals:
 F=tools/oracle/oracle.ts   # zsh does not split $F into words, so keep only the path
 mise exec -- node $F regen --task svelte.compile                # the official output
 cargo test -p rsvelte_command_line --test corpus                # every corpus unit
-FIXTURE_VERDICTS=<file> cargo test -p rsvelte_command_line --test corpus      # every file's verdict
-FIXTURE_ACTUAL=1 cargo test -p rsvelte_command_line --test corpus             # write corpus actual/
+CORPUS_MOVES=<file> cargo test -p rsvelte_command_line --test corpus   # every verdict that moved
+CORPUS_ACTUAL=1 cargo test -p rsvelte_command_line --test corpus       # write corpus actual/
 cargo fmt && cargo clippy --all-targets -- -D warnings && cargo test
 mise run structure
 pnpm install && pnpm run check    # the site and tools/: oxfmt, oxlint, knip, tsc, the English prose lint

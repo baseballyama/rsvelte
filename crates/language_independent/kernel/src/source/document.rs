@@ -13,14 +13,14 @@ pub struct Document {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum DocumentError {
-    /// Byte length; positions are `u32` (see [`MAXIMUM_SOURCE_LENGTH`]).
+    /// Byte length; positions are `u32` (see `MAXIMUM_SOURCE_LENGTH`).
     TooLarge(usize),
 }
 
 impl Document {
     /// # Errors
     ///
-    /// [`DocumentError::TooLarge`] if `text` is [`MAXIMUM_SOURCE_LENGTH`] bytes or longer.
+    /// [`DocumentError::TooLarge`] if `text` is `MAXIMUM_SOURCE_LENGTH` bytes or longer.
     pub fn new(path: String, text: String) -> Result<Self, DocumentError> {
         if text.len() >= MAXIMUM_SOURCE_LENGTH as usize {
             return Err(DocumentError::TooLarge(text.len()));

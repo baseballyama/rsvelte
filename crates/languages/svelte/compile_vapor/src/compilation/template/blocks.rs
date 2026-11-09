@@ -252,7 +252,7 @@ impl Builder<'_, '_> {
                 Item::Text { raw, .. } if matches!(parent, Parent::Element("textarea")) => {
                     let raw =
                         super::static_text::textarea_text(raw, index == 0, self.i.server, items);
-                    text.push_str(&rsvelte_svelte::syntax::syntax_tree::decode_attribute(raw));
+                    text.push_str(&rsvelte_svelte_syntax::syntax_tree::decode_attribute(raw));
                 }
                 Item::Text { data, .. } => text.push_str(data),
                 Item::Expression(expression) => {

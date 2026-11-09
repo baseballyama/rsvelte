@@ -1,0 +1,6297 @@
+# rsvelte pack 1
+=== 5042 docs/src/components/motion.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { animate as motionAnimate } from "motion";
+import { tick, untrack } from "svelte";
+import { watch } from "runed";
+
+export const animate = (node, { transition, ...keyframes } = {}) => {
+	let animation = motionAnimate(node, keyframes, transition);
+
+	return {
+		update: ({ transition, ...keyframes } = {}) => {
+			animation.stop();
+			animation = motionAnimate(node, keyframes, transition);
+		},
+
+		destroy: () => {
+			animation.cancel();
+		}
+	};
+};
+
+export function generateCssFromInitial(initial) {
+	const transformMap = {
+		x: "translateX",
+		y: "translateY",
+		z: "translateZ",
+		rotateX: "rotateX",
+		rotateY: "rotateY",
+		rotateZ: "rotateZ",
+		scale: "scale",
+		scaleX: "scaleX",
+		scaleY: "scaleY",
+		scaleZ: "scaleZ",
+		skewX: "skewX",
+		skewY: "skewY"
+	};
+
+	const transformProperties = [];
+	const otherStyles = [];
+
+	for (const [key, value] of Object.entries(initial ?? {})) {
+		if (value === undefined || value === null) continue; // Skip undefined or null values
+
+		if (key in transformMap) {
+			// Gestione delle proprietà di transform
+			const transformKey = transformMap[key];
+
+			const transformValue = typeof value === "number" && !["scale", "scaleX", "scaleY", "scaleZ"].includes(key)
+				? `${value}px`
+				: // Aggiungi "px" solo se necessario
+				value;
+
+			transformProperties.push(`${transformKey}(${transformValue})`);
+		} else {
+			// Gestione delle proprietà CSS standard
+			const cssKey = key.replace(/([A-Z])/g, "-$1").toLowerCase(); // Convert camelCase to kebab-case
+
+			const cssValue = typeof value === "number" && key !== "opacity" ? `${value}px` : value; // Aggiungi "px" solo se appropriato
+
+			otherStyles.push(`${cssKey}: ${cssValue};`);
+		}
+	}
+
+	// Combina le proprietà di transform in una singola stringa
+	if (transformProperties.length > 0) {
+		otherStyles.push(`transform: ${transformProperties.join(" ")};`);
+	}
+
+	return otherStyles.join(" ");
+}
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'tag',
+	'children',
+	'initial',
+	'animate',
+	'exit',
+	'transition',
+	'whileHover',
+	'whileTap'
+]);
+
+export default function Motion($$anchor, $$props) {
+	$.push($$props, true);
+
+	const rest = $.rest_props($$props, rest_excludes);
+	let el = $.state(void 0);
+	let ssrStyle = $.state($.proxy(generateCssFromInitial($$props.initial ?? $$props.animate)));
+	let isHover = $.state(false);
+	let isTap = $.state(false);
+
+	function runAnimation(keyframes, t, _el = $.get(el)) {
+		if (!_el) {
+			return;
+		}
+
+		return motionAnimate(_el, keyframes, t);
+	}
+
+	function onExit(node) {
+		const duration = $$props.transition?.duration ?? 0.3;
+
+		if ($$props.exit) {
+			runAnimation($$props.exit, $$props.transition, node);
+
+			return { duration: duration * 1000 };
+		}
+
+		return { duration: 0 };
+	}
+
+	$.user_effect(() => {
+		if (!$.get(el)) return;
+
+		untrack(async () => {
+			if ($.get(el) && $$props.initial) {
+				$.set(ssrStyle, "");
+				await tick();
+				await runAnimation($$props.initial, { duration: 0 });
+			}
+
+			if ($.get(el) && $$props.animate) {
+				runAnimation($$props.animate, $$props.transition);
+			}
+		});
+	});
+
+	watch(
+		[
+			() => $$props.animate,
+			() => $.get(el),
+			() => $$props.transition
+		],
+		() => {
+			if (!$.get(el) || !$$props.animate) return;
+
+			runAnimation($$props.animate, $$props.transition);
+		},
+		{ lazy: true }
+	);
+
+	watch(
+		[
+			() => $.get(isHover) && $$props.whileHover,
+			() => $.get(isTap) && $$props.whileTap
+		],
+		() => {
+			if (!$.get(el)) {
+				return;
+			}
+
+			if ($.get(isTap) && $$props.whileTap) {
+				runAnimation($$props.whileTap, $$props.transition);
+			} else if ($.get(isHover) && $$props.whileHover) {
+				runAnimation($$props.whileHover, $$props.transition);
+			} else if ($$props.initial && ($$props.whileTap || $$props.whileHover)) {
+				runAnimation($$props.initial, $$props.transition);
+			}
+		}
+	);
+
+	var fragment = $.comment();
+	var node_1 = $.first_child(fragment);
+
+	$.element(node_1, () => $$props.tag, false, ($$element, $$anchor) => {
+		$.bind_this($$element, ($$value) => $.set(el, $$value, true), () => $.get(el));
+
+		var event_handler = () => {
+			$.set(isHover, true);
+		};
+
+		var event_handler_1 = () => {
+			$.set(isHover, false);
+		};
+
+		var event_handler_2 = () => {
+			$.set(isTap, true);
+		};
+
+		var event_handler_3 = () => {
+			$.set(isTap, false);
+		};
+
+		var event_handler_4 = () => {
+			$.set(isTap, true);
+		};
+
+		var event_handler_5 = () => {
+			$.set(isTap, false);
+		};
+
+		$.attribute_effect($$element, () => ({
+			style: $.get(ssrStyle),
+			onmouseover: event_handler,
+			onmouseleave: event_handler_1,
+			ontouchstart: event_handler_2,
+			ontouchend: event_handler_3,
+			onmousedown: event_handler_4,
+			onmouseup: event_handler_5,
+			...rest
+		}));
+
+		$.transition(2, $$element, () => onExit);
+
+		var fragment_1 = $.comment();
+		var node_2 = $.first_child(fragment_1);
+
+		$.snippet(node_2, () => $$props.children ?? $.noop);
+		$.append($$anchor, fragment_1);
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 733 docs/src/components/motion.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initial`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 107,
+			"column": 46,
+			"character": 3118
+		},
+		"end": {
+			"line": 107,
+			"column": 53,
+			"character": 3125
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `animate`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 107,
+			"column": 57,
+			"character": 3129
+		},
+		"end": {
+			"line": 107,
+			"column": 64,
+			"character": 3136
+		}
+	}
+]
+
+=== 441 docs/src/components/preview.svelte	css
+
+	[data-preview][data-open="false"].svelte-em1rhw {
+		scale: 0.95;
+		translate: -110%;
+		opacity: 0.75;
+		transition:
+			opacity 0.15s var(--ease-out-quad),
+			scale 0.15s var(--ease-out-quad),
+			translate 0.15s var(--ease-out-quad) 0.15s;
+	}
+
+	[data-preview][data-open="true"].svelte-em1rhw {
+		transition:
+			opacity 0.15s var(--ease-out-quad) 0.15s,
+			scale 0.15s var(--ease-out-quad) 0.15s,
+			translate 0.15s var(--ease-out-quad);
+	}
+
+=== 6860 docs/src/components/preview.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { linear } from "svelte/easing";
+import { fade } from "svelte/transition";
+import { previewCtx } from "./preview-ctx.svelte";
+
+var root = $.from_html(`<button class="absolute bottom-4 left-4 z-10 cursor-pointer rounded-lg bg-gray-500 px-2 py-1
+		text-sm text-white transition hover:bg-gray-700 active:bg-gray-800">Edit props</button>`);
+
+var root_1 = $.from_html(`<input type="checkbox"/>`);
+var root_2 = $.from_html(`<option> </option>`);
+var root_3 = $.from_html(`<select class="self-stretch rounded-md px-1 py-0.5 dark:bg-gray-900"></select>`);
+var root_4 = $.from_html(`<input type="number" class="self-stretch rounded-md px-1 py-0.5 dark:bg-gray-900"/>`);
+var root_5 = $.from_html(`<input type="text" class="self-stretch rounded-md px-1 py-0.5 dark:bg-gray-900"/>`);
+var root_6 = $.from_html(`<label class="flex w-full flex-col items-start gap-1 text-sm font-medium"> <!></label>`);
+
+var root_7 = $.from_html(`<div class="absolute bottom-2 left-2 top-2 z-50 w-[200px] rounded-xl border border-gray-300 bg-gray-100
+		p-3 shadow-xl backdrop-blur-xl dark:border-none dark:bg-gray-800/80 svelte-em1rhw" data-preview=""><div class="flex items-center justify-between"><p class="text-xl font-bold text-black dark:text-white">Props</p> <button class="cursor-pointer rounded-lg bg-gray-500 px-2 py-1 text-sm
+				text-white transition hover:bg-gray-600 active:bg-gray-700">Close</button></div> <hr class="mt-2 block h-[2px] rounded-full bg-gray-300/50 dark:bg-gray-600"/> <div class="mt-2 flex flex-col gap-2"></div></div>`);
+
+var root_8 = $.from_html(`<div><div class="w-full min-w-0 overflow-clip p-4"><!></div> <!> <!></div>`);
+
+export default function Preview($$anchor, $$props) {
+	$.push($$props, true);
+
+	const { values, schema } = previewCtx.get();
+	let open = $.state(false);
+
+	function fix(node, fn) {
+		const config = fn(node);
+
+		if (!config.delay) return config;
+
+		const easing = config.easing ?? linear;
+		const delay = config.delay;
+		const duration = config.duration ?? 0;
+		const newDuration = duration + delay;
+
+		const getTimingValues = (t) => {
+			const transpired = t * newDuration;
+			const withoutDelay = Math.max(0, transpired - delay);
+			const actualT = withoutDelay / duration;
+			const easedT = easing(actualT);
+
+			return [easedT, 1 - easedT];
+		};
+
+		const css = (_t) => {
+			const [t, u] = getTimingValues(_t);
+
+			return config.css?.(t, u) ?? "";
+		};
+
+		const tick = (_t) => {
+			const [t, u] = getTimingValues(_t);
+
+			return config.tick?.(t, u) ?? Promise.resolve();
+		};
+
+		return {
+			...config,
+			delay: 0,
+			duration: newDuration,
+			css,
+			tick,
+			easing: linear
+		};
+	}
+
+	var div = root_8();
+	var div_1 = $.child(div);
+	var node_1 = $.child(div_1);
+
+	$.snippet(node_1, () => $$props.children);
+	$.reset(div_1);
+
+	var node_2 = $.sibling(div_1, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			var button = root();
+
+			$.delegated('click', button, () => $.set(open, !$.get(open)));
+			$.transition(1, button, () => fix, () => (el) => fade(el, { delay: 300, duration: 200 }));
+			$.transition(2, button, () => fade, () => ({ duration: 100 }));
+			$.append($$anchor, button);
+		};
+
+		$.if(node_2, ($$render) => {
+			if (!$.get(open) && values) $$render(consequent);
+		});
+	}
+
+	var node_3 = $.sibling(node_2, 2);
+
+	{
+		var consequent_5 = ($$anchor) => {
+			var div_2 = root_7();
+			var div_3 = $.child(div_2);
+			var button_1 = $.sibling($.child(div_3), 2);
+
+			$.reset(div_3);
+
+			var div_4 = $.sibling(div_3, 4);
+
+			$.each(div_4, 21, () => Object.keys(values ?? {}), $.index, ($$anchor, key) => {
+				const control = $.derived(() => schema[$.get(key)]);
+				var label = root_6();
+				var text = $.child(label);
+				var node_4 = $.sibling(text);
+
+				{
+					var consequent_1 = ($$anchor) => {
+						var input = root_1();
+
+						$.remove_input_defaults(input);
+						$.bind_checked(input, () => values[$.get(key)], ($$value) => values[$.get(key)] = $$value);
+						$.append($$anchor, input);
+					};
+
+					var consequent_2 = ($$anchor) => {
+						var select = root_3();
+
+						$.each(select, 21, () => $.get(control).options, $.index, ($$anchor, option) => {
+							var option_1 = root_2();
+							var text_1 = $.only_child(option_1, true);
+							var option_1_value = {};
+
+							$.template_effect(() => {
+								$.set_text(text_1, $.get(option));
+
+								if (option_1_value !== (option_1_value = $.get(option))) {
+									option_1.value = (option_1.__value = option_1_value) ?? '';
+								}
+							});
+
+							$.append($$anchor, option_1);
+						});
+
+						$.reset(select);
+						$.init_select(select);
+						$.bind_select_value(select, () => values[$.get(key)], ($$value) => values[$.get(key)] = $$value);
+						$.append($$anchor, select);
+					};
+
+					var consequent_3 = ($$anchor) => {
+						var input_1 = root_4();
+
+						$.remove_input_defaults(input_1);
+
+						$.template_effect(() => {
+							$.set_attribute(input_1, 'min', $.get(control).min);
+							$.set_attribute(input_1, 'max', $.get(control).max);
+						});
+
+						$.bind_value(input_1, () => values[$.get(key)], (v) => {
+							// Make sure that inputed values don't go outside the specified min/max values.
+							if ($.get(control).min && v < $.get(control).min) {
+								values[$.get(key)] = $.get(control).min;
+							} else if ($.get(control).max && v > $.get(control).max) {
+								values[$.get(key)] = $.get(control).max;
+							} else {
+								values[$.get(key)] = v;
+							}
+						});
+
+						$.append($$anchor, input_1);
+					};
+
+					var consequent_4 = ($$anchor) => {
+						var input_2 = root_5();
+
+						$.remove_input_defaults(input_2);
+						$.bind_value(input_2, () => values[$.get(key)], ($$value) => values[$.get(key)] = $$value);
+						$.append($$anchor, input_2);
+					};
+
+					$.if(node_4, ($$render) => {
+						if ($.get(control).type === "boolean") $$render(consequent_1); else if ($.get(control).type === "select") $$render(consequent_2, 1); else if ($.get(control).type === "number") $$render(consequent_3, 2); else if ($.get(control).type === "string") $$render(consequent_4, 3);
+					});
+				}
+
+				$.reset(label);
+				$.template_effect(() => $.set_text(text, `${$.get(control).label ?? ''} `));
+				$.append($$anchor, label);
+			});
+
+			$.reset(div_4);
+			$.reset(div_2);
+			$.template_effect(() => $.set_attribute(div_2, 'data-open', $.get(open)));
+			$.delegated('click', button_1, () => $.set(open, !$.get(open)));
+			$.append($$anchor, div_2);
+		};
+
+		$.if(node_3, ($$render) => {
+			if (values) $$render(consequent_5);
+		});
+	}
+
+	$.reset(div);
+
+	$.template_effect(() => $.set_class(div, 1, `not-content relative grid min-h-[500px] place-items-center overflow-clip rounded-2xl border
+	bg-gray-100 dark:border-gray-700 dark:bg-gray-950 ${$$props.class ?? ''}`));
+
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 8255 docs/src/components/transition.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getContext, setContext, tick } from "svelte";
+import { watch } from "runed";
+
+const CTX_KEY = Symbol("transition");
+
+const ctx = {
+	get() {
+		return getContext(CTX_KEY);
+	},
+
+	set(context) {
+		return setContext(CTX_KEY, context);
+	}
+};
+
+class Context {
+	#show = // Observable state for child transitions
+	$.state(null);
+
+	get show() {
+		return $.get(this.#show);
+	}
+
+	set show(value) {
+		$.set(this.#show, value, true);
+	}
+
+	applyImmediately;
+	count;
+	completed = () => {};
+
+	constructor(config) {
+		this.applyImmediately = config.applyImmediately ?? false;
+		this.count = config.count ?? 0;
+		this.completed = config.completed ?? (() => {});
+	}
+}
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'show',
+	'applyImmediately',
+	'unmount',
+	'enter',
+	'enterFrom',
+	'enterTo',
+	'leave',
+	'leaveFrom',
+	'leaveTo',
+	'children'
+]);
+
+var root = $.from_html(`<div><!></div>`);
+
+export default function Transition($$anchor, $$props/** state of element (shown or hidden), if null this we are treated as a child
+ * transition and will get the state from our parent, coordinating with it */
+/** apply transition when element is first rendered (i.e. animate in) */
+/** whether the element should be removed from the DOM (vs hidden) */
+/** classes to apply when entering (showing) */
+/** classes to apply when leaving (hiding) */
+/** children */
+/** events */
+) {
+	$.push($$props, true);
+
+	// convert a string of class names into an array, for use with DOM methods
+	function classes(classes) {
+		return classes ? classes.split(" ").filter((x) => x) : [];
+	}
+
+	// to wait until css changes have been appplied we use a double rAF
+	function nextFrame() {
+		const raf = requestAnimationFrame; // help minification
+
+		return new Promise((resolve) => raf(() => raf(resolve)));
+	}
+
+	const show = $.prop($$props, 'show', 3, null),
+		enter = $.prop($$props, 'enter', 3, ""),
+		enterFrom = $.prop($$props, 'enterFrom', 3, ""),
+		enterTo = $.prop($$props, 'enterTo', 3, ""),
+		leave = $.prop($$props, 'leave', 3, ""),
+		leaveFrom = $.prop($$props, 'leaveFrom', 3, ""),
+		leaveTo = $.prop($$props, 'leaveTo', 3, ""),
+		rest = $.rest_props($$props, rest_excludes);
+
+	// convert class strings to arrays, for easier use with DOM elements
+	const enterClasses = $.derived(() => classes(enter()));
+
+	const enterFromClasses = $.derived(() => classes(enterFrom()));
+	const enterToClasses = $.derived(() => classes(enterTo()));
+
+	// if leave, leaveFrom, or leaveTo are not specified then use enter values
+	// as a convenient way to avoid repeating definitions (but reverse To & From)
+	const leaveClasses = $.derived(() => classes(leave() === null ? enter() : leave()));
+
+	const leaveFromClasses = $.derived(() => classes(leaveFrom() === null ? enterTo() : leaveFrom()));
+	const leaveToClasses = $.derived(() => classes(leaveTo() === null ? enterFrom() : leaveTo()));
+
+	// get parent context if we're a child
+	const parent = show() === null ? ctx.get() : null;
+
+	// create our own context (which will also become parent for any children)
+	const context = new Context({
+		applyImmediately: parent ? parent.applyImmediately : $$props.applyImmediately,
+		count: 0,
+		completed: () => {}
+	});
+
+	// set context for children to use
+	setContext(CTX_KEY, context);
+
+	// set initial state
+	let display = $.state($.proxy(show() && !context.applyImmediately ? "contents" : "none"));
+
+	let mounted = $.state($.proxy(!$$props.unmount || show() === true));
+
+	// use action that hooks into our wrapper div and manages everything
+	function transition(node, show) {
+		// the child element that we will be applying classes to
+		// set later once the component has mounted
+		let el;
+
+		function addClasses(...classes) {
+			el.classList.add(...classes);
+		}
+
+		function removeClasses(...classes) {
+			el.classList.remove(...classes);
+		}
+
+		function transitionEnd(transitions) {
+			// return a promise that transitions are complete (resolve immediately if no transitions)
+			return transitions.length
+				? new Promise((resolve) => el.addEventListener(
+					"transitionend",
+					(e) => {
+						e.stopPropagation();
+						resolve();
+					},
+					{ once: true }
+				))
+				: Promise.resolve();
+		}
+
+		function childrenCompleted(parentCompleted) {
+			// return a promise that all children have completed (resolve immediately if no children)
+			// sets the context completed method that children call to a promise that the parent has completed
+			return context.count
+				? new Promise((resolve) => {
+					let count = 0;
+
+					context.completed = () => {
+						if (++count === context.count) {
+							resolve();
+						}
+
+						return parentCompleted;
+					};
+				})
+				: Promise.resolve();
+		}
+
+		async function ensureMountedElement() {
+			if ($$props.unmount && !$.get(mounted)) {
+				$.set(mounted, true);
+				await tick(); // give slot chance to render
+			}
+
+			return node.firstElementChild;
+		}
+
+		async function apply(show, base, from, to) {
+			el = await ensureMountedElement();
+
+			let resolveCompleted = () => {};
+
+			const completed = new Promise((resolve) => {
+				resolveCompleted = resolve;
+			});
+
+			const children = childrenCompleted(completed);
+
+			// set state for any child transitions
+			context.show = show;
+
+			addClasses(...base, ...from);
+
+			const transitioned = transitionEnd(base);
+
+			await nextFrame();
+			removeClasses(...from);
+			addClasses(...to);
+			await Promise.all([transitioned, children]);
+
+			if (parent) {
+				await parent.completed();
+			}
+
+			removeClasses(...base, ...to);
+			resolveCompleted();
+		}
+
+		async function enter() {
+			$$props.beforeEnter?.();
+			$.set(display, "contents");
+			await apply(true, $.get(enterClasses), $.get(enterFromClasses), $.get(enterToClasses));
+			$$props.afterEnter?.();
+		}
+
+		async function leave() {
+			$$props.beforeLeave?.();
+			await apply(false, $.get(leaveClasses), $.get(leaveFromClasses), $.get(leaveToClasses));
+			$.set(display, "none");
+
+			if ($$props.unmount) {
+				$.set(mounted, false);
+			}
+
+			$$props.afterLeave?.();
+		}
+
+		// execute is always called, even for the initial render, so we use a flag
+		// to prevent a transition running unless applyImmediately is set for animating in
+		let shouldRun = context.applyImmediately;
+
+		// temp fix for Svelte 5 issue #11448
+		let showPrev;
+
+		function execute(show) {
+			// temp fix for Svelte 5 issue #11448 triggering animations when prop hasn't changed
+			if (show === showPrev) {
+				return;
+			}
+
+			showPrev = show;
+
+			// run appropriate transition, set promise for completion
+			function getExecuting() {
+				if (shouldRun) {
+					return show ? executing.then(enter) : executing.then(leave);
+				}
+
+				return Promise.resolve();
+			}
+
+			executing = getExecuting();
+
+			// play transitions on all subsequent calls ...
+			shouldRun = true;
+		}
+
+		// to wait for in-progress transitions to complete
+		let executing = Promise.resolve();
+
+		// if we're a child transition, increment the count on the parent and listen for state notifications
+		if (parent) {
+			parent.count++;
+
+			// child updates happen here, as show propery is updated by the parent, which triggers the transition
+			watch(() => parent.show, execute);
+		} else {
+			// otherwise, first run through to set initial state (and possibly, 'applyImmediately' transition)
+			execute(show);
+		}
+
+		return {
+			update(show) {
+				// top-level updates happen here, as show property is updated, which triggers the transition
+				execute(show);
+			},
+
+			destroy() {
+				// if we're a child and being removed, notify our parent and stop listening for updates
+				if (parent) {
+					parent.count--;
+				}
+			}
+		};
+	}
+
+	var div = root();
+	let styles;
+	var node_1 = $.child(div);
+
+	{
+		var consequent = ($$anchor) => {
+			var fragment = $.comment();
+			var node_2 = $.first_child(fragment);
+
+			$.snippet(node_2, () => $$props.children);
+			$.append($$anchor, fragment);
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($.get(mounted)) $$render(consequent);
+		});
+	}
+
+	$.reset(div);
+	$.action(div, ($$node, $$action_arg) => transition?.($$node, $$action_arg), show);
+	$.template_effect(() => styles = $.set_style(div, '', styles, { display: $.get(display) }));
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 2142 docs/src/components/transition.svelte	warnings.json
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 18,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"column": 34,
+			"character": 34
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `show`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 102,
+			"column": 16,
+			"character": 3035
+		},
+		"end": {
+			"line": 102,
+			"column": 20,
+			"character": 3039
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `applyImmediately`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 106,
+			"column": 55,
+			"character": 3232
+		},
+		"end": {
+			"line": 106,
+			"column": 71,
+			"character": 3248
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `show`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 115,
+			"column": 22,
+			"character": 3403
+		},
+		"end": {
+			"line": 115,
+			"column": 26,
+			"character": 3407
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `unmount`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 116,
+			"column": 23,
+			"character": 3484
+		},
+		"end": {
+			"line": 116,
+			"column": 30,
+			"character": 3491
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `show`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 116,
+			"column": 34,
+			"character": 3495
+		},
+		"end": {
+			"line": 116,
+			"column": 38,
+			"character": 3499
+		}
+	}
+]
+
+=== 449 docs/src/previews/SpatialMenu.svelte	css
+
+	.movie-list-mask.svelte-9l4vau {
+		--shadow-height: 20px;
+		--scrollbar-width: 12px;
+		position: relative;
+
+		--mask-image: linear-gradient(
+				to bottom,
+				transparent,
+				#000 var(--shadow-height),
+				#000 calc(100% - var(--shadow-height)),
+				transparent 100%
+			),
+			linear-gradient(to left, #fff var(--scrollbar-width), transparent var(--scrollbar-width));
+
+		mask-image: var(--mask-image);
+		-webkit-mask-image: var(--mask-image);
+	}
+
+=== 6440 docs/src/previews/SpatialMenu.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { getters, mergeAttrs } from "melt";
+import { SpatialMenu } from "melt/builders";
+import { movies } from "./movies";
+import fuzzysearch from "./utils/search";
+import IconHeart from "~icons/solar/heart-bold";
+import IconDisabled from "~icons/lucide/circle-slash";
+
+var root = $.from_html(`<div><div><img/> <div></div> <!> <!></div> <span> </span></div>`);
+var root_1 = $.from_html(`<div class="shrink-1 movie-list-mask min-h-0 w-[30rem] flex-1 overflow-y-auto px-2 py-4 svelte-9l4vau"><div class="grid gap-4 p-2"></div></div>`);
+var root_2 = $.from_html(`<div class="mt-4 flex flex-col items-center justify-center gap-1 p-2"><div class="text-center text-sm font-medium">No movies found</div> <div class="text-center text-xs text-gray-500">Try adjusting your search terms</div></div>`);
+var root_3 = $.from_html(`<div><label class="focus-within:border-accent-500 w-64 border-b-2 border-gray-800 transition"><input/></label> <!></div>`);
+
+export default function SpatialMenu_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const controls = usePreviewControls({
+		wrap: { type: "boolean", defaultValue: false, label: "Wrap Around" },
+		crossAxis: { type: "boolean", defaultValue: false, label: "Cross Axis" }
+	});
+
+	const spatialMenu = new SpatialMenu({ ...getters(controls) });
+	let search = $.state("");
+	const filtered = $.derived(() => fuzzysearch({ needle: $.get(search), haystack: movies, property: "title" }));
+	const selected = $.proxy([]);
+	const disabled = $.proxy([]);
+
+	function toggle(arr, value) {
+		const index = arr.findIndex((i) => i === value);
+
+		if (index === -1) arr.push(value); else arr.splice(index, 1);
+	}
+
+	function remove(arr, value) {
+		const index = arr.findIndex((i) => i === value);
+
+		if (index !== -1) arr.splice(index, 1);
+	}
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var div = root_3();
+
+			$.attribute_effect(
+				div,
+				() => ({
+					class: 'h-140 mx-auto flex flex-col items-center gap-3 overflow-hidden p-2',
+					...spatialMenu.root
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-9l4vau'
+			);
+
+			var label = $.child(div);
+			var input = $.child(label);
+
+			$.attribute_effect(
+				input,
+				() => ({
+					class: 'w-full bg-transparent !outline-none',
+					placeholder: 'Search for movies',
+					...spatialMenu.input
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-9l4vau',
+				true
+			);
+
+			$.reset(label);
+
+			var node = $.sibling(label, 2);
+
+			{
+				var consequent = ($$anchor) => {
+					var div_1 = root_1();
+					var div_2 = $.child(div_1);
+
+					$.set_style(div_2, '', {}, {
+						'grid-template-columns': 'repeat(auto-fill,minmax(100px,1fr))'
+					});
+
+					$.each(div_2, 21, () => $.get(filtered), $.index, ($$anchor, movie) => {
+						const isDisabled = $.derived(() => Boolean(disabled.find((i) => i === $.get(movie).title)));
+
+						const item = $.derived(() => spatialMenu.getItem($.get(movie), {
+							onSelect: () => toggle(selected, $.get(movie).title),
+							disabled: $.get(isDisabled)
+						}));
+
+						const isSelected = $.derived(() => selected.find((i) => i === $.get(movie).title));
+						var div_3 = root();
+
+						$.attribute_effect(
+							div_3,
+							($0) => ({
+								class: [
+									" flex w-full scroll-mb-8 scroll-mt-14 flex-col gap-2 transition",
+									$.get(item).highlighted && "scale-105"
+								],
+								...$0
+							}),
+							[
+								() => mergeAttrs($.get(item).attrs, {
+									onclick: (e) => {
+										const isAltKeyPressed = e.altKey;
+
+										if (isAltKeyPressed) {
+											toggle(disabled, $.get(movie).title);
+											remove(selected, $.get(movie).title);
+										}
+									}
+								})
+							],
+							void 0,
+							void 0,
+							'svelte-9l4vau'
+						);
+
+						var div_4 = $.child(div_3);
+						var img = $.child(div_4);
+
+						$.set_class(img, 1, $.clsx(["object-fit h-full w-full"]));
+
+						var div_5 = $.sibling(img, 2);
+						var node_1 = $.sibling(div_5, 2);
+
+						{
+							let $0 = $.derived(() => [
+								"absolute bottom-1 right-1 text-white",
+								"drop-shadow-xs transition",
+								$.get(isSelected) ? "scale-100" : "scale-75 opacity-0"
+							]);
+
+							IconHeart(node_1, {
+								get class() {
+									return $.get($0);
+								}
+							});
+						}
+
+						var node_2 = $.sibling(node_1, 2);
+
+						{
+							let $0 = $.derived(() => [
+								"absolute bottom-1 right-1 text-white",
+								"drop-shadow-xs transition",
+								$.get(isDisabled) ? "scale-100" : "scale-75 opacity-0"
+							]);
+
+							IconDisabled(node_2, {
+								get class() {
+									return $.get($0);
+								}
+							});
+						}
+
+						$.reset(div_4);
+
+						var span = $.sibling(div_4, 2);
+						var text = $.only_child(span, true);
+
+						$.reset(div_3);
+
+						$.template_effect(() => {
+							$.set_class(div_4, 1, $.clsx([
+								"relative overflow-hidden rounded-md outline-2 outline-offset-2 transition-all",
+								$.get(item).highlighted ? "outline-accent-500 " : "!outline-transparent",
+								$.get(item).disabled ? "opacity-50" : ""
+							]));
+
+							$.set_attribute(img, 'src', $.get(movie).posterUrl);
+							$.set_attribute(img, 'alt', $.get(movie).title);
+
+							$.set_class(div_5, 1, $.clsx([
+								"absolute -bottom-2 -right-2 h-10 w-12 rounded-md transition",
+								"bg-gradient-to-br from-transparent via-neutral-900/45 via-30% to-neutral-900/45 blur-sm",
+								!$.get(isSelected) && "opacity-0"
+							]));
+
+							$.set_class(span, 1, $.clsx([
+								"text-center text-xs font-medium transition",
+								$.get(item).highlighted
+									? "text-accent-500 dark:text-accent-200"
+									: "text-gray-800 dark:text-gray-200"
+							]));
+
+							$.set_text(text, $.get(movie).title);
+						});
+
+						$.append($$anchor, div_3);
+					});
+
+					$.reset(div_2);
+					$.reset(div_1);
+					$.append($$anchor, div_1);
+				};
+
+				var alternate = ($$anchor) => {
+					var div_6 = root_2();
+
+					$.append($$anchor, div_6);
+				};
+
+				$.if(node, ($$render) => {
+					if ($.get(filtered).length) $$render(consequent); else $$render(alternate, -1);
+				});
+			}
+
+			$.reset(div);
+			$.bind_value(input, () => $.get(search), ($$value) => $.set(search, $$value));
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 154 docs/src/previews/accordion.svelte	css
+
+	.focus-ring.svelte-1y3lud5 {
+		display: none;
+	}
+
+	.focus-ring.svelte-1y3lud5:has(+ button:where(.svelte-1y3lud5):focus-visible) {
+		display: block;
+	}
+
+=== 4154 docs/src/previews/accordion.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { getters } from "melt";
+import { Accordion } from "melt/builders";
+import { slide } from "svelte/transition";
+
+var root = $.from_html(`<div><div class="p-2"> </div></div>`);
+var root_1 = $.from_html(`<div class="overflow-hidden first:rounded-t-xl last:rounded-b-xl"><h2><div aria-hidden="true"></div> <button> </button></h2> <!></div>`);
+var root_2 = $.from_html(`<div></div>`);
+
+export default function Accordion_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const controls = usePreviewControls({
+		multiple: { type: "boolean", defaultValue: false, label: "Multiple" },
+		disabled: { type: "boolean", defaultValue: false, label: "Disabled" }
+	});
+
+	const items = [
+		{
+			id: "item-1",
+			title: "What is it?",
+			description: "A collection of accessible & unstyled component builders for Svelte applications."
+		},
+
+		{
+			id: "item-2",
+			title: "Can I customize it?",
+			description: "Totally, it is 100% stylable and overridable."
+		},
+
+		{
+			id: "item-3",
+			title: "Svelte is awesome, huh?",
+			description: "Yes, and so are you!"
+		}
+	];
+
+	const accordion = new Accordion(getters(controls));
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var div = root_2();
+
+			$.attribute_effect(
+				div,
+				() => ({
+					...accordion.root,
+					class: 'mx-auto w-[18rem] max-w-full rounded-xl shadow-lg sm:w-[25rem]'
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-1y3lud5'
+			);
+
+			$.each(div, 21, () => items, $.index, ($$anchor, i, idx) => {
+				const item = $.derived(() => accordion.getItem($.get(i)));
+				const isFirst = $.derived(() => idx === 0);
+				const isLast = $.derived(() => idx === items.length - 1);
+				var div_1 = root_1();
+				var h2 = $.child(div_1);
+
+				$.attribute_effect(h2, () => ({ class: 'relative flex', ...$.get(item).heading }), void 0, void 0, void 0, 'svelte-1y3lud5');
+
+				var div_2 = $.child(h2);
+				var button = $.sibling(div_2, 2);
+
+				$.attribute_effect(
+					button,
+					() => ({
+						...$.get(item).trigger,
+						class: [
+							"flex flex-1 cursor-pointer items-center justify-between bg-gray-200 px-5 py-5 text-base font-medium leading-none text-gray-800 outline-none transition-colors",
+							!$.get(item).isDisabled && "hover:bg-gray-300 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50",
+							"disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50",
+							"dark:bg-gray-800 dark:text-gray-200 ",
+							!$.get(isLast) && "border-b border-neutral-200 dark:border-neutral-700"
+						]
+					}),
+					void 0,
+					void 0,
+					void 0,
+					'svelte-1y3lud5'
+				);
+
+				var text = $.only_child(button, true);
+
+				$.reset(h2);
+
+				var node = $.sibling(h2, 2);
+
+				{
+					var consequent = ($$anchor) => {
+						var div_3 = root();
+
+						$.attribute_effect(
+							div_3,
+							() => ({
+								...$.get(item).content,
+								class: 'content overflow-hidden bg-white p-4 text-sm dark:bg-gray-900 dark:text-white/80'
+							}),
+							void 0,
+							void 0,
+							void 0,
+							'svelte-1y3lud5'
+						);
+
+						var div_4 = $.child(div_3);
+						var text_1 = $.only_child(div_4, true);
+
+						$.reset(div_3);
+						$.template_effect(() => $.set_text(text_1, $.get(item).item.description));
+						$.transition(3, div_3, () => slide, () => ({ duration: 250 }));
+						$.append($$anchor, div_3);
+					};
+
+					$.if(node, ($$render) => {
+						if ($.get(item).isExpanded) $$render(consequent);
+					});
+				}
+
+				$.reset(div_1);
+
+				$.template_effect(() => {
+					$.set_class(
+						div_2,
+						1,
+						$.clsx([
+							"border-accent-500 focus-ring absolute inset-0 z-10 border-4 transition-all",
+							$.get(isFirst) && "rounded-t-xl",
+							$.get(isLast) && !$.get(item).isExpanded && "rounded-b-xl"
+						]),
+						'svelte-1y3lud5'
+					);
+
+					$.set_text(text, $.get(item).item.title);
+				});
+
+				$.append($$anchor, div_1);
+			});
+
+			$.reset(div);
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 251 docs/src/previews/avatar.svelte	css
+
+	.fade-in.svelte-1yyvp2u {
+		animation: svelte-1yyvp2u-fade-in 0.5s ease-in-out;
+	}
+
+	@keyframes svelte-1yyvp2u-fade-in {
+		from {
+			opacity: 0;
+			filter: blur(10px);
+			scale: 1.2;
+		}
+		to {
+			opacity: 1;
+			filter: blur(0);
+			scale: 1;
+		}
+	}
+
+=== 3564 docs/src/previews/avatar.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { getters, mergeAttrs } from "melt";
+import { Avatar } from "melt/builders";
+import { Debounced } from "runed";
+
+var root = $.from_html(`<div class="flex flex-col items-center"><div class="flex w-full items-center justify-center gap-6"><div class="relative flex size-32 items-center justify-center overflow-hidden rounded-full bg-neutral-300 dark:bg-neutral-100"><img/> <span> </span></div></div> <label for="gh" class="mt-4">GitHub username</label> <span contenteditable="" id="gh" class="focus:border-accent-200 w-auto border-b-2 border-neutral-600 bg-transparent px-1 pb-1 text-center text-2xl
+			font-light placeholder-neutral-500 outline-none transition dark:text-white" spellcheck="false"></span> <span>invalid username</span></div>`);
+
+export default function Avatar_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const controls = usePreviewControls({
+		delayMs: { label: "Delay (ms)", type: "number", defaultValue: 650 }
+	});
+
+	let username = $.state("tglide");
+	const src = new Debounced(() => `https://github.com/${$.get(username)}.png`, 500);
+
+	const getInitials = (username) => {
+		// Handle empty strings
+		if (!username) return "";
+
+		// Split by common separators and handle camelCase/PascalCase
+		const parts = username.// Insert space before capitals in camelCase/PascalCase
+		replace(/([a-z])([A-Z])/g, "$1 $2").// Split by common separators
+		split(/[\s\-_/.]+/).// Remove empty parts
+		filter((part) => part.length > 0);
+
+		// Get first letter of first part
+		const firstInitial = parts[0]?.[0]?.toUpperCase() || "";
+
+		// Get first letter of last part if different from first part
+		const lastInitial = parts.length > 1 ? parts[parts.length - 1]?.[0]?.toUpperCase() : "";
+
+		return firstInitial + (lastInitial === firstInitial ? "" : lastInitial);
+	};
+
+	const initials = $.derived(() => getInitials($.get(username)));
+	const avatar = new Avatar({ src: () => src.current, ...getters(controls) });
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var div = root();
+			var div_1 = $.child(div);
+			var div_2 = $.child(div_1);
+			var img = $.child(div_2);
+
+			$.attribute_effect(
+				img,
+				($0) => ({
+					...$0,
+					alt: 'Avatar',
+					class: [
+						"absolute inset-0 !block h-full w-full rounded-[inherit] ",
+						avatar.loadingStatus === "loaded" ? "fade-in" : "invisible"
+					]
+				}),
+				[
+					() => mergeAttrs(avatar.image, {
+						onload: () => {
+							console.log("loaded");
+						}
+					})
+				],
+				void 0,
+				void 0,
+				'svelte-1yyvp2u'
+			);
+
+			var span = $.sibling(img, 2);
+
+			$.attribute_effect(
+				span,
+				() => ({
+					...avatar.fallback,
+					class: '!block text-4xl font-medium text-neutral-700'
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-1yyvp2u'
+			);
+
+			var text = $.only_child(span, true);
+
+			$.reset(div_2);
+			$.reset(div_1);
+
+			var span_1 = $.sibling(div_1, 4);
+			var span_2 = $.sibling(span_1, 2);
+
+			$.reset(div);
+
+			$.template_effect(() => {
+				$.set_text(text, $.get(initials));
+
+				$.set_class(span_2, 1, $.clsx([
+					"mt-2 text-red-300",
+					avatar.loadingStatus !== "error" && "pointer-events-none opacity-0"
+				]));
+			});
+
+			$.replay_events(img);
+			$.bind_content_editable('innerText', span_1, () => $.get(username), ($$value) => $.set(username, $$value));
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 2831 docs/src/previews/collapsible.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { Collapsible } from "melt/components";
+import { slide } from "svelte/transition";
+import ChevronUpDown from "~icons/heroicons/chevron-up-down-solid";
+import Close from "~icons/material-symbols/close-rounded";
+
+var root = $.from_html(`<div><span>melt-ui/melt-ui</span> <hr class="border-b border-gray-700"/> <span>sveltejs/svelte</span> <hr class="border-b border-gray-700"/> <span>sveltejs/kit</span></div>`);
+var root_1 = $.from_html(`<div class="mx-auto w-[18rem] max-w-full sm:w-[25rem]"><button><span>@thomasglopes starred 3 repositories</span> <!></button> <!></div>`);
+
+export default function Collapsible_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const controls = usePreviewControls({
+		disabled: { label: "Disabled", type: "boolean", defaultValue: false }
+	});
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			{
+				const children = ($$anchor, collapsible = $.noop) => {
+					var div = root_1();
+					var button = $.child(div);
+
+					$.attribute_effect(button, () => ({
+						...collapsible().trigger,
+						class: 'relative z-10 mx-auto flex w-full items-center justify-between rounded-xl bg-gray-200\n				px-4 py-2 text-gray-800 transition-all hover:cursor-pointer hover:bg-gray-300\n				active:bg-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50\n				dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50',
+						'aria-label': 'Toggle',
+						[$.CLASS]: { 'shadow-md': collapsible().open }
+					}));
+
+					var node = $.sibling($.child(button), 2);
+
+					{
+						var consequent = ($$anchor) => {
+							Close($$anchor, {});
+						};
+
+						var alternate = ($$anchor) => {
+							ChevronUpDown($$anchor, {});
+						};
+
+						$.if(node, ($$render) => {
+							if (collapsible().open) $$render(consequent); else $$render(alternate, -1);
+						});
+					}
+
+					$.reset(button);
+
+					var node_1 = $.sibling(button, 2);
+
+					{
+						var consequent_1 = ($$anchor) => {
+							var div_1 = root();
+
+							$.attribute_effect(div_1, () => ({
+								...collapsible().content,
+								class: 'mx-auto flex w-[calc(100%-32px)] flex-col gap-2 rounded-b-xl bg-white p-4 dark:bg-gray-900 dark:text-white/80'
+							}));
+
+							$.transition(3, div_1, () => slide);
+							$.append($$anchor, div_1);
+						};
+
+						$.if(node_1, ($$render) => {
+							if (collapsible().open) $$render(consequent_1);
+						});
+					}
+
+					$.reset(div);
+					$.append($$anchor, div);
+				};
+
+				Collapsible($$anchor, $.spread_props(() => controls, { children, $$slots: { default: true } }));
+			}
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 401 docs/src/previews/combobox.svelte	css
+
+	[data-melt-combobox-content].svelte-1ldzhpo {
+		position: absolute;
+		pointer-events: none;
+		opacity: 0;
+
+		transform: scale(0.975);
+
+		transition: 0.2s;
+		transition-property: opacity, transform;
+		transform-origin: var(--melt-popover-content-transform-origin, center);
+	}
+
+	[data-melt-combobox-content][data-open].svelte-1ldzhpo {
+		pointer-events: auto;
+		opacity: 1;
+
+		transform: scale(1);
+	}
+
+=== 5322 docs/src/previews/combobox.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { getters } from "melt";
+import { Combobox } from "melt/builders";
+import AlphabetJapanese from "~icons/hugeicons/alphabet-japanese";
+import Check from "~icons/lucide/check";
+import ChevronDown from "~icons/lucide/chevron-down";
+import { ascii } from "./ascii";
+
+var root = $.from_html(`<div><span> </span> <!></div>`);
+var root_1 = $.from_html(`<span class="opacity-50 py-2 pl-8 pr-2">No results found</span>`);
+var root_2 = $.from_html(`<div class="mx-auto flex w-[300px] flex-col gap-1"><label>Favorite Character</label> <div class="relative text-left text-gray-800 transition dark:text-gray-200"><!> <input/> <button><!></button></div> <span> </span> <div></div></div>`);
+
+export default function Combobox_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const controls = usePreviewControls({
+		multiple: { type: "boolean", defaultValue: false, label: "Multiple" },
+		disabled: { type: "boolean", defaultValue: false, label: "Disabled" }
+	});
+
+	const options = [
+		"Sung Jinwoo",
+		"Ichigo Kurosaki",
+		"Guts",
+		"Light Yagami",
+		"Naruto Uzumaki",
+		"Goku",
+		"Eren Jaeger",
+		"Monkey D. Luffy",
+		"Seto Kaiba",
+		"Spike Spiegel",
+		"Edward Elric",
+		"Levi Ackerman",
+		"Natsu Dragneel",
+		"Gon Freecss",
+		"Killua Zoldyck",
+		"Lelouch Lamperouge",
+		"Kira",
+		"Saitama",
+		"Vegeta",
+		"Hisoka Morow",
+		"Itachi Uchiha",
+		"Kakashi Hatake",
+		"Roronoa Zoro",
+		"Ken Kaneki",
+		"Meliodas",
+		"Tanjiro Kamado",
+		"Alucard",
+		"Roy Mustang",
+		"L Lawliet",
+		"Yami Sukehiro",
+		"Satoru Gojo",
+		"Mob",
+		"Yusuke Urameshi",
+		"Jotaro Kujo",
+		"Dio Brando"
+	].toSorted();
+
+	const combobox = new Combobox({
+		forceVisible: true,
+		onValueChange(option) {
+			if (option !== "Sung Jinwoo") {
+				console.log("I bet Sung Jinwoo could beat", option);
+			} else {
+				console.log(ascii.jinwoo);
+			}
+		},
+		...getters(controls)
+	});
+
+	const filtered = $.derived(() => {
+		if (!combobox.touched) return options;
+
+		return options.filter((o) => o.toLowerCase().includes(combobox.inputValue.trim().toLowerCase()));
+	});
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var div = root_2();
+			var label = $.child(div);
+
+			$.attribute_effect(label, () => ({ ...combobox.label }), void 0, void 0, void 0, 'svelte-1ldzhpo');
+
+			var div_1 = $.sibling(label, 2);
+			var node = $.child(div_1);
+
+			AlphabetJapanese(node, { class: 'abs-y-center absolute left-3 shrink-0' });
+
+			var input = $.sibling(node, 2);
+
+			$.attribute_effect(
+				input,
+				() => ({
+					...combobox.input,
+					class: 'w-full rounded-xl border border-gray-500 bg-gray-100 py-2 pl-9 text-left\n					disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50\n					dark:bg-gray-900',
+					type: 'text'
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-1ldzhpo',
+				true
+			);
+
+			var button = $.sibling(input, 2);
+
+			$.attribute_effect(
+				button,
+				() => ({
+					class: 'abs-y-center absolute right-3 grid shrink-0 place-items-center rounded-md\n					dark:bg-gray-700 dark:hover:bg-gray-500 dark:active:bg-gray-600',
+					...combobox.trigger
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-1ldzhpo'
+			);
+
+			var node_1 = $.child(button);
+
+			ChevronDown(node_1, {});
+			$.reset(button);
+			$.reset(div_1);
+
+			var span = $.sibling(div_1, 2);
+			var text = $.only_child(span);
+			var div_2 = $.sibling(span, 2);
+
+			$.attribute_effect(
+				div_2,
+				() => ({
+					...combobox.content,
+					class: 'flex max-h-96 flex-col rounded-xl border border-gray-500 bg-gray-100 p-2 shadow dark:bg-gray-800'
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-1ldzhpo'
+			);
+
+			$.each(
+				div_2,
+				20,
+				() => $.get(filtered),
+				(option) => option,
+				($$anchor, option) => {
+					var div_3 = root();
+
+					$.attribute_effect(
+						div_3,
+						($0) => ({
+							...$0,
+							class: [
+								"relative flex scroll-m-2 items-center justify-between rounded-xl py-2 pl-8 pr-2",
+								combobox.highlighted === option && "bg-gray-700",
+								combobox.value === option && "font-semibold"
+							]
+						}),
+						[() => combobox.getOption(option)],
+						void 0,
+						void 0,
+						'svelte-1ldzhpo'
+					);
+
+					var span_1 = $.child(div_3);
+					var text_1 = $.only_child(span_1, true);
+					var node_2 = $.sibling(span_1, 2);
+
+					{
+						var consequent = ($$anchor) => {
+							Check($$anchor, { class: 'text-accent-300 font-bold' });
+						};
+
+						var d = $.derived(() => combobox.isSelected(option));
+
+						$.if(node_2, ($$render) => {
+							if ($.get(d)) $$render(consequent);
+						});
+					}
+
+					$.reset(div_3);
+					$.template_effect(() => $.set_text(text_1, option));
+					$.append($$anchor, div_3);
+				},
+				($$anchor) => {
+					var span_2 = root_1();
+
+					$.append($$anchor, span_2);
+				}
+			);
+
+			$.reset(div_2);
+			$.reset(div);
+
+			$.template_effect(() => {
+				$.set_class(span, 1, $.clsx([
+					"text-sm opacity-75",
+					!(combobox.multiple && combobox.valueAsString) && "pointer-events-none invisible"
+				]));
+
+				$.set_text(text, `Selected: ${combobox.valueAsString ?? ''}`);
+			});
+
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 866 docs/src/previews/dialog.svelte	css
+
+	dialog.svelte-152tzhz {
+		opacity: 0;
+		scale: 0.8;
+		transition:
+			scale cubic-bezier(0.175, 0.885, 0.32, 1.275) 250ms,
+			opacity 200ms ease;
+	}
+
+	dialog.svelte-152tzhz::backdrop {
+		display: none;
+	}
+
+	dialog[data-open].svelte-152tzhz {
+		opacity: 1;
+		scale: 1;
+	}
+
+	[data-melt-dialog-overlay].svelte-152tzhz {
+		position: fixed;
+		width: 100%;
+		height: 100%;
+		background: transparent;
+		background: color-mix(in oklch, var(--color-black) 50%, transparent);
+		backdrop-filter: blur(20px);
+		opacity: 0;
+		transition: 200ms ease;
+	}
+
+	[data-melt-dialog-overlay][data-open].svelte-152tzhz {
+		opacity: 1;
+	}
+
+	.fade-in.svelte-152tzhz {
+		animation: svelte-152tzhz-fade-in 0.2s ease-in-out;
+	}
+
+	@keyframes svelte-152tzhz-fade-in {
+		from {
+			opacity: 0;
+			filter: blur(10px);
+			scale: 1.2;
+		}
+		to {
+			opacity: 1;
+			filter: blur(0);
+			scale: 1;
+		}
+	}
+
+=== 13376 docs/src/previews/dialog.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { Avatar, Dialog } from "melt/builders";
+import { flip } from "svelte/animate";
+import { scale } from "svelte/transition";
+import Close from "~icons/material-symbols/close-rounded";
+import Trash from "~icons/tabler/trash";
+
+const userProfile = ($$anchor, user = $.noop, a = $.noop) => {
+	const avatar = $.derived(() => a() ?? new Avatar({ src: user().img }));
+	var fragment = root();
+	var div = $.first_child(fragment);
+	var div_1 = $.child(div);
+	var p = $.child(div_1);
+	var text = $.only_child(p, true);
+
+	$.reset(div_1);
+
+	var img = $.sibling(div_1, 2);
+
+	$.attribute_effect(
+		img,
+		() => ({
+			...$.get(avatar).image,
+			alt: `${user().name}'s profile picture`,
+			class: [
+				"absolute inset-0 !block h-full w-full rounded-[inherit] object-cover",
+				$.get(avatar).loadingStatus === "loaded" ? "fade-in" : "invisible"
+			]
+		}),
+		void 0,
+		void 0,
+		void 0,
+		'svelte-152tzhz'
+	);
+
+	$.reset(div);
+
+	var p_1 = $.sibling(div, 2);
+	var text_1 = $.only_child(p_1, true);
+
+	$.template_effect(() => {
+		$.set_text(text, user().name[0]);
+		$.set_text(text_1, user().name);
+	});
+
+	$.replay_events(img);
+	$.append($$anchor, fragment);
+};
+
+var root = $.from_html(
+	`<div class="relative flex size-32 items-center justify-center overflow-hidden rounded-full"><div class="grid h-full w-full place-items-center rounded-full border bg-neutral-300 text-5xl font-medium text-neutral-700
+			dark:bg-neutral-800"><p> </p></div> <img/></div> <p class="mt-2 font-semibold text-gray-800 dark:text-gray-200"> </p>`,
+	1
+);
+
+var root_1 = $.from_html(`<div class="group relative"><button class="rounded-xl bg-transparent px-4 py-2 transition-all
+				hover:cursor-pointer hover:bg-gray-300/50
+				active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50
+				dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50"><!></button> <button class="delete-btn absolute right-3 top-2 grid size-7 place-items-center rounded-full
+					border border-red-200/50 bg-red-100/80 text-red-400
+					opacity-0 shadow-sm backdrop-blur-sm
+					transition-all duration-200
+					hover:bg-red-200/90 hover:text-red-500 hover:shadow-md
+					group-hover:opacity-100
+					dark:border-red-400/20 dark:bg-red-500/20 dark:text-red-300
+					dark:hover:bg-red-500/30 dark:hover:text-red-200"><!></button></div>`);
+
+var root_2 = $.from_html(`<button><div class="relative flex size-32 items-center justify-center overflow-hidden rounded-full"><div class="grid h-full w-full place-items-center rounded-full border bg-neutral-300 text-5xl font-medium text-neutral-700
+			dark:bg-neutral-800 dark:text-neutral-600"><p>+</p></div></div> <p class="mt-2 font-semibold text-gray-800 dark:text-gray-200">Add new</p></button>`);
+
+var root_3 = $.from_html(`<div><!></div>`);
+
+var root_4 = $.from_html(
+	`<button><!> <p class="text-sm font-light dark:text-gray-400">change user?</p></button> <div></div> <dialog><!> <div></div> <dialog><div class="mb-4 flex items-center justify-between"><h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Add new user</h2> <button class="grid place-items-center rounded-lg bg-transparent p-1 text-gray-400
+					transition-colors hover:bg-gray-100 hover:text-gray-600
+					dark:hover:bg-gray-700 dark:hover:text-gray-200"><!></button></div> <form class="flex flex-col gap-4"><label class="flex flex-col gap-1.5"><span class="text-sm font-medium text-gray-700 dark:text-gray-300">Name</span> <input type="text" name="name" required="" placeholder="Enter name..." class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900
+						placeholder:text-gray-400
+						focus:border-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500/20
+						dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100
+						dark:placeholder:text-gray-500 dark:focus:border-gray-400 dark:focus:ring-gray-400/20"/></label> <div class="mt-2 flex justify-end gap-3"><button type="button" class="rounded-xl bg-gray-100 px-4 py-2 font-medium text-gray-700
+						transition-all hover:cursor-pointer hover:bg-gray-200
+						active:bg-gray-300
+						dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:active:bg-gray-500">Cancel</button> <button type="submit" class="rounded-xl bg-gray-600 px-4 py-2 font-medium text-white
+						transition-all hover:cursor-pointer hover:bg-gray-500
+						active:bg-gray-400
+						dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:active:bg-gray-600">Add User</button></div></form></dialog> <div></div> <dialog><div class="mb-4 flex items-center justify-between"><h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Delete user</h2> <button class="grid place-items-center rounded-lg bg-transparent p-1 text-gray-400
+					transition-colors hover:bg-gray-100 hover:text-gray-600
+					dark:hover:bg-gray-700 dark:hover:text-gray-200"><!></button></div> <hr class="mb-4 border-gray-200 dark:border-gray-700"/> <p class="text-gray-600 dark:text-gray-300">Are you sure you want to delete <span class="font-semibold"> </span>?</p> <div class="mt-6 flex justify-end gap-3"><button type="button" class="rounded-xl bg-gray-100 px-4 py-2 font-medium text-gray-700
+					transition-all hover:cursor-pointer hover:bg-gray-200
+					active:bg-gray-300
+					dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:active:bg-gray-500">Cancel</button> <button type="button" class="rounded-xl bg-red-500 px-4 py-2 font-medium text-white
+					transition-all hover:cursor-pointer hover:bg-red-600
+					active:bg-red-700
+					dark:bg-red-800 dark:hover:bg-red-700 dark:active:bg-red-800">Delete</button></div></dialog></dialog>`,
+	1
+);
+
+export default function Dialog_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const controls = usePreviewControls({
+		scrollLock: { type: "boolean", defaultValue: true, label: "Scroll Lock" },
+		closeOnEscape: {
+			type: "boolean",
+			defaultValue: true,
+			label: "Close on Escape"
+		},
+		closeOnOutsideClick: {
+			type: "boolean",
+			defaultValue: true,
+			label: "Close on Outside Click"
+		}
+	});
+
+	const dialog = new Dialog({
+		scrollLock: () => controls.scrollLock,
+		closeOnEscape: () => controls.closeOnEscape,
+		closeOnOutsideClick: () => controls.closeOnOutsideClick
+	});
+
+	const formDialog = new Dialog({
+		scrollLock: () => controls.scrollLock,
+		closeOnEscape: () => controls.closeOnEscape,
+		closeOnOutsideClick: () => controls.closeOnOutsideClick
+	});
+
+	const deleteDialog = new Dialog({
+		scrollLock: () => controls.scrollLock,
+		closeOnEscape: () => controls.closeOnEscape,
+		closeOnOutsideClick: () => controls.closeOnOutsideClick
+	});
+
+	const users = $.proxy([
+		{ name: "Thomas", img: "/previews/dialog/thomas.jpg" },
+		{ name: "Invisigal", img: "/previews/dialog/invisigal.webp" },
+		{ name: "Esquie", img: "/previews/dialog/esquie.png" },
+		{ name: "Hornet", img: "/previews/dialog/hornet.jpg" },
+		{ name: "Denji", img: "/previews/dialog/denji.jpg" }
+	]);
+
+	let curr = $.state(0);
+	let userToDelete = $.state(null);
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var fragment_2 = root_4();
+			var button = $.first_child(fragment_2);
+
+			$.attribute_effect(
+				button,
+				() => ({
+					class: 'mx-auto block rounded-xl bg-transparent px-4 py-2\n		transition-all\n		hover:cursor-pointer hover:bg-gray-300/50\n		active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50\n		dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50',
+					...dialog.trigger
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-152tzhz'
+			);
+
+			var node = $.child(button);
+
+			userProfile(node, () => users[$.get(curr)]);
+			$.next(2);
+			$.reset(button);
+
+			var div_2 = $.sibling(button, 2);
+
+			$.attribute_effect(div_2, () => ({ ...dialog.overlay }), void 0, void 0, void 0, 'svelte-152tzhz');
+
+			var dialog_1 = $.sibling(div_2, 2);
+
+			$.attribute_effect(
+				dialog_1,
+				() => ({
+					class: 'abs-center visibility:[hidden] pointer-events-none z-10 grid grid-cols-3 overflow-visible\n		rounded-2xl border bg-white p-4 shadow-xl backdrop-blur-lg\n		data-[open]:pointer-events-auto data-[open]:visible\n		dark:border-gray-700 dark:bg-gray-900/80',
+					...dialog.content
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-152tzhz'
+			);
+
+			var node_1 = $.child(dialog_1);
+
+			$.each(node_1, 27, () => [...users, null], (u) => u ? u.name : null, ($$anchor, u, i) => {
+				var div_3 = root_3();
+				var node_2 = $.child(div_3);
+
+				{
+					var consequent = ($$anchor) => {
+						var div_4 = root_1();
+						var button_1 = $.child(div_4);
+						var node_3 = $.child(button_1);
+
+						userProfile(node_3, () => $.get(u));
+						$.reset(button_1);
+
+						var button_2 = $.sibling(button_1, 2);
+						var node_4 = $.child(button_2);
+
+						Trash(node_4, { class: 'size-3.5' });
+						$.reset(button_2);
+						$.reset(div_4);
+
+						$.delegated('click', button_1, () => {
+							$.set(curr, $.get(i), true);
+							dialog.open = false;
+						});
+
+						$.delegated('click', button_2, (e) => {
+							e.stopPropagation();
+							$.set(userToDelete, { index: $.get(i), user: $.get(u) }, true);
+							deleteDialog.open = true;
+						});
+
+						$.append($$anchor, div_4);
+					};
+
+					var alternate = ($$anchor) => {
+						var button_3 = root_2();
+
+						$.attribute_effect(
+							button_3,
+							() => ({
+								class: 'rounded-xl bg-transparent px-4 py-2 transition-all\n	hover:cursor-pointer hover:bg-gray-300/50\n	active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50\n	dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50',
+								...formDialog.trigger
+							}),
+							void 0,
+							void 0,
+							void 0,
+							'svelte-152tzhz'
+						);
+
+						$.append($$anchor, button_3);
+					};
+
+					$.if(node_2, ($$render) => {
+						if ($.get(u)) $$render(consequent); else $$render(alternate, -1);
+					});
+				}
+
+				$.reset(div_3);
+				$.animation(div_3, () => flip, () => ({ duration: 250, delay: 500 }));
+				$.transition(2, div_3, () => scale, () => ({ duration: 500, delay: 100 }));
+				$.append($$anchor, div_3);
+			});
+
+			var div_5 = $.sibling(node_1, 2);
+
+			$.attribute_effect(div_5, () => ({ ...formDialog.overlay }), void 0, void 0, void 0, 'svelte-152tzhz');
+
+			var dialog_2 = $.sibling(div_5, 2);
+
+			$.attribute_effect(
+				dialog_2,
+				() => ({
+					class: 'abs-center visibility:[hidden] pointer-events-none z-10 w-96 overflow-visible\n		rounded-2xl border bg-white p-6 shadow-xl backdrop-blur-lg\n		data-[open]:pointer-events-auto data-[open]:visible\n		dark:border-gray-700 dark:bg-gray-900/80',
+					...formDialog.content
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-152tzhz'
+			);
+
+			var div_6 = $.child(dialog_2);
+			var button_4 = $.sibling($.child(div_6), 2);
+			var node_5 = $.child(button_4);
+
+			Close(node_5, { class: 'size-5' });
+			$.reset(button_4);
+			$.reset(div_6);
+
+			var form = $.sibling(div_6, 2);
+			var div_7 = $.sibling($.child(form), 2);
+			var button_5 = $.child(div_7);
+
+			$.next(2);
+			$.reset(div_7);
+			$.reset(form);
+			$.reset(dialog_2);
+
+			var div_8 = $.sibling(dialog_2, 2);
+
+			$.attribute_effect(div_8, () => ({ ...deleteDialog.overlay }), void 0, void 0, void 0, 'svelte-152tzhz');
+
+			var dialog_3 = $.sibling(div_8, 2);
+
+			$.attribute_effect(
+				dialog_3,
+				() => ({
+					class: 'abs-center visibility:[hidden] w-128 pointer-events-none z-10 overflow-visible\n			rounded-2xl border bg-white p-6 shadow-xl backdrop-blur-lg\n			data-[open]:pointer-events-auto data-[open]:visible\n			dark:border-gray-700 dark:bg-gray-900/80',
+					...deleteDialog.content
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-152tzhz'
+			);
+
+			var div_9 = $.child(dialog_3);
+			var button_6 = $.sibling($.child(div_9), 2);
+			var node_6 = $.child(button_6);
+
+			Close(node_6, { class: 'size-5' });
+			$.reset(button_6);
+			$.reset(div_9);
+
+			var p_2 = $.sibling(div_9, 4);
+			var span = $.sibling($.child(p_2));
+			var text_2 = $.only_child(span, true);
+
+			$.next();
+			$.reset(p_2);
+
+			var div_10 = $.sibling(p_2, 2);
+			var button_7 = $.child(div_10);
+			var button_8 = $.sibling(button_7, 2);
+
+			$.reset(div_10);
+			$.reset(dialog_3);
+			$.reset(dialog_1);
+			$.template_effect(() => $.set_text(text_2, $.get(userToDelete)?.user.name));
+			$.delegated('click', button_4, () => formDialog.open = false);
+
+			$.event('submit', form, (e) => {
+				e.preventDefault();
+
+				const formData = new FormData(e.currentTarget);
+				const name = formData.get("name");
+
+				if (!name.trim()) return;
+
+				users.push({ name: name.trim() });
+				formDialog.open = false;
+				e.currentTarget.reset();
+			});
+
+			$.delegated('click', button_5, () => formDialog.open = false);
+			$.delegated('click', button_6, () => deleteDialog.open = false);
+			$.delegated('click', button_7, () => deleteDialog.open = false);
+
+			$.delegated('click', button_8, () => {
+				if ($.get(userToDelete)) {
+					users.splice($.get(userToDelete).index, 1);
+
+					if ($.get(curr) >= users.length) $.set(curr, Math.max(0, users.length - 1), true);
+
+					$.set(userToDelete, null);
+				}
+
+				deleteDialog.open = false;
+			});
+
+			$.append($$anchor, fragment_2);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 5896 docs/src/previews/file-upload.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { getters } from "melt";
+import { FileUpload } from "melt/builders";
+import { SvelteSet } from "svelte/reactivity";
+import UploadIcon from "~icons/tabler/cloud-upload";
+import XIcon from "~icons/tabler/x";
+
+var root = $.from_html(`<p class="text-accent-400 font-medium">Drop files here</p>`);
+var root_1 = $.from_html(`<span> </span>`);
+var root_2 = $.from_html(`<div class="pointer-events-none flex flex-col items-center gap-2"><!> <p class="text-sm text-gray-500 dark:text-gray-400"><span class="font-semibold text-gray-900 dark:text-white">Click to upload</span> or drag and drop</p> <p class="text-xs text-gray-500 dark:text-gray-400"> <!></p></div>`);
+
+var root_3 = $.from_html(`<li class="flex items-center gap-2 overflow-hidden py-3"><div class="flex min-w-0 flex-1 items-center justify-between gap-8"><div class="min-w-0 flex-1"><p class="truncate text-sm font-medium text-gray-900 dark:text-white"> </p> <p class="truncate text-xs text-gray-500 dark:text-gray-400"> </p></div> <div class="flex-shrink-0 text-xs text-gray-500 dark:text-gray-400"> </div></div> <button class="grid place-items-center bg-transparent text-gray-500
+							hover:text-gray-400 dark:text-gray-400 dark:hover:text-gray-300"><!></button></li>`);
+
+var root_4 = $.from_html(`<ul class="w-[300px] list-none divide-y divide-gray-200 p-0 dark:divide-gray-700"></ul>`);
+var root_5 = $.from_html(`<div class="flex flex-col items-center gap-4"><input/> <div><!></div> <!></div>`);
+
+export default function File_upload($$anchor, $$props) {
+	$.push($$props, true);
+
+	const controls = usePreviewControls({
+		multiple: { type: "boolean", label: "Multiple files", defaultValue: true },
+		avoidDuplicates: {
+			type: "boolean",
+			label: "Avoid duplicates",
+			defaultValue: true
+		},
+		accept: { type: "string", label: "Accept", defaultValue: "" },
+		maxSize: {
+			type: "number",
+			label: "Max size (bytes)",
+			defaultValue: 5 * 1024 * 1024 // 5MB
+		}
+	});
+
+	const fileUpload = new FileUpload({
+		...getters(controls),
+		selected: [new File([""], "empty.txt", { type: "text/plain" })],
+		onError: (e) => {
+			console.log(e);
+		}
+	});
+
+	const files = $.derived(() => {
+		if (fileUpload.selected instanceof SvelteSet) {
+			return Array.from(fileUpload.selected);
+		}
+
+		return [fileUpload.selected].filter((f) => !!f);
+	});
+
+	function formatFileSize(bytes) {
+		if (bytes === 0) return "0 Bytes";
+
+		const k = 1024;
+		const sizes = ["Bytes", "KB", "MB", "GB"];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+	}
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var div = root_5();
+			var input = $.child(div);
+
+			$.attribute_effect(input, () => ({ ...fileUpload.input }), void 0, void 0, void 0, void 0, true);
+
+			var div_1 = $.sibling(input, 2);
+
+			$.attribute_effect(div_1, () => ({
+				...fileUpload.dropzone,
+				class: 'relative flex min-h-[200px] w-[300px] cursor-pointer\n				flex-col items-center justify-center gap-4\n				rounded-xl border-2 border-dashed border-gray-300 bg-gray-50\n				p-6 text-center transition-colors\n				hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700',
+				[$.CLASS]: { '!border-accent-500': fileUpload.isDragging }
+			}));
+
+			var node = $.child(div_1);
+
+			{
+				var consequent = ($$anchor) => {
+					var p = root();
+
+					$.append($$anchor, p);
+				};
+
+				var alternate = ($$anchor) => {
+					var div_2 = root_2();
+					var node_1 = $.child(div_2);
+
+					UploadIcon(node_1, { class: 'text-4xl' });
+
+					var p_1 = $.sibling(node_1, 4);
+					var text = $.child(p_1);
+					var node_2 = $.sibling(text);
+
+					{
+						var consequent_1 = ($$anchor) => {
+							var span = root_1();
+							var text_1 = $.only_child(span);
+
+							$.template_effect(($0) => $.set_text(text_1, `(up to ${$0 ?? ''})`), [() => formatFileSize(controls.maxSize)]);
+							$.append($$anchor, span);
+						};
+
+						$.if(node_2, ($$render) => {
+							if (controls.maxSize) $$render(consequent_1);
+						});
+					}
+
+					$.reset(p_1);
+					$.reset(div_2);
+					$.template_effect(() => $.set_text(text, `${controls.accept ?? ''} `));
+					$.append($$anchor, div_2);
+				};
+
+				$.if(node, ($$render) => {
+					if (fileUpload.isDragging) $$render(consequent); else $$render(alternate, -1);
+				});
+			}
+
+			$.reset(div_1);
+
+			var node_3 = $.sibling(div_1, 2);
+
+			{
+				var consequent_2 = ($$anchor) => {
+					var ul = root_4();
+
+					$.each(ul, 21, () => $.get(files), $.index, ($$anchor, file) => {
+						var li = root_3();
+						var div_3 = $.child(li);
+						var div_4 = $.child(div_3);
+						var p_2 = $.child(div_4);
+						var text_2 = $.only_child(p_2, true);
+						var p_3 = $.sibling(p_2, 2);
+						var text_3 = $.only_child(p_3, true);
+
+						$.reset(div_4);
+
+						var div_5 = $.sibling(div_4, 2);
+						var text_4 = $.only_child(div_5, true);
+
+						$.reset(div_3);
+
+						var button = $.sibling(div_3, 2);
+						var node_4 = $.child(button);
+
+						XIcon(node_4, {});
+						$.reset(button);
+						$.reset(li);
+
+						$.template_effect(
+							($0) => {
+								$.set_text(text_2, $.get(file).name);
+								$.set_text(text_3, $.get(file).type);
+								$.set_text(text_4, $0);
+							},
+							[() => formatFileSize($.get(file).size)]
+						);
+
+						$.delegated('click', button, () => {
+							fileUpload.remove($.get(file));
+						});
+
+						$.append($$anchor, li);
+					});
+
+					$.reset(ul);
+					$.append($$anchor, ul);
+				};
+
+				$.if(node_3, ($$render) => {
+					if ($.get(files).length > 0) $$render(consequent_2);
+				});
+			}
+
+			$.reset(div);
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 2002 docs/src/previews/pin-input.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { getters } from "melt";
+import { PinInput } from "melt/builders";
+
+var root = $.from_html(`<input/>`);
+var root_1 = $.from_html(`<div></div>`);
+
+export default function Pin_input($$anchor, $$props) {
+	$.push($$props, true);
+
+	const controls = usePreviewControls({
+		maxLength: {
+			label: "Max length",
+			defaultValue: 4,
+			type: "number",
+			min: 1,
+			max: 8
+		},
+		type: {
+			label: "Type",
+			type: "select",
+			options: ["alphanumeric", "numeric", "text"],
+			defaultValue: "alphanumeric"
+		},
+		mask: { label: "Mask", type: "boolean", defaultValue: false },
+		disabled: { label: "Disabled", type: "boolean", defaultValue: false },
+		allowPaste: { label: "Allow paste", type: "boolean", defaultValue: true }
+	});
+
+	const pinInput = new PinInput({
+		...getters(controls),
+		onValueChange(v) {
+			pinInput.value = v.toUpperCase();
+		},
+
+		onComplete(v) {
+			console.log("Yay!", v);
+		}
+	});
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var div = root_1();
+
+			$.attribute_effect(div, () => ({
+				...pinInput.root,
+				class: 'flex items-center justify-center gap-2 font-mono'
+			}));
+
+			$.each(div, 21, () => pinInput.inputs, $.index, ($$anchor, input) => {
+				var input_1 = root();
+
+				$.attribute_effect(
+					input_1,
+					() => ({
+						class: 'focus:border-accent-500 size-12 rounded-xl border-2 border-gray-300 bg-white text-center\n				outline-none transition hover:border-gray-400 disabled:cursor-not-allowed\n				dark:border-gray-400/50 dark:bg-gray-900 dark:hover:border-gray-400 dark:focus:border-gray-300',
+						...$.get(input)
+					}),
+					void 0,
+					void 0,
+					void 0,
+					void 0,
+					true
+				);
+
+				$.append($$anchor, input_1);
+			});
+
+			$.reset(div);
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 323 docs/src/previews/popover-multiple-triggers.svelte	css
+
+	[data-melt-popover-content].svelte-1okmgpl {
+		position: absolute;
+		pointer-events: none;
+		opacity: 0;
+
+		transform: scale(0.9);
+
+		transition: 0.3s;
+		transition-property: opacity, transform;
+	}
+
+	[data-melt-popover-content][data-open].svelte-1okmgpl {
+		pointer-events: auto;
+		opacity: 1;
+
+		transform: scale(1);
+	}
+
+=== 5132 docs/src/previews/popover-multiple-triggers.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { objectEntries } from "@antfu/utils";
+import Preview from "@components/preview.svelte";
+import { mergeAttrs } from "melt";
+import { Popover } from "melt/builders";
+
+var root = $.from_html(`<button><span> </span> </button>`);
+var root_1 = $.from_html(`<button class="bg-transparent text-left text-sm underline transition-colors hover:opacity-75 active:opacity-50"> </button>`);
+var root_2 = $.from_html(`<div class="mb-3 flex items-center gap-2"><span class="text-xl"> </span> <h3 class="text-lg font-semibold"> </h3></div> <p class="mb-4 text-sm text-gray-600 dark:text-gray-400"> </p> <div class="flex flex-col gap-1"></div>`, 1);
+var root_3 = $.from_html(`<p class="text-center text-gray-500 dark:text-gray-400">Click a trigger to see contextual content</p>`);
+var root_4 = $.from_html(`<div class="flex flex-col items-center gap-6"><div class="flex gap-4"></div> <p class="text-sm text-gray-600 dark:text-gray-400">Click any button to see contextual content in the shared popover.</p></div> <div><!></div>`, 1);
+
+export default function Popover_multiple_triggers($$anchor, $$props) {
+	$.push($$props, true);
+
+	const popover = new Popover({ forceVisible: true, focus: { trap: true } });
+	let activeTrigger = $.state(null);
+
+	const triggerData = {
+		user: {
+			label: "User Profile",
+			icon: "👤",
+			content: {
+				title: "User Settings",
+				description: "Manage your account preferences and profile information.",
+				actions: ["Edit Profile", "Change Password", "Privacy Settings"]
+			}
+		},
+		notifications: {
+			label: "Notifications",
+			icon: "🔔",
+			content: {
+				title: "Notification Center",
+				description: "You have 3 unread notifications and 2 pending updates.",
+				actions: ["Mark All Read", "Settings", "Disable"]
+			}
+		},
+		help: {
+			label: "Help & Support",
+			icon: "❓",
+			content: {
+				title: "Help Center",
+				description: "Get assistance with common questions and troubleshooting.",
+				actions: ["View FAQ", "Contact Support", "Report Bug"]
+			}
+		}
+	};
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_4();
+			var div = $.first_child(fragment_1);
+			var div_1 = $.child(div);
+
+			$.each(div_1, 21, () => objectEntries(triggerData), $.index, ($$anchor, $$item) => {
+				var $$array = $.derived(() => $.to_array($.get($$item), 2));
+				let key = () => $.get($$array)[0];
+				let data = () => $.get($$array)[1];
+				var button = root();
+
+				$.attribute_effect(
+					button,
+					($0) => ({
+						class: 'block rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-800\n				transition-all hover:cursor-pointer hover:bg-gray-200\n				active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50\n				dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50',
+						...$0
+					}),
+					[
+						() => mergeAttrs(popover.trigger, { onclick: () => $.set(activeTrigger, key(), true) })
+					],
+					void 0,
+					void 0,
+					'svelte-1okmgpl'
+				);
+
+				var span = $.child(button);
+				var text = $.only_child(span, true);
+				var text_1 = $.sibling(span);
+
+				$.reset(button);
+
+				$.template_effect(() => {
+					$.set_text(text, data().icon);
+					$.set_text(text_1, ` ${data().label ?? ''}`);
+				});
+
+				$.append($$anchor, button);
+			});
+
+			$.reset(div_1);
+			$.next(2);
+			$.reset(div);
+
+			var div_2 = $.sibling(div, 2);
+
+			$.attribute_effect(
+				div_2,
+				() => ({
+					class: 'w-[280px] overflow-visible rounded-2xl bg-white p-4 shadow-xl dark:bg-gray-800',
+					...popover.content
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-1okmgpl'
+			);
+
+			var node = $.child(div_2);
+
+			{
+				var consequent = ($$anchor) => {
+					const data = $.derived(() => triggerData[$.get(activeTrigger)].content);
+					var fragment_2 = root_2();
+					var div_3 = $.first_child(fragment_2);
+					var span_1 = $.child(div_3);
+					var text_2 = $.only_child(span_1, true);
+					var h3 = $.sibling(span_1, 2);
+					var text_3 = $.only_child(h3, true);
+
+					$.reset(div_3);
+
+					var p = $.sibling(div_3, 2);
+					var text_4 = $.only_child(p, true);
+					var div_4 = $.sibling(p, 2);
+
+					$.each(div_4, 21, () => $.get(data).actions, $.index, ($$anchor, action) => {
+						var button_1 = root_1();
+						var text_5 = $.only_child(button_1, true);
+
+						$.template_effect(() => $.set_text(text_5, $.get(action)));
+						$.append($$anchor, button_1);
+					});
+
+					$.reset(div_4);
+
+					$.template_effect(() => {
+						$.set_text(text_2, triggerData[$.get(activeTrigger)].icon);
+						$.set_text(text_3, $.get(data).title);
+						$.set_text(text_4, $.get(data).description);
+					});
+
+					$.append($$anchor, fragment_2);
+				};
+
+				var alternate = ($$anchor) => {
+					var p_1 = root_3();
+
+					$.append($$anchor, p_1);
+				};
+
+				$.if(node, ($$render) => {
+					if ($.get(activeTrigger) && triggerData[$.get(activeTrigger)]) $$render(consequent); else $$render(alternate, -1);
+				});
+			}
+
+			$.reset(div_2);
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 321 docs/src/previews/popover.svelte	css
+
+	[data-melt-popover-content].svelte-ishmsc {
+		position: absolute;
+		pointer-events: none;
+		opacity: 0;
+
+		transform: scale(0.9);
+
+		transition: 0.3s;
+		transition-property: opacity, transform;
+	}
+
+	[data-melt-popover-content][data-open].svelte-ishmsc {
+		pointer-events: auto;
+		opacity: 1;
+
+		transform: scale(1);
+	}
+
+=== 3190 docs/src/previews/popover.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Preview from "@components/preview.svelte";
+import { Popover as PopoverComponent } from "melt/components";
+import { Popover } from "melt/builders";
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+
+var root = $.from_html(`<div></div>`);
+var root_1 = $.from_html(`<button>yes</button> <div>you're awesome</div>`, 1);
+var root_2 = $.from_html(`<button>psst...</button> <div><!> <p class="text-center font-semibold">Can I tell you a secret?</p> <div class="mt-4 flex items-center justify-center gap-4"><!></div></div>`, 1);
+
+export default function Popover_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const controls = usePreviewControls({
+		arrow: { label: "Show arrow", type: "boolean", defaultValue: false }
+	});
+
+	const popover = new Popover({ forceVisible: true });
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_2();
+			var button = $.first_child(fragment_1);
+
+			$.attribute_effect(
+				button,
+				() => ({
+					class: 'mx-auto block rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-800\n				transition-all hover:cursor-pointer hover:bg-gray-200\n				active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50\n				dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50',
+					...popover.trigger
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-ishmsc'
+			);
+
+			var div = $.sibling(button, 2);
+
+			$.attribute_effect(
+				div,
+				() => ({
+					class: 'w-[260px] overflow-visible rounded-2xl bg-white p-4 shadow-xl dark:bg-gray-800',
+					...popover.content
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-ishmsc'
+			);
+
+			var node = $.child(div);
+
+			{
+				var consequent = ($$anchor) => {
+					var div_1 = root();
+
+					$.attribute_effect(div_1, () => ({ ...popover.arrow, class: 'size-2 rounded-tl' }), void 0, void 0, void 0, 'svelte-ishmsc');
+					$.append($$anchor, div_1);
+				};
+
+				$.if(node, ($$render) => {
+					if (controls.arrow) $$render(consequent);
+				});
+			}
+
+			var div_2 = $.sibling(node, 4);
+			var node_1 = $.child(div_2);
+
+			{
+				const children = ($$anchor, popover2 = $.noop) => {
+					var fragment_2 = root_1();
+					var button_1 = $.first_child(fragment_2);
+
+					$.attribute_effect(
+						button_1,
+						() => ({
+							class: 'border-b-2 border-dashed bg-transparent transition hover:cursor-pointer hover:opacity-75 active:opacity-50',
+							...popover2().trigger
+						}),
+						void 0,
+						void 0,
+						void 0,
+						'svelte-ishmsc'
+					);
+
+					var div_3 = $.sibling(button_1, 2);
+
+					$.attribute_effect(
+						div_3,
+						() => ({
+							...popover2().content,
+							class: 'rounded-xl bg-gray-100 p-4 shadow-xl backdrop-blur dark:bg-gray-700'
+						}),
+						void 0,
+						void 0,
+						void 0,
+						'svelte-ishmsc'
+					);
+
+					$.append($$anchor, fragment_2);
+				};
+
+				PopoverComponent(node_1, { forceVisible: true, children, $$slots: { default: true } });
+			}
+
+			$.reset(div_2);
+			$.reset(div);
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 3329 docs/src/previews/progress.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import NumberFlow from "@number-flow/svelte";
+import Preview from "@components/preview.svelte";
+import { Progress } from "melt/builders";
+import { Spring } from "svelte/motion";
+
+var root = $.from_html(`<div class="flex flex-col items-center gap-2"><span><!></span> <div><div></div></div></div>`);
+
+export default function Progress_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const spring = new Spring(50, { damping: 5 });
+	const progress = new Progress({ value: () => spring.current });
+	const value = $.derived(() => Math.round(progress.value));
+
+	function scaleConvert(value, from, to) {
+		const [minA, maxA] = from;
+		const [minB, maxB] = to;
+
+		return (value - minA) / (maxA - minA) * (maxB - minB) + minB;
+	}
+
+	function clamp(min, value, max) {
+		return Math.min(Math.max(value, min), max);
+	}
+
+	$.user_effect(() => {
+		progress.value = scaleConvert($.get(value), [0, 100], [1, 0]);
+	});
+
+	$.user_effect(() => {
+		progress.value = scaleConvert(spring.current, [0, 100], [1, 0]);
+	});
+
+	$.user_effect(() => {
+		const interval = setInterval(
+			() => {
+				spring.target = Math.round(Math.random() * 100);
+			},
+			2000
+		);
+
+		return () => {
+			clearInterval(interval);
+		};
+	});
+
+	const dark = {
+		h: 34,
+		maxS: 81.01,
+		s: () => Math.min(scaleConvert($.get(value), [0, 60], [0, dark.maxS]), dark.maxS),
+		minL: 65.1,
+		l: () => clamp(dark.minL, scaleConvert($.get(value), [0, 80], [100, dark.minL]), 100)
+	};
+
+	const darkClr = $.derived(() => `hsl(${dark.h}, ${dark.s()}%, ${dark.l()}%)`);
+
+	const light = {
+		h: 34,
+		maxS: 81.01,
+		s: () => Math.min(scaleConvert($.get(value), [0, 60], [0, light.maxS]), light.maxS),
+		maxL: 65.1,
+		l: () => clamp(40, scaleConvert($.get(value), [0, 80], [0, light.maxL]), light.maxL)
+	};
+
+	const lightClr = $.derived(() => `hsl(${light.h}, ${light.s()}%, ${light.l()}%)`);
+	const clrClasses = "text-(--light) dark:text-(--dark)";
+	const bgClasses = "bg-(--light) dark:bg-(--dark)";
+	const clrStyle = $.derived(() => `--light: ${$.get(lightClr)}; --dark: ${$.get(darkClr)};`);
+
+	Preview($$anchor, {
+		class: 'place-content-center',
+		children: ($$anchor, $$slotProps) => {
+			var div = root();
+			var span = $.child(div);
+
+			$.set_class(span, 1, $.clsx(["origin-bottom", clrClasses]));
+
+			let styles;
+			var node = $.child(span);
+
+			NumberFlow(node, {
+				get value() {
+					return $.get(value);
+				},
+				suffix: '%',
+				class: 'font-semibold'
+			});
+
+			$.reset(span);
+
+			var div_1 = $.sibling(span, 2);
+
+			$.attribute_effect(
+				div_1,
+				($0) => ({
+					...progress.root,
+					class: 'relative w-[300px] overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700',
+					[$.STYLE]: { height: $0 }
+				}),
+				[() => `${scaleConvert($.get(value), [0, 100], [8, 24])}px`]
+			);
+
+			var div_2 = $.child(div_1);
+
+			$.attribute_effect(div_2, () => ({
+				...progress.progress,
+				class: ["h-full w-full -translate-x-[var(--progress)]", bgClasses]
+			}));
+
+			$.reset(div_1);
+			$.reset(div);
+
+			$.template_effect(
+				($0) => {
+					$.set_style(div, $.get(clrStyle));
+					styles = $.set_style(span, '', styles, { scale: $0 });
+				},
+				[() => scaleConvert($.get(value), [0, 100], [1, 2])]
+			);
+
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 3521 docs/src/previews/radio-group.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { getters } from "melt";
+import { RadioGroup } from "melt/builders";
+
+var root = $.from_html(`<div aria-hidden="true"></div>`);
+var root_1 = $.from_html(`<div><div><!></div> <span class="font-semibold capitalize leading-none text-gray-600 dark:text-gray-100"> </span></div>`);
+var root_2 = $.from_html(`<div><label>Layout</label> <div></div> <input/></div>`);
+
+export default function Radio_group($$anchor, $$props) {
+	$.push($$props, true);
+
+	const items = $.proxy(["default", "comfortable", "compact"]);
+
+	let controls = usePreviewControls({
+		value: {
+			type: "select",
+			label: "Value",
+			options: items,
+			defaultValue: "default"
+		},
+		disabled: { type: "boolean", label: "Disabled", defaultValue: false },
+		loop: { type: "boolean", label: "Loop", defaultValue: true },
+		selectWhenFocused: {
+			type: "boolean",
+			label: "Select when focused",
+			defaultValue: true
+		},
+		orientation: {
+			type: "select",
+			label: "Orientation",
+			options: ["horizontal", "vertical"],
+			defaultValue: "vertical"
+		}
+	});
+
+	const group = new RadioGroup({
+		...getters(controls),
+		onValueChange(v) {
+			controls.value = v;
+		}
+	});
+
+	const isVert = $.derived(() => group.orientation === "vertical");
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var div = root_2();
+
+			$.attribute_effect(div, () => ({ class: 'mx-auto flex w-fit flex-col gap-2', ...group.root }));
+
+			var label = $.child(div);
+
+			$.attribute_effect(label, () => ({ ...group.label, class: 'font-medium' }));
+
+			var div_1 = $.sibling(label, 2);
+
+			$.each(div_1, 21, () => items, $.index, ($$anchor, i) => {
+				const item = $.derived(() => group.getItem($.get(i)));
+				var div_2 = root_1();
+
+				$.attribute_effect(div_2, () => ({
+					class: 'ring-accent-500 -ml-1 flex items-center gap-3 rounded p-1 outline-none focus-visible:ring\n					data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50',
+					...$.get(item).attrs
+				}));
+
+				var div_3 = $.child(div_2);
+				var node = $.child(div_3);
+
+				{
+					var consequent = ($$anchor) => {
+						var div_4 = root();
+
+						$.template_effect(() => $.set_class(div_4, 1, $.clsx([
+							"h-3 w-3 rounded-full",
+							$.get(item).checked && "dark:bg-accent-500 bg-white"
+						])));
+
+						$.append($$anchor, div_4);
+					};
+
+					$.if(node, ($$render) => {
+						if ($.get(item).checked) $$render(consequent);
+					});
+				}
+
+				$.reset(div_3);
+
+				var span = $.sibling(div_3, 2);
+				var text = $.only_child(span, true);
+
+				$.reset(div_2);
+
+				$.template_effect(() => {
+					$.set_class(div_3, 1, $.clsx([
+						"grid h-6 w-6 place-items-center rounded-full border shadow-sm",
+						"hover:bg-gray-100 data-[disabled=true]:bg-gray-400",
+						$.get(item).checked
+							? "bg-accent-500 border-accent-500 dark:bg-white"
+							: "border-neutral-400 bg-neutral-100",
+						"dark:border-white"
+					]));
+
+					$.set_text(text, $.get(i));
+				});
+
+				$.append($$anchor, div_2);
+			});
+
+			$.reset(div_1);
+
+			var input = $.sibling(div_1, 2);
+
+			$.attribute_effect(input, () => ({ ...group.hiddenInput }), void 0, void 0, void 0, void 0, true);
+			$.reset(div);
+			$.template_effect(() => $.set_class(div_1, 1, `flex ${$.get(isVert) ? 'flex-col gap-1' : 'flex-row gap-3'}`));
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 397 docs/src/previews/select.svelte	css
+
+	[data-melt-select-content].svelte-1ctrcbj {
+		position: absolute;
+		pointer-events: none;
+		opacity: 0;
+
+		transform: scale(0.975);
+
+		transition: 0.2s;
+		transition-property: opacity, transform;
+		transform-origin: var(--melt-popover-content-transform-origin, center);
+	}
+
+	[data-melt-select-content][data-open].svelte-1ctrcbj {
+		pointer-events: auto;
+		opacity: 1;
+
+		transform: scale(1);
+	}
+
+=== 4118 docs/src/previews/select.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { getters } from "melt";
+import { Select } from "melt/builders";
+import AlphabetJapanese from "~icons/hugeicons/alphabet-japanese";
+import Check from "~icons/lucide/check";
+import ChevronDown from "~icons/lucide/chevron-down";
+
+var root = $.from_html(`<div><span> </span> <!></div>`);
+var root_1 = $.from_html(`<div class="mx-auto flex w-[300px] flex-col gap-1"><label>Anime</label> <button><div class="inline-flex items-center gap-2 overflow-hidden"><!> <span class="truncate"> </span></div> <!></button> <div></div></div>`);
+
+export default function Select_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const controls = usePreviewControls({
+		multiple: { type: "boolean", defaultValue: false, label: "Multiple" },
+		disabled: { type: "boolean", defaultValue: false, label: "Disabled" }
+	});
+
+	const options = [
+		{ value: "Solo Leveling", label: "Solo Leveling" },
+		{ value: "Bleach", label: "Bleach" },
+		{ value: "Dan da Dan", label: "Dan da Dan" },
+		{ value: "Re: Zero", label: "Re: Zero" },
+		{ value: "Jujutsu Kaisen", label: "Jujutsu Kaisen" },
+		{ value: "Attack on Titan", label: "Attack on Titan" },
+		{ value: "Death Note", label: "Death Note" }
+	];
+
+	const select = new Select({ forceVisible: true, ...getters(controls) });
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var div = root_1();
+			var label = $.child(div);
+
+			$.attribute_effect(label, () => ({ ...select.label }), void 0, void 0, void 0, 'svelte-1ctrcbj');
+
+			var button = $.sibling(label, 2);
+
+			$.attribute_effect(
+				button,
+				() => ({
+					...select.trigger,
+					class: 'flex items-center justify-between overflow-hidden rounded-xl border border-gray-500 bg-gray-100 py-2 pl-3 pr-4 text-left text-gray-800\n				transition hover:cursor-pointer hover:bg-gray-200\n				active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50\n				dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50'
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-1ctrcbj'
+			);
+
+			var div_1 = $.child(button);
+			var node = $.child(div_1);
+
+			AlphabetJapanese(node, { class: 'shrink-0' });
+
+			var span = $.sibling(node, 2);
+			var text = $.only_child(span, true);
+
+			$.reset(div_1);
+
+			var node_1 = $.sibling(div_1, 2);
+
+			ChevronDown(node_1, { class: 'shrink-0' });
+			$.reset(button);
+
+			var div_2 = $.sibling(button, 2);
+
+			$.attribute_effect(
+				div_2,
+				() => ({
+					...select.content,
+					class: 'flex flex-col rounded-xl border border-gray-500 bg-gray-100 p-2 shadow dark:bg-gray-800'
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-1ctrcbj'
+			);
+
+			$.each(div_2, 21, () => options, $.index, ($$anchor, option) => {
+				var div_3 = root();
+
+				$.attribute_effect(
+					div_3,
+					($0) => ({
+						...$0,
+						class: [
+							"relative flex items-center justify-between rounded-xl py-2 pl-8 pr-2",
+							select.highlighted === $.get(option).value && "bg-gray-700",
+							select.value === $.get(option).value && "font-semibold"
+						]
+					}),
+					[
+						() => select.getOption($.get(option).value, $.get(option).label)
+					],
+					void 0,
+					void 0,
+					'svelte-1ctrcbj'
+				);
+
+				var span_1 = $.child(div_3);
+				var text_1 = $.only_child(span_1, true);
+				var node_2 = $.sibling(span_1, 2);
+
+				{
+					var consequent = ($$anchor) => {
+						Check($$anchor, { class: 'text-accent-300 font-bold' });
+					};
+
+					var d = $.derived(() => select.isSelected($.get(option).value));
+
+					$.if(node_2, ($$render) => {
+						if ($.get(d)) $$render(consequent);
+					});
+				}
+
+				$.reset(div_3);
+				$.template_effect(() => $.set_text(text_1, $.get(option).label));
+				$.append($$anchor, div_3);
+			});
+
+			$.reset(div_2);
+			$.reset(div);
+			$.template_effect(() => $.set_text(text, select.valueAsString || "Select an anime"));
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 2388 docs/src/previews/slider.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { getters } from "melt";
+import { Slider } from "melt/builders";
+
+var root = $.from_html(`<div><div><div></div></div> <div></div></div>`);
+
+export default function Slider_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const controls = usePreviewControls({
+		step: { type: "number", label: "Step", defaultValue: 1 },
+		min: { type: "number", label: "Min", defaultValue: 0 },
+		max: { type: "number", label: "Max", defaultValue: 100 },
+		orientation: {
+			type: "select",
+			label: "Orientation",
+			options: ["horizontal", "vertical"],
+			defaultValue: "horizontal"
+		}
+	});
+
+	const slider = new Slider({ ...getters(controls), value: 30 });
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var div = root();
+
+			$.attribute_effect(div, () => ({
+				class: `group relative mx-auto p-3 outline-none
+				${slider.orientation === 'horizontal' ? 'w-[350px] max-w-[90%]' : 'h-[350px] w-[50px]'}`,
+				...slider.root
+			}));
+
+			var div_1 = $.child(div);
+			var div_2 = $.only_child(div_1);
+			var div_3 = $.sibling(div_1, 2);
+
+			$.attribute_effect(div_3, () => ({
+				class: `focus-visible:ring-accent-300 border-accent-300 absolute size-6 rounded-md border-2 bg-white outline-none transition-all
+					focus-visible:ring focus-visible:ring-offset-black data-[dragging]:transition-none
+					dark:border-none dark:focus-visible:ring-offset-2
+					${slider.orientation === 'horizontal'
+					? 'left-[var(--percentage)] top-1/2 -translate-x-1/2 -translate-y-1/2'
+					: 'left-1/2 top-[var(--percentage)] -translate-x-1/2 -translate-y-1/2'}`,
+				...slider.thumb
+			}));
+
+			$.reset(div);
+
+			$.template_effect(() => {
+				$.set_class(div_1, 1, `absolute rounded-full bg-gray-500
+					${slider.orientation === 'horizontal'
+					? 'left-0 right-0 top-1/2 h-2 -translate-y-1/2'
+					: 'bottom-0 left-1/2 top-0 w-2 -translate-x-1/2'}`);
+
+				$.set_class(div_2, 1, `bg-accent-300 absolute inset-0 rounded-full transition-all group-data-[dragging]:transition-none
+						${slider.orientation === 'horizontal'
+					? 'right-[var(--percentage-inv)]'
+					: 'top-[var(--percentage)]'}`);
+			});
+
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 2350 docs/src/previews/tabs.svelte	css
+
+	[data-melt-tabs-content][data-orientation="horizontal"].svelte-1upx803 {
+		width: min(550px, 50vw);
+	}
+
+	[class*="-grid"].svelte-1upx803 {
+		display: grid;
+		grid-template-columns: repeat(12, 1fr);
+		gap: 1rem;
+	}
+
+	.media.svelte-1upx803 {
+		position: relative;
+		object-fit: cover;
+	}
+
+	.media.svelte-1upx803::after {
+		position: absolute;
+		content: "";
+		inset: 0;
+		z-index: 1;
+		background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.5));
+	}
+
+	/* Movies */
+	.movie-grid.svelte-1upx803 {
+		grid-template-rows: repeat(auto-fill, 250px);
+	}
+
+	.movie-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(1) {
+		grid-column: 1 / 8;
+	}
+
+	.movie-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(2) {
+		grid-column: 8 / 12;
+	}
+
+	.movie-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(3) {
+		grid-column: 2 / 6;
+	}
+
+	.movie-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(4) {
+		grid-column: 6 / 13;
+	}
+
+	/* Anime */
+	.anime-grid.svelte-1upx803 {
+		grid-template-rows: repeat(auto-fill, 200px);
+	}
+
+	.anime-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(1) {
+		grid-column: 1 / 9;
+	}
+
+	.anime-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(2) {
+		grid-column: 9 / 13;
+	}
+
+	.anime-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(3) {
+		grid-column: 1 / 6;
+	}
+
+	.anime-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(4) {
+		grid-column: 6 / 13;
+	}
+
+	/* Games */
+	.game-grid.svelte-1upx803 {
+		grid-template-rows: 260px 200px;
+	}
+
+	.game-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(1) {
+		grid-column: 1 / 13;
+	}
+
+	.game-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(2) {
+		grid-column: 1 / 5;
+	}
+
+	.game-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(3) {
+		grid-column: 5 / 9;
+	}
+
+	.game-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(4) {
+		grid-column: 9 / 13;
+	}
+
+	/* Music */
+	.music-grid.svelte-1upx803 {
+		grid-template-rows: repeat(2, 220px);
+	}
+
+	.music-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(1) {
+		grid-column: 1 / 7;
+	}
+
+	.music-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(2) {
+		grid-column: 7 / 13;
+	}
+
+	.music-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(3) {
+		grid-column: 1 / 7;
+	}
+
+	.music-grid.svelte-1upx803 > :where(.svelte-1upx803):nth-child(4) {
+		grid-column: 7 / 13;
+	}
+
+=== 10287 docs/src/previews/tabs.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Preview from "@components/preview.svelte";
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import { Tabs } from "melt/builders";
+import { Debounced, ElementSize, Previous } from "runed";
+import Transition from "@components/transition.svelte";
+
+var root = $.from_html(`<div class="media overflow-hidden svelte-1upx803"><img class="h-full w-full rounded-xl object-cover" alt=""/> <p class="absolute bottom-2 left-2 z-10 w-[calc(100%-1rem)] overflow-hidden text-ellipsis
+					whitespace-nowrap text-sm font-extrabold text-white sm:left-3 sm:text-xl"> </p></div>`);
+
+var root_1 = $.from_html(`<button><div class="group-focus-visible:ring-accent-600 group-data-[active]:bg-accent-500 overflow-clip rounded-full px-4
+						py-1 transition
+						group-focus-visible:ring-4 group-[&amp;:not([data-active]):hover]:bg-gray-200
+						group-data-[active]:text-white dark:group-[&amp;:not([data-active]):hover]:bg-white/10 dark:group-data-[active]:bg-white dark:group-data-[active]:text-black svelte-1upx803"> </div></button>`);
+
+var root_2 = $.from_html(`<div class="movie-grid svelte-1upx803"><!> <!> <!> <!></div>`);
+var root_3 = $.from_html(`<div class="anime-grid svelte-1upx803"><!> <!> <!> <!></div>`);
+var root_4 = $.from_html(`<div class="game-grid svelte-1upx803"><!> <!> <!> <!></div>`);
+var root_5 = $.from_html(`<div class="music-grid svelte-1upx803"><!> <!> <!> <!></div>`);
+var root_6 = $.from_html(`<div><!></div>`);
+var root_7 = $.from_html(`<div><div></div> <div><div class="inner"></div></div></div>`);
+
+export default function Tabs_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const controls = usePreviewControls({
+		loop: { label: "Loop", defaultValue: true, type: "boolean" },
+		selectWhenFocused: {
+			label: "Select when focused",
+			defaultValue: true,
+			type: "boolean"
+		},
+		orientation: {
+			label: "Orientation",
+			defaultValue: "horizontal",
+			type: "select",
+			options: ["horizontal", "vertical"]
+		}
+	});
+
+	const tabIds = ["Movies & TV", "Anime & Manga", "Games", "Music"];
+
+	const tabs = new Tabs({
+		value: "Movies & TV",
+		loop: () => controls.loop,
+		selectWhenFocused: () => controls.selectWhenFocused,
+		orientation: () => controls.orientation
+	});
+
+	let inner = $.state(void 0);
+	const innerSize = new ElementSize(() => $.get(inner));
+	let transitioning = $.state(false);
+	let activeTab = $.state($.proxy(tabs.value));
+
+	$.user_effect(() => {
+		if ($.get(transitioning) || $.get(activeTab) === tabs.value) return;
+
+		$.set(activeTab, tabs.value, true);
+		$.set(transitioning, true);
+		setTimeout(() => $.set(transitioning, false), 350);
+	});
+
+	// Hack to make sure transitions behave
+	const debouncedTab = new Debounced(() => $.get(activeTab), 1);
+
+	const previousTab = new Previous(() => $.get(activeTab));
+
+	const forwards = $.derived(() => {
+		const prevIndex = tabIds.indexOf(previousTab.current ?? tabIds[0]);
+		const currIndex = tabIds.indexOf($.get(activeTab));
+		const isLooping = [prevIndex, currIndex].every((i) => i === 0 || i === tabIds.length - 1);
+
+		return isLooping ? prevIndex > currIndex : prevIndex < currIndex;
+	});
+
+	const transitionConfigs = $.derived(() => ({
+		horizontal: {
+			leaveFrom: "-translate-x-1/2 !duration-0",
+			leaveTo: `opacity-0 ${$.get(forwards)
+				? "translate-x-[calc(-50%-5rem)]"
+				: "translate-x-[calc(-50%+5rem)]"}`,
+			leave: "absolute left-1/2 duration-300",
+			enterFrom: `opacity-0 ${$.get(forwards) ? "translate-x-[5rem]" : "translate-x-[-5rem]"}`,
+			enter: "duration-300 relative z-10"
+		},
+		vertical: {
+			leaveFrom: "-translate-y-1/2 !duration-0",
+			leaveTo: `opacity-0 ${$.get(forwards)
+				? "translate-y-[calc(-50%-5rem)]"
+				: "translate-y-[calc(-50%+5rem)]"}`,
+			leave: "absolute top-1/2 duration-300",
+			enterFrom: `opacity-0 ${$.get(forwards) ? "translate-y-[10rem]" : "translate-y-[-10rem]"}`,
+			enter: "duration-300 relative z-10",
+			enterTo: "translate-y-0"
+		}
+	}));
+
+	const transitionConfig = $.derived(() => $.get(transitionConfigs)[tabs.orientation]);
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var div = root_7();
+
+			{
+				const media = ($$anchor, name = $.noop, src = $.noop) => {
+					var div_1 = root();
+					var img = $.child(div_1);
+					var p = $.sibling(img, 2);
+					var text = $.only_child(p, true);
+
+					$.reset(div_1);
+
+					$.template_effect(() => {
+						$.set_attribute(img, 'src', src());
+						$.set_text(text, name());
+					});
+
+					$.append($$anchor, div_1);
+				};
+
+				var div_2 = $.child(div);
+
+				$.attribute_effect(
+					div_2,
+					() => ({
+						class: `flex w-full flex-wrap
+			${tabs.orientation === 'horizontal'
+							? 'items-center justify-center  overflow-x-clip'
+							: 'col-span-3 flex-col justify-center overflow-y-clip py-4'}
+			`,
+						...tabs.triggerList
+					}),
+					void 0,
+					void 0,
+					void 0,
+					'svelte-1upx803'
+				);
+
+				$.each(div_2, 21, () => tabIds, $.index, ($$anchor, id) => {
+					var button = root_1();
+
+					$.attribute_effect(
+						button,
+						($0) => ({
+							class: `group min-w-0 max-w-full cursor-pointer text-ellipsis whitespace-nowrap bg-transparent text-start font-medium
+					!outline-none transition ${tabs.orientation === 'horizontal' ? 'px-2' : 'py-0.5'}`,
+							...$0
+						}),
+						[() => tabs.getTrigger($.get(id))],
+						void 0,
+						void 0,
+						'svelte-1upx803'
+					);
+
+					var div_3 = $.child(button);
+					var text_1 = $.only_child(div_3, true);
+
+					$.reset(button);
+					$.template_effect(() => $.set_text(text_1, $.get(id)));
+					$.append($$anchor, button);
+				});
+
+				$.reset(div_2);
+
+				var div_4 = $.sibling(div_2, 2);
+				var div_5 = $.child(div_4);
+
+				$.each(div_5, 21, () => tabIds, $.index, ($$anchor, id) => {
+					const isActive = $.derived(() => $.get(id) === debouncedTab.current);
+
+					Transition($$anchor, {
+						get show() {
+							return $.get(isActive);
+						},
+
+						get leaveFrom() {
+							return $.get(transitionConfig).leaveFrom;
+						},
+
+						get leaveTo() {
+							return $.get(transitionConfig).leaveTo;
+						},
+
+						get leave() {
+							return $.get(transitionConfig).leave;
+						},
+
+						get enterFrom() {
+							return $.get(transitionConfig).enterFrom;
+						},
+
+						get enter() {
+							return $.get(transitionConfig).enter;
+						},
+
+						children: ($$anchor, $$slotProps) => {
+							var div_6 = root_6();
+
+							$.attribute_effect(div_6, ($0) => ({ ...$0, class: 'top-0 !block' }), [() => tabs.getContent($.get(id))], void 0, void 0, 'svelte-1upx803');
+
+							var node = $.child(div_6);
+
+							{
+								var consequent = ($$anchor) => {
+									var div_7 = root_2();
+									var node_1 = $.child(div_7);
+
+									media(node_1, () => "Breaking Bad", () => "/previews/breaking-bad.jpg");
+
+									var node_2 = $.sibling(node_1, 2);
+
+									media(node_2, () => "Oldboy", () => "/previews/oldboy.jpg");
+
+									var node_3 = $.sibling(node_2, 2);
+
+									media(node_3, () => "Severance", () => "/previews/severance.jpg");
+
+									var node_4 = $.sibling(node_3, 2);
+
+									media(node_4, () => "The Truman Show", () => "/previews/truman-show.jpg");
+									$.reset(div_7);
+									$.append($$anchor, div_7);
+								};
+
+								var consequent_1 = ($$anchor) => {
+									var div_8 = root_3();
+									var node_5 = $.child(div_8);
+
+									media(node_5, () => "Attack on Titan", () => "/previews/aot.jpg");
+
+									var node_6 = $.sibling(node_5, 2);
+
+									media(node_6, () => "JJK", () => "/previews/nah-id-win.jpg");
+
+									var node_7 = $.sibling(node_6, 2);
+
+									media(node_7, () => "Solo Leveling", () => "/previews/sung-jinwoo.jpg");
+
+									var node_8 = $.sibling(node_7, 2);
+
+									media(node_8, () => "Berserk", () => "/previews/berserk.avif");
+									$.reset(div_8);
+									$.append($$anchor, div_8);
+								};
+
+								var consequent_2 = ($$anchor) => {
+									var div_9 = root_4();
+									var node_9 = $.child(div_9);
+
+									media(node_9, () => "Elden Ring", () => "/previews/elden-ring.avif");
+
+									var node_10 = $.sibling(node_9, 2);
+
+									media(node_10, () => "Outer Wilds", () => "/previews/outer-wilds.webp");
+
+									var node_11 = $.sibling(node_10, 2);
+
+									media(node_11, () => "Ultrakill", () => "/previews/ultrakill.jpg");
+
+									var node_12 = $.sibling(node_11, 2);
+
+									media(node_12, () => "Animal Well", () => "/previews/animal-well.jpg");
+									$.reset(div_9);
+									$.append($$anchor, div_9);
+								};
+
+								var consequent_3 = ($$anchor) => {
+									var div_10 = root_5();
+									var node_13 = $.child(div_10);
+
+									media(node_13, () => "Spiritbox", () => "/previews/spiritbox.jpg");
+
+									var node_14 = $.sibling(node_13, 2);
+
+									media(node_14, () => "Nothing but Thieves", () => "/previews/moral-panic.jpg");
+
+									var node_15 = $.sibling(node_14, 2);
+
+									media(node_15, () => "Deftones", () => "/previews/white-pony.jpg");
+
+									var node_16 = $.sibling(node_15, 2);
+
+									media(node_16, () => "Slipknot", () => "/previews/iowa.jpg");
+									$.reset(div_10);
+									$.append($$anchor, div_10);
+								};
+
+								$.if(node, ($$render) => {
+									if ($.get(id) === "Movies & TV") $$render(consequent); else if ($.get(id) === "Anime & Manga") $$render(consequent_1, 1); else if ($.get(id) === "Games") $$render(consequent_2, 2); else if ($.get(id) === "Music") $$render(consequent_3, 3);
+								});
+							}
+
+							$.reset(div_6);
+							$.append($$anchor, div_6);
+						},
+						$$slots: { default: true }
+					});
+				});
+
+				$.reset(div_5);
+				$.bind_this(div_5, ($$value) => $.set(inner, $$value), () => $.get(inner));
+				$.reset(div_4);
+				$.reset(div);
+
+				$.template_effect(() => {
+					$.set_class(div_4, 1, `relative overflow-visible transition-all duration-300
+			${tabs.orientation === 'horizontal' ? '' : 'col-span-9'}`);
+
+					$.set_style(div_4, `height: ${innerSize.height ? `${innerSize.height}px` : 'auto'}`);
+				});
+			}
+
+			$.template_effect(() => $.set_class(div, 1, `h-[700px] items-center gap-4
+		${tabs.orientation === 'horizontal'
+				? 'flex flex-col items-center justify-center'
+				: 'grid grid-cols-12'}
+		`));
+
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 1885 docs/src/previews/toaster.svelte	css
+
+	[popover] {
+		inset: unset;
+	}
+
+	[data-melt-toaster-root].svelte-1n95umn {
+		--gap: 0.75rem;
+		--hover-offset: 1rem;
+		--toast-height: 4rem;
+		--hidden-offset: 0.75rem;
+
+		--hidden-toasts: calc(var(--toasts) - 1);
+
+		overflow: visible;
+		display: grid;
+		grid-template-rows: var(--toast-height) repeat(var(--hidden-toasts), var(--hidden-offset));
+		grid-template-columns: 1fr;
+		gap: 0;
+		background: unset;
+		padding: 0;
+	}
+
+	[data-melt-toaster-root].svelte-1n95umn:hover {
+		grid-template-rows: var(--hidden-offset) var(--toast-height) repeat(
+				var(--hidden-toasts),
+				calc(var(--toast-height) + var(--gap))
+			);
+	}
+
+	[data-melt-toaster-toast-content].svelte-1n95umn {
+		position: absolute;
+		pointer-events: auto;
+		bottom: 0;
+		left: 0;
+		box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+
+		transform-origin: 50% 0%;
+		transition: all 350ms ease;
+	}
+
+	[data-theme="dark"] [data-melt-toaster-toast-content] {
+		box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
+	}
+
+	[data-melt-toaster-toast-content].svelte-1n95umn:nth-last-child(n + 4) {
+		z-index: 1;
+		scale: 0.925;
+		opacity: 0;
+		translate: 0 calc(-3 * var(--hidden-offset));
+	}
+
+	[data-melt-toaster-toast-content].svelte-1n95umn:nth-last-child(-n + 3) {
+		z-index: 2;
+		scale: 0.95;
+		translate: 0 calc(-2 * var(--hidden-offset));
+	}
+
+	[data-melt-toaster-toast-content].svelte-1n95umn:nth-last-child(-n + 2) {
+		z-index: 3;
+		scale: 0.975;
+		translate: 0 calc(-1 * var(--hidden-offset));
+	}
+
+	[data-melt-toaster-toast-content].svelte-1n95umn:nth-last-child(-n + 1) {
+		z-index: 4;
+		scale: 1;
+		translate: 0;
+	}
+
+	[data-melt-toaster-root].svelte-1n95umn:hover [data-melt-toaster-toast-content]:where(.svelte-1n95umn) {
+		scale: 1;
+		opacity: 1;
+		--toast-gap: calc(calc(var(--gap) * var(--n)) + var(--hover-offset));
+		--percentage: calc(-100% * calc(var(--n) - 1));
+		translate: 0 calc(var(--percentage) - var(--toast-gap));
+	}
+
+=== 6182 docs/src/previews/toaster.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { getters } from "melt";
+import { Toaster } from "melt/builders";
+import { Progress } from "melt/components";
+import { fly } from "svelte/transition";
+import Close from "~icons/material-symbols/close-rounded";
+
+var root = $.from_html(`<div> </div>`);
+var root_1 = $.from_html(`<div><div></div></div>`);
+var root_2 = $.from_html(`<div class="absolute bottom-4 right-4 h-[4px] w-[30px] overflow-hidden rounded-full"><!></div>`);
+var root_3 = $.from_html(`<div><h3> </h3> <!> <button><!></button> <!></div>`);
+
+var root_4 = $.from_html(
+	`<button class="mx-auto block rounded-xl bg-gray-600 px-4 py-2 font-semibold text-white
+				transition-all hover:cursor-pointer hover:bg-gray-500
+				active:bg-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50
+				dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50">Show Toast</button> <div></div>`,
+	1
+);
+
+export default function Toaster_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const controls = usePreviewControls({
+		hover: {
+			type: "select",
+			label: "Hover",
+			options: ["pause", "pause-all"],
+			defaultValue: "pause-all"
+		},
+		closeDelay: {
+			type: "number",
+			min: 0,
+			max: 10000,
+			defaultValue: 3000,
+			label: "Close Delay"
+		}
+	});
+
+	const toastData = [
+		{
+			title: "Success",
+			description: "Congratulations! It worked!",
+			variant: "success"
+		},
+
+		{
+			title: "Warning",
+			description: "Please check again.",
+			variant: "warning"
+		},
+
+		{
+			title: "Error",
+			description: "Something did not work!",
+			variant: "error"
+		}
+	];
+
+	const toaster = new Toaster({ ...getters(controls) });
+
+	function addRandomToast() {
+		toaster.addToast({
+			data: toastData[Math.floor(Math.random() * toastData.length)]
+		});
+	}
+
+	Preview($$anchor, {
+		class: 'text-center',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root_4();
+			var button = $.first_child(fragment_1);
+			var div = $.sibling(button, 2);
+
+			$.attribute_effect(
+				div,
+				() => ({
+					...toaster.root,
+					class: 'fixed !bottom-4 !right-4 flex w-[300px] flex-col',
+					[$.STYLE]: { '--toasts': toaster.toasts.length }
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-1n95umn'
+			);
+
+			$.each(div, 23, () => toaster.toasts, (toast) => toast.id, ($$anchor, toast, i) => {
+				var div_1 = root_3();
+
+				$.attribute_effect(
+					div_1,
+					() => ({
+						class: 'h-(--toast-height) relative flex w-full flex-col justify-center rounded-xl bg-white px-4 text-left transition dark:bg-gray-800',
+						...$.get(toast).content,
+						[$.STYLE]: { '--n': toaster.toasts.length - $.get(i) }
+					}),
+					void 0,
+					void 0,
+					void 0,
+					'svelte-1n95umn'
+				);
+
+				var h3 = $.child(div_1);
+
+				$.attribute_effect(
+					h3,
+					() => ({
+						...$.get(toast).title,
+						class: 'whitespace-nowrap text-sm font-medium'
+					}),
+					void 0,
+					void 0,
+					void 0,
+					'svelte-1n95umn'
+				);
+
+				var text = $.only_child(h3, true);
+				var node = $.sibling(h3, 2);
+
+				{
+					var consequent = ($$anchor) => {
+						var div_2 = root();
+
+						$.attribute_effect(
+							div_2,
+							() => ({
+								...$.get(toast).description,
+								class: 'text-xs text-gray-700 dark:text-gray-300'
+							}),
+							void 0,
+							void 0,
+							void 0,
+							'svelte-1n95umn'
+						);
+
+						var text_1 = $.only_child(div_2, true);
+
+						$.template_effect(() => $.set_text(text_1, $.get(toast).data.description));
+						$.append($$anchor, div_2);
+					};
+
+					$.if(node, ($$render) => {
+						if ($.get(toast).data.description) $$render(consequent);
+					});
+				}
+
+				var button_1 = $.sibling(node, 2);
+
+				$.attribute_effect(
+					button_1,
+					() => ({
+						...$.get(toast).close,
+						'aria-label': 'dismiss toast',
+						class: 'absolute right-1 top-1 bg-transparent text-gray-300 hover:text-gray-400 dark:hover:text-gray-100'
+					}),
+					void 0,
+					void 0,
+					void 0,
+					'svelte-1n95umn'
+				);
+
+				var node_1 = $.child(button_1);
+
+				Close(node_1, { class: 'h-3.5 w-3.5' });
+				$.reset(button_1);
+
+				var node_2 = $.sibling(button_1, 2);
+
+				{
+					var consequent_1 = ($$anchor) => {
+						var div_3 = root_2();
+						var node_3 = $.child(div_3);
+
+						{
+							const children = ($$anchor, progress = $.noop) => {
+								var div_4 = root_1();
+
+								$.attribute_effect(
+									div_4,
+									() => ({
+										...progress().root,
+										class: 'relative h-full w-full overflow-hidden bg-gray-200 dark:bg-gray-950'
+									}),
+									void 0,
+									void 0,
+									void 0,
+									'svelte-1n95umn'
+								);
+
+								var div_5 = $.child(div_4);
+
+								$.attribute_effect(
+									div_5,
+									() => ({
+										...progress().progress,
+										class: 'h-full w-full -translate-x-[var(--progress)]',
+										[$.CLASS]: {
+											'bg-green-400': $.get(toast).data.variant === "success",
+											'bg-orange-400': $.get(toast).data.variant === "warning",
+											'bg-red-500': $.get(toast).data.variant === "error"
+										}
+									}),
+									void 0,
+									void 0,
+									void 0,
+									'svelte-1n95umn'
+								);
+
+								$.reset(div_4);
+								$.append($$anchor, div_4);
+							};
+
+							Progress(node_3, {
+								get value() {
+									return $.get(toast).percentage;
+								},
+								children,
+								$$slots: { default: true }
+							});
+						}
+
+						$.reset(div_3);
+						$.append($$anchor, div_3);
+					};
+
+					$.if(node_2, ($$render) => {
+						if ($.get(toast).closeDelay !== 0) $$render(consequent_1);
+					});
+				}
+
+				$.reset(div_1);
+				$.template_effect(() => $.set_text(text, $.get(toast).data.title));
+				$.transition(1, div_1, () => fly, () => ({ y: 60, opacity: 0.9 }));
+				$.transition(2, div_1, () => fly, () => ({ y: 20 }));
+				$.append($$anchor, div_1);
+			});
+
+			$.reset(div);
+			$.delegated('click', button, addRandomToast);
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 2149 docs/src/previews/toggle.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Preview from "@components/preview.svelte";
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import { Toggle } from "melt/builders";
+import { spring } from "svelte/motion";
+import PhHeartBold from "~icons/ph/heart-bold";
+import PhHeartFill from "~icons/ph/heart-fill";
+
+var root = $.from_html(`<div class="flex justify-center"><button><!> <!></button></div>`);
+
+export default function Toggle_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $scale = () => $.store_get(scale, '$scale', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	const controls = usePreviewControls({
+		disabled: { label: "Disabled", type: "boolean", defaultValue: false }
+	});
+
+	const toggle = new Toggle({ disabled: () => controls.disabled });
+	const scale = spring(0, { damping: 0.205, stiffness: 0.07, precision: 0.03 });
+
+	$.user_effect(() => {
+		scale.set(toggle.value ? 1 : 0);
+	});
+
+	const absScale = $.derived(() => Math.max(0, $scale()));
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var div = root();
+			var button = $.child(div);
+
+			$.attribute_effect(button, () => ({
+				class: 'focus-visible:ring-accent-300 relative size-16 rounded-xl bg-transparent\n				text-xl outline-none transition-all hover:cursor-pointer\n			  hover:bg-gray-300/25 focus-visible:ring active:bg-gray-300/40 disabled:cursor-not-allowed\n				dark:hover:bg-gray-700 dark:active:bg-gray-600 dark:disabled:bg-gray-900',
+				...toggle.trigger,
+				'aria-label': 'toggle favourite'
+			}));
+
+			var node = $.child(button);
+
+			PhHeartFill(node, {
+				class: 'text-accent-500 dark:text-accent-200 absolute left-1/2 top-1/2 z-10 origin-center -translate-x-1/2 -translate-y-1/2',
+				get style() {
+					return `scale: ${$.get(absScale) ?? ''}`;
+				}
+			});
+
+			var node_1 = $.sibling(node, 2);
+
+			PhHeartBold(node_1, {
+				class: 'absolute left-1/2 top-1/2  -translate-x-1/2 -translate-y-1/2 opacity-30'
+			});
+
+			$.reset(button);
+			$.reset(div);
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+	$$cleanup();
+}
+=== 335 docs/src/previews/tooltip.svelte	css
+
+	[data-melt-tooltip-content].svelte-23mhte {
+		border: 0;
+
+		position: absolute;
+		pointer-events: none;
+		opacity: 0;
+
+		transform: scale(0.9);
+
+		transition: 0.3s;
+		transition-property: opacity, transform;
+	}
+
+	[data-melt-tooltip-content][data-open].svelte-23mhte {
+		pointer-events: auto;
+		opacity: 1;
+
+		transform: scale(1);
+	}
+
+=== 2445 docs/src/previews/tooltip.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { getters } from "melt";
+import { Tooltip } from "melt/builders";
+import PhChefHatFill from "~icons/ph/chef-hat-fill";
+
+var root = $.from_html(`<button><!></button> <div><div></div> <p class="px-4 py-1 text-gray-700 dark:text-white">Let us cook!</p></div>`, 1);
+
+export default function Tooltip_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	let controls = usePreviewControls({
+		closeOnPointerDown: {
+			label: "Close on pointer down",
+			type: "boolean",
+			defaultValue: true
+		},
+		disableHoverableContent: {
+			label: "Disable hoverable content",
+			type: "boolean",
+			defaultValue: false
+		},
+		placement: {
+			label: "Placement",
+			type: "select",
+			options: ["top", "bottom", "left", "right"],
+			defaultValue: "top"
+		},
+		openDelay: { label: "Open delay", type: "number", defaultValue: 100 },
+		closeDelay: { label: "Close delay", type: "number", defaultValue: 0 }
+	});
+
+	const computePositionOptions = $.derived(() => ({ computePosition: { placement: controls.placement } }));
+
+	const tooltip = new Tooltip({
+		...getters(controls),
+		forceVisible: true,
+		floatingConfig: () => $.get(computePositionOptions)
+	});
+
+	Preview($$anchor, {
+		children: ($$anchor, $$slotProps) => {
+			var fragment_1 = root();
+			var button = $.first_child(fragment_1);
+
+			$.attribute_effect(
+				button,
+				() => ({
+					type: 'button',
+					class: 'mx-auto grid size-12 place-items-center rounded-xl text-white transition\n		dark:bg-gray-800 dark:hover:bg-gray-700 dark:active:bg-gray-600',
+					'aria-label': 'Add',
+					...tooltip.trigger
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-23mhte'
+			);
+
+			var node = $.child(button);
+
+			PhChefHatFill(node, { 'aria-label': 'Plus' });
+			$.reset(button);
+
+			var div = $.sibling(button, 2);
+
+			$.attribute_effect(
+				div,
+				() => ({
+					...tooltip.content,
+					class: 'rounded-xl bg-white p-0 shadow-xl dark:bg-gray-800'
+				}),
+				void 0,
+				void 0,
+				void 0,
+				'svelte-23mhte'
+			);
+
+			var div_1 = $.child(div);
+
+			$.attribute_effect(div_1, () => ({ ...tooltip.arrow, class: 'size-2 rounded-tl' }), void 0, void 0, void 0, 'svelte-23mhte');
+			$.next(2);
+			$.reset(div);
+			$.append($$anchor, fragment_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+=== 7760 docs/src/previews/tree.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Motion from "@components/motion.svelte";
+import { usePreviewControls } from "@components/preview-ctx.svelte";
+import Preview from "@components/preview.svelte";
+import { getters } from "melt";
+import { Tree } from "melt/builders";
+import JavaScript from "~icons/devicon/javascript";
+import Svelte from "~icons/devicon/svelte";
+import Folder from "~icons/ph/folder-fill";
+import FolderOpen from "~icons/ph/folder-open-fill";
+
+const treeItemIcon = ($$anchor, item = $.noop) => {
+	const icon = $.derived(() => item().item.icon);
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			var fragment_1 = $.comment();
+			var node_1 = $.first_child(fragment_1);
+
+			$.component(node_1, () => item().expanded ? FolderOpen : Folder, ($$anchor, $$component) => {
+				$$component($$anchor, { role: 'presentation' });
+			});
+
+			$.append($$anchor, fragment_1);
+		};
+
+		var consequent_1 = ($$anchor) => {
+			Svelte($$anchor, { role: 'presentation' });
+		};
+
+		var consequent_2 = ($$anchor) => {
+			JavaScript($$anchor, { role: 'presentation' });
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(icon) === "folder") $$render(consequent); else if ($.get(icon) === "svelte") $$render(consequent_1, 1); else if ($.get(icon) === "js") $$render(consequent_2, 2);
+		});
+	}
+
+	$.append($$anchor, fragment);
+};
+
+const button = ($$anchor, props = $.noop) => {
+	var button_1 = root_2();
+	var text_1 = $.only_child(button_1, true);
+
+	$.template_effect(() => $.set_text(text_1, props().text));
+
+	$.delegated('click', button_1, function (...$$args) {
+		props().onclick?.apply(this, $$args);
+	});
+
+	$.append($$anchor, button_1);
+};
+
+var root = $.from_html(`<div class="absolute bottom-2 top-2 w-px bg-gray-200 dark:bg-gray-700"></div> <!>`, 1);
+var root_1 = $.from_html(`<li><div class="group py-1"><div><!> <span class="select-none"> </span></div></div> <!></li>`);
+
+var root_2 = $.from_html(`<button class="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-800
+			transition-all hover:cursor-pointer hover:bg-gray-200
+			active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50
+			dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50"> </button>`);
+
+var root_3 = $.from_html(`<div class="flex items-center justify-center gap-2"><!> <!></div> <ul><!></ul>`, 1);
+
+export default function Tree_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	const treeItems = ($$anchor, items = $.noop, $$arg1) => {
+		let depth = $.derived_safe_equal(() => $.fallback($$arg1?.(), 0));
+		var fragment_4 = $.comment();
+		var node_2 = $.first_child(fragment_4);
+
+		$.each(node_2, 17, items, (item) => item.id, ($$anchor, item) => {
+			var li = root_1();
+
+			$.attribute_effect(li, () => ({
+				...$.get(item).attrs,
+				class: 'cursor-pointer rounded-sm !outline-none first:mt-0 [&:focus-visible>:first-child>div]:ring-4'
+			}));
+
+			var div = $.child(li);
+			var div_1 = $.child(div);
+			var node_3 = $.child(div_1);
+
+			treeItemIcon(node_3, () => $.get(item));
+
+			var span = $.sibling(node_3, 2);
+			var text = $.only_child(span, true);
+
+			$.reset(div_1);
+			$.reset(div);
+
+			var node_4 = $.sibling(div, 2);
+
+			{
+				var consequent_3 = ($$anchor) => {
+					{
+						let $0 = $.derived(() => ({
+							height: $.get(item).expanded ? "auto" : 0,
+							opacity: $.get(item).expanded ? 1 : 0,
+							scale: $.get(item).expanded ? 1 : 0.85
+						}));
+
+						let $1 = $.derived(() => ({
+							height: { delay: $.get(item).expanded ? 0 : 0.1 },
+							opacity: {
+								ease: "easeOut",
+								delay: $.get(item).expanded ? 0.1 : 0,
+								duration: 0.2
+							},
+							type: "spring",
+							stiffness: 200,
+							damping: 20,
+							mass: 0.15,
+							bounce: 1
+						}));
+
+						let $2 = $.derived(() => !$.get(item).expanded ? 'pointer-events-none' : '');
+
+						Motion($$anchor, $.spread_props(
+							{
+								tag: 'ul',
+								get animate() {
+									return $.get($0);
+								},
+
+								get transition() {
+									return $.get($1);
+								}
+							},
+							() => tree.group,
+							{
+								get class() {
+									return `relative list-none p-0 ${$.get($2) ?? ''} origin-left`;
+								},
+
+								children: ($$anchor, $$slotProps) => {
+									var fragment_6 = root();
+									var div_2 = $.first_child(fragment_6);
+									var node_5 = $.sibling(div_2, 2);
+
+									treeItems(node_5, () => $.get(item).children, () => $.get(depth) + 1);
+									$.template_effect(() => $.set_style(div_2, `left: ${0.5 + $.get(depth) * 1}rem`));
+									$.append($$anchor, fragment_6);
+								},
+								$$slots: { default: true }
+							}
+						));
+					}
+				};
+
+				$.if(node_4, ($$render) => {
+					if ($.get(item).children?.length) $$render(consequent_3);
+				});
+			}
+
+			$.reset(li);
+
+			$.template_effect(() => {
+				$.set_style(div, `padding-left: ${$.get(depth) * 1}rem`);
+
+				$.set_class(div_1, 1, `${$.get(item).selected
+					? '!bg-accent-500 dark:!bg-accent-200 dark:!text-accent-950 !text-white'
+					: ''}
+					ring-accent-500 dark:ring-accent-700 flex h-full w-full items-center gap-2 rounded-xl
+					px-3 py-1 ring-offset-white transition group-hover:bg-gray-200
+					dark:ring-offset-black dark:group-hover:bg-gray-800`);
+
+				$.set_text(text, $.get(item).item.title);
+			});
+
+			$.append($$anchor, li);
+		});
+
+		$.append($$anchor, fragment_4);
+	};
+
+	const controls = usePreviewControls({
+		multiple: { type: "boolean", defaultValue: true, label: "Multiple" },
+		expandOnClick: {
+			type: "boolean",
+			defaultValue: true,
+			label: "Expand on click"
+		}
+	});
+
+	const data = [
+		{ id: "index.svelte", title: "index.svelte", icon: "svelte" },
+		{
+			id: "lib",
+			title: "lib",
+			icon: "folder",
+			children: [
+				{
+					id: "lib/icons",
+					title: "icons",
+					icon: "folder",
+					children: [
+						{
+							id: "lib/icons/JavaScript.svelte",
+							title: "JavaScript.svelte",
+							icon: "svelte"
+						},
+
+						{
+							id: "lib/icons/Svelte.svelte",
+							title: "Svelte.svelte",
+							icon: "svelte"
+						}
+					]
+				},
+
+				{
+					id: "lib/tree",
+					title: "tree",
+					icon: "folder",
+					children: [
+						{
+							id: "lib/tree/Tree.svelte",
+							title: "Tree.svelte",
+							icon: "svelte"
+						},
+
+						{
+							id: "lib/tree/TreeItem.svelte",
+							title: "TreeItem.svelte",
+							icon: "svelte"
+						}
+					]
+				}
+			]
+		},
+
+		{
+			id: "routes",
+			title: "routes",
+			icon: "folder",
+			children: [
+				{
+					id: "routes/contents",
+					title: "contents",
+					icon: "folder",
+					children: [
+						{
+							id: "routes/contents/+layout.svelte",
+							title: "+layout.svelte",
+							icon: "svelte"
+						},
+
+						{
+							id: "routes/contents/+page.svelte",
+							title: "+page.svelte",
+							icon: "svelte"
+						}
+					]
+				}
+			]
+		}
+	];
+
+	const tree = new Tree({
+		items: data,
+		expanded: ["lib", "routes"],
+		...getters(controls)
+	});
+
+	Preview($$anchor, {
+		class: '!py-6',
+		children: ($$anchor, $$slotProps) => {
+			var fragment_8 = root_3();
+			var div_3 = $.first_child(fragment_8);
+			var node_6 = $.child(div_3);
+
+			button(node_6, () => ({ onclick: tree.collapseAll, text: "Collapse All" }));
+
+			var node_7 = $.sibling(node_6, 2);
+
+			button(node_7, () => ({ onclick: tree.expandAll, text: "Expand All" }));
+			$.reset(div_3);
+
+			var ul = $.sibling(div_3, 2);
+
+			$.attribute_effect(ul, () => ({
+				class: 'mx-auto w-[300px] list-none rounded-md p-4',
+				...tree.root
+			}));
+
+			var node_8 = $.child(ul);
+
+			treeItems(node_8, () => tree.children, () => 0);
+			$.reset(ul);
+			$.append($$anchor, fragment_8);
+		},
+		$$slots: { default: true }
+	});
+
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 344 docs/src/previews/tree.svelte	warnings.json
+[
+	{
+		"code": "svelte_component_deprecated",
+		"message": "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated",
+		"start": {
+			"line": 114,
+			"column": 2,
+			"character": 2294
+		},
+		"end": {
+			"line": 114,
+			"column": 85,
+			"character": 2377
+		}
+	}
+]
+
+=== 1773 packages/melt/src/lib/builders/tests/ComboboxTest.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Combobox } from "../Combobox.svelte.js";
+
+var root = $.from_html(`<div><span> </span> <!></div>`);
+var root_1 = $.from_html(`<label>Label</label> <input/> <button>Toggle</button> <div></div>`, 1);
+
+export default function ComboboxTest($$anchor, $$props) {
+	$.push($$props, true);
+
+	const items = [
+		{ label: "one", value: 1 },
+		{ label: "a", value: "a" },
+		{ label: "obj", value: { a: 1, b: 2 } }
+	];
+
+	const combobox = new Combobox({ multiple: true });
+	var fragment = root_1();
+	var label = $.first_child(fragment);
+	var input = $.sibling(label, 2);
+
+	$.attribute_effect(input, () => ({ ...combobox.input }), void 0, void 0, void 0, void 0, true);
+
+	var button = $.sibling(input, 2);
+
+	$.attribute_effect(button, () => ({ ...combobox.trigger }));
+
+	var div = $.sibling(button, 2);
+
+	$.attribute_effect(div, () => ({ ...combobox.content }));
+
+	$.each(div, 21, () => items, $.index, ($$anchor, item) => {
+		var div_1 = root();
+
+		$.attribute_effect(div_1, ($0) => ({ ...$0 }), [
+			() => combobox.getOption($.get(item).value, $.get(item).label)
+		]);
+
+		var span = $.child(div_1);
+		var text = $.only_child(span, true);
+		var node = $.sibling(span, 2);
+
+		{
+			var consequent = ($$anchor) => {
+				var text_1 = $.text('selected');
+
+				$.append($$anchor, text_1);
+			};
+
+			var d = $.derived(() => combobox.isSelected($.get(item).value));
+
+			$.if(node, ($$render) => {
+				if ($.get(d)) $$render(consequent);
+			});
+		}
+
+		$.reset(div_1);
+		$.template_effect(() => $.set_text(text, $.get(item).label));
+		$.append($$anchor, div_1);
+	});
+
+	$.reset(div);
+	$.template_effect(() => $.set_attribute(label, 'for', combobox.ids.input));
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1818 packages/melt/src/lib/builders/tests/SelectTest.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Select } from "../Select.svelte.js";
+
+var root = $.from_html(`<div><span> </span> <!></div>`);
+var root_1 = $.from_html(`<label>Label</label> <button><span class="truncate"> </span></button> <div></div>`, 1);
+
+export default function SelectTest($$anchor, $$props) {
+	$.push($$props, true);
+
+	const items = [
+		{ label: "one", value: 1 },
+		{ label: "a", value: "a" },
+		{ label: "obj", value: { a: 1, b: 2 } }
+	];
+
+	const select = new Select({ multiple: true, sameWidth: false });
+	var fragment = root_1();
+	var label = $.first_child(fragment);
+	var button = $.sibling(label, 2);
+
+	$.attribute_effect(button, () => ({ ...select.trigger }));
+
+	var span = $.child(button);
+	var text = $.only_child(span, true);
+
+	$.reset(button);
+
+	var div = $.sibling(button, 2);
+
+	$.attribute_effect(div, () => ({ ...select.content }));
+
+	$.each(div, 21, () => items, $.index, ($$anchor, item) => {
+		var div_1 = root();
+
+		$.attribute_effect(div_1, ($0) => ({ ...$0 }), [() => select.getOption($.get(item).value, $.get(item).label)]);
+
+		var span_1 = $.child(div_1);
+		var text_1 = $.only_child(span_1, true);
+		var node = $.sibling(span_1, 2);
+
+		{
+			var consequent = ($$anchor) => {
+				var text_2 = $.text('selected');
+
+				$.append($$anchor, text_2);
+			};
+
+			var d = $.derived(() => select.isSelected($.get(item).value));
+
+			$.if(node, ($$render) => {
+				if ($.get(d)) $$render(consequent);
+			});
+		}
+
+		$.reset(div_1);
+		$.template_effect(() => $.set_text(text_1, $.get(item).label));
+		$.append($$anchor, div_1);
+	});
+
+	$.reset(div);
+
+	$.template_effect(() => {
+		$.set_attribute(label, 'for', select.ids.trigger);
+		$.set_text(text, select.valueAsString || "Select an item");
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 2052 packages/melt/src/lib/builders/tests/SpatialMenuDisabledTest.svelte	css
+
+	.test-container.svelte-1ir5fmg {
+		padding: 20px;
+		border: 2px solid #ccc;
+		border-radius: 8px;
+		font-family: sans-serif;
+		max-width: 600px;
+		margin: 0 auto;
+	}
+
+	.test-container.svelte-1ir5fmg:focus {
+		outline: 2px solid #3b82f6;
+		outline-offset: 2px;
+	}
+
+	h2.svelte-1ir5fmg {
+		margin: 0 0 16px 0;
+		color: #333;
+	}
+
+	input.svelte-1ir5fmg {
+		width: 100%;
+		padding: 8px 12px;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		margin-bottom: 20px;
+		font-size: 14px;
+	}
+
+	input.svelte-1ir5fmg:focus {
+		outline: 2px solid #3b82f6;
+		outline-offset: 2px;
+		border-color: #3b82f6;
+	}
+
+	.items-grid.svelte-1ir5fmg {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 12px;
+		margin-bottom: 20px;
+	}
+
+	.item.svelte-1ir5fmg {
+		padding: 16px;
+		border-radius: 8px;
+		color: white;
+		font-weight: bold;
+		text-align: center;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		border: 2px solid transparent;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		position: relative;
+	}
+
+	.item.svelte-1ir5fmg:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+	}
+
+	.item.highlighted.svelte-1ir5fmg {
+		border-color: #fff;
+		transform: scale(1.05);
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+	}
+
+	.item.disabled.svelte-1ir5fmg {
+		opacity: 0.5;
+		cursor: not-allowed;
+		filter: grayscale(50%);
+	}
+
+	.item.disabled.svelte-1ir5fmg:hover {
+		transform: none;
+		box-shadow: none;
+	}
+
+	.item-name.svelte-1ir5fmg {
+		font-size: 16px;
+	}
+
+	.item-id.svelte-1ir5fmg {
+		font-size: 12px;
+		opacity: 0.8;
+	}
+
+	.disabled-label.svelte-1ir5fmg {
+		font-size: 10px;
+		background: rgba(0, 0, 0, 0.5);
+		padding: 2px 4px;
+		border-radius: 2px;
+		position: absolute;
+		top: 4px;
+		right: 4px;
+	}
+
+	.selected-info.svelte-1ir5fmg,
+	.highlighted-info.svelte-1ir5fmg,
+	.mode-info.svelte-1ir5fmg {
+		padding: 8px 12px;
+		background: #f5f5f5;
+		border-radius: 4px;
+		margin-bottom: 8px;
+		font-size: 14px;
+		color: #666;
+	}
+
+	.selected-info.svelte-1ir5fmg {
+		background: #dcfce7;
+		color: #166534;
+		font-weight: bold;
+	}
+
+=== 4590 packages/melt/src/lib/builders/tests/SpatialMenuDisabledTest.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { SpatialMenu } from "../SpatialMenu.svelte.js";
+
+var root = $.from_html(`<span class="disabled-label svelte-1ir5fmg">DISABLED</span>`);
+var root_1 = $.from_html(`<div><span class="item-name svelte-1ir5fmg"> </span> <span class="item-id svelte-1ir5fmg"> </span> <!></div>`);
+var root_2 = $.from_html(`<div data-testid="selected-item" class="selected-info svelte-1ir5fmg"> </div>`);
+var root_3 = $.from_html(`<div><h2 class="svelte-1ir5fmg">Spatial Menu Disabled Test</h2> <input/> <div class="items-grid svelte-1ir5fmg"></div> <!> <div data-testid="highlighted-item" class="highlighted-info svelte-1ir5fmg"> </div> <div data-testid="selection-mode" class="mode-info svelte-1ir5fmg"> </div></div>`);
+
+export default function SpatialMenuDisabledTest($$anchor, $$props) {
+	$.push($$props, true);
+
+	let wrap = $.prop($$props, 'wrap', 3, false),
+		disabledPattern = $.prop($$props, 'disabledPattern', 19, () => []);
+
+	const allColors = [
+		{ name: "Red", color: "#ef4444" },
+		{ name: "Blue", color: "#3b82f6" },
+		{ name: "Green", color: "#10b981" },
+		{ name: "Yellow", color: "#f59e0b" },
+		{ name: "Purple", color: "#8b5cf6" },
+		{ name: "Pink", color: "#ec4899" },
+		{ name: "Orange", color: "#f97316" },
+		{ name: "Cyan", color: "#06b6d4" },
+		{ name: "Indigo", color: "#6366f1" },
+		{ name: "Teal", color: "#14b8a6" },
+		{ name: "Rose", color: "#f43f5e" },
+		{ name: "Emerald", color: "#059669" }
+	];
+
+	// Create a 3x4 grid (12 items)
+	const itemsArray = Array.from({ length: 12 }, (_, i) => {
+		const colorIndex = i % allColors.length;
+
+		return {
+			id: i + 1,
+			name: allColors[colorIndex]?.name ?? "Unknown",
+			color: allColors[colorIndex]?.color ?? "#ccc"
+		};
+	});
+
+	let selectedItem = $.state(null);
+
+	const spatialMenu = new SpatialMenu({
+		wrap: wrap(),
+		scrollBehavior: "smooth",
+		onSelect: (item) => {
+			$.set(selectedItem, item, true);
+		},
+
+		onHighlightChange: () => {
+			// Track highlight changes for testing
+		}
+	});
+
+	var div = root_3();
+
+	$.attribute_effect(
+		div,
+		() => ({
+			'data-testid': 'spatial-root',
+			class: 'test-container',
+			...spatialMenu.root
+		}),
+		void 0,
+		void 0,
+		void 0,
+		'svelte-1ir5fmg'
+	);
+
+	var input = $.sibling($.child(div), 2);
+
+	$.attribute_effect(
+		input,
+		() => ({
+			'data-testid': 'spatial-input',
+			placeholder: 'Type to test input navigation',
+			...spatialMenu.input
+		}),
+		void 0,
+		void 0,
+		void 0,
+		'svelte-1ir5fmg',
+		true
+	);
+
+	var div_1 = $.sibling(input, 2);
+
+	$.each(div_1, 21, () => itemsArray, $.index, ($$anchor, item, index) => {
+		const isDisabled = $.derived(() => disabledPattern()[index] ?? false);
+		const menuItem = $.derived(() => spatialMenu.getItem($.get(item), { disabled: $.get(isDisabled) }));
+		var div_2 = root_1();
+
+		$.attribute_effect(
+			div_2,
+			() => ({
+				'data-testid': 'spatial-item',
+				'data-item-id': $.get(item).id,
+				'data-disabled': $.get(isDisabled),
+				class: 'item',
+				...$.get(menuItem).attrs,
+				[$.CLASS]: {
+					highlighted: $.get(menuItem).highlighted,
+					disabled: $.get(isDisabled)
+				},
+				[$.STYLE]: { 'background-color': $.get(item).color }
+			}),
+			void 0,
+			void 0,
+			void 0,
+			'svelte-1ir5fmg'
+		);
+
+		var span = $.child(div_2);
+		var text = $.only_child(span, true);
+		var span_1 = $.sibling(span, 2);
+		var text_1 = $.only_child(span_1);
+		var node = $.sibling(span_1, 2);
+
+		{
+			var consequent = ($$anchor) => {
+				var span_2 = root();
+
+				$.append($$anchor, span_2);
+			};
+
+			$.if(node, ($$render) => {
+				if ($.get(isDisabled)) $$render(consequent);
+			});
+		}
+
+		$.reset(div_2);
+
+		$.template_effect(() => {
+			$.set_text(text, $.get(item).name);
+			$.set_text(text_1, `#${$.get(item).id ?? ''}`);
+		});
+
+		$.append($$anchor, div_2);
+	});
+
+	$.reset(div_1);
+
+	var node_1 = $.sibling(div_1, 2);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var div_3 = root_2();
+			var text_2 = $.only_child(div_3);
+
+			$.template_effect(() => $.set_text(text_2, `Selected: ${$.get(selectedItem).name ?? ''} (#${$.get(selectedItem).id ?? ''})`));
+			$.append($$anchor, div_3);
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($.get(selectedItem)) $$render(consequent_1);
+		});
+	}
+
+	var div_4 = $.sibling(node_1, 2);
+	var text_3 = $.only_child(div_4);
+	var div_5 = $.sibling(div_4, 2);
+	var text_4 = $.only_child(div_5);
+
+	$.reset(div);
+
+	$.template_effect(() => {
+		$.set_text(text_3, `Highlighted: ${spatialMenu.highlighted?.name ?? "None" ?? ''}`);
+		$.set_text(text_4, `Mode: ${spatialMenu.selectionMode ?? ''}`);
+	});
+
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 361 packages/melt/src/lib/builders/tests/SpatialMenuDisabledTest.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `wrap`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 41,
+			"column": 2,
+			"character": 1140
+		},
+		"end": {
+			"line": 41,
+			"column": 6,
+			"character": 1144
+		}
+	}
+]
+
+=== 391 packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte	css
+
+	[data-melt-spatial-menu-root].svelte-13vftyf {
+		display: grid;
+
+		padding: 0.5rem;
+		border: 1px solid #ccc;
+	}
+
+	[data-melt-spatial-menu-item].svelte-13vftyf {
+		padding: 0.5rem;
+		border: 1px solid #ccc;
+	}
+
+	[data-melt-spatial-menu-item][data-highlighted].svelte-13vftyf {
+		background-color: #ccc;
+	}
+
+	[data-melt-spatial-menu-item][data-disabled].svelte-13vftyf {
+		opacity: 0.5;
+	}
+
+=== 2061 packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { SpatialMenu } from "$lib/builders/SpatialMenu.svelte.js";
+
+var root = $.from_html(`<div> </div>`);
+var root_1 = $.from_html(`<div></div>`);
+
+export default function SpatialMenuNavTest($$anchor, $$props) {
+	$.push($$props, true);
+
+	const wrap = $.prop($$props, 'wrap', 3, false),
+		crossAxis = $.prop($$props, 'crossAxis', 3, false);
+
+	const cols = $$props.initial[0]?.split(" ").length ?? 0;
+	let highlighted = $.state(void 0);
+	const rows = [];
+
+	$$props.initial.forEach((row, rowIndex) => {
+		const res = [];
+		const cols = row.split(" ");
+
+		cols.forEach((col, colIndex) => {
+			const id = `${rowIndex}-${colIndex}`;
+
+			res.push({ id, disabled: col === "x" });
+
+			if (col === "h") {
+				$.set(highlighted, id);
+			}
+		});
+
+		rows.push(res);
+	});
+
+	const menu = new SpatialMenu({
+		highlighted: () => $.get(highlighted),
+		onHighlightChange: (id) => {
+			$.set(highlighted, id, true);
+		},
+		wrap: wrap(),
+		crossAxis: crossAxis()
+	});
+
+	const getHighlighted = () => $.get(highlighted);
+	var $$exports = { getHighlighted };
+	var div = root_1();
+
+	$.attribute_effect(
+		div,
+		() => ({
+			style: `grid-template-columns: repeat(${cols ?? ''}, 1fr);`,
+			...menu.root,
+			'data-testid': 'spatial-root'
+		}),
+		void 0,
+		void 0,
+		void 0,
+		'svelte-13vftyf'
+	);
+
+	$.each(div, 21, () => rows, $.index, ($$anchor, row) => {
+		var fragment = $.comment();
+		var node = $.first_child(fragment);
+
+		$.each(node, 17, () => $.get(row), $.index, ($$anchor, col) => {
+			const item = $.derived(() => menu.getItem($.get(col).id, { disabled: $.get(col).disabled }));
+			var div_1 = root();
+
+			$.attribute_effect(div_1, () => ({ ...$.get(item).attrs, 'data-testid': 'spatial-item' }), void 0, void 0, void 0, 'svelte-13vftyf');
+
+			var text = $.only_child(div_1, true);
+
+			$.template_effect(() => $.set_text(text, $.get(col).id));
+			$.append($$anchor, div_1);
+		});
+
+		$.append($$anchor, fragment);
+	});
+
+	$.reset(div);
+	$.append($$anchor, div);
+
+	return $.pop($$exports);
+}
+=== 1441 packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initial`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 11,
+			"column": 14,
+			"character": 256
+		},
+		"end": {
+			"line": 11,
+			"column": 21,
+			"character": 263
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `initial`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 22,
+			"column": 1,
+			"character": 436
+		},
+		"end": {
+			"line": 22,
+			"column": 8,
+			"character": 443
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `wrap`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 43,
+			"column": 2,
+			"character": 867
+		},
+		"end": {
+			"line": 43,
+			"column": 6,
+			"character": 871
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `crossAxis`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 44,
+			"column": 2,
+			"character": 875
+		},
+		"end": {
+			"line": 44,
+			"column": 11,
+			"character": 884
+		}
+	}
+]
+
+=== 1650 packages/melt/src/lib/builders/tests/SpatialMenuTest.svelte	css
+
+	.test-container.svelte-iqs62g {
+		padding: 20px;
+		border: 2px solid #ccc;
+		border-radius: 8px;
+		font-family: sans-serif;
+		max-width: 600px;
+		margin: 0 auto;
+	}
+
+	.test-container.svelte-iqs62g:focus {
+		outline: 2px solid #3b82f6;
+		outline-offset: 2px;
+	}
+
+	h2.svelte-iqs62g {
+		margin: 0 0 16px 0;
+		color: #333;
+	}
+
+	input.svelte-iqs62g {
+		width: 100%;
+		padding: 8px 12px;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		margin-bottom: 20px;
+		font-size: 14px;
+	}
+
+	input.svelte-iqs62g:focus {
+		outline: 2px solid #3b82f6;
+		outline-offset: 2px;
+		border-color: #3b82f6;
+	}
+
+	.items-grid.svelte-iqs62g {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 12px;
+		margin-bottom: 20px;
+	}
+
+	.item.svelte-iqs62g {
+		padding: 16px;
+		border-radius: 8px;
+		color: white;
+		font-weight: bold;
+		text-align: center;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		border: 2px solid transparent;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.item.svelte-iqs62g:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+	}
+
+	.item.highlighted.svelte-iqs62g {
+		border-color: #fff;
+		transform: scale(1.05);
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+	}
+
+	.item-name.svelte-iqs62g {
+		font-size: 16px;
+	}
+
+	.item-id.svelte-iqs62g {
+		font-size: 12px;
+		opacity: 0.8;
+	}
+
+	.selected-info.svelte-iqs62g,
+	.highlighted-info.svelte-iqs62g,
+	.mode-info.svelte-iqs62g {
+		padding: 8px 12px;
+		background: #f5f5f5;
+		border-radius: 4px;
+		margin-bottom: 8px;
+		font-size: 14px;
+		color: #666;
+	}
+
+	.selected-info.svelte-iqs62g {
+		background: #dcfce7;
+		color: #166534;
+		font-weight: bold;
+	}
+
+=== 4544 packages/melt/src/lib/builders/tests/SpatialMenuTest.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { SpatialMenu } from "../SpatialMenu.svelte.js";
+
+var root = $.from_html(`<div><span class="item-name svelte-iqs62g"> </span> <span class="item-id svelte-iqs62g"> </span></div>`);
+var root_1 = $.from_html(`<div data-testid="selected-item" class="selected-info svelte-iqs62g"> </div>`);
+var root_2 = $.from_html(`<div><h2 class="svelte-iqs62g">Spatial Menu Test</h2> <input/> <div class="items-grid svelte-iqs62g"></div> <!> <div data-testid="highlighted-item" class="highlighted-info svelte-iqs62g"> </div> <div data-testid="selection-mode" class="mode-info svelte-iqs62g"> </div></div>`);
+
+export default function SpatialMenuTest($$anchor, $$props) {
+	$.push($$props, true);
+
+	let wrap = $.prop($$props, 'wrap', 3, false),
+		items = $.prop($$props, 'items', 3, 8),
+		crossAxis = $.prop($$props, 'crossAxis', 3, false),
+		toleranceCol = $.prop($$props, 'toleranceCol', 3, 16),
+		toleranceRow = $.prop($$props, 'toleranceRow', 3, 16);
+
+	const allColors = [
+		{ name: "Red", color: "#ef4444" },
+		{ name: "Blue", color: "#3b82f6" },
+		{ name: "Green", color: "#10b981" },
+		{ name: "Yellow", color: "#f59e0b" },
+		{ name: "Purple", color: "#8b5cf6" },
+		{ name: "Pink", color: "#ec4899" },
+		{ name: "Orange", color: "#f97316" },
+		{ name: "Cyan", color: "#06b6d4" },
+		{ name: "Indigo", color: "#6366f1" },
+		{ name: "Teal", color: "#14b8a6" },
+		{ name: "Rose", color: "#f43f5e" },
+		{ name: "Emerald", color: "#059669" },
+		{ name: "Amber", color: "#d97706" },
+		{ name: "Lime", color: "#65a30d" },
+		{ name: "Sky", color: "#0284c7" },
+		{ name: "Violet", color: "#7c3aed" },
+		{ name: "Fuchsia", color: "#c026d3" },
+		{ name: "Slate", color: "#475569" },
+		{ name: "Zinc", color: "#71717a" },
+		{ name: "Stone", color: "#78716c" }
+	];
+
+	const itemsArray = Array.from({ length: items() }, (_, i) => {
+		const colorIndex = i % allColors.length;
+
+		return {
+			id: i + 1,
+			name: allColors[colorIndex]?.name ?? "Unknown",
+			color: allColors[colorIndex]?.color ?? "#ccc"
+		};
+	});
+
+	let selectedItem = $.state(null);
+
+	const spatialMenu = new SpatialMenu({
+		wrap: wrap(),
+		crossAxis: crossAxis(),
+		toleranceCol: toleranceCol(),
+		toleranceRow: toleranceRow(),
+		scrollBehavior: "smooth",
+		onSelect: (item) => {
+			$.set(selectedItem, item, true);
+		},
+
+		onHighlightChange: () => {
+			// Track highlight changes for testing
+		}
+	});
+
+	var div = root_2();
+
+	$.attribute_effect(
+		div,
+		() => ({
+			'data-testid': 'spatial-root',
+			class: 'test-container',
+			...spatialMenu.root
+		}),
+		void 0,
+		void 0,
+		void 0,
+		'svelte-iqs62g'
+	);
+
+	var input = $.sibling($.child(div), 2);
+
+	$.attribute_effect(
+		input,
+		() => ({
+			'data-testid': 'spatial-input',
+			placeholder: 'Type to test input navigation',
+			...spatialMenu.input
+		}),
+		void 0,
+		void 0,
+		void 0,
+		'svelte-iqs62g',
+		true
+	);
+
+	var div_1 = $.sibling(input, 2);
+
+	$.each(div_1, 21, () => itemsArray, $.index, ($$anchor, item) => {
+		const menuItem = $.derived(() => spatialMenu.getItem($.get(item)));
+		var div_2 = root();
+
+		$.attribute_effect(
+			div_2,
+			() => ({
+				'data-testid': 'spatial-item',
+				'data-item-id': $.get(item).id,
+				class: 'item',
+				...$.get(menuItem).attrs,
+				[$.CLASS]: { highlighted: $.get(menuItem).highlighted },
+				[$.STYLE]: { 'background-color': $.get(item).color }
+			}),
+			void 0,
+			void 0,
+			void 0,
+			'svelte-iqs62g'
+		);
+
+		var span = $.child(div_2);
+		var text = $.only_child(span, true);
+		var span_1 = $.sibling(span, 2);
+		var text_1 = $.only_child(span_1);
+
+		$.reset(div_2);
+
+		$.template_effect(() => {
+			$.set_text(text, $.get(item).name);
+			$.set_text(text_1, `#${$.get(item).id ?? ''}`);
+		});
+
+		$.append($$anchor, div_2);
+	});
+
+	$.reset(div_1);
+
+	var node = $.sibling(div_1, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			var div_3 = root_1();
+			var text_2 = $.only_child(div_3);
+
+			$.template_effect(() => $.set_text(text_2, `Selected: ${$.get(selectedItem).name ?? ''} (#${$.get(selectedItem).id ?? ''})`));
+			$.append($$anchor, div_3);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(selectedItem)) $$render(consequent);
+		});
+	}
+
+	var div_4 = $.sibling(node, 2);
+	var text_3 = $.only_child(div_4);
+	var div_5 = $.sibling(div_4, 2);
+	var text_4 = $.only_child(div_5);
+
+	$.reset(div);
+
+	$.template_effect(() => {
+		$.set_text(text_3, `Highlighted: ${spatialMenu.highlighted?.name ?? "None" ?? ''}`);
+		$.set_text(text_4, `Mode: ${spatialMenu.selectionMode ?? ''}`);
+	});
+
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 1820 packages/melt/src/lib/builders/tests/SpatialMenuTest.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `items`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 45,
+			"column": 49,
+			"character": 1257
+		},
+		"end": {
+			"line": 45,
+			"column": 54,
+			"character": 1262
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `wrap`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 57,
+			"column": 2,
+			"character": 1553
+		},
+		"end": {
+			"line": 57,
+			"column": 6,
+			"character": 1557
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `crossAxis`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 58,
+			"column": 2,
+			"character": 1561
+		},
+		"end": {
+			"line": 58,
+			"column": 11,
+			"character": 1570
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `toleranceCol`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 59,
+			"column": 2,
+			"character": 1574
+		},
+		"end": {
+			"line": 59,
+			"column": 14,
+			"character": 1586
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `toleranceRow`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 60,
+			"column": 2,
+			"character": 1590
+		},
+		"end": {
+			"line": 60,
+			"column": 14,
+			"character": 1602
+		}
+	}
+]
+
+=== 1310 packages/melt/src/lib/builders/tests/ToastTest.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Toaster } from "../Toaster.svelte";
+
+const toaster = new Toaster();
+
+export const addToast = toaster.addToast;
+
+var root = $.from_html(`<div><h3> </h3> <div> </div> <button>X</button></div>`);
+var root_1 = $.from_html(`<div></div>`);
+
+export default function ToastTest($$anchor, $$props) {
+	$.push($$props, true);
+
+	var div = root_1();
+
+	$.attribute_effect(div, () => ({ ...toaster.root }));
+
+	$.each(div, 21, () => toaster.toasts, (toast) => toast.id, ($$anchor, toast) => {
+		var div_1 = root();
+
+		$.attribute_effect(div_1, () => ({ ...$.get(toast).content }));
+
+		var h3 = $.child(div_1);
+
+		$.attribute_effect(h3, () => ({ ...$.get(toast).title }));
+
+		var text = $.only_child(h3, true);
+		var div_2 = $.sibling(h3, 2);
+
+		$.attribute_effect(div_2, () => ({ ...$.get(toast).description }));
+
+		var text_1 = $.only_child(div_2, true);
+		var button = $.sibling(div_2, 2);
+
+		$.attribute_effect(button, () => ({ ...$.get(toast).close, 'aria-label': 'dismiss alert' }));
+		$.reset(div_1);
+
+		$.template_effect(() => {
+			$.set_text(text, $.get(toast).data.title);
+			$.set_text(text_1, $.get(toast).data.description);
+		});
+
+		$.append($$anchor, div_1);
+	});
+
+	$.reset(div);
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 818 packages/melt/src/lib/components/Accordion.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getters } from "$lib/utils/getters.svelte.js";
+import { Accordion as Builder } from "../builders/Accordion.svelte";
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'value', 'children']);
+
+export default function Accordion($$anchor, $$props) {
+	$.push($$props, true);
+
+	let value = $.prop($$props, 'value', 15),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const accordion = new Builder({
+		value: () => value(),
+		onValueChange(v) {
+			value(v);
+		},
+		...getters({ ...rest })
+	});
+
+	var $$exports = { accordion };
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => accordion);
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 361 packages/melt/src/lib/components/Accordion.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 19,
+			"column": 18,
+			"character": 671
+		},
+		"end": {
+			"line": 19,
+			"column": 22,
+			"character": 675
+		}
+	}
+]
+
+=== 708 packages/melt/src/lib/components/Avatar.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getters } from "$lib/utils/getters.svelte.js";
+import { Avatar as Builder } from "../builders/Avatar.svelte";
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'children',
+	'onLoadingStatusChange'
+]);
+
+export default function Avatar($$anchor, $$props) {
+	$.push($$props, true);
+
+	let rest = $.rest_props($$props, rest_excludes);
+	const avatar = new Builder(getters({ ...rest }));
+	var $$exports = { avatar };
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => avatar);
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 361 packages/melt/src/lib/components/Avatar.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 18,
+			"column": 48,
+			"character": 557
+		},
+		"end": {
+			"line": 18,
+			"column": 52,
+			"character": 561
+		}
+	}
+]
+
+=== 818 packages/melt/src/lib/components/Collapsible.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getters } from "$lib/utils/getters.svelte.js";
+import { Collapsible as Builder } from "../builders/Collapsible.svelte";
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'open', 'children']);
+
+export default function Collapsible($$anchor, $$props) {
+	$.push($$props, true);
+
+	let open = $.prop($$props, 'open', 15, false),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const collapsible = new Builder({
+		open: () => open(),
+		onOpenChange: (v) => open(v),
+		...getters(rest)
+	});
+
+	var $$exports = { collapsible };
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => collapsible);
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 361 packages/melt/src/lib/components/Collapsible.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 13,
+			"character": 533
+		},
+		"end": {
+			"line": 16,
+			"column": 17,
+			"character": 537
+		}
+	}
+]
+
+=== 1113 packages/melt/src/lib/components/Combobox.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getters } from "../utils/getters.svelte";
+import { Combobox as Builder } from "../builders/Combobox.svelte";
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'value',
+	'highlighted',
+	'children'
+]);
+
+export default function Combobox($$anchor, $$props) {
+	$.push($$props, true);
+
+	let value = $.prop($$props, 'value', 15),
+		highlighted = $.prop($$props, 'highlighted', 15),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const select = new Builder({
+		value: () => value(),
+		onValueChange(v) {
+			value(v);
+		},
+		highlighted: () => highlighted(),
+		onHighlightChange(v) {
+			highlighted(v);
+		},
+		...getters({ ...rest }),
+		focus: { ...getters(rest).focus },
+		// onNavigate should not be wrapped in a getter since it's a callback function
+		onNavigate: $$props.onNavigate
+	});
+
+	var $$exports = { select };
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => select);
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 1079 packages/melt/src/lib/components/Combobox.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 24,
+			"column": 18,
+			"character": 912
+		},
+		"end": {
+			"line": 24,
+			"column": 22,
+			"character": 916
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 26,
+			"column": 14,
+			"character": 946
+		},
+		"end": {
+			"line": 26,
+			"column": 18,
+			"character": 950
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 29,
+			"column": 14,
+			"character": 1059
+		},
+		"end": {
+			"line": 29,
+			"column": 18,
+			"character": 1063
+		}
+	}
+]
+
+=== 851 packages/melt/src/lib/components/FileUpload.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getters } from "$lib/utils/getters.svelte.js";
+import { FileUpload } from "../builders/FileUpload.svelte";
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'selected',
+	'children',
+	'validate',
+	'multiple'
+]);
+
+export default function FileUpload_1($$anchor, $$props) {
+	$.push($$props, true);
+
+	let selected = $.prop($$props, 'selected', 15),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const fileUpload = new FileUpload({
+		...getters(rest),
+		selected: () => selected(),
+		onSelectedChange(v) {
+			selected(v);
+		},
+		multiple: () => $$props.multiple
+	});
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => fileUpload);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 361 packages/melt/src/lib/components/FileUpload.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 14,
+			"column": 13,
+			"character": 546
+		},
+		"end": {
+			"line": 14,
+			"column": 17,
+			"character": 550
+		}
+	}
+]
+
+=== 800 packages/melt/src/lib/components/PinInput.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getters } from "$lib/utils/getters.svelte.js";
+import { PinInput as Builder } from "../builders/PinInput.svelte";
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'value', 'children']);
+
+export default function PinInput($$anchor, $$props) {
+	$.push($$props, true);
+
+	let value = $.prop($$props, 'value', 15),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const pinInput = new Builder({
+		value: () => value(),
+		onValueChange: (v) => value(v),
+		...getters(rest)
+	});
+
+	var $$exports = { pinInput };
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => pinInput);
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 361 packages/melt/src/lib/components/PinInput.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 13,
+			"character": 518
+		},
+		"end": {
+			"line": 16,
+			"column": 17,
+			"character": 522
+		}
+	}
+]
+
+=== 826 packages/melt/src/lib/components/Popover.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getters } from "../utils/getters.svelte";
+import { Popover as Builder } from "../builders/Popover.svelte";
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'open', 'children']);
+
+export default function Popover($$anchor, $$props) {
+	$.push($$props, true);
+
+	let open = $.prop($$props, 'open', 15, false),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const popover = new Builder({
+		open: () => open(),
+		onOpenChange: (v) => open(v),
+		...getters(rest),
+		focus: { ...getters(rest).focus }
+	});
+
+	var $$exports = { popover };
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => popover);
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 719 packages/melt/src/lib/components/Popover.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 13,
+			"character": 508
+		},
+		"end": {
+			"line": 16,
+			"column": 17,
+			"character": 512
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 18,
+			"column": 14,
+			"character": 540
+		},
+		"end": {
+			"line": 18,
+			"column": 18,
+			"character": 544
+		}
+	}
+]
+
+=== 800 packages/melt/src/lib/components/Progress.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getters } from "$lib/utils/getters.svelte.js";
+import { Progress as Builder } from "../builders/Progress.svelte";
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'value', 'children']);
+
+export default function Progress($$anchor, $$props) {
+	$.push($$props, true);
+
+	let value = $.prop($$props, 'value', 15),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const progress = new Builder({
+		value: () => value(),
+		onValueChange: (v) => value(v),
+		...getters(rest)
+	});
+
+	var $$exports = { progress };
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => progress);
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 361 packages/melt/src/lib/components/Progress.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 13,
+			"character": 518
+		},
+		"end": {
+			"line": 16,
+			"column": 17,
+			"character": 522
+		}
+	}
+]
+
+=== 808 packages/melt/src/lib/components/RadioGroup.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getters } from "$lib/utils/getters.svelte.js";
+import { RadioGroup as Builder } from "../builders/RadioGroup.svelte";
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'value', 'children']);
+
+export default function RadioGroup($$anchor, $$props) {
+	$.push($$props, true);
+
+	let value = $.prop($$props, 'value', 15, undefined),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const group = new Builder({
+		value: () => value(),
+		onValueChange: (v) => value(v),
+		...getters(rest)
+	});
+
+	var $$exports = { group };
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => group);
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 361 packages/melt/src/lib/components/RadioGroup.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 13,
+			"character": 532
+		},
+		"end": {
+			"line": 16,
+			"column": 17,
+			"character": 536
+		}
+	}
+]
+
+=== 1107 packages/melt/src/lib/components/Select.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getters } from "../utils/getters.svelte";
+import { Select as Builder } from "../builders/Select.svelte";
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'value',
+	'children',
+	'highlighted'
+]);
+
+export default function Select($$anchor, $$props) {
+	$.push($$props, true);
+
+	let value = $.prop($$props, 'value', 15),
+		highlighted = $.prop($$props, 'highlighted', 15),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const select = new Builder({
+		value: () => value(),
+		onValueChange(v) {
+			value(v);
+		},
+		highlighted: () => highlighted(),
+		onHighlightChange(v) {
+			highlighted(v);
+		},
+		...getters({ ...rest }),
+		focus: { ...getters(rest).focus },
+		// onNavigate should not be wrapped in a getter since it's a callback function
+		onNavigate: $$props.onNavigate
+	});
+
+	var $$exports = { select };
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => select);
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 1079 packages/melt/src/lib/components/Select.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 24,
+			"column": 18,
+			"character": 905
+		},
+		"end": {
+			"line": 24,
+			"column": 22,
+			"character": 909
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 26,
+			"column": 14,
+			"character": 939
+		},
+		"end": {
+			"line": 26,
+			"column": 18,
+			"character": 943
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 29,
+			"column": 14,
+			"character": 1052
+		},
+		"end": {
+			"line": 29,
+			"column": 18,
+			"character": 1056
+		}
+	}
+]
+
+=== 788 packages/melt/src/lib/components/Slider.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getters } from "$lib/utils/getters.svelte.js";
+import { Slider as Builder } from "../builders/Slider.svelte";
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'value', 'children']);
+
+export default function Slider($$anchor, $$props) {
+	$.push($$props, true);
+
+	let value = $.prop($$props, 'value', 15),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const slider = new Builder({
+		value: () => value(),
+		onValueChange: (v) => value(v),
+		...getters(rest)
+	});
+
+	var $$exports = { slider };
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => slider);
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 361 packages/melt/src/lib/components/Slider.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 13,
+			"character": 508
+		},
+		"end": {
+			"line": 16,
+			"column": 17,
+			"character": 512
+		}
+	}
+]
+
+=== 605 packages/melt/src/lib/components/SpatialMenu.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { SpatialMenu as SpatialMenuBuilder } from "../builders/SpatialMenu.svelte";
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'children']);
+
+export default function SpatialMenu($$anchor, $$props) {
+	$.push($$props, true);
+
+	let rest = $.rest_props($$props, rest_excludes);
+	const spatialMenu = new SpatialMenuBuilder(rest);
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => spatialMenu);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 361 packages/melt/src/lib/components/SpatialMenu.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 15,
+			"column": 44,
+			"character": 432
+		},
+		"end": {
+			"line": 15,
+			"column": 48,
+			"character": 436
+		}
+	}
+]
+
+=== 776 packages/melt/src/lib/components/Tabs.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { getters } from "$lib/utils/getters.svelte.js";
+import { Tabs as Builder } from "../builders/Tabs.svelte";
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'value', 'children']);
+
+export default function Tabs($$anchor, $$props) {
+	$.push($$props, true);
+
+	let value = $.prop($$props, 'value', 15),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const tabs = new Builder({
+		value: () => value(),
+		onValueChange: (v) => value(v),
+		...getters(rest)
+	});
+
+	var $$exports = { tabs };
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => tabs);
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 361 packages/melt/src/lib/components/Tabs.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 13,
+			"character": 498
+		},
+		"end": {
+			"line": 16,
+			"column": 17,
+			"character": 502
+		}
+	}
+]
+
+=== 755 packages/melt/src/lib/components/Toggle.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Toggle as Builder } from "../builders/Toggle.svelte";
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'value', 'children']);
+
+export default function Toggle($$anchor, $$props) {
+	$.push($$props, true);
+
+	let value = $.prop($$props, 'value', 15, false),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const toggle = new Builder({
+		value: () => value(),
+		onValueChange: (v) => value(v),
+		disabled: () => $$props.disabled
+	});
+
+	var $$exports = { toggle };
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => toggle);
+	$.append($$anchor, fragment);
+
+	return $.pop($$exports);
+}
+=== 734 packages/melt/src/lib/components/Tooltip.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Tooltip as Builder } from "$lib/builders";
+import { getters } from "$lib/utils/getters.svelte.js";
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'open', 'children']);
+
+export default function Tooltip($$anchor, $$props) {
+	$.push($$props, true);
+
+	let open = $.prop($$props, 'open', 15, false),
+		rest = $.rest_props($$props, rest_excludes);
+
+	const tooltip = new Builder({
+		open: () => open(),
+		onOpenChange: (v) => open(v),
+		...getters(rest)
+	});
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children, () => tooltip);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 361 packages/melt/src/lib/components/Tooltip.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 13,
+			"character": 493
+		},
+		"end": {
+			"line": 16,
+			"column": 17,
+			"character": 497
+		}
+	}
+]
+

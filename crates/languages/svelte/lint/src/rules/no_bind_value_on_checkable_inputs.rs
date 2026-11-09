@@ -1,10 +1,10 @@
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, Component, Part, TemplateNode, decode_attribute,
 };
 
-use rsvelte_typescript::semantic::static_value::{StaticValues, Value};
+use rsvelte_typescript_semantic::static_value::{StaticValues, Value};
 
 use super::markup::{is_attribute, parts};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};

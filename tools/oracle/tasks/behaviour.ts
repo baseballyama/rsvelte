@@ -13,7 +13,6 @@ import {
 	type Runtime,
 	type Trace,
 } from '../behaviour/runtime.ts';
-import { inputFile } from '../paths.ts';
 import { stableStringify } from '../files.ts';
 import type { Task, Unit, Variant } from '../types.ts';
 
@@ -23,7 +22,6 @@ function behaviourTask(id: string, lang: string, source: Runtime, target: Runtim
 	const official = source === 'svelte' ? svelteModule : vueModule;
 	return {
 		id,
-		storage: 'committed',
 		oracles:
 			source === 'svelte'
 				? ['svelte', 'jsdom']
@@ -35,7 +33,8 @@ function behaviourTask(id: string, lang: string, source: Runtime, target: Runtim
 		appliesTo: (unit) => unit.lang === lang,
 		async run(unit: Unit, src: string, variant: Variant) {
 			const t = variant.id as Target;
-			const sourceFile = unit.sourceFile ?? inputFile(unit, unit.ext);
+			// A corpus unit has no file of its own, so only a crate case resolves sibling components.
+			const sourceFile = unit.sourceFile;
 			const result = await trace(
 				source,
 				t,
@@ -73,7 +72,7 @@ function behaviourTask(id: string, lang: string, source: Runtime, target: Runtim
 					variant.id as Target,
 					file,
 					unit.fixture.behaviour ?? {},
-					unit.sourceFile ?? inputFile(unit, unit.ext),
+					unit.sourceFile,
 					target === 'vapor',
 				);
 				const text = traceText(result);

@@ -4,7 +4,7 @@
 
 import { performanceHistory } from './performance-history.ts';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import fs, { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import {
 	createCssVariablesTheme as createStylesheetVariablesTheme,
@@ -102,19 +102,29 @@ interface ParityRow {
 	verdicts: Record<string, number>;
 }
 
-/** corpus/_registry/parity.json (`"<task>/<variant> <unit>": verdict`), counted per task and verdict. */
-function paritySummary(entries: Record<string, string>): { units: number; rows: ParityRow[] } {
-	const byTask = new Map<string, Record<string, number>>();
-	for (const [key, verdict] of Object.entries(entries)) {
-		const task = key.slice(0, key.indexOf(' '));
-		const row = byTask.get(task) ?? {};
-		row[verdict] = (row[verdict] ?? 0) + 1;
-		byTask.set(task, row);
-	}
-	const rows = [...byTask]
-		.toSorted(([a], [b]) => a.localeCompare(b))
-		.map(([task, verdicts]) => ({ task, verdicts }));
-	return { units: Object.keys(entries).length, rows };
+/**
+ * The parity ledger, corpus/_registry/parity/<task>/<variant>.txt, counted per task and verdict:
+ * its header counts the matches and each other line is `<unit>\t<verdict>`.
+ */
+function paritySummary(dir: string): { units: number; rows: ParityRow[]; files: string[] } {
+	const files = fs
+		.readdirSync(dir, { recursive: true, encoding: 'utf8' })
+		.filter((f) => f.endsWith('.txt'))
+		.map((f) => path.join(dir, f))
+		.toSorted();
+	let units = 0;
+	const rows = files.map((file) => {
+		const [header = '', ...lines] = readFileSync(file, 'utf8').trimEnd().split('\n');
+		const [, task = '', matched = '0'] = /^# (.+): (\d+) match$/.exec(header) ?? [];
+		const verdicts: Record<string, number> = { match: Number(matched) };
+		for (const line of lines) {
+			const verdict = line.slice(line.lastIndexOf('\t') + 1);
+			verdicts[verdict] = (verdicts[verdict] ?? 0) + 1;
+		}
+		units += Number(matched) + lines.length;
+		return { task, verdicts };
+	});
+	return { units, rows, files };
 }
 
 /** The commit the quoted code comes from, and whether the quoted files still match it. */
@@ -160,9 +170,9 @@ export function rsvelteSource(): Plugin {
 				modules.map((m) => m.path),
 			);
 			const baselineFile = path.join(root, 'tools/performance/baseline.json');
-			const parityFile = path.join(root, 'corpus/_registry/parity.json');
+			const parity = paritySummary(path.join(root, 'corpus/_registry/parity'));
 			this.addWatchFile(baselineFile);
-			this.addWatchFile(parityFile);
+			for (const file of parity.files) this.addWatchFile(file);
 			return [
 				`export const modules = ${JSON.stringify(modules)};`,
 				`export const rev = ${JSON.stringify(rev)};`,
@@ -170,7 +180,7 @@ export function rsvelteSource(): Plugin {
 				`export const crates = ${JSON.stringify(crateSizes(cratesDir))};`,
 				`export const performanceBaseline = ${JSON.stringify(readBaseline(baselineFile))};`,
 				`export const performanceHistory = ${JSON.stringify(performanceHistory(root))};`,
-				`export const parity = ${JSON.stringify(paritySummary(JSON.parse(readFileSync(parityFile, 'utf8'))))};`,
+				`export const parity = ${JSON.stringify({ units: parity.units, rows: parity.rows })};`,
 			].join('\n');
 		},
 	};

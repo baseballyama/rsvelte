@@ -4,8 +4,7 @@ mod task;
 pub use task::*;
 
 pub mod codegen;
-
-pub use task::PLUGIN;
+pub mod copy;
 
 /// Takes no options.
 pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_interface::Extension {

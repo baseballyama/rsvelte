@@ -1,6 +1,6 @@
 use super::{
-    LayoutInstructionIdentifier, Printer, R, TemplateNode, TemplateNodeIdentifier, Unsupported,
-    ends_with_linebreak, only_ws, starts_with_linebreak,
+    LayoutInstructionIdentifier, Printer, R, Span, TemplateNode, TemplateNodeIdentifier,
+    Unsupported, ends_with_linebreak, only_ws, starts_with_linebreak,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -51,33 +51,19 @@ impl Printer<'_, '_> {
         else {
             unreachable!("an each block")
         };
-        let javascript = &self.c.javascript;
-        // `{#each items}` and `{#each items, i}` have no context.
-        let has_context = context != rsvelte_typescript::NodeIdentifier::NONE;
-        if has_context
-            && !matches!(
-                javascript.kind(context),
-                rsvelte_typescript::Kind::Identifier(_)
-            )
-        {
-            let span = javascript
-                .source_location(context)
-                .span()
-                .unwrap_or_else(|| self.c.node(identifier).span());
-            return Err(Unsupported::at("destructuring in {#each}", span));
-        }
         let open = self.lit("{#each ");
         let e = self.expression(expression, true, false)?;
         let mut def = vec![open, e];
-        if has_context {
-            let context = format!(" as {}", self.c.javascript.name(context));
+        // `{#each items}` and `{#each items, i}` have no context.
+        if context != rsvelte_typescript_syntax::NodeIdentifier::NONE {
+            let context = format!(" as{}", self.expand(context)?);
             def.push(self.d().text(&context));
         }
-        if index != rsvelte_typescript::NodeIdentifier::NONE {
+        if index != rsvelte_typescript_syntax::NodeIdentifier::NONE {
             let index = format!(", {}", self.c.javascript.name(index));
             def.push(self.d().text(&index));
         }
-        if key != rsvelte_typescript::NodeIdentifier::NONE {
+        if key != rsvelte_typescript_syntax::NodeIdentifier::NONE {
             def.push(self.lit(" ("));
             def.push(self.expression(key, true, false)?);
             def.push(self.lit(")"));
@@ -98,6 +84,151 @@ impl Printer<'_, '_> {
         let def = self.cat(&def);
         let bp = self.d().break_parent();
         Ok(self.group(&[def, bp]))
+    }
+
+    pub(super) fn key_block(
+        &mut self,
+        identifier: TemplateNodeIdentifier,
+    ) -> R<LayoutInstructionIdentifier> {
+        let TemplateNode::Key {
+            expression, body, ..
+        } = *self.c.node(identifier)
+        else {
+            unreachable!("a key block")
+        };
+        let open = self.lit("{#key ");
+        let e = self.expression(expression, true, false)?;
+        let close = self.lit("}");
+        let c = self.c;
+        let body = self.block_children(c.children(body))?;
+        let end = self.lit("{/key}");
+        let def = self.cat(&[open, e, close, body, end]);
+        let bp = self.d().break_parent();
+        Ok(self.group(&[def, bp]))
+    }
+
+    pub(super) fn await_block(
+        &mut self,
+        identifier: TemplateNodeIdentifier,
+    ) -> R<LayoutInstructionIdentifier> {
+        let TemplateNode::Await {
+            expression,
+            value,
+            error,
+            pending,
+            then,
+            catch,
+            ..
+        } = *self.c.node(identifier)
+        else {
+            unreachable!("an await block")
+        };
+        let c = self.c;
+        let branch = |r: rsvelte_svelte_syntax::syntax_tree::Range| {
+            r.present().map_or(&[][..], |r| c.children(r))
+        };
+        let (pending, then, catch) = (branch(pending), branch(then), branch(catch));
+        let has = |p: &Self, children: &[TemplateNodeIdentifier]| {
+            children.iter().any(|&n| !p.is_empty_text(n))
+        };
+        let (has_pending, has_then, has_catch) =
+            (has(self, pending), has(self, then), has(self, catch));
+        let mut block = Vec::new();
+        let open = self.lit("{#await ");
+        let e = self.expression(expression, true, false)?;
+        if !has_pending && (has_then || has_catch) {
+            let (word, pattern, children) = if has_then {
+                (" then", value, then)
+            } else {
+                (" catch", error, catch)
+            };
+            let tail = format!("{word}{}}}", self.expand(pattern)?);
+            let tail = self.d().text(&tail);
+            block.push(self.group(&[open, e, tail]));
+            block.push(self.block_children(children)?);
+        } else {
+            let close = self.lit("}");
+            block.push(self.group(&[open, e, close]));
+            if has_pending {
+                block.push(self.block_children(pending)?);
+            }
+            if has_then {
+                let tag = format!("{{:then{}}}", self.expand(value)?);
+                let tag = self.d().text(&tag);
+                block.push(self.group(&[tag]));
+                block.push(self.block_children(then)?);
+            }
+        }
+        if (has_pending || has_then) && has_catch {
+            let tag = format!("{{:catch{}}}", self.expand(error)?);
+            let tag = self.d().text(&tag);
+            block.push(self.group(&[tag]));
+            block.push(self.block_children(catch)?);
+        }
+        block.push(self.lit("{/await}"));
+        Ok(self.group(&block))
+    }
+
+    pub(super) fn snippet_block(
+        &mut self,
+        identifier: TemplateNodeIdentifier,
+    ) -> R<LayoutInstructionIdentifier> {
+        let TemplateNode::Snippet {
+            name,
+            type_parameters,
+            parameters,
+            body,
+            span,
+        } = *self.c.node(identifier)
+        else {
+            unreachable!("a snippet block")
+        };
+        if let Some(t) = type_parameters {
+            return Err(Unsupported::at("a snippet's type parameters", t));
+        }
+        self.refuse_unembedded(span)?;
+        let c = self.c;
+        // From the name to the `)`, the text the plugin formats as `function name(…) {}`.
+        let name_start = c
+            .javascript
+            .source_location(name)
+            .span()
+            .expect("a parsed name has a source span")
+            .start_offset;
+        let parameters = c.javascript_list(parameters);
+        let head_end = self.snippet_head_end(name, parameters, span)?;
+        let signature =
+            self.javascript
+                .signature(name, parameters, Span::new(name_start, head_end))?;
+        let open = self.lit("{#snippet ");
+        let close = self.lit("}");
+        let body = self.block_children(c.children(body))?;
+        let end = self.lit("{/snippet}");
+        Ok(self.cat(&[open, signature, close, body, end]))
+    }
+
+    /// Just past the `)` that closes a snippet's parameters.
+    fn snippet_head_end(
+        &self,
+        name: rsvelte_typescript_syntax::NodeIdentifier,
+        parameters: &[rsvelte_typescript_syntax::NodeIdentifier],
+        span: Span,
+    ) -> R<u32> {
+        let javascript = &self.c.javascript;
+        let after = parameters.last().copied().unwrap_or(name);
+        let mut from = javascript
+            .source_location(after)
+            .span()
+            .expect("a parsed node has a source span")
+            .end_offset;
+        // A parameter's type annotation ends after the node itself.
+        if let Some(t) = self.javascript.annotation(after) {
+            from = from.max(t.end_offset);
+        }
+        self.source_text[from as usize..span.end_offset as usize]
+            .find(')')
+            .map(|i| from + i as u32 + 1)
+            .ok_or_else(|| Unsupported::at("a snippet without parameters' `)`", span))
     }
 
     /// `printIfBlockAlternate`.
@@ -191,8 +322,10 @@ impl Printer<'_, '_> {
             }
             // The Svelte parser may swallow whitespace between the block's `}` and its first child.
             let start_offset = self.c.node(edge).span().start_offset as usize;
-            if let Some(brace) =
-                self.source_text[..(start_offset + 1).min(self.source_text.len())].rfind('}')
+            let bytes = self.source_text.as_bytes();
+            if let Some(brace) = bytes[..(start_offset + 1).min(bytes.len())]
+                .iter()
+                .rposition(|&b| b == b'}')
                 && brace > 0
                 && start_offset > brace + 1
             {

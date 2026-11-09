@@ -19,8 +19,21 @@ impl LayoutInstructions {
                 let x = self.remove_lines(x);
                 self.dedent(x)
             }
-            // Without breakable lines the layout question a flat-only marks is moot.
-            Node::FlatOnly(x) => self.remove_lines(x),
+            // A choice keeps its states here and prints the last one when none fits; that one is
+            // not built, so the choice stays. Other flat-only layouts are plain groups upstream.
+            Node::FlatOnly {
+                content,
+                every_line,
+                choice: true,
+            } => {
+                let x = self.remove_lines(content);
+                self.push(Node::FlatOnly {
+                    content: x,
+                    every_line,
+                    choice: true,
+                })
+            }
+            Node::FlatOnly { content, .. } => self.remove_lines(content),
             Node::IndentIfBreak { document, group } => {
                 let x = self.remove_lines(document);
                 self.indent_if_break(x, group)
@@ -87,7 +100,7 @@ impl LayoutInstructions {
         self.trim_right(docs, ws);
     }
 
-    pub fn trim_left(
+    pub(crate) fn trim_left(
         &mut self,
         docs: &mut Vec<LayoutInstructionIdentifier>,
         ws: fn(&Self, LayoutInstructionIdentifier) -> bool,

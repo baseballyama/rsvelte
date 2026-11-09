@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_stylesheet::properties::{is_known, vendor_prefix};
-use rsvelte_svelte::syntax::syntax_tree::AttributeKind;
+use rsvelte_stylesheet_syntax::properties::{is_known, vendor_prefix};
+use rsvelte_svelte_syntax::syntax_tree::AttributeKind;
 use serde::Deserialize;
 
 use crate::Pattern;

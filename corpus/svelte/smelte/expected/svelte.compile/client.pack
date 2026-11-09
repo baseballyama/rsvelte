@@ -1,0 +1,3455 @@
+# rsvelte pack 1
+=== 237 src/components/Util/Spacer.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div class="flex-grow"></div>`);
+
+export default function Spacer($$anchor) {
+	var div = root();
+
+	$.append($$anchor, div);
+}
+=== 369 src/components/Util/Spacer.svelte	warnings.json
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 1,
+			"column": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 1,
+			"column": 25,
+			"character": 25
+		}
+	}
+]
+
+=== 1308 src/routes/breakpoints.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Code from "docs/Code.svelte";
+
+var root = $.from_html(`<div><h4 class="pb-8">Breakpoints helper store</h4> <p>Sometimes it's useful to know about your current window breakpoint size to
+    order to make any adjustments when browser window gets resized. Smelte comes
+    with a helper store just for that.</p> <p>For instance, navigation drawer on this page should hide programmatically
+    after hitting small window size breakpoint.</p> <!> <p><span class="code-inline">breakpoints</span> accepts one function argument which returns breakpoint name. <!></p></div>`);
+
+export default function Breakpoints($$anchor) {
+	var div = root();
+	var node = $.sibling($.child(div), 6);
+
+	Code(node, {
+		code: `
+    import breakpoints from "smelte/breakpoints";
+
+    const bp = breakpoints();
+    $: show = $bp !== "sm";
+
+    {#if show}
+      ...
+    {/if}
+  `
+	});
+
+	var p = $.sibling(node, 2);
+	var node_1 = $.sibling($.child(p), 2);
+
+	Code(node_1, {
+		code: `
+  function defaultCalc(width) {
+    if (width > 1279) {
+      return "xl";
+    }
+    if (width > 1023) {
+      return "lg";
+    }
+    if (width > 767) {
+      return "md";
+    }
+    return "sm";
+  }`
+	});
+
+	$.reset(p);
+	$.reset(div);
+	$.append($$anchor, div);
+}
+=== 2371 src/routes/color.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import TextField from "components/TextField";
+import Code from "docs/Code.svelte";
+
+var root = $.from_html(
+	`<h4 class="pb-8">Color helper classes</h4> <p>Right now Smelte adds very little to what Tailwind <a class="a" href="https://tailwindcss.com/docs/background-color/">has</a> <a class="a" href="https://tailwindcss.com/docs/text-color/">to offer</a> dealing with color except for porting the Material design color <a class="a" href="https://material.io/design/color/#tools-for-picking-colors">palette</a> and adding a few extra utilities like caret color on inputs or colored ripple
+  animation effect. Colors themselves are configured in <a class="a" href="https://github.com/matyunya/smelte/blob/master/tailwind.config.js">tailwind.config.js</a> .</p> <h5 class="mt-6 mb-2">Background</h5> <span class="code-inline"></span> gives element appropriate background color: <!> <div class="bg-deep-purple-500 text-white p-4">This div is deep purple.</div> <h5 class="mt-6 mb-2">Text</h5> <span class="code-inline"></span> changes text color accordingly: <!> <h4 class="text-error-500">This header is error color</h4> <h5 class="mt-6 mb-2">Border</h5> Same principle applies to border, but there are also border width <span class="code-inline"></span> and type <span class="code-inline"></span> helpers. <!> <div class="border-2 border-secondary-600 p-4">This div has secondary color border</div>`,
+	1
+);
+
+export default function Color($$anchor) {
+	var fragment = root();
+	var span = $.sibling($.first_child(fragment), 6);
+
+	span.textContent = '.bg-{color}-{variant}';
+
+	var node = $.sibling(span, 2);
+
+	Code(node, {
+		code: '<div class="bg-deep-purple-500 text-white p-4">This div is deep purple.</div>'
+	});
+
+	var span_1 = $.sibling(node, 6);
+
+	span_1.textContent = '.text-{color}-{variant}';
+
+	var node_1 = $.sibling(span_1, 2);
+
+	Code(node_1, { code: '<h4 class="text-error-500">This header is error</h4>' });
+
+	var span_2 = $.sibling(node_1, 6);
+
+	span_2.textContent = 'border-{n}';
+
+	var span_3 = $.sibling(span_2, 2);
+
+	span_3.textContent = 'border-{solid|dashed|dotted|none}';
+
+	var node_2 = $.sibling(span_3, 2);
+
+	Code(node_2, {
+		code: '<div class="border-2 border-secondary-600 p-4">This div has secondary border</div>'
+	});
+
+	$.next(2);
+	$.append($$anchor, fragment);
+}
+=== 6208 src/routes/components/buttons.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Button from "components/Button";
+import Icon from "components/Icon";
+import Code from "docs/Code.svelte";
+import PropsTable from "docs/PropsTable.svelte";
+import buttons from "examples/buttons.txt";
+
+var root = $.from_html(`<blockquote class="pl-8 mt-2 mb-10 border-l-8 border-primary-300 text-lg" cite="https://material.io/components/buttons/"><p>Buttons allow users to take actions, and make choices, with a single tap.</p></blockquote> <h6 class="mb-3 mt-6">Basic</h6> <div class="py-2"><!></div> <h6 class="mb-3 mt-6">Light</h6> <div class="py-2"><!></div> <h6 class="mb-3 mt-6">Dark</h6> <div class="py-2"><!></div> <h6 class="mb-3 mt-6">Block</h6> <div class="py-2"><!></div> <!> <h6 class="mb-3 mt-6">Outlined</h6> <div class="py-2"><!></div> <h6 class="mb-3 mt-6">As anchor</h6> <div class="py-2"><!></div> <h6 class="mb-3 mt-6">Text</h6> <div class="py-2"><!></div> <h6 class="mb-3 mt-6">Disabled</h6> <div class="py-2"><!></div> <h6 class="mb-3 mt-6">FAB <a class="a" href="https://material.io/components/buttons-floating-action-button/">(Floating action button)</a></h6> <div class="py-2"><!></div> <h6 class="mb-3 mt-6">Fab flat</h6> <div class="py-2"><!></div> <!>`, 1);
+
+export default function Buttons($$anchor) {
+	var fragment = root();
+	var div = $.sibling($.first_child(fragment), 4);
+	var node = $.child(div);
+
+	Button(node, {
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text = $.text('Button');
+
+			$.append($$anchor, text);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 4);
+	var node_1 = $.child(div_1);
+
+	Button(node_1, {
+		light: true,
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_1 = $.text('Button');
+
+			$.append($$anchor, text_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 4);
+	var node_2 = $.child(div_2);
+
+	Button(node_2, {
+		dark: true,
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_2 = $.text('Button');
+
+			$.append($$anchor, text_2);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_2);
+
+	var div_3 = $.sibling(div_2, 4);
+	var node_3 = $.child(div_3);
+
+	Button(node_3, {
+		color: 'alert',
+		dark: true,
+		block: true,
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_3 = $.text('Button');
+
+			$.append($$anchor, text_3);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_3);
+
+	var node_4 = $.sibling(div_3, 2);
+
+	PropsTable(node_4, {
+		data: [
+			{
+				prop: "value",
+				description: "Bound boolean value",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "color",
+				description: "Color variant, accepts any of the main colors described in Tailwind config",
+				type: "String",
+				default: "primary"
+			},
+
+			{
+				prop: "outlined",
+				description: "Outlined variant",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "text",
+				description: "Text button variant (transparent background)",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "block",
+				description: "Full block width button",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "disabled",
+				description: "Disabled state",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "icon",
+				description: "Icon button variant",
+				type: "String",
+				default: "null"
+			},
+
+			{
+				prop: "small",
+				description: "Smaller size",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "light",
+				description: "Lighter variant",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "dark",
+				description: "Darker variant",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "flat",
+				description: "Flat variant",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "iconClass",
+				description: "List of classes to pass down to icon",
+				type: "String",
+				default: "empty string"
+			},
+
+			{
+				prop: "href",
+				description: "Link URL",
+				type: "String",
+				default: "null"
+			},
+
+			{
+				prop: "add",
+				description: "List of classes to add to the component",
+				type: "String",
+				default: "empty string"
+			},
+
+			{
+				prop: "remove",
+				description: "List of classes to remove from the component",
+				type: "String",
+				default: "empty string"
+			},
+
+			{
+				prop: "replace",
+				description: "List of classes to replace in the component",
+				type: "Object",
+				default: "{}"
+			}
+		]
+	});
+
+	var div_4 = $.sibling(node_4, 4);
+	var node_5 = $.child(div_4);
+
+	Button(node_5, {
+		color: 'secondary',
+		light: true,
+		block: true,
+		outlined: true,
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_4 = $.text('Button');
+
+			$.append($$anchor, text_4);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_4);
+
+	var div_5 = $.sibling(div_4, 4);
+	var node_6 = $.child(div_5);
+
+	Button(node_6, {
+		color: 'secondary',
+		light: true,
+		block: true,
+		outlined: true,
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_5 = $.text('Button');
+
+			$.append($$anchor, text_5);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_5);
+
+	var div_6 = $.sibling(div_5, 4);
+	var node_7 = $.child(div_6);
+
+	Button(node_7, {
+		text: true,
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_6 = $.text('Button');
+
+			$.append($$anchor, text_6);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_6);
+
+	var div_7 = $.sibling(div_6, 4);
+	var node_8 = $.child(div_7);
+
+	Button(node_8, {
+		block: true,
+		disabled: true,
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_7 = $.text('Button');
+
+			$.append($$anchor, text_7);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_7);
+
+	var div_8 = $.sibling(div_7, 4);
+	var node_9 = $.child(div_8);
+
+	Button(node_9, { color: 'alert', icon: 'change_history' });
+	$.reset(div_8);
+
+	var div_9 = $.sibling(div_8, 4);
+	var node_10 = $.child(div_9);
+
+	Button(node_10, {
+		color: 'error',
+		icon: 'change_history',
+		text: true,
+		light: true,
+		flat: true
+	});
+
+	$.reset(div_9);
+
+	var node_11 = $.sibling(div_9, 2);
+
+	Code(node_11, {
+		get code() {
+			return buttons;
+		}
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 3355 src/routes/components/cards.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Card from "../../components/Card";
+import Button from "../../components/Button";
+import Image from "../../components/Image";
+import Code from "docs/Code.svelte";
+import PropsTable from "docs/PropsTable.svelte";
+import card from "examples/card.txt";
+
+var root = $.from_html(`<div slot="title"><!></div>`);
+var root_1 = $.from_html(`<div slot="media"><!></div>`);
+var root_2 = $.from_html(`<div slot="text" class="p-5 pb-0 pt-3 text-gray-700 body-2">The three little kittens, they lost their mittens, <br/> And they began to cry, <br/> "Oh, mother dear, we sadly fear, <br/> That we have lost our mittens."</div>`);
+var root_3 = $.from_html(`<div slot="actions"><div class="p-2"><!> <!></div></div>`);
+var root_4 = $.from_html(`<!> <!> <!>`, 1);
+
+export default function Cards($$anchor) {
+	var fragment = root_4();
+	var node = $.first_child(fragment);
+
+	$.component(node, () => Card.Card, ($$anchor, Card_Card) => {
+		Card_Card($$anchor, {
+			class: 'dark:bg-gray-200',
+			$$slots: {
+				title: ($$anchor, $$slotProps) => {
+					var div = root();
+					var node_1 = $.child(div);
+
+					$.component(node_1, () => Card.Title, ($$anchor, Card_Title) => {
+						Card_Title($$anchor, {
+							class: 'dark:text-black',
+							title: 'The three little kittens',
+							subheader: 'A kitten poem',
+							avatar: 'https://placekitten.com/64/64'
+						});
+					});
+
+					$.reset(div);
+					$.append($$anchor, div);
+				},
+
+				media: ($$anchor, $$slotProps) => {
+					var div_1 = root_1();
+					var node_2 = $.child(div_1);
+
+					Image(node_2, {
+						class: 'w-full',
+						src: 'https://placekitten.com/300/200',
+						alt: 'kitty'
+					});
+
+					$.reset(div_1);
+					$.append($$anchor, div_1);
+				},
+
+				text: ($$anchor, $$slotProps) => {
+					var div_2 = root_2();
+
+					$.append($$anchor, div_2);
+				},
+
+				actions: ($$anchor, $$slotProps) => {
+					var div_3 = root_3();
+					var div_4 = $.child(div_3);
+					var node_3 = $.child(div_4);
+
+					Button(node_3, {
+						text: true,
+						children: ($$anchor, $$slotProps) => {
+							$.next();
+
+							var text = $.text('OK');
+
+							$.append($$anchor, text);
+						},
+						$$slots: { default: true }
+					});
+
+					var node_4 = $.sibling(node_3, 2);
+
+					Button(node_4, {
+						text: true,
+						children: ($$anchor, $$slotProps) => {
+							$.next();
+
+							var text_1 = $.text('Meow');
+
+							$.append($$anchor, text_1);
+						},
+						$$slots: { default: true }
+					});
+
+					$.reset(div_4);
+					$.reset(div_3);
+					$.append($$anchor, div_3);
+				}
+			}
+		});
+	});
+
+	var node_5 = $.sibling(node, 2);
+
+	PropsTable(node_5, {
+		data: [
+			{
+				prop: "hover",
+				default: "true",
+				description: "Enable hover elevation",
+				type: "Boolean"
+			},
+
+			{
+				prop: "elevation",
+				default: "1",
+				description: "Default elevation value",
+				type: "Number"
+			},
+
+			{
+				prop: "hoverElevation",
+				default: "8",
+				description: "Hover elevation value",
+				type: "Number"
+			},
+
+			{
+				prop: "classes",
+				default: `rounded inline-flex flex-col overflow-hidden duration-200 ease-in`,
+				description: "String of root element classes",
+				type: "String"
+			}
+		]
+	});
+
+	var node_6 = $.sibling(node_5, 2);
+
+	Code(node_6, {
+		get code() {
+			return card;
+		}
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 4386 src/routes/components/chips.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Chip from "components/Chip";
+import Button from "components/Button";
+import Snackbar from "components/Snackbar";
+import Code from "docs/Code.svelte";
+import chip from "examples/chip.txt";
+import chipOutlined from "examples/chip-outlined.txt";
+
+var root = $.from_html(`<div slot="action"><!></div>`);
+var root_1 = $.from_html(`<h5 class="mt-6 mb-2">Basic</h5> <!> <div class="my-4"><!></div> <h5 class="mt-6 mb-2">Outlined</h5> <!> <!> <!> <!> <div class="my-4"><!></div> <!> <!>`, 1);
+
+export default function Chips($$anchor) {
+	let closed = false;
+	let clicked = false;
+	var fragment = root_1();
+	var node = $.sibling($.first_child(fragment), 2);
+
+	Chip(node, {
+		icon: 'face',
+		selectable: true,
+		$$events: { close: () => closed = true, click: () => clicked = true },
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text = $.text('test');
+
+			$.append($$anchor, text);
+		},
+		$$slots: { default: true }
+	});
+
+	var div = $.sibling(node, 2);
+	var node_1 = $.child(div);
+
+	Code(node_1, {
+		get code() {
+			return chip;
+		}
+	});
+
+	$.reset(div);
+
+	var node_2 = $.sibling(div, 4);
+
+	Chip(node_2, {
+		icon: 'pan_tool',
+		outlined: true,
+		removable: true,
+		selectable: true,
+		$$events: { close: () => closed = true, click: () => clicked = true },
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_1 = $.text('Cats');
+
+			$.append($$anchor, text_1);
+		},
+		$$slots: { default: true }
+	});
+
+	var node_3 = $.sibling(node_2, 2);
+
+	Chip(node_3, {
+		icon: 'print',
+		outlined: true,
+		removable: true,
+		selectable: true,
+		color: 'blue',
+		$$events: { close: () => closed = true, click: () => clicked = true },
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_2 = $.text('Dogs');
+
+			$.append($$anchor, text_2);
+		},
+		$$slots: { default: true }
+	});
+
+	var node_4 = $.sibling(node_3, 2);
+
+	Chip(node_4, {
+		icon: 'pageview',
+		outlined: true,
+		removable: true,
+		selectable: true,
+		color: 'alert',
+		$$events: { close: () => closed = true, click: () => clicked = true },
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_3 = $.text('Plants');
+
+			$.append($$anchor, text_3);
+		},
+		$$slots: { default: true }
+	});
+
+	var node_5 = $.sibling(node_4, 2);
+
+	Chip(node_5, {
+		icon: 'pets',
+		outlined: true,
+		removable: true,
+		selectable: true,
+		color: 'secondary',
+		$$events: { close: () => closed = true, click: () => clicked = true },
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_4 = $.text('Parents');
+
+			$.append($$anchor, text_4);
+		},
+		$$slots: { default: true }
+	});
+
+	var div_1 = $.sibling(node_5, 2);
+	var node_6 = $.child(div_1);
+
+	Code(node_6, {
+		lang: 'javascript',
+		get code() {
+			return chipOutlined;
+		}
+	});
+
+	$.reset(div_1);
+
+	var node_7 = $.sibling(div_1, 2);
+
+	Snackbar(node_7, {
+		get value() {
+			return closed;
+		},
+
+		set value($$value) {
+			closed = $$value;
+		},
+
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_5 = $.text('Chip was removed successfully.');
+
+			$.append($$anchor, text_5);
+		},
+
+		$$slots: {
+			default: true,
+			action: ($$anchor, $$slotProps) => {
+				var div_2 = root();
+				var node_8 = $.child(div_2);
+
+				Button(node_8, {
+					text: true,
+					$$events: { click: () => closed = false },
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_6 = $.text('Dismiss');
+
+						$.append($$anchor, text_6);
+					},
+					$$slots: { default: true }
+				});
+
+				$.reset(div_2);
+				$.append($$anchor, div_2);
+			}
+		}
+	});
+
+	var node_9 = $.sibling(node_7, 2);
+
+	Snackbar(node_9, {
+		get value() {
+			return clicked;
+		},
+
+		set value($$value) {
+			clicked = $$value;
+		},
+
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_7 = $.text('Chip was clicked successfully.');
+
+			$.append($$anchor, text_7);
+		},
+
+		$$slots: {
+			default: true,
+			action: ($$anchor, $$slotProps) => {
+				var div_3 = root();
+				var node_10 = $.child(div_3);
+
+				Button(node_10, {
+					text: true,
+					$$events: { click: () => clicked = false },
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_8 = $.text('Dismiss');
+
+						$.append($$anchor, text_8);
+					},
+					$$slots: { default: true }
+				});
+
+				$.reset(div_3);
+				$.append($$anchor, div_3);
+			}
+		}
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 702 src/routes/components/chips.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`closed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 6,
+			"character": 279
+		},
+		"end": {
+			"line": 10,
+			"column": 12,
+			"character": 285
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`clicked` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 6,
+			"character": 301
+		},
+		"end": {
+			"line": 11,
+			"column": 13,
+			"character": 308
+		}
+	}
+]
+
+=== 2035 src/routes/components/data-tables.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import DataTable from "components/DataTable";
+import Image from "components/Image";
+import Code from "docs/Code.svelte";
+import table from "examples/table.txt";
+
+var root = $.from_html(`<div class="overflow-auto p-1"><!> <!></div>`);
+
+export default function Data_tables($$anchor) {
+	let data = [];
+	let loading = true;
+
+	async function getData() {
+		if (typeof window === "undefined") return;
+
+		loading = true;
+
+		const res = await fetch("data.json");
+		const body = await res.json();
+
+		data = body._embedded.episodes;
+		setTimeout(() => loading = false, 500);
+	}
+
+	getData();
+
+	var div = root();
+	var node = $.child(div);
+
+	{
+		let $0 = $.derived(() => [
+			{ label: "ID", field: "id", class: "md:w-10" },
+			{
+				label: "Ep.",
+				value: (v) => `S${v.season}E${v.number}`,
+				class: "md:w-10",
+				editable: false
+			},
+			{ field: "name", class: "md:w-10" },
+			{
+				field: "summary",
+				textarea: true,
+				value: (v) => v && v.summary ? v.summary : "",
+				add: "text-sm text-gray-700 caption md:w-full sm:w-64",
+				remove: "text-right",
+				headerRemove: "justify-end",
+				iconAfter: true
+			},
+
+			{
+				field: "thumbnail",
+				component: Image,
+				componentProps: (v) => v && v.image
+					? {
+						src: v.image.medium.replace("http", "https"),
+						class: 'h-full',
+						height: 100,
+						alt: v.name
+					}
+					: {},
+				class: "w-48",
+				sortable: false,
+				editable: false,
+				headerRemove: "justify-end"
+			}
+		]);
+
+		DataTable(node, {
+			get data() {
+				return data;
+			},
+
+			get loading() {
+				return loading;
+			},
+
+			get columns() {
+				return $.get($0);
+			},
+
+			$$events: {
+				update: ({ detail }) => {
+					const { column, item, value } = detail;
+					const index = data.findIndex((i) => i.id === item.id);
+
+					data[index][column.field] = value;
+				}
+			}
+		});
+	}
+
+	var node_1 = $.sibling(node, 2);
+
+	Code(node_1, {
+		get code() {
+			return table;
+		}
+	});
+
+	$.reset(div);
+	$.append($$anchor, div);
+}
+=== 696 src/routes/components/data-tables.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`data` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 185
+		},
+		"end": {
+			"line": 7,
+			"column": 10,
+			"character": 189
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`loading` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 202
+		},
+		"end": {
+			"line": 8,
+			"column": 13,
+			"character": 209
+		}
+	}
+]
+
+=== 866 src/routes/components/date-pickers.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import DatePicker from "components/DatePicker";
+import Code from "docs/Code.svelte";
+import datepickers from "examples/date-pickers.txt";
+
+var root = $.from_html(`<div><small> </small></div> <!> <!>`, 1);
+
+export default function Date_pickers($$anchor) {
+	let selected;
+	var fragment = root();
+	var div = $.first_child(fragment);
+	var small = $.child(div);
+	var text = $.only_child(small);
+
+	$.reset(div);
+
+	var node = $.sibling(div, 2);
+
+	DatePicker(node, { $$events: { change: (i) => selected = i.detail } });
+
+	var node_1 = $.sibling(node, 2);
+
+	Code(node_1, {
+		get code() {
+			return datepickers;
+		}
+	});
+
+	$.template_effect(($0) => $.set_text(text, `I selected ${$0 ?? ''}`), [() => selected ? selected.toLocaleDateString() : "nothing"]);
+	$.append($$anchor, fragment);
+}
+=== 352 src/routes/components/date-pickers.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 160
+		},
+		"end": {
+			"line": 6,
+			"column": 14,
+			"character": 168
+		}
+	}
+]
+
+=== 3984 src/routes/components/dialogs.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Button from "components/Button";
+import Dialog from "components/Dialog";
+import Code from "docs/Code.svelte";
+import dialog from "examples/dialog.txt";
+
+var root = $.from_html(`<div class="text-gray-700 dark:text-gray-100">I'm not sure about today's weather.</div>`);
+var root_1 = $.from_html(`<h5 slot="title">What do you think?</h5>`);
+var root_2 = $.from_html(`<div slot="actions"><!> <!></div>`);
+var root_3 = $.from_html(`<div class="text-gray-700 dark:text-gray-100">Doubt it.</div>`);
+var root_4 = $.from_html(`<h5 slot="title">Do you think you can close me by clicking outside?</h5>`);
+var root_5 = $.from_html(`<!> <!> <div class="py-2"><!></div> <div class="py-2"><!></div> <!>`, 1);
+
+export default function Dialogs($$anchor) {
+	let showDialog = false;
+	let showDialog2 = false;
+	var fragment = root_5();
+	var node = $.first_child(fragment);
+
+	Dialog(node, {
+		get value() {
+			return showDialog;
+		},
+
+		set value($$value) {
+			showDialog = $$value;
+		},
+
+		children: ($$anchor, $$slotProps) => {
+			var div = root();
+
+			$.append($$anchor, div);
+		},
+
+		$$slots: {
+			default: true,
+			title: ($$anchor, $$slotProps) => {
+				var h5 = root_1();
+
+				$.append($$anchor, h5);
+			},
+
+			actions: ($$anchor, $$slotProps) => {
+				var div_1 = root_2();
+				var node_1 = $.child(div_1);
+
+				Button(node_1, {
+					text: true,
+					$$events: { click: () => showDialog = false },
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text = $.text('Disagree');
+
+						$.append($$anchor, text);
+					},
+					$$slots: { default: true }
+				});
+
+				var node_2 = $.sibling(node_1, 2);
+
+				Button(node_2, {
+					text: true,
+					$$events: { click: () => showDialog = false },
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_1 = $.text('Agree');
+
+						$.append($$anchor, text_1);
+					},
+					$$slots: { default: true }
+				});
+
+				$.reset(div_1);
+				$.append($$anchor, div_1);
+			}
+		}
+	});
+
+	var node_3 = $.sibling(node, 2);
+
+	Dialog(node_3, {
+		persistent: true,
+		get value() {
+			return showDialog2;
+		},
+
+		set value($$value) {
+			showDialog2 = $$value;
+		},
+
+		children: ($$anchor, $$slotProps) => {
+			var div_2 = root_3();
+
+			$.append($$anchor, div_2);
+		},
+
+		$$slots: {
+			default: true,
+			title: ($$anchor, $$slotProps) => {
+				var h5_1 = root_4();
+
+				$.append($$anchor, h5_1);
+			},
+
+			actions: ($$anchor, $$slotProps) => {
+				var div_3 = root_2();
+				var node_4 = $.child(div_3);
+
+				Button(node_4, {
+					text: true,
+					$$events: { click: () => showDialog2 = false },
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_2 = $.text('Yes');
+
+						$.append($$anchor, text_2);
+					},
+					$$slots: { default: true }
+				});
+
+				var node_5 = $.sibling(node_4, 2);
+
+				Button(node_5, {
+					text: true,
+					$$events: { click: () => showDialog2 = false },
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_3 = $.text('No');
+
+						$.append($$anchor, text_3);
+					},
+					$$slots: { default: true }
+				});
+
+				$.reset(div_3);
+				$.append($$anchor, div_3);
+			}
+		}
+	});
+
+	var div_4 = $.sibling(node_3, 2);
+	var node_6 = $.child(div_4);
+
+	Button(node_6, {
+		$$events: { click: () => showDialog = true },
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_4 = $.text('Show dialog');
+
+			$.append($$anchor, text_4);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_4);
+
+	var div_5 = $.sibling(div_4, 2);
+	var node_7 = $.child(div_5);
+
+	Button(node_7, {
+		color: 'secondary',
+		$$events: { click: () => showDialog2 = true },
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_5 = $.text('Show persistent dialog');
+
+			$.append($$anchor, text_5);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_5);
+
+	var node_8 = $.sibling(div_5, 2);
+
+	Code(node_8, {
+		get code() {
+			return dialog;
+		}
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 706 src/routes/components/dialogs.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`showDialog` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 183
+		},
+		"end": {
+			"line": 7,
+			"column": 16,
+			"character": 193
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showDialog2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 209
+		},
+		"end": {
+			"line": 8,
+			"column": 17,
+			"character": 220
+		}
+	}
+]
+
+=== 1139 src/routes/components/images.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Image from "components/Image";
+import Code from "docs/Code.svelte";
+import images from "examples/images.txt";
+
+var root = $.from_html(`<div class="my-8"><!></div>`);
+
+var root_1 = $.from_html(
+	`<p>Smelte includes convenience image component which is useful for lazyloading, but generally we recommend
+  using <a class="a" href="https://github.com/matyunya/svelte-image">Svelte Image</a>.</p> <!> <!>`,
+	1
+);
+
+export default function Images($$anchor, $$props) {
+	$.push($$props, true);
+
+	const range = [...new Array(50)];
+	var fragment = root_1();
+	var node = $.sibling($.first_child(fragment), 2);
+
+	Code(node, {
+		get code() {
+			return images;
+		}
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	$.each(node_1, 17, () => range, $.index, ($$anchor, _, i) => {
+		var div = root();
+		var node_2 = $.child(div);
+
+		Image(node_2, {
+			src: `https://placeimg.com/${400 + i}/${300 + i}/animals`,
+			alt: `Kitty ${i}`,
+			height: 400 + 1,
+			width: 300 + 1
+		});
+
+		$.reset(div);
+		$.append($$anchor, div);
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 3535 src/routes/components/index.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Button from "components/Button";
+import Code from "docs/Code.svelte";
+
+var root = $.from_html(
+	`<h4 class="pb-8">Smelte components</h4> <p>Smelte components are built almost exclusively using Tailwind's utility classes
+  keeping CSS bundle size as minimal as possible. UI frameworks are notorious for
+  being hard to customize and we're still looking for appropriate solution given
+  utility-first nature of Tailwind. So for the most part components expose all of
+  their elements' classes as strings like, for instance, Button component has
+  "disabledClasses" prop defaulting to<br/> <span class="code-inline">bg-gray-300 text-gray-500 dark:bg-dark-400 pointer-events-none hover:bg-gray-300 cursor-default</span></p> <!> <div class="pt-8 pb-16"><!></div> <p>Say you need to adjust that background color, you may the "disabledClasses" prop<br/> <span class="code-inline">bg-gray-100 text-gray-700 dark:bg-dark-100 pointer-events-none hover:bg-gray-300 cursor-default</span></p> <!> <div class="pt-8 pb-16"><!></div> <p>This feels bulky to say the least but may still be the case if you need to modify those classes heavily.
+  Same prop also allows you to pass a function which accepts the same string as argument and returns your modified classes string:</p> <!> <div class="pt-8 pb-16"><!></div> <p>Using this approach Smelte is also able to imply which classes are actually being used
+  even dynamically which helps Purge CSS to get rid of unused classes at build time automatically.
+  Still it feels like this is a rather naive way of customizing components so please create an <a href="https://github.com/matyunya/smelte/issues/new">issue</a> on Github or <a href="mailto:matyunya@gmail.com">contact me directly</a> if you have an idea how to improve on this.</p>`,
+	1
+);
+
+export default function Components($$anchor) {
+	var fragment = root();
+	var node = $.sibling($.first_child(fragment), 4);
+
+	Code(node, { code: '<Button disabled>Disabled button</Button>' });
+
+	var div = $.sibling(node, 2);
+	var node_1 = $.child(div);
+
+	Button(node_1, {
+		disabled: true,
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text = $.text('Disabled button');
+
+			$.append($$anchor, text);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div);
+
+	var node_2 = $.sibling(div, 4);
+
+	Code(node_2, {
+		code: `<Button
+  disabledClasses="bg-gray-100 text-gray-500 dark:bg-dark-100 pointer-events-none hover:bg-gray-300 cursor-default"
+  disabled>Disabled button
+</Button>`
+	});
+
+	var div_1 = $.sibling(node_2, 2);
+	var node_3 = $.child(div_1);
+
+	Button(node_3, {
+		disabledClasses: 'bg-gray-100 text-gray-500 dark:bg-dark-100 pointer-events-none hover:bg-gray-300 cursor-default',
+		disabled: true,
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_1 = $.text('Disabled button');
+
+			$.append($$anchor, text_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_1);
+
+	var node_4 = $.sibling(div_1, 4);
+
+	Code(node_4, {
+		code: `<Button
+  disabledClasses={i => i.replace(/(3|4)00/g, "100")}
+  disabled>Disabled button
+</Button>`
+	});
+
+	var div_2 = $.sibling(node_4, 2);
+	var node_5 = $.child(div_2);
+
+	Button(node_5, {
+		disabledClasses: (i) => i.replace(/(3|4)00/g, "100"),
+		disabled: true,
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_2 = $.text('Disabled button');
+
+			$.append($$anchor, text_2);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_2);
+	$.next(2);
+	$.append($$anchor, fragment);
+}
+=== 7237 src/routes/components/lists.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Code from "docs/Code.svelte";
+import List from "components/List";
+import Icon from "components/Icon";
+import Tabs, { Tab } from "components/Tabs";
+import { darkMode } from "../../dark";
+import lists from "examples/lists.txt";
+import customLists from "examples/custom-lists.txt";
+import PropsTable from "docs/PropsTable.svelte";
+
+var root = $.from_html(`<div slot="content" class="flex items-center content-center overflow-hidden w-full bg-white h-full shadow-sm"><!> <!></div>`);
+var root_1 = $.from_html(`<li slot="item"><div> </div></li>`);
+var root_2 = $.from_html(`<!> <h6 class="mb-3 mt-6">One-line</h6> <!> <h6 class="mb-3 mt-6">Two-line</h6> <!> <h6 class="mb-3 mt-6">Dense</h6> <!> <!> <h6 class="mb-3 mt-6">Custom list element using let:slots</h6> <small> </small> <!> <!>`, 1);
+
+export default function Lists($$anchor) {
+	let selected;
+
+	const listOneLine = [
+		{ text: "Item 1", icon: "favorite" },
+		{ text: "Item 2", icon: "favorite" },
+		{ text: "Item 3", icon: "favorite" }
+	];
+
+	const listTwoLines = [
+		{ text: "Item 1", icon: "favorite", subheading: "Subheading 1" },
+		{ text: "Item 2", icon: "favorite", subheading: "Subheading 2" },
+		{ text: "Item 3", icon: "favorite", subheading: "Subheading 3" }
+	];
+
+	let selectedItem = false;
+
+	const menu = [
+		{ to: "/components/text-fields", text: "Text fields" },
+		{ to: "/components/buttons", text: "Buttons" },
+		{
+			to: "/components/selection-controls#checkboxes",
+			text: "Checkboxes"
+		},
+
+		{
+			to: "/components/selection-controls#radio-buttons",
+			text: "Radio buttons"
+		},
+
+		{
+			to: "/components/selection-controls#switches",
+			text: "Switches"
+		},
+		{ to: "/components/lists", text: "Lists" }
+	];
+
+	var fragment = root_2();
+	var node = $.first_child(fragment);
+
+	Tabs(node, {
+		selected: '1',
+		class: 'shadow mt-6 rounded-t-lg bg-dark-600',
+		notSelectedColor: 'white',
+		color: 'primary',
+		items: [
+			{ id: '1', text: 'List props', icon: 'list' },
+			{ id: '2', text: 'List item props', icon: 'code' }
+		],
+		$$slots: {
+			content: ($$anchor, $$slotProps) => {
+				var div = root();
+				var node_1 = $.child(div);
+
+				Tab(node_1, {
+					id: '1',
+					get selected() {
+						return selected;
+					},
+
+					children: ($$anchor, $$slotProps) => {
+						PropsTable($$anchor, {
+							class: 'my-0 w-full',
+							data: [
+								{
+									prop: "value",
+									description: "Selected item value",
+									type: "String",
+									default: "empty string"
+								},
+
+								{
+									prop: "items",
+									description: "List items (item has id, value, to and text props)",
+									type: "Array",
+									default: "[]"
+								},
+
+								{
+									prop: "dense",
+									description: "Dense variant",
+									type: "Boolean",
+									default: "false"
+								},
+
+								{
+									prop: "navigation",
+									description: "Is navigation drawer list",
+									default: "false",
+									type: "Boolean"
+								},
+
+								{
+									prop: "select",
+									description: "Is dropdown selet",
+									default: "false",
+									type: "Boolean"
+								}
+							]
+						});
+					},
+					$$slots: { default: true }
+				});
+
+				var node_2 = $.sibling(node_1, 2);
+
+				Tab(node_2, {
+					id: '2',
+					get selected() {
+						return selected;
+					},
+
+					children: ($$anchor, $$slotProps) => {
+						PropsTable($$anchor, {
+							class: 'my-0 w-full',
+							data: [
+								{
+									prop: "icon",
+									description: "Prepend item with icon",
+									type: "String",
+									default: "empty string"
+								},
+
+								{
+									prop: "id",
+									description: "Item id",
+									type: "String",
+									default: "empty string"
+								},
+
+								{
+									prop: "value",
+									description: "Selected item value",
+									type: "String",
+									default: "empty string"
+								},
+
+								{
+									prop: "text",
+									description: "Item text",
+									type: "String",
+									default: "empty string"
+								},
+
+								{
+									prop: "subheading",
+									description: "Item subheading",
+									type: "String",
+									default: "empty string"
+								},
+
+								{
+									prop: "disabled",
+									description: "Disabled state",
+									type: "Boolean",
+									default: false
+								},
+
+								{
+									prop: "dense",
+									description: "Dense variant",
+									type: "Boolean",
+									default: false
+								},
+
+								{
+									prop: "navigation",
+									description: "Is navigation item",
+									type: "Boolean",
+									default: false
+								},
+
+								{
+									prop: "selected",
+									description: "Is selected",
+									type: "Boolean",
+									default: false
+								},
+
+								{
+									prop: "tabindex",
+									description: "Tab index",
+									type: "Number",
+									default: null
+								},
+
+								{
+									prop: "classes",
+									description: "Item wrapper classes",
+									type: "String",
+									default: "hover:bg-gray-transDark relative overflow-hidden duration-200 ease-in p-4 cursor-pointer text-gray-700 flex items-center z-10"
+								},
+
+								{
+									prop: "itemClasses",
+									description: "Additional item classes",
+									type: "String",
+									default: "empty string"
+								},
+
+								{
+									prop: "selectedClasses",
+									description: "Selected item classes",
+									type: "String",
+									default: "bg-gray-200 hover:bg-primary-transDark"
+								}
+							]
+						});
+					},
+					$$slots: { default: true }
+				});
+
+				$.reset(div);
+				$.append($$anchor, div);
+			}
+		}
+	});
+
+	var node_3 = $.sibling(node, 4);
+
+	List(node_3, {
+		get items() {
+			return listOneLine;
+		}
+	});
+
+	var node_4 = $.sibling(node_3, 4);
+
+	List(node_4, {
+		get items() {
+			return listTwoLines;
+		}
+	});
+
+	var node_5 = $.sibling(node_4, 4);
+
+	List(node_5, {
+		dense: true,
+		get items() {
+			return listTwoLines;
+		}
+	});
+
+	var node_6 = $.sibling(node_5, 2);
+
+	Code(node_6, {
+		get code() {
+			return lists;
+		}
+	});
+
+	var small = $.sibling(node_6, 4);
+	var text = $.only_child(small);
+	var node_7 = $.sibling(small, 2);
+
+	List(node_7, {
+		get items() {
+			return menu;
+		},
+		dense: true,
+		navigation: true,
+		get value() {
+			return selectedItem;
+		},
+
+		set value($$value) {
+			selectedItem = $$value;
+		},
+
+		$$slots: {
+			item: ($$anchor, $$slotProps) => {
+				const item = $.derived(() => $$slotProps.item);
+				var li = root_1();
+				var div_1 = $.child(li);
+				let classes;
+				var text_1 = $.only_child(div_1);
+
+				$.reset(li);
+
+				$.template_effect(() => {
+					classes = $.set_class(div_1, 1, 'cursor-pointer p-4 border-secondary-50 border my-2 border-solid duration-200 ease-in', null, classes, { 'bg-secondary-50': selectedItem === $.get(item).text });
+					$.set_text(text_1, `${selectedItem === $.get(item).text ? '👌' : '🙅‍'} ${$.get(item).text ?? ''}`);
+				});
+
+				$.event('click', div_1, () => selectedItem = $.get(item).text);
+				$.append($$anchor, li);
+			}
+		}
+	});
+
+	var node_8 = $.sibling(node_7, 2);
+
+	Code(node_8, {
+		get code() {
+			return customLists;
+		}
+	});
+
+	$.template_effect(() => $.set_text(text, `I selected ${(selectedItem || "nothing") ?? ''}.`));
+	$.append($$anchor, fragment);
+}
+=== 1520 src/routes/components/lists.svelte	warnings.json
+[
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<div>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 128,
+			"column": 4,
+			"character": 4432
+		},
+		"end": {
+			"line": 133,
+			"column": 10,
+			"character": 4716
+		}
+	},
+	{
+		"code": "a11y_no_static_element_interactions",
+		"message": "`<div>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions",
+		"start": {
+			"line": 128,
+			"column": 4,
+			"character": 4432
+		},
+		"end": {
+			"line": 133,
+			"column": 10,
+			"character": 4716
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 130,
+			"column": 6,
+			"character": 4542
+		},
+		"end": {
+			"line": 130,
+			"column": 49,
+			"character": 4585
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selectedItem` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 47,
+			"column": 6,
+			"character": 894
+		},
+		"end": {
+			"line": 47,
+			"column": 18,
+			"character": 906
+		}
+	}
+]
+
+=== 1832 src/routes/components/menus.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Button from "components/Button";
+import Menu from "components/Menu";
+import List from "components/List";
+import Select from "components/Select";
+import Icon from "components/Icon";
+import TextField from "components/TextField";
+import Slider from "components/Slider";
+import Code from "docs/Code.svelte";
+import menus from "examples/menus.txt";
+
+var root = $.from_html(`<div slot="activator"><!></div>`);
+var root_1 = $.from_html(`<small> </small><br/> <!> <!>`, 1);
+
+export default function Menus($$anchor) {
+	let open = false;
+	let open2 = false;
+	let selected = "";
+
+	const items = [
+		{ value: 1, text: "One" },
+		{ value: 2, text: "Two" },
+		{ value: 3, text: "Three" },
+		{ value: 4, text: "Four" },
+		{ value: 5, text: "Five" }
+	];
+
+	var fragment = root_1();
+	var small = $.first_child(fragment);
+	var text = $.only_child(small);
+	var node = $.sibling(small, 3);
+
+	Menu(node, {
+		get items() {
+			return items;
+		},
+
+		get open() {
+			return open;
+		},
+
+		set open($$value) {
+			open = $$value;
+		},
+
+		get value() {
+			return selected;
+		},
+
+		set value($$value) {
+			selected = $$value;
+		},
+
+		$$slots: {
+			activator: ($$anchor, $$slotProps) => {
+				var div = root();
+				var node_1 = $.child(div);
+
+				Button(node_1, {
+					$$events: { click: () => open = !open },
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_1 = $.text('A menu');
+
+						$.append($$anchor, text_1);
+					},
+					$$slots: { default: true }
+				});
+
+				$.reset(div);
+				$.append($$anchor, div);
+			}
+		}
+	});
+
+	var node_2 = $.sibling(node, 2);
+
+	Code(node_2, {
+		get code() {
+			return menus;
+		}
+	});
+
+	$.template_effect(() => $.set_text(text, `Selected: ${(selected || 'nothing') ?? ''}`));
+	$.append($$anchor, fragment);
+}
+=== 701 src/routes/components/menus.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 13,
+			"column": 6,
+			"character": 386
+		},
+		"end": {
+			"line": 13,
+			"column": 10,
+			"character": 390
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 15,
+			"column": 6,
+			"character": 427
+		},
+		"end": {
+			"line": 15,
+			"column": 14,
+			"character": 435
+		}
+	}
+]
+
+=== 1804 src/routes/components/navigation-drawers.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Checkbox from "components/Checkbox";
+import Code from "docs/Code.svelte";
+import { right, elevation, persistent, showNav } from "stores.js";
+import drawers from "examples/navigation-drawers.txt";
+
+var root = $.from_html(`<!> <!> <!> <!> <!>`, 1);
+
+export default function Navigation_drawers($$anchor) {
+	const $showNav = () => $.store_get(showNav, '$showNav', $$stores);
+	const $elevation = () => $.store_get(elevation, '$elevation', $$stores);
+	const $right = () => $.store_get(right, '$right', $$stores);
+	const $persistent = () => $.store_get(persistent, '$persistent', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	Checkbox(node, {
+		label: 'Show drawer',
+		get checked() {
+			$.mark_store_binding();
+
+			return $showNav();
+		},
+
+		set checked($$value) {
+			$.store_set(showNav, $$value);
+		}
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	Checkbox(node_1, {
+		label: 'With elevation',
+		get checked() {
+			$.mark_store_binding();
+
+			return $elevation();
+		},
+
+		set checked($$value) {
+			$.store_set(elevation, $$value);
+		}
+	});
+
+	var node_2 = $.sibling(node_1, 2);
+
+	Checkbox(node_2, {
+		label: 'Placed on the right',
+		get checked() {
+			$.mark_store_binding();
+
+			return $right();
+		},
+
+		set checked($$value) {
+			$.store_set(right, $$value);
+		}
+	});
+
+	var node_3 = $.sibling(node_2, 2);
+
+	Checkbox(node_3, {
+		label: 'Persistent',
+		get checked() {
+			$.mark_store_binding();
+
+			return $persistent();
+		},
+
+		set checked($$value) {
+			$.store_set(persistent, $$value);
+		}
+	});
+
+	var node_4 = $.sibling(node_3, 2);
+
+	Code(node_4, {
+		get code() {
+			return drawers;
+		}
+	});
+
+	$.append($$anchor, fragment);
+	$$cleanup();
+}
+=== 1690 src/routes/components/progress-indicators.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import ProgressLinear from "components/ProgressLinear";
+import ProgressCircular from "components/ProgressCircular";
+import Code from "docs/Code.svelte";
+import indicators from "examples/progress-indicators.txt";
+
+var root = $.from_html(`<h5 class="pb-4">Indefinite linear progress indicator</h5> <!> <h5 class="pt-6 pb-4">Definite linear progress indicator</h5> <small class="mb-3"> </small> <!> <h5 class="pt-6 pb-4">Indefinite circular progress indicator</h5> <!> <h5 class="pt-6 pb-4">Definite circular progress indicator</h5> <small class="mb-3"> </small> <!> <!>`, 1);
+
+export default function Progress_indicators($$anchor) {
+	let progress = 0;
+
+	function next() {
+		setTimeout(
+			() => {
+				if (progress === 100) {
+					progress = 0;
+				}
+
+				progress += 1;
+				next();
+			},
+			100
+		);
+	}
+
+	next();
+
+	var fragment = root();
+	var node = $.sibling($.first_child(fragment), 2);
+
+	ProgressLinear(node, {});
+
+	var small = $.sibling(node, 4);
+	var text = $.only_child(small);
+	var node_1 = $.sibling(small, 2);
+
+	ProgressLinear(node_1, {
+		get progress() {
+			return progress;
+		}
+	});
+
+	var node_2 = $.sibling(node_1, 4);
+
+	ProgressCircular(node_2, {});
+
+	var small_1 = $.sibling(node_2, 4);
+	var text_1 = $.only_child(small_1);
+	var node_3 = $.sibling(small_1, 2);
+
+	ProgressCircular(node_3, {
+		get progress() {
+			return progress;
+		}
+	});
+
+	var node_4 = $.sibling(node_3, 2);
+
+	Code(node_4, {
+		get code() {
+			return indicators;
+		}
+	});
+
+	$.template_effect(() => {
+		$.set_text(text, `${progress ?? ''}%`);
+		$.set_text(text_1, `${progress ?? ''}%`);
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 352 src/routes/components/progress-indicators.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`progress` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 237
+		},
+		"end": {
+			"line": 8,
+			"column": 14,
+			"character": 245
+		}
+	}
+]
+
+=== 4989 src/routes/components/selection-controls.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Checkbox from "components/Checkbox";
+import { RadioButtonGroup } from "components/RadioButton";
+import Switch from "components/Switch";
+import Icon from "components/Icon";
+import Code from "docs/Code.svelte";
+import code from "examples/checkboxes.txt";
+import PropsTable from "docs/PropsTable.svelte";
+
+var root = $.from_html(`<blockquote class="pl-8 mt-2 mb-10 border-l-8 border-primary-300 text-lg" cite="https://material.io/components/selection-controls/"><p>Selection controls allow the user to select options.</p></blockquote> <h5 class="pb-8 pt-10" id="checkboxes">Checkboxes</h5> <!> <!> <!> <!> <h5 class="pb-8 pt-10" id="radio-buttons">Radio buttons</h5> <!> <!> <!> <!> <h5 class="pb-8 pt-10" id="switches">Switches</h5> <!> <!> <!> <!>`, 1);
+
+export default function Selection_controls($$anchor) {
+	var fragment = root();
+	var node = $.sibling($.first_child(fragment), 4);
+
+	Checkbox(node, { label: 'A checkbox' });
+
+	var node_1 = $.sibling(node, 2);
+
+	Checkbox(node_1, { color: 'secondary', label: 'A colored checkbox' });
+
+	var node_2 = $.sibling(node_1, 2);
+
+	Checkbox(node_2, { disabled: true, label: 'A disabled checkbox' });
+
+	var node_3 = $.sibling(node_2, 2);
+
+	PropsTable(node_3, {
+		data: [
+			{
+				prop: "value",
+				description: "Input value",
+				type: "Boolean",
+				default: "null"
+			},
+
+			{
+				prop: "color",
+				description: "Color variant, accepts any of the main colors described in Tailwind config",
+				type: "String",
+				default: "primary"
+			},
+
+			{
+				prop: "label",
+				description: "Input label",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "checked",
+				description: "Checked state",
+				default: false,
+				type: "Boolean"
+			},
+
+			{
+				prop: "disabled",
+				description: "Disabled state",
+				default: false,
+				type: "Boolean"
+			},
+
+			{
+				prop: "classes",
+				description: "Classes to pass down to checkbox wrapper",
+				default: "inline-flex items-center mb-2 cursor-pointer z-10",
+				type: "String"
+			}
+		]
+	});
+
+	var node_4 = $.sibling(node_3, 4);
+
+	RadioButtonGroup(node_4, {
+		name: 'test',
+		items: [{ value: 1, label: 'One' }, { value: 2, label: 'Two' }]
+	});
+
+	var node_5 = $.sibling(node_4, 2);
+
+	RadioButtonGroup(node_5, {
+		name: 'Colored test',
+		color: 'blue',
+		items: [{ value: 1, label: 'One' }, { value: 2, label: 'Two' }]
+	});
+
+	var node_6 = $.sibling(node_5, 2);
+
+	RadioButtonGroup(node_6, {
+		name: 'test-disabled',
+		disabled: true,
+		items: [{ value: 1, label: 'One' }, { value: 2, label: 'Two' }]
+	});
+
+	var node_7 = $.sibling(node_6, 2);
+
+	PropsTable(node_7, {
+		data: [
+			{
+				prop: "value",
+				description: "Input value",
+				type: "Boolean",
+				default: "null"
+			},
+
+			{
+				prop: "color",
+				description: "Color variant, accepts any of the main colors described in Tailwind config",
+				type: "String",
+				default: "primary"
+			},
+
+			{
+				prop: "label",
+				description: "Input label",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "selected",
+				description: "Selected state",
+				default: false,
+				type: "Boolean"
+			},
+
+			{
+				prop: "disabled",
+				description: "Disabled state",
+				default: false,
+				type: "Boolean"
+			},
+
+			{
+				prop: "classes",
+				description: "Classes to pass down to radio button wrapper",
+				default: "inline-flex block items-center mb-2 cursor-pointer z-0",
+				type: "String"
+			}
+		]
+	});
+
+	var node_8 = $.sibling(node_7, 4);
+
+	Switch(node_8, {});
+
+	var node_9 = $.sibling(node_8, 2);
+
+	Switch(node_9, { color: 'error' });
+
+	var node_10 = $.sibling(node_9, 2);
+
+	PropsTable(node_10, {
+		data: [
+			{
+				prop: "value",
+				description: "Input value",
+				type: "Boolean",
+				default: "null"
+			},
+
+			{
+				prop: "color",
+				description: "Color variant, accepts any of the main colors described in Tailwind config",
+				type: "String",
+				default: "primary"
+			},
+
+			{
+				prop: "label",
+				description: "Input label",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "disabled",
+				description: "Disabled state",
+				default: false,
+				type: "Boolean"
+			},
+
+			{
+				prop: "classes",
+				description: "Classes to pass down to checkbox wrapper",
+				default: "inline-flex block items-center mb-2 cursor-pointer z-0",
+				type: "String"
+			},
+
+			{
+				prop: "trackClasses",
+				description: "Track classes",
+				default: "relative w-10 h-auto z-0 rounded-full overflow-visible flex items-center justify-center",
+				type: "String"
+			},
+
+			{
+				prop: "thumbClasses",
+				description: "Thumb classes",
+				default: "rounded-full p-2 w-5 h-5 absolute shadow duration-100",
+				type: "String"
+			},
+
+			{
+				prop: "labelClasses",
+				description: "Tabel classes",
+				default: "pl-2 cursor-pointer",
+				type: "String"
+			}
+		]
+	});
+
+	var node_11 = $.sibling(node_10, 2);
+
+	Code(node_11, {
+		get code() {
+			return code;
+		}
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 2038 src/routes/components/sliders.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Slider from "components/Slider";
+import Checkbox from "components/Checkbox";
+import Code from "docs/Code.svelte";
+import sliders from "examples/sliders.txt";
+
+var root = $.from_html(`<div class="my-4"><!></div> <h6>Basic</h6> <small> </small> <!> <h6 class="mt-8">With color prop</h6> <small> </small> <!> <h6 class="mt-8">With steps</h6> <small> </small> <!> <!>`, 1);
+
+export default function Sliders($$anchor) {
+	let value = 0;
+	let value2 = 0;
+	let value3 = 0;
+	let disabled = false;
+	var fragment = root();
+	var div = $.first_child(fragment);
+	var node = $.child(div);
+
+	Checkbox(node, {
+		label: 'Disabled',
+		get checked() {
+			return disabled;
+		},
+
+		set checked($$value) {
+			disabled = $$value;
+		}
+	});
+
+	$.reset(div);
+
+	var small = $.sibling(div, 4);
+	var text = $.only_child(small);
+	var node_1 = $.sibling(small, 2);
+
+	Slider(node_1, {
+		min: '0',
+		max: '100',
+		get disabled() {
+			return disabled;
+		},
+
+		get value() {
+			return value;
+		},
+
+		set value($$value) {
+			value = $$value;
+		}
+	});
+
+	var small_1 = $.sibling(node_1, 4);
+	var text_1 = $.only_child(small_1);
+	var node_2 = $.sibling(small_1, 2);
+
+	Slider(node_2, {
+		color: 'secondary',
+		min: '0',
+		max: '100',
+		get disabled() {
+			return disabled;
+		},
+
+		get value() {
+			return value3;
+		},
+
+		set value($$value) {
+			value3 = $$value;
+		}
+	});
+
+	var small_2 = $.sibling(node_2, 4);
+	var text_2 = $.only_child(small_2);
+	var node_3 = $.sibling(small_2, 2);
+
+	Slider(node_3, {
+		min: '0',
+		step: '20',
+		max: '100',
+		get disabled() {
+			return disabled;
+		},
+
+		get value() {
+			return value2;
+		},
+
+		set value($$value) {
+			value2 = $$value;
+		}
+	});
+
+	var node_4 = $.sibling(node_3, 2);
+
+	Code(node_4, {
+		get code() {
+			return sliders;
+		}
+	});
+
+	$.template_effect(() => {
+		$.set_text(text, `Value: ${value ?? ''}`);
+		$.set_text(text_1, `Value: ${value3 ?? ''}`);
+		$.set_text(text_2, `Value: ${value2 ?? ''}`);
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 1394 src/routes/components/sliders.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"character": 189
+		},
+		"end": {
+			"line": 7,
+			"column": 11,
+			"character": 194
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`value2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 6,
+			"character": 206
+		},
+		"end": {
+			"line": 8,
+			"column": 12,
+			"character": 212
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`value3` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 224
+		},
+		"end": {
+			"line": 9,
+			"column": 12,
+			"character": 230
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`disabled` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 6,
+			"character": 242
+		},
+		"end": {
+			"line": 10,
+			"column": 14,
+			"character": 250
+		}
+	}
+]
+
+=== 5977 src/routes/components/snackbars.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Snackbar, { notifier, Notifications } from "components/Snackbar";
+import Button from "components/Button";
+import TextField from "components/TextField";
+import Code from "docs/Code.svelte";
+import snackbars from "examples/snackbars.txt";
+
+var root = $.from_html(`<div>Have a nice day.</div>`);
+var root_1 = $.from_html(`<div slot="action"><!></div>`);
+var root_2 = $.from_html(`<div>Something happened!</div>`);
+var root_3 = $.from_html(`<div slot="action"></div>`);
+var root_4 = $.from_html(`<blockquote class="pl-8 mt-2 mb-10 border-l-8 border-primary-300 text-lg" cite="https://material.io/components/snackbars/#usage"><p>Snackbars inform users of a process that an app has performed or will perform. They appear temporarily, towards the bottom of the screen. They shouldn’t interrupt the user experience, and they don’t require user input to disappear.</p> <h6 class="mt-8">Frequency</h6> <p>Only one snackbar may be displayed at a time.</p> <h6 class="mt-8">Actions</h6> <p>A snackbar can contain a single action. Because they disappear automatically, the action shouldn’t be “Dismiss” or “Cancel.”</p></blockquote> <!> <!> <!> <div class="py-2"><!></div> <div class="py-2"><!></div> <div class="py-2"><!></div> <p class="mt-10">Also Smelte comes with a simple notification queue implementation.</p> <!> <!> <!> <!> <!> <!>`, 1);
+
+export default function Snackbars($$anchor, $$props) {
+	$.push($$props, true);
+
+	let showSnackbar = false;
+	let showSnackbarTop = false;
+	let showSnackbarBottomLeft = false;
+
+	function notify() {
+		notifier.notify(message);
+		message = "";
+	}
+
+	function alert() {
+		notifier.alert(message);
+		message = "";
+	}
+
+	function error() {
+		notifier.error(message);
+		message = "";
+	}
+
+	let message = "";
+	var fragment = root_4();
+	var node = $.sibling($.first_child(fragment), 2);
+
+	Snackbar(node, {
+		get value() {
+			return showSnackbar;
+		},
+
+		set value($$value) {
+			showSnackbar = $$value;
+		},
+
+		children: ($$anchor, $$slotProps) => {
+			var div = root();
+
+			$.append($$anchor, div);
+		},
+
+		$$slots: {
+			default: true,
+			action: ($$anchor, $$slotProps) => {
+				var div_1 = root_1();
+				var node_1 = $.child(div_1);
+
+				Button(node_1, {
+					text: true,
+					$$events: { click: () => showSnackbar = false },
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text = $.text('Do something');
+
+						$.append($$anchor, text);
+					},
+					$$slots: { default: true }
+				});
+
+				$.reset(div_1);
+				$.append($$anchor, div_1);
+			}
+		}
+	});
+
+	var node_2 = $.sibling(node, 2);
+
+	Snackbar(node_2, {
+		color: 'alert',
+		top: true,
+		get value() {
+			return showSnackbarTop;
+		},
+
+		set value($$value) {
+			showSnackbarTop = $$value;
+		},
+
+		children: ($$anchor, $$slotProps) => {
+			var div_2 = root();
+
+			$.append($$anchor, div_2);
+		},
+		$$slots: { default: true }
+	});
+
+	var node_3 = $.sibling(node_2, 2);
+
+	Snackbar(node_3, {
+		noAction: true,
+		color: 'error',
+		timeout: 2000,
+		left: true,
+		get value() {
+			return showSnackbarBottomLeft;
+		},
+
+		set value($$value) {
+			showSnackbarBottomLeft = $$value;
+		},
+
+		children: ($$anchor, $$slotProps) => {
+			var div_3 = root_2();
+
+			$.append($$anchor, div_3);
+		},
+
+		$$slots: {
+			default: true,
+			action: ($$anchor, $$slotProps) => {
+				var div_4 = root_3();
+
+				$.append($$anchor, div_4);
+			}
+		}
+	});
+
+	var div_5 = $.sibling(node_3, 2);
+	var node_4 = $.child(div_5);
+
+	Button(node_4, {
+		$$events: { click: () => showSnackbar = true },
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_1 = $.text('Show snackbar');
+
+			$.append($$anchor, text_1);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_5);
+
+	var div_6 = $.sibling(div_5, 2);
+	var node_5 = $.child(div_6);
+
+	Button(node_5, {
+		color: 'secondary',
+		$$events: { click: () => showSnackbarTop = true },
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_2 = $.text('Show snackbar on top');
+
+			$.append($$anchor, text_2);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_6);
+
+	var div_7 = $.sibling(div_6, 2);
+	var node_6 = $.child(div_7);
+
+	Button(node_6, {
+		color: 'alert',
+		$$events: { click: () => showSnackbarBottomLeft = true },
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text_3 = $.text('Show snackbar on the bottom left');
+
+			$.append($$anchor, text_3);
+		},
+		$$slots: { default: true }
+	});
+
+	$.reset(div_7);
+
+	var node_7 = $.sibling(div_7, 4);
+
+	TextField(node_7, {
+		label: 'Message text',
+		get value() {
+			return message;
+		},
+
+		set value($$value) {
+			message = $$value;
+		}
+	});
+
+	var node_8 = $.sibling(node_7, 2);
+
+	{
+		let $0 = $.derived(() => !message);
+
+		Button(node_8, {
+			get disabled() {
+				return $.get($0);
+			},
+			$$events: { click: notify },
+			children: ($$anchor, $$slotProps) => {
+				$.next();
+
+				var text_4 = $.text('Add Notification to queue');
+
+				$.append($$anchor, text_4);
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	var node_9 = $.sibling(node_8, 2);
+
+	{
+		let $0 = $.derived(() => !message);
+
+		Button(node_9, {
+			get disabled() {
+				return $.get($0);
+			},
+			color: 'alert',
+			$$events: { click: alert },
+			children: ($$anchor, $$slotProps) => {
+				$.next();
+
+				var text_5 = $.text('Alert message');
+
+				$.append($$anchor, text_5);
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	var node_10 = $.sibling(node_9, 2);
+
+	{
+		let $0 = $.derived(() => !message);
+
+		Button(node_10, {
+			get disabled() {
+				return $.get($0);
+			},
+			color: 'error',
+			$$events: { click: error },
+			children: ($$anchor, $$slotProps) => {
+				$.next();
+
+				var text_6 = $.text('Error message');
+
+				$.append($$anchor, text_6);
+			},
+			$$slots: { default: true }
+		});
+	}
+
+	var node_11 = $.sibling(node_10, 2);
+
+	Notifications(node_11, {});
+
+	var node_12 = $.sibling(node_11, 2);
+
+	Code(node_12, {
+		get code() {
+			return snackbars;
+		}
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1802 src/routes/components/snackbars.svelte	warnings.json
+[
+	{
+		"code": "element_invalid_self_closing_tag",
+		"message": "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+		"start": {
+			"line": 61,
+			"column": 2,
+			"character": 1692
+		},
+		"end": {
+			"line": 61,
+			"column": 23,
+			"character": 1713
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showSnackbar` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 9,
+			"column": 6,
+			"character": 271
+		},
+		"end": {
+			"line": 9,
+			"column": 18,
+			"character": 283
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showSnackbarTop` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 10,
+			"column": 6,
+			"character": 299
+		},
+		"end": {
+			"line": 10,
+			"column": 21,
+			"character": 314
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showSnackbarBottomLeft` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 11,
+			"column": 6,
+			"character": 330
+		},
+		"end": {
+			"line": 11,
+			"column": 28,
+			"character": 352
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`message` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 28,
+			"column": 6,
+			"character": 594
+		},
+		"end": {
+			"line": 28,
+			"column": 13,
+			"character": 601
+		}
+	}
+]
+
+=== 2892 src/routes/components/tabs.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Tab, Tabs } from "components/Tabs";
+import Image from "components/Image";
+import Code from "docs/Code.svelte";
+import tabs from "examples/tabs.txt";
+import tabsWithContent from "examples/tabs-with-content.txt";
+
+var root = $.from_html(`<div slot="content" class="flex items-center content-center overflow-hidden w-full bg-gray-900 shadow h-full" style="height: 250px"><!> <!> <!></div>`);
+
+var root_1 = $.from_html(
+	`<p>Tabs can be used as navigation elements like the ones you see on the top
+  right. You need to bind current pathname as value prop for active indicator to
+  work correctly.</p> <!> <blockquote class="pl-8 mt-16 mb-10 border-l-8 border-primary-300 text-lg" cite="https://material.io/design/components/tabs.html#usage">Tabs organize and allow navigation between groups of content that are related
+  and at the same level of hierarchy.</blockquote> <div style="max-width: 400px"><!></div> <!>`,
+	1
+);
+
+export default function Tabs_1($$anchor) {
+	let loading = false;
+	var fragment = root_1();
+	var node = $.sibling($.first_child(fragment), 2);
+
+	Code(node, {
+		get code() {
+			return tabs;
+		}
+	});
+
+	var div = $.sibling(node, 4);
+	var node_1 = $.child(div);
+
+	Tabs(node_1, {
+		selected: '1',
+		class: 'bg-black shadow-sm mt-6 text-white',
+		color: 'secondary',
+		loading,
+		items: [
+			{ id: '1', text: 'Cats', icon: 'alarm_on' },
+			{ id: '2', text: 'Kittens', icon: 'bug_report' },
+			{ id: '3', text: 'Kitties', icon: 'eject' }
+		],
+		$$slots: {
+			content: ($$anchor, $$slotProps) => {
+				var div_1 = root();
+				var node_2 = $.child(div_1);
+
+				Tab(node_2, {
+					id: '1',
+					selected,
+					children: ($$anchor, $$slotProps) => {
+						Image($$anchor, {
+							alt: 'kitten 1',
+							class: 'w-full',
+							src: 'https://placekitten.com/400/250',
+							width: '400',
+							height: '250'
+						});
+					},
+					$$slots: { default: true }
+				});
+
+				var node_3 = $.sibling(node_2, 2);
+
+				Tab(node_3, {
+					id: '2',
+					selected,
+					children: ($$anchor, $$slotProps) => {
+						Image($$anchor, {
+							alt: 'kitten 1',
+							class: 'w-full',
+							src: 'https://placekitten.com/400/251',
+							width: '400',
+							height: '250'
+						});
+					},
+					$$slots: { default: true }
+				});
+
+				var node_4 = $.sibling(node_3, 2);
+
+				Tab(node_4, {
+					id: '3',
+					selected,
+					children: ($$anchor, $$slotProps) => {
+						Image($$anchor, {
+							alt: 'kitten 3',
+							class: 'w-full',
+							src: 'https://placekitten.com/400/253',
+							width: '400',
+							height: '250'
+						});
+					},
+					$$slots: { default: true }
+				});
+
+				$.reset(div_1);
+				$.append($$anchor, div_1);
+			}
+		}
+	});
+
+	$.reset(div);
+
+	var node_5 = $.sibling(div, 2);
+
+	Code(node_5, {
+		get code() {
+			return tabsWithContent;
+		}
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 5607 src/routes/components/text-fields.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import TextField, { Label } from "components/TextField";
+import DataTable from "components/DataTable";
+import Code from "docs/Code.svelte";
+import PropsTable from "docs/PropsTable.svelte";
+import textFields from "examples/text-fields.txt";
+
+var root = $.from_html(
+	`<blockquote class="pl-8 mt-2 mb-10 border-l-8 border-primary-300 text-lg" cite="https://material.io/components/text-fields/#"><p>Text fields let users enter and edit text.</p></blockquote> <h6 class="mb-3 mt-6">Basic</h6> <!> <h6>Props</h6> <p class="mb-5 mt-3">Inputs accept any props that a normal input element can take,
+like <span class="code-inline">max-length</span> or <span class="code-inline">type</span>.</p> <!> <h6 class="mb-3 mt-6">With hint</h6> <!> <h6 class="mb-3 mt-6">With hint (dense)</h6> <!> <h6 class="mb-3 mt-6">With error</h6> <!> <h6 class="mb-3 mt-6">Outlined</h6> <!> <h6 class="mb-3 mt-6">Outlined with hint</h6> <!> <h6 class="mb-3 mt-6">Outlined with error</h6> <!> <h6 class="mb-3 mt-6">Outlined textarea</h6> <!> <h6 class="mb-3 mt-6">With basic validation (type="number" min="10" max="100")</h6> <!> <h6 class="mb-3 mt-6">With icon</h6> <!> <!> <h6 class="mb-3 mt-6">Disabled</h6> <!> <!> <!>`,
+	1
+);
+
+export default function Text_fields($$anchor) {
+	var fragment = root();
+	var node = $.sibling($.first_child(fragment), 4);
+
+	TextField(node, { label: 'Test label' });
+
+	var node_1 = $.sibling(node, 6);
+
+	PropsTable(node_1, {
+		data: [
+			{
+				prop: "value",
+				description: "Input value",
+				type: "Boolean",
+				default: "null"
+			},
+
+			{
+				prop: "color",
+				description: "Color variant, accepts any of the main colors described in Tailwind config",
+				type: "String",
+				default: "primary"
+			},
+
+			{
+				prop: "label",
+				description: "Input label",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "placeholder",
+				description: "Input placeholder",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "outlined",
+				description: "Outlined variant",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "hint",
+				description: "Hint text appearing under the input",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "error",
+				description: "Error text under the input",
+				type: "String | Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "append",
+				description: "Append icon name",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "prepend",
+				description: "Prepend icon name",
+				type: "String",
+				default: "Empty&nbsp;string"
+			},
+
+			{
+				prop: "persistentHint",
+				description: "Always show hint, not only on focus",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "textarea",
+				description: "Whether text field is textarea",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "rows",
+				description: "Rows count for textarea",
+				type: "Integer",
+				default: 5
+			},
+
+			{
+				prop: "select",
+				description: "Whether text field is select",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "autocomplete",
+				description: "Whether select field is autocomplete",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "noUnderline",
+				description: "Hide focus underline element",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "appendReverse",
+				description: "Reverse appended icon",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "prependReverse",
+				description: "Reverse prepended icon",
+				type: "Boolean",
+				default: "false"
+			},
+
+			{
+				prop: "bgColor",
+				description: "Background color to match for outlined elevated label",
+				type: "String",
+				default: "white"
+			},
+
+			{
+				prop: "iconClasses",
+				description: "Classes to pass down to icon component",
+				type: "String",
+				default: "Empty&nbsp;string"
+			}
+		]
+	});
+
+	var node_2 = $.sibling(node_1, 4);
+
+	TextField(node_2, {
+		label: 'Test label',
+		hint: 'Test hint',
+		persistentHint: true,
+		color: 'blue'
+	});
+
+	var node_3 = $.sibling(node_2, 4);
+
+	TextField(node_3, {
+		label: 'Test label',
+		hint: 'Test hint',
+		persistentHint: true,
+		color: 'blue',
+		dense: true
+	});
+
+	var node_4 = $.sibling(node_3, 4);
+
+	TextField(node_4, { label: 'Test label', error: 'Test error' });
+
+	var node_5 = $.sibling(node_4, 4);
+
+	TextField(node_5, { label: 'Test label', outlined: true });
+
+	var node_6 = $.sibling(node_5, 4);
+
+	TextField(node_6, { label: 'Test label', outlined: true, hint: 'Test hint' });
+
+	var node_7 = $.sibling(node_6, 4);
+
+	TextField(node_7, { label: 'Test label', outlined: true, error: 'Test error' });
+
+	var node_8 = $.sibling(node_7, 4);
+
+	TextField(node_8, {
+		label: 'Test label',
+		textarea: true,
+		rows: '5',
+		outlined: true
+	});
+
+	var node_9 = $.sibling(node_8, 4);
+
+	TextField(node_9, {
+		label: 'Test label',
+		outlined: true,
+		type: 'number',
+		min: '10',
+		max: '100'
+	});
+
+	var node_10 = $.sibling(node_9, 4);
+
+	TextField(node_10, { prepend: 'search', label: 'Icon before' });
+
+	var node_11 = $.sibling(node_10, 2);
+
+	TextField(node_11, { append: 'search', label: 'Icon after' });
+
+	var node_12 = $.sibling(node_11, 4);
+
+	TextField(node_12, { disabled: true, prepend: 'search', label: 'Icon before' });
+
+	var node_13 = $.sibling(node_12, 2);
+
+	TextField(node_13, { disabled: true, append: 'search', label: 'Icon after' });
+
+	var node_14 = $.sibling(node_13, 2);
+
+	Code(node_14, {
+		get code() {
+			return textFields;
+		}
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 1135 src/routes/components/tooltips.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Tooltip from "components/Tooltip";
+import Button from "components/Button";
+import Code from "docs/Code.svelte";
+import tooltip from "examples/tooltip.txt";
+
+var root = $.from_html(`<div slot="activator"><!></div>`);
+var root_1 = $.from_html(`<!> <!>`, 1);
+
+export default function Tooltips($$anchor) {
+	var fragment = root_1();
+	var node = $.first_child(fragment);
+
+	Tooltip(node, {
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text = $.text('How are you doing?');
+
+			$.append($$anchor, text);
+		},
+
+		$$slots: {
+			default: true,
+			activator: ($$anchor, $$slotProps) => {
+				var div = root();
+				var node_1 = $.child(div);
+
+				Button(node_1, {
+					children: ($$anchor, $$slotProps) => {
+						$.next();
+
+						var text_1 = $.text('Hover me');
+
+						$.append($$anchor, text_1);
+					},
+					$$slots: { default: true }
+				});
+
+				$.reset(div);
+				$.append($$anchor, div);
+			}
+		}
+	});
+
+	var node_2 = $.sibling(node, 2);
+
+	Code(node_2, {
+		get code() {
+			return tooltip;
+		}
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 1388 src/routes/components/treeviews.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Treeview from "components/Treeview";
+import Code from "docs/Code.svelte";
+import treeview from "examples/treeview.txt";
+
+var root = $.from_html(`<small> </small> <!> <!>`, 1);
+
+export default function Treeviews($$anchor) {
+	let selected = 'nothing';
+	var fragment = root();
+	var small = $.first_child(fragment);
+	var text = $.only_child(small);
+	var node = $.sibling(small, 2);
+
+	Treeview(node, {
+		items: [
+			{
+				text: "test",
+				items: [
+					{ text: "subtest" },
+					{ text: "subtest2" },
+					{ text: "subtest3" },
+					{
+						text: "subtest4",
+						items: [
+							{ text: "subtest" },
+							{ text: "subtest2" },
+							{ text: "subtest3" },
+							{ text: "subtest4" }
+						]
+					}
+				]
+			},
+
+			{
+				text: "test2",
+				items: [
+					{ text: "subtest" },
+					{ text: "subtest2" },
+					{ text: "subtest3" },
+					{ text: "subtest4" }
+				]
+			},
+
+			{
+				text: "test3",
+				items: [
+					{ text: "subtest" },
+					{ text: "subtest2" },
+					{ text: "subtest3" },
+					{ text: "subtest4" }
+				]
+			}
+		],
+		$$events: { select: (i) => selected = i.detail.text }
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	Code(node_1, {
+		get code() {
+			return treeview;
+		}
+	});
+
+	$.template_effect(() => $.set_text(text, `I selected ${selected ?? ''}`));
+	$.append($$anchor, fragment);
+}
+=== 352 src/routes/components/treeviews.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 6,
+			"column": 6,
+			"character": 149
+		},
+		"end": {
+			"line": 6,
+			"column": 14,
+			"character": 157
+		}
+	}
+]
+
+=== 2035 src/routes/dark-mode.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Code from "docs/Code.svelte";
+import { darkMode } from "dark";
+
+var root = $.from_html(
+	`<h4 class="pb-8">Dark mode</h4> <p>Smelte uses css pseudo-class variant <a class="a" href="https://tailwindcss.com/docs/configuring-variants/">feature</a> of Tailwind to enable dark mode. Basic dark mode switch looks like this:</p> <!> <p>This will append <span class="code-inline">mode-dark</span> class to the document body which will enable all generated classes preceded by
+  pseudo-class "dark:". By default smelte generates following variants:</p> <!> <p>Now you can use dark theme classes like <span class="code-inline">dark:bg-white</span> (try using the theme toggle on the top right).</p> <div class="duration-200 ease-in p-10 my-10 bg-black dark:bg-white text-white
+  dark:text-black"> </div> <!> <p>If you don't need dark mode at all, you can pass <span class="code-inline">darkMode: false</span> to the smelte-rollup-plugin and it will generate no extra CSS.</p>`,
+	1
+);
+
+export default function Dark_mode($$anchor) {
+	const $darkMode = () => $.store_get(darkMode, '$darkMode', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	var fragment = root();
+	var node = $.sibling($.first_child(fragment), 4);
+
+	Code(node, {
+		code: `<button bind:value={$darkMode}>Toggle dark mode</button>`
+	});
+
+	var node_1 = $.sibling(node, 4);
+
+	Code(node_1, {
+		code: `
+backgroundColor: ["dark", "dark-hover", "hover"],
+borderColor: ["dark", "dark-focus"],
+textColor: ["dark", "dark-hover", "dark-active"]
+`
+	});
+
+	var div = $.sibling(node_1, 4);
+	var text = $.only_child(div);
+	var node_2 = $.sibling(div, 2);
+
+	Code(node_2, {
+		code: `
+<div class="duration-200 ease-in p-10 my-10 bg-black dark:bg-white text-white dark:text-black">
+  I am a {$darkMode ? "dark" : "light"} div.
+</div>
+`
+	});
+
+	$.next(2);
+	$.template_effect(() => $.set_text(text, `I am a ${$darkMode() ? 'dark' : 'light'} div.`));
+	$.append($$anchor, fragment);
+	$$cleanup();
+}
+=== 3748 src/routes/index.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Code from "docs/Code.svelte";
+
+var root = $.from_html(
+	`<h2>Hi</h2> <p class="pb-4">Smelte is a UI framework built on top of Svelte and <a class="a" href="https://tailwindcss.com">Tailwind CSS</a> using Material Design spec. It comes with many components and utility
+  functions making it easy to build beautiful responsive layouts while keeping
+  bundle size and performance at check all thanks to Svelte. The project was
+  initially inspired by <a class="a" href="https://vuetifyjs.com">Vuetify,</a> but comes at much lower price. The website you're viewing is only a fraction
+  of both JS (670 vs 40 Kb) and CSS (110 vs 10 Kb) payloads of even the most <a class="a" href="https://vuetifyjs.com/en/examples/layouts/baseline">basic Vuetify example layout)</a> , and of course has <a class="a" href="dark-mode">dark mode.</a></p> <p class="pb-4">Tailwind resets much of CSS whereas Smelte tries to bring sensible Material
+  design defaults in <a class="a" href="/typography">typography</a> and <a class="a" href="/color">color.</a></p> <p>Hit up the components <a class="a" href="/components">introduction</a> or please join our <a class="a" href="https://discord.com/invite/nZc64MMdkU">Discord chat</a> for a lovely chat!</p> <h4 id="installation" class="mt-8 pb-4">Installation</h4> To get you started you need to add Smelte to your dependencies with your
+favorite package manager. <!> Then add the Smelte Rollup plugin (after svelte but before css). Webpack support
+coming soon. <!> Then you should add Tailwind utilites CSS in your app component. <!> You might also need to include material icons in your template's if you use any: <!> Or ship them along with Roboto if you would like to use default material font: <!> And you're good to go and have all the Tailwind CSS power all to yourself! For
+treeshaking to work it is recommended to import each component on its own like
+this: <!>`,
+	1
+);
+
+export default function Routes($$anchor) {
+	var fragment = root();
+	var node = $.sibling($.first_child(fragment), 10);
+
+	Code(node, { code: '$ npm install smelte or yarn add smelte' });
+
+	var node_1 = $.sibling(node, 2);
+
+	Code(node_1, {
+		code: `const smelte=require("smelte/rollup-plugin-smelte");
+
+plugins=[ 
+  ...your plugins, 
+  smelte({ 
+    purge: production,
+    output: "public/global.css", // it defaults to static/global.css which is probably what you expect in Sapper 
+    postcss: [], // Your PostCSS plugins
+    whitelist: [], // Array of classnames whitelisted from purging
+    whitelistPatterns: [], // Same as above, but list of regexes
+    tailwind: { 
+      colors: { 
+        primary: "#b027b0",
+        secondary: "#009688",
+        error: "#f44336",
+        success: "#4caf50",
+        alert: "#ff9800",
+        blue: "#2196f3",
+        dark: "#212121" 
+      }, // Object of colors to generate a palette from, and then all the utility classes
+      darkMode: true, 
+    }, 
+    // Any other props will be applied on top of default Smelte tailwind.config.js
+  }),
+]`
+	});
+
+	var node_2 = $.sibling(node_1, 2);
+
+	Code(node_2, { code: `import "smelte/src/tailwind.css" ;` });
+
+	var node_3 = $.sibling(node_2, 2);
+
+	Code(node_3, {
+		code: `<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">`
+	});
+
+	var node_4 = $.sibling(node_3, 2);
+
+	Code(node_4, {
+		code: `<link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500|Material+Icons&display=swap"
+    rel="stylesheet" />`
+	});
+
+	var node_5 = $.sibling(node_4, 2);
+
+	Code(node_5, {
+		code: `import Button from "smelte/src/components/Button";
+import Treeview from "smelte/src/components/Treeview";`
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 885 src/routes/typography.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div><h4 class="pb-8">Typography defaults and helper classes</h4> <p>H1-h6, subtitle, body and caption as well as their respected classes (.h1,
+    .h2...) use Material design <a class="a" href="https://material.io/design/typography/the-type-system.html#type-scale">type scale</a></p> <div class="bg-gray-200 dark:bg-dark-700 p-4 my-4"><h1>.h1 header 1</h1> <h2>.h2 header 2</h2> <h3>.h3 header 3</h3> <h4>.h4 header 4</h4> <h5>.h5 header 5</h5> <h6 class="mb-3 mt-6">.h6 header 6</h6> <div class="subtitle-1">.subtitle-1</div> <div class="subtitle-2">.subtitle-2</div> <div class="body-1">.body-1</div> <div class="body-2">.body-2</div> <small>.caption</small></div></div>`);
+
+export default function Typography($$anchor) {
+	var div = root();
+
+	$.append($$anchor, div);
+}

@@ -1,0 +1,338 @@
+# rsvelte pack 1
+=== 3 docs/src/lib/components/logos/mode-watcher-dark.svelte	json
+[]
+
+=== 3 docs/src/lib/components/logos/mode-watcher-light.svelte	json
+[]
+
+=== 925 docs/src/routes/(docs)/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/logos/mode-watcher-dark.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/logos/mode-watcher-light.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 30
+		},
+		"end": {
+			"line": 4,
+			"character": 79
+		}
+	}
+]
+
+=== 217 docs/src/routes/(docs)/docs/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	}
+]
+
+=== 3 docs/src/routes/(landing)/+page.svelte	json
+[]
+
+=== 650 docs/src/routes/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/site-config' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../app.css'.",
+		"start": {
+			"line": 2,
+			"character": 8
+		},
+		"end": {
+			"line": 2,
+			"character": 20
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@svecodocs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	}
+]
+
+=== 424 packages/mode-watcher/src/lib/components/mode-watcher-full.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../mode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	}
+]
+
+=== 214 packages/mode-watcher/src/lib/components/mode-watcher-lite.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 1324 packages/mode-watcher/src/lib/components/mode-watcher.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/storage-keys.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 49
+		},
+		"end": {
+			"line": 4,
+			"character": 78
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/states.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 8
+		},
+		"end": {
+			"line": 13,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 39
+		},
+		"end": {
+			"line": 14,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/modes.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 29
+		},
+		"end": {
+			"line": 15,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/mode.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 49
+		},
+		"end": {
+			"line": 16,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/mode-states.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 35
+		},
+		"end": {
+			"line": 17,
+			"character": 63
+		}
+	}
+]
+
+=== 459 packages/mode-watcher/src/routes/+layout.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../app.postcss'.",
+		"start": {
+			"line": 1,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/mode-watcher.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	}
+]
+
+=== 430 packages/mode-watcher/src/routes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 8
+		},
+		"end": {
+			"line": 9,
+			"character": 23
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 27
+		},
+		"end": {
+			"line": 10,
+			"character": 42
+		}
+	}
+]
+
+=== 432 packages/mode-watcher/src/tests/Mode.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 8
+		},
+		"end": {
+			"line": 13,
+			"character": 23
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 39
+		},
+		"end": {
+			"line": 14,
+			"character": 54
+		}
+	}
+]
+
+=== 216 packages/mode-watcher/src/tests/StealthMode.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 61
+		},
+		"end": {
+			"line": 3,
+			"character": 76
+		}
+	}
+]
+

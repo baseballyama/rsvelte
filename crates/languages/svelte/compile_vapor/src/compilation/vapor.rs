@@ -2,11 +2,11 @@ use std::collections::BTreeSet;
 
 use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_svelte_compile::render_plan::Namespace;
-use rsvelte_typescript::copy::{Verbatim, copy};
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
-use rsvelte_vue::resolve::{Resolution, call_name};
+use rsvelte_typescript_compile::copy::{Verbatim, copy};
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind};
+use rsvelte_vue_semantic::resolve::{Resolution, call_name};
 
 use super::{Translation, helpers};
 
@@ -141,8 +141,11 @@ struct Builder<'a> {
     effect_order: rustc_hash::FxHashMap<NodeIdentifier, usize>,
     next_effect_order: usize,
     attribute_effect_order: Option<usize>,
-    references: rustc_hash::FxHashMap<NodeIdentifier, rsvelte_typescript::scope::BindingIdentifier>,
-    loop_bindings: rustc_hash::FxHashSet<rsvelte_typescript::scope::BindingIdentifier>,
+    references: rustc_hash::FxHashMap<
+        NodeIdentifier,
+        rsvelte_typescript_semantic::scope::BindingIdentifier,
+    >,
+    loop_bindings: rustc_hash::FxHashSet<rsvelte_typescript_semantic::scope::BindingIdentifier>,
 }
 
 impl<'a> Builder<'a> {

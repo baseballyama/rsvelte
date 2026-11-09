@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::Part;
-use rsvelte_typescript::Kind;
+use rsvelte_svelte_syntax::syntax_tree::Part;
+use rsvelte_typescript_syntax::Kind;
 
 use super::expressions::Expressions;
 use super::markup::{Holder, for_each_mustache, has_comment, parts};

@@ -1,7 +1,7 @@
 use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
-use rsvelte_typescript::NodeIdentifier as SourceNode;
+use rsvelte_typescript_syntax::NodeIdentifier as SourceNode;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NodeIdentifier(pub u32);

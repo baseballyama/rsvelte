@@ -3,15 +3,14 @@
     reason = "CSS rule braces are literal test inputs"
 )]
 
-use rsvelte_svelte::compilation::compiler_syntax_tree;
-use rsvelte_svelte::semantic::{analyze, resolve};
 use rsvelte_svelte_compile::{OutputIdentity, stylesheet};
+use rsvelte_svelte_semantic::{analyze, compiler_syntax_tree, resolve};
 
 fn scope_rules(markup: &str, rules: &str) -> String {
     let source = format!("{markup}<style>{rules}</style>");
-    let component = rsvelte_svelte::syntax::parse::parse(&source).expect("valid component");
+    let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid component");
     let tree = compiler_syntax_tree::lower(&component, &source);
-    let input = rsvelte_svelte::svelte_input(&component, &tree, &source, "test.svelte");
+    let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
     let resolution = resolve::resolve_with_module(
         &component.javascript,
         &source,
@@ -477,9 +476,10 @@ fn class_candidates_scope_each_matching_element() {
         ("<p class:a={false}/><p class=other/>", [true, false]),
     ] {
         let source = format!("{markup}<style>.a{{color:red}}</style>");
-        let component = rsvelte_svelte::syntax::parse::parse(&source).expect("valid component");
+        let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid component");
         let tree = compiler_syntax_tree::lower(&component, &source);
-        let input = rsvelte_svelte::svelte_input(&component, &tree, &source, "test.svelte");
+        let input =
+            rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
         let resolution = resolve::resolve(&component.javascript, &source, component.program, &tree);
         let analysis = analyze::analyze(&input, &resolution);
         let scoped: Vec<_> = tree.elements().map(|(id, _)| analysis.scoped[id]).collect();
@@ -505,9 +505,10 @@ fn compound_classes_preserve_all_matching_elements() {
         ("<p {...attrs} class='common'/>", &[true][..]),
     ] {
         let source = format!("{markup}<style>.common.rare{{color:red}}</style>");
-        let component = rsvelte_svelte::syntax::parse::parse(&source).expect("valid component");
+        let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid component");
         let tree = compiler_syntax_tree::lower(&component, &source);
-        let input = rsvelte_svelte::svelte_input(&component, &tree, &source, "test.svelte");
+        let input =
+            rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
         let resolution = resolve::resolve(&component.javascript, &source, component.program, &tree);
         let analysis = analyze::analyze(&input, &resolution);
         assert_eq!(

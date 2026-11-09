@@ -25,25 +25,27 @@ rsvelte_svelte_lint.workspace = true
 rsvelte_svelte_format.workspace = true
 rsvelte_svelte_compile.workspace = true
 rsvelte_svelte_typescript_projection.workspace = true
-rsvelte_svelte_typecheck.workspace = true
+rsvelte_svelte_check.workspace = true
 rsvelte_typescript_lint.workspace = true
 rsvelte_typescript_format.workspace = true
 rsvelte_typescript_compile.workspace = true
 rsvelte_typescript_check.workspace = true
 rsvelte_kernel.workspace = true
-rsvelte_svue.workspace = true
+rsvelte_corpus.workspace = true
+rsvelte_vue_compile_svelte.workspace = true
 rsvelte_svelte_compile_vapor.workspace = true
 rayon.workspace = true
 libc.workspace = true
 
 [dev-dependencies]
-rsvelte_svelte.workspace = true
-rsvelte_typescript.workspace = true
-rsvelte_vue.workspace = true
+rsvelte_svelte_syntax.workspace = true
+rsvelte_svelte_semantic.workspace = true
+rsvelte_typescript_syntax.workspace = true
+rsvelte_typescript_semantic.workspace = true
+rsvelte_vue_semantic.workspace = true
 oxc_allocator.workspace = true
 oxc_parser.workspace = true
 oxc_span.workspace = true
-rsvelte_svelte_parser.workspace = true
 rsvelte_test_harness.workspace = true
 
 [[test]]

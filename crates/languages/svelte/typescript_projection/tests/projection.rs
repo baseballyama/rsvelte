@@ -2,7 +2,7 @@ use oxc_allocator::Allocator;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_parser::parse::parse;
+use rsvelte_svelte_syntax::parse::parse;
 use rsvelte_svelte_typescript_projection::syntax_tree::{Node, NodeIdentifier, SyntaxTree};
 
 fn project(source: &str) -> (SyntaxTree, rsvelte_kernel::output::emitter::Emitter) {

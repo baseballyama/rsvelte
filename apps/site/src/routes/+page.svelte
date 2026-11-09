@@ -16,6 +16,8 @@
 		{ key: 'unparseable', label: 'JavaScript として解析できない出力', dot: 'bg-warn' },
 		{ key: 'unexpected', label: 'rsvelte だけが出力', dot: 'bg-accent' },
 		{ key: 'missing', label: '公式ツールだけが出力', dot: 'bg-fg-2/25' },
+		{ key: 'refused', label: 'rsvelte が未対応として拒否', dot: 'bg-fg-2/10' },
+		{ key: 'panicked', label: 'rsvelte が異常終了', dot: 'bg-warn' },
 	];
 	const arm = (name: string) => {
 		const a = data.benchmark.arms.find((x) => x.name === name);
@@ -252,8 +254,9 @@
 					<code class="text-[14px]">rsvelte_kernel</code>
 					が受け持つのは、ソース内の位置、名前の保存、一度だけ計算するキャッシュ、並列実行、診断、出力と位置の対応、計測です。Svelte
 					への対応は、言語プラグインとしてカーネルに処理を登録します。<code class="text-[14px]"
-						>rsvelte_svelte</code
+						>rsvelte_svelte_syntax</code
 					>
+					と <code class="text-[14px]">rsvelte_svelte_semantic</code>
 					は構文解析や名前解決の計算結果を登録します。コンパイル・整形・コード検査・型検査の crate は、それぞれのタスク（処理の単位）を登録します。
 				</p>
 				<p class="mt-4 text-[14px] leading-[1.8] text-muted">
@@ -298,7 +301,7 @@
 					<div class="mt-4 overflow-x-auto">
 						<table class="table">
 							<caption class="mb-2 text-left font-mono text-[12px] tracking-normal text-muted">
-								corpus/_registry/parity.json · {fmt(data.parity.units)} 件の判定 · ビルド時に集計
+								corpus/_registry/parity · {fmt(data.parity.units)} 件の判定 · ビルド時に集計
 							</caption>
 							<thead
 								><tr><th>タスク</th><th class="w-[40%]">判定の内訳</th><th class="num">一致</th></tr

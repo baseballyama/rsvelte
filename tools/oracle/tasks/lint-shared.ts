@@ -2,10 +2,11 @@ import type { Linter } from 'eslint';
 import { builtinRules } from 'eslint/use-at-your-own-risk';
 import type { Artifact } from '../types.ts';
 
-/** Every non-deprecated core rule (what `@eslint/js`'s `configs.all` lists), sorted. */
-export const CORE_ALL: Record<string, Linter.RuleEntry> = Object.fromEntries(
+/** The core rules `@eslint/js`'s `configs.recommended` lists, sorted: what a project starts from.
+ * Every core rule would make the expected output mostly rules rsvelte will never have. */
+export const CORE_RECOMMENDED: Record<string, Linter.RuleEntry> = Object.fromEntries(
 	[...builtinRules]
-		.filter(([, rule]) => !rule.meta?.deprecated)
+		.filter(([, rule]) => !rule.meta?.deprecated && rule.meta?.docs?.recommended)
 		.map(([id]) => [id, 'error'] as const)
 		.toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
 );
@@ -22,17 +23,17 @@ export function enabledRules(config: Linter.Config[]): string[] {
 		.map(([id]) => id);
 }
 
-/** `{rules, findings}` as `lint.json`: the rules that ran, and ESLint's positions (1-based line and UTF-16 column). */
-export function lintArtifacts(
-	messages: Linter.LintMessage[],
-	rules: string[],
-): Record<string, Artifact> {
-	const findings = messages.map((m) => ({
-		rule: m.ruleId,
-		message: m.message,
-		start: { line: m.line, column: m.column },
-		end: m.endLine === undefined ? null : { line: m.endLine, column: m.endColumn },
-	}));
-	const text = JSON.stringify({ rules, findings }, null, '\t') + '\n';
-	return { findings: { text, ext: 'lint.json', compare: 'lint' } };
+/**
+ * `lint.txt`, one finding per line in ESLint's order, with ESLint's positions (1-based line and
+ * UTF-16 column): `<line>:<column> <end line>:<end column> <rule> <message as a JSON string>`, with
+ * `-` for no end and for no rule (a fatal parse error). The rules that ran go to oracles.json.
+ */
+export function lintArtifacts(messages: Linter.LintMessage[]): Record<string, Artifact> {
+	const text = messages
+		.map((m) => {
+			const end = m.endLine === undefined ? '-' : `${m.endLine}:${m.endColumn}`;
+			return `${m.line}:${m.column} ${end} ${m.ruleId ?? '-'} ${JSON.stringify(m.message)}\n`;
+		})
+		.join('');
+	return { findings: { text, ext: 'lint.txt', compare: 'lint' } };
 }

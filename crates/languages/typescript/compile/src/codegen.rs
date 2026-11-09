@@ -5,8 +5,10 @@
 //! canonical layout. TypeScript-only nodes are dropped.
 
 use rsvelte_kernel::output::emitter::Emitter;
-use rsvelte_typescript::operators::{BinaryOperator, LogicalOperator, UnaryOperator};
-use rsvelte_typescript::syntax_tree::{Control, Kind, NodeIdentifier, SyntaxTree, Tag, flag};
+use rsvelte_typescript_syntax::operators::{BinaryOperator, LogicalOperator, UnaryOperator};
+use rsvelte_typescript_syntax::syntax_tree::{
+    Control, Kind, NodeIdentifier, SyntaxTree, Tag, flag,
+};
 
 #[must_use]
 pub fn print_program(
@@ -130,10 +132,10 @@ impl Gen<'_> {
     }
 }
 
-pub use rsvelte_typescript::semantic::number::number;
+pub(crate) use rsvelte_typescript_semantic::number::number;
 
 /// Single-quoted JS string literal.
-pub fn quote(out: &mut String, v: &str) {
+pub(crate) fn quote(out: &mut String, v: &str) {
     out.push('\'');
     for c in v.chars() {
         match c {

@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
-use rsvelte_svelte::compilation::compiler_syntax_tree::{
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, ElementKind, MetadataTag, NodeKind,
 };
-use rsvelte_svelte::syntax::syntax_tree::decode_text;
-use rsvelte_typescript::NodeIdentifier;
+use rsvelte_svelte_syntax::syntax_tree::decode_text;
+use rsvelte_typescript_syntax::NodeIdentifier;
 
 /// A node after whitespace cleaning; text may have been trimmed, so it carries its own strings.
 #[derive(Debug, Clone)]

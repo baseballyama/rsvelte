@@ -16,7 +16,7 @@ impl LayoutInstructions {
                 n @ (Node::Static(_) | Node::Text { .. }) => return self.str_of(n).is_empty(),
                 Node::Line(_) => return true,
                 Node::Concat { len, .. } | Node::Group { len, .. } => return len == 0,
-                Node::Indent(x) | Node::Dedent(x) | Node::FlatOnly(x) => d = x,
+                Node::Indent(x) | Node::Dedent(x) | Node::FlatOnly { content: x, .. } => d = x,
                 Node::IndentIfBreak { document, .. } => d = document,
                 Node::Fill { start, len } => {
                     return self.children(start, len).iter().all(|&k| self.is_empty(k));

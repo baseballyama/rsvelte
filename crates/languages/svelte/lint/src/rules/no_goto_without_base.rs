@@ -1,5 +1,5 @@
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript::Kind;
+use rsvelte_typescript_syntax::Kind;
 
 use super::kit_navigation::{Navigation, Script, has_scheme};
 use super::kit_route::{BASE_VERSIONS, runs_for};

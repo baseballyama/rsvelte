@@ -1,13 +1,13 @@
 //! `<script setup>` to a runes instance script.
 
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_typescript::copy::copy;
-use rsvelte_typescript::operators::{BinaryOperator, LogicalOperator, UnaryOperator};
-use rsvelte_typescript::scope::BindingIdentifier;
-use rsvelte_typescript::syntax_tree::{TypeScriptKind, flag};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::resolve::Resolution;
-use rsvelte_vue::syntax_tree::SingleFileComponent;
+use rsvelte_typescript_compile::copy::copy;
+use rsvelte_typescript_semantic::scope::BindingIdentifier;
+use rsvelte_typescript_syntax::operators::{BinaryOperator, LogicalOperator, UnaryOperator};
+use rsvelte_typescript_syntax::syntax_tree::{TypeScriptKind, flag};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_vue_semantic::resolve::Resolution;
+use rsvelte_vue_syntax::syntax_tree::SingleFileComponent;
 use rustc_hash::FxHashMap;
 
 use crate::context::{Class, Helper, Info, Names, Prop, R, Rewriter, span_of, unsupported};
@@ -154,7 +154,7 @@ fn props(
     sfc: &SingleFileComponent,
     resolution: &Resolution,
     source_text: &str,
-    p: rsvelte_vue::resolve::DefineProps,
+    p: rsvelte_vue_semantic::resolve::DefineProps,
     names: &mut Names,
 ) -> R<Vec<Prop>> {
     let from = &sfc.javascript;

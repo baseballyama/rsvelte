@@ -159,7 +159,7 @@ impl Drop for StructuredDataWriter {
 
 /// `s` as a JSON string. The text between escapes is copied a run at a time; every byte that needs
 /// an escape is ASCII, so a run always ends on a character boundary.
-pub fn write_string(out: &mut String, s: &str) {
+pub(crate) fn write_string(out: &mut String, s: &str) {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     out.reserve(s.len() + 2);
     out.push('"');

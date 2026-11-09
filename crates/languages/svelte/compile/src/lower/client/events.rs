@@ -94,7 +94,7 @@ impl ClientCompilationContext<'_> {
             Kind::Identifier(_)
                 if self.res.binding(handler).is_none_or(|(b, _)| {
                     self.res.sem.bindings[b].kind
-                        != rsvelte_typescript::scope::DeclarationKind::Import
+                        != rsvelte_typescript_semantic::scope::DeclarationKind::Import
                 }) =>
             {
                 built
@@ -137,7 +137,7 @@ impl ClientCompilationContext<'_> {
         global: bool,
         lists: &mut Lists,
     ) {
-        use rsvelte_svelte::compilation::compiler_syntax_tree::Modifiers;
+        use rsvelte_svelte_semantic::compiler_syntax_tree::Modifiers;
         let super::AttributeValue::On { handler, modifiers } = attribute.value else {
             unreachable!("an event directive")
         };

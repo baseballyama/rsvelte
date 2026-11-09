@@ -1,4 +1,4 @@
-use rsvelte_svelte::syntax::syntax_tree::TemplateNode;
+use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 
 /// `svelte-eslint-parser`'s element kinds.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

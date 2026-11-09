@@ -1,11 +1,11 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::semantic::legacy::{Legacy, Variable};
-use rsvelte_svelte::syntax::syntax_tree::{Component, TemplateNode};
-use rsvelte_typescript::operators::{AssignmentOperator, UnaryOperator};
-use rsvelte_typescript::scope::{BindingIdentifier, DeclarationKind};
-use rsvelte_typescript::semantic::globals::global;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_svelte_semantic::legacy::{Legacy, Variable};
+use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode};
+use rsvelte_typescript_semantic::globals::global;
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind};
+use rsvelte_typescript_syntax::operators::{AssignmentOperator, UnaryOperator};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::javascript::span;
@@ -242,7 +242,7 @@ impl<'a> Checker<'a> {
             }
             return self.each.get(&expression).is_some_and(|&context| {
                 let mut write = false;
-                rsvelte_svelte::semantic::resolve::for_each_pattern_identifier(
+                rsvelte_svelte_semantic::resolve::for_each_pattern_identifier(
                     javascript,
                     context,
                     &mut |identifier| {

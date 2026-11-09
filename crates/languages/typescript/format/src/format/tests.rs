@@ -1,5 +1,5 @@
 use rsvelte_document_printer::PrintOptions;
-use rsvelte_typescript::parser::parse_program;
+use rsvelte_typescript_syntax::parser::parse_program;
 
 use super::expressions::print_number;
 use super::*;
@@ -107,6 +107,18 @@ fn numbers_print_like_prettier() {
         ("2e-007", "2e-7"),
         ("3e0", "3"),
         ("0XAB", "0xab"),
+        ("1_0.5_0", "1_0.5_0"),
+        ("1.0_0", "1.0_0"),
+        ("0.0_0", "0.0_0"),
+        ("1.5_0e1", "1.5_0e1"),
+        ("1_0e0", "1_0e0"),
+        ("1.500e+0010", "1.5e10"),
+        ("1e-0", "1"),
+        ("1.e5", "1e5"),
+        ("-.5", "-0.5"),
+        ("1.00", "1.0"),
+        ("5", "5"),
+        ("1e0_0", "1e0_0"),
     ] {
         assert_eq!(print_number(raw), want, "{raw}");
     }

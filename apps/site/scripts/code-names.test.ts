@@ -271,16 +271,16 @@ test('skips only the buf parameter of std::io::Write::write, and only while the 
 });
 
 test('allows only the css and html language directories directly under crates/languages', () => {
-	assert.deepEqual(pathFindings('languages/css/core/src/lib.rs'), []);
-	assert.deepEqual(pathFindings('languages/html/core/Cargo.toml'), []);
-	assert.deepEqual(pathFindings('languages/css/core/src/ctx.rs'), ['ctx']);
+	assert.deepEqual(pathFindings('languages/css/syntax/src/lib.rs'), []);
+	assert.deepEqual(pathFindings('languages/html/syntax/Cargo.toml'), []);
+	assert.deepEqual(pathFindings('languages/css/syntax/src/ctx.rs'), ['ctx']);
 	assert.deepEqual(pathFindings('languages/css/css/src/lib.rs'), ['css']);
 	assert.deepEqual(pathFindings('languages/svelte/compile/src/css.rs'), ['css']);
 	assert.deepEqual(pathFindings('languages/svelte/hir/src/lib.rs'), ['hir']);
-	assert.deepEqual(pathFindings('languages/hir/core/src/lib.rs'), ['hir']);
-	assert.deepEqual(pathFindings('languages/ctx/core/src/lib.rs'), ['ctx']);
+	assert.deepEqual(pathFindings('languages/hir/syntax/src/lib.rs'), ['hir']);
+	assert.deepEqual(pathFindings('languages/ctx/syntax/src/lib.rs'), ['ctx']);
 	assert.deepEqual(pathFindings('hosts/css/src/lib.rs'), ['css']);
-	assert.deepEqual(pathFindings('languages/js/core/src/lib.rs'), ['js']);
+	assert.deepEqual(pathFindings('languages/js/syntax/src/lib.rs'), ['js']);
 	assert.deepEqual(pathFindings('languages/ts/x/Cargo.toml'), ['ts']);
 });
 

@@ -45,7 +45,7 @@ impl NodePackages {
     ///
     /// If the platform has no native build or it is not installed.
     #[must_use]
-    pub fn tsc(&self) -> PathBuf {
+    pub(crate) fn tsc(&self) -> PathBuf {
         let os = match std::env::consts::OS {
             "macos" => "darwin",
             "windows" => "win32",
@@ -72,7 +72,7 @@ impl NodePackages {
     }
 
     /// The type checker the check tests run, as its program and arguments: `FIXTURE_TYPE_CHECKER`,
-    /// such as `tsrs --fast`, or else [`Self::tsc`] with `--singleThreaded`, since the tests run
+    /// such as `tsrs --fast`, or else `Self::tsc` with `--singleThreaded`, since the tests run
     /// several projects at once. A bare program is looked for in
     /// `tools/oracle/node_modules/.bin`, then in `PATH`. Prints the checker and what its
     /// `--version` says, so a run names the checker it measured.

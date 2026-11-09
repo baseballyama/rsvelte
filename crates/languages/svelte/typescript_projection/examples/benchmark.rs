@@ -5,7 +5,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use rsvelte_kernel::performance::measurement::{CountingAllocator, thread_allocations};
-use rsvelte_svelte_parser::parse::parse;
+use rsvelte_svelte_syntax::parse::parse;
 
 #[global_allocator]
 static ALLOCATOR: CountingAllocator = CountingAllocator;

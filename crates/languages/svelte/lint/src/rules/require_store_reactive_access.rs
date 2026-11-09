@@ -1,13 +1,13 @@
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode,
 };
-use rsvelte_typescript::operators::{AssignmentOperator, BinaryOperator, UnaryOperator};
-use rsvelte_typescript::scope::BindingIdentifier;
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::syntax_tree::{Class, Control};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::scope::BindingIdentifier;
+use rsvelte_typescript_syntax::operators::{AssignmentOperator, BinaryOperator, UnaryOperator};
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::syntax_tree::{Class, Control};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
 use super::javascript::{span, walk};

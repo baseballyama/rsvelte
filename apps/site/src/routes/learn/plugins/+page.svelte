@@ -31,12 +31,12 @@
 		<tbody>
 			<tr
 				><td>自分で構文解析して結果を使う</td><td
-					><code>rsvelte_svelte::syntax::parse::parse</code></td
+					><code>rsvelte_svelte_syntax::parse::parse</code></td
 				></tr
 			>
 			<tr
 				><td>他のタスクと構文解析結果を共有する</td><td
-					><code>context.get::&lt;rsvelte_svelte::Parsed&gt;()</code></td
+					><code>context.get::&lt;rsvelte_svelte_syntax::Parsed&gt;()</code></td
 				></tr
 			>
 			<tr
@@ -48,15 +48,16 @@
 	</table>
 	<p>
 		別の Rust ライブラリから使うときは、<code>Cargo.toml</code> の依存関係に
-		<code>rsvelte_svelte</code>
-		を追加します。カーネルに接続する例では、<code>rsvelte_kernel</code> と
+		<code>rsvelte_svelte_syntax</code>
+		を追加します。名前解決の結果も使うときは <code>rsvelte_svelte_semantic</code>
+		も追加します。カーネルに接続する例では、<code>rsvelte_kernel</code> と
 		<code>rsvelte_plugin_interface</code>
 		も要ります。このリポジトリ内では workspace の依存設定を使えます。外から使うときは、各 crate のディレクトリを
 		<code>path</code> に指定します。crate はまだ公開していません。
 	</p>
 	<p>
-		構文解析は <code>rsvelte_svelte_parser</code> にあり、<code>rsvelte_svelte</code>
-		が <code>syntax::parse</code> として再公開しています。下の抜粋はその定義です。
+		構文解析は <code>rsvelte_svelte_syntax</code> の <code>parse</code>
+		にあります。下の抜粋はその定義です。
 	</p>
 	<p>
 		構文解析関数は <code>Result&lt;Component, Diagnostic&gt;</code> を返します。<code
@@ -212,7 +213,7 @@
 	<H2 id="extension" />
 	<p>
 		新しい言語を追加するときは、文書が対象かどうかの判定、構文解析の結果の型、タスク、登録関数を用意します。Svelte
-		の登録関数 <code>rsvelte_svelte::register</code> は、構文解析に続けて名前解決の
+		の登録関数 <code>rsvelte_svelte_semantic::register</code> は、構文解析に続けて
 		<code>Resolved</code>
 		なども登録します。次の抜粋は <code>Resolved</code>
 		の定義です。この章の例もこの関数を呼ぶので、<code>context.get::&lt;Resolved&gt;()</code>

@@ -50,22 +50,6 @@ impl Interner {
         Self::default()
     }
 
-    pub fn clear(&mut self) {
-        self.buffer.clear();
-        self.ends.clear();
-        self.table.iter_mut().for_each(|s| *s = 0);
-    }
-
-    #[must_use]
-    pub const fn len(&self) -> usize {
-        self.ends.len()
-    }
-
-    #[must_use]
-    pub const fn is_empty(&self) -> bool {
-        self.ends.is_empty()
-    }
-
     #[must_use]
     pub fn get(&self, atom: Atom) -> &str {
         let end = self.ends[atom.0 as usize] as usize;

@@ -1,0 +1,2003 @@
+# rsvelte pack 1
+=== 1404 docs/src/components/motion.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.ts' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'motion' or its corresponding type declarations.",
+		"start": {
+			"line": 73,
+			"character": 42
+		},
+		"end": {
+			"line": 73,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'motion/react' or its corresponding type declarations.",
+		"start": {
+			"line": 75,
+			"character": 70
+		},
+		"end": {
+			"line": 75,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 76,
+			"character": 23
+		},
+		"end": {
+			"line": 76,
+			"character": 30
+		}
+	},
+	{
+		"code": 2536,
+		"message": "Type 'Tag' cannot be used to index type 'SvelteHTMLElements'.",
+		"start": {
+			"line": 78,
+			"character": 14
+		},
+		"end": {
+			"line": 78,
+			"character": 37
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'string | number | symbol' is not assignable to parameter of type 'keyof IntrinsicElements | null | undefined'.\n  Type 'symbol' is not assignable to type 'keyof IntrinsicElements | null | undefined'.",
+		"start": {
+			"line": 172,
+			"character": 7
+		},
+		"end": {
+			"line": 172,
+			"character": 10
+		}
+	}
+]
+
+=== 3 docs/src/components/preview.svelte	json
+[]
+
+=== 210 docs/src/components/transition.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 62,
+			"character": 23
+		},
+		"end": {
+			"line": 62,
+			"character": 30
+		}
+	}
+]
+
+=== 1931 docs/src/previews/SpatialMenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './movies' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './utils/search' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/solar/heart-bold' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 23
+		},
+		"end": {
+			"line": 7,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/lucide/circle-slash' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 54
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 80,
+			"character": 18
+		},
+		"end": {
+			"line": 80,
+			"character": 19
+		}
+	}
+]
+
+=== 876 docs/src/previews/accordion.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 47
+		},
+		"end": {
+			"line": 4,
+			"character": 62
+		}
+	}
+]
+
+=== 1081 docs/src/previews/avatar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 34
+		}
+	}
+]
+
+=== 1343 docs/src/previews/collapsible.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/components' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/heroicons/chevron-up-down-solid' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/material-symbols/close-rounded' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 58
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'collapsible' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 21
+		},
+		"end": {
+			"line": 19,
+			"character": 32
+		}
+	}
+]
+
+=== 1951 docs/src/previews/combobox.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/hugeicons/alphabet-japanese' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/lucide/check' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/lucide/chevron-down' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ascii' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 23
+		},
+		"end": {
+			"line": 8,
+			"character": 32
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'option' implicitly has an 'any' type.",
+		"start": {
+			"line": 66,
+			"character": 16
+		},
+		"end": {
+			"line": 66,
+			"character": 22
+		}
+	}
+]
+
+=== 1128 docs/src/previews/dialog.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/material-symbols/close-rounded' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/tabler/trash' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 19
+		},
+		"end": {
+			"line": 7,
+			"character": 40
+		}
+	}
+]
+
+=== 2013 docs/src/previews/file-upload.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/tabler/cloud-upload' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/tabler/x' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 19
+		},
+		"end": {
+			"line": 7,
+			"character": 36
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 35,
+			"character": 12
+		},
+		"end": {
+			"line": 35,
+			"character": 13
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'file' is of type 'unknown'.",
+		"start": {
+			"line": 95,
+			"character": 10
+		},
+		"end": {
+			"line": 95,
+			"character": 14
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'file' is of type 'unknown'.",
+		"start": {
+			"line": 97,
+			"character": 70
+		},
+		"end": {
+			"line": 97,
+			"character": 74
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'file' is of type 'unknown'.",
+		"start": {
+			"line": 100,
+			"character": 24
+		},
+		"end": {
+			"line": 100,
+			"character": 28
+		}
+	}
+]
+
+=== 1244 docs/src/previews/pin-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 39,
+			"character": 16
+		},
+		"end": {
+			"line": 39,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 42,
+			"character": 13
+		},
+		"end": {
+			"line": 42,
+			"character": 14
+		}
+	}
+]
+
+=== 858 docs/src/previews/popover-multiple-triggers.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@antfu/utils' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 40
+		}
+	}
+]
+
+=== 1078 docs/src/previews/popover.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/components' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 45
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 36
+		},
+		"end": {
+			"line": 4,
+			"character": 68
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'popover2' implicitly has an 'any' type.",
+		"start": {
+			"line": 41,
+			"character": 23
+		},
+		"end": {
+			"line": 41,
+			"character": 31
+		}
+	}
+]
+
+=== 661 docs/src/previews/progress.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@number-flow/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 41
+		}
+	}
+]
+
+=== 1060 docs/src/previews/radio-group.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 39,
+			"character": 16
+		},
+		"end": {
+			"line": 39,
+			"character": 17
+		}
+	}
+]
+
+=== 1555 docs/src/previews/select.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/hugeicons/alphabet-japanese' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/lucide/check' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/lucide/chevron-down' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 53
+		}
+	}
+]
+
+=== 876 docs/src/previews/slider.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 39
+		}
+	}
+]
+
+=== 1570 docs/src/previews/tabs.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 50
+		},
+		"end": {
+			"line": 4,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/transition.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 55
+		}
+	},
+	{
+		"code": 7053,
+		"message": "Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ horizontal: { leaveFrom: string; leaveTo: string; leave: string; enterFrom: string; enter: string; }; vertical: { leaveFrom: string; leaveTo: string; leave: string; enterFrom: string; enter: string; enterTo: string; }; }'.",
+		"start": {
+			"line": 68,
+			"character": 35
+		},
+		"end": {
+			"line": 68,
+			"character": 70
+		}
+	}
+]
+
+=== 1521 docs/src/previews/toaster.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/components' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/material-symbols/close-rounded' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 19
+		},
+		"end": {
+			"line": 7,
+			"character": 58
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'progress' implicitly has an 'any' type.",
+		"start": {
+			"line": 105,
+			"character": 26
+		},
+		"end": {
+			"line": 105,
+			"character": 34
+		}
+	}
+]
+
+=== 1112 docs/src/previews/toggle.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/ph/heart-bold' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/ph/heart-fill' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 47
+		}
+	}
+]
+
+=== 1099 docs/src/previews/tooltip.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/ph/chef-hat-fill' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 52
+		}
+	}
+]
+
+=== 1994 docs/src/previews/tree.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/motion.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview-ctx.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/preview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'melt/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 37
+		},
+		"end": {
+			"line": 5,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/devicon/javascript' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/devicon/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 20
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/ph/folder-fill' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 20
+		},
+		"end": {
+			"line": 8,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '~icons/ph/folder-open-fill' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 24
+		},
+		"end": {
+			"line": 9,
+			"character": 52
+		}
+	}
+]
+
+=== 3 packages/melt/src/lib/builders/tests/ComboboxTest.svelte	json
+[]
+
+=== 3 packages/melt/src/lib/builders/tests/SelectTest.svelte	json
+[]
+
+=== 3 packages/melt/src/lib/builders/tests/SpatialMenuDisabledTest.svelte	json
+[]
+
+=== 423 packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/builders/SpatialMenu.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 66
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'id' implicitly has an 'any' type.",
+		"start": {
+			"line": 39,
+			"character": 22
+		},
+		"end": {
+			"line": 39,
+			"character": 24
+		}
+	}
+]
+
+=== 3 packages/melt/src/lib/builders/tests/SpatialMenuTest.svelte	json
+[]
+
+=== 3 packages/melt/src/lib/builders/tests/ToastTest.svelte	json
+[]
+
+=== 623 packages/melt/src/lib/components/Accordion.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getters.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 15,
+			"character": 16
+		},
+		"end": {
+			"line": 15,
+			"character": 17
+		}
+	}
+]
+
+=== 439 packages/melt/src/lib/components/Avatar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getters.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 37
+		},
+		"end": {
+			"line": 8,
+			"character": 47
+		}
+	}
+]
+
+=== 439 packages/melt/src/lib/components/Collapsible.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getters.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	}
+]
+
+=== 395 packages/melt/src/lib/components/Combobox.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 16
+		},
+		"end": {
+			"line": 16,
+			"character": 17
+		}
+	}
+]
+
+=== 439 packages/melt/src/lib/components/FileUpload.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getters.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	}
+]
+
+=== 439 packages/melt/src/lib/components/PinInput.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getters.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	}
+]
+
+=== 211 packages/melt/src/lib/components/Popover.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	}
+]
+
+=== 439 packages/melt/src/lib/components/Progress.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getters.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	}
+]
+
+=== 439 packages/melt/src/lib/components/RadioGroup.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getters.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	}
+]
+
+=== 395 packages/melt/src/lib/components/Select.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 16
+		},
+		"end": {
+			"line": 16,
+			"character": 17
+		}
+	}
+]
+
+=== 439 packages/melt/src/lib/components/Slider.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getters.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	}
+]
+
+=== 211 packages/melt/src/lib/components/SpatialMenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 37
+		},
+		"end": {
+			"line": 6,
+			"character": 47
+		}
+	}
+]
+
+=== 439 packages/melt/src/lib/components/Tabs.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getters.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	}
+]
+
+=== 211 packages/melt/src/lib/components/Toggle.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	}
+]
+
+=== 836 packages/melt/src/lib/components/Tooltip.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/builders' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 55
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getters.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 17
+		},
+		"end": {
+			"line": 14,
+			"character": 18
+		}
+	}
+]
+

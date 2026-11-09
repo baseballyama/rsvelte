@@ -1,0 +1,1524 @@
+# rsvelte pack 1
+=== 176 src/lib/PivotTable.svelte	svelte
+<script>
+  import TableRenderers from "./TableRenderers";
+
+  let { renderer: Renderer = TableRenderers.Table, ...restProps } = $props();
+</script>
+
+<Renderer {...restProps} />
+
+=== 4664 src/lib/PivotTableUI.svelte	svelte
+<script lang="ts">
+  import { setContext } from "svelte";
+  import PivotData from "./PivotData";
+  import PivotTable from "./PivotTable.svelte";
+  import TableRenderers from "./TableRenderers";
+  import Aggregators from "./UI/Aggregators.svelte";
+  import DnDCell from "./UI/DnDCell.svelte";
+  import Dropdown from "./UI/Dropdown.svelte";
+  import MainTable from "./UI/MainTable.svelte";
+  import { aggregators as defaultAggregators, sortAs } from "./Utilities";
+  import type { PivotTableUIProps, FilterSet } from "./types";
+
+  let {
+    rendererName = "Table",
+    renderers = TableRenderers,
+    aggregatorName = "Count",
+    aggregators = defaultAggregators,
+    hiddenAttributes = [],
+    hiddenFromAggregators = [],
+    hiddenFromDragDrop = [],
+    unusedOrientationCutoff = 85,
+    menuLimit = 500,
+
+    // pivotData props managed by PivotTableUI
+    derivedAttributes = PivotData.defaultProps.derivedAttributes,
+    cols = PivotData.defaultProps.cols,
+    rows = PivotData.defaultProps.rows,
+    vals = PivotData.defaultProps.vals,
+    sorters = PivotData.defaultProps.sorters,
+
+    compactRows = true,
+    // pivot data
+    data,
+
+    ...restProps
+  }: PivotTableUIProps = $props();
+
+  let valueFilter: FilterSet = $state({});
+  setContext<FilterSet>("valueFilter", valueFilter);
+
+  let unusedOrder: string[] = $state.raw([]);
+
+  const notHidden = (e: string) =>
+    !hiddenAttributes.includes(e) && !hiddenFromDragDrop.includes(e);
+
+  let colAttrs = $derived(cols.filter(notHidden));
+  let rowAttrs = $derived(rows.filter(notHidden));
+
+  let attrValues: Record<string, Record<string, number>> = $derived.by(() => {
+    let attrValues: Record<string, Record<string, number>> = {};
+
+    let recordsProcessed = 0;
+
+    PivotData.forEachRecord(
+      data ?? [],
+      derivedAttributes,
+      function (record: Record<string, any>) {
+        for (const attr of Object.keys(record)) {
+          if (!(attr in attrValues)) {
+            attrValues[attr] = {};
+            if (recordsProcessed > 0) {
+              attrValues[attr].null = recordsProcessed;
+            }
+          }
+        }
+        for (const attr in attrValues) {
+          const value: string = attr in record ? record[attr] : "null";
+          if (!(value in attrValues[attr])) {
+            attrValues[attr][value] = 0;
+          }
+          attrValues[attr][value]++;
+        }
+        recordsProcessed++;
+      },
+    );
+    return attrValues;
+  });
+
+  let unusedAttrs: string[] = $derived(
+    Object.keys(attrValues)
+      .filter(
+        (e) => !colAttrs.includes(e) && !rowAttrs.includes(e) && notHidden(e),
+      )
+      .sort(sortAs(unusedOrder)),
+  );
+
+  let horizUnused: boolean = $derived.by(() => {
+    const unusedLength = unusedAttrs.reduce((r, e) => r + e.length, 0);
+    return unusedLength < unusedOrientationCutoff;
+  });
+
+  let valAttrs: string[] = $derived(
+    Object.keys(attrValues).filter(
+      (e) =>
+        !hiddenAttributes.includes(e) && !hiddenFromAggregators.includes(e),
+    ),
+  );
+
+  const firstKey = (x: object) => Object.keys(x)[0];
+
+  let renderer = $derived(
+    renderers[
+      (rendererName in renderers
+        ? rendererName
+        : firstKey(renderers)) as keyof typeof renderers
+    ],
+  );
+
+  let aggregator = $derived(
+    aggregators[
+      (aggregatorName in aggregators
+        ? aggregatorName
+        : firstKey(aggregators)) as keyof typeof aggregators
+    ],
+  );
+</script>
+
+<MainTable {horizUnused}>
+  {#snippet rendererCell()}
+    <Dropdown bind:current={rendererName} values={Object.keys(renderers)} />
+  {/snippet}
+
+  {#snippet aggregatorCell()}
+    <Aggregators
+      {aggregatorName}
+      {aggregators}
+      {valAttrs}
+      onChange={(v: string) => (aggregatorName = v)}
+      onUpdate={(v: string[]) => (vals = v)}
+      {vals}
+    />
+  {/snippet}
+
+  {#snippet unusedAttrsCell()}
+    <DnDCell
+      {sorters}
+      {attrValues}
+      items={unusedAttrs}
+      onChange={(v: string[]) => (unusedOrder = v)}
+      {menuLimit}
+    />
+  {/snippet}
+
+  {#snippet colAttrsCell()}
+    <DnDCell
+      {sorters}
+      {attrValues}
+      items={colAttrs}
+      onChange={(v: string[]) => (cols = v)}
+      {menuLimit}
+    />
+  {/snippet}
+
+  {#snippet rowAttrsCell()}
+    <DnDCell
+      {sorters}
+      {attrValues}
+      items={rowAttrs}
+      onChange={(v: string[]) => (rows = v)}
+      {menuLimit}
+    />
+  {/snippet}
+
+  {#snippet outputCell()}
+    <PivotTable
+      {renderer}
+      {...restProps}
+      {cols}
+      {rows}
+      {vals}
+      {derivedAttributes}
+      {aggregator}
+      {data}
+      {sorters}
+      {compactRows}
+      {valueFilter}
+      {aggregatorName}
+      {aggregators}
+    />
+  {/snippet}
+</MainTable>
+
+=== 3973 src/lib/PlotlyRenderer.svelte	svelte
+<script lang="ts">
+  import type { Layout, PlotData } from "plotly.js";
+  import PivotData from "./PivotData";
+  import Plotly from "./UI/Plotly.svelte";
+  import type { Datum } from "./types";
+
+  let {
+    plotlyOptions = {},
+    plotlyConfig = {},
+    onRendererUpdate,
+
+    traceOptions = {},
+    layoutOptions = {},
+    transpose = false,
+
+    aggregatorName,
+    aggregators,
+
+    ...restProps
+  } = $props();
+
+  let pivotData: PivotData,
+    rowKeys: Datum[][],
+    colKeys: Datum[][],
+    traceKeys: Datum[][],
+    datumKeys: Datum[][],
+    numInputs: number,
+    data: Partial<PlotData>[] = $state.raw([]),
+    hAxisTitle,
+    groupByTitle,
+    layout: Partial<Layout> = $state.raw({});
+
+  $effect(() => {
+    pivotData = new PivotData(restProps);
+    rowKeys = pivotData.getRowKeys();
+    colKeys = pivotData.getColKeys();
+    traceKeys = transpose ? colKeys : rowKeys;
+    if (traceKeys.length === 0) {
+      traceKeys.push([]);
+    }
+    datumKeys = transpose ? rowKeys : colKeys;
+    if (datumKeys.length === 0) {
+      datumKeys.push([]);
+    }
+
+    let fullAggregatorName = aggregatorName;
+    numInputs =
+      aggregators[aggregatorName as keyof typeof aggregators]([])().numInputs ||
+      0;
+    if (numInputs !== 0) {
+      fullAggregatorName += ` of ${pivotData.props.vals.slice(0, numInputs).join(", ")}`;
+    }
+    const dataTemp = traceKeys.map((traceKey) => {
+      const values = [];
+      const labels = [];
+      for (const datumKey of datumKeys) {
+        const val = parseFloat(
+          pivotData
+            .getAggregator(
+              transpose ? datumKey : traceKey,
+              transpose ? traceKey : datumKey,
+            )
+            .value() as string,
+        );
+        values.push(isFinite(val) ? val : null);
+        labels.push(datumKey.join("-") || " ");
+      }
+      const trace: Partial<PlotData> = {
+        name: traceKey.join("-") || fullAggregatorName,
+      };
+      if (traceOptions.type === "pie") {
+        trace.values = values;
+        trace.labels = labels.length > 1 ? labels : [fullAggregatorName];
+      } else {
+        trace.x = transpose ? values : labels;
+        trace.y = transpose ? labels : values;
+      }
+      return Object.assign(trace, traceOptions) as Partial<PlotData>;
+    });
+
+    let titleText = fullAggregatorName;
+    hAxisTitle = transpose
+      ? pivotData.props.rows.join("-")
+      : pivotData.props.cols.join("-");
+    groupByTitle = transpose
+      ? pivotData.props.cols.join("-")
+      : pivotData.props.rows.join("-");
+    if (hAxisTitle !== "") {
+      titleText += ` vs ${hAxisTitle}`;
+    }
+    if (groupByTitle !== "") {
+      titleText += ` by ${groupByTitle}`;
+    }
+
+    const layoutTemp: Partial<Layout> = {
+      title: { text: titleText },
+      hovermode: "closest",
+      /* eslint-disable no-magic-numbers */
+      width: window.innerWidth / 1.5,
+      height: window.innerHeight / 1.4 - 50,
+      /* eslint-enable no-magic-numbers */
+    };
+
+    if (traceOptions.type === "pie") {
+      const columns = Math.ceil(Math.sqrt(dataTemp.length));
+      const rows = Math.ceil(dataTemp.length / columns);
+      layoutTemp.grid = { columns, rows };
+      dataTemp.forEach((d, i) => {
+        d.domain = {
+          row: Math.floor(i / columns),
+          column: i - columns * Math.floor(i / columns),
+        };
+        if (dataTemp.length > 1) {
+          d.title = { text: d.name };
+        }
+      });
+      if (dataTemp[0].labels?.length === 1) {
+        layoutTemp.showlegend = false;
+      }
+    } else {
+      layoutTemp.xaxis = {
+        title: transpose ? { text: aggregatorName } : undefined,
+        automargin: true,
+      };
+      layoutTemp.yaxis = {
+        title: transpose ? undefined : { text: aggregatorName },
+        automargin: true,
+      };
+    }
+
+    data = dataTemp;
+    layout = layoutTemp;
+  });
+</script>
+
+<Plotly
+  layout={{ ...layout, ...layoutOptions, ...plotlyOptions }}
+  {data}
+  config={plotlyConfig}
+  onUpdate={onRendererUpdate}
+/>
+
+=== 1865 src/lib/ScatterRenderer.svelte	svelte
+<script lang="ts">
+  import type { Datum, Layout, PlotData } from "plotly.js";
+  import PivotData from "./PivotData";
+  import Plotly from "./UI/Plotly.svelte";
+
+  let {
+    plotlyOptions = {},
+    plotlyConfig = {},
+    onRendererUpdate,
+    ...restProps
+  } = $props();
+
+  let pivotData: PivotData,
+    rowKeys: Datum[][],
+    colKeys: Datum[][],
+    layout: Partial<Layout> = $state.raw({}),
+    data: Partial<PlotData> = $state.raw({ type: "scatter", mode: "markers" });
+
+  $effect(() => {
+    pivotData = new PivotData(restProps);
+    rowKeys = pivotData.getRowKeys();
+    colKeys = pivotData.getColKeys();
+    if (rowKeys.length === 0) {
+      rowKeys.push([]);
+    }
+    if (colKeys.length === 0) {
+      colKeys.push([]);
+    }
+
+    data.x = [] as Datum[];
+    data.y = [] as Datum[];
+    data.text = [] as string[];
+
+    for (const rowKey of rowKeys) {
+      for (const colKey of colKeys) {
+        const v = pivotData.getAggregator(rowKey, colKey).value();
+        if (v !== null) {
+          data.x.push(colKey.join("-"));
+          data.y.push(rowKey.join("-"));
+          data.text.push(String(v));
+        }
+      }
+    }
+
+    layout = {
+      title: {
+        text:
+          pivotData.props.rows.join("-") +
+          " vs " +
+          pivotData.props.cols.join("-"),
+      },
+      hovermode: "closest",
+      xaxis: {
+        title: { text: pivotData.props.cols.join("-") },
+        automargin: true,
+      },
+      yaxis: {
+        title: { text: pivotData.props.rows.join("-") },
+        automargin: true,
+      },
+      /* eslint-disable no-magic-numbers */
+      width: window.innerWidth / 1.5,
+      height: window.innerHeight / 1.4 - 50,
+      /* eslint-enable no-magic-numbers */
+    };
+  });
+</script>
+
+<Plotly
+  data={[data]}
+  layout={Object.assign(layout ?? {}, plotlyOptions)}
+  config={plotlyConfig}
+  onUpdate={onRendererUpdate}
+/>
+
+=== 1389 src/lib/TSVExportRenderer.svelte	svelte
+<script lang="ts">
+  import PivotData from "./PivotData";
+  import type { Datum } from "./types";
+
+  let pivotData: PivotData,
+    rowKeys: Datum[][],
+    colKeys: Datum[][],
+    headerRow: string[],
+    value: string = $state("");
+
+  let options = $props();
+
+  $effect(() => {
+    pivotData = new PivotData(options);
+    rowKeys = pivotData.getRowKeys();
+    colKeys = pivotData.getColKeys();
+    if (rowKeys.length === 0) {
+      rowKeys.push([]);
+    }
+    if (colKeys.length === 0) {
+      colKeys.push([]);
+    }
+
+    headerRow = pivotData.props.rows.map((r) => r);
+    if (colKeys.length === 1 && colKeys[0].length === 0) {
+      headerRow.push(options.aggregatorName);
+    } else {
+      colKeys.map((c) => headerRow.push(c.join("-")));
+    }
+
+    const result = rowKeys.map((r) => {
+      const row = r.map((x) => x);
+      colKeys.map((c) => {
+        const v = pivotData.getAggregator(r, c).value();
+        row.push(v ? v : "");
+      });
+      return row;
+    });
+
+    result.unshift(headerRow);
+
+    value = result.map((r) => r.join("\t")).join("\n");
+  });
+  // style={{ width: window.innerWidth / 2, height: window.innerHeight / 2 }}
+
+  function resize(node: HTMLElement) {
+    node.style.width = node.parentElement?.clientWidth + "px";
+    node.style.height = node.parentElement?.clientHeight + "px";
+  }
+</script>
+
+<textarea use:resize {value} readOnly={true}></textarea>
+
+=== 12389 src/lib/TableRenderer.svelte	svelte
+<script lang="ts">
+  import "./grouping.css";
+  import PivotData from "./PivotData";
+  import "./pivottable.css";
+  import type { Data, Datum, TableRendererProps } from "./types";
+
+  let {
+    tableColorScaleGenerator = redColorScaleGenerator,
+    tableOptions = {},
+    compactRows = true,
+
+    opts = {},
+    ...restProps
+  }: TableRendererProps = $props();
+
+  let pivotData = $state.raw(new PivotData(restProps));
+  $effect(() => {
+    // When this is $derived we experience issues
+    pivotData = new PivotData(restProps);
+  });
+
+  // helper function for setting row/col-span in pivotTableRenderer
+  const spanSize = function (
+    arr: any[],
+    i: number,
+    j: number,
+    no_loop = false,
+  ) {
+    let x;
+    if (i !== 0) {
+      let asc, end;
+      let noDraw = true;
+      for (
+        x = 0, end = j, asc = end >= 0;
+        asc ? x <= end : x >= end;
+        asc ? x++ : x--
+      ) {
+        if (arr[i - 1][x] !== arr[i][x]) {
+          noDraw = false;
+        }
+      }
+      if (noDraw) {
+        return -1;
+      }
+    }
+    let len = 0;
+    while (i + len < arr.length) {
+      let asc1, end1;
+      let stop = false;
+      for (
+        x = no_loop ? j : 0, end1 = j, asc1 = end1 >= 0;
+        asc1 ? x <= end1 : x >= end1;
+        asc1 ? x++ : x--
+      ) {
+        if (arr[i][x] !== arr[i + len][x]) {
+          stop = true;
+        }
+      }
+      if (stop) {
+        break;
+      }
+      len++;
+    }
+    return len;
+  };
+
+  function redColorScaleGenerator(values: Datum[]) {
+    const min = Math.min(...values.map(Number).filter((x) => x));
+    const max = Math.max(...values.map(Number).filter((x) => x));
+    return (x: Datum) => {
+      // eslint-disable-next-line no-magic-numbers
+      const nonRed = 255 - Math.round((255 * (Number(x) - min)) / (max - min));
+      return `background-color: rgb(255,${nonRed},${nonRed})`;
+    };
+  }
+
+  const flatKey = (arr: Datum[]) => arr.join(String.fromCharCode(0));
+  const has = (set: Set<string>, arr: string[]) => arr.every(set.has, set);
+  const add = (set: Set<string>, arr: string[]) => (
+    arr.forEach(set.add, set),
+    set
+  );
+  const remove = (set: Set<string>, arr: string[]) => (
+    arr.forEach(set.delete, set),
+    set
+  );
+  const toggle = (set: Set<string>, arr: string[]) =>
+    (has(set, arr) ? remove : add)(set, arr);
+
+  let grandTotalAggregator = $derived(pivotData.getAggregator([], []));
+
+  let grouping = $derived(pivotData.props.grouping);
+
+  let folded = $state.raw(new Set<string>());
+  const isFolded = (keys: Datum[][]) => has(folded, keys.map(flatKey));
+  const fold = (keys: Datum[][]) =>
+    (folded = toggle(new Set(folded), keys.map(flatKey)));
+
+  let valueCellColors = $state(
+    (r: Datum[], c: Datum[], v: Datum): string => "",
+  );
+  let rowTotalColors = $state((v: Datum): string => "");
+  let colTotalColors = $state((v: Datum): string => "");
+
+  let [rowKeys, colKeys]: Datum[][][] = $derived.by(() => {
+    let rowKeys = pivotData.getRowKeys(true);
+    let colKeys = pivotData.getColKeys(true);
+
+    if (grouping) {
+      for (const key of folded) {
+        const keyEx = key + String.fromCharCode(0);
+        colKeys = colKeys.filter(
+          (colKey) => !flatKey(colKey).startsWith(keyEx),
+        );
+        rowKeys = rowKeys.filter(
+          (rowKey) => !flatKey(rowKey).startsWith(keyEx),
+        );
+      }
+    }
+    return [rowKeys, colKeys];
+  });
+
+  $effect(() => {
+    if (opts.heatmapMode) {
+      const dataRowKeys = pivotData.getRowKeys(false);
+      const dataColKeys = pivotData.getColKeys(false);
+
+      const colorScaleGenerator = tableColorScaleGenerator;
+      const rowTotalValues = dataColKeys.map((x) =>
+        pivotData.getAggregator([], x).value(),
+      );
+      rowTotalColors = colorScaleGenerator(rowTotalValues);
+      const colTotalValues = dataRowKeys.map((x) =>
+        pivotData.getAggregator(x, []).value(),
+      );
+      colTotalColors = colorScaleGenerator(colTotalValues);
+
+      if (opts.heatmapMode === "full") {
+        const allValues: Datum[] = [];
+        dataRowKeys.forEach((r) =>
+          dataColKeys.forEach((c) =>
+            allValues.push(pivotData.getAggregator(r, c).value()),
+          ),
+        );
+        const colorScale = colorScaleGenerator(allValues);
+        valueCellColors = (r, c, v) => colorScale(v);
+      } else if (opts.heatmapMode === "row") {
+        const rowColorScales: Record<string, Function> = {};
+        dataRowKeys.forEach((r) => {
+          const rowValues = dataColKeys.map((x) =>
+            pivotData.getAggregator(r, x).value(),
+          );
+          rowColorScales[flatKey(r)] = colorScaleGenerator(rowValues);
+        });
+        valueCellColors = (r, c, v) => rowColorScales[flatKey(r)](v);
+      } else if (opts.heatmapMode === "col") {
+        const colColorScales: Record<string, Function> = {};
+        dataColKeys.forEach((c) => {
+          const colValues = dataRowKeys.map((x) =>
+            pivotData.getAggregator(x, c).value(),
+          );
+          colColorScales[flatKey(c)] = colorScaleGenerator(colValues);
+        });
+        valueCellColors = (r, c, v) => colColorScales[flatKey(c)](v);
+      }
+    }
+  });
+
+  const clickClass = (pred: boolean, closed: boolean) =>
+    pred ? " pvtClickable" + (closed ? " closed" : "") : "";
+
+  let getClickHandler = $derived.by(() => {
+    if (tableOptions && tableOptions.clickCallback) {
+      return (value: Datum, rowValues: Datum[], colValues: Datum[]) => {
+        const filters: Data = {};
+        for (const i in pivotData.props.cols || []) {
+          const attr = pivotData.props.cols[i];
+          if (colValues[i] !== null) {
+            filters[attr] = colValues[i];
+          }
+        }
+        for (const i in pivotData.props.rows || []) {
+          const attr = pivotData.props.rows[i];
+          if (rowValues[i] !== null) {
+            filters[attr] = rowValues[i];
+          }
+        }
+
+        return (e: MouseEvent) =>
+          tableOptions.clickCallback?.(e, value, filters, pivotData);
+      };
+    }
+  });
+</script>
+
+<table
+  class={[
+    "pvtTable",
+    grouping &&
+      (pivotData.props.rowGroupBefore ? "rowGroupBefore" : "rowGroupAfter"),
+    grouping &&
+      (pivotData.props.colGroupBefore ? "colGroupBefore" : "colGroupAfter"),
+  ]}
+>
+  <thead>
+    {#each pivotData.props.cols as c, j (`col-Attr${j}`)}
+      {@const clickable = grouping && pivotData.props.cols.length > j + 1}
+      {@const levelKeys = colKeys.filter((x) => x.length === j + 1)}
+      <tr>
+        {#if j === 0 && pivotData.props.rows.length !== 0}
+          <th
+            colSpan={pivotData.props.rows.length}
+            rowSpan={pivotData.props.cols.length}
+          ></th>
+        {/if}
+
+        <th
+          class={"pvtAxisLabel" + clickClass(clickable, isFolded(levelKeys))}
+          onclick={clickable ? (_) => fold(levelKeys) : null}
+        >
+          {c}
+        </th>
+        {#each colKeys as colKey, i (`colKey${i}`)}
+          {@const xx = spanSize(colKeys, i, j)}
+          {#if xx !== -1}
+            <th
+              class={"pvtColLabel" +
+                clickClass(
+                  clickable && !!colKey[j],
+                  isFolded([colKey.slice(0, j + 1)]),
+                )}
+              colSpan={xx}
+              rowSpan={j === pivotData.props.cols.length - 1 &&
+              pivotData.props.rows.length !== 0
+                ? 2
+                : 1}
+              onclick={clickable && colKey[j]
+                ? (_) => fold([colKey.slice(0, j + 1)])
+                : null}
+            >
+              {colKey[j] ?? ""}
+            </th>
+          {/if}
+        {/each}
+
+        {#if j === 0}
+          <th
+            class="pvtTotalLabel"
+            rowSpan={pivotData.props.cols.length +
+              (pivotData.props.rows.length === 0 ? 0 : 1)}
+          >
+            Totals
+          </th>
+        {/if}
+      </tr>
+    {/each}
+
+    {#if pivotData.props.rows.length !== 0}
+      <tr>
+        {#each pivotData.props.rows as r, i (`row-Attr${i}`)}
+          {@const clickable = grouping && pivotData.props.rows.length > i + 1}
+          {@const levelKeys = rowKeys.filter((x) => x.length === i + 1)}
+
+          <th
+            class={"pvtAxisLabel" + clickClass(clickable, isFolded(levelKeys))}
+            onclick={clickable ? (_) => fold(levelKeys) : null}
+          >
+            {r}
+          </th>
+        {/each}
+        <th class="pvtTotalLabel">
+          {pivotData.props.cols.length === 0 ? "Totals" : ""}
+        </th>
+      </tr>
+    {/if}
+  </thead>
+
+  <tbody>
+    {#each rowKeys as rowKey, i (`rowKeyRow${i}`)}
+      {@const totalAggregator = pivotData.getAggregator(rowKey, [])}
+      {@const rowGap = pivotData.props.rows.length - rowKey.length}
+      {@const useCompactRows = grouping && compactRows}
+
+      <tr class={rowGap ? "pvtLevel" + rowGap : "pvtData"}>
+        {#each rowKey as txt, j (`rowKeyLabel${i}-${j}`)}
+          {@const clickable = grouping && pivotData.props.rows.length > j + 1}
+          {@const specialCase = grouping && !pivotData.props.rowGroupBefore}
+          {@const xx = useCompactRows
+            ? 1
+            : spanSize(rowKeys, i, j, specialCase)}
+          {#if !((useCompactRows && j < rowKey.length - 1) || xx === -1)}
+            <th
+              class={"pvtRowLabel" +
+                clickClass(
+                  clickable && !!rowKey[j],
+                  isFolded([rowKey.slice(0, j + 1)]),
+                )}
+              rowSpan={xx}
+              colSpan={useCompactRows
+                ? pivotData.props.rows.length + 1
+                : j === pivotData.props.rows.length - 1 &&
+                    pivotData.props.cols.length !== 0
+                  ? 2
+                  : 1}
+              style:padding-left={useCompactRows
+                ? `calc(var(--pvt-row-padding, 5px) + ${j} * var(--pvt-row-indent, 20px))`
+                : null}
+              onclick={clickable && rowKey[j]
+                ? (_) => fold([rowKey.slice(0, j + 1)])
+                : null}
+            >
+              {txt}
+            </th>
+          {/if}
+        {/each}
+        {#if !useCompactRows && rowGap}
+          <th class="pvtRowLabel" colSpan={rowGap + 1}>
+            {"Total (" + rowKey[rowKey.length - 1] + ")"}
+          </th>
+        {/if}
+
+        {#each colKeys as colKey, j (`pvtVal${i}-${j}`)}
+          {@const aggregator = pivotData.getAggregator(rowKey, colKey)}
+          {@const colGap = pivotData.props.cols.length - colKey.length}
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <td
+            class={"pvtVal" + (colGap ? " pvtLevel" + colGap : "")}
+            onclick={getClickHandler &&
+              getClickHandler(aggregator.value(), rowKey, colKey)}
+            style={colGap || rowGap
+              ? ""
+              : valueCellColors(rowKey, colKey, aggregator.value())}
+          >
+            {aggregator.format(aggregator.value())}
+          </td>
+        {/each}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <td
+          class="pvtTotal"
+          onclick={getClickHandler &&
+            getClickHandler(totalAggregator.value(), rowKey, [null])}
+          style={colTotalColors(totalAggregator.value())}
+        >
+          {totalAggregator.format(totalAggregator.value())}
+        </td>
+      </tr>
+    {/each}
+    <tr>
+      <th
+        class="pvtTotalLabel"
+        colSpan={pivotData.props.rows.length +
+          (pivotData.props.cols.length === 0 ? 0 : 1)}
+      >
+        Totals
+      </th>
+
+      {#each colKeys as colKey, i (`total${i}`)}
+        {@const totalAggregator = pivotData.getAggregator([], colKey)}
+        {@const colGap = pivotData.props.cols.length - colKey.length}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <td
+          class={"pvtTotal" + (colGap ? " pvtLevel" + colGap : "")}
+          onclick={getClickHandler &&
+            getClickHandler(totalAggregator.value(), [null], colKey)}
+          style={rowTotalColors(totalAggregator.value())}
+        >
+          {totalAggregator.format(totalAggregator.value())}
+        </td>
+      {/each}
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <td
+        onclick={getClickHandler &&
+          getClickHandler(grandTotalAggregator.value(), [null], [null])}
+        class="pvtGrandTotal"
+      >
+        {grandTotalAggregator.format(grandTotalAggregator.value())}
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+=== 1610 src/lib/UI/Aggregators.svelte	svelte
+<script lang="ts">
+  import Dropdown from "./Dropdown.svelte";
+
+  let { onChange, onUpdate, aggregatorName, aggregators, valAttrs, vals } =
+    $props();
+
+  let numValsAllowed = $derived(
+    aggregators[aggregatorName]([])().numInputs || 0,
+  );
+
+  const sortIcons = {
+    key_a_to_z: {
+      rowSymbol: "↕",
+      colSymbol: "↔",
+      next: "value_a_to_z",
+    },
+    value_a_to_z: {
+      rowSymbol: "↓",
+      colSymbol: "→",
+      next: "value_z_to_a",
+    },
+    value_z_to_a: { rowSymbol: "↑", colSymbol: "←", next: "key_a_to_z" },
+  };
+
+  // is it a time to use array.toSpliced(index, 1, value); ?
+  const setAt = (array: any[], index: number, value: any) =>
+    Object.assign([], array, { [index]: value });
+</script>
+
+<Dropdown
+  current={aggregatorName}
+  values={Object.keys(aggregators)}
+  onchange={onChange}
+/>
+
+<!-- svelte-ignore a11y_missing_attribute -->
+<!-- sorting causes problems 
+    <a
+    role="button"
+    class="pvtRowOrder"
+    onclick={() => propUpdater("rowOrder")(sortIcons[props.rowOrder].next)}
+    >
+    {sortIcons[props.rowOrder].rowSymbol}
+</a>
+-->
+
+<!-- svelte-ignore a11y_missing_attribute -->
+<!-- sorting causes problems 
+<a
+    role="button"
+    class="pvtColOrder"
+    onclick={() => propUpdater("colOrder")(sortIcons[props.colOrder].next)}
+>
+    {sortIcons[props.colOrder].colSymbol}
+</a>
+-->
+
+{#if numValsAllowed > 0}
+  <br />
+{/if}
+
+{#each new Array(numValsAllowed) as n, i (i)}
+  <Dropdown
+    current={vals[i]}
+    values={valAttrs}
+    onchange={(v: any) => onUpdate(setAt(vals, i, v))}
+  />
+  {#if i + 1 !== numValsAllowed}
+    <br />{/if}
+{/each}
+
+=== 1051 src/lib/UI/DnDCell.svelte	svelte
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { getSort } from "../Utilities";
+  import DraggableAttribute from "./DraggableAttribute.svelte";
+  import sortableAttachment from "./SortableAttachment";
+
+  let { items, onChange, attrValues, sorters, menuLimit } = $props();
+
+  const options = {
+    group: "shared",
+    ghostClass: "pvtPlaceholder",
+    filter: ".pvtFilterBox",
+    preventOnFilter: false,
+    revertOnSpill: true, // Enable plugin
+    removeOnSpill: false, // Disable plugin
+  };
+
+  function getAttrValues(x: string) {
+    const values = attrValues[x] ?? {},
+      sorter = getSort(sorters, x);
+    return Object.keys(values).sort(sorter);
+  }
+
+  let initialized: boolean = $state(false);
+  onMount(() => {
+    // onMount is afer the attachments
+    initialized = true;
+  });
+</script>
+
+<!-- this is removed after init -->
+{#if !initialized}
+  <div {@attach sortableAttachment(options, onChange)}></div>
+{/if}
+
+{#each items as name}
+  <DraggableAttribute attrValues={getAttrValues(name)} {name} {menuLimit} />
+{/each}
+
+=== 1154 src/lib/UI/Draggable.svelte	svelte
+<script lang="ts">
+  let {
+    children,
+    handle, // query
+    close,
+    onclose,
+  } = $props();
+
+  let left = $state(0);
+  let top = $state(0);
+
+  let moving = false;
+
+  function onMouseDown() {
+    moving = true;
+  }
+
+  function onMouseMove(e: MouseEvent) {
+    if (moving) {
+      left += e.movementX;
+      top += e.movementY;
+    }
+  }
+
+  function onMouseUp() {
+    moving = false;
+  }
+
+  function init(node: HTMLElement) {
+    const handleElem = node.querySelector(handle) ?? node;
+    handleElem.addEventListener("mousedown", onMouseDown, true);
+
+    const closeElem = node.querySelector(close);
+    closeElem?.addEventListener("click", onclose, true);
+
+    return () => {
+      handleElem.removeEventListener("mousedown", onMouseDown, true);
+      closeElem?.removeEventListener("click", onclose, true);
+    };
+  }
+</script>
+
+<section
+  {@attach init}
+  style="left: {left}px; top: {top}px;"
+  class={"draggable"}
+  role="presentation"
+>
+  {@render children()}
+</section>
+
+<svelte:window onmouseup={onMouseUp} onmousemove={onMouseMove} />
+
+<style>
+  .draggable {
+    user-select: none;
+    cursor: auto;
+    position: relative;
+  }
+</style>
+
+=== 933 src/lib/UI/DraggableAttribute.svelte	svelte
+<script lang="ts">
+  import { getContext } from "svelte";
+  import Draggable from "./Draggable.svelte";
+  import FilterBox from "./FilterBox.svelte";
+
+  let { name, attrValues, menuLimit } = $props();
+
+  let open = $state(false);
+
+  let valueFilter = getContext<Record<string, object>>("valueFilter");
+  let is_empty = $derived(
+    valueFilter[name] ? Object.keys(valueFilter[name]).length === 0 : true,
+  );
+
+  const toggleOpen = () => (open = !open);
+</script>
+
+<li data-id={name} class="handle">
+  <span class={`pvtAttr ${is_empty ? "" : "pvtFilteredAttribute"}`}>
+    {name}
+    <span
+      class="pvtTriangle"
+      onclick={toggleOpen}
+      onkeypress={toggleOpen}
+      role="presentation"
+    >
+      {" "}
+      ▾
+    </span>
+  </span>
+
+  {#if open}
+    <Draggable handle=".pvtDragHandle" close=".pvtCloseX" onclose={toggleOpen}>
+      <FilterBox {name} values={attrValues} {menuLimit} />
+    </Draggable>
+  {/if}
+</li>
+
+=== 1139 src/lib/UI/Dropdown.svelte	svelte
+<script>
+  import { clickOutside } from "./utils";
+
+  let { current = $bindable(), values = [], onchange = undefined } = $props();
+
+  let open = $state(false);
+  const toggle = () => (open = !open);
+</script>
+
+<div class="pvtDropdown" use:clickOutside onoutside={() => (open = false)}>
+  <button
+    onclick={toggle}
+    class={"pvtDropdownValue pvtDropdownCurrent " +
+      (open ? "pvtDropdownCurrentOpen" : "")}
+  >
+    <div class="pvtDropdownIcon">{open ? "×" : "▾"}</div>
+    {#if current}
+      {current}
+    {:else}
+      <span>&nbsp;</span>
+    {/if}
+  </button>
+
+  {#if open}
+    <div class="pvtDropdownMenu" style="z-index: 100;">
+      {#each values as r (r)}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <div
+          role="button"
+          onclick={() => {
+            if (current !== r) {
+              current = r;
+              onchange?.(current);
+            }
+            toggle();
+          }}
+          class="pvtDropdownValue"
+          class:pvtDropdownActiveValue={r === current}
+          tabindex="0"
+        >
+          {r}
+        </div>
+      {/each}
+    </div>
+  {/if}
+</div>
+
+=== 3220 src/lib/UI/FilterBox.svelte	svelte
+<script module>
+  let zIndexGlobal = 1000;
+</script>
+
+<script lang="ts">
+  import type { FilterSet } from "$lib/types";
+
+  import { getContext } from "svelte";
+
+  let { name, values, menuLimit = 500 } = $props();
+
+  let globalFilter = getContext<FilterSet>("valueFilter");
+  let valueFilter = $state(globalFilter[name] ?? {});
+
+  let filterText = $state("");
+
+  let shown = $derived(values.filter(matchesFilter, filterText)); // filterText only to trigger reactivity
+
+  function toggleValue(value: string) {
+    value in valueFilter
+      ? removeValuesFromFilter([value])
+      : addValuesToFilter([value]);
+  }
+
+  function setValuesInFilter(values: string[]) {
+    Object.keys(valueFilter).forEach((key) => delete valueFilter[key]);
+    addValuesToFilter(values);
+    // values.forEach((v) => (valueFilter[v] = true));
+  }
+
+  function addValuesToFilter(values: string[]) {
+    values.forEach((v) => (valueFilter[v] = true));
+    globalFilter[name] = valueFilter;
+  }
+
+  function removeValuesFromFilter(values: string[]) {
+    values.forEach((v) => delete valueFilter[v]);
+    globalFilter[name] = valueFilter;
+  }
+
+  function matchesFilter(x: string) {
+    return x.toLowerCase().trim().includes(filterText.toLowerCase().trim());
+  }
+
+  function selectOnly(ev: MouseEvent, value: string) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    setValuesInFilter(values.filter((y: string) => y !== value));
+  }
+
+  function select(all: boolean) {
+    const func = all ? removeValuesFromFilter : addValuesToFilter;
+    return function (ev: MouseEvent) {
+      ev.stopPropagation();
+      func(values.filter(matchesFilter));
+    };
+  }
+  function init(node: HTMLElement) {
+    node.style.zIndex = "" + zIndexGlobal++;
+  }
+</script>
+
+<div class="pvtFilterBox" style:display="block" style:cursor="initial" use:init>
+  <span class="pvtCloseX"> × </span>
+  <span class="pvtDragHandle">☰</span>
+  <h4>{name}</h4>
+
+  {#if values.length < menuLimit}
+    <p>
+      <input
+        type="text"
+        placeholder="Filter values"
+        class="pvtSearch"
+        bind:value={filterText}
+      />
+      <br />
+      <button class="pvtButton" onclick={select(true)}>
+        Select {values.length === shown.length ? "All" : shown.length}
+      </button>{" "}
+      <button class="pvtButton" onclick={select(false)}>
+        Deselect {values.length === shown.length ? "All" : shown.length}
+      </button>
+    </p>
+
+    <div class="pvtCheckContainer">
+      {#each shown as x (x)}
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <p
+          onclick={() => toggleValue(x)}
+          class={x in valueFilter ? "" : "selected"}
+        >
+          <!-- svelte-ignore a11y_missing_attribute -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <a
+            class="pvtOnly"
+            onclick={(ev) => selectOnly(ev, x)}
+            role="presentation"
+          >
+            only
+          </a>
+          <span class="pvtOnlySpacer">&nbsp;</span>
+
+          {#if x === ""}<em>null</em>{:else}{x}{/if}
+        </p>
+      {/each}
+    </div>
+  {:else}
+    <p>(too many values to show)</p>
+  {/if}
+</div>
+
+=== 1456 src/lib/UI/MainTable.svelte	svelte
+<script>
+  let {
+    horizUnused,
+    rendererCell,
+    aggregatorCell,
+    outputCell,
+    unusedAttrsCell,
+    colAttrsCell,
+    rowAttrsCell,
+  } = $props();
+</script>
+
+{#if horizUnused}
+  <table class="pvtUi">
+    <tbody>
+      <tr>
+        <td class="pvtRenderers">{@render rendererCell()}</td>
+        <td class="pvtAxisContainer pvtUnused pvtHorizList"
+          >{@render unusedAttrsCell()}</td
+        >
+      </tr>
+      <tr>
+        <td class="pvtVals">{@render aggregatorCell()}</td>
+        <td class="pvtAxisContainer pvtHorizList pvtCols"
+          >{@render colAttrsCell()}</td
+        >
+      </tr>
+      <tr>
+        <td class="pvtAxisContainer pvtVertList pvtRows"
+          >{@render rowAttrsCell()}</td
+        >
+        <td class="pvtOutput">{@render outputCell()}</td>
+      </tr>
+    </tbody>
+  </table>
+{:else}
+  <table class="pvtUi">
+    <tbody>
+      <tr>
+        <td class="pvtRenderers">{@render rendererCell()}</td>
+        <td class="pvtVals">{@render aggregatorCell()}</td>
+        <td class="pvtAxisContainer pvtHorizList pvtCols"
+          >{@render colAttrsCell()}</td
+        >
+      </tr>
+      <tr>
+        <td class="pvtAxisContainer pvtUnused pvtVertList"
+          >{@render unusedAttrsCell()}</td
+        >
+        <td class="pvtAxisContainer pvtVertList pvtRows"
+          >{@render rowAttrsCell()}</td
+        >
+        <td class="pvtOutput">{@render outputCell()}</td>
+      </tr>
+    </tbody>
+  </table>
+{/if}
+
+=== 574 src/lib/UI/Plotly.svelte	svelte
+<script module lang="ts">
+  let Plotly: any = $state();
+
+  export function initPlotly(module: any) {
+    Plotly = module;
+  }
+</script>
+
+<script lang="ts">
+  // export const onUpdate = () => {}; // TODO: connect to plotly events
+  let { data, layout, config, onUpdate } = $props();
+
+  function create(node: HTMLElement) {
+    if (Plotly) {
+      Plotly.newPlot(node, data, layout, config);
+      return () => Plotly.purge(node);
+    }
+  }
+</script>
+
+{#if Plotly}
+  <div {@attach create}></div>
+{:else}Add commentMore actions
+  <p>Error! Plotly.js not initialized.</p>
+{/if}
+
+=== 5283 src/routes/+page.svelte	svelte
+<script lang="ts">
+  import PivotTableUI from "$lib/PivotTableUI.svelte";
+  import PlotlyRenderers from "$lib/PlotlyRenderers";
+  import TableRenderers from "$lib/TableRenderers";
+  import { derivers } from "$lib/Utilities";
+  import { onMount } from "svelte";
+  import data from "./_montreal.json";
+
+  let plotlyRenderers = {};
+  let renderers = $state({});
+
+  onMount(async () => {
+    // plotly.js requires an access to window object
+    // static import in sveltekit causes a problem
+    // const Plotly = await import("plotly.js/dist/plotly");
+    const Plotly = window.Plotly;
+
+    // create Plotly renderers via dependency injection
+    plotlyRenderers = PlotlyRenderers(Plotly);
+    // plotlyRenderers = {};
+    renderers = { ...TableRenderers, ...plotlyRenderers };
+  });
+
+  let grouping = $state(true),
+    compactRows = $state(true),
+    rowGroupBefore = $state(true),
+    colGroupBefore = $state(false);
+
+  const derivedAttributes = {
+    "Age Bin": derivers.bin("Age", 10),
+    "Gender Imbalance": function (mp: any) {
+      return mp["Gender"] == "Male" ? 1 : -1;
+    },
+  };
+
+  let options = {
+    rows: ["Province", "Party"],
+    cols: ["Gender", "Age Bin"],
+
+    data,
+    derivedAttributes,
+    hiddenFromAggregators: ["Province", "Party"],
+  };
+</script>
+
+<svelte:head>
+  <link
+    href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <link
+    href="https://fonts.googleapis.com/css?family=Dosis|Open+Sans"
+    rel="stylesheet"
+  />
+  <script src="https://cdn.plot.ly/plotly-basic-latest.min.js"></script>
+
+  <title>Svelte pivottable</title>
+</svelte:head>
+
+<nav class="navbar navbar-inverse navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <button
+        type="button"
+        class="navbar-toggle collapsed"
+        data-toggle="collapse"
+        data-target="#navbar"
+        aria-expanded="false"
+        aria-controls="navbar"
+      >
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <!-- svelte-ignore a11y_invalid_attribute -->
+      <a class="navbar-brand" href="#">svelte-pivottable</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse"></div>
+    <!--/.navbar-collapse -->
+  </div>
+</nav>
+
+<!-- Main jumbotron for a primary marketing message or call to action -->
+<div class="jumbotron">
+  <div class="container">
+    <h1>svelte-pivottable</h1>
+    <p>
+      Svelte-based drag'n'drop pivot table with grouping and Plotly.js charts.
+    </p>
+    <p>
+      <a
+        class="btn btn-primary btn-lg"
+        href="https://github.com/plotly/svelte-pivottable#readme"
+        role="button">Get started &raquo;</a
+      >
+    </p>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row text-center">
+    <div class="col-md-2 col-md-offset-3">
+      <label class=" checkbox-inline" style="text-transform: capitalize;">
+        <input type="checkbox" bind:checked={grouping} /> Grouping
+      </label>
+    </div>
+    <fieldset class="col-md-6" disabled={!grouping}>
+      <label class=" checkbox-inline" style="text-transform: capitalize;">
+        <input type="checkbox" bind:checked={compactRows} /> Compact Rows
+      </label>
+
+      <label class=" checkbox-inline" style="text-transform: capitalize;">
+        <input type="checkbox" bind:checked={rowGroupBefore} /> Rows totals above
+      </label>
+      <label class=" checkbox-inline" style="text-transform: capitalize;">
+        <input type="checkbox" bind:checked={colGroupBefore} /> Cols totals before
+      </label>
+    </fieldset>
+    <br /><br />
+  </div>
+
+  <PivotTableUI
+    {...options}
+    {renderers}
+    {grouping}
+    {compactRows}
+    {rowGroupBefore}
+    {colGroupBefore}
+    tableOptions={{ clickCallback: console.log }}
+  />
+
+  <hr />
+  <footer style="text-align: center">
+    <p>&copy; 2022 Jakub Jagielka</p>
+  </footer>
+</div>
+
+<!-- /container -->
+<style>
+  :global(body) {
+    min-height: 1400px;
+    padding-bottom: 20px;
+  }
+  :global(.pvtUi) {
+    width: 100%;
+  }
+  p,
+  .navbar {
+    font-family: "Open Sans", sans-serif;
+    font-size: 16px;
+    line-height: 26px;
+  }
+
+  .navbar {
+    margin-bottom: 0;
+  }
+  .jumbotron {
+    color: white;
+    background: linear-gradient(27deg, #1e427d 0%, #1d9cfc 100%);
+    text-align: center;
+  }
+
+  .jumbotron h1 {
+    font-size: 58px;
+    line-height: 60px;
+    font-family: "Dosis", sans-serif;
+  }
+
+  .jumbotron p {
+    font-size: 22px;
+    line-height: 36px;
+  }
+
+  /* h2 {
+        font-size: 34px;
+        line-height: 44px;
+        font-family: "Dosis", sans-serif;
+    } */
+
+  .btn-primary {
+    background: #119dff;
+    border: 1px solid #119dff;
+  }
+  /* .btn-default {
+        background: #f2f5fa;
+        border: 1px solid #c8d4e3;
+    }
+    .pvtUi {
+        width: 100%;
+    }
+    .pvtVertList {
+        width: 15%;
+    }
+
+    textarea {
+        width: 100%;
+        height: 100px;
+    }
+
+    .dropzone {
+        width: 100%;
+        height: 100px;
+        padding: 10px;
+        border: 2px dashed lightgrey;
+        cursor: pointer;
+    }
+    .dropzoneActive {
+        border: 2px dashed green;
+    }
+    .dropzoneReject {
+        border: 2px dashed red;
+    } */
+</style>
+

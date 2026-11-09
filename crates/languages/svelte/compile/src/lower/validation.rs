@@ -1,5 +1,5 @@
-use rsvelte_svelte::syntax::names::{is_mathml, is_svg};
-use rsvelte_typescript::syntax_tree::{TypeScriptFeature, TypeScriptRuntime};
+use rsvelte_svelte_syntax::names::{is_mathml, is_svg};
+use rsvelte_typescript_syntax::syntax_tree::{TypeScriptFeature, TypeScriptRuntime};
 
 use super::{
     CompileInput, Diagnostic, Kind, NodeIdentifier, Resolution, Span, SyntaxTree, Target,
@@ -14,7 +14,7 @@ use super::{
 /// # Errors
 ///
 /// An `unsupported` [`Diagnostic`] at the element's name.
-pub fn check_foreign_element(source_text: &str, name: Span) -> Result<(), Diagnostic> {
+pub(crate) fn check_foreign_element(source_text: &str, name: Span) -> Result<(), Diagnostic> {
     let text = name.text(source_text);
     if is_svg(text) || is_mathml(text) {
         return unsupported(&format!("`<{text}>` outside `<svg>` or `<math>`"), name);
@@ -96,7 +96,7 @@ pub(super) fn check_runes(
             let in_class = in_class
                 || matches!(
                     kind,
-                    Kind::Class(rsvelte_typescript::syntax_tree::Class::Definition { .. })
+                    Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition { .. })
                 );
             let base = pending.len();
             javascript.for_each_child(e, |c| pending.push((c, statement, in_class)));

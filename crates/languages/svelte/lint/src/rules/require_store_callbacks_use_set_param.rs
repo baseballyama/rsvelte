@@ -3,8 +3,8 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::TokenIdentifier;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript::Kind;
-use rsvelte_typescript::lexer::T;
+use rsvelte_typescript_syntax::Kind;
+use rsvelte_typescript_syntax::lexer::T;
 
 use super::javascript::span;
 use super::svelte_store::{Scopes, rename, store_calls};

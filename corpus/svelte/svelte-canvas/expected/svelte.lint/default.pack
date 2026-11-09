@@ -1,0 +1,244 @@
+# rsvelte pack 1
+=== 1508 src/lib/components/Canvas.svelte	lint.txt
+1:1 80:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+23:15 23:32 no-undef "'HTMLCanvasElement' is not defined."
+25:17 25:31 no-undef "'HTMLDivElement' is not defined."
+65:5 65:13 svelte/valid-compile "This reference only captures the initial value of `handlers`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+88:3 88:20 svelte/sort-attributes "Attribute 'class' should go before 'bind:clientWidth'."
+89:3 89:29 svelte/sort-attributes "Attribute 'width' should go before 'bind:clientWidth'."
+90:3 90:31 svelte/sort-attributes "Attribute 'height' should go before 'bind:clientWidth'."
+91:3 91:10 svelte/sort-attributes "Attribute 'style' should go before 'bind:clientWidth'."
+91:3 91:10 svelte/require-optimized-style-attribute "It cannot be optimized because style attribute is specified using shorthand."
+92:3 92:48 svelte/no-inline-styles "Found disallowed style directive."
+92:3 92:48 svelte/sort-attributes "Attribute 'style:width' should go before 'bind:clientWidth'."
+93:3 93:51 svelte/no-inline-styles "Found disallowed style directive."
+93:3 93:51 svelte/sort-attributes "Attribute 'style:height' should go before 'bind:clientWidth'."
+97:6 97:26 svelte/no-inline-styles "Found disallowed style directive."
+97:27 97:47 svelte/max-attributes-per-line "'bind:this' should be on a new line."
+97:27 97:47 svelte/sort-attributes "Attribute 'bind:this' should go before 'style:display'."
+
+=== 309 src/lib/components/Layer.svelte	lint.txt
+1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+6:28 6:33 svelte/valid-compile "This reference only captures the initial value of `layer`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+
+=== 1242 src/routes/_components/Code.svelte	lint.txt
+10:1 27:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+31:5 31:29 svelte/no-unused-class-name "Unused class \"hljs\"."
+32:7 32:34 svelte/require-each-key "Each block should have a key"
+33:9 37:10 svelte/button-has-type "Missing an explicit type attribute for button."
+45:7 49:8 svelte/button-has-type "Missing an explicit type attribute for button."
+48:24 48:33 no-undef "'navigator' is not defined."
+52:13 52:2632 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+57:5 57:17 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
+62:3 62:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
+71:3 71:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
+78:3 78:9 svelte/consistent-selector-style "Selector should select by ID instead of class"
+92:3 92:9 svelte/consistent-selector-style "Selector should select by ID instead of class"
+96:3 96:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
+117:3 117:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
+144:3 144:9 svelte/consistent-selector-style "Selector should select by ID instead of class"
+
+=== 48 src/routes/_components/Demo/Blob.svelte	lint.txt
+11:22 11:28 no-undef "'Path2D' is not defined."
+
+=== 0 src/routes/_components/Demo/Circle.svelte	lint.txt
+
+=== 628 src/routes/_components/Demo/Demo.svelte	lint.txt
+20:5 20:59 svelte/sort-attributes "Attribute 'style' should go before 'layerEvents'."
+23:5 23:24 svelte/sort-attributes "Attribute 'ontouchmove' should go before 'ontouchstart'."
+28:32 28:47 svelte/max-attributes-per-line "'yOffset' should be on a new line."
+28:48 28:60 svelte/sort-attributes "Attribute 'scale' should go before 'text'."
+31:7 31:21 svelte/sort-attributes "Attribute 'scale' should go before 'text'."
+33:7 33:20 svelte/sort-attributes "Attribute 'opacity' should go before 'text'."
+35:10 35:26 svelte/prefer-destructured-store-props "Destructure id from $activeLayer for better change tracking & fewer redraws"
+
+=== 378 src/routes/_components/Demo/DemoLayer.svelte	lint.txt
+65:3 65:47 svelte/sort-attributes "Attribute 'onpointerleave' should go before 'ontouchstart'."
+66:3 66:43 svelte/sort-attributes "Attribute 'ontouchend' should go before 'ontouchstart'."
+67:3 67:40 svelte/sort-attributes "Attribute 'onpointerdown' should go before 'onpointerenter'."
+68:3 68:37 svelte/sort-attributes "Attribute 'onpointerup' should go before 'ontouchstart'."
+
+=== 0 src/routes/_components/Demo/Rect.svelte	lint.txt
+
+=== 0 src/routes/_components/Demo/Text.svelte	lint.txt
+
+=== 129 src/routes/_components/Demo/Tooltip.svelte	lint.txt
+9:22 9:40 svelte/prefer-destructured-store-props "Destructure name from $activeLayer for better change tracking & fewer redraws"
+
+=== 402 src/routes/_components/Example.svelte	lint.txt
+1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+18:6 18:29 svelte/no-inline-styles "Found disallowed style directive."
+18:30 18:62 svelte/no-inline-styles "Found disallowed style directive."
+18:30 18:62 svelte/max-attributes-per-line "'style:aspect-ratio' should be on a new line."
+22:12 22:19 svelte/max-attributes-per-line "'files' should be on a new line."
+
+=== 2700 src/routes/_components/Layout.svelte	lint.txt
+1:1 26:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+24:5 24:13 no-undef "'document' is not defined."
+29:3 31:11 svelte/no-nested-style-tag "Nested `<style>` elements are not scoped and may lead to unintended styles being applied."
+39:7 43:8 svelte/button-has-type "Missing an explicit type attribute for button."
+45:24 45:30 svelte/max-attributes-per-line "'y1' should be on a new line."
+45:31 45:38 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+45:46 45:67 svelte/sort-attributes "Attribute 'stroke' should go before 'x1'."
+46:24 46:31 svelte/max-attributes-per-line "'y1' should be on a new line."
+46:32 46:39 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+46:48 46:69 svelte/sort-attributes "Attribute 'stroke' should go before 'x1'."
+47:24 47:31 svelte/max-attributes-per-line "'y1' should be on a new line."
+47:32 47:39 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+47:48 47:69 svelte/sort-attributes "Attribute 'stroke' should go before 'x1'."
+53:11 53:26 svelte/no-target-blank "Using target=\"_blank\" without rel=\"noopener noreferrer\" is a security risk."
+54:11 54:81 svelte/sort-attributes "Attribute 'href' should go before 'target'."
+63:9 63:24 svelte/no-target-blank "Using target=\"_blank\" without rel=\"noopener noreferrer\" is a security risk."
+64:9 64:54 svelte/sort-attributes "Attribute 'href' should go before 'target'."
+65:9 65:28 svelte/sort-attributes "Attribute 'aria-label' should go before 'target'."
+70:13 70:32 svelte/sort-attributes "Attribute 'clip-rule' should go before 'fill-rule'."
+71:13 71:844 svelte/sort-attributes "Attribute 'd' should go before 'fill-rule'."
+72:13 72:32 svelte/sort-attributes "Attribute 'fill' should go before 'fill-rule'."
+77:23 77:50 svelte/max-attributes-per-line "'class:visible' should be on a new line."
+88:3 88:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
+98:3 98:10 svelte/consistent-selector-style "Selector should select by ID instead of class"
+130:3 130:10 svelte/consistent-selector-style "Selector should select by ID instead of class"
+158:5 158:10 svelte/consistent-selector-style "Selector should select by ID instead of class"
+164:5 164:12 svelte/consistent-selector-style "Selector should select by ID instead of class"
+178:5 178:10 svelte/consistent-selector-style "Selector should select by ID instead of class"
+183:5 183:10 svelte/consistent-selector-style "Selector should select by ID instead of class"
+199:5 199:10 svelte/consistent-selector-style "Selector should select by ID instead of class"
+207:5 207:10 svelte/consistent-selector-style "Selector should select by ID instead of class"
+
+=== 2103 src/routes/_components/NavMenu.svelte	lint.txt
+1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
+1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
+3:6 3:9 no-unused-vars "'key' is defined but never used."
+5:1 5:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
+7:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+7:1 7:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
+8:1 8:3 svelte/indent "Expected indentation of 8 spaces but found 2 spaces."
+9:1 9:3 svelte/indent "Expected indentation of 8 spaces but found 2 spaces."
+11:1 11:3 svelte/indent "Expected indentation of 8 spaces but found 2 spaces."
+12:1 12:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
+14:1 14:48 svelte/require-each-key "Each block should have a key"
+14:1 14:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
+15:1 15:3 svelte/indent "Expected indentation of 8 spaces but found 2 spaces."
+16:1 16:5 svelte/indent "Expected indentation of 10 spaces but found 4 spaces."
+16:5 16:45 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
+17:1 17:5 svelte/indent "Expected indentation of 10 spaces but found 4 spaces."
+17:22 17:31 svelte/prefer-destructured-store-props "Destructure url from $page for better change tracking & fewer redraws"
+17:70 17:76 svelte/max-attributes-per-line "'href' should be on a new line."
+18:1 18:7 svelte/indent "Expected indentation of 12 spaces but found 6 spaces."
+19:1 19:5 svelte/indent "Expected indentation of 10 spaces but found 4 spaces."
+20:1 20:3 svelte/indent "Expected indentation of 8 spaces but found 2 spaces."
+21:1 21:5 svelte/indent "Expected indentation of 10 spaces but found 4 spaces."
+22:1 22:5 svelte/indent "Expected indentation of 10 spaces but found 4 spaces."
+23:1 23:3 svelte/indent "Expected indentation of 8 spaces but found 2 spaces."
+24:1 24:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
+
+=== 544 src/routes/examples/canvas-svg/App.svelte	lint.txt
+16:1 16:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
+17:1 17:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
+30:5 30:31 svelte/sort-attributes "Attribute 'style' should go before 'onresize'."
+31:5 31:13 svelte/sort-attributes "Attribute 'autoplay' should go before 'onresize'."
+33:5 33:35 svelte/require-each-key "Each block should have a key"
+34:19 34:22 svelte/max-attributes-per-line "'y' should be on a new line."
+34:23 34:26 svelte/sort-attributes "Attribute 'i' should go before 'x'."
+
+=== 0 src/routes/examples/canvas-svg/Bubble.svelte	lint.txt
+
+=== 0 src/routes/examples/dvd-bounce/App.svelte	lint.txt
+
+=== 0 src/routes/examples/dvd-bounce/Background.svelte	lint.txt
+
+=== 45 src/routes/examples/dvd-bounce/Logo.svelte	lint.txt
+9:16 9:21 no-undef "'Image' is not defined."
+
+=== 81 src/routes/examples/globe/App.svelte	lint.txt
+25:18 25:53 svelte/max-attributes-per-line "'onresize' should be on a new line."
+
+=== 0 src/routes/examples/hello-world/App.svelte	lint.txt
+
+=== 318 src/routes/examples/layer-events/App.svelte	lint.txt
+18:21 18:47 svelte/max-attributes-per-line "'style' should be on a new line."
+18:21 18:47 svelte/sort-attributes "Attribute 'style' should go before 'layerEvents'."
+20:19 20:22 svelte/max-attributes-per-line "'x' should be on a new line."
+20:27 20:57 svelte/sort-attributes "Attribute 'onclick' should go before 'x'."
+
+=== 927 src/routes/examples/layer-events/Ball.svelte	lint.txt
+30:5 30:13 no-undef "'document' is not defined."
+35:5 35:13 no-undef "'document' is not defined."
+40:19 40:20 no-unused-vars "'e' is defined but never used."
+61:3 61:11 svelte/sort-attributes "Attribute 'render' should go before 'setup'."
+62:3 62:25 svelte/sort-attributes "Attribute 'onmouseenter' should go before 'setup'."
+63:3 63:25 svelte/sort-attributes "Attribute 'onmouseleave' should go before 'setup'."
+64:3 64:23 svelte/sort-attributes "Attribute 'onmousedown' should go before 'setup'."
+65:3 65:23 svelte/sort-attributes "Attribute 'onmousemove' should go before 'setup'."
+66:3 66:19 svelte/sort-attributes "Attribute 'onmouseup' should go before 'setup'."
+67:3 67:24 svelte/sort-attributes "Attribute 'ontouchstart' should go before 'setup'."
+68:3 68:23 svelte/sort-attributes "Attribute 'ontouchmove' should go before 'setup'."
+69:3 69:20 svelte/sort-attributes "Attribute 'ontouchend' should go before 'setup'."
+
+=== 646 src/routes/examples/pixel-ratio/App.svelte	lint.txt
+25:5 25:30 svelte/require-each-key "Each block should have a key"
+26:7 29:8 svelte/button-has-type "Missing an explicit type attribute for button."
+28:9 28:56 svelte/sort-attributes "Attribute 'disabled' should go before 'onclick'."
+37:5 37:34 svelte/require-each-key "Each block should have a key"
+38:7 41:8 svelte/button-has-type "Missing an explicit type attribute for button."
+40:9 40:60 svelte/sort-attributes "Attribute 'disabled' should go before 'onclick'."
+51:3 51:53 svelte/sort-attributes "Attribute 'onresize' should go before 'pixelRatio'."
+69:3 69:12 svelte/consistent-selector-style "Selector should select by ID instead of class"
+
+=== 52 src/routes/examples/reactive-render/App.svelte	lint.txt
+10:5 10:16 no-undef "'setInterval' is not defined."
+
+=== 266 src/routes/examples/resize/App.svelte	lint.txt
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:36 11:47 svelte/max-attributes-per-line "'layerEvents' should be on a new line."
+13:5 13:30 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
+
+=== 2056 src/routes/examples/resize/ResizableLayer.svelte	lint.txt
+16:19 16:32 svelte/valid-compile "This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+17:19 17:32 svelte/valid-compile "This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+18:19 18:32 svelte/valid-compile "This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+19:19 19:32 svelte/valid-compile "This reference only captures the initial value of `initialBounds`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+40:3 45:5 svelte/sort-attributes "Attribute 'onmousemove' should go before 'use:setCursor'."
+46:3 46:43 svelte/sort-attributes "Attribute 'onmouseup' should go before 'use:setCursor'."
+47:3 47:47 svelte/sort-attributes "Attribute 'onpointerdown' should go before 'use:setCursor'."
+48:3 48:55 svelte/sort-attributes "Attribute 'ontouchstart' should go before 'use:setCursor'."
+49:3 58:5 svelte/sort-attributes "Attribute 'ontouchmove' should go before 'use:setCursor'."
+66:3 68:5 svelte/sort-attributes "Attribute 'onmouseenter' should go before 'show'."
+69:3 72:5 svelte/sort-attributes "Attribute 'ontouchstart' should go before 'show'."
+73:3 75:5 svelte/sort-attributes "Attribute 'onmouseleave' should go before 'show'."
+76:3 79:5 svelte/sort-attributes "Attribute 'onmousedown' should go before 'show'."
+88:7 90:9 svelte/sort-attributes "Attribute 'onmouseenter' should go before 'x'."
+91:7 94:9 svelte/sort-attributes "Attribute 'ontouchstart' should go before 'x'."
+95:7 95:50 svelte/sort-attributes "Attribute 'onmouseleave' should go before 'x'."
+96:7 99:9 svelte/sort-attributes "Attribute 'onmousedown' should go before 'x'."
+
+=== 91 src/routes/examples/resize/ResizableLayerHandle.svelte	lint.txt
+12:17 12:35 svelte/max-attributes-per-line "'{...eventHandlers}' should be on a new line."
+
+=== 91 src/routes/examples/resize/ResizableLayerSurface.svelte	lint.txt
+21:17 21:35 svelte/max-attributes-per-line "'{...eventHandlers}' should be on a new line."
+
+=== 1270 src/routes/examples/scatterplot/App.svelte	lint.txt
+20:5 20:10 no-undef "'fetch' is not defined."
+60:3 67:5 svelte/sort-attributes "Attribute 'onmousemove' should go before 'onresize'."
+68:3 68:37 svelte/sort-attributes "Attribute 'onmouseout' should go before 'onresize'."
+69:3 69:37 svelte/sort-attributes "Attribute 'onmousedown' should go before 'onresize'."
+70:3 70:36 svelte/sort-attributes "Attribute 'onmouseup' should go before 'onresize'."
+72:18 72:27 svelte/max-attributes-per-line "'scale' should be on a new line."
+72:18 72:27 svelte/sort-attributes "Attribute 'scale' should go before 'type'."
+72:28 72:42 svelte/sort-attributes "Attribute 'tickNumber' should go before 'type'."
+72:43 72:51 svelte/sort-attributes "Attribute 'margin' should go before 'type'."
+73:18 73:27 svelte/max-attributes-per-line "'scale' should be on a new line."
+73:18 73:27 svelte/sort-attributes "Attribute 'scale' should go before 'type'."
+73:28 73:43 svelte/sort-attributes "Attribute 'tickNumber' should go before 'type'."
+73:44 73:52 svelte/sort-attributes "Attribute 'margin' should go before 'type'."
+78:7 78:20 svelte/sort-attributes "Attribute 'fill' should go before 'x'."
+79:7 79:42 svelte/sort-attributes "Attribute 'r' should go before 'x'."
+80:7 80:45 svelte/sort-attributes "Attribute 'stroke' should go before 'x'."
+
+=== 0 src/routes/examples/scatterplot/Axis.svelte	lint.txt
+
+=== 218 src/routes/examples/scatterplot/Point.svelte	lint.txt
+14:25 14:26 svelte/valid-compile "This reference only captures the initial value of `r`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
+

@@ -1,10 +1,10 @@
 use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte::semantic::resolve::Resolution;
-use rsvelte_svelte::syntax::syntax_tree::Component;
-use rsvelte_typescript::scope::{Binding, DeclarationKind};
-use rsvelte_typescript::syntax_tree::TypeScriptKind;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_typescript_semantic::scope::{Binding, DeclarationKind};
+use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::{ConditionType, TypeFacts};
 

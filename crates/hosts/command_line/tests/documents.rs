@@ -3,8 +3,9 @@ use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::TaskOutput;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::{Parsed, Resolved};
 use rsvelte_typescript_check::{TypeScriptDocument, TypeScriptView};
+use rsvelte_typescript_semantic::Resolved;
+use rsvelte_typescript_syntax::Parsed;
 
 fn registry() -> Registry {
     let mut registry = Registry::new();
@@ -54,7 +55,11 @@ fn javascript_and_typescript_extensions_select_shared_tasks() {
         ("README", false),
     ] {
         let document = registry.document(path, "").expect("valid text");
-        assert_eq!(rsvelte_typescript::matches(&document), selected, "{path}");
+        assert_eq!(
+            rsvelte_typescript_syntax::matches(&document),
+            selected,
+            "{path}"
+        );
         assert_eq!(
             registry.artifacts().provides::<TypeScriptView>(&document),
             selected,
@@ -115,13 +120,16 @@ fn formatting_preserves_type_annotations() {
 }
 
 #[test]
-fn unsupported_formatting_produces_no_file() {
-    let output = task("type Value = string | number;", "ts.format/default");
-    assert!(
-        output.files.is_empty(),
-        "unsupported types must not be removed"
+fn formatting_keeps_types_and_breaks_at_eighty_columns() {
+    let output = task(
+        "type Value = 'aaaaaaaaaaaa' | 'bbbbbbbbbbbb' | 'cccccccccccc' | 'dddddddddddd' | 'eeeeeeee';",
+        "ts.format/default",
     );
-    assert_eq!(output.diagnostics[0].code, "format_unsupported");
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert_eq!(
+        output.files[0].text,
+        "type Value =\n  | \"aaaaaaaaaaaa\"\n  | \"bbbbbbbbbbbb\"\n  | \"cccccccccccc\"\n  | \"dddddddddddd\"\n  | \"eeeeeeee\";\n"
+    );
 }
 
 #[test]

@@ -25,7 +25,7 @@ export const guideExamples = {
 	checkSetup:
 		"cargo install --path crates/languages/typescript/content_mapper\nnpm install --prefix typecheck-tools typescript@7.1.0-dev.20261102.1 svelte@5.57.3\nTSC=\"$(node --input-type=module -e \"import fs from 'node:fs'; import module from 'node:module'; import path from 'node:path'; import url from 'node:url'; import getExePath from './typecheck-tools/node_modules/typescript/lib/getExePath.js'; console.log(getExePath({ fs, module, path, url }));\")\"\necho \"$TSC\"",
 	check:
-		'./target/release/rsvelte run Counter.svelte \\\n  --task svelte.check/default \\\n  --options typescript.check "{\\"command\\": [\\"$TSC\\"]}" \\\n  --options svelte.typecheck \'{"svelte": "typecheck-tools/node_modules/svelte"}\'',
+		'./target/release/rsvelte run Counter.svelte \\\n  --task svelte.check/default \\\n  --options typescript.check "{\\"command\\": [\\"$TSC\\"]}" \\\n  --options svelte.check \'{"svelte": "typecheck-tools/node_modules/svelte"}\'',
 	wasmBuild:
 		'rustup target add wasm32-unknown-unknown\ncargo install wasm-pack --version 0.15.1 --locked\nwasm-pack build crates/hosts/browser --target web --release \\\n  --out-dir ../../../browser-package --out-name rsvelte_kernel_browser',
 	wasmUse:

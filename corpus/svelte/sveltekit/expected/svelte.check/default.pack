@@ -1,0 +1,2553 @@
+# rsvelte pack 1
+=== 3 packages/adapter-netlify/test/apps/basic/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/adapter-netlify/test/apps/basic/src/routes/greeting/[name]/+page.svelte	json
+[]
+
+=== 3 packages/adapter-netlify/test/apps/edge/src/routes/treeshake-server/+page.svelte	json
+[]
+
+=== 213 packages/adapter-netlify/test/apps/split/src/routes/+error.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	}
+]
+
+=== 213 packages/adapter-netlify/test/apps/split/src/routes/dynamic/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 3 packages/adapter-node/test/apps/basic/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/adapter-static/test/apps/prerendered/src/routes/public-env/+page.svelte	json
+[]
+
+=== 3 packages/adapter-static/test/apps/spa/src/routes/+error.svelte	json
+[]
+
+=== 3 packages/adapter-static/test/apps/spa/src/routes/+layout.svelte	json
+[]
+
+=== 3 packages/adapter-static/test/apps/spa/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/adapter-static/test/apps/spa/src/routes/about/+page.svelte	json
+[]
+
+=== 3 packages/adapter-static/test/apps/spa/src/routes/fallback/[...rest]/+page.svelte	json
+[]
+
+=== 3 packages/adapter-vercel/test/apps/basic/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/adapter-vercel/test/apps/basic/src/routes/deep/nested/route/+page.svelte	json
+[]
+
+=== 3 packages/adapter-vercel/test/apps/basic/src/routes/isr/+page.svelte	json
+[]
+
+=== 3 packages/adapter-vercel/test/apps/basic/src/routes/isr/[slug]/+page.svelte	json
+[]
+
+=== 3 packages/adapter-vercel/test/apps/basic/src/routes/prerendered/+page.svelte	json
+[]
+
+=== 3 packages/adapter-vercel/test/apps/basic/src/routes/server-data/+page.svelte	json
+[]
+
+=== 3 packages/adapter-vercel/test/apps/split/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/adapter-vercel/test/apps/split/src/routes/a/+page.svelte	json
+[]
+
+=== 419 packages/enhanced-img/test/Input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './no.png' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './no.svg' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	}
+]
+
+=== 1625 packages/enhanced-img/test/Output.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './no.png' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './no.svg' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 37
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'env' does not exist on type 'ImportMeta'.",
+		"start": {
+			"line": 41,
+			"character": 13
+		},
+		"end": {
+			"line": 41,
+			"character": 16
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'unknown' is not assignable to type 'string | null | undefined'.",
+		"start": {
+			"line": 49,
+			"character": 12
+		},
+		"end": {
+			"line": 49,
+			"character": 18
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'env' does not exist on type 'ImportMeta'.",
+		"start": {
+			"line": 58,
+			"character": 13
+		},
+		"end": {
+			"line": 58,
+			"character": 16
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'unknown' is not assignable to type 'string | null | undefined'.",
+		"start": {
+			"line": 66,
+			"character": 12
+		},
+		"end": {
+			"line": 66,
+			"character": 18
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'env' does not exist on type 'ImportMeta'.",
+		"start": {
+			"line": 76,
+			"character": 13
+		},
+		"end": {
+			"line": 76,
+			"character": 16
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'unknown' is not assignable to type 'string | null | undefined'.",
+		"start": {
+			"line": 84,
+			"character": 12
+		},
+		"end": {
+			"line": 84,
+			"character": 18
+		}
+	}
+]
+
+=== 3 packages/enhanced-img/test/apps/basics/src/routes/+layout.svelte	json
+[]
+
+=== 3 packages/enhanced-img/test/apps/basics/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/enhanced-img/test/apps/basics/src/routes/image.svelte	json
+[]
+
+=== 3 packages/kit/src/core/sync/create_manifest_data/test/samples/named-layouts/+layout.svelte	json
+[]
+
+=== 3 packages/kit/src/core/sync/create_manifest_data/test/samples/prerendered-dual-route/x/+page.svelte	json
+[]
+
+=== 3 packages/kit/src/core/sync/write_types/test/slugs-layout-not-all-pages-have-load/+layout.svelte	json
+[]
+
+=== 3 packages/kit/src/runtime/components/error.svelte	json
+[]
+
+=== 3 packages/kit/src/runtime/components/layout.svelte	json
+[]
+
+=== 573 packages/kit/src/runtime/components/root.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module '../props.svelte.js'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-Qthj4K/packages/kit/src/runtime/props.svelte.js' implicitly has an 'any' type.",
+		"start": {
+			"line": 2,
+			"character": 40
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/async/src/routes/+error.svelte	json
+[]
+
+=== 223 packages/kit/test/apps/async/src/routes/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../../../setup.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	}
+]
+
+=== 216 packages/kit/test/apps/async/src/routes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/manifest' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/async/src/routes/fork/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/plain-lib/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/batch-redirect/+page.svelte	json
+[]
+
+=== 213 packages/kit/test/apps/async/src/routes/remote/dev/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/error-hydration/+page.svelte	json
+[]
+
+=== 216 packages/kit/test/apps/async/src/routes/remote/form/as-value/Form.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './form.remote' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 48
+		},
+		"end": {
+			"line": 1,
+			"character": 63
+		}
+	}
+]
+
+=== 216 packages/kit/test/apps/async/src/routes/remote/form/file-upload/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './form.remote' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/for-duplicate/+page.svelte	json
+[]
+
+=== 439 packages/kit/test/apps/async/src/routes/remote/form/imperative/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../[test_name]/form.remote.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'valibot' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 29
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/native-result/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/preflight-for/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/preflight-pending/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/redirect-target/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/redirect-target/destination/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/requested/+page.svelte	json
+[]
+
+=== 216 packages/kit/test/apps/async/src/routes/remote/form/reset-id/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './form.remote' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	}
+]
+
+=== 411 packages/kit/test/apps/async/src/routes/remote/form/reset-on-redirect/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './form.remote' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'submit' implicitly has an 'any' type.",
+		"start": {
+			"line": 12,
+			"character": 36
+		},
+		"end": {
+			"line": 12,
+			"character": 42
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/select-untouched/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/set-ssr/+page.svelte	json
+[]
+
+=== 414 packages/kit/test/apps/async/src/routes/remote/form/skip-submit/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './form.remote.ts' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'submit' implicitly has an 'any' type.",
+		"start": {
+			"line": 18,
+			"character": 34
+		},
+		"end": {
+			"line": 18,
+			"character": 40
+		}
+	}
+]
+
+=== 408 packages/kit/test/apps/async/src/routes/remote/form/snapshot/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './snapshot.remote.ts' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'form' implicitly has an 'any' type.",
+		"start": {
+			"line": 9,
+			"character": 27
+		},
+		"end": {
+			"line": 9,
+			"character": 31
+		}
+	}
+]
+
+=== 605 packages/kit/test/apps/async/src/routes/remote/form/submit-field-value/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './form.remote.ts' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'fields' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 32
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'submit' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 34
+		},
+		"end": {
+			"line": 5,
+			"character": 40
+		}
+	}
+]
+
+=== 606 packages/kit/test/apps/async/src/routes/remote/form/submit-field-value/page2/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../form.remote.ts' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'fields' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 32
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'submit' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 34
+		},
+		"end": {
+			"line": 5,
+			"character": 40
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/submitter/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/throwing-error-page/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/throwing-error-page/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/touched/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/underscore/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/validate/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/form/value/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/isomorphic-caching/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/live-error-seed/[key]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/live-ssr-value/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/live-terminal/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/live-terminal/target/+page.svelte	json
+[]
+
+=== 847 packages/kit/test/apps/async/src/routes/remote/live/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './LiveView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './live.remote.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 8
+		},
+		"end": {
+			"line": 13,
+			"character": 26
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'submit' implicitly has an 'any' type.",
+		"start": {
+			"line": 91,
+			"character": 42
+		},
+		"end": {
+			"line": 91,
+			"character": 48
+		}
+	}
+]
+
+=== 224 packages/kit/test/apps/async/src/routes/remote/prerender/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './prerender.remote.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 61
+		},
+		"end": {
+			"line": 1,
+			"character": 84
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/prerender/functions-only/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/private-query/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/query-redirect/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/query-redirect/from-common-layout/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/query-redirect/from-common-layout/redirected/+page.svelte	json
+[]
+
+=== 443 packages/kit/test/apps/async/src/routes/remote/query-runtime-errors/not-tracked/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/server' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../query-command.remote.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 58
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/redirect-external/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/requested-limit/[key]/+page.svelte	json
+[]
+
+=== 220 packages/kit/test/apps/async/src/routes/remote/reserved/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './reserved.remote' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/server-action/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/server-endpoint/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/server-load-command/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/remote/transport-status/+page.svelte	json
+[]
+
+=== 3977 packages/kit/test/apps/async/src/routes/remote/validation/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@sveltejs/kit' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/server' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 38
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './validation.remote.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 8
+		},
+		"end": {
+			"line": 14,
+			"character": 32
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 65,
+			"character": 3
+		},
+		"end": {
+			"line": 65,
+			"character": 22
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 70,
+			"character": 4
+		},
+		"end": {
+			"line": 70,
+			"character": 23
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 75,
+			"character": 5
+		},
+		"end": {
+			"line": 75,
+			"character": 24
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 80,
+			"character": 6
+		},
+		"end": {
+			"line": 80,
+			"character": 25
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 98,
+			"character": 3
+		},
+		"end": {
+			"line": 98,
+			"character": 22
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 102,
+			"character": 26
+		},
+		"end": {
+			"line": 102,
+			"character": 27
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 108,
+			"character": 4
+		},
+		"end": {
+			"line": 108,
+			"character": 23
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 112,
+			"character": 27
+		},
+		"end": {
+			"line": 112,
+			"character": 28
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 118,
+			"character": 5
+		},
+		"end": {
+			"line": 118,
+			"character": 24
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 122,
+			"character": 28
+		},
+		"end": {
+			"line": 122,
+			"character": 29
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 128,
+			"character": 6
+		},
+		"end": {
+			"line": 128,
+			"character": 25
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 132,
+			"character": 29
+		},
+		"end": {
+			"line": 132,
+			"character": 30
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 138,
+			"character": 7
+		},
+		"end": {
+			"line": 138,
+			"character": 26
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 142,
+			"character": 30
+		},
+		"end": {
+			"line": 142,
+			"character": 31
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 162,
+			"character": 3
+		},
+		"end": {
+			"line": 162,
+			"character": 22
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 165,
+			"character": 4
+		},
+		"end": {
+			"line": 165,
+			"character": 23
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 169,
+			"character": 4
+		},
+		"end": {
+			"line": 169,
+			"character": 23
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 172,
+			"character": 3
+		},
+		"end": {
+			"line": 172,
+			"character": 22
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 175,
+			"character": 4
+		},
+		"end": {
+			"line": 175,
+			"character": 23
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/async/src/routes/server-error-boundary/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/server-error-boundary/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/server-error-boundary/layout-throws/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/server-error-boundary/layout-throws/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/server-error-boundary/layout-throws/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/server-error-boundary/nested/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/async/src/routes/server-error-boundary/nested/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/accessibility/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/accessibility/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/accessibility/autofocus/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/accessibility/autofocus/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/accessibility/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/accessibility/blur-during-navigation/other/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/accessibility/blur-during-navigation/page-with-input/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/accessibility/c/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/actions/cross-page/destination/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/actions/cross-page/redirected/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/actions/cross-page/refreshall-false/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/actions/enhance-non-action-response/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/actions/enhance-non-action-response/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/actions/file-without-enctype/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/actions/form-errors/adjacent-error-boundary/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/actions/form-errors/adjacent-error-boundary/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/actions/redirect-in-handle/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/anchor-afternavigate/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/anchor-onmount/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/anchor/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/anchor/anchor/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/app-environment/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/app-manifest/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/asset-import/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/asset-preload/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/caching/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/caching/server-data/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/cookies/collect-without-re-escaping/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/cookies/forwarded-in-etag-multiple/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/cookies/forwarded-in-etag/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/css/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/css/dynamic/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/css/dynamic/Dynamic.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/css/encöded/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/css/other/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/cyclical-dynamic-import/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-code/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/slow-navigation/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/target/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/target/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/target/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/hash/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/hash/new/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/target/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/replacestate/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/reset/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/data-sveltekit/reset/target/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/delete-route/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/encoded/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/encoded/@[username]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[u+82d7]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[u+d83e][u+dd2a]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+23]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+25]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+2f]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+3a]-[x+29]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+3c]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+3f]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x][x+3c][y]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/encoded/苗条/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/endpoint-output/actions-with-endpoint/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/endpoint-output/fallback-with-page/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/endpoint-output/post-only-with-page/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/env/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/clientside/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/endpoint-shadow-not-ok/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/error-html/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/error-in-handle/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/invalid-load-response/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/kind/+page.svelte	json
+[]
+
+=== 213 packages/kit/test/apps/basics/src/routes/errors/load-error-page-options/+error.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/module-scope-client/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/module-scope-server/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/nested-error-page/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/nested-error-page/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/nested-error-page/nope/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/get-explicit/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/serverside/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/errors/stack-trace/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/get-request-event/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/get-request-event/with-error/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/get-request-event/with-message/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/goto/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/goto/no-such-route/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/goto/testentry/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/goto/testfinish/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/goto/teststart/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/headers/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/iframes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/iframes/nested/child/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/iframes/nested/parent/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/ignored-files/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/init-hooks/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/init-hooks/navigate/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/interactivity/toggle-element/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/keepfocus/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/accumulated/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/devalue/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/dynamic-import-styles/_/Thing.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/fetch-cache-control/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/fetch-external-non-canonical/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/fetch-no-body/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/invalidation/during-navigation/[slug]/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/invalidation/during-navigation/[slug]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/invalidation/multiple/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/invalidation/multiple/redirect/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/invalidation/params/[a]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/invalidation/params/[a]/[b]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/invalidation/route/server/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/invalidation/route/server/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/invalidation/route/shared/[x]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/mutated-url/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/no-server-load/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/no-server-load/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/no-server-load/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/parent/server/[x]/[y]/[z]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/raw-body/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/serialization-post-body-collision/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/serialization-post-body-object/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/unchanged-parent/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/unchanged/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/url-query-param/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/url-to-string/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/window-fetch/outside-load/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/load/window-fetch/patching-server-load/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/match/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/match/load/foo/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/match/slug/[slug]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate-properly-removed/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate-properly-removed/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate-properly-removed/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/complete/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/event/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/hash-links/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/prevent-navigation/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/on-navigate/[x]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/scroll-state/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/scroll-state/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/nested-layout/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/nested-layout/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/nested-layout/error/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/nested-layout/foo/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/nested-layout/foo/bar/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/nested-layout/foo/bar/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/nested-layout/foo/baz/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/nested-layout/reset/+layout@.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/nested-layout/reset/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/no-ssr/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/no-ssr/after-navigate/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/no-ssr/browser-only-global/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/no-ssr/margin/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/no-ssr/ssr-page-config/layout/overwrite/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/origin/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/params-prop/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/params-prop/[x]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/preload-code-on-load/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/prerendering/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/prerendering/env/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/prerendering/env/dynamic/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/prerendering/env/prerendered/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/prerendering/log-url/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/prerendering/mutative-endpoint/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/prerendering/no-ssr/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/prerendering/prerendered-endpoint/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/query/echo/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/redirect-on-load/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/redirect-on-load/redirected/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/redirect/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/redirect/c/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/redirect/in-handle/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/async/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/async/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/async/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/basic/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/basic/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/client-only-redirect/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/client-only-redirect/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/client-only-redirect/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/error-handling/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/error-handling/client-error-rewritten/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/error-handling/client-error/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/error-handling/server-error/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/external/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/preload-data/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/prerendered/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reroute/prerendered/destination/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/reset-focus/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/[slug]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/cancellation/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/cancellation/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/cancellation/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/client/bar/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/clobbered-node-name/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/const/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/dirs/bar/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/dirs/bar/[a]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/dirs/foo/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/dirs/foo/[b]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/external-popstate/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/focus/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/focus/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/form-get/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/form-target-blank/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/hashes/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/hashes/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/hashes/base/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/hashes/base/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/hashes/base/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/hashes/focus/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/hashes/pagestate/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/hashes/target/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/link-outside-app-target/source/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/link-outside-app-target/target/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/long-navigation/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/matched/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/matched/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/matched/[fallback]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/matched/[letter=lowercase]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/matched/[letter=uppercase]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/matched/[number=numeric]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/missing-href/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/next-paint/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/preloading/error/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/preloading/hash-route/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/rest/[...rest]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/rest/[...rest]/deep/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/rest/non-greedy/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/rest/non-greedy/[dynamic]-bar/[...rest]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/rest/path/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/route-id/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/route-id/[x]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/shadow-dom/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/slashes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/split-params/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/split-params/[a]-[b]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/symlink-to/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/trailing-slash-server/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/routing/trailing-slash/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/scroll/cross-document/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/scroll/cross-document/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/scroll/push-state/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/scroll/push-state/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/scroll/top/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/selection/+layout.svelte	json
+[]
+
+=== 211 packages/kit/test/apps/basics/src/routes/serialization-basic/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	}
+]
+
+=== 211 packages/kit/test/apps/basics/src/routes/serialization-basic/child/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	}
+]
+
+=== 213 packages/kit/test/apps/basics/src/routes/serialization-form-enhanced/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/basics/src/routes/serialization-form-non-enhanced/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shadowed/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shadowed/error-get/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shadowed/error-post/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shadowed/missing-get/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shadowed/post-success-redirect/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shadowed/post-success-redirect/redirected/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shadowed/redirect/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shadowed/redirect/[a]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shadowed/redirect/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shadowed/same-render-entry/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/[param]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/b/+page.svelte	json
+[]
+
+=== 218 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/effect/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/foo/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shallow-routing/refresh/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/a/+page.svelte	json
+[]
+
+=== 218 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/effect/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/basics/src/routes/snapshot/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/snapshot/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/snapshot/helper/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/snapshot/helper/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/snapshot/helper/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/snapshot/order/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/snapshot/stale/Stale.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/snapshot/stale/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/snapshot/stale/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/state/client-access/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/state/data/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/state/data/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/state/data/state-update/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/state/data/state-update/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/state/data/state-update/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/state/navigating/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/state/navigating/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/state/navigating/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/state/navigating/c/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/state/url/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/streaming/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/tracing/http-error/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/tracing/one/two/three/[...four]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/treeshaking/browser/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/treeshaking/dev/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/use-action/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/use-action/focus-and-scroll/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/xss/[path]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/xss/query-tracking/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/basics/src/routes/xss/query/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/dev-only/src/routes/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/dev-only/src/routes/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/dev-only/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/dev-only/src/routes/illegal-imports/app-server/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/dev-only/src/routes/illegal-imports/env/private/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/dev-only/src/routes/illegal-imports/server-only-folder/path-top-level/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/dev-only/src/routes/illegal-imports/server-only-folder/relative-nested/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/dev-only/src/routes/illegal-imports/server-only-modules/static-import/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/dev-only/src/routes/request-abort/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/embed/src/routes/embed/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/embed/src/routes/embed/b/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/hash-based-routing/src/routes/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/hash-based-routing/src/routes/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/hash-based-routing/src/routes/anchor/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/hash-based-routing/src/routes/b/[slug]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/hash-based-routing/src/routes/focus/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/hash-based-routing/src/routes/rerouted/+page.svelte	json
+[]
+
+=== 213 packages/kit/test/apps/hash-based-routing/src/routes/resolve/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/no-csr/src/routes/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/no-csr/src/routes/assets/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/no-ssr/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/no-ssr/src/routes/root-layout-error/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/no-ssr/src/routes/styles/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/no-ssr/src/routes/styles/prerendered/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/asset-preload/prerendered/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/csp-trusted-types/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/deeply/nested/page/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/env/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/env/import-all/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/env/prerendered/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/fetch-prerendered/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/fetch-prerendered/shadowed/[...rest]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/fetch-prerendered/shadowed/static/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/hello/+page.svelte	json
+[]
+
+=== 415 packages/kit/test/apps/options-2/src/routes/remote/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './count.remote.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 67
+		},
+		"end": {
+			"line": 1,
+			"character": 86
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'submit' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 37
+		},
+		"end": {
+			"line": 14,
+			"character": 43
+		}
+	}
+]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/trailing-slash-server/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-2/src/routes/trailing-slash-server/prerender/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-3/src/routes/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options-3/src/routes/app-manifest/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/components/Message.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/components/SharedCSS.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/components/SvelteLogo.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/base/[slug]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/csp-trusted-types/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/csp/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/custom-extensions/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/custom-extensions/unsafe-replacement/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/error/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/fetch/link-outside-base/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/fetch/link-root/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/inline-style/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/inline-style/conditional-rendering/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/inline-style/conditional-rendering/Component.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/inline-style/dynamic-import/Thing.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/inline-style/import-meta/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/inline-style/static-dir/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/inline-style/url-encoded/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/on-navigate/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/on-navigate/a/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/performance/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/preloading/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/preloading/code/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/routing/link-outside-app-target/source/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/routing/link-outside-app-target/target/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/options/source/pages/slash/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+error.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/writes/src/routes/double-mount/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/apps/writes/src/routes/new-route/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/env-private-dynamic/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/env-private-service-worker/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/prerender-entry-generator-mismatch/src/routes/[slug]/specific/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/prerender-remote-function-error/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/prerenderable-incorrect-fragment/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/prerenderable-incorrect-fragment/src/routes/foo/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/prerenderable-not-prerendered/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/remote-function-without-flag/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/removed-lib-import/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/removed-service-worker-import/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/server-only-folder-dynamic-import/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/server-only-folder/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/server-only-module-dynamic-import/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/server-only-module/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/build-errors/apps/server-only-shared/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/(grouped)/grouped/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/content-type-charset/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/content-type-charset/[dynamic]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/encoding/[path]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/encöded-hash-link/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/fetch-image/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/max-age/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/missing-id/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/optional-params/[[optional]]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/origin/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/prerender-origin/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/prerender-origin/[dynamic]/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/prerendering-true/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/resolve-relative/lv1/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/resolve-relative/lv1/lv2/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/spa-shell/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/basics/src/routes/初めまして/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/options/src/routes/(group)/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/options/src/routes/+layout.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/options/src/routes/nested/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/options/src/routes/non-prerendered-page-and-endpoint/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/paths-base/src/routes/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/paths-base/src/routes/a/b/c/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/paths-base/src/routes/a/b/d/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/paths-base/src/routes/assets/+page.svelte	json
+[]
+
+=== 3 packages/kit/test/prerendering/paths-base/src/routes/assets/emitted/+page.svelte	json
+[]
+
+=== 3 packages/package/test/fixtures/emitTypes-false/expected/Test.svelte	json
+[]
+
+=== 3 packages/package/test/fixtures/svelte-3-types/expected/Test.svelte	json
+[]
+
+=== 3 packages/package/test/fixtures/svelte-3-types/src/lib/Test.svelte	json
+[]
+
+=== 3 packages/package/test/fixtures/typescript-declaration-map/expected/Test.svelte	json
+[]
+
+=== 3 packages/package/test/fixtures/typescript-declaration-map/src/lib/Test.svelte	json
+[]
+
+=== 426 packages/package/test/fixtures/typescript-ts-extension-rewrites/expected/Demo.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './helper.js' or its corresponding type declarations.",
+		"start": {
+			"line": 0,
+			"character": 41
+		},
+		"end": {
+			"line": 0,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './helper2.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 429 packages/package/test/fixtures/typescript-ts-extension-rewrites/src/lib/Demo.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '#lib/helper.ts' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './helper2.ts' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 39
+		}
+	}
+]
+
+=== 3 packages/package/test/watch/expected/post-error.svelte	json
+[]
+
+=== 3 playgrounds/basic/src/routes/+page.svelte	json
+[]
+

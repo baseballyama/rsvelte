@@ -2,29 +2,21 @@
 //! port's output, checked equal (as ASTs) to the official compiler's with
 //! `{ runes: true, preserveWhitespace: true }` and different from its default.
 
-use rsvelte_svelte_compile::Target;
+use rsvelte_svelte_compile::{CompileOptions, Target};
 
 const SOURCE: &str = include_str!("preserve_whitespace/App.svelte");
 
-fn compile(target: Target, preserve_whitespace: bool) -> String {
-    let component = rsvelte_svelte::syntax::parse::parse(SOURCE).expect("parses");
-    let compiler_syntax_tree =
-        rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, SOURCE);
-    let mut input = rsvelte_svelte_compile::CompileInput::from(rsvelte_svelte::svelte_input(
-        &component,
-        &compiler_syntax_tree,
-        SOURCE,
-        "App.svelte",
-    ));
-    input.preserve_whitespace = preserve_whitespace;
-    let resolution = rsvelte_svelte::semantic::resolve::resolve(
-        &component.javascript,
-        SOURCE,
-        component.program,
-        &compiler_syntax_tree,
-    );
-    let analysis = rsvelte_svelte::semantic::analyze::analyze(&input.component, &resolution);
-    rsvelte_svelte_compile::compile(&input, &resolution, &analysis, target).expect("compiles")
+fn compile(generate: Target, preserve_whitespace: bool) -> String {
+    let options = CompileOptions {
+        filename: "App.svelte".to_owned(),
+        generate,
+        preserve_whitespace,
+        css_hash: None,
+    };
+    rsvelte_svelte_compile::compile(SOURCE, &options)
+        .expect("compiles")
+        .js
+        .code
 }
 
 #[test]

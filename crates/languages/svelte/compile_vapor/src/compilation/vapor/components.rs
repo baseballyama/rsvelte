@@ -1,5 +1,5 @@
-use rsvelte_vue::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind, PropertyKind};
-use rsvelte_vue::syntax_tree::DirectiveExpression;
+use rsvelte_vue_semantic::compiler_syntax_tree::{CompilerNodeIdentifier, NodeKind, PropertyKind};
+use rsvelte_vue_syntax::syntax_tree::DirectiveExpression;
 
 use super::{Builder, NodeIdentifier, SYNTHETIC};
 
@@ -90,14 +90,14 @@ impl Builder<'_> {
         let props = self.expression(self.component_value(identifier, "$$props"));
         let name = self.name();
         body.push(self.to.let_(
-            rsvelte_typescript::syntax_tree::flag::CONST,
+            rsvelte_typescript_syntax::syntax_tree::flag::CONST,
             name,
             Some(props),
         ));
         let pending = self.to.dot(name, "pending");
         let children = self.to.dot(name, "children");
         let children = self.to.logical(
-            rsvelte_typescript::operators::LogicalOperator::Or,
+            rsvelte_typescript_syntax::operators::LogicalOperator::Or,
             pending,
             children,
             SYNTHETIC,

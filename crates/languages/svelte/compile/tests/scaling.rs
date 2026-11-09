@@ -8,22 +8,22 @@ static ALLOCATOR: CountingAllocator = CountingAllocator;
 fn allocations(script: &str) -> u64 {
     let source = format!("<script>{script}</script>");
     let (before, _) = thread_allocations();
-    let component = rsvelte_svelte::syntax::parse::parse(&source).expect("parses");
-    let tree = rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, &source);
-    let input = CompileInput::from(rsvelte_svelte::svelte_input(
+    let component = rsvelte_svelte_syntax::parse::parse(&source).expect("parses");
+    let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, &source);
+    let input = CompileInput::from(rsvelte_svelte_semantic::svelte_input(
         &component,
         &tree,
         &source,
         "App.svelte",
     ));
-    let resolution = rsvelte_svelte::semantic::resolve::resolve(
+    let resolution = rsvelte_svelte_semantic::resolve::resolve(
         &component.javascript,
         &source,
         component.program,
         &tree,
     );
-    let analysis = rsvelte_svelte::semantic::analyze::analyze(&input.component, &resolution);
-    rsvelte_svelte_compile::compile(&input, &resolution, &analysis, Target::Client)
+    let analysis = rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
+    rsvelte_svelte_compile::compile_input(&input, &resolution, &analysis, Target::Client)
         .expect("compiles");
     thread_allocations().0 - before
 }
@@ -35,23 +35,22 @@ fn on_a_small_stack(source: &str, small: Stage) {
         std::thread::Builder::new()
             .stack_size(1 << 30)
             .spawn_scoped(scope, || {
-                let component = rsvelte_svelte::syntax::parse::parse(source).expect("parses");
-                let tree =
-                    rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, source);
-                let input = CompileInput::from(rsvelte_svelte::svelte_input(
+                let component = rsvelte_svelte_syntax::parse::parse(source).expect("parses");
+                let tree = rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, source);
+                let input = CompileInput::from(rsvelte_svelte_semantic::svelte_input(
                     &component,
                     &tree,
                     source,
                     "App.svelte",
                 ));
-                let resolution = rsvelte_svelte::semantic::resolve::resolve(
+                let resolution = rsvelte_svelte_semantic::resolve::resolve(
                     &component.javascript,
                     source,
                     component.program,
                     &tree,
                 );
                 let analyze =
-                    || rsvelte_svelte::semantic::analyze::analyze(&input.component, &resolution);
+                    || rsvelte_svelte_semantic::analyze::analyze(&input.component, &resolution);
                 let analysis = (small == Stage::Compile).then(analyze);
                 std::thread::scope(|scope| {
                     std::thread::Builder::new()
@@ -59,7 +58,7 @@ fn on_a_small_stack(source: &str, small: Stage) {
                         .spawn_scoped(scope, || {
                             let analysis = analysis.unwrap_or_else(analyze);
                             if small == Stage::Compile {
-                                rsvelte_svelte_compile::compile(
+                                rsvelte_svelte_compile::compile_input(
                                     &input,
                                     &resolution,
                                     &analysis,
@@ -115,18 +114,19 @@ fn a_call_chain_in_markup_is_judged_pure_once_per_link() {
         std::thread::Builder::new()
             .stack_size(1 << 30)
             .spawn_scoped(scope, || {
-                let component = rsvelte_svelte::syntax::parse::parse(&source).expect("parses");
+                let component = rsvelte_svelte_syntax::parse::parse(&source).expect("parses");
                 let tree =
-                    rsvelte_svelte::compilation::compiler_syntax_tree::lower(&component, &source);
-                let input = rsvelte_svelte::svelte_input(&component, &tree, &source, "App.svelte");
-                let resolution = rsvelte_svelte::semantic::resolve::resolve(
+                    rsvelte_svelte_semantic::compiler_syntax_tree::lower(&component, &source);
+                let input =
+                    rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "App.svelte");
+                let resolution = rsvelte_svelte_semantic::resolve::resolve(
                     &component.javascript,
                     &source,
                     component.program,
                     &tree,
                 );
                 let start = std::time::Instant::now();
-                let _analysis = rsvelte_svelte::semantic::analyze::analyze(&input, &resolution);
+                let _analysis = rsvelte_svelte_semantic::analyze::analyze(&input, &resolution);
                 start.elapsed()
             })
             .expect("spawns")

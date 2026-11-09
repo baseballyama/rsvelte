@@ -3,8 +3,8 @@ use std::borrow::Cow;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::{Component, TokenType, decode_attribute, decode_text};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType, decode_attribute, decode_text};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use serde::Deserialize;
 
 use super::expressions::Expressions;
@@ -237,7 +237,10 @@ fn literal_value(javascript: &SyntaxTree, source: &str, literal: NodeIdentifier)
             quasis: &[quasi], ..
         } => {
             let raw = javascript.str_value(quasi, source);
-            Some(rsvelte_typescript::lexer::decode_string(raw).unwrap_or_else(|| raw.to_owned()))
+            Some(
+                rsvelte_typescript_syntax::lexer::decode_string(raw)
+                    .unwrap_or_else(|| raw.to_owned()),
+            )
         }
         _ => None,
     }

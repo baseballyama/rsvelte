@@ -92,7 +92,7 @@ impl Registry {
         self
     }
 
-    /// See [`ArtifactRegistry::provide`].
+    /// See `ArtifactRegistry::provide`.
     pub fn provide<F: Facet>(
         &mut self,
         identifier: &'static str,
@@ -162,7 +162,7 @@ impl Registry {
     /// # Errors
     ///
     /// [`DocumentError::TooLarge`] if `text` is
-    /// [`MAXIMUM_SOURCE_LENGTH`](crate::source::positions::MAXIMUM_SOURCE_LENGTH) bytes or longer.
+    /// `MAXIMUM_SOURCE_LENGTH` bytes or longer.
     pub fn document(
         &self,
         path: impl Into<String>,

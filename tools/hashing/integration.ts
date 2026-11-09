@@ -36,7 +36,7 @@ export async function main(args: string[]): Promise<void> {
 				path: filename,
 				lang: 'vue',
 				ext: '.vue',
-				sha256: createHash('sha256').update(src).digest('hex'),
+				src,
 				mode: '',
 				fixture: {},
 			},

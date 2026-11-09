@@ -12,11 +12,14 @@ doctest = false
 [dependencies]
 rsvelte_plugin_interface.workspace = true
 rsvelte_lint_runner.workspace = true
-rsvelte_vue.workspace = true
-rsvelte_markup.workspace = true
+rsvelte_vue_syntax.workspace = true
+rsvelte_vue_semantic.workspace = true
+rsvelte_markup_syntax.workspace = true
+rsvelte_markup_lint.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript_lint.workspace = true
-rsvelte_typescript.workspace = true
+rsvelte_typescript_syntax.workspace = true
+rsvelte_typescript_semantic.workspace = true
 
 [dev-dependencies]
 rsvelte_test_harness.workspace = true

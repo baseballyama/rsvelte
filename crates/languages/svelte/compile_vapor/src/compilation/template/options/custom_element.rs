@@ -1,6 +1,6 @@
-use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution};
-use rsvelte_typescript::copy::{Verbatim, copy};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+use rsvelte_typescript_compile::copy::{Verbatim, copy};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::CustomElement;

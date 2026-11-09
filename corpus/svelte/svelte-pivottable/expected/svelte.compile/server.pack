@@ -1,0 +1,1203 @@
+# rsvelte pack 1
+=== 524 src/lib/PivotTable.svelte	js
+import * as $ from 'svelte/internal/server';
+import TableRenderers from "./TableRenderers";
+
+export default function PivotTable($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let {
+			renderer: Renderer = TableRenderers.Table,
+			$$slots,
+			$$events,
+			...restProps
+		} = $$props;
+
+		if (Renderer) {
+			$$renderer.push('<!--[-->');
+			Renderer($$renderer, $.spread_props([restProps]));
+			$$renderer.push('<!--]-->');
+		} else {
+			$$renderer.push('<!--[!-->');
+			$$renderer.push('<!--]-->');
+		}
+	});
+}
+=== 5117 src/lib/PivotTableUI.svelte	js
+import * as $ from 'svelte/internal/server';
+import { setContext } from "svelte";
+import PivotData from "./PivotData";
+import PivotTable from "./PivotTable.svelte";
+import TableRenderers from "./TableRenderers";
+import Aggregators from "./UI/Aggregators.svelte";
+import DnDCell from "./UI/DnDCell.svelte";
+import Dropdown from "./UI/Dropdown.svelte";
+import MainTable from "./UI/MainTable.svelte";
+import { aggregators as defaultAggregators, sortAs } from "./Utilities";
+
+export default function PivotTableUI($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let {
+			rendererName = "Table",
+			renderers = TableRenderers,
+			aggregatorName = "Count",
+			aggregators = defaultAggregators,
+			hiddenAttributes = [],
+			hiddenFromAggregators = [],
+			hiddenFromDragDrop = [],
+			unusedOrientationCutoff = 85,
+			menuLimit = 500,
+			// pivotData props managed by PivotTableUI
+			derivedAttributes = PivotData.defaultProps.derivedAttributes,
+			cols = PivotData.defaultProps.cols,
+			rows = PivotData.defaultProps.rows,
+			vals = PivotData.defaultProps.vals,
+			sorters = PivotData.defaultProps.sorters,
+			compactRows = true,
+			// pivot data
+			data,
+			$$slots,
+			$$events,
+			...restProps
+		} = $$props;
+
+		let valueFilter = {};
+
+		setContext("valueFilter", valueFilter);
+
+		let unusedOrder = [];
+		const notHidden = (e) => !hiddenAttributes.includes(e) && !hiddenFromDragDrop.includes(e);
+		let colAttrs = $.derived(() => cols.filter(notHidden));
+		let rowAttrs = $.derived(() => rows.filter(notHidden));
+
+		let attrValues = $.derived(() => {
+			let attrValues = {};
+			let recordsProcessed = 0;
+
+			PivotData.forEachRecord(data ?? [], derivedAttributes, function (record) {
+				for (const attr of Object.keys(record)) {
+					if (!(attr in attrValues)) {
+						attrValues[attr] = {};
+
+						if (recordsProcessed > 0) {
+							attrValues[attr].null = recordsProcessed;
+						}
+					}
+				}
+
+				for (const attr in attrValues) {
+					const value = attr in record ? record[attr] : "null";
+
+					if (!(value in attrValues[attr])) {
+						attrValues[attr][value] = 0;
+					}
+
+					attrValues[attr][value]++;
+				}
+
+				recordsProcessed++;
+			});
+
+			return attrValues;
+		});
+
+		let unusedAttrs = $.derived(() => Object.keys(attrValues()).filter((e) => !colAttrs().includes(e) && !rowAttrs().includes(e) && notHidden(e)).sort(sortAs(unusedOrder)));
+
+		let horizUnused = $.derived(() => {
+			const unusedLength = unusedAttrs().reduce((r, e) => r + e.length, 0);
+
+			return unusedLength < unusedOrientationCutoff;
+		});
+
+		let valAttrs = $.derived(() => Object.keys(attrValues()).filter((e) => !hiddenAttributes.includes(e) && !hiddenFromAggregators.includes(e)));
+		const firstKey = (x) => Object.keys(x)[0];
+		let renderer = $.derived(() => renderers[rendererName in renderers ? rendererName : firstKey(renderers)]);
+		let aggregator = $.derived(() => aggregators[aggregatorName in aggregators ? aggregatorName : firstKey(aggregators)]);
+		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {
+			{
+				function rendererCell($$renderer) {
+					Dropdown($$renderer, {
+						values: Object.keys(renderers),
+						get current() {
+							return rendererName;
+						},
+
+						set current($$value) {
+							rendererName = $$value;
+							$$settled = false;
+						}
+					});
+				}
+
+				function aggregatorCell($$renderer) {
+					Aggregators($$renderer, {
+						aggregatorName,
+						aggregators,
+						valAttrs: valAttrs(),
+						onChange: (v) => aggregatorName = v,
+						onUpdate: (v) => vals = v,
+						vals
+					});
+				}
+
+				function unusedAttrsCell($$renderer) {
+					DnDCell($$renderer, {
+						sorters,
+						attrValues: attrValues(),
+						items: unusedAttrs(),
+						onChange: (v) => unusedOrder = v,
+						menuLimit
+					});
+				}
+
+				function colAttrsCell($$renderer) {
+					DnDCell($$renderer, {
+						sorters,
+						attrValues: attrValues(),
+						items: colAttrs(),
+						onChange: (v) => cols = v,
+						menuLimit
+					});
+				}
+
+				function rowAttrsCell($$renderer) {
+					DnDCell($$renderer, {
+						sorters,
+						attrValues: attrValues(),
+						items: rowAttrs(),
+						onChange: (v) => rows = v,
+						menuLimit
+					});
+				}
+
+				function outputCell($$renderer) {
+					PivotTable($$renderer, $.spread_props([
+						{ renderer: renderer() },
+						restProps,
+						{
+							cols,
+							rows,
+							vals,
+							derivedAttributes,
+							aggregator: aggregator(),
+							data,
+							sorters,
+							compactRows,
+							valueFilter,
+							aggregatorName,
+							aggregators
+						}
+					]));
+				}
+
+				MainTable($$renderer, {
+					horizUnused: horizUnused(),
+					rendererCell,
+					aggregatorCell,
+					unusedAttrsCell,
+					colAttrsCell,
+					rowAttrsCell,
+					outputCell,
+					$$slots: {
+						rendererCell: true,
+						aggregatorCell: true,
+						unusedAttrsCell: true,
+						colAttrsCell: true,
+						rowAttrsCell: true,
+						outputCell: true
+					}
+				});
+			}
+		}
+
+		do {
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+	});
+}
+=== 874 src/lib/PlotlyRenderer.svelte	js
+import * as $ from 'svelte/internal/server';
+import PivotData from "./PivotData";
+import Plotly from "./UI/Plotly.svelte";
+
+export default function PlotlyRenderer($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let {
+			plotlyOptions = {},
+			plotlyConfig = {},
+			onRendererUpdate,
+			traceOptions = {},
+			layoutOptions = {},
+			transpose = false,
+			aggregatorName,
+			aggregators,
+			$$slots,
+			$$events,
+			...restProps
+		} = $$props;
+
+		let pivotData;
+		let rowKeys;
+		let colKeys;
+		let traceKeys;
+		let datumKeys;
+		let numInputs;
+		let data = [];
+		let hAxisTitle;
+		let groupByTitle;
+		let layout = {};
+
+		Plotly($$renderer, {
+			layout: /* eslint-disable no-magic-numbers */
+			/* eslint-enable no-magic-numbers */
+			{ ...layout, ...layoutOptions, ...plotlyOptions },
+			data,
+			config: plotlyConfig,
+			onUpdate: onRendererUpdate
+		});
+	});
+}
+=== 719 src/lib/ScatterRenderer.svelte	js
+import * as $ from 'svelte/internal/server';
+import PivotData from "./PivotData";
+import Plotly from "./UI/Plotly.svelte";
+
+export default function ScatterRenderer($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let {
+			plotlyOptions = {},
+			plotlyConfig = {},
+			onRendererUpdate,
+			$$slots,
+			$$events,
+			...restProps
+		} = $$props;
+
+		let pivotData;
+		let rowKeys;
+		let colKeys;
+		let layout = {};
+		let data = { type: "scatter", mode: "markers" };
+
+		Plotly($$renderer, {
+			data: /* eslint-disable no-magic-numbers */
+			/* eslint-enable no-magic-numbers */
+			[data],
+			layout: Object.assign(layout ?? {}, plotlyOptions),
+			config: plotlyConfig,
+			onUpdate: onRendererUpdate
+		});
+	});
+}
+=== 761 src/lib/TSVExportRenderer.svelte	js
+import * as $ from 'svelte/internal/server';
+import PivotData from "./PivotData";
+
+export default function TSVExportRenderer($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let pivotData;
+		let rowKeys;
+		let colKeys;
+		let headerRow;
+		let value = "";
+		let { $$slots, $$events, ...options } = $$props;
+
+		// style={{ width: window.innerWidth / 2, height: window.innerHeight / 2 }}
+		function resize(node) {
+			node.style.width = node.parentElement?.clientWidth + "px";
+			node.style.height = node.parentElement?.clientHeight + "px";
+		}
+
+		$$renderer.push(`<textarea${$.attr('readonly', true, true)}>`);
+
+		const $$body = $.escape(value);
+
+		if ($$body) {
+			$$renderer.push(`${$$body}`);
+		} else {}
+
+		$$renderer.push(`</textarea>`);
+	});
+}
+=== 9839 src/lib/TableRenderer.svelte	js
+import * as $ from 'svelte/internal/server';
+import "./grouping.css";
+import PivotData from "./PivotData";
+import "./pivottable.css";
+
+export default function TableRenderer($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let {
+			tableColorScaleGenerator = redColorScaleGenerator,
+			tableOptions = {},
+			compactRows = true,
+			opts = {},
+			$$slots,
+			$$events,
+			...restProps
+		} = $$props;
+
+		let pivotData = new PivotData(restProps);
+
+		// When this is $derived we experience issues
+		// helper function for setting row/col-span in pivotTableRenderer
+		const spanSize = function (arr, i, j, no_loop = false) {
+			let x;
+
+			if (i !== 0) {
+				let asc, end;
+				let noDraw = true;
+
+				for ((x = 0, end = j, asc = end >= 0); asc ? x <= end : x >= end; asc ? x++ : x--) {
+					if (arr[i - 1][x] !== arr[i][x]) {
+						noDraw = false;
+					}
+				}
+
+				if (noDraw) {
+					return -1;
+				}
+			}
+
+			let len = 0;
+
+			while (i + len < arr.length) {
+				let asc1, end1;
+				let stop = false;
+
+				for ((x = no_loop ? j : 0, end1 = j, asc1 = end1 >= 0); asc1 ? x <= end1 : x >= end1; asc1 ? x++ : x--) {
+					if (arr[i][x] !== arr[i + len][x]) {
+						stop = true;
+					}
+				}
+
+				if (stop) {
+					break;
+				}
+
+				len++;
+			}
+
+			return len;
+		};
+
+		function redColorScaleGenerator(values) {
+			const min = Math.min(...values.map(Number).filter((x) => x));
+			const max = Math.max(...values.map(Number).filter((x) => x));
+
+			return (x) => {
+				// eslint-disable-next-line no-magic-numbers
+				const nonRed = 255 - Math.round(255 * (Number(x) - min) / (max - min));
+
+				return `background-color: rgb(255,${nonRed},${nonRed})`;
+			};
+		}
+
+		const flatKey = (arr) => arr.join(String.fromCharCode(0));
+		const has = (set, arr) => arr.every(set.has, set);
+		const add = (set, arr) => (arr.forEach(set.add, set), set);
+		const remove = (set, arr) => (arr.forEach(set.delete, set), set);
+		const toggle = (set, arr) => (has(set, arr) ? remove : add)(set, arr);
+		let grandTotalAggregator = $.derived(() => pivotData.getAggregator([], []));
+		let grouping = $.derived(() => pivotData.props.grouping);
+		let folded = new Set();
+		const isFolded = (keys) => has(folded, keys.map(flatKey));
+		const fold = (keys) => folded = toggle(new Set(folded), keys.map(flatKey));
+		let valueCellColors = (r, c, v) => "";
+		let rowTotalColors = (v) => "";
+		let colTotalColors = (v) => "";
+
+		let $$d = $.derived(() => {
+				let rowKeys = pivotData.getRowKeys(true);
+				let colKeys = pivotData.getColKeys(true);
+
+				if (grouping()) {
+					for (const key of folded) {
+						const keyEx = key + String.fromCharCode(0);
+
+						colKeys = colKeys.filter((colKey) => !flatKey(colKey).startsWith(keyEx));
+						rowKeys = rowKeys.filter((rowKey) => !flatKey(rowKey).startsWith(keyEx));
+					}
+				}
+
+				return [rowKeys, colKeys];
+			}),
+			$$derived_array = $.derived(() => $.to_array($$d(), 2)),
+			rowKeys = $.derived(() => $$derived_array()[0]),
+			colKeys = $.derived(() => $$derived_array()[1]);
+
+		const clickClass = (pred, closed) => pred ? " pvtClickable" + (closed ? " closed" : "") : "";
+
+		let getClickHandler = $.derived(() => {
+			if (tableOptions && tableOptions.clickCallback) {
+				return (value, rowValues, colValues) => {
+					const filters = {};
+
+					for (const i in pivotData.props.cols || []) {
+						const attr = pivotData.props.cols[i];
+
+						if (colValues[i] !== null) {
+							filters[attr] = colValues[i];
+						}
+					}
+
+					for (const i in pivotData.props.rows || []) {
+						const attr = pivotData.props.rows[i];
+
+						if (rowValues[i] !== null) {
+							filters[attr] = rowValues[i];
+						}
+					}
+
+					return (e) => tableOptions.clickCallback?.(e, value, filters, pivotData);
+				};
+			}
+		});
+
+		$$renderer.push(`<table${$.attr_class($.clsx([
+			"pvtTable",
+			grouping() && (pivotData.props.rowGroupBefore ? "rowGroupBefore" : "rowGroupAfter"),
+			grouping() && (pivotData.props.colGroupBefore ? "colGroupBefore" : "colGroupAfter")
+		]))}><thead><!--[-->`);
+
+		const each_array = $.ensure_array_like(pivotData.props.cols);
+
+		for (let j = 0, $$length = each_array.length; j < $$length; j++) {
+			let c = each_array[j];
+			const clickable = grouping() && pivotData.props.cols.length > j + 1;
+			const levelKeys = colKeys().filter((x) => x.length === j + 1);
+
+			$$renderer.push(`<tr>`);
+
+			if (j === 0 && pivotData.props.rows.length !== 0) {
+				$$renderer.push(`<!--[0--><th${$.attr('colspan', pivotData.props.rows.length)}${$.attr('rowspan', pivotData.props.cols.length)}></th>`);
+			} else {
+				$$renderer.push('<!--[-1-->');
+			}
+
+			$$renderer.push(`<!--]--><th${$.attr_class("pvtAxisLabel" + clickClass(clickable, isFolded(levelKeys)))}>${$.escape(c)}</th><!--[-->`);
+
+			const each_array_1 = $.ensure_array_like(colKeys());
+
+			for (let i = 0, $$length = each_array_1.length; i < $$length; i++) {
+				let colKey = each_array_1[i];
+				const xx = spanSize(colKeys(), i, j);
+
+				if (xx !== -1) {
+					$$renderer.push(`<!--[0--><th${$.attr_class("pvtColLabel" + clickClass(clickable && !!colKey[j], isFolded([colKey.slice(0, j + 1)])))}${$.attr('colspan', xx)}${$.attr('rowspan', j === pivotData.props.cols.length - 1 && pivotData.props.rows.length !== 0 ? 2 : 1)}>${$.escape(colKey[j] ?? "")}</th>`);
+				} else {
+					$$renderer.push('<!--[-1-->');
+				}
+
+				$$renderer.push(`<!--]-->`);
+			}
+
+			$$renderer.push(`<!--]-->`);
+
+			if (j === 0) {
+				$$renderer.push(`<!--[0--><th class="pvtTotalLabel"${$.attr('rowspan', pivotData.props.cols.length + (pivotData.props.rows.length === 0 ? 0 : 1))}>Totals</th>`);
+			} else {
+				$$renderer.push('<!--[-1-->');
+			}
+
+			$$renderer.push(`<!--]--></tr>`);
+		}
+
+		$$renderer.push(`<!--]-->`);
+
+		if (pivotData.props.rows.length !== 0) {
+			$$renderer.push(`<!--[0--><tr><!--[-->`);
+
+			const each_array_2 = $.ensure_array_like(pivotData.props.rows);
+
+			for (let i = 0, $$length = each_array_2.length; i < $$length; i++) {
+				let r = each_array_2[i];
+				const clickable = grouping() && pivotData.props.rows.length > i + 1;
+				const levelKeys = rowKeys().filter((x) => x.length === i + 1);
+
+				$$renderer.push(`<th${$.attr_class("pvtAxisLabel" + clickClass(clickable, isFolded(levelKeys)))}>${$.escape(r)}</th>`);
+			}
+
+			$$renderer.push(`<!--]--><th class="pvtTotalLabel">${$.escape(pivotData.props.cols.length === 0 ? "Totals" : "")}</th></tr>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></thead><tbody><!--[-->`);
+
+		const each_array_3 = $.ensure_array_like(rowKeys());
+
+		for (let i = 0, $$length = each_array_3.length; i < $$length; i++) {
+			let rowKey = each_array_3[i];
+			const totalAggregator = pivotData.getAggregator(rowKey, []);
+			const rowGap = pivotData.props.rows.length - rowKey.length;
+			const useCompactRows = grouping() && compactRows;
+
+			$$renderer.push(`<tr${$.attr_class($.clsx(rowGap ? "pvtLevel" + rowGap : "pvtData"))}><!--[-->`);
+
+			const each_array_4 = $.ensure_array_like(rowKey);
+
+			for (let j = 0, $$length = each_array_4.length; j < $$length; j++) {
+				let txt = each_array_4[j];
+				const clickable = grouping() && pivotData.props.rows.length > j + 1;
+				const specialCase = grouping() && !pivotData.props.rowGroupBefore;
+				const xx = useCompactRows ? 1 : spanSize(rowKeys(), i, j, specialCase);
+
+				if (!(useCompactRows && j < rowKey.length - 1 || xx === -1)) {
+					$$renderer.push(`<!--[0--><th${$.attr_class("pvtRowLabel" + clickClass(clickable && !!rowKey[j], isFolded([rowKey.slice(0, j + 1)])))}${$.attr('rowspan', xx)}${$.attr('colspan', useCompactRows
+						? pivotData.props.rows.length + 1
+						: j === pivotData.props.rows.length - 1 && pivotData.props.cols.length !== 0 ? 2 : 1)}${$.attr_style('', {
+						'padding-left': useCompactRows
+							? `calc(var(--pvt-row-padding, 5px) + ${j} * var(--pvt-row-indent, 20px))`
+							: null
+					})}>${$.escape(txt)}</th>`);
+				} else {
+					$$renderer.push('<!--[-1-->');
+				}
+
+				$$renderer.push(`<!--]-->`);
+			}
+
+			$$renderer.push(`<!--]-->`);
+
+			if (!useCompactRows && rowGap) {
+				$$renderer.push(`<!--[0--><th class="pvtRowLabel"${$.attr('colspan', rowGap + 1)}>${$.escape("Total (" + rowKey[rowKey.length - 1] + ")")}</th>`);
+			} else {
+				$$renderer.push('<!--[-1-->');
+			}
+
+			$$renderer.push(`<!--]--><!--[-->`);
+
+			const each_array_5 = $.ensure_array_like(colKeys());
+
+			for (let j = 0, $$length = each_array_5.length; j < $$length; j++) {
+				let colKey = each_array_5[j];
+				const aggregator = pivotData.getAggregator(rowKey, colKey);
+				const colGap = pivotData.props.cols.length - colKey.length;
+
+				$$renderer.push(`<td${$.attr_class("pvtVal" + (colGap ? " pvtLevel" + colGap : ""))}${$.attr_style(colGap || rowGap
+					? ""
+					: valueCellColors(rowKey, colKey, aggregator.value()))}>${$.escape(aggregator.format(aggregator.value()))}</td>`);
+			}
+
+			$$renderer.push(`<!--]--><td class="pvtTotal"${$.attr_style(colTotalColors(totalAggregator.value()))}>${$.escape(totalAggregator.format(totalAggregator.value()))}</td></tr>`);
+		}
+
+		$$renderer.push(`<!--]--><tr><th class="pvtTotalLabel"${$.attr('colspan', pivotData.props.rows.length + (pivotData.props.cols.length === 0 ? 0 : 1))}>Totals</th><!--[-->`);
+
+		const each_array_6 = $.ensure_array_like(colKeys());
+
+		for (let i = 0, $$length = each_array_6.length; i < $$length; i++) {
+			let colKey = each_array_6[i];
+			const totalAggregator = pivotData.getAggregator([], colKey);
+			const colGap = pivotData.props.cols.length - colKey.length;
+
+			$$renderer.push(`<td${$.attr_class("pvtTotal" + (colGap ? " pvtLevel" + colGap : ""))}${$.attr_style(rowTotalColors(totalAggregator.value()))}>${$.escape(totalAggregator.format(totalAggregator.value()))}</td>`);
+		}
+
+		$$renderer.push(`<!--]--><td class="pvtGrandTotal">${$.escape(grandTotalAggregator().format(grandTotalAggregator().value()))}</td></tr></tbody></table>`);
+	});
+}
+=== 366 src/lib/TableRenderer.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `restProps`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 16,
+			"column": 45,
+			"character": 438
+		},
+		"end": {
+			"line": 16,
+			"column": 54,
+			"character": 447
+		}
+	}
+]
+
+=== 1636 src/lib/UI/Aggregators.svelte	js
+import * as $ from 'svelte/internal/server';
+import Dropdown from "./Dropdown.svelte";
+
+export default function Aggregators($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let {
+			onChange,
+			onUpdate,
+			aggregatorName,
+			aggregators,
+			valAttrs,
+			vals
+		} = $$props;
+
+		let numValsAllowed = $.derived(() => aggregators[aggregatorName]([])().numInputs || 0);
+
+		const sortIcons = {
+			key_a_to_z: { rowSymbol: "↕", colSymbol: "↔", next: "value_a_to_z" },
+			value_a_to_z: { rowSymbol: "↓", colSymbol: "→", next: "value_z_to_a" },
+			value_z_to_a: { rowSymbol: "↑", colSymbol: "←", next: "key_a_to_z" }
+		};
+
+		// is it a time to use array.toSpliced(index, 1, value); ?
+		const setAt = (array, index, value) => Object.assign([], array, { [index]: value });
+
+		Dropdown($$renderer, {
+			current: aggregatorName,
+			values: Object.keys(aggregators),
+			onchange: onChange
+		});
+
+		$$renderer.push(`<!---->   `);
+
+		if (numValsAllowed() > 0) {
+			$$renderer.push(`<!--[0--><br/>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> <!--[-->`);
+
+		const each_array = $.ensure_array_like(new Array(numValsAllowed()));
+
+		for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+			let n = each_array[i];
+
+			Dropdown($$renderer, {
+				current: vals[i],
+				values: valAttrs,
+				onchange: (v) => onUpdate(setAt(vals, i, v))
+			});
+
+			$$renderer.push(`<!----> `);
+
+			if (i + 1 !== numValsAllowed()) {
+				$$renderer.push(`<!--[0--><br/>`);
+			} else {
+				$$renderer.push('<!--[-1-->');
+			}
+
+			$$renderer.push(`<!--]-->`);
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}
+=== 1347 src/lib/UI/DnDCell.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onMount } from "svelte";
+import { getSort } from "../Utilities";
+import DraggableAttribute from "./DraggableAttribute.svelte";
+import sortableAttachment from "./SortableAttachment";
+
+export default function DnDCell($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { items, onChange, attrValues, sorters, menuLimit } = $$props;
+
+		const options = {
+			group: "shared",
+			ghostClass: "pvtPlaceholder",
+			filter: ".pvtFilterBox",
+			preventOnFilter: false,
+			revertOnSpill: true, // Enable plugin
+			removeOnSpill: false // Disable plugin
+		};
+
+		function getAttrValues(x) {
+			const values = attrValues[x] ?? {},
+				sorter = getSort(sorters, x);
+
+			return Object.keys(values).sort(sorter);
+		}
+
+		let initialized = false;
+
+		onMount(() => {
+			// onMount is afer the attachments
+			initialized = true;
+		});
+
+		if (!initialized) {
+			$$renderer.push(`<!--[0--><div></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> <!--[-->`);
+
+		const each_array = $.ensure_array_like(items);
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let name = each_array[$$index];
+
+			DraggableAttribute($$renderer, { attrValues: getAttrValues(name), name, menuLimit });
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}
+=== 115 src/lib/UI/Draggable.svelte	css
+
+    .draggable.svelte-4amd0x {
+        user-select: none;
+        cursor: auto;
+        position: relative;
+    }
+
+=== 1032 src/lib/UI/Draggable.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Draggable($$renderer, $$props) {
+	let { children, handle, // query
+	 close, onclose } = $$props;
+	let left = 0;
+	let top = 0;
+	let moving = false;
+
+	function onMouseDown() {
+		moving = true;
+	}
+
+	function onMouseMove(e) {
+		if (moving) {
+			left += e.movementX;
+			top += e.movementY;
+		}
+	}
+
+	function onMouseUp() {
+		moving = false;
+	}
+
+	function init(node) {
+		const handleElem = node.querySelector(handle) ?? node;
+
+		handleElem.addEventListener("mousedown", onMouseDown, true);
+
+		const closeElem = node.querySelector(close);
+
+		closeElem?.addEventListener("click", onclose, true);
+
+		return () => {
+			handleElem.removeEventListener("mousedown", onMouseDown, true);
+			closeElem?.removeEventListener("click", onclose, true);
+		};
+	}
+
+	$$renderer.push(`<section${$.attr_style(`left: ${$.stringify(left)}px; top: ${$.stringify(top)}px;`)} class="draggable svelte-4amd0x" role="presentation">`);
+	children($$renderer);
+	$$renderer.push(`<!----></section>`);
+}
+=== 1175 src/lib/UI/DraggableAttribute.svelte	js
+import * as $ from 'svelte/internal/server';
+import { getContext } from "svelte";
+import Draggable from "./Draggable.svelte";
+import FilterBox from "./FilterBox.svelte";
+
+export default function DraggableAttribute($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { name, attrValues, menuLimit } = $$props;
+		let open = false;
+		let valueFilter = getContext("valueFilter");
+		let is_empty = $.derived(() => valueFilter[name] ? Object.keys(valueFilter[name]).length === 0 : true);
+		const toggleOpen = () => open = !open;
+
+		$$renderer.push(`<li${$.attr('data-id', name)} class="handle"><span${$.attr_class(`pvtAttr ${is_empty() ? "" : "pvtFilteredAttribute"}`)}>${$.escape(name)} <span class="pvtTriangle" role="presentation"> 
+            ▾</span></span> `);
+
+		if (open) {
+			$$renderer.push('<!--[0-->');
+
+			Draggable($$renderer, {
+				handle: '.pvtDragHandle',
+				close: '.pvtCloseX',
+				onclose: toggleOpen,
+				children: ($$renderer) => {
+					FilterBox($$renderer, { name, values: attrValues, menuLimit });
+				},
+				$$slots: { default: true }
+			});
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></li>`);
+	});
+}
+=== 1332 src/lib/UI/Dropdown.svelte	js
+import * as $ from 'svelte/internal/server';
+import { clickOutside } from "./utils";
+
+export default function Dropdown($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { current = void 0, values = [], onchange = undefined } = $$props;
+		let open = false;
+		const toggle = () => open = !open;
+
+		$$renderer.push(`<div class="pvtDropdown"><button${$.attr_class("pvtDropdownValue pvtDropdownCurrent " + (open ? "pvtDropdownCurrentOpen" : ""))}><div class="pvtDropdownIcon">${$.escape(open ? "×" : "▾")}</div> `);
+
+		if (current) {
+			$$renderer.push(`<!--[0-->${$.escape(current)}`);
+		} else {
+			$$renderer.push(`<!--[-1--><span> </span>`);
+		}
+
+		$$renderer.push(`<!--]--></button> `);
+
+		if (open) {
+			$$renderer.push(`<!--[0--><div class="pvtDropdownMenu" style="z-index: 100;"><!--[-->`);
+
+			const each_array = $.ensure_array_like(values);
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let r = each_array[$$index];
+
+				$$renderer.push(`<div role="button"${$.attr_class('pvtDropdownValue', void 0, { 'pvtDropdownActiveValue': r === current })} tabindex="0">${$.escape(r)}</div>`);
+			}
+
+			$$renderer.push(`<!--]--></div>`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+		$.bind_props($$props, { current });
+	});
+}
+=== 2962 src/lib/UI/FilterBox.svelte	js
+import * as $ from 'svelte/internal/server';
+import { getContext } from "svelte";
+
+let zIndexGlobal = 1000;
+
+export default function FilterBox($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { name, values, menuLimit = 500 } = $$props;
+		let globalFilter = getContext("valueFilter");
+		let valueFilter = globalFilter[name] ?? {};
+		let filterText = "";
+		let shown = $.derived(() => values.filter(matchesFilter, filterText)); // filterText only to trigger reactivity
+
+		function toggleValue(value) {
+			value in valueFilter
+				? removeValuesFromFilter([value])
+				: addValuesToFilter([value]);
+		}
+
+		function setValuesInFilter(values) {
+			Object.keys(valueFilter).forEach((key) => delete valueFilter[key]);
+			addValuesToFilter(values);
+
+			// values.forEach((v) => (valueFilter[v] = true));
+		}
+
+		function addValuesToFilter(values) {
+			values.forEach((v) => valueFilter[v] = true);
+			globalFilter[name] = valueFilter;
+		}
+
+		function removeValuesFromFilter(values) {
+			values.forEach((v) => delete valueFilter[v]);
+			globalFilter[name] = valueFilter;
+		}
+
+		function matchesFilter(x) {
+			return x.toLowerCase().trim().includes(filterText.toLowerCase().trim());
+		}
+
+		function selectOnly(ev, value) {
+			ev.preventDefault();
+			ev.stopPropagation();
+			setValuesInFilter(values.filter((y) => y !== value));
+		}
+
+		function select(all) {
+			const func = all ? removeValuesFromFilter : addValuesToFilter;
+
+			return function (ev) {
+				ev.stopPropagation();
+				func(values.filter(matchesFilter));
+			};
+		}
+
+		function init(node) {
+			node.style.zIndex = "" + zIndexGlobal++;
+		}
+
+		$$renderer.push(`<div class="pvtFilterBox"${$.attr_style('', { display: 'block', cursor: 'initial' })}><span class="pvtCloseX">×</span> <span class="pvtDragHandle">☰</span> <h4>${$.escape(name)}</h4> `);
+
+		if (values.length < menuLimit) {
+			$$renderer.push(`<!--[0--><p><input type="text" placeholder="Filter values" class="pvtSearch"${$.attr('value', filterText)}/> <br/> <button class="pvtButton">Select ${$.escape(values.length === shown().length ? "All" : shown().length)}</button>  <button class="pvtButton">Deselect ${$.escape(values.length === shown().length ? "All" : shown().length)}</button></p> <div class="pvtCheckContainer"><!--[-->`);
+
+			const each_array = $.ensure_array_like(shown());
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let x = each_array[$$index];
+
+				$$renderer.push(`<p${$.attr_class($.clsx(x in valueFilter ? "" : "selected"))}><a class="pvtOnly" role="presentation">only</a> <span class="pvtOnlySpacer"> </span> `);
+
+				if (x === "") {
+					$$renderer.push(`<!--[0--><em>null</em>`);
+				} else {
+					$$renderer.push(`<!--[-1-->${$.escape(x)}`);
+				}
+
+				$$renderer.push(`<!--]--></p>`);
+			}
+
+			$$renderer.push(`<!--]--></div>`);
+		} else {
+			$$renderer.push(`<!--[-1--><p>(too many values to show)</p>`);
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+	});
+}
+=== 361 src/lib/UI/FilterBox.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `name`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 13,
+			"column": 42,
+			"character": 325
+		},
+		"end": {
+			"line": 13,
+			"column": 46,
+			"character": 329
+		}
+	}
+]
+
+=== 1698 src/lib/UI/MainTable.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function MainTable($$renderer, $$props) {
+	let {
+		horizUnused,
+		rendererCell,
+		aggregatorCell,
+		outputCell,
+		unusedAttrsCell,
+		colAttrsCell,
+		rowAttrsCell
+	} = $$props;
+
+	if (horizUnused) {
+		$$renderer.push(`<!--[0--><table class="pvtUi"><tbody><tr><td class="pvtRenderers">`);
+		rendererCell($$renderer);
+		$$renderer.push(`<!----></td><td class="pvtAxisContainer pvtUnused pvtHorizList">`);
+		unusedAttrsCell($$renderer);
+		$$renderer.push(`<!----></td></tr><tr><td class="pvtVals">`);
+		aggregatorCell($$renderer);
+		$$renderer.push(`<!----></td><td class="pvtAxisContainer pvtHorizList pvtCols">`);
+		colAttrsCell($$renderer);
+		$$renderer.push(`<!----></td></tr><tr><td class="pvtAxisContainer pvtVertList pvtRows">`);
+		rowAttrsCell($$renderer);
+		$$renderer.push(`<!----></td><td class="pvtOutput">`);
+		outputCell($$renderer);
+		$$renderer.push(`<!----></td></tr></tbody></table>`);
+	} else {
+		$$renderer.push(`<!--[-1--><table class="pvtUi"><tbody><tr><td class="pvtRenderers">`);
+		rendererCell($$renderer);
+		$$renderer.push(`<!----></td><td class="pvtVals">`);
+		aggregatorCell($$renderer);
+		$$renderer.push(`<!----></td><td class="pvtAxisContainer pvtHorizList pvtCols">`);
+		colAttrsCell($$renderer);
+		$$renderer.push(`<!----></td></tr><tr><td class="pvtAxisContainer pvtUnused pvtVertList">`);
+		unusedAttrsCell($$renderer);
+		$$renderer.push(`<!----></td><td class="pvtAxisContainer pvtVertList pvtRows">`);
+		rowAttrsCell($$renderer);
+		$$renderer.push(`<!----></td><td class="pvtOutput">`);
+		outputCell($$renderer);
+		$$renderer.push(`<!----></td></tr></tbody></table>`);
+	}
+
+	$$renderer.push(`<!--]-->`);
+}
+=== 639 src/lib/UI/Plotly.svelte	js
+import * as $ from 'svelte/internal/server';
+
+let Plotly = void 0;
+
+export function initPlotly(module) {
+	Plotly = module;
+}
+
+export default function Plotly_1($$renderer, $$props) {
+	// export const onUpdate = () => {}; // TODO: connect to plotly events
+	let { data, layout, config, onUpdate } = $$props;
+
+	function create(node) {
+		if (Plotly) {
+			Plotly.newPlot(node, data, layout, config);
+
+			return () => Plotly.purge(node);
+		}
+	}
+
+	if (Plotly) {
+		$$renderer.push(`<!--[0--><div></div>`);
+	} else {
+		$$renderer.push(`<!--[-1-->Add commentMore actions <p>Error! Plotly.js not initialized.</p>`);
+	}
+
+	$$renderer.push(`<!--]-->`);
+}
+=== 1508 src/routes/+page.svelte	css
+
+    body {
+        min-height: 1400px;
+        padding-bottom: 20px;
+    }
+    .pvtUi {
+        width: 100%;
+    }
+    p.svelte-1uha8ag,
+    .navbar.svelte-1uha8ag {
+        font-family: "Open Sans", sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+    }
+
+    .navbar.svelte-1uha8ag {
+        margin-bottom: 0;
+    }
+    .jumbotron.svelte-1uha8ag {
+        color: white;
+        background: linear-gradient(27deg, #1e427d 0%, #1d9cfc 100%);
+        text-align: center;
+    }
+
+    .jumbotron.svelte-1uha8ag h1:where(.svelte-1uha8ag) {
+        font-size: 58px;
+        line-height: 60px;
+        font-family: "Dosis", sans-serif;
+    }
+
+    .jumbotron.svelte-1uha8ag p:where(.svelte-1uha8ag) {
+        font-size: 22px;
+        line-height: 36px;
+    }
+
+    /* h2 {
+        font-size: 34px;
+        line-height: 44px;
+        font-family: "Dosis", sans-serif;
+    } */
+
+    .btn-primary.svelte-1uha8ag {
+        background: #119dff;
+        border: 1px solid #119dff;
+    }
+    /* .btn-default {
+        background: #f2f5fa;
+        border: 1px solid #c8d4e3;
+    }
+    .pvtUi {
+        width: 100%;
+    }
+    .pvtVertList {
+        width: 15%;
+    }
+
+    textarea {
+        width: 100%;
+        height: 100px;
+    }
+
+    .dropzone {
+        width: 100%;
+        height: 100px;
+        padding: 10px;
+        border: 2px dashed lightgrey;
+        cursor: pointer;
+    }
+    .dropzoneActive {
+        border: 2px dashed green;
+    }
+    .dropzoneReject {
+        border: 2px dashed red;
+    } */
+
+=== 3903 src/routes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import PivotTableUI from "$lib/PivotTableUI.svelte";
+import PlotlyRenderers from "$lib/PlotlyRenderers";
+import TableRenderers from "$lib/TableRenderers";
+import { derivers } from "$lib/Utilities";
+import { onMount } from "svelte";
+import data from "./_montreal.json";
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let plotlyRenderers = {};
+		let renderers = {};
+
+		onMount(async () => {
+			// plotly.js requires an access to window object
+			// static import in sveltekit causes a problem
+			// const Plotly = await import("plotly.js/dist/plotly");
+			const Plotly = window.Plotly;
+
+			// create Plotly renderers via dependency injection
+			plotlyRenderers = PlotlyRenderers(Plotly);
+
+			// plotlyRenderers = {};
+			renderers = { ...TableRenderers, ...plotlyRenderers };
+		});
+
+		let grouping = true;
+		let compactRows = true;
+		let rowGroupBefore = true;
+		let colGroupBefore = false;
+
+		const derivedAttributes = {
+			"Age Bin": derivers.bin("Age", 10),
+			"Gender Imbalance": function (mp) {
+				return mp["Gender"] == "Male" ? 1 : -1;
+			}
+		};
+
+		let options = {
+			rows: ["Province", "Party"],
+			cols: ["Gender", "Age Bin"],
+			data,
+			derivedAttributes,
+			hiddenFromAggregators: ["Province", "Party"]
+		};
+
+		$.head('1uha8ag', $$renderer, ($$renderer) => {
+			$$renderer.title(($$renderer) => {
+				$$renderer.push(`<title>Svelte pivottable</title>`);
+			});
+
+			$$renderer.push(`<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet"/> <link href="https://fonts.googleapis.com/css?family=Dosis|Open+Sans" rel="stylesheet"/> `);
+			$$renderer.push(`<script src="https://cdn.plot.ly/plotly-basic-latest.min.js"></script>`);
+		});
+
+		$$renderer.push(`<nav class="navbar navbar-inverse navbar-static-top svelte-1uha8ag"><div class="container"><div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><span class="sr-only">Toggle navigation</span> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span></button> <a class="navbar-brand" href="#">svelte-pivottable</a></div> <div id="navbar" class="navbar-collapse collapse"></div></div></nav> <div class="jumbotron svelte-1uha8ag"><div class="container"><h1 class="svelte-1uha8ag">svelte-pivottable</h1> <p class="svelte-1uha8ag">Svelte-based drag'n'drop pivot table with grouping and Plotly.js charts.</p> <p class="svelte-1uha8ag"><a class="btn btn-primary btn-lg svelte-1uha8ag" href="https://github.com/plotly/svelte-pivottable#readme" role="button">Get started »</a></p></div></div> <div class="container"><div class="row text-center"><div class="col-md-2 col-md-offset-3"><label class="checkbox-inline" style="text-transform: capitalize;"><input type="checkbox"${$.attr('checked', grouping, true)}/> Grouping</label></div> <fieldset class="col-md-6"${$.attr('disabled', !grouping, true)}><label class="checkbox-inline" style="text-transform: capitalize;"><input type="checkbox"${$.attr('checked', compactRows, true)}/> Compact Rows</label> <label class="checkbox-inline" style="text-transform: capitalize;"><input type="checkbox"${$.attr('checked', rowGroupBefore, true)}/> Rows totals above</label> <label class="checkbox-inline" style="text-transform: capitalize;"><input type="checkbox"${$.attr('checked', colGroupBefore, true)}/> Cols totals before</label></fieldset> <br/><br/></div> `);
+
+		PivotTableUI($$renderer, $.spread_props([
+			options,
+			{
+				renderers,
+				grouping,
+				compactRows,
+				rowGroupBefore,
+				colGroupBefore,
+				tableOptions: { clickCallback: console.log }
+			}
+		]));
+
+		$$renderer.push(`<!----> <hr/> <footer style="text-align: center"><p class="svelte-1uha8ag">© 2022 Jakub Jagielka</p></footer></div>`);
+	});
+}

@@ -1,10 +1,10 @@
 //! Whether a document is in runes mode, as `svelte-eslint-parser` decides it for its rules.
 
-use rsvelte_svelte::semantic::resolve::RUNE_ROOTS;
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_svelte_semantic::resolve::RUNE_ROOTS;
+use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, TemplateNode,
 };
-use rsvelte_typescript::Kind;
+use rsvelte_typescript_syntax::Kind;
 
 use crate::rule::File;
 

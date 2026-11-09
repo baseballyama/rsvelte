@@ -1,7 +1,7 @@
-use rsvelte_svelte::compilation::compiler_syntax_tree::{ElementKind, MetadataTag};
-use rsvelte_svelte::semantic::input::ComponentInput;
-use rsvelte_svelte::syntax::names::component_name;
-pub(crate) use rsvelte_svelte::syntax::names::sanitize_identifier;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
+use rsvelte_svelte_semantic::input::ComponentInput;
+use rsvelte_svelte_syntax::names::component_name;
+pub(crate) use rsvelte_svelte_syntax::names::sanitize_identifier;
 
 #[derive(Debug)]
 pub struct OutputIdentity {
@@ -13,7 +13,7 @@ pub struct OutputIdentity {
 impl OutputIdentity {
     /// # Errors
     /// The configured hash function failed or returned an invalid CSS identifier.
-    pub fn build_with_configuration(
+    pub(crate) fn build_with_configuration(
         input: &ComponentInput<'_>,
         configuration: &crate::Configuration,
     ) -> Result<Self, rsvelte_plugin_interface::CallError> {

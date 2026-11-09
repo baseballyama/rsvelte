@@ -1,8 +1,8 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript::syntax_tree::TypeScriptKind;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
 use super::javascript::{span, walk};

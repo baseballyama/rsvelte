@@ -2,8 +2,8 @@ use super::{
     Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, PatternContext, R, Slot,
     TypeScriptKind, Unsupported, flag,
 };
-use rsvelte_typescript::SyntaxTree;
-use rsvelte_typescript::syntax_tree::Type;
+use rsvelte_typescript_syntax::SyntaxTree;
+use rsvelte_typescript_syntax::syntax_tree::Type;
 
 impl Formatter<'_> {
     /// Prettier's `printFunction`.
@@ -30,24 +30,33 @@ impl Formatter<'_> {
                 self.syntax_tree.source_location(identifier),
             ));
         }
+        self.refuse_object_return_type(identifier)?;
         let mut parts = Vec::new();
         if is_async {
             parts.push(self.lit("async "));
         }
-        parts.push(self.lit("function "));
+        let generator = self.syntax_tree.flags(identifier) & flag::GENERATOR != 0;
+        parts.push(self.lit(if generator { "function* " } else { "function " }));
         if let Some(n) = name {
             parts.push(self.docs.text(self.syntax_tree.name(n)));
         }
         // `shouldGroupFunctionParameters` needs an object-type or breaking return type; a plain
         // type reference is neither.
-        let ps = self.parameters(parameters)?;
+        let saved = self.in_async;
+        // `await` in a parameter list is an error, async or not.
+        self.in_async = Some(false);
+        let ps = self.parameters(parameters);
+        self.in_async = Some(is_async);
+        let b = ps.and_then(|ps| Ok((ps, self.block(body, true)?)));
+        self.in_async = saved;
+        let (ps, b) = b?;
         let ret = self.type_suffix(
             self.typescript_of(identifier, TypeScriptKind::ReturnType),
             ": ",
         )?;
         parts.push(self.docs.group(&[ps, ret]));
         parts.push(self.lit(" "));
-        parts.push(self.block(body, true)?);
+        parts.push(b);
         Ok(self.cat(&parts))
     }
 
@@ -58,6 +67,14 @@ impl Formatter<'_> {
     ) -> R<LayoutInstructionIdentifier> {
         if parameters.is_empty() {
             return Ok(self.lit("()"));
+        }
+        if let [p] = parameters
+            && self.is_object_type(self.typescript_of(*p, TypeScriptKind::Annotation))
+        {
+            return Err(Unsupported::at(
+                "the only parameter with an object type, which Prettier hugs",
+                self.syntax_tree.source_location(*p),
+            ));
         }
         let hug = self.hug_only_param(parameters);
         let mut printed = Vec::new();
@@ -93,6 +110,31 @@ impl Formatter<'_> {
     }
 
     /// Prettier's `shouldHugTheOnlyFunctionParameter`.
+    /// Whether a type annotation or return type is an object type (`{ … }`), which changes how
+    /// Prettier groups the parameters.
+    pub(super) fn is_object_type(
+        &self,
+        span: Option<rsvelte_kernel::source::positions::Span>,
+    ) -> bool {
+        span.is_some_and(|s| {
+            s.text(self.source_text)
+                .trim_start_matches([':', ' ', '\t', '\n', '\r'])
+                .starts_with('{')
+        })
+    }
+
+    /// Refuses an object return type, with which Prettier groups the parameters differently.
+    pub(super) fn refuse_object_return_type(&self, function: NodeIdentifier) -> R<()> {
+        let ret = self.typescript_of(function, TypeScriptKind::ReturnType);
+        if self.is_object_type(ret) {
+            return Err(Unsupported::at(
+                "an object return type",
+                self.syntax_tree.source_location(function),
+            ));
+        }
+        Ok(())
+    }
+
     pub(super) fn hug_only_param(&self, parameters: &[NodeIdentifier]) -> bool {
         let [p] = parameters else { return false };
         match self.syntax_tree.kind(*p) {
@@ -124,7 +166,7 @@ impl Formatter<'_> {
                 self.syntax_tree.source_location(identifier),
             ));
         };
-        let statements = self.statements(body)?;
+        let statements = self.statements(body, fn_body)?;
         Ok(self.braced(statements, fn_body))
     }
 
@@ -206,6 +248,16 @@ impl Formatter<'_> {
             let inner = self.docs.indent(inner);
             let soft = self.docs.softline();
             let test_doc = self.docs.group(&[inner, soft]);
+            // An operator test is not grouped (`isInsideParenthesis`): once the parentheses break,
+            // every operator breaks, which is not built.
+            let test_doc = if matches!(
+                self.syntax_tree.kind(test),
+                Kind::Binary(..) | Kind::Logical(..)
+            ) {
+                self.docs.flat_only(test_doc)
+            } else {
+                test_doc
+            };
             let open_paren = self.lit("if (");
             let close = self.lit(")");
             let c = self.clause(consequent, false)?;
@@ -259,7 +311,17 @@ impl Formatter<'_> {
                 Ok(self.cat(&[sp, b]))
             }
             _ => {
-                let s = self.statement(body)?;
+                let s = match self.syntax_tree.kind(body) {
+                    // Only a string in a statement list could read as a directive and is wrapped.
+                    Kind::ExpressionStatement(e)
+                        if matches!(self.syntax_tree.kind(e), Kind::String) =>
+                    {
+                        let e = self.expression(e, None, Slot::Statement)?;
+                        let semi = self.lit(";");
+                        self.cat(&[e, semi])
+                    }
+                    _ => self.statement(body)?,
+                };
                 if force_space {
                     let sp = self.lit(" ");
                     Ok(self.cat(&[sp, s]))
@@ -275,12 +337,21 @@ impl Formatter<'_> {
     /// Prettier's `printImportDeclaration`, without import attributes.
     pub(super) fn import(
         &mut self,
+        identifier: NodeIdentifier,
         specifiers: &[NodeIdentifier],
         source: NodeIdentifier,
         type_only: bool,
     ) -> LayoutInstructionIdentifier {
         let mut parts = vec![self.lit(if type_only { "import type" } else { "import" })];
-        if !specifiers.is_empty() {
+        // Prettier keeps written empty braces (`import {} from "x"`), which the tree has no node
+        // for.
+        let empty_braces = specifiers.is_empty()
+            && self.source_text[self.span(identifier).start_offset as usize
+                ..self.span(source).start_offset as usize]
+                .contains('{');
+        if empty_braces {
+            parts.push(self.lit(" {} from"));
+        } else if !specifiers.is_empty() {
             parts.push(self.lit(" "));
             let mut standalone = Vec::new();
             let mut named = Vec::new();
@@ -372,8 +443,16 @@ impl Formatter<'_> {
                 unreachable!("a plain interface member")
             };
             inner.push(self.docs.hardline());
-            if i > 0 && self.blank_line_between(members[i - 1], m) {
-                inner.push(self.docs.hardline());
+            // A member's span ends at its key; its type may run over several lines.
+            if let Some(&previous) = i.checked_sub(1).and_then(|j| members.get(j)) {
+                let end = self
+                    .typescript_of(previous, TypeScriptKind::Annotation)
+                    .map_or_else(|| self.span(previous).end_offset, |t| t.end_offset);
+                let end = self.lines.line_column(end).line;
+                let start = self.lines.line_column(self.span(m).start_offset).line;
+                if start > end + 1 {
+                    inner.push(self.docs.hardline());
+                }
             }
             inner.push(self.docs.text(self.syntax_tree.name(key)));
             if optional {

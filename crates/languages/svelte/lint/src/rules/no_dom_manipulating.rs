@@ -1,7 +1,7 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::semantic::legacy::Variable;
-use rsvelte_svelte::syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
-use rsvelte_typescript::Kind;
+use rsvelte_svelte_semantic::legacy::Variable;
+use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
+use rsvelte_typescript_syntax::Kind;
 use rustc_hash::FxHashSet;
 
 use super::javascript::span;

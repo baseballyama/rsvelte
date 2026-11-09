@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::characters::split_ecmascript_whitespace;
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_stylesheet::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
-use rsvelte_svelte::syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
+use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
+use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
@@ -91,7 +91,7 @@ impl SvelteRule for NoUnusedClassName {
                         for part in component.parts(parts) {
                             if let Part::Text(span) = part {
                                 for name in split_ecmascript_whitespace(
-                                    &rsvelte_markup::decode_attribute(span.text(source)),
+                                    &rsvelte_markup_syntax::decode_attribute(span.text(source)),
                                 ) {
                                     report(name);
                                 }

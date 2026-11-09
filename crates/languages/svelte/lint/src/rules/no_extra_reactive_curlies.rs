@@ -1,8 +1,8 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::TokenType;
-use rsvelte_typescript::Kind;
+use rsvelte_svelte_syntax::syntax_tree::TokenType;
+use rsvelte_typescript_syntax::Kind;
 
 use super::reactive_statements::{between, reactive_statements};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};

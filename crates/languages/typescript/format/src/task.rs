@@ -1,4 +1,5 @@
-use rsvelte_document_printer::{LayoutInstructions, PrintOptions};
+use oxc_formatter::JsFormatOptions;
+use oxc_formatter_core::LineWidth;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
@@ -6,22 +7,20 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::Parsed;
-
-use crate::format;
+use rsvelte_typescript_tree::Parsed;
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "typescript.format",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "typescript",
+        identifier: "typescript.tree",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
 
 pub fn register(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_typescript::register(registry);
+    rsvelte_typescript_tree::register(registry);
     registry.task(Format);
 }
 
@@ -34,46 +33,42 @@ impl Task for Format {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_typescript::matches(document)
+        rsvelte_typescript_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        let program = match context.get::<Parsed>() {
-            Ok(program) => program,
+        let script = match context.get::<Parsed>() {
+            Ok(script) => script,
             Err(error) => {
                 out.diagnostics.push(error.clone());
                 return;
             }
         };
-        let mut docs = LayoutInstructions::new();
-        let mut formatter = format::Formatter::new(
-            &program.syntax_tree,
-            context.source_text(),
-            context.line_index(),
-            &mut docs,
-            format::Options::default(),
-        );
-        match formatter.program(program.root) {
-            Err(unsupported) => out.diagnostics.push(Diagnostic::error(
-                "format_unsupported",
-                format!("not supported by the formatter yet: {}", unsupported.what),
-                unsupported.span(),
+        let program = script.tree.get_program(script.root);
+        match oxc_formatter::format_program(script.tree.allocator(), program, prettier_defaults())
+            .print()
+        {
+            Ok(printed) => out.file(
+                if rsvelte_typescript_syntax::is_typescript(context.document) {
+                    "ts"
+                } else {
+                    "js"
+                },
+                printed.into_code(),
+            ),
+            Err(error) => out.diagnostics.push(Diagnostic::error(
+                "format_failed",
+                error.to_string(),
+                Span::new(0, 0),
             )),
-            Ok(root) => match docs.print(root, &PrintOptions::default()) {
-                Ok(text) => out.file(
-                    if rsvelte_typescript::is_typescript(context.document) {
-                        "ts"
-                    } else {
-                        "js"
-                    },
-                    text,
-                ),
-                Err(_) => out.diagnostics.push(Diagnostic::error(
-                    "format_unsupported",
-                    "not supported by the formatter yet: multiline layout",
-                    Span::new(0, context.source_text().len() as u32),
-                )),
-            },
         }
+    }
+}
+
+/// Prettier's defaults; oxc's differ only in the line width.
+fn prettier_defaults() -> JsFormatOptions {
+    JsFormatOptions {
+        line_width: LineWidth::try_from(80).expect("80 is a valid line width"),
+        ..JsFormatOptions::default()
     }
 }

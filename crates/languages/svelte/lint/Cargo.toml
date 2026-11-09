@@ -15,13 +15,16 @@ rsvelte_lint_runner.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 rustc-hash.workspace = true
-rsvelte_typescript.workspace = true
-rsvelte_svelte.workspace = true
-rsvelte_markup.workspace = true
+rsvelte_typescript_syntax.workspace = true
+rsvelte_typescript_semantic.workspace = true
+rsvelte_svelte_syntax.workspace = true
+rsvelte_svelte_semantic.workspace = true
+rsvelte_markup_syntax.workspace = true
+rsvelte_markup_lint.workspace = true
 regress = { workspace = true, features = ["utf16"] }
 rsvelte_kernel.workspace = true
 rsvelte_typescript_lint.workspace = true
-rsvelte_stylesheet.workspace = true
+rsvelte_stylesheet_syntax.workspace = true
 
 [dev-dependencies]
 rsvelte_test_harness.workspace = true

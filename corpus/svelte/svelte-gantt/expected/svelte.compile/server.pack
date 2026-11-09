@@ -1,0 +1,2561 @@
+# rsvelte pack 1
+=== 102 examples/example-svelte/src/App.svelte	css
+
+    .container.svelte-24d4r1 {
+        display: flex;
+        overflow: auto;
+        flex: 1;
+    }
+
+=== 1993 examples/example-svelte/src/App.svelte	js
+import * as $ from 'svelte/internal/server';
+import Nav from './components/Nav.svelte';
+import { Router, Route, navigate, Link } from "svelte-routing";
+import LargeDataset from './routes/LargeDataset.svelte';
+import Dependencies from './routes/Dependencies.svelte';
+import External from './routes/External.svelte';
+import Events from './routes/Events.svelte';
+import Tree from './routes/Tree.svelte';
+import { writable } from 'svelte/store';
+import { setContext } from 'svelte';
+
+export default function App($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+		let showOptions = false;
+
+		function onToggleOptions() {
+			showOptions = !showOptions;
+		}
+
+		let optionsStream = new writable({});
+
+		function onChangeOptions(event) {
+			const opts = event.detail;
+
+			$.store_set(optionsStream, opts);
+			optionsStream.set(opts);
+			console.log('onChangeOptions', opts);
+		}
+
+		setContext('options', { optionsStream, toggle: new writable(false) });
+
+		function onLoadRoute(event) {
+			navigate(event.detail.url);
+		}
+
+		Nav($$renderer, {});
+		$$renderer.push(`<!----> <div class="container svelte-24d4r1">`);
+
+		Router($$renderer, {
+			basepath: '/svelte-gantt',
+			children: ($$renderer) => {
+				Route($$renderer, { path: '/', component: LargeDataset });
+				$$renderer.push(`<!----> `);
+				Route($$renderer, { path: '/dependencies', component: Dependencies });
+				$$renderer.push(`<!----> `);
+				Route($$renderer, { path: '/tree', component: Tree });
+				$$renderer.push(`<!----> `);
+				Route($$renderer, { path: '/external', component: External });
+				$$renderer.push(`<!----> `);
+				Route($$renderer, { path: '/events', component: Events });
+				$$renderer.push(`<!---->`);
+			},
+			$$slots: { default: true }
+		});
+
+		$$renderer.push(`<!----> `);
+
+		if (showOptions) {
+			$$renderer.push('<!--[0-->');
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--></div>`);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 2262 examples/example-svelte/src/App.svelte	warnings.json
+[
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 43,
+			"column": 24,
+			"character": 1277
+		},
+		"end": {
+			"line": 43,
+			"column": 50,
+			"character": 1303
+		}
+	},
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 44,
+			"column": 36,
+			"character": 1343
+		},
+		"end": {
+			"line": 44,
+			"column": 62,
+			"character": 1369
+		}
+	},
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 45,
+			"column": 28,
+			"character": 1401
+		},
+		"end": {
+			"line": 45,
+			"column": 46,
+			"character": 1419
+		}
+	},
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 46,
+			"column": 32,
+			"character": 1455
+		},
+		"end": {
+			"line": 46,
+			"column": 54,
+			"character": 1477
+		}
+	},
+	{
+		"code": "attribute_quoted",
+		"message": "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+		"start": {
+			"line": 47,
+			"column": 30,
+			"character": 1511
+		},
+		"end": {
+			"line": 47,
+			"column": 50,
+			"character": 1531
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`showOptions` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 12,
+			"column": 8,
+			"character": 490
+		},
+		"end": {
+			"line": 12,
+			"column": 19,
+			"character": 501
+		}
+	}
+]
+
+=== 192 examples/example-svelte/src/routes/Dependencies.svelte	css
+
+    #example-gantt.svelte-13ijps6 {
+        flex-grow: 1;
+        overflow: auto;
+    }
+
+    .container.svelte-13ijps6 {
+        display: flex;
+        overflow: auto;
+        flex: 1;
+    }
+
+=== 3381 examples/example-svelte/src/routes/Dependencies.svelte	js
+import * as $ from 'svelte/internal/server';
+
+import {
+	SvelteGantt,
+	SvelteGanttDependencies,
+	SvelteGanttExternal,
+	SvelteGanttTable,
+	MomentSvelteGanttDateAdapter
+} from 'svelte-gantt';
+
+import { onMount } from 'svelte';
+import { time } from '../utils';
+import moment from 'moment';
+import GanttOptions from '../components/GanttOptions.svelte';
+
+export default function Dependencies($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const currentStart = time('06:00');
+		const currentEnd = time('18:00');
+		const colors = ['blue', 'green', 'orange'];
+
+		const timeRanges = [
+			{
+				id: 0,
+				from: time('10:00'),
+				to: time('12:00'),
+				classes: null,
+				label: 'Lunch'
+			},
+
+			{
+				id: 1,
+				from: time('15:00'),
+				to: time('17:00'),
+				classes: null,
+				label: 'Dinner'
+			}
+		];
+
+		const data = {
+			rows: [
+				{ "id": 1, "label": "Preparation and Planning" },
+				{ "id": 2, "label": "Development" },
+				{ "id": 3, "label": "Implementation" },
+				{ "id": 4, "label": "Training" },
+				{ "id": 5, "label": "Roll-out product" }
+			],
+			tasks: [
+				{
+					"id": 1,
+					"resourceId": 1,
+					"label": "Preparation",
+					"from": time("7:00"),
+					"to": time("9:00"),
+					"classes": "orange"
+				},
+
+				{
+					"id": 2,
+					"resourceId": 1,
+					"label": "Planning",
+					"from": time("9:30"),
+					"to": time("11:00"),
+					"classes": "orange"
+				},
+
+				{
+					"id": 3,
+					"resourceId": 2,
+					"label": "Development",
+					"from": time("12:00"),
+					"to": time("13:30"),
+					"classes": "orange"
+				},
+
+				{
+					"id": 4,
+					"resourceId": 3,
+					"label": "Implementation",
+					"from": time("13:45"),
+					"to": time("15:45"),
+					"classes": "orange"
+				},
+
+				{
+					"id": 5,
+					"resourceId": 5,
+					"label": "Finish",
+					"from": time("17:00"),
+					"to": time("17:45"),
+					"classes": "green"
+				},
+
+				{
+					"id": 6,
+					"resourceId": 4,
+					"label": "Training",
+					"from": time("7:00"),
+					"to": time("10:00"),
+					"classes": "blue"
+				}
+			],
+			dependencies: [
+				{ id: 1, fromId: 1, toId: 2 },
+				{ id: 2, fromId: 2, toId: 3 },
+				{ id: 3, fromId: 3, toId: 4 },
+				{ id: 4, fromId: 4, toId: 5 },
+				{ id: 5, fromId: 6, toId: 5 }
+			]
+		};
+
+		let options = {
+			dateAdapter: new MomentSvelteGanttDateAdapter(moment),
+			rows: data.rows,
+			tasks: data.tasks,
+			dependencies: data.dependencies,
+			timeRanges,
+			columnOffset: 15,
+			magnetOffset: 15,
+			rowHeight: 52,
+			rowPadding: 6,
+			headers: [
+				{ unit: 'day', format: 'MMMM Do' },
+				{ unit: 'hour', format: 'H:mm' }
+			],
+			fitWidth: true,
+			minWidth: 800,
+			from: currentStart,
+			to: currentEnd,
+			tableHeaders: [
+				{ title: 'Label', property: 'label', width: 140, type: 'tree' }
+			],
+			tableWidth: 240,
+			ganttTableModules: [SvelteGanttTable],
+			ganttBodyModules: [SvelteGanttDependencies]
+		};
+
+		let gantt;
+
+		onMount(() => {
+			window.gantt = gantt = new SvelteGantt({
+				target: document.getElementById('example-gantt'),
+				props: options
+			});
+		});
+
+		function onChangeOptions(event) {
+			const opts = event.detail;
+
+			Object.assign(options, opts);
+			gantt.$set(options);
+		}
+
+		$$renderer.push(`<div class="container svelte-13ijps6"><div id="example-gantt" class="svelte-13ijps6"></div> `);
+		GanttOptions($$renderer, { options });
+		$$renderer.push(`<!----></div>`);
+		$.bind_props($$props, { data });
+	});
+}
+=== 413 examples/example-svelte/src/routes/Events.svelte	css
+
+    #example-gantt-events.svelte-1fgffx2 {
+        flex-grow: 1;
+        overflow: auto;
+    }
+
+    .container.svelte-1fgffx2 {
+        display: flex;
+        overflow: auto;
+        flex: 1;
+    }
+
+    #example-gantt-events.svelte-1fgffx2 .sg-hover {
+        background-color: #00000008;
+    }
+
+    #example-gantt-events.svelte-1fgffx2 .sg-hover .sg-table-body-cell {
+        background-color: #00000008;
+    }
+
+=== 5323 examples/example-svelte/src/routes/Events.svelte	js
+import * as $ from 'svelte/internal/server';
+
+import {
+	SvelteGantt,
+	SvelteGanttDependencies,
+	SvelteGanttExternal,
+	SvelteGanttTable,
+	MomentSvelteGanttDateAdapter
+} from 'svelte-gantt';
+
+import { onMount, getContext } from 'svelte';
+import { time } from '../utils';
+import moment from 'moment';
+import GanttOptions from '../components/GanttOptions.svelte';
+
+export default function Events($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const currentStart = time('06:00');
+		const currentEnd = time('18:00');
+
+		const data = {
+			rows: [
+				{ id: 1, label: "Accounting" },
+				{ id: 2, label: "Business Development" },
+				{ id: 3, label: "Ida Flewan" },
+				{ id: 4, label: "Lauréna Shrigley" },
+				{ id: 5, label: "Ange Kembry" }
+			],
+			tasks: [
+				{
+					id: 3,
+					resourceId: 1,
+					label: "PET-CT",
+					from: time("13:30"),
+					to: time("15:00"),
+					classes: "orange"
+				},
+
+				{
+					id: 4,
+					resourceId: 1,
+					label: "Auditing",
+					from: time("9:30"),
+					to: time("11:30"),
+					classes: "orange"
+				},
+
+				{
+					id: 5,
+					resourceId: 2,
+					label: "Security Clearance",
+					from: time("15:15"),
+					to: time("16:00"),
+					classes: "green"
+				},
+
+				{
+					id: 6,
+					resourceId: 2,
+					label: "Policy Analysis",
+					from: time("14:00"),
+					to: time("17:00"),
+					classes: "blue"
+				},
+
+				{
+					id: 7,
+					resourceId: 2,
+					label: "Xbox 360",
+					from: time("13:00"),
+					to: time("14:00"),
+					classes: "blue"
+				},
+
+				{
+					id: 8,
+					resourceId: 3,
+					label: "GNU/Linux",
+					from: time("14:00"),
+					to: time("15:30"),
+					classes: "blue"
+				},
+
+				{
+					id: 9,
+					resourceId: 4,
+					label: "Electronic Trading",
+					from: time("15:00"),
+					to: time("17:00"),
+					classes: "green"
+				},
+
+				{
+					id: 10,
+					resourceId: 5,
+					label: "Alternative Medicine",
+					from: time("14:30"),
+					to: time("15:30"),
+					classes: "orange"
+				}
+			],
+			dependencies: []
+		};
+
+		let options = {
+			dateAdapter: new MomentSvelteGanttDateAdapter(moment),
+			rows: data.rows,
+			tasks: data.tasks,
+			dependencies: data.dependencies,
+			timeRanges: [],
+			columnOffset: 15,
+			magnetOffset: 15,
+			rowHeight: 52,
+			rowPadding: 6,
+			headers: [
+				{ unit: 'day', format: 'MMMM Do' },
+				{ unit: 'hour', format: 'H:mm' }
+			],
+			fitWidth: true,
+			minWidth: 800,
+			from: currentStart,
+			to: currentEnd,
+			tableHeaders: [
+				{ title: 'Label', property: 'label', width: 140, type: 'tree' }
+			],
+			tableWidth: 240,
+			ganttTableModules: [SvelteGanttTable],
+			ganttBodyModules: [SvelteGanttDependencies],
+			taskElementHook: (node, task) => {
+				let popup;
+
+				function onHover() {
+					console.log('[task] hover', task);
+					popup = createPopup(task, node);
+				}
+
+				function onLeave() {
+					console.log('[task] hover', task);
+
+					if (popup) {
+						popup.remove();
+					}
+				}
+
+				node.addEventListener('mouseenter', onHover);
+				node.addEventListener('mouseleave', onLeave);
+
+				return {
+					destroy() {
+						console.log('[task] destroy');
+						node.removeEventListener('mouseenter', onHover);
+						node.removeEventListener('mouseleave', onLeave);
+					}
+				};
+			}
+
+			// taskContent: (task) => `${task.label} ${task.from.format('HH:mm')}`
+		};
+
+		let gantt;
+
+		onMount(() => {
+			window.gantt = gantt = new SvelteGantt({
+				target: document.getElementById('example-gantt-events'),
+				props: options
+			});
+
+			gantt.api.tasks.on.move((task) => console.log('Listener: task move', task));
+
+			//gantt.api.tasks.on.switchRow((task, row, previousRow) => console.log('Listener: task switched row', task));
+			gantt.api.tasks.on.select((task) => console.log('Listener: task selected', task));
+
+			//gantt.api.tasks.on.moveEnd((task) => console.log('Listener: task move end', task));
+			gantt.api.tasks.on.change(([data]) => console.log('Listener: task change', data));
+
+			gantt.api.tasks.on.changed((task) => console.log('Listener: task changed', task));
+			gantt.api.tasks.on.dblclicked((task) => console.log('Listener: task double clicked', task));
+		});
+
+		function createPopup(task, node) {
+			const rect = node.getBoundingClientRect();
+			const div = document.createElement('div');
+
+			div.className = 'sg-popup';
+
+			div.innerHTML = `
+            <div class="sg-popup-title">${task.label}</div>
+            <div class="sg-popup-item">
+                <div class="sg-popup-item-label">From:</div>
+                <div class="sg-popup-item-value">${new Date(task.from).toLocaleTimeString()}</div>
+            </div>
+            <div class="sg-popup-item">
+                <div class="sg-popup-item-label">To:</div>
+                <div class="sg-popup-item-value">${new Date(task.to).toLocaleTimeString()}</div>
+            </div>
+        `;
+
+			div.style.position = 'absolute';
+			div.style.top = `${rect.bottom}px`;
+			div.style.left = `${rect.left + rect.width / 2}px`;
+			document.body.appendChild(div);
+
+			return div;
+		}
+
+		function onChangeOptions(event) {
+			const opts = event.detail;
+
+			Object.assign(options, opts);
+			gantt.$set(options);
+		}
+
+		$$renderer.push(`<div class="container svelte-1fgffx2"><div id="example-gantt-events" class="svelte-1fgffx2"></div> `);
+		GanttOptions($$renderer, { options });
+		$$renderer.push(`<!----></div>`);
+		$.bind_props($$props, { data });
+	});
+}
+=== 441 examples/example-svelte/src/routes/External.svelte	css
+
+    #example-gantt.svelte-1l4gkqo {
+        flex-grow: 1;
+        overflow: auto;
+    }
+
+    .container.svelte-1l4gkqo {
+        display: flex;
+        overflow: auto;
+        flex: 1;
+    }
+
+    #new-task.svelte-1l4gkqo {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        z-index: 1;
+        background-color: #ee6e73;
+        color: white;
+        padding: 1rem;
+        margin: 0.5rem;
+        cursor: grab;
+    }
+
+=== 3968 examples/example-svelte/src/routes/External.svelte	js
+import * as $ from 'svelte/internal/server';
+
+import {
+	SvelteGantt,
+	SvelteGanttDependencies,
+	SvelteGanttExternal,
+	SvelteGanttTable,
+	MomentSvelteGanttDateAdapter
+} from 'svelte-gantt';
+
+import { onMount, getContext } from 'svelte';
+import { time } from '../utils';
+import moment from 'moment';
+import GanttOptions from '../components/GanttOptions.svelte';
+
+export default function External($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const currentStart = time('06:00');
+		const currentEnd = time('18:00');
+		const colors = ['blue', 'green', 'orange'];
+		let options2 = getContext('options');
+
+		const data = {
+			rows: [
+				{ id: 1, label: "Accounting" },
+				{ id: 2, label: "Business Development" },
+				{ id: 3, label: "Ida Flewan" },
+				{ id: 4, label: "Lauréna Shrigley" },
+				{ id: 5, label: "Ange Kembry" }
+			],
+			tasks: [
+				{
+					id: 3,
+					resourceId: 1,
+					label: "PET-CT",
+					from: time("13:30"),
+					to: time("15:00"),
+					classes: "orange"
+				},
+
+				{
+					id: 4,
+					resourceId: 1,
+					label: "Auditing",
+					from: time("9:30"),
+					to: time("11:30"),
+					classes: "orange"
+				},
+
+				{
+					id: 5,
+					resourceId: 2,
+					label: "Security Clearance",
+					from: time("15:15"),
+					to: time("16:00"),
+					classes: "green"
+				},
+
+				{
+					id: 6,
+					resourceId: 2,
+					label: "Policy Analysis",
+					from: time("14:00"),
+					to: time("17:00"),
+					classes: "blue"
+				},
+
+				{
+					id: 7,
+					resourceId: 2,
+					label: "Xbox 360",
+					from: time("13:00"),
+					to: time("14:00"),
+					classes: "blue"
+				},
+
+				{
+					id: 8,
+					resourceId: 3,
+					label: "GNU/Linux",
+					from: time("14:00"),
+					to: time("15:30"),
+					classes: "blue"
+				},
+
+				{
+					id: 9,
+					resourceId: 4,
+					label: "Electronic Trading",
+					from: time("15:00"),
+					to: time("17:00"),
+					classes: "green"
+				},
+
+				{
+					id: 10,
+					resourceId: 5,
+					label: "Alternative Medicine",
+					from: time("14:30"),
+					to: time("15:30"),
+					classes: "orange"
+				}
+			],
+			dependencies: []
+		};
+
+		let options = {
+			dateAdapter: new MomentSvelteGanttDateAdapter(moment),
+			rows: data.rows,
+			tasks: data.tasks,
+			dependencies: data.dependencies,
+			timeRanges: [],
+			columnOffset: 15,
+			magnetOffset: 15,
+			rowHeight: 52,
+			rowPadding: 6,
+			headers: [
+				{ unit: 'day', format: 'MMMM Do' },
+				{ unit: 'hour', format: 'H:mm' }
+			],
+			fitWidth: true,
+			minWidth: 800,
+			from: currentStart,
+			to: currentEnd,
+			tableHeaders: [
+				{ title: 'Label', property: 'label', width: 140, type: 'tree' }
+			],
+			tableWidth: 240,
+			ganttTableModules: [SvelteGanttTable],
+			ganttBodyModules: [SvelteGanttDependencies]
+		};
+
+		let gantt;
+
+		onMount(() => {
+			window.gantt = gantt = new SvelteGantt({
+				target: document.getElementById('example-gantt'),
+				props: options
+			});
+
+			const external = new SvelteGanttExternal(document.getElementById('new-task'), {
+				gantt,
+				onsuccess: (row, date, gantt) => {
+					console.log(row.model.id, new Date(date).toISOString());
+
+					const id = 5000 + Math.floor(Math.random() * 1000);
+
+					gantt.updateTask({
+						id,
+						label: `Task #${id}`,
+						from: date,
+						to: date + 3 * 60 * 60 * 1000,
+						classes: colors[Math.random() * colors.length | 0],
+						resourceId: row.model.id
+					});
+				},
+
+				elementContent: () => {
+					const element = document.createElement('div');
+
+					element.innerHTML = 'New Task';
+					element.className = 'sg-external-indicator';
+
+					return element;
+				}
+			});
+		});
+
+		function onChangeOptions(event) {
+			const opts = event.detail;
+
+			Object.assign(options, opts);
+			gantt.$set(options);
+		}
+
+		$$renderer.push(`<div class="container svelte-1l4gkqo"><div id="example-gantt" class="svelte-1l4gkqo"></div> <div id="new-task" class="svelte-1l4gkqo">Drag to gantt</div> `);
+		GanttOptions($$renderer, { options });
+		$$renderer.push(`<!----></div>`);
+		$.bind_props($$props, { data });
+	});
+}
+=== 190 examples/example-svelte/src/routes/LargeDataset.svelte	css
+
+    #example-gantt.svelte-f3hdr2 {
+        flex-grow: 1;
+        overflow: auto;
+    }
+
+    .container.svelte-f3hdr2 {
+        display: flex;
+        overflow: auto;
+        flex: 1;
+    }
+
+=== 2975 examples/example-svelte/src/routes/LargeDataset.svelte	js
+import * as $ from 'svelte/internal/server';
+import { SvelteGantt, SvelteGanttTable, MomentSvelteGanttDateAdapter } from 'svelte-gantt';
+import { onMount } from 'svelte';
+import { time } from '../utils';
+import moment from 'moment';
+import GanttOptions from '../components/GanttOptions.svelte';
+
+export default function LargeDataset($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const currentStart = time('06:00');
+		const currentEnd = time('18:00');
+		let generation = 0;
+		let rowCount = 100;
+		const colors = ['blue', 'green', 'orange'];
+
+		const timeRanges = [
+			{
+				id: 0,
+				from: time('10:00'),
+				to: time('12:00'),
+				classes: null,
+				label: 'Lunch'
+			},
+
+			{
+				id: 1,
+				from: time('15:00'),
+				to: time('17:00'),
+				classes: null,
+				label: 'Dinner'
+			}
+		];
+
+		const data = generate();
+
+		let options = {
+			dateAdapter: new MomentSvelteGanttDateAdapter(moment),
+			rows: data.rows,
+			tasks: data.tasks,
+			timeRanges,
+			columnOffset: 15,
+			magnetOffset: 15,
+			rowHeight: 52,
+			rowPadding: 6,
+			headers: [
+				{ unit: 'day', format: 'MMMM Do' },
+				{ unit: 'hour', format: 'H:mm' }
+			],
+			fitWidth: true,
+			minWidth: 800,
+			from: currentStart,
+			to: currentEnd,
+			tableHeaders: [
+				{ title: 'Label', property: 'label', width: 140, type: 'tree' }
+			],
+			tableWidth: 240,
+			ganttTableModules: [SvelteGanttTable]
+		};
+
+		let gantt;
+
+		onMount(() => {
+			window.gantt = gantt = new SvelteGantt({
+				target: document.getElementById('example-gantt'),
+				props: options
+			});
+		});
+
+		function shuffle(array) {
+			for (var i = array.length - 1; i > 0; i--) {
+				var j = Math.floor(Math.random() * (i + 1));
+				var temp = array[i];
+
+				array[i] = array[j];
+				array[j] = temp;
+			}
+		}
+
+		function generate() {
+			const rows = [];
+			const tasks = [];
+			const ids = [...Array(rowCount).keys()];
+
+			shuffle(ids);
+
+			for (let i = 0; i < rowCount; i++) {
+				let rand_bool = Math.random() < 0.2;
+
+				rows.push({
+					id: i,
+					label: 'Row #' + i,
+					age: Math.random() * 80 | 0,
+					imageSrc: 'Content/joe.jpg',
+					classes: rand_bool ? ['row-disabled'] : undefined,
+					enableDragging: !rand_bool,
+					generation
+				});
+
+				rand_bool = Math.random() > 0.5;
+
+				const rand_h = Math.random() * 10 | 0;
+				const rand_d = Math.random() * 5 | 0 + 1;
+
+				tasks.push({
+					type: 'task',
+					id: ids[i],
+					resourceId: i,
+					label: 'Task #' + ids[i],
+					from: time(`${7 + rand_h}:00`),
+					to: time(`${7 + rand_h + rand_d}:00`),
+					classes: colors[Math.random() * colors.length | 0],
+					generation
+				});
+			}
+
+			generation += 1;
+
+			return { rows, tasks };
+		}
+
+		function onChangeOptions(event) {
+			const opts = event.detail;
+
+			Object.assign(options, opts);
+			gantt.$set(options);
+		}
+
+		$$renderer.push(`<div class="container svelte-f3hdr2"><div id="example-gantt" class="svelte-f3hdr2"></div> `);
+		GanttOptions($$renderer, { options });
+		$$renderer.push(`<!----></div>`);
+	});
+}
+=== 190 examples/example-svelte/src/routes/Tree.svelte	css
+
+    #example-gantt.svelte-noqqtx {
+        flex-grow: 1;
+        overflow: auto;
+    }
+
+    .container.svelte-noqqtx {
+        display: flex;
+        overflow: auto;
+        flex: 1;
+    }
+
+=== 4388 examples/example-svelte/src/routes/Tree.svelte	js
+import * as $ from 'svelte/internal/server';
+
+import {
+	SvelteGantt,
+	SvelteGanttDependencies,
+	SvelteGanttExternal,
+	SvelteGanttTable,
+	MomentSvelteGanttDateAdapter
+} from 'svelte-gantt';
+
+import { onMount, getContext } from 'svelte';
+import { time } from '../utils';
+import moment from 'moment';
+import GanttOptions from '../components/GanttOptions.svelte';
+
+export default function Tree($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const currentStart = time('06:00');
+		const currentEnd = time('18:00');
+		const colors = ['blue', 'green', 'orange'];
+
+		const timeRanges = [
+			{
+				id: 0,
+				from: time('10:00'),
+				to: time('12:00'),
+				classes: null,
+				label: 'Lunch'
+			},
+
+			{
+				id: 1,
+				from: time('15:00'),
+				to: time('17:00'),
+				classes: null,
+				label: 'Dinner'
+			}
+		];
+
+		let options2 = getContext('options');
+
+		const data = {
+			rows: [
+				{
+					id: 10,
+					label: "Accounting",
+					class: 'row-group',
+					iconClass: 'fas fa-calculator',
+					children: [
+						{ id: 11, label: "Petunia Mulliner" },
+						{ id: 12, label: "Mélina Giacovetti" },
+						{ id: 13, label: "Marlène Lasslett" },
+						{ id: 14, label: "Adda Youell" }
+					]
+				},
+
+				{
+					id: 20,
+					label: "Business Development",
+					class: 'row-group',
+					iconClass: 'fas fa-user-tie',
+					children: [
+						{ id: 21, label: "Pietra Fallow" },
+						{ id: 22, label: "Mariellen Torbard" },
+						{ id: 23, label: "Renate Humbee" }
+					]
+				},
+				{ id: 3, label: "Ida Flewan" },
+				{ id: 4, label: "Lauréna Shrigley" },
+				{ id: 5, label: "Ange Kembry" }
+			],
+			tasks: [
+				{
+					"id": 1,
+					"resourceId": 11,
+					"label": "LPCVD",
+					"from": time("9:00"),
+					"to": time("11:00"),
+					"classes": "orange"
+				},
+
+				{
+					"id": 2,
+					"resourceId": 12,
+					"label": "Entrepreneurship",
+					"from": time("10:00"),
+					"to": time("12:30"),
+					"classes": "orange"
+				},
+
+				{
+					"id": 3,
+					"resourceId": 13,
+					"label": "PET-CT",
+					"from": time("13:30"),
+					"to": time("15:00"),
+					"classes": "orange"
+				},
+
+				{
+					"id": 4,
+					"resourceId": 14,
+					"label": "Auditing",
+					"from": time("9:30"),
+					"to": time("11:30"),
+					"classes": "orange"
+				},
+
+				{
+					"id": 5,
+					"resourceId": 21,
+					"label": "Security Clearance",
+					"from": time("15:15"),
+					"to": time("16:00"),
+					"classes": "green"
+				},
+
+				{
+					"id": 6,
+					"resourceId": 22,
+					"label": "Policy Analysis",
+					"from": time("14:00"),
+					"to": time("17:00"),
+					"classes": "blue"
+				},
+
+				{
+					"id": 7,
+					"resourceId": 23,
+					"label": "Xbox 360",
+					"from": time("13:30"),
+					"to": time("14:30"),
+					"classes": "blue"
+				},
+
+				{
+					"id": 8,
+					"resourceId": 3,
+					"label": "GNU/Linux",
+					"from": time("14:00"),
+					"to": time("15:30"),
+					"classes": "blue"
+				},
+
+				{
+					"id": 9,
+					"resourceId": 4,
+					"label": "Electronic Trading",
+					"from": time("15:00"),
+					"to": time("17:00"),
+					"classes": "green"
+				},
+
+				{
+					"id": 10,
+					"resourceId": 5,
+					"label": "Alternative Medicine",
+					"from": time("14:30"),
+					"to": time("15:30"),
+					"classes": "orange"
+				}
+			],
+			dependencies: []
+		};
+
+		let options = {
+			dateAdapter: new MomentSvelteGanttDateAdapter(moment),
+			rows: data.rows,
+			tasks: data.tasks,
+			dependencies: data.dependencies,
+			timeRanges,
+			columnOffset: 15,
+			magnetOffset: 15,
+			rowHeight: 52,
+			rowPadding: 6,
+			headers: [
+				{ unit: 'day', format: 'MMMM Do' },
+				{ unit: 'hour', format: 'H:mm' }
+			],
+			fitWidth: true,
+			minWidth: 800,
+			from: currentStart,
+			to: currentEnd,
+			tableHeaders: [
+				{ title: 'Label', property: 'label', width: 140, type: 'tree' }
+			],
+			tableWidth: 240,
+			ganttTableModules: [SvelteGanttTable],
+			ganttBodyModules: [SvelteGanttDependencies]
+		};
+
+		let gantt;
+
+		onMount(() => {
+			window.gantt = gantt = new SvelteGantt({
+				target: document.getElementById('example-gantt'),
+				props: options
+			});
+		});
+
+		function onChangeOptions(event) {
+			const opts = event.detail;
+
+			Object.assign(options, opts);
+			gantt.$set(options);
+		}
+
+		$$renderer.push(`<div class="container svelte-noqqtx"><div id="example-gantt" class="svelte-noqqtx"></div> `);
+		GanttOptions($$renderer, { options });
+		$$renderer.push(`<!----></div>`);
+		$.bind_props($$props, { data });
+	});
+}
+=== 1564 examples/example-sveltekit/src/routes/+layout.svelte	css
+
+    button.svelte-poj9ve, input[type=button].svelte-poj9ve{
+        border: transparent;
+        font-size: 14px;
+        font-weight: 300;
+        padding: 6px 12px;
+        background: #cc595e;
+        color: #ffffff;
+        cursor: pointer;
+        transition: background 0.2s;
+        outline: none;
+    }
+    
+    button.svelte-poj9ve:hover, input[type=button].svelte-poj9ve:hover {
+        background-color: #b14d51;
+    }
+    
+    button.svelte-poj9ve:active, input[type=button].svelte-poj9ve:active{
+        background-color: #9d4548;
+    }
+    
+    .header.svelte-poj9ve {
+        display: flex;
+        padding: 16px;
+        background: #ee6e73;
+    }
+    
+    @media only screen and (max-width: 900px) {
+        .header.svelte-poj9ve {
+            flex-direction: column;
+        }
+    
+        .header-title.svelte-poj9ve {
+            justify-content: center;
+            margin-bottom: 6px;
+        }
+    
+        .header-controls.svelte-poj9ve {
+            justify-content: center;
+        }
+    }
+    
+    .header-title.svelte-poj9ve {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        font-size: 36px;
+        padding: 0 16px;
+    }
+    
+    .header-title.svelte-poj9ve a:where(.svelte-poj9ve) {
+        color: #ffffff;
+        text-decoration: none;
+    }
+    
+    .header-controls.svelte-poj9ve {
+        display: flex;
+        align-items: center;
+    }
+    
+    .header.svelte-poj9ve button:where(.svelte-poj9ve), .header.svelte-poj9ve input[type=button]:where(.svelte-poj9ve) {
+        margin-right: 4px;
+    }
+
+=== 1410 examples/example-sveltekit/src/routes/+layout.svelte	js
+import * as $ from 'svelte/internal/server';
+import './../gantt-default.css';
+import { showOptions, setView, moveView } from './../stores/store';
+
+export default function _layout($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+
+		$$renderer.push(`<header class="header svelte-poj9ve"><div class="header-title svelte-poj9ve"><a href="https://github.com/ANovokmet/svelte-gantt" class="svelte-poj9ve">Svelte-gantt</a></div> <div class="header-controls svelte-poj9ve"><a href="/"><button type="button" class="svelte-poj9ve">LargeDataset</button></a> <a href="/dependencies"><button type="button" class="svelte-poj9ve">Dependencies</button></a> <a href="/tree"><button type="button" class="svelte-poj9ve">Tree</button></a> <a href="/external"><button type="button" class="svelte-poj9ve">External</button></a> <a href="/events"><button type="button" class="svelte-poj9ve">Events</button></a> <input type="button" value="&lt;" class="svelte-poj9ve"/> <button type="button" value="Day view" class="svelte-poj9ve">Day view</button> <input type="button" value=">" class="svelte-poj9ve"/> <button type="button" value="Week view" class="svelte-poj9ve">Week view</button> <button class="svelte-poj9ve">|||</button></div></header> <!--[-->`);
+		$.slot($$renderer, $$props, 'default', {}, null);
+		$$renderer.push(`<!--]-->`);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 2098 examples/example-sveltekit/src/routes/+layout.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 17,
+			"column": 39,
+			"character": 697
+		},
+		"end": {
+			"line": 17,
+			"column": 80,
+			"character": 738
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 18,
+			"column": 47,
+			"character": 788
+		},
+		"end": {
+			"line": 18,
+			"column": 83,
+			"character": 824
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 19,
+			"column": 39,
+			"character": 882
+		},
+		"end": {
+			"line": 19,
+			"column": 80,
+			"character": 923
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 20,
+			"column": 48,
+			"character": 974
+		},
+		"end": {
+			"line": 20,
+			"column": 84,
+			"character": 1010
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 21,
+			"column": 16,
+			"character": 1046
+		},
+		"end": {
+			"line": 21,
+			"column": 64,
+			"character": 1094
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 24,
+			"column": 0,
+			"character": 1129
+		},
+		"end": {
+			"line": 24,
+			"column": 13,
+			"character": 1142
+		}
+	}
+]
+
+=== 1148 packages/demo/src/routes/+layout.svelte	css
+
+    .app.svelte-dngl6v {
+        display: flex;
+        flex-direction: column;
+        overflow: auto;
+        height: 100%;
+    }
+    
+    .header.svelte-dngl6v {
+        display: flex;
+        padding: 16px;
+        background: #ee6e73;
+    }
+    
+    @media only screen and (max-width: 900px) {
+        .header.svelte-dngl6v {
+            flex-direction: column;
+        }
+    
+        .header-title.svelte-dngl6v {
+            justify-content: center;
+            margin-bottom: 6px;
+        }
+    
+        .header-controls.svelte-dngl6v {
+            justify-content: center;
+        }
+    }
+    
+    .header-title.svelte-dngl6v {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        font-size: 36px;
+        padding: 0 16px;
+    }
+    
+    .header-title.svelte-dngl6v a:where(.svelte-dngl6v) {
+        color: #ffffff;
+        text-decoration: none;
+    }
+    
+    .header-controls.svelte-dngl6v {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .header.svelte-dngl6v button:where(.svelte-dngl6v) /* (unused) .header input[type=button]*/ {
+        margin-right: 4px;
+    }
+
+=== 2528 packages/demo/src/routes/+layout.svelte	js
+import * as $ from 'svelte/internal/server';
+import '../gantt-default.css';
+import '../main.css';
+import { showOptions, options } from './../stores/store';
+import GanttViewNavigation from '../components/GanttViewNavigation.svelte';
+import { base } from '$app/paths';
+
+export default function _layout($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var $$store_subs;
+
+		function onUpdateOptions(event) {
+			const opts = event.detail;
+
+			console.log('onUpdateOptions', opts);
+
+			$.store_set(options, {
+				...$.store_get($$store_subs ??= {}, '$options', options),
+				...opts
+			});
+		}
+
+		$$renderer.push(`<div class="app svelte-dngl6v"><header class="header svelte-dngl6v"><div class="header-title svelte-dngl6v"><a href="https://github.com/ANovokmet/svelte-gantt" class="svelte-dngl6v">Svelte-gantt</a></div> <div class="header-controls svelte-dngl6v"><div class="header-controls__row"><a${$.attr('href', `${$.stringify(base)}/large-dataset`)}><button type="button" class="svelte-dngl6v">LargeDataset</button></a> <a${$.attr('href', `${$.stringify(base)}/dependencies`)}><button type="button" class="svelte-dngl6v">Dependencies</button></a> <a${$.attr('href', `${$.stringify(base)}/tree`)}><button type="button" class="svelte-dngl6v">Tree</button></a> <a${$.attr('href', `${$.stringify(base)}/external`)}><button type="button" class="svelte-dngl6v">External</button></a> <a${$.attr('href', `${$.stringify(base)}/events`)}><button type="button" class="svelte-dngl6v">Events</button></a> <a${$.attr('href', `${$.stringify(base)}/multiple-charts`)}><button type="button" class="svelte-dngl6v">Multiple gantt</button></a> <a${$.attr('href', `${$.stringify(base)}/svelte-component`)}><button type="button" class="svelte-dngl6v">Usage as svelte component</button></a> <a${$.attr('href', `${$.stringify(base)}/column-styles`)}><button type="button" class="svelte-dngl6v">Column styles</button></a> <a${$.attr('href', `${$.stringify(base)}/pack-layout`)}><button type="button" class="svelte-dngl6v">Layouts</button></a> <a${$.attr('href', `${$.stringify(base)}/create-tasks`)}><button type="button" class="svelte-dngl6v">Create tasks</button></a></div> `);
+
+		GanttViewNavigation($$renderer, {
+			options: $.store_get($$store_subs ??= {}, '$options', options)
+		});
+
+		$$renderer.push(`<!----> <button class="svelte-dngl6v">|||</button></div></header> <!--[-->`);
+		$.slot($$renderer, $$props, 'default', {}, null);
+		$$renderer.push(`<!--]--></div>`);
+
+		if ($$store_subs) $.unsubscribe_stores($$store_subs);
+	});
+}
+=== 977 packages/demo/src/routes/+layout.svelte	warnings.json
+[
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 39,
+			"column": 20,
+			"character": 1789
+		},
+		"end": {
+			"line": 39,
+			"column": 68,
+			"character": 1837
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 42,
+			"column": 4,
+			"character": 1884
+		},
+		"end": {
+			"line": 42,
+			"column": 17,
+			"character": 1897
+		}
+	},
+	{
+		"code": "css_unused_selector",
+		"message": "Unused CSS selector \".header input[type=button]\"\nhttps://svelte.dev/e/css_unused_selector",
+		"start": {
+			"line": 93,
+			"column": 20,
+			"character": 2816
+		},
+		"end": {
+			"line": 93,
+			"column": 46,
+			"character": 2842
+		}
+	}
+]
+
+=== 127 packages/demo/src/routes/+page.svelte	css
+
+    /* (empty) .container {
+    }*/
+
+    main.svelte-b2g7ly {
+        width: 800px;
+        margin: 20px auto;
+        
+    }
+
+=== 609 packages/demo/src/routes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _page($$renderer) {
+	$.head('b2g7ly', $$renderer, ($$renderer) => {
+		$$renderer.title(($$renderer) => {
+			$$renderer.push(`<title>svelte-gantt</title>`);
+		});
+	});
+
+	$$renderer.push(`<main class="svelte-b2g7ly"><div class="container svelte-b2g7ly"><h1>Svelte-gantt</h1> <p>A <b>lightweight</b> and <b>fast</b> interactive gantt chart/resource booking component made with Svelte. Compatible with any JS library or framework. ZERO dependencies.</p> <h2>Demo</h2> <p>To see the examples check the links in the header.</p></div></main>`);
+}
+=== 336 packages/docs-mdsvex/src/lib/icons/CloseIcon.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function CloseIcon($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"></path></svg>`);
+}
+=== 1007 packages/docs-mdsvex/src/lib/icons/GithubIcon.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function GithubIcon($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" class="w-6 h-6"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.463 2 11.97c0 4.404 2.865 8.14 6.839 9.458.5.092.682-.216.682-.48 0-.236-.008-.864-.013-1.695-2.782.602-3.369-1.337-3.369-1.337-.454-1.151-1.11-1.458-1.11-1.458-.908-.618.069-.606.069-.606 1.003.07 1.531 1.027 1.531 1.027.892 1.524 2.341 1.084 2.91.828.092-.643.35-1.083.636-1.332-2.22-.251-4.555-1.107-4.555-4.927 0-1.088.39-1.979 1.029-2.675-.103-.252-.446-1.266.098-2.638 0 0 .84-.268 2.75 1.022A9.607 9.607 0 0 1 12 6.82c.85.004 1.705.114 2.504.336 1.909-1.29 2.747-1.022 2.747-1.022.546 1.372.202 2.386.1 2.638.64.696 1.028 1.587 1.028 2.675 0 3.83-2.339 4.673-4.566 4.92.359.307.678.915.678 1.846 0 1.332-.012 2.407-.012 2.734 0 .267.18.577.688.48 3.97-1.32 6.833-5.054 6.833-9.458C22 6.463 17.522 2 12 2Z"></path></svg>`);
+}
+=== 359 packages/docs-mdsvex/src/lib/icons/MenuIcon.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function MenuIcon($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"></path></svg>`);
+}
+=== 496 packages/docs-mdsvex/src/lib/icons/MoonIcon.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function MoonIcon($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"></path></svg>`);
+}
+=== 508 packages/docs-mdsvex/src/lib/icons/SunIcon.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function SunIcon($$renderer) {
+	$$renderer.push(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"></path></svg>`);
+}
+=== 4532 packages/docs-mdsvex/src/routes/+page.svelte	js
+import * as $ from 'svelte/internal/server';
+import { onDestroy, onMount } from 'svelte';
+import FeatureCard from './FeatureCard.svelte';
+import HeroExample from './HeroExample.svelte';
+import { base } from '$app/paths';
+
+export default function _page($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let expansionObserver = new IntersectionObserver((entries) => {
+			entries.forEach((entry) => {
+				entry.target.classList.remove('opacity-0', 'translate-y-2');
+				entry.target.classList.add('opacity-100', 'translate-y-0');
+			});
+		});
+
+		onMount(() => {
+			document.body.classList.add('landing-page');
+			document.querySelectorAll('.loading').forEach((e) => expansionObserver.observe(e));
+		});
+
+		onDestroy(() => {
+			document.body.classList.remove('landing-page');
+		});
+
+		$$renderer.push(`<main class="overflow-hidden flex flex-col min-h-screen"><header class="relative"><div class="px-4 sm:px-6 md:px-8 pt-12"><div class="absolute inset-0 bottom-10 bg-bottom bg-no-repeat bg-slate-200"><div class="absolute inset-0 bg-grid-slate-900/[0.04] bg-[bottom_1px_center] dark:bg-grid-slate-400/[0.05] dark:bg-bottom dark:border-b dark:border-slate-100/5"></div></div> <div class="relative max-w-5xl mx-auto pt-20 sm:pt-24 lg:pt-32"><h1 class="text-slate-900 font-extrabold text-4xl sm:text-5xl lg:text-6xl tracking-tight text-center dark:text-white">Lightweight and fast interactive <span class="bg-clip-text text-transparent bg-gradient-to-tr from-pink-500 to-violet-500">Gantt chart.</span></h1> <p class="mt-6 text-lg text-slate-600 text-center max-w-3xl mx-auto dark:text-slate-400"><span class="font-medium bg-clip-text text-transparent bg-gradient-to-tr from-pink-500 to-violet-500">Svelte-gantt</span> is a lightweight and fast interactive gantt chart/resource booking component
+					made with Svelte. Compatible with React, Angular, Vue, Svelte... Zero dependencies.</p> <div class="mt-6 sm:mt-10 flex justify-center space-x-6 text-sm"><a class="group text-white font-medium text-2xl transition-all hover:scale-105 px-6 py-3 text-soft mb-12 bg-gradient-to-tr from-pink-500 to-violet-500 hover:bg-violet-600 mx-auto transition-all"${$.attr('href', `${$.stringify(base)}/docs/getting-started/installation`)}><span class="inline-block transform transition-transform duration-100 group-hover:translate-x-0">Get started</span></a></div></div></div> <div class="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 mt-20 sm:mt-24 lg:mt-32"><div class="-mx-4 sm:mx-0"><div class="relative overflow-hidden shadow-xl flex bg-white max-h-[60vh] sm:rounded-xl lg:h-[34.6875rem] xl:h-[31.625rem] dark:bg-slate-900/70 dark:backdrop-blur dark:ring-1 dark:ring-inset dark:ring-white/10 !h-auto max-h-[none]">`);
+
+		HeroExample($$renderer, {});
+		$$renderer.push(`<!----></div></div></div></header> <section class="grow"><div class="relative max-w-5xl mx-auto pt-20 sm:pt-24 lg:pt-32 mb-20 sm:mb-24 lg:mb-32 px-4 sm:px-6 md:px-8 lg:px-0"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">`);
+
+		FeatureCard($$renderer, {
+			$$slots: {
+				title: ($$renderer) => {
+					{
+						$$renderer.push(`Interactive`);
+					}
+				},
+
+				subtitle: ($$renderer) => {
+					{
+						$$renderer.push(`Items can be added, moved and resized. Select multiple to move them at once.`);
+					}
+				}
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		FeatureCard($$renderer, {
+			$$slots: {
+				title: ($$renderer) => {
+					{
+						$$renderer.push(`Fast`);
+					}
+				},
+
+				subtitle: ($$renderer) => {
+					{
+						$$renderer.push(`Display thousands of tasks assigned to thousands of resources. Update them in real-time.`);
+					}
+				}
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		FeatureCard($$renderer, {
+			$$slots: {
+				title: ($$renderer) => {
+					{
+						$$renderer.push(`Zoom`);
+					}
+				},
+
+				subtitle: ($$renderer) => {
+					{
+						$$renderer.push(`Zoom the chart in or out. Display different periods of time.`);
+					}
+				}
+			}
+		});
+
+		$$renderer.push(`<!----> `);
+
+		FeatureCard($$renderer, {
+			$$slots: {
+				title: ($$renderer) => {
+					{
+						$$renderer.push(`Layouts`);
+					}
+				},
+
+				subtitle: ($$renderer) => {
+					{
+						$$renderer.push(`Display tasks overlapped or spaced apart.`);
+					}
+				}
+			}
+		});
+
+		$$renderer.push(`<!----></div></div></section> <footer class="h-40 bg-slate-400 flex items-center justify-center"><div class="relative max-w-5xl mx-auto"><div class="text-slate-100">@2024 Ante Novokmet - <a href="https://github.com/ANovokmet/">ANovokmet</a></div></div></footer></main>`);
+	});
+}
+=== 432 packages/docs-mdsvex/src/routes/FeatureCard.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function FeatureCard($$renderer, $$props) {
+	$$renderer.push(`<div class="bg-slate-200/40 p-4"><h2 class="text-lg font-medium text-slate-500"><!--[-->`);
+	$.slot($$renderer, $$props, 'title', {}, null);
+	$$renderer.push(`<!--]--></h2> <p class="text-slate-400 pt-1"><!--[-->`);
+	$.slot($$renderer, $$props, 'subtitle', {}, null);
+	$$renderer.push(`<!--]--></p></div>`);
+}
+=== 658 packages/docs-mdsvex/src/routes/FeatureCard.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 3,
+			"column": 2,
+			"character": 85
+		},
+		"end": {
+			"line": 3,
+			"column": 28,
+			"character": 111
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 6,
+			"column": 2,
+			"character": 154
+		},
+		"end": {
+			"line": 6,
+			"column": 31,
+			"character": 183
+		}
+	}
+]
+
+=== 123 packages/docs-mdsvex/src/routes/docs/data/rows/RowsExample.svelte	css
+
+    .example.svelte-sjte42 .row-gradient {
+        @apply bg-gradient-to-tr from-pink-500 to-violet-500 opacity-50;
+    }
+
+=== 1088 packages/docs-mdsvex/src/routes/docs/data/rows/RowsExample.svelte	js
+import * as $ from 'svelte/internal/server';
+import { time } from '$lib';
+import { SvelteGantt, SvelteGanttTable } from 'svelte-gantt/svelte';
+
+export default function RowsExample($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		$$renderer.push(`<div class="example border my-12 svelte-sjte42">`);
+
+		SvelteGantt($$renderer, {
+			from: time('8:00'),
+			to: time('12:00'),
+			rows: [
+				{ id: 1, label: 'Using the label' },
+				{
+					id: 2,
+					label: 'Apply custom classes',
+					classes: 'row-gradient'
+				},
+
+				{
+					id: 3,
+					label: 'With custom html content',
+					contentHtml: '<div class="h-full flex justify-center items-center"><span class="bg-gradient-to-tr from-pink-500 to-violet-500 text-violet-50 px-1">Custom html content</span></div>'
+				},
+
+				{
+					id: 4,
+					headerHtml: '<div class="h-full flex justify-center items-center"><span class="bg-gradient-to-tr from-pink-500 to-violet-500 text-violet-50 px-1">This time in header</span></div>'
+				}
+			],
+			ganttTableModules: [SvelteGanttTable]
+		});
+
+		$$renderer.push(`<!----></div>`);
+	});
+}
+=== 773 packages/docs-mdsvex/src/routes/docs/data/rows/TreeExample.svelte	css
+
+	.example.svelte-49eobx .sg-tree-expander .fa-angle-right::before {
+		display: block;
+		content: url('data:image/svg+xml; utf8, <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>');
+		width: 1rem;
+		height: 1rem;
+	}
+	.example.svelte-49eobx .sg-tree-expander .fa-angle-down::before {
+		display: block;
+		content: url('data:image/svg+xml; utf8, <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>');
+		width: 1rem;
+		height: 1rem;
+	}
+
+=== 1112 packages/docs-mdsvex/src/routes/docs/data/rows/TreeExample.svelte	js
+import * as $ from 'svelte/internal/server';
+import { time } from '$lib';
+import { SvelteGantt, SvelteGanttTable } from 'svelte-gantt/svelte';
+
+export default function TreeExample($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		$$renderer.push(`<div class="example border my-12 svelte-49eobx"><div class="text-center border-b">Click on row headers to expand and collapse.</div> `);
+
+		SvelteGantt($$renderer, {
+			from: time('8:00'),
+			to: time('12:00'),
+			tableHeaders: [{ title: 'Title', property: 'label', type: 'tree' }],
+			rows: [
+				{
+					id: 1,
+					label: 'Parent 1',
+					expanded: false,
+					children: [{ id: 11, label: 'Child 1' }, { id: 12, label: 'Child 2' }]
+				},
+
+				{
+					id: 2,
+					label: 'Parent 2',
+					expanded: true,
+					children: [
+						{
+							id: 21,
+							label: 'Child 1',
+							children: [{ id: 211, label: 'Grandchild 1' }]
+						},
+						{ id: 22, label: 'Child 2' },
+						{ id: 23, label: 'Child 3' }
+					]
+				},
+				{ id: 3, label: 'No children' }
+			],
+			ganttTableModules: [SvelteGanttTable]
+		});
+
+		$$renderer.push(`<!----></div>`);
+	});
+}
+=== 1 packages/docs-mdsvex/src/routes/docs/data/tasks/TaskComponentExample.svelte	css
+
+
+=== 2058 packages/docs-mdsvex/src/routes/docs/data/tasks/TaskComponentExample.svelte	js
+import * as $ from 'svelte/internal/server';
+import { SvelteGantt } from 'svelte-gantt/svelte';
+import { time, format } from '$lib';
+import './TaskComponentExample.css';
+
+export default function TaskComponentExample($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		function taskComponent(node, task) {
+			const div = document.createElement('div');
+
+			div.className = '';
+
+			function render(task) {
+				div.innerHTML = `
+<div class="task__header">
+    <div class="task__title">${task.title}</div>
+    <div class="task__subtitle">${format(task.from, 'MMM DD')} - ${format(task.to, 'H:mm')}</div>
+
+    <div class="task__menu">
+    <i class="fa fa-ellipsis-vertical"></i>
+    </div>
+</div>
+<div class="task__footer">
+    <div class="task__tags">
+    <span class="task__tag violet">
+        <i class="task__icon-archive-box"></i>
+    </span>
+    <span class="task__tag amber">
+        • ${task.priority}
+    </span>
+    </div>
+    <div class="task__assignees">
+        ${task.assignees.map((a) => `<span class="task__assignee">${a}</span>`)}
+    </div>
+</div>`;
+			}
+
+			render(task);
+			node.appendChild(div);
+
+			return {
+				update(task) {
+					console.log(task);
+					render(task);
+				},
+
+				destroy() {
+					node.remove();
+				}
+			};
+		}
+
+		$$renderer.push(`<div class="example border">`);
+
+		SvelteGantt($$renderer, {
+			from: time('8:00'),
+			to: time('14:00'),
+			minWidth: 200,
+			fitWidth: true,
+			rowHeight: 140,
+			taskElementHook: taskComponent,
+			rows: [{ id: 1, label: 'Row 1' }, { id: 2, label: 'Row 2' }],
+			tasks: [
+				{
+					id: 1,
+					resourceId: 1,
+					from: time('8:30'),
+					to: time('11:00'),
+					label: ' ',
+					title: 'Employee Details page',
+					classes: 'task',
+					priority: 'Medium',
+					assignees: ['AD', 'BC', 'TE']
+				},
+
+				{
+					id: 2,
+					resourceId: 2,
+					from: time('9:30'),
+					to: time('13:00'),
+					label: ' ',
+					title: 'Documentation page',
+					classes: 'task',
+					priority: 'High',
+					assignees: ['AN', 'TE']
+				}
+			]
+		});
+
+		$$renderer.push(`<!----></div>`);
+	});
+}
+=== 255 packages/docs-mdsvex/src/routes/docs/data/tasks/TasksExample.svelte	css
+
+    .example.svelte-1aih802 .gradient {
+        @apply bg-gradient-to-tr from-pink-500 to-violet-500 rounded-md;
+    }
+    .example.svelte-1aih802 .gradient:hover {
+        @apply bg-gradient-to-tr from-pink-600 to-violet-600 rounded-md shadow-xl;
+    }
+
+=== 1635 packages/docs-mdsvex/src/routes/docs/data/tasks/TasksExample.svelte	js
+import * as $ from 'svelte/internal/server';
+import { time } from '$lib';
+import { SvelteGantt, SvelteGanttTable } from 'svelte-gantt/svelte';
+
+export default function TasksExample($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		$$renderer.push(`<div class="example border my-12 svelte-1aih802">`);
+
+		SvelteGantt($$renderer, {
+			from: time('8:00'),
+			to: time('14:00'),
+			minWidth: 200,
+			fitWidth: true,
+			rows: [
+				{ id: 1, label: 'Row 1' },
+				{ id: 2, label: 'Row 2' },
+				{ id: 3, label: 'Row 3' },
+				{ id: 4, label: 'Row 4' },
+				{ id: 5, label: 'Row 4' },
+				{ id: 6, label: 'Row 4' }
+			],
+			tasks: [
+				{
+					id: 1,
+					resourceId: 1,
+					from: time('8:30'),
+					to: time('10:00'),
+					label: 'Default'
+				},
+
+				{
+					id: 2,
+					resourceId: 2,
+					from: time('9:00'),
+					to: time('10:30'),
+					label: '25% done',
+					amountDone: 25
+				},
+
+				{
+					id: 3,
+					resourceId: 3,
+					from: time('9:30'),
+					to: time('11:00'),
+					label: 'Custom class',
+					classes: 'gradient'
+				},
+
+				{
+					id: 4,
+					resourceId: 4,
+					from: time('10:00'),
+					to: time('11:30'),
+					html: '<span class="flex items-center gap-2"><span class="w-4 h-4 bg-blue-800"></span>Html content</span>'
+				},
+
+				{
+					id: 5,
+					resourceId: 5,
+					from: time('10:30'),
+					to: time('12:00'),
+					label: 'Resizable but not draggable',
+					enableDragging: false
+				},
+
+				{
+					id: 6,
+					resourceId: 6,
+					from: time('11:00'),
+					to: time('12:30'),
+					label: 'Draggable but not resizable',
+					enableResize: false
+				}
+			]
+		});
+
+		$$renderer.push(`<!----></div>`);
+	});
+}
+=== 268 packages/docs-mdsvex/src/routes/docs/data/time-ranges/TimeRangesExample.svelte	css
+
+	.example.svelte-1n4uhxb .gradient {
+		@apply bg-gradient-to-tr from-pink-500 to-violet-500 rounded-md;
+		background-size: unset !important;
+	}
+	.example.svelte-1n4uhxb .gradient:hover {
+		@apply bg-gradient-to-tr from-pink-600 to-violet-600 rounded-md shadow-xl;
+	}
+
+=== 916 packages/docs-mdsvex/src/routes/docs/data/time-ranges/TimeRangesExample.svelte	js
+import * as $ from 'svelte/internal/server';
+import { time } from '$lib';
+import { SvelteGantt } from 'svelte-gantt/svelte';
+
+export default function TimeRangesExample($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		$$renderer.push(`<div class="example border my-12 svelte-1n4uhxb">`);
+
+		SvelteGantt($$renderer, {
+			from: time('8:00'),
+			to: time('14:00'),
+			minWidth: 400,
+			fitWidth: true,
+			rows: [{ id: 1 }, { id: 2 }],
+			timeRanges: [
+				{
+					id: 1,
+					from: time('8:00'),
+					to: time('9:00'),
+					classes: null,
+					label: 'Breakfast'
+				},
+
+				{
+					id: 0,
+					from: time('10:00'),
+					to: time('11:00'),
+					classes: 'time-range-lunch',
+					label: 'Lunch',
+					resizable: false
+				},
+
+				{
+					id: 2,
+					from: time('12:00'),
+					to: time('13:00'),
+					label: 'Custom class',
+					classes: 'gradient'
+				}
+			]
+		});
+
+		$$renderer.push(`<!----></div>`);
+	});
+}
+=== 269 packages/docs-mdsvex/src/routes/docs/layout.svelte	js
+import * as $ from 'svelte/internal/server';
+import a from '$lib/components/A.svelte';
+
+export { a };
+
+export default function Layout($$renderer, $$props) {
+	$$renderer.push(`<!--[-->`);
+	$.slot($$renderer, $$props, 'default', {}, null);
+	$$renderer.push(`<!--]-->`);
+}
+=== 642 packages/docs-mdsvex/src/routes/docs/layout.svelte	warnings.json
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"column": 24,
+			"character": 24
+		}
+	},
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 6,
+			"column": 0,
+			"character": 97
+		},
+		"end": {
+			"line": 6,
+			"column": 13,
+			"character": 110
+		}
+	}
+]
+
+=== 1238 packages/docs-mdsvex/src/routes/docs/modules/create-tasks/CreateTasksExample.svelte	js
+import * as $ from 'svelte/internal/server';
+import { time } from '$lib';
+import moment from 'moment';
+import { MomentSvelteGanttDateAdapter, SvelteGantt, SvelteGanttTable } from 'svelte-gantt/svelte';
+
+export default function CreateTasksExample($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let id = 0;
+
+		const opts = {
+			enableCreateTask: true,
+			onCreateTask: (e) => {
+				id++;
+
+				return { id, label: `New task ${id}`, ...e };
+			},
+
+			onCreatedTask: (task) => {
+				console.log('task created', task);
+			}
+		};
+
+		$$renderer.push(`<div class="border"><div class="text-center border-b">Click and drag on the timeline to create a task.</div> `);
+
+		SvelteGantt($$renderer, {
+			from: time('06:00'),
+			to: time('14:00'),
+			fitWidth: true,
+			minWidth: 400,
+			dateAdapter: new MomentSvelteGanttDateAdapter(moment),
+			rows: [
+				{ id: 11, label: 'Petunia Mulliner' },
+				{ id: 12, label: 'Mélina Giacovetti' },
+				{ id: 13, label: 'Marlène Lasslett' },
+				{ id: 14, label: 'Adda Youell' }
+			],
+			ganttTableModules: [SvelteGanttTable],
+			enableCreateTask: opts.enableCreateTask,
+			onCreateTask: opts.onCreateTask,
+			onCreatedTask: opts.onCreatedTask
+		});
+
+		$$renderer.push(`<!----></div>`);
+	});
+}
+=== 1277 packages/docs-mdsvex/src/routes/docs/modules/external/ExternalExample.svelte	js
+import * as $ from 'svelte/internal/server';
+import { SvelteGantt, SvelteGanttTable, SvelteGanttExternal } from 'svelte-gantt/svelte';
+import { defaultOptions, time } from '$lib';
+import { onMount } from 'svelte';
+
+export default function ExternalExample($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let element;
+		let gantt;
+		let tasks = [];
+
+		onMount(() => {
+			new SvelteGanttExternal(element, {
+				gantt,
+				onsuccess: (row, date, gantt) => {
+					console.log('success');
+
+					tasks = [
+						...tasks,
+						{
+							id: tasks.length,
+							resourceId: row.model.id,
+							label: 'New task',
+							from: date,
+							to: date + 60 * 60 * 1000
+						}
+					];
+				},
+				onfail: () => {}
+			});
+		});
+
+		$$renderer.push(`<div class="border"><div class="flex p-2 border-b"><div class="px-2 border bg-slate-100 select-none">Drag to gantt</div></div> `);
+
+		SvelteGantt($$renderer, {
+			from: // TODO:: make external accept any gantt implicitly
+			time('8:00'),
+			to: time('14:00'),
+			tasks,
+			rows: [
+				{ id: 1, label: 'Resource #1' },
+				{ id: 2, label: 'Resource #2' },
+				{ id: 3, label: 'Resource #3' },
+				{ id: 4, label: 'Resource #4' }
+			],
+			ganttTableModules: [SvelteGanttTable]
+		});
+
+		$$renderer.push(`<!----></div>`);
+	});
+}
+=== 349 packages/docs-mdsvex/src/routes/docs/modules/external/ExternalExample.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`tasks` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 8,
+			"column": 5,
+			"character": 213
+		},
+		"end": {
+			"line": 8,
+			"column": 10,
+			"character": 218
+		}
+	}
+]
+
+=== 795 packages/docs-mdsvex/src/routes/docs/modules/table/TableExample.svelte	js
+import * as $ from 'svelte/internal/server';
+import { SvelteGantt, SvelteGanttTable } from 'svelte-gantt/svelte';
+import { defaultOptions, time } from '$lib';
+
+export default function TableExample($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		$$renderer.push(`<div class="border">`);
+
+		SvelteGantt($$renderer, {
+			from: time('8:00'),
+			to: time('14:00'),
+			tableHeaders: [
+				{ title: 'Name', property: 'label', width: 150 },
+				{ title: 'Age', property: 'age', width: 50 }
+			],
+			rows: [
+				{ id: 1, label: 'Resource #1', age: 50 },
+				{ id: 2, label: 'Resource #2', age: 43 },
+				{ id: 3, label: 'Resource #3', age: 23 },
+				{ id: 4, label: 'Resource #4', age: 65 }
+			],
+			ganttTableModules: [SvelteGanttTable]
+		});
+
+		$$renderer.push(`<!----></div>`);
+	});
+}
+=== 177 packages/docs-mdsvex/src/routes/docs/options/layout/LayoutExample.svelte	css
+
+	.example.svelte-zuv2a .blue {
+		@apply bg-blue-400;
+	}
+	.example.svelte-zuv2a .orange {
+		@apply bg-orange-400;
+	}
+	.example.svelte-zuv2a .violet {
+		@apply bg-violet-400;
+	}
+
+=== 2290 packages/docs-mdsvex/src/routes/docs/options/layout/LayoutExample.svelte	js
+import * as $ from 'svelte/internal/server';
+import { SvelteGantt, SvelteGanttTable } from 'svelte-gantt/svelte';
+import { defaultOptions, time } from '$lib';
+
+export default function LayoutExample($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let layout = 'overlap';
+		const values = ['overlap', 'pack', 'expand'];
+
+		$$renderer.push(`<div class="border"><div class="flex gap-2 justify-center border-b p-2"><span><code>layout</code>:</span> <!--[-->`);
+
+		const each_array = $.ensure_array_like(values);
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let value = each_array[$$index];
+
+			$$renderer.push(`<span><input${$.attr('id', value)} type="radio"${$.attr('checked', layout === value, true)}${$.attr('value', value)}/> <label${$.attr('for', value)}><code>'${$.escape(value)}'</code></label></span>`);
+		}
+
+		$$renderer.push(`<!--]--></div> <div class="example svelte-zuv2a">`);
+
+		SvelteGantt($$renderer, {
+			from: time('8:00'),
+			to: time('14:00'),
+			layout,
+			rows: [
+				{ id: 1, label: 'Resource #1' },
+				{ id: 2, label: 'Resource #2' },
+				{ id: 3, label: 'Resource #3' },
+				{ id: 4, label: 'Resource #4' }
+			],
+			tasks: [
+				{
+					id: 1,
+					resourceId: 1,
+					from: time('8:00'),
+					to: time('10:00'),
+					label: 'Default',
+					classes: 'blue'
+				},
+
+				{
+					id: 2,
+					resourceId: 1,
+					from: time('9:00'),
+					to: time('11:00'),
+					label: 'Default',
+					classes: 'orange'
+				},
+
+				{
+					id: 3,
+					resourceId: 1,
+					from: time('9:30'),
+					to: time('12:00'),
+					label: 'Default',
+					classes: 'violet'
+				},
+
+				{
+					id: 4,
+					resourceId: 2,
+					from: time('9:00'),
+					to: time('11:00'),
+					label: 'Default',
+					classes: 'blue'
+				},
+
+				{
+					id: 5,
+					resourceId: 2,
+					from: time('9:30'),
+					to: time('11:00'),
+					label: 'Default',
+					classes: 'orange'
+				},
+
+				{
+					id: 6,
+					resourceId: 2,
+					from: time('11:00'),
+					to: time('13:00'),
+					label: 'Default',
+					classes: 'violet'
+				},
+
+				{
+					id: 7,
+					resourceId: 3,
+					from: time('9:00'),
+					to: time('11:00'),
+					label: 'Default',
+					classes: 'blue'
+				}
+			],
+			ganttTableModules: [SvelteGanttTable]
+		});
+
+		$$renderer.push(`<!----></div></div>`);
+	});
+}
+=== 350 packages/docs-mdsvex/src/routes/docs/options/layout/LayoutExample.svelte	warnings.json
+[
+	{
+		"code": "non_reactive_update",
+		"message": "`layout` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 5,
+			"column": 5,
+			"character": 131
+		},
+		"end": {
+			"line": 5,
+			"column": 11,
+			"character": 137
+		}
+	}
+]
+
+=== 180 packages/docs-mdsvex/src/routes/docs/options/zoom/ZoomExample.svelte	css
+
+	.example.svelte-tf8ets .blue {
+		@apply bg-blue-400;
+	}
+	.example.svelte-tf8ets .orange {
+		@apply bg-orange-400;
+	}
+	.example.svelte-tf8ets .violet {
+		@apply bg-violet-400;
+	}
+
+=== 3007 packages/docs-mdsvex/src/routes/docs/options/zoom/ZoomExample.svelte	js
+import * as $ from 'svelte/internal/server';
+import { SvelteGantt, SvelteGanttTable } from 'svelte-gantt/svelte';
+import { defaultOptions, time } from '$lib';
+import moment from 'moment';
+
+export const zoomLevels = [
+	{
+		headers: [{ unit: 'month', format: 'MMM YYYY' }],
+		minWidth: 800,
+		columnUnit: 'day',
+		columnOffset: 1
+	},
+
+	{
+		headers: [
+			{ unit: 'month', format: 'MMM YYYY' },
+			{ unit: 'week', format: '[week] w' },
+			{ unit: 'day', format: 'D' }
+		],
+		minWidth: 3200,
+		columnUnit: 'hour',
+		columnOffset: 4
+	},
+
+	{
+		headers: [
+			{ unit: 'day', format: 'MMM D, YYYY' },
+			{ unit: 'hour', format: 'HH' }
+		],
+		minWidth: 8000,
+		columnUnit: 'hour',
+		columnOffset: 2
+	},
+
+	{
+		headers: [
+			{ unit: 'day', format: 'MMM D, YYYY' },
+			{ unit: 'hour', format: 'HH' }
+		],
+		minWidth: 16000,
+		columnUnit: 'hour',
+		columnOffset: 2
+	},
+
+	{
+		headers: [
+			{ unit: 'day', format: 'MMM D, YYYY' },
+			{ unit: 'hour', format: 'HH' }
+		],
+		minWidth: 32000,
+		columnUnit: 'hour',
+		columnOffset: 2
+	}
+];
+
+export default function ZoomExample($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		const values = ['hour', 'day', 'week', 'month'];
+		let headers = [{ unit: 'month', format: 'MMM YYYY' }];
+		let minWidth = 800;
+		let fitWidth = true;
+		let columnUnit = 'day';
+		let columnOffset = 1;
+		let from = moment().startOf('month');
+		let to = moment().endOf('month');
+
+		// TODO:: zoom focus is not right? always moves to right
+		// TODO:: allow click on header focus to be customized
+		function applyZoom(level) {
+			headers = level.headers;
+			minWidth = level.minWidth;
+			columnUnit = level.columnUnit;
+			columnOffset = level.columnOffset;
+		}
+
+		$$renderer.push(`<div class="border"><div class="flex gap-2 justify-center border-b p-2"><span>Set zoom:</span> <!--[-->`);
+
+		const each_array = $.ensure_array_like(values);
+
+		for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+			let value = each_array[i];
+
+			$$renderer.push(`<span><button class="border hover:bg-slate-100 px-1 py-1 text-sm active:bg-slate-200">${$.escape(value)}</button></span>`);
+		}
+
+		$$renderer.push(`<!--]--></div> <div class="example svelte-tf8ets">`);
+
+		SvelteGantt($$renderer, {
+			from,
+			to,
+			rows: [
+				{ id: 1, label: 'Resource #1' },
+				{ id: 2, label: 'Resource #2' },
+				{ id: 3, label: 'Resource #3' },
+				{ id: 4, label: 'Resource #4' }
+			],
+			headers,
+			minWidth,
+			fitWidth,
+			columnUnit,
+			columnOffset,
+			dateAdapter: defaultOptions.dateAdapter,
+			zoomLevels,
+			tasks: [
+				{
+					id: 1,
+					resourceId: 1,
+					from: time('8:00'),
+					to: time('16:00'),
+					label: 'Default',
+					classes: 'blue'
+				},
+
+				{
+					id: 4,
+					resourceId: 2,
+					from: time('9:00'),
+					to: time('17:00'),
+					label: 'Default',
+					classes: 'orange'
+				},
+
+				{
+					id: 7,
+					resourceId: 3,
+					from: time('10:00'),
+					to: time('18:00'),
+					label: 'Default',
+					classes: 'blue'
+				}
+			]
+		});
+
+		$$renderer.push(`<!----></div></div>`);
+	});
+}
+=== 2087 packages/docs-mdsvex/src/routes/docs/options/zoom/ZoomExample.svelte	warnings.json
+[
+	{
+		"code": "script_context_deprecated",
+		"message": "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+		"start": {
+			"line": 1,
+			"column": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"column": 24,
+			"character": 24
+		}
+	},
+	{
+		"code": "event_directive_deprecated",
+		"message": "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+		"start": {
+			"line": 80,
+			"column": 84,
+			"character": 1873
+		},
+		"end": {
+			"line": 80,
+			"column": 125,
+			"character": 1914
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`headers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 56,
+			"column": 5,
+			"character": 1119
+		},
+		"end": {
+			"line": 56,
+			"column": 12,
+			"character": 1126
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`minWidth` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 57,
+			"column": 5,
+			"character": 1175
+		},
+		"end": {
+			"line": 57,
+			"column": 13,
+			"character": 1183
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`columnUnit` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 59,
+			"column": 5,
+			"character": 1218
+		},
+		"end": {
+			"line": 59,
+			"column": 15,
+			"character": 1228
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`columnOffset` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 60,
+			"column": 5,
+			"character": 1243
+		},
+		"end": {
+			"line": 60,
+			"column": 17,
+			"character": 1255
+		}
+	}
+]
+

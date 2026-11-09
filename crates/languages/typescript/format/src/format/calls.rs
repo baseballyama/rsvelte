@@ -1,5 +1,5 @@
 use super::{
-    Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, R, Slot, TypeScriptKind,
+    Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, R, Slot, Span, TypeScriptKind,
     Unsupported, union_of_plain_types,
 };
 
@@ -20,6 +20,8 @@ pub(super) struct ChainLink {
     /// [`Formatter::at`] outside the link, restored when it is finished.
     pub(super) saved: Option<(NodeIdentifier, Slot)>,
     pub(super) head: ChainHead,
+    /// Whether the link is the leftmost node that its statement parenthesizes.
+    pub(super) leftmost: bool,
 }
 
 /// A call's type arguments and `new`, printed before its callee.
@@ -80,7 +82,10 @@ impl Formatter<'_> {
             self.cat(&[q, dot, p])
         };
         let inline = computed
-            || (matches!(self.syntax_tree.kind(object), Kind::Identifier(_)) && !parent_is_member);
+            // `user!` is a `TSNonNullExpression` upstream, not an `Identifier`.
+            || (matches!(self.syntax_tree.kind(object), Kind::Identifier(_))
+                && !self.has_typescript(object)
+                && !parent_is_member);
         let flat = self.cat(&[o, lookup]);
         Ok(if inline {
             flat
@@ -120,7 +125,13 @@ impl Formatter<'_> {
                     ));
                 };
                 self.typescript_printed += 1;
-                self.docs.text(&format!("<{text}>"))
+                let t = self.docs.text(&format!("<{text}>"));
+                // A union that does not fit puts each member on its own line (not built).
+                if text.contains('|') {
+                    self.docs.flat_only_choice(t)
+                } else {
+                    t
+                }
             }
             None => self.docs.nil(),
         };
@@ -163,8 +174,12 @@ impl Formatter<'_> {
         let a = self.cat(&[type_arguments, a]);
         let parts = [new, c, q, a];
         if !is_new && matches!(self.syntax_tree.kind(callee), Kind::Member { .. }) {
+            // A short chain prints as `group(oneLine)`, whose groups after a forced break decide
+            // afresh, so flat is right only while each line fits; a longer one chooses between
+            // that and the expanded chain, which is not built.
+            let one_line = self.member_chain_is_one_line(identifier, c)?;
             let flat = self.cat(&parts);
-            return Ok(self.docs.flat_only(flat));
+            return Ok(self.docs.flat_only_with(flat, true, !one_line));
         }
         Ok(
             if matches!(self.syntax_tree.kind(callee), Kind::Call { .. }) {
@@ -187,6 +202,7 @@ impl Formatter<'_> {
             let c = self.lit(")");
             return Ok(self.docs.group(&[o, c]));
         }
+        self.refuse_test_call(identifier, arguments)?;
         let mut printed = Vec::new();
         for &a in arguments {
             printed.push(self.expression(a, Some(identifier), Slot::Argument)?);
@@ -199,7 +215,9 @@ impl Formatter<'_> {
             parts.push(f.lit(")"));
             f.cat(&parts)
         };
-        if self.react_hook_with_deps(arguments) {
+        if self.react_hook_with_deps(arguments)
+            || matches!(arguments, [only] if self.is_template_on_its_own_line(*only))
+        {
             return Ok(inline(self, &printed));
         }
         let mut blank = false;
@@ -227,9 +245,35 @@ impl Formatter<'_> {
             let parts = self.bracketed("(", line, items, trailing, line2, ")");
             return Ok(self.docs.group_broken(&parts));
         }
-        if self.may_hug_an_argument(arguments) {
+        // With a forced break inside, Prettier hugs only the first or the last argument and
+        // otherwise puts every argument on its own line, as below.
+        let breaks = printed.iter().any(|&p| self.docs.will_break(p));
+        let breaks_in = |f: &Self, range: &[LayoutInstructionIdentifier]| {
+            range.iter().any(|&p| f.docs.will_break(p))
+        };
+        // Hugging the first or last argument while another one breaks gives every argument its
+        // own line (`allArgsBrokenOut`).
+        let mut hug = !breaks && self.may_hug_an_argument(arguments);
+        let mut all_out = false;
+        if breaks && self.may_hug_an_argument(arguments) {
+            if self.groups_first(arguments)? {
+                hug = !breaks_in(self, &printed[1..]);
+                all_out = !hug;
+            } else if self.groups_last(arguments)? {
+                hug = !breaks_in(self, &printed[..printed.len() - 1]);
+                all_out = !hug;
+            }
+        }
+        if hug {
             let flat = inline(self, &printed);
-            return Ok(self.docs.flat_only(flat));
+            return Ok(self.docs.flat_only_choice(flat));
+        }
+        if all_out {
+            // It opens with `line`, which a removed line leaves as a space.
+            let line = self.docs.line();
+            let line2 = self.docs.line();
+            let parts = self.bracketed("(", line, items, trailing, line2, ")");
+            return Ok(self.docs.group_broken(&parts));
         }
         let soft = self.docs.softline();
         let soft2 = self.docs.softline();
@@ -243,7 +287,7 @@ impl Formatter<'_> {
         });
         Ok(if curried_callee {
             self.cat(&parts)
-        } else if printed.iter().any(|&p| self.docs.will_break(p)) {
+        } else if breaks {
             self.docs.group_broken(&parts)
         } else {
             self.docs.group(&parts)
@@ -278,11 +322,7 @@ impl Formatter<'_> {
         let is_fn = |a: NodeIdentifier| {
             matches!(
                 self.syntax_tree.kind(a),
-                Kind::Function { .. }
-                    | Kind::Arrow {
-                        expression_body: false,
-                        ..
-                    }
+                Kind::Function { .. } | Kind::Arrow { .. }
             )
         };
         let mut count = 0;
@@ -303,6 +343,87 @@ impl Formatter<'_> {
         false
     }
 
+    /// Prettier's `shouldGroupLast` when only the last argument forces a break.
+    fn groups_last(&self, arguments: &[NodeIdentifier]) -> R<bool> {
+        let (&last, rest) = arguments.split_last().expect("arguments");
+        let kind = self.syntax_tree.kind(last);
+        if let Some(&penultimate) = rest.last()
+            && std::mem::discriminant(&self.syntax_tree.kind(penultimate))
+                == std::mem::discriminant(&kind)
+        {
+            return Ok(false);
+        }
+        Ok(match kind {
+            Kind::Object(p) => !p.is_empty(),
+            Kind::Function { .. } => true,
+            Kind::Arrow {
+                expression_body, ..
+            } => {
+                if expression_body {
+                    // `couldExpandArg` depends on the body's kind; not ported.
+                    return Err(Unsupported::at(
+                        "a last argument arrow with an expression body over several lines",
+                        self.syntax_tree.source_location(last),
+                    ));
+                }
+                !matches!(
+                    rest.last().map(|&p| self.syntax_tree.kind(p)),
+                    Some(Kind::Arrow { .. })
+                )
+            }
+            Kind::Array(e) if rest.is_empty() => !e.is_empty(),
+            // `isConciselyPrintedArray` and the arrow-then-array rule are not ported.
+            Kind::Array(_) => {
+                return Err(Unsupported::at(
+                    "a last argument array over several lines",
+                    self.syntax_tree.source_location(last),
+                ));
+            }
+            _ => false,
+        })
+    }
+
+    /// Prettier's `shouldGroupFirst`: `(function () {…}, short)`.
+    fn groups_first(&self, arguments: &[NodeIdentifier]) -> R<bool> {
+        let [first, second] = *arguments else {
+            return Ok(false);
+        };
+        let groups = matches!(
+            self.syntax_tree.kind(first),
+            Kind::Function { .. }
+                | Kind::Arrow {
+                    expression_body: false,
+                    ..
+                }
+        ) && !matches!(
+            self.syntax_tree.kind(second),
+            Kind::Function { .. } | Kind::Arrow { .. } | Kind::Conditional { .. }
+        );
+        if !groups {
+            return Ok(false);
+        }
+        let span = self.span(second);
+        if self.typescript_within(span) > 0 {
+            return Err(Unsupported::at("TypeScript beside a hugged argument", span));
+        }
+        Ok(self.is_hopefully_short_call_argument(second)?
+            && !self.could_expand_argument(second, false))
+    }
+
+    /// Prettier's `isTemplateOnItsOwnLine`: a template literal over several lines that does not
+    /// start its own line.
+    pub(super) fn is_template_on_its_own_line(&self, node: NodeIdentifier) -> bool {
+        let Kind::Template { quasis, .. } = self.syntax_tree.kind(node) else {
+            return false;
+        };
+        let multiline = quasis.iter().any(|&q| {
+            let [start, end] = self.syntax_tree.raw_data(q);
+            Span::new(start, end).text(self.source_text).contains('\n')
+        });
+        let before = &self.source_text[..self.span(node).start_offset as usize];
+        multiline && !before.trim_end_matches([' ', '\t']).ends_with(['\n', '\r'])
+    }
+
     /// A superset of Prettier's `shouldGroupFirst` / `shouldGroupLast`.
     pub(super) fn may_hug_an_argument(&self, arguments: &[NodeIdentifier]) -> bool {
         arguments.iter().any(|&a| match self.syntax_tree.kind(a) {
@@ -315,6 +436,20 @@ impl Formatter<'_> {
 
     /// Prettier's `printArrowFunction` for a single arrow (chains are not ported).
     pub(super) fn arrow(
+        &mut self,
+        identifier: NodeIdentifier,
+        parameters: &[NodeIdentifier],
+        body: NodeIdentifier,
+        is_async: bool,
+        expression_body: bool,
+    ) -> R<LayoutInstructionIdentifier> {
+        let saved = self.in_async;
+        let printed = self.arrow_inner(identifier, parameters, body, is_async, expression_body);
+        self.in_async = saved;
+        printed
+    }
+
+    fn arrow_inner(
         &mut self,
         identifier: NodeIdentifier,
         parameters: &[NodeIdentifier],
@@ -338,7 +473,11 @@ impl Formatter<'_> {
         if is_async {
             sig.push(self.lit("async "));
         }
+        self.refuse_object_return_type(identifier)?;
+        // `await` in a parameter list is an error, async or not.
+        self.in_async = Some(false);
         let ps = self.parameters(parameters)?;
+        self.in_async = Some(is_async);
         let ret = self.type_suffix(
             self.typescript_of(identifier, TypeScriptKind::ReturnType),
             ": ",
@@ -363,7 +502,7 @@ impl Formatter<'_> {
         let same_line = matches!(
             self.syntax_tree.kind(body),
             Kind::Array(_) | Kind::Object(_) | Kind::Sequence(_)
-        );
+        ) || self.is_template_on_its_own_line(body);
         let body_doc = if same_line {
             let sp = self.lit(" ");
             self.cat(&[sp, b])
@@ -376,3 +515,7 @@ impl Formatter<'_> {
         Ok(self.docs.group(&[sig, arrow, body_doc]))
     }
 }
+
+mod chain;
+mod hugging;
+mod test_call;

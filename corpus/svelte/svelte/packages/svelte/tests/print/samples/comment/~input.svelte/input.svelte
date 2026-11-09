@@ -1,5 +1,0 @@
-<!-- inline -->
-
-<!-- 
-    multiline
--->

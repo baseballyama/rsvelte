@@ -1,0 +1,6115 @@
+# rsvelte pack 1
+=== 428 src/docs/ui/analytics/analytics.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './analytics.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	}
+]
+
+=== 636 src/docs/ui/aside.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 38
+		}
+	}
+]
+
+=== 3 src/docs/ui/hr.svelte	json
+[]
+
+=== 225 src/docs/ui/linkH2.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/link.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 42
+		}
+	}
+]
+
+=== 441 src/docs/ui/mobileNavmenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/event.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	}
+]
+
+=== 3 src/docs/ui/roundedCode.svelte	json
+[]
+
+=== 3 src/docs/ui/row.svelte	json
+[]
+
+=== 1110 src/docs/ui/shell.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/text/textGradient.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/webhook.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 31
+		},
+		"end": {
+			"line": 4,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 37
+		},
+		"end": {
+			"line": 5,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/general.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 31
+		},
+		"end": {
+			"line": 7,
+			"character": 54
+		}
+	}
+]
+
+=== 634 src/lib/avatar/avatar-group.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 56
+		},
+		"end": {
+			"line": 2,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 34
+		},
+		"end": {
+			"line": 3,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 39
+		},
+		"end": {
+			"line": 4,
+			"character": 51
+		}
+	}
+]
+
+=== 424 src/lib/avatar/avatar-with-icon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 42
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	}
+]
+
+=== 635 src/lib/avatar/avatar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 8,
+			"character": 21
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 68
+		},
+		"end": {
+			"line": 9,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 34
+		},
+		"end": {
+			"line": 10,
+			"character": 46
+		}
+	}
+]
+
+=== 424 src/lib/badge/badge.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 66
+		},
+		"end": {
+			"line": 1,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 33
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	}
+]
+
+=== 847 src/lib/button/button.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/loader-circle.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 52
+		},
+		"end": {
+			"line": 2,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 34
+		},
+		"end": {
+			"line": 3,
+			"character": 46
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'env' does not exist on type 'ImportMeta'.",
+		"start": {
+			"line": 39,
+			"character": 19
+		},
+		"end": {
+			"line": 39,
+			"character": 22
+		}
+	}
+]
+
+=== 1322 src/lib/calendar/calendar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/event.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/calendar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 57
+		},
+		"end": {
+			"line": 6,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/calendar.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 8
+		},
+		"end": {
+			"line": 17,
+			"character": 32
+		}
+	}
+]
+
+=== 224 src/lib/calendar/weekday.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/calendar.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 8
+		},
+		"end": {
+			"line": 7,
+			"character": 32
+		}
+	}
+]
+
+=== 869 src/lib/checkbox/checkbox.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/check.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/minus.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 8,
+			"character": 21
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 36
+		},
+		"end": {
+			"line": 9,
+			"character": 48
+		}
+	}
+]
+
+=== 434 src/lib/choicebox/group.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/random.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 65
+		},
+		"end": {
+			"line": 5,
+			"character": 78
+		}
+	}
+]
+
+=== 438 src/lib/choicebox/item.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/check.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 8
+		},
+		"end": {
+			"line": 12,
+			"character": 21
+		}
+	}
+]
+
+=== 460 src/lib/code/codeSnip.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'highlight.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 32
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'highlight.js/styles/atom-one-light.css'.",
+		"start": {
+			"line": 2,
+			"character": 8
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	}
+]
+
+=== 697 src/lib/collapse/collapseCode.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'highlight.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 32
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'highlight.js/styles/atom-one-light.css'.",
+		"start": {
+			"line": 2,
+			"character": 8
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/chevron-right-small.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 31
+		},
+		"end": {
+			"line": 5,
+			"character": 70
+		}
+	}
+]
+
+=== 3 src/lib/collapse/content.svelte	json
+[]
+
+=== 3 src/lib/collapse/item.svelte	json
+[]
+
+=== 3 src/lib/collapse/root.svelte	json
+[]
+
+=== 222 src/lib/collapse/trigger.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 893 src/lib/copyButton/copy-button.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/copy.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/check.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/button/button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/button/types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 34
+		},
+		"end": {
+			"line": 5,
+			"character": 56
+		}
+	}
+]
+
+=== 435 src/lib/description/description.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 38
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 40
+		}
+	}
+]
+
+=== 3 src/lib/emptyState/root.svelte	json
+[]
+
+=== 457 src/lib/error/error.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/error.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/link-external.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 59
+		}
+	}
+]
+
+=== 3 src/lib/icons/accessibility.svelte	json
+[]
+
+=== 3 src/lib/icons/arrow-circle-up.svelte	json
+[]
+
+=== 3 src/lib/icons/arrow-left.svelte	json
+[]
+
+=== 3 src/lib/icons/arrow-right.svelte	json
+[]
+
+=== 3 src/lib/icons/arrow-up-right.svelte	json
+[]
+
+=== 3 src/lib/icons/arrow-up.svelte	json
+[]
+
+=== 3 src/lib/icons/asterisk.svelte	json
+[]
+
+=== 3 src/lib/icons/calendar.svelte	json
+[]
+
+=== 3 src/lib/icons/chart-bar-peak.svelte	json
+[]
+
+=== 3 src/lib/icons/check-circle.svelte	json
+[]
+
+=== 3 src/lib/icons/check-square-fill.svelte	json
+[]
+
+=== 3 src/lib/icons/check-square.svelte	json
+[]
+
+=== 3 src/lib/icons/check.svelte	json
+[]
+
+=== 3 src/lib/icons/chevron-down-small.svelte	json
+[]
+
+=== 3 src/lib/icons/chevron-down.svelte	json
+[]
+
+=== 3 src/lib/icons/chevron-left-small.svelte	json
+[]
+
+=== 3 src/lib/icons/chevron-left.svelte	json
+[]
+
+=== 3 src/lib/icons/chevron-right-small.svelte	json
+[]
+
+=== 3 src/lib/icons/chevron-right.svelte	json
+[]
+
+=== 3 src/lib/icons/chevron-up-small.svelte	json
+[]
+
+=== 3 src/lib/icons/copy.svelte	json
+[]
+
+=== 3 src/lib/icons/cpu.svelte	json
+[]
+
+=== 3 src/lib/icons/cross.svelte	json
+[]
+
+=== 3 src/lib/icons/device-alternate.svelte	json
+[]
+
+=== 3 src/lib/icons/error.svelte	json
+[]
+
+=== 3 src/lib/icons/grid-square.svelte	json
+[]
+
+=== 3 src/lib/icons/hook.svelte	json
+[]
+
+=== 3 src/lib/icons/information-fill-small.svelte	json
+[]
+
+=== 3 src/lib/icons/information.svelte	json
+[]
+
+=== 3 src/lib/icons/link-external.svelte	json
+[]
+
+=== 3 src/lib/icons/link.svelte	json
+[]
+
+=== 3 src/lib/icons/list-unordered.svelte	json
+[]
+
+=== 3 src/lib/icons/loader-circle.svelte	json
+[]
+
+=== 3 src/lib/icons/lock-closed-small.svelte	json
+[]
+
+=== 3 src/lib/icons/lock-closed.svelte	json
+[]
+
+=== 3 src/lib/icons/lock-open-small.svelte	json
+[]
+
+=== 3 src/lib/icons/lock-open.svelte	json
+[]
+
+=== 3 src/lib/icons/logo-bitbucket-color.svelte	json
+[]
+
+=== 3 src/lib/icons/logo-facebook.svelte	json
+[]
+
+=== 3 src/lib/icons/logo-geist.svelte	json
+[]
+
+=== 3 src/lib/icons/logo-github.svelte	json
+[]
+
+=== 3 src/lib/icons/logo-gitlab.svelte	json
+[]
+
+=== 3 src/lib/icons/logo-slack-color.svelte	json
+[]
+
+=== 3 src/lib/icons/logo-twitter-x-small.svelte	json
+[]
+
+=== 3 src/lib/icons/logo-twitter-x.svelte	json
+[]
+
+=== 3 src/lib/icons/magnifying-glass.svelte	json
+[]
+
+=== 3 src/lib/icons/menu-alt.svelte	json
+[]
+
+=== 3 src/lib/icons/minus.svelte	json
+[]
+
+=== 3 src/lib/icons/moon.svelte	json
+[]
+
+=== 3 src/lib/icons/more-horizontal.svelte	json
+[]
+
+=== 3 src/lib/icons/rotate-counter-clockwise.svelte	json
+[]
+
+=== 3 src/lib/icons/shield-check.svelte	json
+[]
+
+=== 3 src/lib/icons/shield-globe.svelte	json
+[]
+
+=== 3 src/lib/icons/shield.svelte	json
+[]
+
+=== 3 src/lib/icons/star-fill.svelte	json
+[]
+
+=== 3 src/lib/icons/star.svelte	json
+[]
+
+=== 3 src/lib/icons/sun.svelte	json
+[]
+
+=== 3 src/lib/icons/user-plus.svelte	json
+[]
+
+=== 3 src/lib/icons/warning.svelte	json
+[]
+
+=== 3 src/lib/icons/webhook.svelte	json
+[]
+
+=== 226 src/lib/input/input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/error.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 44
+		}
+	}
+]
+
+=== 237 src/lib/input/searchInput.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/magnifying-glass.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 65
+		}
+	}
+]
+
+=== 3 src/lib/keyboardInput/group.svelte	json
+[]
+
+=== 3 src/lib/keyboardInput/root.svelte	json
+[]
+
+=== 448 src/lib/menu/button.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/button/button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/button/types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 56
+		}
+	}
+]
+
+=== 3 src/lib/menu/content.svelte	json
+[]
+
+=== 3 src/lib/menu/item.svelte	json
+[]
+
+=== 3 src/lib/menu/link.svelte	json
+[]
+
+=== 222 src/lib/menu/root.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/event.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 448 src/lib/modal/action.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/button/button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/button/types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 56
+		}
+	}
+]
+
+=== 3 src/lib/modal/body.svelte	json
+[]
+
+=== 222 src/lib/modal/content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/event.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 3 src/lib/modal/footer.svelte	json
+[]
+
+=== 3 src/lib/modal/header.svelte	json
+[]
+
+=== 224 src/lib/modal/root.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/general.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	}
+]
+
+=== 3 src/lib/modal/subtitle.svelte	json
+[]
+
+=== 3 src/lib/modal/title.svelte	json
+[]
+
+=== 910 src/lib/note/note.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/information.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/check-circle.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/error.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/warning.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 21
+		},
+		"end": {
+			"line": 5,
+			"character": 48
+		}
+	}
+]
+
+=== 464 src/lib/pagination/pagination.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/chevron-left.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/chevron-right.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 59
+		}
+	}
+]
+
+=== 3 src/lib/progress/progress.svelte	json
+[]
+
+=== 3 src/lib/projectBanner/banner.svelte	json
+[]
+
+=== 216 src/lib/select/content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 222 src/lib/select/item.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	}
+]
+
+=== 222 src/lib/select/root.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/event.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 226 src/lib/select/trigger.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/error/error.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	}
+]
+
+=== 452 src/lib/select/value.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/chevron-down-small.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 46
+		}
+	}
+]
+
+=== 222 src/lib/showMore/showMore.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	}
+]
+
+=== 448 src/lib/snippet/snippet.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/copy.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/check.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 44
+		}
+	}
+]
+
+=== 222 src/lib/spinner/spinner.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 222 src/lib/splitButton/button.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	}
+]
+
+=== 3 src/lib/splitButton/content.svelte	json
+[]
+
+=== 3 src/lib/splitButton/item.svelte	json
+[]
+
+=== 438 src/lib/splitButton/root.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/event.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './root.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	}
+]
+
+=== 3 src/lib/statusDot/statusDot.svelte	json
+[]
+
+=== 223 src/lib/switch/control.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/random.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+
+=== 223 src/lib/switch/root.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/random.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+
+=== 3 src/lib/table/body.svelte	json
+[]
+
+=== 3 src/lib/table/caption.svelte	json
+[]
+
+=== 3 src/lib/table/cell.svelte	json
+[]
+
+=== 3 src/lib/table/col.svelte	json
+[]
+
+=== 3 src/lib/table/colgroup.svelte	json
+[]
+
+=== 3 src/lib/table/footer.svelte	json
+[]
+
+=== 3 src/lib/table/head.svelte	json
+[]
+
+=== 3 src/lib/table/header.svelte	json
+[]
+
+=== 3 src/lib/table/row.svelte	json
+[]
+
+=== 3 src/lib/table/table.svelte	json
+[]
+
+=== 216 src/lib/tabs/tabs.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	}
+]
+
+=== 3 src/lib/text/text.svelte	json
+[]
+
+=== 3 src/lib/text/textGradient.svelte	json
+[]
+
+=== 446 src/lib/textarea/textarea.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/error.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/random.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	}
+]
+
+=== 900 src/lib/themeSwitcher/themeSwitcher.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/device-alternate.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/sun.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 17
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/moon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/random.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 52
+		}
+	}
+]
+
+=== 223 src/lib/toggle/toggle.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/random.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+
+=== 221 src/lib/tooltip/tooltip.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/text.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+
+=== 220 src/routes/+layout.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../app.css'.",
+		"start": {
+			"line": 2,
+			"character": 8
+		},
+		"end": {
+			"line": 2,
+			"character": 20
+		}
+	}
+]
+
+=== 1346 src/routes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 8
+		},
+		"end": {
+			"line": 11,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 51
+		},
+		"end": {
+			"line": 12,
+			"character": 66
+		}
+	}
+]
+
+=== 2261 src/routes/avatar/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 50
+		},
+		"end": {
+			"line": 1,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 17
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 26
+		},
+		"end": {
+			"line": 6,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 53
+		},
+		"end": {
+			"line": 8,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 24
+		},
+		"end": {
+			"line": 9,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/avatar.js' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 8
+		},
+		"end": {
+			"line": 20,
+			"character": 35
+		}
+	}
+]
+
+=== 2276 src/routes/badge/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/badge/badge.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 19
+		},
+		"end": {
+			"line": 5,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 26
+		},
+		"end": {
+			"line": 6,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/data/badge.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 8
+		},
+		"end": {
+			"line": 13,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 38
+		},
+		"end": {
+			"line": 14,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 24
+		},
+		"end": {
+			"line": 15,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 20
+		},
+		"end": {
+			"line": 16,
+			"character": 51
+		}
+	}
+]
+
+=== 2494 src/routes/button/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 17
+		},
+		"end": {
+			"line": 4,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 19
+		},
+		"end": {
+			"line": 5,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 20
+		},
+		"end": {
+			"line": 8,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/button.js' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 8
+		},
+		"end": {
+			"line": 18,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 24
+		},
+		"end": {
+			"line": 20,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/arrow-up.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 21
+		},
+		"end": {
+			"line": 21,
+			"character": 49
+		}
+	}
+]
+
+=== 2265 src/routes/calendar/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 44
+		},
+		"end": {
+			"line": 9,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/data/calendar.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 33
+		},
+		"end": {
+			"line": 10,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 20
+		},
+		"end": {
+			"line": 11,
+			"character": 51
+		}
+	}
+]
+
+=== 1144 src/routes/changelog/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 59
+		}
+	}
+]
+
+=== 2051 src/routes/checkbox/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/data/checkbox.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 8
+		},
+		"end": {
+			"line": 13,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 20
+		},
+		"end": {
+			"line": 14,
+			"character": 51
+		}
+	}
+]
+
+=== 2052 src/routes/choicebox/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 34
+		},
+		"end": {
+			"line": 8,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/data/choicebox.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 8
+		},
+		"end": {
+			"line": 14,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 20
+		},
+		"end": {
+			"line": 15,
+			"character": 51
+		}
+	}
+]
+
+=== 2039 src/routes/collapse/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/collapse.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 8
+		},
+		"end": {
+			"line": 12,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 50
+		},
+		"end": {
+			"line": 13,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 40
+		},
+		"end": {
+			"line": 15,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 20
+		},
+		"end": {
+			"line": 16,
+			"character": 51
+		}
+	}
+]
+
+=== 2272 src/routes/colors/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/button/button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 20
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/text/text.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 18
+		},
+		"end": {
+			"line": 7,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/tooltip/tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 21
+		},
+		"end": {
+			"line": 8,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 20
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/colors.js' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 8
+		},
+		"end": {
+			"line": 21,
+			"character": 35
+		}
+	}
+]
+
+=== 2053 src/routes/copy-button/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 28
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/data/copy-button.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 35
+		},
+		"end": {
+			"line": 8,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 24
+		},
+		"end": {
+			"line": 9,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 51
+		}
+	}
+]
+
+=== 2051 src/routes/description/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 29
+		},
+		"end": {
+			"line": 8,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/description.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 36
+		},
+		"end": {
+			"line": 9,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 51
+		}
+	}
+]
+
+=== 2726 src/routes/empty-state/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 28
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/data/emptyState.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 8
+		},
+		"end": {
+			"line": 12,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 24
+		},
+		"end": {
+			"line": 13,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 20
+		},
+		"end": {
+			"line": 14,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/text/text.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 18
+		},
+		"end": {
+			"line": 15,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 30
+		},
+		"end": {
+			"line": 16,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/button/button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 20
+		},
+		"end": {
+			"line": 17,
+			"character": 47
+		}
+	}
+]
+
+=== 2060 src/routes/error/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/error/error.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 19
+		},
+		"end": {
+			"line": 7,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/data/error.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 8
+		},
+		"end": {
+			"line": 13,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 24
+		},
+		"end": {
+			"line": 14,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 20
+		},
+		"end": {
+			"line": 15,
+			"character": 51
+		}
+	}
+]
+
+=== 1824 src/routes/feedback/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/error/error.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 19
+		},
+		"end": {
+			"line": 7,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/error.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 30
+		},
+		"end": {
+			"line": 8,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 24
+		},
+		"end": {
+			"line": 9,
+			"character": 59
+		}
+	}
+]
+
+=== 2281 src/routes/input/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 36
+		},
+		"end": {
+			"line": 8,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/arrow-circle-up.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 27
+		},
+		"end": {
+			"line": 9,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/data/input.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 8
+		},
+		"end": {
+			"line": 17,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 20
+		},
+		"end": {
+			"line": 18,
+			"character": 51
+		}
+	}
+]
+
+=== 1832 src/routes/installation/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/code/codeSnip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/installation.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 8
+		},
+		"end": {
+			"line": 11,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 20
+		},
+		"end": {
+			"line": 12,
+			"character": 51
+		}
+	}
+]
+
+=== 1821 src/routes/keyboard-input/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 33
+		},
+		"end": {
+			"line": 7,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/data/keyboard-input.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 40
+		},
+		"end": {
+			"line": 8,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 20
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	}
+]
+
+=== 2500 src/routes/menu/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/roundedCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 26
+		},
+		"end": {
+			"line": 6,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 34
+		},
+		"end": {
+			"line": 8,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 24
+		},
+		"end": {
+			"line": 9,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/menu.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 8
+		},
+		"end": {
+			"line": 15,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 56
+		},
+		"end": {
+			"line": 16,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 20
+		},
+		"end": {
+			"line": 18,
+			"character": 51
+		}
+	}
+]
+
+=== 2267 src/routes/modal/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 37
+		},
+		"end": {
+			"line": 8,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/modal.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 8
+		},
+		"end": {
+			"line": 14,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 27
+		},
+		"end": {
+			"line": 15,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 20
+		},
+		"end": {
+			"line": 16,
+			"character": 51
+		}
+	}
+]
+
+=== 2045 src/routes/note/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 30
+		},
+		"end": {
+			"line": 8,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/note.js' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 8
+		},
+		"end": {
+			"line": 18,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 20
+		},
+		"end": {
+			"line": 19,
+			"character": 51
+		}
+	}
+]
+
+=== 1837 src/routes/pagination/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/data/pagination.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 35
+		},
+		"end": {
+			"line": 8,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 20
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	}
+]
+
+=== 2292 src/routes/progress/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/progress/progress.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 22
+		},
+		"end": {
+			"line": 8,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/progress.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 8
+		},
+		"end": {
+			"line": 13,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/button/button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 20
+		},
+		"end": {
+			"line": 14,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 20
+		},
+		"end": {
+			"line": 15,
+			"character": 51
+		}
+	}
+]
+
+=== 2276 src/routes/project-banner/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 40
+		},
+		"end": {
+			"line": 8,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/project-banner.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 8
+		},
+		"end": {
+			"line": 13,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 62
+		},
+		"end": {
+			"line": 14,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 20
+		},
+		"end": {
+			"line": 15,
+			"character": 51
+		}
+	}
+]
+
+=== 1824 src/routes/radio/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/error/error.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 19
+		},
+		"end": {
+			"line": 7,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/error.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 56
+		},
+		"end": {
+			"line": 8,
+			"character": 82
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 24
+		},
+		"end": {
+			"line": 9,
+			"character": 59
+		}
+	}
+]
+
+=== 2048 src/routes/select/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 24
+		},
+		"end": {
+			"line": 8,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/data/select.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 56
+		},
+		"end": {
+			"line": 9,
+			"character": 85
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 51
+		}
+	}
+]
+
+=== 2048 src/routes/show-more/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/showMore.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 33
+		},
+		"end": {
+			"line": 9,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 51
+		}
+	}
+]
+
+=== 2066 src/routes/snippet/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/snippet/snippet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/data/snippet.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 8
+		},
+		"end": {
+			"line": 15,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 24
+		},
+		"end": {
+			"line": 16,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 20
+		},
+		"end": {
+			"line": 17,
+			"character": 51
+		}
+	}
+]
+
+=== 2061 src/routes/spinner/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/spinner/spinner.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 21
+		},
+		"end": {
+			"line": 8,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/spinner.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 47
+		},
+		"end": {
+			"line": 9,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 51
+		}
+	}
+]
+
+=== 2053 src/routes/split-button/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 29
+		},
+		"end": {
+			"line": 8,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/split-button.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 8
+		},
+		"end": {
+			"line": 13,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 20
+		},
+		"end": {
+			"line": 14,
+			"character": 51
+		}
+	}
+]
+
+=== 2068 src/routes/status-dot/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/statusDot/statusDot.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 23
+		},
+		"end": {
+			"line": 8,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/status-dot.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 50
+		},
+		"end": {
+			"line": 9,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 51
+		}
+	}
+]
+
+=== 2268 src/routes/switch/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 33
+		},
+		"end": {
+			"line": 8,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/switch.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 8
+		},
+		"end": {
+			"line": 16,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 43
+		},
+		"end": {
+			"line": 17,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 20
+		},
+		"end": {
+			"line": 18,
+			"character": 51
+		}
+	}
+]
+
+=== 2050 src/routes/table/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 23
+		},
+		"end": {
+			"line": 7,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/data/table.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 8
+		},
+		"end": {
+			"line": 13,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 24
+		},
+		"end": {
+			"line": 14,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 20
+		},
+		"end": {
+			"line": 15,
+			"character": 51
+		}
+	}
+]
+
+=== 2266 src/routes/tabs/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 22
+		},
+		"end": {
+			"line": 8,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/tabs.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 8
+		},
+		"end": {
+			"line": 15,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 60
+		},
+		"end": {
+			"line": 16,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 20
+		},
+		"end": {
+			"line": 17,
+			"character": 51
+		}
+	}
+]
+
+=== 2269 src/routes/text/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 22
+		},
+		"end": {
+			"line": 8,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/text.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 8
+		},
+		"end": {
+			"line": 16,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/ui/types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 36
+		},
+		"end": {
+			"line": 17,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 20
+		},
+		"end": {
+			"line": 18,
+			"character": 51
+		}
+	}
+]
+
+=== 2065 src/routes/textarea/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/textarea/textarea.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 22
+		},
+		"end": {
+			"line": 8,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/textarea.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 8
+		},
+		"end": {
+			"line": 14,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 20
+		},
+		"end": {
+			"line": 15,
+			"character": 51
+		}
+	}
+]
+
+=== 2054 src/routes/theme-switcher/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 31
+		},
+		"end": {
+			"line": 8,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/theme-switcher.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 38
+		},
+		"end": {
+			"line": 9,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 51
+		}
+	}
+]
+
+=== 2268 src/routes/toggle/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 24
+		},
+		"end": {
+			"line": 8,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/toggle.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 8
+		},
+		"end": {
+			"line": 14,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 48
+		},
+		"end": {
+			"line": 15,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 20
+		},
+		"end": {
+			"line": 16,
+			"character": 51
+		}
+	}
+]
+
+=== 2733 src/routes/tooltip/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/aside.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 17
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/shell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/utils/data.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/collapse/collapseCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/pagination/pagination.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/tooltip/tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 21
+		},
+		"end": {
+			"line": 8,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../docs/data/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 8
+		},
+		"end": {
+			"line": 13,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/button/button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 20
+		},
+		"end": {
+			"line": 14,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 23
+		},
+		"end": {
+			"line": 15,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/spinner/spinner.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 21
+		},
+		"end": {
+			"line": 16,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/../docs/ui/linkH2.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 20
+		},
+		"end": {
+			"line": 17,
+			"character": 51
+		}
+	}
+]
+

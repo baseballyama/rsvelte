@@ -2,8 +2,8 @@
 //! verdict, by the element's `lang`. The rules that read the style sheet share it.
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
-use rsvelte_stylesheet::postcss::{self, Dialect, SyntaxError};
-use rsvelte_svelte::Parsed;
+use rsvelte_stylesheet_syntax::postcss::{self, Dialect, SyntaxError};
+use rsvelte_svelte_syntax::Parsed;
 
 use crate::rule::File;
 

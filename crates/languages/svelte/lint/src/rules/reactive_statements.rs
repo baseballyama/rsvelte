@@ -3,9 +3,9 @@
 use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{Token, TokenIdentifier, Tokens};
-use rsvelte_svelte::semantic::legacy::reactive_body;
-use rsvelte_svelte::syntax::syntax_tree::{Component, TokenType};
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_svelte_semantic::legacy::reactive_body;
+use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::runes::runes_mode;
 

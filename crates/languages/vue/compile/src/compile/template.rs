@@ -1,8 +1,8 @@
 //! compiler-core for the templates the parser reads, building an [`SyntaxTree`] instead of text.
 //!
-//! It reads the template's HIR ([`rsvelte_vue::compiler_syntax_tree`]), which is `baseParse`'s
-//! tree. What is ported: the node transforms of `getBaseTransformPreset` in upstream order,
-//! `cacheStatic`, `createRootCodegen` and `generate`.
+//! It reads the template's HIR ([`rsvelte_vue_semantic::compiler_syntax_tree`]), which is
+//! `baseParse`'s tree. What is ported: the node transforms of `getBaseTransformPreset` in upstream
+//! order, `cacheStatic`, `createRootCodegen` and `generate`.
 //!
 //! The port keeps upstream's two mutable trees, the template nodes and their codegen nodes, as two
 //! arenas, because the algorithm rewrites both in place (`replaceNode`, `convertToBlock`,
@@ -12,24 +12,24 @@
 
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_typescript::copy::{Rewrite, Verbatim, copy};
-use rsvelte_typescript::operators::{
+use rsvelte_typescript_compile::copy::{Rewrite, Verbatim, copy};
+use rsvelte_typescript_semantic::scope::{DeclarationKind, ScopeIdentifier};
+use rsvelte_typescript_syntax::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator,
 };
-use rsvelte_typescript::scope::{DeclarationKind, ScopeIdentifier};
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::compiler_syntax_tree::{
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, NodeKind, PropertyIdentifier, PropertyKind, TagType,
 };
-use rsvelte_vue::resolve::{BindingType, Resolution};
-use rsvelte_vue::syntax_tree::{DirectiveExpression, DirectiveName};
+use rsvelte_vue_semantic::resolve::{BindingType, Resolution};
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 use rustc_hash::FxHashMap;
 
 type R<T> = Result<T, Unsupported>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Helper {
+pub(crate) enum Helper {
     Fragment,
     OpenBlock,
     CreateElementBlock,
@@ -54,7 +54,7 @@ pub enum Helper {
 impl Helper {
     /// The name `vue` exports it under (`helperNameMap`).
     #[must_use]
-    pub const fn name(self) -> &'static str {
+    pub(crate) const fn name(self) -> &'static str {
         match self {
             Self::Fragment => "Fragment",
             Self::OpenBlock => "openBlock",
@@ -276,7 +276,7 @@ fn reference_table(res: &Resolution) -> FxHashMap<NodeIdentifier, RefInfo> {
 
 /// A compiled template, ready for [`Compiled::generate`].
 #[derive(Debug)]
-pub struct Compiled {
+pub(crate) struct Compiled {
     tree: Vec<Node>,
     cg: Vec<Cg>,
     root_codegen: Option<Cid>,
@@ -304,7 +304,7 @@ struct Transform<'a> {
 /// # Errors
 ///
 /// [`Unsupported`] for a template construct the port does not cover.
-pub fn transform(
+pub(crate) fn transform(
     javascript: &SyntaxTree,
     compiler_syntax_tree: &CompilerSyntaxTree,
     source_text: &str,
@@ -454,6 +454,6 @@ mod traverse;
 
 mod generate;
 use generate::is_object_bind;
-use rsvelte_vue::semantic::expressions::{
+use rsvelte_vue_semantic::expressions::{
     camelize, can_prefix, collect_identifiers, is_simple_identifier, to_handler_key,
 };

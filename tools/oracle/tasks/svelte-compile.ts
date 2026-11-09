@@ -6,7 +6,6 @@ import type { Task } from '../types.ts';
 // implementation compared against these snapshots must pass the same value.
 const task: Task = {
 	id: 'svelte.compile',
-	storage: 'committed',
 	oracles: ['svelte'],
 	variants: [
 		{ id: 'client', options: { generate: 'client' } },

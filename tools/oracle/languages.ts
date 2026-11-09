@@ -44,8 +44,8 @@ const LANGUAGES: Language[] = [
 		},
 	},
 	{
-		// No compile task yet: upstream only sees these after Vite strips the types, and which
-		// stripper is the oracle is undecided. Parse/lint/fmt tasks still apply.
+		// svelte.compileModule strips the types first, as a bundler does; a module it rejects
+		// still counts, since the rejection is the expected result.
 		id: 'svelte-module-ts',
 		family: 'svelte',
 		ext: '.svelte.ts',

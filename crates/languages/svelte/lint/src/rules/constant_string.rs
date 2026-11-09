@@ -1,9 +1,9 @@
 //! Values a rule can know without running the code: what a `const` holds, and a string built
 //! only from literals.
 
-use rsvelte_typescript::operators::BinaryOperator;
-use rsvelte_typescript::scope::{DeclarationKind, Semantic};
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_typescript_semantic::scope::{DeclarationKind, Semantic};
+use rsvelte_typescript_syntax::operators::BinaryOperator;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::expressions::Expressions;
 
@@ -94,7 +94,7 @@ fn cooked(expressions: &Expressions<'_>, quasi: NodeIdentifier) -> Option<String
         .replace("\r\n", "\n")
         .replace('\r', "\n");
     if raw.contains('\\') {
-        rsvelte_typescript::lexer::decode_string(&raw)
+        rsvelte_typescript_syntax::lexer::decode_string(&raw)
     } else {
         Some(raw)
     }

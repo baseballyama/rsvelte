@@ -1,9 +1,0 @@
-
-	[data-slot='underline-tabs-list'] {
-		-ms-overflow-style: none; /* IE and Edge */
-		scrollbar-width: none; /* Firefox */
-	}
-
-	[data-slot='underline-tabs-list']::-webkit-scrollbar {
-		display: none;
-	}

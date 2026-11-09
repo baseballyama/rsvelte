@@ -1,8 +1,0 @@
-
-  main.svelte-h8seo0 button:where(.svelte-h8seo0) {
-    background-color: red;
-  }
-
-  main.svelte-h8seo0 div:where(.svelte-h8seo0) > button:where(.svelte-h8seo0) {
-    background-color: blue;
-  }

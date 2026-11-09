@@ -1,8 +1,8 @@
 //! The component's code tokens, and where they sit in lines.
 
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-use rsvelte_svelte::syntax::syntax_tree::{Component, TokenType};
-use rsvelte_typescript::lexer::T;
+use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
+use rsvelte_typescript_syntax::lexer::T;
 
 /// The index of a token in [`Tokens`].
 pub(super) type Token = u32;

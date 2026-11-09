@@ -1,6 +1,6 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_svelte::semantic::resolve::Resolution;
-use rsvelte_typescript::operators::UnaryOperator;
+use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_typescript_syntax::operators::UnaryOperator;
 
 use super::{
     Kind, NodeIdentifier, ScriptRewrite, SyntaxTree, Target, copy, should_proxy, unsupported,

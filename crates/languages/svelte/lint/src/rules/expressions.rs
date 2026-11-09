@@ -4,8 +4,8 @@
 //! the same when their tokens are, kind and text, whatever the whitespace and comments between.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::syntax_tree::TypeScriptKind;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::node_span;
 

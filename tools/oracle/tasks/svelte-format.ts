@@ -16,14 +16,11 @@ const FORMAT_OPTIONS = {
 	svelteIndentScriptAndStyle: true,
 } as const;
 
-// Only the hand-written units for now: whether corpus snapshots are committed or cached waits for a
-// size measurement.
 const task: Task = {
 	id: 'svelte.format',
-	storage: 'committed',
 	oracles: ['prettier', 'prettier-plugin-svelte'],
 	variants: [{ id: 'default', options: {} }],
-	appliesTo: (unit) => unit.lang === 'svelte' && unit.source === 'rsvelte',
+	appliesTo: (unit) => unit.lang === 'svelte',
 	async run(unit, src) {
 		const text = await prettier.format(src, {
 			...FORMAT_OPTIONS,

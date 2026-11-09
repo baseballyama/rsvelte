@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::TemplateNode;
+use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 

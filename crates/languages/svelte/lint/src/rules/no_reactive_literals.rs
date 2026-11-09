@@ -1,7 +1,7 @@
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript::Kind;
-use rsvelte_typescript::operators::AssignmentOperator;
+use rsvelte_typescript_syntax::Kind;
+use rsvelte_typescript_syntax::operators::AssignmentOperator;
 
 use super::reactive_statements::reactive_statements;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};

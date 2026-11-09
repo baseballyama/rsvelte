@@ -7,26 +7,27 @@ input file is one **unit**. Commands: [tools/oracle](../tools/oracle/README.md).
 corpus/
 ├── _registry/
 │   ├── sources.json          source repositories: URL, commit, license (written by hand)
-│   ├── oracles.json          versions of the official tools that wrote expected/
+│   ├── units.toml            the hand-written part of units: skips, behaviour (cross units)
+│   ├── tsconfig.json         the project configuration of both type checkers
+│   ├── oracles.json          versions of the official tools, and the rules the linter ran
+│   ├── parity/<task>/<variant>.txt   the recorded verdicts
 │   ├── import-report.json    files taken and skipped per source
 │   └── licenses/
-└── <family>/<source>/<path>/ one unit, e.g. svelte/bits-ui/src/lib/button.svelte/
-    ├── input.*               the copied file
-    ├── meta.json             language, hash, mode
-    ├── fixture.toml          [skip], [behaviour] (cross units); written by hand
-    ├── expected/<task>/<variant>.*   the official tool's output
-    ├── actual/               rsvelte's output, on request (ignored by git)
-    └── cache/                expected output too large to commit (ignored by git)
+└── <family>/<source>/        one source, e.g. svelte/bits-ui/
+    ├── inputs.pack           every unit's file, with its language and mode
+    ├── expected/<task>/<variant>.pack   the official tools' output
+    └── actual/               rsvelte's output, on request (ignored by git)
 ```
 
-Never edit `expected/`. `cargo test` compares rsvelte with it and records each unit's verdict in
-`_registry/parity.json` ([crates/test_harness](../crates/test_harness/README.md)). A task that does
-not apply to a unit is skipped:
+A pack is one text file that holds many: each entry is a line
+`=== <length in bytes> <path>\t<attributes>` and then the file's bytes. A source is then a few
+files for git and CI instead of thousands.
+
+Never edit `expected/`. `cargo test -p rsvelte_command_line --test corpus` compares rsvelte with
+it ([rsvelte_corpus](../crates/language_independent/corpus/README.md)). A task the official
+output cannot be trusted on for a unit is skipped in `units.toml`:
 
 ```toml
-[skip]
+["svelte/<source>/<path>".skip]
 "svelte.compile/client" = "why this task does not apply"
 ```
-
-A path segment named like a unit file (`expected`, `input.svelte`, …) or starting with `~` is
-stored with a `~` in front.

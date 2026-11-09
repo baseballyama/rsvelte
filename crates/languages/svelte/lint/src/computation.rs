@@ -1,16 +1,17 @@
 use std::path::Path;
 
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext, Facet};
-use rsvelte_svelte::semantic::legacy::Legacy;
-use rsvelte_svelte::{Parsed, Resolved};
-use rsvelte_typescript::NodeIdentifier;
+use rsvelte_svelte_semantic::Resolved;
+use rsvelte_svelte_semantic::legacy::Legacy;
+use rsvelte_svelte_syntax::Parsed;
+use rsvelte_typescript_syntax::NodeIdentifier;
 
 use crate::project::SvelteKitProject;
 use crate::types::TypeFacts;
 use crate::{Configuration, SvelteConfig};
 
 #[derive(Debug)]
-pub struct LintConfiguration;
+pub(crate) struct LintConfiguration;
 
 impl Facet for LintConfiguration {
     type Output = std::sync::Arc<Configuration>;
@@ -110,7 +111,7 @@ impl Artifact for ModuleParents {
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         context
-            .get::<rsvelte_typescript::Parsed>()
+            .get::<rsvelte_typescript_syntax::Parsed>()
             .as_ref()
             .expect("lint requests parents after parsing")
             .syntax_tree
@@ -179,7 +180,7 @@ fn same_named_file(context: &DocumentContext<'_>) -> Option<String> {
     if !is_file(path) {
         return None;
     }
-    if rsvelte_svelte::matches(context.document) {
+    if rsvelte_svelte_syntax::matches(context.document) {
         return MODULE_EXTENSIONS
             .iter()
             .map(|extension| format!("{path}{extension}"))

@@ -57,7 +57,7 @@ const map = (value: unknown): [string, string][] => [...(value as Map<string, st
 export async function main(): Promise<void> {
 	const require = createRequire(path.join(import.meta.dirname, 'package.json'));
 	const root = fileURLToPath(new URL('../../', import.meta.url));
-	const directory = path.join(root, 'crates/languages/svelte/core/src/warnings/vendor');
+	const directory = path.join(root, 'crates/languages/svelte/semantic/src/warnings/vendor');
 	const svelte = path.dirname(realpathSync(require.resolve('svelte/package.json')));
 	const from = createRequire(path.join(svelte, 'package.json'));
 	const aria = path.dirname(from.resolve('aria-query/package.json'));

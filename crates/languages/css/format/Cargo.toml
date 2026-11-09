@@ -10,7 +10,7 @@ publish.workspace = true
 doctest = false
 
 [dependencies]
-rsvelte_stylesheet.workspace = true
+rsvelte_stylesheet_syntax.workspace = true
 rsvelte_kernel.workspace = true
 
 [lints]

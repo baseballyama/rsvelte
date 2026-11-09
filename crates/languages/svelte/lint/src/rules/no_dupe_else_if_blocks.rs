@@ -1,7 +1,7 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::{Component, TemplateNode, TemplateNodeIdentifier};
-use rsvelte_typescript::operators::LogicalOperator;
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_svelte_syntax::syntax_tree::{Component, TemplateNode, TemplateNodeIdentifier};
+use rsvelte_typescript_syntax::operators::LogicalOperator;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::expressions::Expressions;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};

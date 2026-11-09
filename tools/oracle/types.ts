@@ -9,10 +9,9 @@ export interface Source {
 	excluded?: string;
 }
 
-/** The generated part of a unit, stored in its meta.json. */
+/** The generated part of a unit, stored as the attributes of its entry in inputs.pack. */
 export interface UnitMeta {
 	lang: string;
-	sha256: string;
 	mode: string;
 	inferredMode?: string;
 }
@@ -24,7 +23,7 @@ export interface UnitKey {
 	path: string;
 }
 
-/** The hand-written part of a unit, stored in its fixture.toml. */
+/** The hand-written part of a unit, its table in corpus/_registry/units.toml. */
 export interface FixtureToml {
 	skip?: Record<string, string>;
 	/** Root props and user steps for the behaviour tasks (behaviour/runtime.ts). */
@@ -32,13 +31,14 @@ export interface FixtureToml {
 }
 
 export interface Unit extends UnitKey, UnitMeta {
+	src: string;
 	sourceFile?: string;
 	ext: string;
 	fixture: FixtureToml;
 }
 
 type Admission =
-	| { include: true; fields: Omit<UnitMeta, 'lang' | 'sha256'> }
+	| { include: true; fields: Omit<UnitMeta, 'lang'> }
 	| { include: false; reason: string };
 
 export interface Language {
@@ -66,8 +66,6 @@ export interface Variant {
 
 export interface Task {
 	id: string;
-	/** `committed` snapshots go to expected/ and git; `cached` ones to the git-ignored cache/. */
-	storage: 'committed' | 'cached';
 	/** npm packages whose version the output depends on. */
 	oracles: string[];
 	variants: Variant[];
@@ -77,6 +75,11 @@ export interface Task {
 		src: string,
 		variant: Variant,
 	): Record<string, Artifact> | Promise<Record<string, Artifact>>;
+	/** For a task that sees a source as one project (a type check): given every unit of the source,
+	 * the artifacts of those it applies to. */
+	runSource?(units: Unit[], variant: Variant): Promise<Map<string, Record<string, Artifact>>>;
+	/** What else the comparison needs from the oracle, recorded in oracles.json (the lint rules). */
+	lock?: Record<string, unknown>;
 	/**
 	 * For a task whose actual output is not the artifact itself: derives the artifact `ext` from the
 	 * implementation's `actual/<task>/<variant>.js`, given as a path (a behaviour trace of emitted code).

@@ -1,8 +1,8 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript::scope::Semantic;
-use rsvelte_typescript::semantic::reference_tracker::{global_references, property_references};
-use rsvelte_typescript::syntax_tree::Control;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::reference_tracker::{global_references, property_references};
+use rsvelte_typescript_semantic::scope::Semantic;
+use rsvelte_typescript_syntax::syntax_tree::Control;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
 use super::nodes::{span, walk};

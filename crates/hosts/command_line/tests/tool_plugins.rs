@@ -3,7 +3,7 @@ use rsvelte_kernel::computation::pipeline::{RunOptions, Sharing, run};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
-use rsvelte_svelte::Parsed;
+use rsvelte_svelte_syntax::Parsed;
 
 #[derive(Debug)]
 struct ReplacementLint;
@@ -14,7 +14,7 @@ impl Task for ReplacementLint {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_svelte::matches(document)
+        rsvelte_svelte_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
@@ -28,9 +28,9 @@ impl Task for ReplacementLint {
 #[test]
 fn core_registers_facts_without_selecting_tools() {
     let mut registry = Registry::new();
-    rsvelte_svelte::register(&mut registry);
-    rsvelte_vue::register(&mut registry);
-    rsvelte_typescript::register(&mut registry);
+    rsvelte_svelte_semantic::register(&mut registry);
+    rsvelte_vue_semantic::register(&mut registry);
+    rsvelte_typescript_semantic::register(&mut registry);
     assert_eq!(registry.document_task_identifiers(), Vec::<&str>::new());
     for path in ["App.svelte", "App.vue", "app.ts"] {
         let document = registry.document(path, "").expect("valid source size");

@@ -1,4 +1,4 @@
-use rsvelte_svelte::semantic::input::ComponentInput;
+use rsvelte_svelte_semantic::input::ComponentInput;
 
 #[derive(Clone, Copy, Debug)]
 pub struct CompileInput<'a> {
@@ -23,15 +23,15 @@ pub enum Target {
 
 pub(crate) fn static_string<'a>(
     input: &CompileInput<'a>,
-    value: &'a rsvelte_svelte::compilation::compiler_syntax_tree::AttributeValue,
+    value: &'a rsvelte_svelte_semantic::compiler_syntax_tree::AttributeValue,
 ) -> Option<&'a str> {
-    use rsvelte_svelte::compilation::compiler_syntax_tree::AttributeValue;
+    use rsvelte_svelte_semantic::compiler_syntax_tree::AttributeValue;
     match value {
         AttributeValue::Static(value) => Some(value),
         AttributeValue::Expression { expression, .. } | AttributeValue::Shorthand(expression)
             if matches!(
                 input.component.javascript.kind(*expression),
-                rsvelte_typescript::Kind::String
+                rsvelte_typescript_syntax::Kind::String
             ) =>
         {
             Some(

@@ -1,0 +1,192 @@
+# rsvelte pack 1
+=== 806 src/routes/__layout.svelte	css
+
+	/* the props */
+	/* @import 'open-props/style'; */
+
+	/* optional imports that use the props */
+	/* @import 'open-props/normalize';
+	@import 'open-props/buttons'; */
+
+	/* individual imports */
+	/* @import 'open-props/indigo';
+	@import 'open-props/easings';
+	@import 'open-props/animations';
+	@import 'open-props/sizes';
+	@import 'open-props/gradients'; */
+	/* see PropPacks for the full list */
+
+	/* :global(article) {
+		display: flex;
+		flex-flow: row wrap;
+		align-items: flex-start;
+		justify-content: space-around;
+		max-inline-size: calc(var(--size-content-1) * 6);
+		gap: var(--size-2);
+		padding: var(--size-2);
+	}
+	:global(article .col) {
+		background-color: var(--blue-0);
+		padding: var(--size-2);
+	} */
+
+	form .error {
+		margin-bottom: 1rem;
+		font-size: 0.75rem;
+		color: rgb(247, 63, 63);
+	}
+
+=== 356 src/routes/__layout.svelte	js
+import * as $ from 'svelte/internal/server';
+import '@picocss/pico/css/pico.css';
+import '@picocss/pico/docs/css/pico.docs.css';
+import '../_variables.scss';
+
+export default function __layout($$renderer, $$props) {
+	$$renderer.push(`<div class="container"><!--[-->`);
+	$.slot($$renderer, $$props, 'default', {}, null);
+	$$renderer.push(`<!--]--></div>`);
+}
+=== 330 src/routes/__layout.svelte	warnings.json
+[
+	{
+		"code": "slot_element_deprecated",
+		"message": "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated",
+		"start": {
+			"line": 8,
+			"column": 1,
+			"character": 161
+		},
+		"end": {
+			"line": 8,
+			"column": 9,
+			"character": 169
+		}
+	}
+]
+
+=== 1674 src/routes/_index.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Formly } from 'svelte-formly-light';
+
+export default function _index($$renderer) {
+	let loading = false;
+	const form_name = 'my_form_a';
+
+	const fields = [
+		{
+			type: 'file', // required
+			name: 'name-file', // require
+			attributes: {
+				id: 'id-field', // optional
+				classes: ['form-control'], // optional
+				label: 'Image' // optional
+			},
+			extra: { multiple: true, // optional
+			 showPreview: true // optional
+			 },
+			rules: ['file'],
+			file: {
+				// need to add this attribute object if you need a file rule
+				types: 'jpg,gif',
+				maxsize: 5
+			}
+		}
+	];
+
+	const form_name_b = 'my_form_b';
+
+	const fields_b = [
+		{
+			type: 'input',
+			name: 'country',
+			attributes: {
+				type: 'text',
+				id: 'country',
+				classes: ['form-control'],
+				placeholder: 'Tap your country'
+			},
+			rules: ['required'],
+			messages: { required: 'The country is required' }
+		}
+	];
+
+	let data = {};
+
+	const onSubmit = ({ detail }) => {
+		console.log('detail onSubmit', detail);
+		data = detail;
+	};
+
+	const onUpdate = ({ detail }) => {
+		console.log('detail onUpdate', detail);
+		data = detail;
+	};
+
+	$$renderer.push(`<div class="grid"><div class="col"><article><p><code><i>fetch:</i><u>`);
+
+	if (loading) {
+		$$renderer.push(`<!--[0-->loading...`);
+	} else {
+		$$renderer.push(`<!--[-1-->done`);
+	}
+
+	$$renderer.push(`<!--]--></u></code></p> `);
+	Formly($$renderer, { fields, form_name, realtime: true });
+	$$renderer.push(`<!----></article></div> <div class="col"><article>`);
+	Formly($$renderer, { fields: fields_b, form_name: form_name_b, realtime: true });
+	$$renderer.push(`<!----></article></div></div>`);
+}
+=== 47 src/routes/index.svelte	css
+
+	form .form-group {
+		margin-bottom: 1rem;
+	}
+
+=== 1224 src/routes/index.svelte	js
+import * as $ from 'svelte/internal/server';
+import { Formly } from '$lib';
+
+export default function Routes($$renderer) {
+	// import { Formly, type IField } from 'svelte-formly-light';
+	const form_name = 'my_form_a';
+
+	const fields = [
+		{
+			type: 'autocomplete', // required
+			name: 'name-field-autocomplete', // required
+			attributes: {
+				id: 'id-field-autocomplete',
+				classes: ['class1', 'class2'],
+				placeholder: 'Tap keyword...',
+				autocomplete: 'off'
+			},
+			extra: {
+				filter_length: 2,
+				loadItemes: [
+					// list items with id and title attributes.
+					{ value: 1, title: 'item 1' },
+					{ value: 2, title: 'item 2' },
+					{ value: 3, title: 'item 3' },
+					{ value: 4, title: 'item 4' }
+				]
+			}
+		}
+	];
+
+	let data = {};
+
+	const onSubmit = ({ detail }) => {
+		console.log('detail onSubmit', detail);
+		data = detail;
+	};
+
+	const onUpdate = ({ detail }) => {
+		console.log('detail onUpdate', detail);
+		data = detail;
+	};
+
+	$$renderer.push(`<div class="grid"><div class="col"><article><hgroup><h1>Sign in</h1> <h2>Nibh risus velit metus euismod vitae eu urna.</h2></hgroup> `);
+	Formly($$renderer, { fields, form_name, realtime: false });
+	$$renderer.push(`<!----></article></div></div>`);
+}

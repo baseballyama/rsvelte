@@ -1,5 +1,5 @@
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{NodeIdentifier, SyntaxTree};
 
 use crate::rule::RuleDefinition;
 

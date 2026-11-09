@@ -1,9 +1,9 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_stylesheet::postcss::InlineNode;
-use rsvelte_svelte::syntax::syntax_tree::{Attribute, AttributeKind, TemplateNode};
-use rsvelte_typescript::syntax_tree::{Kind, Tag};
+use rsvelte_stylesheet_syntax::postcss::InlineNode;
+use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, TemplateNode};
+use rsvelte_typescript_syntax::syntax_tree::{Kind, Tag};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::element_kind::is_html_like;
@@ -112,7 +112,7 @@ impl SvelteRule for PreferStyleDirective {
 /// `style:property={…}`.
 fn conditional<'s>(
     file: &File<'s>,
-    expression: rsvelte_typescript::NodeIdentifier,
+    expression: rsvelte_typescript_syntax::NodeIdentifier,
     directive: &impl Fn(&str) -> bool,
 ) -> Option<(Span, &'s str, String)> {
     let javascript = file.javascript();
@@ -187,8 +187,8 @@ fn conditional<'s>(
 }
 
 fn span_of(
-    javascript: &rsvelte_typescript::SyntaxTree,
-    node: rsvelte_typescript::NodeIdentifier,
+    javascript: &rsvelte_typescript_syntax::SyntaxTree,
+    node: rsvelte_typescript_syntax::NodeIdentifier,
 ) -> Span {
     javascript
         .source_location(node)

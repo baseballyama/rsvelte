@@ -1,5 +1,5 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript::Kind;
+use rsvelte_typescript_syntax::Kind;
 
 use super::javascript::{is_optional_chain, span, walk};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};

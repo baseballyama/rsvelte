@@ -1,0 +1,4297 @@
+# rsvelte pack 1
+=== 5328 docs/src/components/motion.svelte	svelte
+<script module lang="ts">
+  import { type TagNameMap } from "../types.ts";
+
+  import type { Action } from "svelte/action";
+
+  type Parameter =
+    | (DOMKeyframesDefinition & {
+        transition?: DynamicAnimationOptions;
+      })
+    | undefined;
+
+  export const animate: Action<Element, Parameter> = (
+    node,
+    { transition, ...keyframes } = {},
+  ) => {
+    let animation = motionAnimate(node, keyframes, transition);
+    return {
+      update: ({ transition, ...keyframes } = {}) => {
+        animation.stop();
+        animation = motionAnimate(node, keyframes, transition);
+      },
+      destroy: () => {
+        animation.cancel();
+      },
+    };
+  };
+
+  export function generateCssFromInitial(
+    initial?: DOMKeyframesDefinition,
+  ): string {
+    const transformMap: Record<string, string> = {
+      x: "translateX",
+      y: "translateY",
+      z: "translateZ",
+      rotateX: "rotateX",
+      rotateY: "rotateY",
+      rotateZ: "rotateZ",
+      scale: "scale",
+      scaleX: "scaleX",
+      scaleY: "scaleY",
+      scaleZ: "scaleZ",
+      skewX: "skewX",
+      skewY: "skewY",
+    };
+
+    const transformProperties: string[] = [];
+    const otherStyles: string[] = [];
+
+    for (const [key, value] of Object.entries(initial ?? {})) {
+      if (value === undefined || value === null) continue; // Skip undefined or null values
+
+      if (key in transformMap) {
+        // Gestione delle proprietà di transform
+        const transformKey = transformMap[key];
+        const transformValue =
+          typeof value === "number" &&
+          !["scale", "scaleX", "scaleY", "scaleZ"].includes(key)
+            ? `${value}px` // Aggiungi "px" solo se necessario
+            : value;
+        transformProperties.push(`${transformKey}(${transformValue})`);
+      } else {
+        // Gestione delle proprietà CSS standard
+        const cssKey = key.replace(/([A-Z])/g, "-$1").toLowerCase(); // Convert camelCase to kebab-case
+        const cssValue =
+          typeof value === "number" && key !== "opacity" ? `${value}px` : value; // Aggiungi "px" solo se appropriato
+        otherStyles.push(`${cssKey}: ${cssValue};`);
+      }
+    }
+
+    // Combina le proprietà di transform in una singola stringa
+    if (transformProperties.length > 0) {
+      otherStyles.push(`transform: ${transformProperties.join(" ")};`);
+    }
+
+    return otherStyles.join(" ");
+  }
+</script>
+
+<script lang="ts" generics="Tag extends keyof TagNameMap">
+  import type { SvelteHTMLElements } from "svelte/elements";
+  import { animate as motionAnimate } from "motion";
+  import { tick, untrack, type Snippet } from "svelte";
+  import type {
+    DOMKeyframesDefinition,
+    DynamicAnimationOptions,
+  } from "motion/react";
+  import { watch } from "runed";
+
+  type Attrs = SvelteHTMLElements[Tag];
+  type El = TagNameMap[Tag];
+
+  type MotionProps = {
+    tag: Tag;
+    children: Snippet;
+    initial?: DOMKeyframesDefinition;
+    animate?: DOMKeyframesDefinition;
+    exit?: DOMKeyframesDefinition;
+    whileHover?: DOMKeyframesDefinition;
+    whileTap?: DOMKeyframesDefinition;
+    transition?: DynamicAnimationOptions;
+    options?: DynamicAnimationOptions;
+  } & Attrs;
+
+  const {
+    tag,
+    children,
+    initial,
+    animate,
+    exit,
+    transition,
+    whileHover,
+    whileTap,
+    ...rest
+  }: MotionProps = $props();
+
+  let el = $state<El>();
+  let ssrStyle = $state(generateCssFromInitial(initial ?? animate));
+  let isHover = $state(false);
+  let isTap = $state(false);
+
+  function runAnimation(
+    keyframes: DOMKeyframesDefinition,
+    t?: DynamicAnimationOptions,
+    _el = el,
+  ) {
+    if (!_el) {
+      return;
+    }
+    return motionAnimate(_el, keyframes, t);
+  }
+
+  function onExit(node: El) {
+    const duration = transition?.duration ?? 0.3;
+    if (exit) {
+      runAnimation(exit, transition, node);
+      return {
+        duration: duration * 1000,
+      };
+    }
+    return {
+      duration: 0,
+    };
+  }
+
+  $effect(() => {
+    if (!el) return;
+    untrack(async () => {
+      if (el && initial) {
+        ssrStyle = "";
+        await tick();
+        await runAnimation(initial, {
+          duration: 0,
+        });
+      }
+      if (el && animate) {
+        runAnimation(animate, transition);
+      }
+    });
+  });
+
+  watch(
+    [() => animate, () => el, () => transition],
+    () => {
+      if (!el || !animate) return;
+      runAnimation(animate, transition);
+    },
+    { lazy: true },
+  );
+
+  watch([() => isHover && whileHover, () => isTap && whileTap], () => {
+    if (!el) {
+      return;
+    }
+    if (isTap && whileTap) {
+      runAnimation(whileTap, transition);
+    } else if (isHover && whileHover) {
+      runAnimation(whileHover, transition);
+    } else if (initial && (whileTap || whileHover)) {
+      runAnimation(initial, transition);
+    }
+  });
+</script>
+
+<!-- svelte-ignore a11y_mouse_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<svelte:element
+  this={tag}
+  bind:this={el}
+  style={ssrStyle}
+  onmouseover={() => {
+    isHover = true;
+  }}
+  onmouseleave={() => {
+    isHover = false;
+  }}
+  ontouchstart={() => {
+    isTap = true;
+  }}
+  ontouchend={() => {
+    isTap = false;
+  }}
+  onmousedown={() => {
+    isTap = true;
+  }}
+  onmouseup={() => {
+    isTap = false;
+  }}
+  out:onExit
+  {...rest}
+>
+  {@render children?.()}
+</svelte:element>
+
+=== 5215 docs/src/components/preview.svelte	svelte
+<script lang="ts">
+  import { linear } from "svelte/easing";
+  import { fade, type TransitionConfig } from "svelte/transition";
+  import { previewCtx } from "./preview-ctx.svelte";
+  import type { Snippet } from "svelte";
+
+  const { values, schema } = previewCtx.get();
+
+  interface Props {
+    children: Snippet;
+    class?: string;
+  }
+  const { children, class: className }: Props = $props();
+
+  let open = $state(false);
+
+  function fix<El extends HTMLElement | SVGElement>(
+    node: El,
+    fn: (node: El) => TransitionConfig,
+  ): TransitionConfig {
+    const config = fn(node);
+    if (!config.delay) return config;
+
+    const easing = config.easing ?? linear;
+    const delay = config.delay;
+    const duration = config.duration ?? 0;
+    const newDuration = duration + delay;
+
+    const getTimingValues = (t: number) => {
+      const transpired = t * newDuration;
+      const withoutDelay = Math.max(0, transpired - delay);
+      const actualT = withoutDelay / duration;
+      const easedT = easing(actualT);
+
+      return [easedT, 1 - easedT];
+    };
+
+    const css = (_t: number) => {
+      const [t, u] = getTimingValues(_t);
+      return config.css?.(t, u) ?? "";
+    };
+
+    const tick = (_t: number) => {
+      const [t, u] = getTimingValues(_t);
+      return config.tick?.(t, u) ?? Promise.resolve();
+    };
+
+    return {
+      ...config,
+      delay: 0,
+      duration: newDuration,
+      css,
+      tick,
+      easing: linear,
+    };
+  }
+</script>
+
+<div
+  class="not-content relative grid min-h-[500px] place-items-center overflow-clip rounded-2xl border
+	bg-gray-100 dark:border-gray-700 dark:bg-gray-950 {className}"
+>
+  <div class="w-full min-w-0 overflow-clip p-4">
+    {@render children()}
+  </div>
+
+  {#if !open && values}
+    <button
+      class="absolute bottom-4 left-4 z-10 cursor-pointer rounded-lg bg-gray-500 px-2 py-1
+		text-sm text-white transition hover:bg-gray-700 active:bg-gray-800"
+      onclick={() => (open = !open)}
+      in:fix={(el) => fade(el, { delay: 300, duration: 200 })}
+      out:fade={{ duration: 100 }}
+    >
+      Edit props
+    </button>
+  {/if}
+
+  {#if values}
+    <div
+      class="absolute bottom-2 left-2 top-2 z-50 w-[200px] rounded-xl border border-gray-300 bg-gray-100
+		p-3 shadow-xl backdrop-blur-xl dark:border-none dark:bg-gray-800/80"
+      data-preview
+      data-open={open}
+    >
+      <div class="flex items-center justify-between">
+        <p class="text-xl font-bold text-black dark:text-white">Props</p>
+        <button
+          class="cursor-pointer rounded-lg bg-gray-500 px-2 py-1 text-sm
+				text-white transition hover:bg-gray-600 active:bg-gray-700"
+          onclick={() => (open = !open)}
+        >
+          Close
+        </button>
+      </div>
+
+      <hr
+        class="mt-2 block h-[2px] rounded-full bg-gray-300/50 dark:bg-gray-600"
+      />
+
+      <div class="mt-2 flex flex-col gap-2">
+        {#each Object.keys(values ?? {}) as key}
+          {@const control = schema[key]}
+          <label
+            class="flex w-full flex-col items-start gap-1 text-sm font-medium"
+          >
+            {control.label}
+            {#if control.type === "boolean"}
+              <input type="checkbox" bind:checked={values[key] as boolean} />
+            {:else if control.type === "select"}
+              <select
+                bind:value={values[key] as string}
+                class="self-stretch rounded-md px-1 py-0.5 dark:bg-gray-900"
+              >
+                {#each control.options as option}
+                  <option value={option}>{option}</option>
+                {/each}
+              </select>
+            {:else if control.type === "number"}
+              <input
+                type="number"
+                bind:value={
+                  () => values[key] as number,
+                  (v: number) => {
+                    // Make sure that inputed values don't go outside the specified min/max values.
+                    if (control.min && v < control.min) {
+                      values[key] = control.min;
+                    } else if (control.max && v > control.max) {
+                      values[key] = control.max;
+                    } else {
+                      values[key] = v;
+                    }
+                  }
+                }
+                min={control.min}
+                max={control.max}
+                class="self-stretch rounded-md px-1 py-0.5 dark:bg-gray-900"
+              />
+            {:else if control.type === "string"}
+              <input
+                type="text"
+                bind:value={values[key] as string}
+                class="self-stretch rounded-md px-1 py-0.5 dark:bg-gray-900"
+              />
+            {/if}
+          </label>
+        {/each}
+      </div>
+    </div>
+  {/if}
+</div>
+
+<style>
+  [data-preview][data-open="false"] {
+    scale: 0.95;
+    translate: -110%;
+    opacity: 0.75;
+    transition:
+      opacity 0.15s var(--ease-out-quad),
+      scale 0.15s var(--ease-out-quad),
+      translate 0.15s var(--ease-out-quad) 0.15s;
+  }
+
+  [data-preview][data-open="true"] {
+    transition:
+      opacity 0.15s var(--ease-out-quad) 0.15s,
+      scale 0.15s var(--ease-out-quad) 0.15s,
+      translate 0.15s var(--ease-out-quad);
+  }
+</style>
+
+=== 8580 docs/src/components/transition.svelte	svelte
+<script lang="ts" context="module">
+  const CTX_KEY = Symbol("transition");
+
+  const ctx = {
+    get() {
+      return getContext<Context>(CTX_KEY);
+    },
+    set(context: Context) {
+      return setContext(CTX_KEY, context);
+    },
+  };
+
+  class Context {
+    // Observable state for child transitions
+    show = $state<boolean | null>(null);
+    applyImmediately: boolean;
+    // number of child transitions that need to be waited before completed
+    count: number;
+    // method to communicate child transition completion
+    completed: (() => Promise<void>) | (() => void) = () => {};
+
+    constructor(config: {
+      applyImmediately?: boolean;
+      count: number;
+      completed: () => void;
+    }) {
+      this.applyImmediately = config.applyImmediately ?? false;
+      this.count = config.count ?? 0;
+      this.completed = config.completed ?? (() => {});
+    }
+  }
+
+  export interface TransitionProps {
+    /** state of element (shown or hidden), if null this we are treated as a child
+     * transition and will get the state from our parent, coordinating with it */
+    show?: boolean | null;
+
+    /** apply transition when element is first rendered (i.e. animate in) */
+    applyImmediately?: boolean;
+
+    /** whether the element should be removed from the DOM (vs hidden) */
+    unmount?: boolean;
+
+    /** classes to apply when entering (showing) */
+    enter?: string;
+    enterFrom?: string;
+    enterTo?: string;
+
+    /** classes to apply when leaving (hiding) */
+    leave?: string;
+    leaveFrom?: string;
+    leaveTo?: string;
+
+    /** children */
+    children: Snippet;
+
+    /** events */
+    beforeEnter?: () => void;
+    afterEnter?: () => void;
+    beforeLeave?: () => void;
+    afterLeave?: () => void;
+  }
+</script>
+
+<script lang="ts">
+  import { getContext, setContext, tick, type Snippet } from "svelte";
+  import { watch } from "runed";
+
+  // convert a string of class names into an array, for use with DOM methods
+  function classes(classes: string) {
+    return classes ? classes.split(" ").filter((x) => x) : [];
+  }
+
+  // to wait until css changes have been appplied we use a double rAF
+  function nextFrame() {
+    const raf = requestAnimationFrame; // help minification
+    return new Promise((resolve) => raf(() => raf(resolve)));
+  }
+
+  const {
+    show = null,
+    applyImmediately,
+    unmount,
+    enter = "",
+    enterFrom = "",
+    enterTo = "",
+    leave = "",
+    leaveFrom = "",
+    leaveTo = "",
+    children,
+    ...rest
+  }: TransitionProps = $props();
+
+  // convert class strings to arrays, for easier use with DOM elements
+  const enterClasses = $derived(classes(enter));
+  const enterFromClasses = $derived(classes(enterFrom));
+  const enterToClasses = $derived(classes(enterTo));
+
+  // if leave, leaveFrom, or leaveTo are not specified then use enter values
+  // as a convenient way to avoid repeating definitions (but reverse To & From)
+  const leaveClasses = $derived(classes(leave === null ? enter : leave));
+  const leaveFromClasses = $derived(
+    classes(leaveFrom === null ? enterTo : leaveFrom),
+  );
+  const leaveToClasses = $derived(
+    classes(leaveTo === null ? enterFrom : leaveTo),
+  );
+
+  // get parent context if we're a child
+  const parent = show === null ? ctx.get() : null;
+
+  // create our own context (which will also become parent for any children)
+  const context = new Context({
+    applyImmediately: parent ? parent.applyImmediately : applyImmediately,
+    count: 0,
+    completed: () => {},
+  });
+
+  // set context for children to use
+  setContext(CTX_KEY, context);
+
+  // set initial state
+  let display = $state(show && !context.applyImmediately ? "contents" : "none");
+  let mounted = $state(!unmount || show === true);
+
+  // use action that hooks into our wrapper div and manages everything
+  function transition(node: HTMLElement, show: boolean | null) {
+    // the child element that we will be applying classes to
+    // set later once the component has mounted
+    let el: HTMLElement;
+
+    function addClasses(...classes: string[]) {
+      el.classList.add(...classes);
+    }
+
+    function removeClasses(...classes: string[]) {
+      el.classList.remove(...classes);
+    }
+
+    function transitionEnd(transitions: string[]) {
+      // return a promise that transitions are complete (resolve immediately if no transitions)
+      return transitions.length
+        ? new Promise<void>((resolve) =>
+            el.addEventListener(
+              "transitionend",
+              (e) => {
+                e.stopPropagation();
+                resolve();
+              },
+              { once: true },
+            ),
+          )
+        : Promise.resolve();
+    }
+
+    function childrenCompleted(parentCompleted: Promise<void>) {
+      // return a promise that all children have completed (resolve immediately if no children)
+      // sets the context completed method that children call to a promise that the parent has completed
+      return context.count
+        ? new Promise<void>((resolve) => {
+            let count = 0;
+            context.completed = () => {
+              if (++count === context.count) {
+                resolve();
+              }
+              return parentCompleted;
+            };
+          })
+        : Promise.resolve();
+    }
+
+    async function ensureMountedElement() {
+      if (unmount && !mounted) {
+        mounted = true;
+        await tick(); // give slot chance to render
+      }
+      return node.firstElementChild as HTMLElement;
+    }
+
+    async function apply(
+      show: boolean,
+      base: string[],
+      from: string[],
+      to: string[],
+    ) {
+      el = await ensureMountedElement();
+
+      let resolveCompleted = () => {};
+      const completed = new Promise<void>((resolve) => {
+        resolveCompleted = resolve;
+      });
+
+      const children = childrenCompleted(completed);
+
+      // set state for any child transitions
+      context.show = show;
+
+      addClasses(...base, ...from);
+
+      const transitioned = transitionEnd(base);
+
+      await nextFrame();
+
+      removeClasses(...from);
+      addClasses(...to);
+
+      await Promise.all([transitioned, children]);
+
+      if (parent) {
+        await parent.completed();
+      }
+
+      removeClasses(...base, ...to);
+
+      resolveCompleted();
+    }
+
+    async function enter() {
+      rest.beforeEnter?.();
+
+      display = "contents";
+
+      await apply(true, enterClasses, enterFromClasses, enterToClasses);
+
+      rest.afterEnter?.();
+    }
+
+    async function leave() {
+      rest.beforeLeave?.();
+
+      await apply(false, leaveClasses, leaveFromClasses, leaveToClasses);
+
+      display = "none";
+
+      if (unmount) {
+        mounted = false;
+      }
+
+      rest.afterLeave?.();
+    }
+
+    // execute is always called, even for the initial render, so we use a flag
+    // to prevent a transition running unless applyImmediately is set for animating in
+    let shouldRun = context.applyImmediately;
+
+    // temp fix for Svelte 5 issue #11448
+    let showPrev: boolean | null;
+
+    function execute(show: boolean | null) {
+      // temp fix for Svelte 5 issue #11448 triggering animations when prop hasn't changed
+      if (show === showPrev) {
+        return;
+      }
+
+      showPrev = show;
+
+      // run appropriate transition, set promise for completion
+      function getExecuting() {
+        if (shouldRun) {
+          return show ? executing.then(enter) : executing.then(leave);
+        }
+        return Promise.resolve();
+      }
+      executing = getExecuting();
+
+      // play transitions on all subsequent calls ...
+      shouldRun = true;
+    }
+
+    // to wait for in-progress transitions to complete
+    let executing = Promise.resolve();
+
+    // if we're a child transition, increment the count on the parent and listen for state notifications
+    if (parent) {
+      parent.count++;
+      // child updates happen here, as show propery is updated by the parent, which triggers the transition
+      watch(() => parent.show, execute);
+    } else {
+      // otherwise, first run through to set initial state (and possibly, 'applyImmediately' transition)
+      execute(show);
+    }
+
+    return {
+      update(show: boolean | null) {
+        // top-level updates happen here, as show property is updated, which triggers the transition
+        execute(show);
+      },
+      destroy() {
+        // if we're a child and being removed, notify our parent and stop listening for updates
+        if (parent) {
+          parent.count--;
+        }
+      },
+    };
+  }
+</script>
+
+<div style:display use:transition={show}>
+  {#if mounted}
+    {@render children()}
+  {/if}
+</div>
+
+=== 5652 docs/src/previews/SpatialMenu.svelte	svelte
+<script lang="ts">
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { getters, mergeAttrs } from "melt";
+  import { SpatialMenu } from "melt/builders";
+  import { movies } from "./movies";
+  import fuzzysearch from "./utils/search";
+  import IconHeart from "~icons/solar/heart-bold";
+  import IconDisabled from "~icons/lucide/circle-slash";
+
+  const controls = usePreviewControls({
+    wrap: {
+      type: "boolean",
+      defaultValue: false,
+      label: "Wrap Around",
+    },
+    crossAxis: {
+      type: "boolean",
+      defaultValue: false,
+      label: "Cross Axis",
+    },
+  });
+
+  type Movie = (typeof movies)[number];
+
+  const spatialMenu = new SpatialMenu<Movie>({
+    ...getters(controls),
+  });
+
+  let search = $state("");
+
+  const filtered = $derived(
+    fuzzysearch({ needle: search, haystack: movies, property: "title" }),
+  );
+  const selected: Movie["title"][] = $state([]);
+  const disabled: Movie["title"][] = $state([]);
+
+  function toggle<T>(arr: T[], value: T) {
+    const index = arr.findIndex((i) => i === value);
+    if (index === -1) arr.push(value);
+    else arr.splice(index, 1);
+  }
+
+  function remove<T>(arr: T[], value: T) {
+    const index = arr.findIndex((i) => i === value);
+    if (index !== -1) arr.splice(index, 1);
+  }
+</script>
+
+<Preview>
+  <div
+    class="h-140 mx-auto flex flex-col items-center gap-3 overflow-hidden p-2"
+    {...spatialMenu.root}
+  >
+    <label
+      class="focus-within:border-accent-500 w-64 border-b-2 border-gray-800 transition"
+    >
+      <input
+        class="w-full bg-transparent !outline-none"
+        bind:value={search}
+        placeholder="Search for movies"
+        {...spatialMenu.input}
+      />
+    </label>
+
+    {#if filtered.length}
+      <div
+        class="shrink-1 movie-list-mask min-h-0 w-[30rem] flex-1 overflow-y-auto px-2 py-4"
+      >
+        <div
+          class="grid gap-4 p-2"
+          style:grid-template-columns="repeat(auto-fill,minmax(100px,1fr))"
+        >
+          {#each filtered as movie}
+            {@const isDisabled = Boolean(
+              disabled.find((i) => i === movie.title),
+            )}
+            {@const item = spatialMenu.getItem(movie, {
+              onSelect: () => toggle(selected, movie.title),
+              disabled: isDisabled,
+            })}
+            {@const isSelected = selected.find((i) => i === movie.title)}
+            <div
+              class={[
+                " flex w-full scroll-mb-8 scroll-mt-14 flex-col gap-2 transition",
+                item.highlighted && "scale-105",
+              ]}
+              {...mergeAttrs(item.attrs, {
+                onclick: (e) => {
+                  const isAltKeyPressed = e.altKey;
+                  if (isAltKeyPressed) {
+                    toggle(disabled, movie.title);
+                    remove(selected, movie.title);
+                  }
+                },
+              })}
+            >
+              <div
+                class={[
+                  "relative overflow-hidden rounded-md outline-2 outline-offset-2 transition-all",
+                  item.highlighted
+                    ? "outline-accent-500 "
+                    : "!outline-transparent",
+                  item.disabled ? "opacity-50" : "",
+                ]}
+              >
+                <img
+                  class={["object-fit h-full w-full"]}
+                  src={movie.posterUrl}
+                  alt={movie.title}
+                />
+                <div
+                  class={[
+                    "absolute -bottom-2 -right-2 h-10 w-12 rounded-md transition",
+                    "bg-gradient-to-br from-transparent via-neutral-900/45 via-30% to-neutral-900/45 blur-sm",
+                    !isSelected && "opacity-0",
+                  ]}
+                ></div>
+                <IconHeart
+                  class={[
+                    "absolute bottom-1 right-1 text-white",
+                    "drop-shadow-xs transition",
+                    isSelected ? "scale-100" : "scale-75 opacity-0",
+                  ]}
+                />
+                <IconDisabled
+                  class={[
+                    "absolute bottom-1 right-1 text-white",
+                    "drop-shadow-xs transition",
+                    isDisabled ? "scale-100" : "scale-75 opacity-0",
+                  ]}
+                />
+              </div>
+              <span
+                class={[
+                  "text-center text-xs font-medium transition",
+                  item.highlighted
+                    ? "text-accent-500 dark:text-accent-200"
+                    : "text-gray-800 dark:text-gray-200",
+                ]}>{movie.title}</span
+              >
+            </div>
+          {/each}
+        </div>
+      </div>
+    {:else}
+      <!-- empty state -->
+      <div class="mt-4 flex flex-col items-center justify-center gap-1 p-2">
+        <div class="text-center text-sm font-medium">No movies found</div>
+        <div class="text-center text-xs text-gray-500">
+          Try adjusting your search terms
+        </div>
+      </div>
+    {/if}
+  </div>
+</Preview>
+
+<style>
+  .movie-list-mask {
+    --shadow-height: 20px;
+    --scrollbar-width: 12px;
+    position: relative;
+
+    --mask-image:
+      linear-gradient(
+        to bottom,
+        transparent,
+        #000 var(--shadow-height),
+        #000 calc(100% - var(--shadow-height)),
+        transparent 100%
+      ),
+      linear-gradient(
+        to left,
+        #fff var(--scrollbar-width),
+        transparent var(--scrollbar-width)
+      );
+
+    mask-image: var(--mask-image);
+    -webkit-mask-image: var(--mask-image);
+  }
+</style>
+
+=== 3035 docs/src/previews/accordion.svelte	svelte
+<script lang="ts">
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { getters } from "melt";
+  import { Accordion, type AccordionItem } from "melt/builders";
+  import { slide } from "svelte/transition";
+
+  const controls = usePreviewControls({
+    multiple: {
+      type: "boolean",
+      defaultValue: false,
+      label: "Multiple",
+    },
+    disabled: {
+      type: "boolean",
+      defaultValue: false,
+      label: "Disabled",
+    },
+  });
+
+  type Item = AccordionItem<{
+    title: string;
+    description: string;
+  }>;
+
+  const items: Item[] = [
+    {
+      id: "item-1",
+      title: "What is it?",
+      description:
+        "A collection of accessible & unstyled component builders for Svelte applications.",
+    },
+    {
+      id: "item-2",
+      title: "Can I customize it?",
+      description: "Totally, it is 100% stylable and overridable.",
+    },
+    {
+      id: "item-3",
+      title: "Svelte is awesome, huh?",
+      description: "Yes, and so are you!",
+    },
+  ];
+
+  const accordion = new Accordion(getters(controls));
+</script>
+
+<Preview>
+  <div
+    {...accordion.root}
+    class="mx-auto w-[18rem] max-w-full rounded-xl shadow-lg sm:w-[25rem]"
+  >
+    {#each items as i, idx}
+      {@const item = accordion.getItem(i)}
+      {@const isFirst = idx === 0}
+      {@const isLast = idx === items.length - 1}
+
+      <div class="overflow-hidden first:rounded-t-xl last:rounded-b-xl">
+        <h2 class="relative flex" {...item.heading}>
+          <div
+            class={[
+              "border-accent-500 focus-ring absolute inset-0 z-10 border-4 transition-all",
+              isFirst && "rounded-t-xl",
+              isLast && !item.isExpanded && "rounded-b-xl",
+            ]}
+            aria-hidden="true"
+          ></div>
+          <button
+            {...item.trigger}
+            class={[
+              "flex flex-1 cursor-pointer items-center justify-between bg-gray-200 px-5 py-5 text-base font-medium leading-none text-gray-800 outline-none transition-colors",
+              !item.isDisabled &&
+                "hover:bg-gray-300 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50",
+              "disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50",
+              "dark:bg-gray-800 dark:text-gray-200 ",
+              !isLast && "border-b border-neutral-200 dark:border-neutral-700",
+            ]}
+          >
+            {item.item.title}
+          </button>
+        </h2>
+
+        {#if item.isExpanded}
+          <div
+            {...item.content}
+            class="content overflow-hidden bg-white p-4 text-sm dark:bg-gray-900 dark:text-white/80"
+            transition:slide={{ duration: 250 }}
+          >
+            <div class="p-2">
+              {item.item.description}
+            </div>
+          </div>
+        {/if}
+      </div>
+    {/each}
+  </div>
+</Preview>
+
+<style>
+  .focus-ring {
+    display: none;
+  }
+
+  .focus-ring:has(+ button:focus-visible) {
+    display: block;
+  }
+</style>
+
+=== 3086 docs/src/previews/avatar.svelte	svelte
+<script lang="ts">
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { getters, mergeAttrs } from "melt";
+  import { Avatar } from "melt/builders";
+  import { Debounced } from "runed";
+
+  const controls = usePreviewControls({
+    delayMs: {
+      label: "Delay (ms)",
+      type: "number",
+      defaultValue: 650,
+    },
+  });
+
+  let username = $state("tglide");
+  const src = new Debounced(() => `https://github.com/${username}.png`, 500);
+
+  const getInitials = (username: string): string => {
+    // Handle empty strings
+    if (!username) return "";
+
+    // Split by common separators and handle camelCase/PascalCase
+    const parts = username
+      // Insert space before capitals in camelCase/PascalCase
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      // Split by common separators
+      .split(/[\s\-_/.]+/)
+      // Remove empty parts
+      .filter((part) => part.length > 0);
+
+    // Get first letter of first part
+    const firstInitial = parts[0]?.[0]?.toUpperCase() || "";
+
+    // Get first letter of last part if different from first part
+    const lastInitial =
+      parts.length > 1 ? parts[parts.length - 1]?.[0]?.toUpperCase() : "";
+
+    return firstInitial + (lastInitial === firstInitial ? "" : lastInitial);
+  };
+  const initials = $derived(getInitials(username));
+
+  const avatar = new Avatar({
+    src: () => src.current,
+    ...getters(controls),
+  });
+</script>
+
+<Preview>
+  <div class="flex flex-col items-center">
+    <div class="flex w-full items-center justify-center gap-6">
+      <div
+        class="relative flex size-32 items-center justify-center overflow-hidden rounded-full bg-neutral-300 dark:bg-neutral-100"
+      >
+        <img
+          {...mergeAttrs(avatar.image, {
+            onload: () => {
+              console.log("loaded");
+            },
+          })}
+          alt="Avatar"
+          class={[
+            "absolute inset-0 !block h-full w-full rounded-[inherit] ",
+            avatar.loadingStatus === "loaded" ? "fade-in" : "invisible",
+          ]}
+        />
+        <span
+          {...avatar.fallback}
+          class="!block text-4xl font-medium text-neutral-700">{initials}</span
+        >
+      </div>
+    </div>
+    <label for="gh" class="mt-4"> GitHub username </label>
+    <span
+      contenteditable
+      id="gh"
+      class="focus:border-accent-200 w-auto border-b-2 border-neutral-600 bg-transparent px-1 pb-1 text-center text-2xl
+			font-light placeholder-neutral-500 outline-none transition dark:text-white"
+      bind:innerText={username}
+      spellcheck="false"
+    ></span>
+    <span
+      class={[
+        "mt-2 text-red-300",
+        avatar.loadingStatus !== "error" && "pointer-events-none opacity-0",
+      ]}
+    >
+      invalid username
+    </span>
+  </div>
+</Preview>
+
+<style>
+  .fade-in {
+    animation: fade-in 0.5s ease-in-out;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      filter: blur(10px);
+      scale: 1.2;
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+      scale: 1;
+    }
+  }
+</style>
+
+=== 1934 docs/src/previews/collapsible.svelte	svelte
+<script lang="ts">
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { Collapsible } from "melt/components";
+  import { slide } from "svelte/transition";
+  import ChevronUpDown from "~icons/heroicons/chevron-up-down-solid";
+  import Close from "~icons/material-symbols/close-rounded";
+
+  const controls = usePreviewControls({
+    disabled: {
+      label: "Disabled",
+      type: "boolean",
+      defaultValue: false,
+    },
+  });
+</script>
+
+<Preview>
+  <Collapsible {...controls}>
+    {#snippet children(collapsible)}
+      <div class="mx-auto w-[18rem] max-w-full sm:w-[25rem]">
+        <button
+          {...collapsible.trigger}
+          class="relative z-10 mx-auto flex w-full items-center justify-between rounded-xl bg-gray-200
+				px-4 py-2 text-gray-800 transition-all hover:cursor-pointer hover:bg-gray-300
+				active:bg-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50
+				dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50"
+          class:shadow-md={collapsible.open}
+          aria-label="Toggle"
+        >
+          <span> @thomasglopes starred 3 repositories </span>
+          {#if collapsible.open}
+            <Close />
+          {:else}
+            <ChevronUpDown />
+          {/if}
+        </button>
+
+        {#if collapsible.open}
+          <div
+            {...collapsible.content}
+            class="mx-auto flex w-[calc(100%-32px)] flex-col gap-2 rounded-b-xl bg-white p-4 dark:bg-gray-900 dark:text-white/80"
+            transition:slide
+          >
+            <span>melt-ui/melt-ui</span>
+            <hr class="border-b border-gray-700" />
+            <span>sveltejs/svelte</span>
+            <hr class="border-b border-gray-700" />
+            <span>sveltejs/kit</span>
+          </div>
+        {/if}
+      </div>
+    {/snippet}
+  </Collapsible>
+</Preview>
+
+=== 4243 docs/src/previews/combobox.svelte	svelte
+<script lang="ts">
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { getters } from "melt";
+  import { Combobox } from "melt/builders";
+  import AlphabetJapanese from "~icons/hugeicons/alphabet-japanese";
+  import Check from "~icons/lucide/check";
+  import ChevronDown from "~icons/lucide/chevron-down";
+  import { ascii } from "./ascii";
+
+  const controls = usePreviewControls({
+    multiple: {
+      type: "boolean",
+      defaultValue: false,
+      label: "Multiple",
+    },
+    disabled: {
+      type: "boolean",
+      defaultValue: false,
+      label: "Disabled",
+    },
+  });
+
+  const options = (
+    [
+      "Sung Jinwoo",
+      "Ichigo Kurosaki",
+      "Guts",
+      "Light Yagami",
+      "Naruto Uzumaki",
+      "Goku",
+      "Eren Jaeger",
+      "Monkey D. Luffy",
+      "Seto Kaiba",
+      "Spike Spiegel",
+      "Edward Elric",
+      "Levi Ackerman",
+      "Natsu Dragneel",
+      "Gon Freecss",
+      "Killua Zoldyck",
+      "Lelouch Lamperouge",
+      "Kira",
+      "Saitama",
+      "Vegeta",
+      "Hisoka Morow",
+      "Itachi Uchiha",
+      "Kakashi Hatake",
+      "Roronoa Zoro",
+      "Ken Kaneki",
+      "Meliodas",
+      "Tanjiro Kamado",
+      "Alucard",
+      "Roy Mustang",
+      "L Lawliet",
+      "Yami Sukehiro",
+      "Satoru Gojo",
+      "Mob",
+      "Yusuke Urameshi",
+      "Jotaro Kujo",
+      "Dio Brando",
+    ] as const
+  ).toSorted();
+  type Option = (typeof options)[number];
+
+  const combobox = new Combobox<Option, boolean>({
+    forceVisible: true,
+    onValueChange(option) {
+      if (option !== "Sung Jinwoo") {
+        console.log("I bet Sung Jinwoo could beat", option);
+      } else {
+        console.log(ascii.jinwoo);
+      }
+    },
+    ...getters(controls),
+  });
+
+  const filtered = $derived.by(() => {
+    if (!combobox.touched) return options;
+    return options.filter((o) =>
+      o.toLowerCase().includes(combobox.inputValue.trim().toLowerCase()),
+    );
+  });
+</script>
+
+<Preview>
+  <div class="mx-auto flex w-[300px] flex-col gap-1">
+    <label {...combobox.label}>Favorite Character</label>
+    <div class="relative text-left text-gray-800 transition dark:text-gray-200">
+      <AlphabetJapanese class="abs-y-center absolute left-3 shrink-0" />
+      <input
+        {...combobox.input}
+        class="w-full rounded-xl border border-gray-500 bg-gray-100 py-2 pl-9 text-left
+					disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50
+					dark:bg-gray-900"
+        type="text"
+      />
+      <button
+        class="abs-y-center absolute right-3 grid shrink-0 place-items-center rounded-md
+					dark:bg-gray-700 dark:hover:bg-gray-500 dark:active:bg-gray-600"
+        {...combobox.trigger}
+      >
+        <ChevronDown />
+      </button>
+    </div>
+    <span
+      class={[
+        "text-sm opacity-75",
+        !(combobox.multiple && combobox.valueAsString) &&
+          "pointer-events-none invisible",
+      ]}
+    >
+      Selected: {combobox.valueAsString}
+    </span>
+
+    <div
+      {...combobox.content}
+      class="flex max-h-96 flex-col rounded-xl border border-gray-500 bg-gray-100 p-2 shadow dark:bg-gray-800"
+    >
+      {#each filtered as option (option)}
+        <div
+          {...combobox.getOption(option)}
+          class={[
+            "relative flex scroll-m-2 items-center justify-between rounded-xl py-2 pl-8 pr-2",
+            combobox.highlighted === option && "bg-gray-700",
+            combobox.value === option && "font-semibold",
+          ]}
+        >
+          <span>{option}</span>
+          {#if combobox.isSelected(option)}
+            <Check class="text-accent-300 font-bold" />
+          {/if}
+        </div>
+      {:else}
+        <span class="opacity-50 py-2 pl-8 pr-2">No results found</span>
+      {/each}
+    </div>
+  </div>
+</Preview>
+
+<style>
+  [data-melt-combobox-content] {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+
+    transform: scale(0.975);
+
+    transition: 0.2s;
+    transition-property: opacity, transform;
+    transform-origin: var(--melt-popover-content-transform-origin, center);
+  }
+
+  [data-melt-combobox-content][data-open] {
+    pointer-events: auto;
+    opacity: 1;
+
+    transform: scale(1);
+  }
+</style>
+
+=== 11562 docs/src/previews/dialog.svelte	svelte
+<script lang="ts">
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { Avatar, Dialog } from "melt/builders";
+  import { flip } from "svelte/animate";
+  import { scale } from "svelte/transition";
+  import Close from "~icons/material-symbols/close-rounded";
+  import Trash from "~icons/tabler/trash";
+
+  const controls = usePreviewControls({
+    scrollLock: {
+      type: "boolean",
+      defaultValue: true,
+      label: "Scroll Lock",
+    },
+    closeOnEscape: {
+      type: "boolean",
+      defaultValue: true,
+      label: "Close on Escape",
+    },
+    closeOnOutsideClick: {
+      type: "boolean",
+      defaultValue: true,
+      label: "Close on Outside Click",
+    },
+  });
+
+  const dialog = new Dialog({
+    scrollLock: () => controls.scrollLock,
+    closeOnEscape: () => controls.closeOnEscape,
+    closeOnOutsideClick: () => controls.closeOnOutsideClick,
+  });
+
+  const formDialog = new Dialog({
+    scrollLock: () => controls.scrollLock,
+    closeOnEscape: () => controls.closeOnEscape,
+    closeOnOutsideClick: () => controls.closeOnOutsideClick,
+  });
+
+  const deleteDialog = new Dialog({
+    scrollLock: () => controls.scrollLock,
+    closeOnEscape: () => controls.closeOnEscape,
+    closeOnOutsideClick: () => controls.closeOnOutsideClick,
+  });
+
+  type User = {
+    name: string;
+    img?: string;
+  };
+  const users = $state<User[]>([
+    { name: "Thomas", img: "/previews/dialog/thomas.jpg" },
+    { name: "Invisigal", img: "/previews/dialog/invisigal.webp" },
+    { name: "Esquie", img: "/previews/dialog/esquie.png" },
+    { name: "Hornet", img: "/previews/dialog/hornet.jpg" },
+    { name: "Denji", img: "/previews/dialog/denji.jpg" },
+  ]);
+  let curr = $state<number>(0);
+  let userToDelete = $state<{ index: number; user: User } | null>(null);
+</script>
+
+{#snippet userProfile(user: User, a?: Avatar)}
+  {@const avatar = a ?? new Avatar({ src: user.img })}
+  <div
+    class="relative flex size-32 items-center justify-center overflow-hidden rounded-full"
+  >
+    <div
+      class="grid h-full w-full place-items-center rounded-full border bg-neutral-300 text-5xl font-medium text-neutral-700
+			dark:bg-neutral-800"
+    >
+      <p>{user.name[0]}</p>
+    </div>
+    <img
+      {...avatar.image}
+      alt={`${user.name}'s profile picture`}
+      class={[
+        "absolute inset-0 !block h-full w-full rounded-[inherit] object-cover",
+        avatar.loadingStatus === "loaded" ? "fade-in" : "invisible",
+      ]}
+    />
+  </div>
+  <p class="mt-2 font-semibold text-gray-800 dark:text-gray-200">
+    {user.name}
+  </p>
+{/snippet}
+
+<Preview>
+  <button
+    class="mx-auto block rounded-xl bg-transparent px-4 py-2
+		transition-all
+		hover:cursor-pointer hover:bg-gray-300/50
+		active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50
+		dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50"
+    {...dialog.trigger}
+  >
+    {@render userProfile(users[curr])}
+    <p class="text-sm font-light dark:text-gray-400">change user?</p>
+  </button>
+
+  <div {...dialog.overlay}></div>
+  <dialog
+    class="abs-center visibility:[hidden] pointer-events-none z-10 grid grid-cols-3 overflow-visible
+		rounded-2xl border bg-white p-4 shadow-xl backdrop-blur-lg
+		data-[open]:pointer-events-auto data-[open]:visible
+		dark:border-gray-700 dark:bg-gray-900/80"
+    {...dialog.content}
+  >
+    {#each [...users, null] as u, i (u ? u.name : null)}
+      <div
+        animate:flip={{ duration: 250, delay: 500 }}
+        out:scale={{ duration: 500, delay: 100 }}
+      >
+        {#if u}
+          <div class="group relative">
+            <button
+              class="rounded-xl bg-transparent px-4 py-2 transition-all
+				hover:cursor-pointer hover:bg-gray-300/50
+				active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50
+				dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50"
+              onclick={() => {
+                curr = i;
+                dialog.open = false;
+              }}
+            >
+              {@render userProfile(u)}
+            </button>
+            <button
+              class="delete-btn absolute right-3 top-2 grid size-7 place-items-center rounded-full
+					border border-red-200/50 bg-red-100/80 text-red-400
+					opacity-0 shadow-sm backdrop-blur-sm
+					transition-all duration-200
+					hover:bg-red-200/90 hover:text-red-500 hover:shadow-md
+					group-hover:opacity-100
+					dark:border-red-400/20 dark:bg-red-500/20 dark:text-red-300
+					dark:hover:bg-red-500/30 dark:hover:text-red-200"
+              onclick={(e) => {
+                e.stopPropagation();
+                userToDelete = { index: i, user: u };
+                deleteDialog.open = true;
+              }}
+            >
+              <Trash class="size-3.5" />
+            </button>
+          </div>
+        {:else}
+          <button
+            class="rounded-xl bg-transparent px-4 py-2 transition-all
+	hover:cursor-pointer hover:bg-gray-300/50
+	active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50
+	dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50"
+            {...formDialog.trigger}
+          >
+            <div
+              class="relative flex size-32 items-center justify-center overflow-hidden rounded-full"
+            >
+              <div
+                class="grid h-full w-full place-items-center rounded-full border bg-neutral-300 text-5xl font-medium text-neutral-700
+			dark:bg-neutral-800 dark:text-neutral-600"
+              >
+                <p>+</p>
+              </div>
+            </div>
+            <p class="mt-2 font-semibold text-gray-800 dark:text-gray-200">
+              Add new
+            </p>
+          </button>
+        {/if}
+      </div>
+    {/each}
+
+    <div {...formDialog.overlay}></div>
+    <dialog
+      class="abs-center visibility:[hidden] pointer-events-none z-10 w-96 overflow-visible
+		rounded-2xl border bg-white p-6 shadow-xl backdrop-blur-lg
+		data-[open]:pointer-events-auto data-[open]:visible
+		dark:border-gray-700 dark:bg-gray-900/80"
+      {...formDialog.content}
+    >
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          Add new user
+        </h2>
+        <button
+          class="grid place-items-center rounded-lg bg-transparent p-1 text-gray-400
+					transition-colors hover:bg-gray-100 hover:text-gray-600
+					dark:hover:bg-gray-700 dark:hover:text-gray-200"
+          onclick={() => (formDialog.open = false)}
+        >
+          <Close class="size-5" />
+        </button>
+      </div>
+      <form
+        class="flex flex-col gap-4"
+        onsubmit={(e) => {
+          e.preventDefault();
+          const formData = new FormData(e.currentTarget);
+          const name = formData.get("name") as string;
+          if (!name.trim()) return;
+
+          users.push({ name: name.trim() });
+          formDialog.open = false;
+          e.currentTarget.reset();
+        }}
+      >
+        <label class="flex flex-col gap-1.5">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300"
+            >Name</span
+          >
+          <input
+            type="text"
+            name="name"
+            required
+            placeholder="Enter name..."
+            class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900
+						placeholder:text-gray-400
+						focus:border-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500/20
+						dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100
+						dark:placeholder:text-gray-500 dark:focus:border-gray-400 dark:focus:ring-gray-400/20"
+          />
+        </label>
+        <div class="mt-2 flex justify-end gap-3">
+          <button
+            type="button"
+            class="rounded-xl bg-gray-100 px-4 py-2 font-medium text-gray-700
+						transition-all hover:cursor-pointer hover:bg-gray-200
+						active:bg-gray-300
+						dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:active:bg-gray-500"
+            onclick={() => (formDialog.open = false)}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="rounded-xl bg-gray-600 px-4 py-2 font-medium text-white
+						transition-all hover:cursor-pointer hover:bg-gray-500
+						active:bg-gray-400
+						dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:active:bg-gray-600"
+          >
+            Add User
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <div {...deleteDialog.overlay}></div>
+    <dialog
+      class="abs-center visibility:[hidden] w-128 pointer-events-none z-10 overflow-visible
+			rounded-2xl border bg-white p-6 shadow-xl backdrop-blur-lg
+			data-[open]:pointer-events-auto data-[open]:visible
+			dark:border-gray-700 dark:bg-gray-900/80"
+      {...deleteDialog.content}
+    >
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          Delete user
+        </h2>
+        <button
+          class="grid place-items-center rounded-lg bg-transparent p-1 text-gray-400
+					transition-colors hover:bg-gray-100 hover:text-gray-600
+					dark:hover:bg-gray-700 dark:hover:text-gray-200"
+          onclick={() => (deleteDialog.open = false)}
+        >
+          <Close class="size-5" />
+        </button>
+      </div>
+      <hr class="mb-4 border-gray-200 dark:border-gray-700" />
+      <p class="text-gray-600 dark:text-gray-300">
+        Are you sure you want to delete <span class="font-semibold"
+          >{userToDelete?.user.name}</span
+        >?
+      </p>
+      <div class="mt-6 flex justify-end gap-3">
+        <button
+          type="button"
+          class="rounded-xl bg-gray-100 px-4 py-2 font-medium text-gray-700
+					transition-all hover:cursor-pointer hover:bg-gray-200
+					active:bg-gray-300
+					dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 dark:active:bg-gray-500"
+          onclick={() => (deleteDialog.open = false)}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="rounded-xl bg-red-500 px-4 py-2 font-medium text-white
+					transition-all hover:cursor-pointer hover:bg-red-600
+					active:bg-red-700
+					dark:bg-red-800 dark:hover:bg-red-700 dark:active:bg-red-800"
+          onclick={() => {
+            if (userToDelete) {
+              users.splice(userToDelete.index, 1);
+              if (curr >= users.length) curr = Math.max(0, users.length - 1);
+              userToDelete = null;
+            }
+            deleteDialog.open = false;
+          }}
+        >
+          Delete
+        </button>
+      </div>
+    </dialog>
+  </dialog>
+</Preview>
+
+<style>
+  dialog {
+    opacity: 0;
+    scale: 0.8;
+    transition:
+      scale cubic-bezier(0.175, 0.885, 0.32, 1.275) 250ms,
+      opacity 200ms ease;
+  }
+
+  dialog::backdrop {
+    display: none;
+  }
+
+  dialog[data-open] {
+    opacity: 1;
+    scale: 1;
+  }
+
+  [data-melt-dialog-overlay] {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    background: color-mix(in oklch, var(--color-black) 50%, transparent);
+    backdrop-filter: blur(20px);
+    opacity: 0;
+    transition: 200ms ease;
+  }
+
+  [data-melt-dialog-overlay][data-open] {
+    opacity: 1;
+  }
+
+  .fade-in {
+    animation: fade-in 0.2s ease-in-out;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      filter: blur(10px);
+      scale: 1.2;
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+      scale: 1;
+    }
+  }
+</style>
+
+=== 4029 docs/src/previews/file-upload.svelte	svelte
+<script lang="ts">
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { getters } from "melt";
+  import { FileUpload } from "melt/builders";
+  import { SvelteSet } from "svelte/reactivity";
+  import UploadIcon from "~icons/tabler/cloud-upload";
+  import XIcon from "~icons/tabler/x";
+
+  const controls = usePreviewControls({
+    multiple: {
+      type: "boolean",
+      label: "Multiple files",
+      defaultValue: true,
+    },
+    avoidDuplicates: {
+      type: "boolean",
+      label: "Avoid duplicates",
+      defaultValue: true,
+    },
+    accept: {
+      type: "string",
+      label: "Accept",
+      defaultValue: "",
+    },
+    maxSize: {
+      type: "number",
+      label: "Max size (bytes)",
+      defaultValue: 5 * 1024 * 1024, // 5MB
+    },
+  });
+
+  const fileUpload = new FileUpload({
+    ...getters(controls),
+    selected: [new File([""], "empty.txt", { type: "text/plain" })],
+    onError: (e) => {
+      console.log(e);
+    },
+  });
+
+  const files = $derived.by(() => {
+    if (fileUpload.selected instanceof SvelteSet) {
+      return Array.from(fileUpload.selected);
+    }
+    return [fileUpload.selected].filter((f): f is File => !!f);
+  });
+
+  function formatFileSize(bytes: number) {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  }
+</script>
+
+<Preview>
+  <div class="flex flex-col items-center gap-4">
+    <input {...fileUpload.input} />
+    <div
+      {...fileUpload.dropzone}
+      class="relative flex min-h-[200px] w-[300px] cursor-pointer
+				flex-col items-center justify-center gap-4
+				rounded-xl border-2 border-dashed border-gray-300 bg-gray-50
+				p-6 text-center transition-colors
+				hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700"
+      class:!border-accent-500={fileUpload.isDragging}
+    >
+      {#if fileUpload.isDragging}
+        <p class="text-accent-400 font-medium">Drop files here</p>
+      {:else}
+        <div class="pointer-events-none flex flex-col items-center gap-2">
+          <UploadIcon class="text-4xl" />
+
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            <span class="font-semibold text-gray-900 dark:text-white"
+              >Click to upload</span
+            >
+            or drag and drop
+          </p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            {controls.accept}
+            {#if controls.maxSize}
+              <span>(up to {formatFileSize(controls.maxSize)})</span>
+            {/if}
+          </p>
+        </div>
+      {/if}
+    </div>
+
+    {#if files.length > 0}
+      <ul
+        class="w-[300px] list-none divide-y divide-gray-200 p-0 dark:divide-gray-700"
+      >
+        {#each files as file}
+          <li class="flex items-center gap-2 overflow-hidden py-3">
+            <div class="flex min-w-0 flex-1 items-center justify-between gap-8">
+              <div class="min-w-0 flex-1">
+                <p
+                  class="truncate text-sm font-medium text-gray-900 dark:text-white"
+                >
+                  {file.name}
+                </p>
+                <p class="truncate text-xs text-gray-500 dark:text-gray-400">
+                  {file.type}
+                </p>
+              </div>
+              <div
+                class="flex-shrink-0 text-xs text-gray-500 dark:text-gray-400"
+              >
+                {formatFileSize(file.size)}
+              </div>
+            </div>
+            <button
+              class="grid place-items-center bg-transparent text-gray-500
+							hover:text-gray-400 dark:text-gray-400 dark:hover:text-gray-300"
+              onclick={() => {
+                fileUpload.remove(file);
+              }}
+            >
+              <XIcon />
+            </button>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </div>
+</Preview>
+
+=== 1533 docs/src/previews/pin-input.svelte	svelte
+<script lang="ts">
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { getters } from "melt";
+  import { PinInput } from "melt/builders";
+
+  const controls = usePreviewControls({
+    maxLength: {
+      label: "Max length",
+      defaultValue: 4,
+      type: "number",
+      min: 1,
+      max: 8,
+    },
+    type: {
+      label: "Type",
+      type: "select",
+      options: ["alphanumeric", "numeric", "text"],
+      defaultValue: "alphanumeric",
+    },
+    mask: {
+      label: "Mask",
+      type: "boolean",
+      defaultValue: false,
+    },
+    disabled: {
+      label: "Disabled",
+      type: "boolean",
+      defaultValue: false,
+    },
+    allowPaste: {
+      label: "Allow paste",
+      type: "boolean",
+      defaultValue: true,
+    },
+  });
+
+  const pinInput = new PinInput({
+    ...getters(controls),
+    onValueChange(v) {
+      pinInput.value = v.toUpperCase();
+    },
+    onComplete(v) {
+      console.log("Yay!", v);
+    },
+  });
+</script>
+
+<Preview>
+  <div
+    {...pinInput.root}
+    class="flex items-center justify-center gap-2 font-mono"
+  >
+    {#each pinInput.inputs as input}
+      <input
+        class="focus:border-accent-500 size-12 rounded-xl border-2 border-gray-300 bg-white text-center
+				outline-none transition hover:border-gray-400 disabled:cursor-not-allowed
+				dark:border-gray-400/50 dark:bg-gray-900 dark:hover:border-gray-400 dark:focus:border-gray-300"
+        {...input}
+      />
+    {/each}
+  </div>
+</Preview>
+
+=== 3607 docs/src/previews/popover-multiple-triggers.svelte	svelte
+<script lang="ts">
+  import { objectEntries } from "@antfu/utils";
+  import Preview from "@components/preview.svelte";
+  import { mergeAttrs } from "melt";
+  import { Popover } from "melt/builders";
+
+  const popover = new Popover({
+    forceVisible: true,
+    focus: {
+      trap: true,
+    },
+  });
+
+  let activeTrigger = $state<string | null>(null);
+
+  type TriggerData = {
+    label: string;
+    icon: string;
+    content: {
+      title: string;
+      description: string;
+      actions: string[];
+    };
+  };
+
+  const triggerData: Record<string, TriggerData> = {
+    user: {
+      label: "User Profile",
+      icon: "👤",
+      content: {
+        title: "User Settings",
+        description: "Manage your account preferences and profile information.",
+        actions: ["Edit Profile", "Change Password", "Privacy Settings"],
+      },
+    },
+    notifications: {
+      label: "Notifications",
+      icon: "🔔",
+      content: {
+        title: "Notification Center",
+        description: "You have 3 unread notifications and 2 pending updates.",
+        actions: ["Mark All Read", "Settings", "Disable"],
+      },
+    },
+    help: {
+      label: "Help & Support",
+      icon: "❓",
+      content: {
+        title: "Help Center",
+        description:
+          "Get assistance with common questions and troubleshooting.",
+        actions: ["View FAQ", "Contact Support", "Report Bug"],
+      },
+    },
+  };
+</script>
+
+<Preview>
+  <div class="flex flex-col items-center gap-6">
+    <div class="flex gap-4">
+      {#each objectEntries(triggerData) as [key, data]}
+        <button
+          class="block rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-800
+				transition-all hover:cursor-pointer hover:bg-gray-200
+				active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50
+				dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50"
+          {...mergeAttrs(popover.trigger, {
+            onclick: () => (activeTrigger = key),
+          })}
+        >
+          <span>{data.icon}</span>
+          {data.label}
+        </button>
+      {/each}
+    </div>
+
+    <p class="text-sm text-gray-600 dark:text-gray-400">
+      Click any button to see contextual content in the shared popover.
+    </p>
+  </div>
+
+  <div
+    class="w-[280px] overflow-visible rounded-2xl bg-white p-4 shadow-xl dark:bg-gray-800"
+    {...popover.content}
+  >
+    {#if activeTrigger && triggerData[activeTrigger]}
+      {@const data = triggerData[activeTrigger].content}
+      <div class="mb-3 flex items-center gap-2">
+        <span class="text-xl">{triggerData[activeTrigger].icon}</span>
+        <h3 class="text-lg font-semibold">{data.title}</h3>
+      </div>
+      <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+        {data.description}
+      </p>
+      <div class="flex flex-col gap-1">
+        {#each data.actions as action}
+          <button
+            class="bg-transparent text-left text-sm underline transition-colors hover:opacity-75 active:opacity-50"
+          >
+            {action}
+          </button>
+        {/each}
+      </div>
+    {:else}
+      <p class="text-center text-gray-500 dark:text-gray-400">
+        Click a trigger to see contextual content
+      </p>
+    {/if}
+  </div>
+</Preview>
+
+<style>
+  [data-melt-popover-content] {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+
+    transform: scale(0.9);
+
+    transition: 0.3s;
+    transition-property: opacity, transform;
+  }
+
+  [data-melt-popover-content][data-open] {
+    pointer-events: auto;
+    opacity: 1;
+
+    transform: scale(1);
+  }
+</style>
+
+=== 2135 docs/src/previews/popover.svelte	svelte
+<script lang="ts">
+  import Preview from "@components/preview.svelte";
+  import { Popover as PopoverComponent } from "melt/components";
+  import { Popover } from "melt/builders";
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+
+  const controls = usePreviewControls({
+    arrow: {
+      label: "Show arrow",
+      type: "boolean",
+      defaultValue: false,
+    },
+  });
+
+  const popover = new Popover({
+    forceVisible: true,
+  });
+</script>
+
+<Preview>
+  <button
+    class="mx-auto block rounded-xl bg-gray-100 px-4 py-2 font-semibold text-gray-800
+				transition-all hover:cursor-pointer hover:bg-gray-200
+				active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50
+				dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50"
+    {...popover.trigger}
+  >
+    psst...
+  </button>
+
+  <div
+    class="w-[260px] overflow-visible rounded-2xl bg-white p-4 shadow-xl dark:bg-gray-800"
+    {...popover.content}
+  >
+    {#if controls.arrow}
+      <div {...popover.arrow} class="size-2 rounded-tl"></div>
+    {/if}
+    <p class="text-center font-semibold">Can I tell you a secret?</p>
+
+    <div class="mt-4 flex items-center justify-center gap-4">
+      <PopoverComponent forceVisible>
+        {#snippet children(popover2)}
+          <button
+            class="border-b-2 border-dashed bg-transparent transition hover:cursor-pointer hover:opacity-75 active:opacity-50"
+            {...popover2.trigger}
+          >
+            yes
+          </button>
+
+          <div
+            {...popover2.content}
+            class="rounded-xl bg-gray-100 p-4 shadow-xl backdrop-blur dark:bg-gray-700"
+          >
+            you're awesome
+          </div>
+        {/snippet}
+      </PopoverComponent>
+    </div>
+  </div>
+</Preview>
+
+<style>
+  [data-melt-popover-content] {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+
+    transform: scale(0.9);
+
+    transition: 0.3s;
+    transition-property: opacity, transform;
+  }
+
+  [data-melt-popover-content][data-open] {
+    pointer-events: auto;
+    opacity: 1;
+
+    transform: scale(1);
+  }
+</style>
+
+=== 2608 docs/src/previews/progress.svelte	svelte
+<script lang="ts">
+  import NumberFlow from "@number-flow/svelte";
+  import Preview from "@components/preview.svelte";
+  import { Progress } from "melt/builders";
+  import { Spring } from "svelte/motion";
+
+  const spring = new Spring(50, {
+    damping: 5,
+  });
+  const progress = new Progress({
+    value: () => spring.current,
+  });
+  const value = $derived(Math.round(progress.value));
+
+  function scaleConvert(
+    value: number,
+    from: [number, number],
+    to: [number, number],
+  ) {
+    const [minA, maxA] = from;
+    const [minB, maxB] = to;
+    return ((value - minA) / (maxA - minA)) * (maxB - minB) + minB;
+  }
+
+  function clamp(min: number, value: number, max: number) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  $effect(() => {
+    progress.value = scaleConvert(value, [0, 100], [1, 0]);
+  });
+
+  $effect(() => {
+    progress.value = scaleConvert(spring.current, [0, 100], [1, 0]);
+  });
+
+  $effect(() => {
+    const interval = setInterval(() => {
+      spring.target = Math.round(Math.random() * 100);
+    }, 2000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  });
+
+  const dark = {
+    h: 34,
+    maxS: 81.01,
+    s: () => Math.min(scaleConvert(value, [0, 60], [0, dark.maxS]), dark.maxS),
+    minL: 65.1,
+    l: () =>
+      clamp(dark.minL, scaleConvert(value, [0, 80], [100, dark.minL]), 100),
+  };
+
+  const darkClr = $derived(`hsl(${dark.h}, ${dark.s()}%, ${dark.l()}%)`);
+
+  const light = {
+    h: 34,
+    maxS: 81.01,
+    s: () =>
+      Math.min(scaleConvert(value, [0, 60], [0, light.maxS]), light.maxS),
+    maxL: 65.1,
+    l: () =>
+      clamp(40, scaleConvert(value, [0, 80], [0, light.maxL]), light.maxL),
+  };
+
+  const lightClr = $derived(`hsl(${light.h}, ${light.s()}%, ${light.l()}%)`);
+
+  const clrClasses = "text-(--light) dark:text-(--dark)";
+  const bgClasses = "bg-(--light) dark:bg-(--dark)";
+  const clrStyle = $derived(`--light: ${lightClr}; --dark: ${darkClr};`);
+</script>
+
+<Preview class="place-content-center">
+  <div class="flex flex-col items-center gap-2" style={clrStyle}>
+    <span
+      class={["origin-bottom", clrClasses]}
+      style:scale={scaleConvert(value, [0, 100], [1, 2])}
+    >
+      <NumberFlow {value} suffix="%" class="font-semibold" />
+    </span>
+    <div
+      {...progress.root}
+      class="relative w-[300px] overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700"
+      style:height={`${scaleConvert(value, [0, 100], [8, 24])}px`}
+    >
+      <div
+        {...progress.progress}
+        class={["h-full w-full -translate-x-[var(--progress)]", bgClasses]}
+      ></div>
+    </div>
+  </div>
+</Preview>
+
+=== 2533 docs/src/previews/radio-group.svelte	svelte
+<script lang="ts">
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { getters } from "melt";
+  import { RadioGroup } from "melt/builders";
+  const items = $state(["default", "comfortable", "compact"]);
+
+  let controls = usePreviewControls({
+    value: {
+      type: "select",
+      label: "Value",
+      options: items,
+      defaultValue: "default",
+    },
+    disabled: {
+      type: "boolean",
+      label: "Disabled",
+      defaultValue: false,
+    },
+    loop: {
+      type: "boolean",
+      label: "Loop",
+      defaultValue: true,
+    },
+    selectWhenFocused: {
+      type: "boolean",
+      label: "Select when focused",
+      defaultValue: true,
+    },
+    orientation: {
+      type: "select",
+      label: "Orientation",
+      options: ["horizontal", "vertical"],
+      defaultValue: "vertical",
+    },
+  });
+
+  const group = new RadioGroup({
+    ...getters(controls),
+    onValueChange(v) {
+      controls.value = v;
+    },
+  });
+
+  const isVert = $derived(group.orientation === "vertical");
+</script>
+
+<Preview>
+  <div class="mx-auto flex w-fit flex-col gap-2" {...group.root}>
+    <label {...group.label} class="font-medium">Layout</label>
+    <div class="flex {isVert ? 'flex-col gap-1' : 'flex-row gap-3'}">
+      {#each items as i}
+        {@const item = group.getItem(i)}
+        <div
+          class="ring-accent-500 -ml-1 flex items-center gap-3 rounded p-1 outline-none focus-visible:ring
+					data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50"
+          {...item.attrs}
+        >
+          <div
+            class={[
+              "grid h-6 w-6 place-items-center rounded-full border shadow-sm",
+              "hover:bg-gray-100 data-[disabled=true]:bg-gray-400",
+              item.checked
+                ? "bg-accent-500 border-accent-500 dark:bg-white"
+                : "border-neutral-400 bg-neutral-100",
+              "dark:border-white",
+            ]}
+          >
+            {#if item.checked}
+              <div
+                class={[
+                  "h-3 w-3 rounded-full",
+                  item.checked && "dark:bg-accent-500 bg-white",
+                ]}
+                aria-hidden="true"
+              ></div>
+            {/if}
+          </div>
+
+          <span
+            class="font-semibold capitalize leading-none text-gray-600 dark:text-gray-100"
+          >
+            {i}
+          </span>
+        </div>
+      {/each}
+    </div>
+    <input {...group.hiddenInput} />
+  </div>
+</Preview>
+
+=== 3130 docs/src/previews/select.svelte	svelte
+<script lang="ts">
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { getters } from "melt";
+  import { Select } from "melt/builders";
+  import AlphabetJapanese from "~icons/hugeicons/alphabet-japanese";
+  import Check from "~icons/lucide/check";
+  import ChevronDown from "~icons/lucide/chevron-down";
+
+  const controls = usePreviewControls({
+    multiple: {
+      type: "boolean",
+      defaultValue: false,
+      label: "Multiple",
+    },
+    disabled: {
+      type: "boolean",
+      defaultValue: false,
+      label: "Disabled",
+    },
+  });
+
+  const options = [
+    { value: "Solo Leveling", label: "Solo Leveling" },
+    { value: "Bleach", label: "Bleach" },
+    { value: "Dan da Dan", label: "Dan da Dan" },
+    { value: "Re: Zero", label: "Re: Zero" },
+    { value: "Jujutsu Kaisen", label: "Jujutsu Kaisen" },
+    { value: "Attack on Titan", label: "Attack on Titan" },
+    { value: "Death Note", label: "Death Note" },
+  ] as const;
+  type Option = (typeof options)[number];
+
+  const select = new Select<Option["value"], boolean>({
+    forceVisible: true,
+    ...getters(controls),
+  });
+</script>
+
+<Preview>
+  <div class="mx-auto flex w-[300px] flex-col gap-1">
+    <label {...select.label}>Anime</label>
+    <button
+      {...select.trigger}
+      class="flex items-center justify-between overflow-hidden rounded-xl border border-gray-500 bg-gray-100 py-2 pl-3 pr-4 text-left text-gray-800
+				transition hover:cursor-pointer hover:bg-gray-200
+				active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50
+				dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50"
+    >
+      <div class="inline-flex items-center gap-2 overflow-hidden">
+        <AlphabetJapanese class="shrink-0" />
+        <span class="truncate">{select.valueAsString || "Select an anime"}</span
+        >
+      </div>
+      <ChevronDown class="shrink-0" />
+    </button>
+
+    <div
+      {...select.content}
+      class="flex flex-col rounded-xl border border-gray-500 bg-gray-100 p-2 shadow dark:bg-gray-800"
+    >
+      {#each options as option}
+        <div
+          {...select.getOption(option.value, option.label)}
+          class={[
+            "relative flex items-center justify-between rounded-xl py-2 pl-8 pr-2",
+            select.highlighted === option.value && "bg-gray-700",
+            select.value === option.value && "font-semibold",
+          ]}
+        >
+          <span>{option.label}</span>
+          {#if select.isSelected(option.value)}
+            <Check class="text-accent-300 font-bold" />
+          {/if}
+        </div>
+      {/each}
+    </div>
+  </div>
+</Preview>
+
+<style>
+  [data-melt-select-content] {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+
+    transform: scale(0.975);
+
+    transition: 0.2s;
+    transition-property: opacity, transform;
+    transform-origin: var(--melt-popover-content-transform-origin, center);
+  }
+
+  [data-melt-select-content][data-open] {
+    pointer-events: auto;
+    opacity: 1;
+
+    transform: scale(1);
+  }
+</style>
+
+=== 1926 docs/src/previews/slider.svelte	svelte
+<script lang="ts">
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { getters } from "melt";
+  import { Slider } from "melt/builders";
+
+  const controls = usePreviewControls({
+    step: { type: "number", label: "Step", defaultValue: 1 },
+    min: { type: "number", label: "Min", defaultValue: 0 },
+    max: { type: "number", label: "Max", defaultValue: 100 },
+    orientation: {
+      type: "select",
+      label: "Orientation",
+      options: ["horizontal", "vertical"],
+      defaultValue: "horizontal",
+    },
+  });
+
+  const slider = new Slider({
+    ...getters(controls),
+    value: 30,
+  });
+</script>
+
+<Preview>
+  <div
+    class="group relative mx-auto p-3 outline-none
+				{slider.orientation === 'horizontal'
+      ? 'w-[350px] max-w-[90%]'
+      : 'h-[350px] w-[50px]'}"
+    {...slider.root}
+  >
+    <div
+      class="absolute rounded-full bg-gray-500
+					{slider.orientation === 'horizontal'
+        ? 'left-0 right-0 top-1/2 h-2 -translate-y-1/2'
+        : 'bottom-0 left-1/2 top-0 w-2 -translate-x-1/2'}"
+    >
+      <div
+        class="bg-accent-300 absolute inset-0 rounded-full transition-all group-data-[dragging]:transition-none
+						{slider.orientation === 'horizontal'
+          ? 'right-[var(--percentage-inv)]'
+          : 'top-[var(--percentage)]'}"
+      ></div>
+    </div>
+    <div
+      class="focus-visible:ring-accent-300 border-accent-300 absolute size-6 rounded-md border-2 bg-white outline-none transition-all
+					focus-visible:ring focus-visible:ring-offset-black data-[dragging]:transition-none
+					dark:border-none dark:focus-visible:ring-offset-2
+					{slider.orientation === 'horizontal'
+        ? 'left-[var(--percentage)] top-1/2 -translate-x-1/2 -translate-y-1/2'
+        : 'left-1/2 top-[var(--percentage)] -translate-x-1/2 -translate-y-1/2'}"
+      {...slider.thumb}
+    ></div>
+  </div>
+</Preview>
+
+=== 8773 docs/src/previews/tabs.svelte	svelte
+<script lang="ts">
+  import Preview from "@components/preview.svelte";
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import { Tabs } from "melt/builders";
+  import { Debounced, ElementSize, Previous } from "runed";
+  import Transition from "@components/transition.svelte";
+
+  const controls = usePreviewControls({
+    loop: { label: "Loop", defaultValue: true, type: "boolean" },
+    selectWhenFocused: {
+      label: "Select when focused",
+      defaultValue: true,
+      type: "boolean",
+    },
+    orientation: {
+      label: "Orientation",
+      defaultValue: "horizontal",
+      type: "select",
+      options: ["horizontal", "vertical"],
+    },
+  });
+
+  const tabIds = ["Movies & TV", "Anime & Manga", "Games", "Music"] as const;
+  type TabId = (typeof tabIds)[number];
+  const tabs = new Tabs<TabId>({
+    value: "Movies & TV",
+    loop: () => controls.loop,
+    selectWhenFocused: () => controls.selectWhenFocused,
+    orientation: () => controls.orientation,
+  });
+
+  let inner = $state<HTMLElement>();
+  const innerSize = new ElementSize(() => inner);
+
+  let transitioning = $state(false);
+  let activeTab = $state<TabId>(tabs.value);
+  $effect(() => {
+    if (transitioning || activeTab === tabs.value) return;
+    activeTab = tabs.value;
+    transitioning = true;
+    setTimeout(() => (transitioning = false), 350);
+  });
+
+  // Hack to make sure transitions behave
+  const debouncedTab = new Debounced(() => activeTab, 1);
+
+  const previousTab = new Previous(() => activeTab);
+  const forwards = $derived.by(() => {
+    const prevIndex = tabIds.indexOf(previousTab.current ?? tabIds[0]);
+    const currIndex = tabIds.indexOf(activeTab);
+
+    const isLooping = [prevIndex, currIndex].every(
+      (i) => i === 0 || i === tabIds.length - 1,
+    );
+    return isLooping ? prevIndex > currIndex : prevIndex < currIndex;
+  });
+
+  const transitionConfigs = $derived({
+    horizontal: {
+      leaveFrom: "-translate-x-1/2 !duration-0",
+      leaveTo: `opacity-0 ${forwards ? "translate-x-[calc(-50%-5rem)]" : "translate-x-[calc(-50%+5rem)]"}`,
+      leave: "absolute left-1/2 duration-300",
+      enterFrom: `opacity-0 ${forwards ? "translate-x-[5rem]" : "translate-x-[-5rem]"}`,
+      enter: "duration-300 relative z-10",
+    },
+    vertical: {
+      leaveFrom: "-translate-y-1/2 !duration-0",
+      leaveTo: `opacity-0 ${forwards ? "translate-y-[calc(-50%-5rem)]" : "translate-y-[calc(-50%+5rem)]"}`,
+      leave: "absolute top-1/2 duration-300",
+      enterFrom: `opacity-0 ${forwards ? "translate-y-[10rem]" : "translate-y-[-10rem]"}`,
+      enter: "duration-300 relative z-10",
+      enterTo: "translate-y-0",
+    },
+  });
+  const transitionConfig = $derived(transitionConfigs[tabs.orientation]);
+</script>
+
+<Preview>
+  <div
+    class="h-[700px] items-center gap-4
+		{tabs.orientation === 'horizontal'
+      ? 'flex flex-col items-center justify-center'
+      : 'grid grid-cols-12'}
+		"
+  >
+    <div
+      class="flex w-full flex-wrap
+			{tabs.orientation === 'horizontal'
+        ? 'items-center justify-center  overflow-x-clip'
+        : 'col-span-3 flex-col justify-center overflow-y-clip py-4'}
+			"
+      {...tabs.triggerList}
+    >
+      {#each tabIds as id}
+        <button
+          class="group min-w-0 max-w-full cursor-pointer text-ellipsis whitespace-nowrap bg-transparent text-start font-medium
+					!outline-none transition {tabs.orientation === 'horizontal'
+            ? 'px-2'
+            : 'py-0.5'}"
+          {...tabs.getTrigger(id)}
+        >
+          <div
+            class="group-focus-visible:ring-accent-600 group-data-[active]:bg-accent-500 overflow-clip rounded-full px-4
+						py-1 transition
+						group-focus-visible:ring-4 group-[&:not([data-active]):hover]:bg-gray-200
+						group-data-[active]:text-white dark:group-[&:not([data-active]):hover]:bg-white/10 dark:group-data-[active]:bg-white dark:group-data-[active]:text-black"
+          >
+            {id}
+          </div>
+        </button>
+      {/each}
+    </div>
+
+    {#snippet media(name: string, src: string)}
+      <div class="media overflow-hidden">
+        <img class="h-full w-full rounded-xl object-cover" {src} alt="" />
+        <p
+          class="absolute bottom-2 left-2 z-10 w-[calc(100%-1rem)] overflow-hidden text-ellipsis
+					whitespace-nowrap text-sm font-extrabold text-white sm:left-3 sm:text-xl"
+        >
+          {name}
+        </p>
+      </div>
+    {/snippet}
+
+    <div
+      class="relative overflow-visible transition-all duration-300
+			{tabs.orientation === 'horizontal' ? '' : 'col-span-9'}"
+      style="height: {innerSize.height ? `${innerSize.height}px` : 'auto'}"
+    >
+      <div class="inner" bind:this={inner}>
+        {#each tabIds as id}
+          {@const isActive = id === debouncedTab.current}
+          <Transition
+            show={isActive}
+            leaveFrom={transitionConfig.leaveFrom}
+            leaveTo={transitionConfig.leaveTo}
+            leave={transitionConfig.leave}
+            enterFrom={transitionConfig.enterFrom}
+            enter={transitionConfig.enter}
+          >
+            <div {...tabs.getContent(id)} class="top-0 !block">
+              {#if id === "Movies & TV"}
+                <div class="movie-grid">
+                  {@render media("Breaking Bad", "/previews/breaking-bad.jpg")}
+                  {@render media("Oldboy", "/previews/oldboy.jpg")}
+                  {@render media("Severance", "/previews/severance.jpg")}
+                  {@render media(
+                    "The Truman Show",
+                    "/previews/truman-show.jpg",
+                  )}
+                </div>
+              {:else if id === "Anime & Manga"}
+                <div class="anime-grid">
+                  {@render media("Attack on Titan", "/previews/aot.jpg")}
+                  {@render media("JJK", "/previews/nah-id-win.jpg")}
+                  {@render media("Solo Leveling", "/previews/sung-jinwoo.jpg")}
+                  {@render media("Berserk", "/previews/berserk.avif")}
+                </div>
+              {:else if id === "Games"}
+                <div class="game-grid">
+                  {@render media("Elden Ring", "/previews/elden-ring.avif")}
+                  {@render media("Outer Wilds", "/previews/outer-wilds.webp")}
+                  {@render media("Ultrakill", "/previews/ultrakill.jpg")}
+                  {@render media("Animal Well", "/previews/animal-well.jpg")}
+                </div>
+              {:else if id === "Music"}
+                <div class="music-grid">
+                  {@render media("Spiritbox", "/previews/spiritbox.jpg")}
+                  {@render media(
+                    "Nothing but Thieves",
+                    "/previews/moral-panic.jpg",
+                  )}
+                  {@render media("Deftones", "/previews/white-pony.jpg")}
+                  {@render media("Slipknot", "/previews/iowa.jpg")}
+                </div>
+              {/if}
+            </div>
+          </Transition>
+        {/each}
+      </div>
+    </div>
+  </div>
+</Preview>
+
+<style>
+  [data-melt-tabs-content][data-orientation="horizontal"] {
+    width: min(550px, 50vw);
+  }
+
+  [class*="-grid"] {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1rem;
+  }
+
+  .media {
+    position: relative;
+    object-fit: cover;
+  }
+
+  .media::after {
+    position: absolute;
+    content: "";
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0),
+      rgba(0, 0, 0, 0.5)
+    );
+  }
+
+  /* Movies */
+  .movie-grid {
+    grid-template-rows: repeat(auto-fill, 250px);
+  }
+
+  .movie-grid > :nth-child(1) {
+    grid-column: 1 / 8;
+  }
+
+  .movie-grid > :nth-child(2) {
+    grid-column: 8 / 12;
+  }
+
+  .movie-grid > :nth-child(3) {
+    grid-column: 2 / 6;
+  }
+
+  .movie-grid > :nth-child(4) {
+    grid-column: 6 / 13;
+  }
+
+  /* Anime */
+  .anime-grid {
+    grid-template-rows: repeat(auto-fill, 200px);
+  }
+
+  .anime-grid > :nth-child(1) {
+    grid-column: 1 / 9;
+  }
+
+  .anime-grid > :nth-child(2) {
+    grid-column: 9 / 13;
+  }
+
+  .anime-grid > :nth-child(3) {
+    grid-column: 1 / 6;
+  }
+
+  .anime-grid > :nth-child(4) {
+    grid-column: 6 / 13;
+  }
+
+  /* Games */
+  .game-grid {
+    grid-template-rows: 260px 200px;
+  }
+
+  .game-grid > :nth-child(1) {
+    grid-column: 1 / 13;
+  }
+
+  .game-grid > :nth-child(2) {
+    grid-column: 1 / 5;
+  }
+
+  .game-grid > :nth-child(3) {
+    grid-column: 5 / 9;
+  }
+
+  .game-grid > :nth-child(4) {
+    grid-column: 9 / 13;
+  }
+
+  /* Music */
+  .music-grid {
+    grid-template-rows: repeat(2, 220px);
+  }
+
+  .music-grid > :nth-child(1) {
+    grid-column: 1 / 7;
+  }
+
+  .music-grid > :nth-child(2) {
+    grid-column: 7 / 13;
+  }
+
+  .music-grid > :nth-child(3) {
+    grid-column: 1 / 7;
+  }
+
+  .music-grid > :nth-child(4) {
+    grid-column: 7 / 13;
+  }
+</style>
+
+=== 5782 docs/src/previews/toaster.svelte	svelte
+<script lang="ts">
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { getters } from "melt";
+  import { Toaster } from "melt/builders";
+  import { Progress } from "melt/components";
+  import { fly } from "svelte/transition";
+  import Close from "~icons/material-symbols/close-rounded";
+
+  const controls = usePreviewControls({
+    hover: {
+      type: "select",
+      label: "Hover",
+      options: ["pause", "pause-all"],
+      defaultValue: "pause-all",
+    },
+    closeDelay: {
+      type: "number",
+      min: 0,
+      max: 10000,
+      defaultValue: 3000,
+      label: "Close Delay",
+    },
+  });
+
+  type ToastData = {
+    title: string;
+    description: string;
+    variant: "success" | "warning" | "error";
+  };
+
+  const toastData: ToastData[] = [
+    {
+      title: "Success",
+      description: "Congratulations! It worked!",
+      variant: "success",
+    },
+    {
+      title: "Warning",
+      description: "Please check again.",
+      variant: "warning",
+    },
+    {
+      title: "Error",
+      description: "Something did not work!",
+      variant: "error",
+    },
+  ];
+
+  const toaster = new Toaster<ToastData>({
+    ...getters(controls),
+  });
+
+  function addRandomToast() {
+    toaster.addToast({
+      data: toastData[Math.floor(Math.random() * toastData.length)],
+    });
+  }
+</script>
+
+<Preview class="text-center">
+  <button
+    class="mx-auto block rounded-xl bg-gray-600 px-4 py-2 font-semibold text-white
+				transition-all hover:cursor-pointer hover:bg-gray-500
+				active:bg-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50
+				dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50"
+    onclick={addRandomToast}
+  >
+    Show Toast
+  </button>
+
+  <div
+    {...toaster.root}
+    class="fixed !bottom-4 !right-4 flex w-[300px] flex-col"
+    style:--toasts={toaster.toasts.length}
+  >
+    {#each toaster.toasts as toast, i (toast.id)}
+      <div
+        class="h-(--toast-height) relative flex w-full flex-col justify-center rounded-xl bg-white px-4 text-left transition dark:bg-gray-800"
+        {...toast.content}
+        style:--n={toaster.toasts.length - i}
+        in:fly={{ y: 60, opacity: 0.9 }}
+        out:fly={{ y: 20 }}
+      >
+        <h3 {...toast.title} class="whitespace-nowrap text-sm font-medium">
+          {toast.data.title}
+        </h3>
+
+        {#if toast.data.description}
+          <div
+            {...toast.description}
+            class="text-xs text-gray-700 dark:text-gray-300"
+          >
+            {toast.data.description}
+          </div>
+        {/if}
+
+        <button
+          {...toast.close}
+          aria-label="dismiss toast"
+          class="absolute right-1 top-1 bg-transparent text-gray-300 hover:text-gray-400 dark:hover:text-gray-100"
+        >
+          <Close class="h-3.5 w-3.5" />
+        </button>
+
+        {#if toast.closeDelay !== 0}
+          <div
+            class="absolute bottom-4 right-4 h-[4px] w-[30px] overflow-hidden rounded-full"
+          >
+            <Progress value={toast.percentage}>
+              {#snippet children(progress)}
+                <div
+                  {...progress.root}
+                  class="relative h-full w-full overflow-hidden bg-gray-200 dark:bg-gray-950"
+                >
+                  <div
+                    {...progress.progress}
+                    class="h-full w-full -translate-x-[var(--progress)]"
+                    class:bg-green-400={toast.data.variant === "success"}
+                    class:bg-orange-400={toast.data.variant === "warning"}
+                    class:bg-red-500={toast.data.variant === "error"}
+                  ></div>
+                </div>
+              {/snippet}
+            </Progress>
+          </div>
+        {/if}
+      </div>
+    {/each}
+  </div>
+</Preview>
+
+<style>
+  :global([popover]) {
+    inset: unset;
+  }
+
+  [data-melt-toaster-root] {
+    --gap: 0.75rem;
+    --hover-offset: 1rem;
+    --toast-height: 4rem;
+    --hidden-offset: 0.75rem;
+
+    --hidden-toasts: calc(var(--toasts) - 1);
+
+    overflow: visible;
+    display: grid;
+    grid-template-rows: var(--toast-height) repeat(
+        var(--hidden-toasts),
+        var(--hidden-offset)
+      );
+    grid-template-columns: 1fr;
+    gap: 0;
+    background: unset;
+    padding: 0;
+  }
+
+  [data-melt-toaster-root]:hover {
+    grid-template-rows: var(--hidden-offset) var(--toast-height) repeat(
+        var(--hidden-toasts),
+        calc(var(--toast-height) + var(--gap))
+      );
+  }
+
+  [data-melt-toaster-toast-content] {
+    position: absolute;
+    pointer-events: auto;
+    bottom: 0;
+    left: 0;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+
+    transform-origin: 50% 0%;
+    transition: all 350ms ease;
+  }
+
+  :global([data-theme="dark"] [data-melt-toaster-toast-content]) {
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
+  }
+
+  [data-melt-toaster-toast-content]:nth-last-child(n + 4) {
+    z-index: 1;
+    scale: 0.925;
+    opacity: 0;
+    translate: 0 calc(-3 * var(--hidden-offset));
+  }
+
+  [data-melt-toaster-toast-content]:nth-last-child(-n + 3) {
+    z-index: 2;
+    scale: 0.95;
+    translate: 0 calc(-2 * var(--hidden-offset));
+  }
+
+  [data-melt-toaster-toast-content]:nth-last-child(-n + 2) {
+    z-index: 3;
+    scale: 0.975;
+    translate: 0 calc(-1 * var(--hidden-offset));
+  }
+
+  [data-melt-toaster-toast-content]:nth-last-child(-n + 1) {
+    z-index: 4;
+    scale: 1;
+    translate: 0;
+  }
+
+  [data-melt-toaster-root]:hover [data-melt-toaster-toast-content] {
+    scale: 1;
+    opacity: 1;
+    --toast-gap: calc(calc(var(--gap) * var(--n)) + var(--hover-offset));
+    --percentage: calc(-100% * calc(var(--n) - 1));
+    translate: 0 calc(var(--percentage) - var(--toast-gap));
+  }
+</style>
+
+=== 1541 docs/src/previews/toggle.svelte	svelte
+<script lang="ts">
+  import Preview from "@components/preview.svelte";
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import { Toggle } from "melt/builders";
+  import { spring } from "svelte/motion";
+  import PhHeartBold from "~icons/ph/heart-bold";
+  import PhHeartFill from "~icons/ph/heart-fill";
+
+  const controls = usePreviewControls({
+    disabled: {
+      label: "Disabled",
+      type: "boolean",
+      defaultValue: false,
+    },
+  });
+
+  const toggle = new Toggle({
+    disabled: () => controls.disabled,
+  });
+
+  const scale = spring(0, { damping: 0.205, stiffness: 0.07, precision: 0.03 });
+  $effect(() => {
+    scale.set(toggle.value ? 1 : 0);
+  });
+  const absScale = $derived(Math.max(0, $scale));
+</script>
+
+<Preview>
+  <div class="flex justify-center">
+    <button
+      class="focus-visible:ring-accent-300 relative size-16 rounded-xl bg-transparent
+				text-xl outline-none transition-all hover:cursor-pointer
+			  hover:bg-gray-300/25 focus-visible:ring active:bg-gray-300/40 disabled:cursor-not-allowed
+				dark:hover:bg-gray-700 dark:active:bg-gray-600 dark:disabled:bg-gray-900"
+      {...toggle.trigger}
+      aria-label="toggle favourite"
+    >
+      <PhHeartFill
+        class="text-accent-500 dark:text-accent-200 absolute left-1/2 top-1/2 z-10 origin-center -translate-x-1/2 -translate-y-1/2"
+        style="scale: {absScale}"
+      />
+      <PhHeartBold
+        class="absolute left-1/2 top-1/2  -translate-x-1/2 -translate-y-1/2 opacity-30"
+      />
+    </button>
+  </div>
+</Preview>
+
+=== 2078 docs/src/previews/tooltip.svelte	svelte
+<script lang="ts">
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { getters } from "melt";
+  import { Tooltip } from "melt/builders";
+  import PhChefHatFill from "~icons/ph/chef-hat-fill";
+
+  let controls = usePreviewControls({
+    closeOnPointerDown: {
+      label: "Close on pointer down",
+      type: "boolean",
+      defaultValue: true,
+    },
+    disableHoverableContent: {
+      label: "Disable hoverable content",
+      type: "boolean",
+      defaultValue: false,
+    },
+    placement: {
+      label: "Placement",
+      type: "select",
+      options: ["top", "bottom", "left", "right"],
+      defaultValue: "top",
+    },
+    openDelay: {
+      label: "Open delay",
+      type: "number",
+      defaultValue: 100,
+    },
+    closeDelay: {
+      label: "Close delay",
+      type: "number",
+      defaultValue: 0,
+    },
+  });
+
+  const computePositionOptions = $derived({
+    computePosition: { placement: controls.placement },
+  });
+
+  const tooltip = new Tooltip({
+    ...getters(controls),
+    forceVisible: true,
+    floatingConfig: () => computePositionOptions,
+  });
+</script>
+
+<Preview>
+  <button
+    type="button"
+    class="mx-auto grid size-12 place-items-center rounded-xl text-white transition
+		dark:bg-gray-800 dark:hover:bg-gray-700 dark:active:bg-gray-600"
+    aria-label="Add"
+    {...tooltip.trigger}
+  >
+    <PhChefHatFill aria-label="Plus"></PhChefHatFill>
+  </button>
+
+  <div
+    {...tooltip.content}
+    class="rounded-xl bg-white p-0 shadow-xl dark:bg-gray-800"
+  >
+    <div {...tooltip.arrow} class="size-2 rounded-tl"></div>
+    <p class="px-4 py-1 text-gray-700 dark:text-white">Let us cook!</p>
+  </div>
+</Preview>
+
+<style>
+  [data-melt-tooltip-content] {
+    border: 0;
+
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+
+    transform: scale(0.9);
+
+    transition: 0.3s;
+    transition-property: opacity, transform;
+  }
+
+  [data-melt-tooltip-content][data-open] {
+    pointer-events: auto;
+    opacity: 1;
+
+    transform: scale(1);
+  }
+</style>
+
+=== 5669 docs/src/previews/tree.svelte	svelte
+<script lang="ts">
+  import Motion from "@components/motion.svelte";
+  import { usePreviewControls } from "@components/preview-ctx.svelte";
+  import Preview from "@components/preview.svelte";
+  import { getters } from "melt";
+  import { Tree, type TreeItem } from "melt/builders";
+  import JavaScript from "~icons/devicon/javascript";
+  import Svelte from "~icons/devicon/svelte";
+  import Folder from "~icons/ph/folder-fill";
+  import FolderOpen from "~icons/ph/folder-open-fill";
+  const controls = usePreviewControls({
+    multiple: {
+      type: "boolean",
+      defaultValue: true,
+      label: "Multiple",
+    },
+    expandOnClick: {
+      type: "boolean",
+      defaultValue: true,
+      label: "Expand on click",
+    },
+  });
+
+  type Item = TreeItem & {
+    title: string;
+    icon: "folder" | "svelte" | "js";
+    children?: Item[];
+  };
+
+  const data: Item[] = [
+    {
+      id: "index.svelte",
+      title: "index.svelte",
+      icon: "svelte",
+    },
+    {
+      id: "lib",
+      title: "lib",
+      icon: "folder",
+      children: [
+        {
+          id: "lib/icons",
+          title: "icons",
+          icon: "folder",
+          children: [
+            {
+              id: "lib/icons/JavaScript.svelte",
+              title: "JavaScript.svelte",
+              icon: "svelte",
+            },
+            {
+              id: "lib/icons/Svelte.svelte",
+              title: "Svelte.svelte",
+              icon: "svelte",
+            },
+          ],
+        },
+        {
+          id: "lib/tree",
+          title: "tree",
+          icon: "folder",
+          children: [
+            {
+              id: "lib/tree/Tree.svelte",
+              title: "Tree.svelte",
+              icon: "svelte",
+            },
+            {
+              id: "lib/tree/TreeItem.svelte",
+              title: "TreeItem.svelte",
+              icon: "svelte",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: "routes",
+      title: "routes",
+      icon: "folder",
+      children: [
+        {
+          id: "routes/contents",
+          title: "contents",
+          icon: "folder",
+          children: [
+            {
+              id: "routes/contents/+layout.svelte",
+              title: "+layout.svelte",
+              icon: "svelte",
+            },
+            {
+              id: "routes/contents/+page.svelte",
+              title: "+page.svelte",
+              icon: "svelte",
+            },
+          ],
+        },
+      ],
+    },
+  ];
+
+  const tree = new Tree({
+    items: data,
+    expanded: ["lib", "routes"],
+    ...getters(controls),
+  });
+</script>
+
+{#snippet treeItemIcon(item: (typeof tree)["children"][number])}
+  {@const icon = item.item.icon}
+
+  {#if icon === "folder"}
+    <svelte:component
+      this={item.expanded ? FolderOpen : Folder}
+      role="presentation"
+    />
+  {:else if icon === "svelte"}
+    <Svelte role="presentation" />
+  {:else if icon === "js"}
+    <JavaScript role="presentation" />
+  {/if}
+{/snippet}
+
+{#snippet treeItems(items: (typeof tree)["children"], depth: number = 0)}
+  {#each items as item (item.id)}
+    <li
+      {...item.attrs}
+      class="cursor-pointer rounded-sm !outline-none first:mt-0 [&:focus-visible>:first-child>div]:ring-4"
+    >
+      <div class="group py-1" style="padding-left: {depth * 1}rem">
+        <div
+          class="{item.selected
+            ? '!bg-accent-500 dark:!bg-accent-200 dark:!text-accent-950 !text-white'
+            : ''}
+					ring-accent-500 dark:ring-accent-700 flex h-full w-full items-center gap-2 rounded-xl
+					px-3 py-1 ring-offset-white transition group-hover:bg-gray-200
+					dark:ring-offset-black dark:group-hover:bg-gray-800"
+        >
+          {@render treeItemIcon(item)}
+          <span class="select-none">
+            {item.item.title}
+          </span>
+        </div>
+      </div>
+      {#if item.children?.length}
+        <Motion
+          tag="ul"
+          animate={{
+            height: item.expanded ? "auto" : 0,
+            opacity: item.expanded ? 1 : 0,
+            scale: item.expanded ? 1 : 0.85,
+          }}
+          transition={{
+            height: { delay: item.expanded ? 0 : 0.1 },
+            opacity: {
+              ease: "easeOut",
+              delay: item.expanded ? 0.1 : 0,
+              duration: 0.2,
+            },
+            type: "spring",
+            stiffness: 200,
+            damping: 20,
+            mass: 0.15,
+            bounce: 1,
+          }}
+          {...tree.group}
+          class="relative list-none p-0 {!item.expanded
+            ? 'pointer-events-none'
+            : ''} origin-left"
+        >
+          <div
+            class="absolute bottom-2 top-2 w-px bg-gray-200 dark:bg-gray-700"
+            style="left: {0.5 + depth * 1}rem"
+          ></div>
+          {@render treeItems(item.children, depth + 1)}
+        </Motion>
+      {/if}
+    </li>
+  {/each}
+{/snippet}
+
+{#snippet button(props: { onclick: () => void; text: string })}
+  <button
+    class="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-800
+			transition-all hover:cursor-pointer hover:bg-gray-200
+			active:bg-gray-300 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-50
+			dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-500/50 dark:active:bg-gray-600/50"
+    onclick={props.onclick}>{props.text}</button
+  >
+{/snippet}
+
+<Preview class="!py-6">
+  <div class="flex items-center justify-center gap-2">
+    {@render button({ onclick: tree.collapseAll, text: "Collapse All" })}
+    {@render button({ onclick: tree.expandAll, text: "Expand All" })}
+  </div>
+  <ul class="mx-auto w-[300px] list-none rounded-md p-4" {...tree.root}>
+    {@render treeItems(tree.children, 0)}
+  </ul>
+</Preview>
+
+=== 720 packages/melt/src/lib/builders/tests/ComboboxTest.svelte	svelte
+<script lang="ts">
+  import { Combobox } from "../Combobox.svelte.js";
+
+  type Item = { label: string; value: unknown };
+  const items: Item[] = [
+    { label: "one", value: 1 },
+    { label: "a", value: "a" },
+    { label: "obj", value: { a: 1, b: 2 } },
+  ];
+
+  const combobox = new Combobox<Item["value"], true>({
+    multiple: true,
+  });
+</script>
+
+<label for={combobox.ids.input}>Label</label>
+<input {...combobox.input} />
+<button {...combobox.trigger}>Toggle</button>
+
+<div {...combobox.content}>
+  {#each items as item}
+    <div {...combobox.getOption(item.value, item.label)}>
+      <span>{item.label}</span>
+      {#if combobox.isSelected(item.value)}
+        selected
+      {/if}
+    </div>
+  {/each}
+</div>
+
+=== 766 packages/melt/src/lib/builders/tests/SelectTest.svelte	svelte
+<script lang="ts">
+  import { Select } from "../Select.svelte.js";
+
+  type Item = { label: string; value: unknown };
+  const items: Item[] = [
+    { label: "one", value: 1 },
+    { label: "a", value: "a" },
+    { label: "obj", value: { a: 1, b: 2 } },
+  ];
+
+  const select = new Select<Item["value"], true>({
+    multiple: true,
+    sameWidth: false,
+  });
+</script>
+
+<label for={select.ids.trigger}>Label</label>
+<button {...select.trigger}>
+  <span class="truncate">{select.valueAsString || "Select an item"}</span>
+</button>
+
+<div {...select.content}>
+  {#each items as item}
+    <div {...select.getOption(item.value, item.label)}>
+      <span>{item.label}</span>
+      {#if select.isSelected(item.value)}
+        selected
+      {/if}
+    </div>
+  {/each}
+</div>
+
+=== 4722 packages/melt/src/lib/builders/tests/SpatialMenuDisabledTest.svelte	svelte
+<script lang="ts">
+  import { SpatialMenu } from "../SpatialMenu.svelte.js";
+
+  interface Props {
+    wrap?: boolean;
+    disabledPattern?: boolean[];
+  }
+
+  let { wrap = false, disabledPattern = [] }: Props = $props();
+
+  type Item = { id: number; name: string; color: string };
+
+  const allColors = [
+    { name: "Red", color: "#ef4444" },
+    { name: "Blue", color: "#3b82f6" },
+    { name: "Green", color: "#10b981" },
+    { name: "Yellow", color: "#f59e0b" },
+    { name: "Purple", color: "#8b5cf6" },
+    { name: "Pink", color: "#ec4899" },
+    { name: "Orange", color: "#f97316" },
+    { name: "Cyan", color: "#06b6d4" },
+    { name: "Indigo", color: "#6366f1" },
+    { name: "Teal", color: "#14b8a6" },
+    { name: "Rose", color: "#f43f5e" },
+    { name: "Emerald", color: "#059669" },
+  ];
+
+  // Create a 3x4 grid (12 items)
+  const itemsArray: Item[] = Array.from({ length: 12 }, (_, i) => {
+    const colorIndex = i % allColors.length;
+    return {
+      id: i + 1,
+      name: allColors[colorIndex]?.name ?? "Unknown",
+      color: allColors[colorIndex]?.color ?? "#ccc",
+    };
+  });
+
+  let selectedItem: Item | null = $state(null);
+
+  const spatialMenu = new SpatialMenu<Item>({
+    wrap,
+    scrollBehavior: "smooth",
+    onSelect: (item) => {
+      selectedItem = item;
+    },
+    onHighlightChange: () => {
+      // Track highlight changes for testing
+    },
+  });
+</script>
+
+<div data-testid="spatial-root" class="test-container" {...spatialMenu.root}>
+  <h2>Spatial Menu Disabled Test</h2>
+
+  <input
+    data-testid="spatial-input"
+    placeholder="Type to test input navigation"
+    {...spatialMenu.input}
+  />
+
+  <div class="items-grid">
+    {#each itemsArray as item, index}
+      {@const isDisabled = disabledPattern[index] ?? false}
+      {@const menuItem = spatialMenu.getItem(item, { disabled: isDisabled })}
+      <div
+        data-testid="spatial-item"
+        data-item-id={item.id}
+        data-disabled={isDisabled}
+        class="item"
+        class:highlighted={menuItem.highlighted}
+        class:disabled={isDisabled}
+        style:background-color={item.color}
+        {...menuItem.attrs}
+      >
+        <span class="item-name">{item.name}</span>
+        <span class="item-id">#{item.id}</span>
+        {#if isDisabled}
+          <span class="disabled-label">DISABLED</span>
+        {/if}
+      </div>
+    {/each}
+  </div>
+
+  {#if selectedItem}
+    <div data-testid="selected-item" class="selected-info">
+      Selected: {selectedItem.name} (#{selectedItem.id})
+    </div>
+  {/if}
+
+  <div data-testid="highlighted-item" class="highlighted-info">
+    Highlighted: {spatialMenu.highlighted?.name ?? "None"}
+  </div>
+
+  <div data-testid="selection-mode" class="mode-info">
+    Mode: {spatialMenu.selectionMode}
+  </div>
+</div>
+
+<style>
+  .test-container {
+    padding: 20px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    font-family: sans-serif;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .test-container:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+
+  h2 {
+    margin: 0 0 16px 0;
+    color: #333;
+  }
+
+  input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    font-size: 14px;
+  }
+
+  input:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+    border-color: #3b82f6;
+  }
+
+  .items-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .item {
+    padding: 16px;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+  }
+
+  .item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .item.highlighted {
+    border-color: #fff;
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(50%);
+  }
+
+  .item.disabled:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .item-name {
+    font-size: 16px;
+  }
+
+  .item-id {
+    font-size: 12px;
+    opacity: 0.8;
+  }
+
+  .disabled-label {
+    font-size: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 2px 4px;
+    border-radius: 2px;
+    position: absolute;
+    top: 4px;
+    right: 4px;
+  }
+
+  .selected-info,
+  .highlighted-info,
+  .mode-info {
+    padding: 8px 12px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #666;
+  }
+
+  .selected-info {
+    background: #dcfce7;
+    color: #166534;
+    font-weight: bold;
+  }
+</style>
+
+=== 1734 packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte	svelte
+<script lang="ts">
+  import { SpatialMenu } from "$lib/builders/SpatialMenu.svelte.js";
+
+  type Props = {
+    initial: string[];
+    wrap?: boolean;
+    crossAxis?: boolean;
+  };
+  const { initial, wrap = false, crossAxis = false }: Props = $props();
+
+  const cols = initial[0]?.split(" ").length ?? 0;
+
+  type Item = {
+    disabled?: boolean;
+    id: string;
+  };
+
+  let highlighted: string | undefined | null = $state();
+
+  const rows: Item[][] = [];
+
+  initial.forEach((row, rowIndex) => {
+    const res: Item[] = [];
+    const cols = row.split(" ");
+    cols.forEach((col, colIndex) => {
+      const id = `${rowIndex}-${colIndex}`;
+      res.push({
+        id,
+        disabled: col === "x",
+      });
+      if (col === "h") {
+        highlighted = id;
+      }
+    });
+    rows.push(res);
+  });
+
+  const menu = new SpatialMenu({
+    highlighted: () => highlighted,
+    onHighlightChange: (id) => {
+      highlighted = id;
+    },
+    wrap,
+    crossAxis,
+  });
+
+  export const getHighlighted = () => highlighted;
+</script>
+
+<div
+  style="grid-template-columns: repeat({cols}, 1fr);"
+  {...menu.root}
+  data-testid="spatial-root"
+>
+  {#each rows as row}
+    {#each row as col}
+      {@const item = menu.getItem(col.id, { disabled: col.disabled })}
+      <div {...item.attrs} data-testid="spatial-item">
+        {col.id}
+      </div>
+    {/each}
+  {/each}
+</div>
+
+<style>
+  [data-melt-spatial-menu-root] {
+    display: grid;
+
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+  }
+
+  [data-melt-spatial-menu-item] {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+  }
+
+  [data-melt-spatial-menu-item][data-highlighted] {
+    background-color: #ccc;
+  }
+
+  [data-melt-spatial-menu-item][data-disabled] {
+    opacity: 0.5;
+  }
+</style>
+
+=== 4577 packages/melt/src/lib/builders/tests/SpatialMenuTest.svelte	svelte
+<script lang="ts">
+  import { SpatialMenu } from "../SpatialMenu.svelte.js";
+
+  interface Props {
+    wrap?: boolean;
+    items?: number;
+    crossAxis?: boolean;
+    toleranceCol?: number | null;
+    toleranceRow?: number | null;
+  }
+
+  let {
+    wrap = false,
+    items = 8,
+    crossAxis = false,
+    toleranceCol = 16,
+    toleranceRow = 16,
+  }: Props = $props();
+
+  type Item = { id: number; name: string; color: string };
+
+  const allColors = [
+    { name: "Red", color: "#ef4444" },
+    { name: "Blue", color: "#3b82f6" },
+    { name: "Green", color: "#10b981" },
+    { name: "Yellow", color: "#f59e0b" },
+    { name: "Purple", color: "#8b5cf6" },
+    { name: "Pink", color: "#ec4899" },
+    { name: "Orange", color: "#f97316" },
+    { name: "Cyan", color: "#06b6d4" },
+    { name: "Indigo", color: "#6366f1" },
+    { name: "Teal", color: "#14b8a6" },
+    { name: "Rose", color: "#f43f5e" },
+    { name: "Emerald", color: "#059669" },
+    { name: "Amber", color: "#d97706" },
+    { name: "Lime", color: "#65a30d" },
+    { name: "Sky", color: "#0284c7" },
+    { name: "Violet", color: "#7c3aed" },
+    { name: "Fuchsia", color: "#c026d3" },
+    { name: "Slate", color: "#475569" },
+    { name: "Zinc", color: "#71717a" },
+    { name: "Stone", color: "#78716c" },
+  ];
+
+  const itemsArray: Item[] = Array.from({ length: items }, (_, i) => {
+    const colorIndex = i % allColors.length;
+    return {
+      id: i + 1,
+      name: allColors[colorIndex]?.name ?? "Unknown",
+      color: allColors[colorIndex]?.color ?? "#ccc",
+    };
+  });
+
+  let selectedItem: Item | null = $state(null);
+
+  const spatialMenu = new SpatialMenu<Item>({
+    wrap,
+    crossAxis,
+    toleranceCol,
+    toleranceRow,
+    scrollBehavior: "smooth",
+    onSelect: (item) => {
+      selectedItem = item;
+    },
+    onHighlightChange: () => {
+      // Track highlight changes for testing
+    },
+  });
+</script>
+
+<div data-testid="spatial-root" class="test-container" {...spatialMenu.root}>
+  <h2>Spatial Menu Test</h2>
+
+  <input
+    data-testid="spatial-input"
+    placeholder="Type to test input navigation"
+    {...spatialMenu.input}
+  />
+
+  <div class="items-grid">
+    {#each itemsArray as item}
+      {@const menuItem = spatialMenu.getItem(item)}
+      <div
+        data-testid="spatial-item"
+        data-item-id={item.id}
+        class="item"
+        class:highlighted={menuItem.highlighted}
+        style:background-color={item.color}
+        {...menuItem.attrs}
+      >
+        <span class="item-name">{item.name}</span>
+        <span class="item-id">#{item.id}</span>
+      </div>
+    {/each}
+  </div>
+
+  {#if selectedItem}
+    <div data-testid="selected-item" class="selected-info">
+      Selected: {selectedItem.name} (#{selectedItem.id})
+    </div>
+  {/if}
+
+  <div data-testid="highlighted-item" class="highlighted-info">
+    Highlighted: {spatialMenu.highlighted?.name ?? "None"}
+  </div>
+
+  <div data-testid="selection-mode" class="mode-info">
+    Mode: {spatialMenu.selectionMode}
+  </div>
+</div>
+
+<style>
+  .test-container {
+    padding: 20px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    font-family: sans-serif;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .test-container:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+
+  h2 {
+    margin: 0 0 16px 0;
+    color: #333;
+  }
+
+  input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    font-size: 14px;
+  }
+
+  input:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+    border-color: #3b82f6;
+  }
+
+  .items-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .item {
+    padding: 16px;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .item.highlighted {
+    border-color: #fff;
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .item-name {
+    font-size: 16px;
+  }
+
+  .item-id {
+    font-size: 12px;
+    opacity: 0.8;
+  }
+
+  .selected-info,
+  .highlighted-info,
+  .mode-info {
+    padding: 8px 12px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #666;
+  }
+
+  .selected-info {
+    background: #dcfce7;
+    color: #166534;
+    font-weight: bold;
+  }
+</style>
+
+=== 614 packages/melt/src/lib/builders/tests/ToastTest.svelte	svelte
+<script lang="ts" module>
+  // Define your toast data.
+  type ToastData = {
+    title: string;
+    description: string;
+  };
+
+  const toaster = new Toaster<ToastData>();
+
+  export const addToast = toaster.addToast;
+</script>
+
+<script lang="ts">
+  import { Toaster } from "../Toaster.svelte";
+</script>
+
+<div {...toaster.root}>
+  {#each toaster.toasts as toast (toast.id)}
+    <div {...toast.content}>
+      <h3 {...toast.title}>{toast.data.title}</h3>
+      <div {...toast.description}>{toast.data.description}</div>
+      <button {...toast.close} aria-label="dismiss alert">X</button>
+    </div>
+  {/each}
+</div>
+
+=== 761 packages/melt/src/lib/components/Accordion.svelte	svelte
+<script lang="ts" generics="Multiple extends boolean = false">
+  import { getters } from "$lib/utils/getters.svelte.js";
+  import { type Snippet } from "svelte";
+  import {
+    Accordion as Builder,
+    type AccordionProps,
+  } from "../builders/Accordion.svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = Omit<ComponentProps<AccordionProps<Multiple>>, "multiple"> & {
+    children: Snippet<[Builder<Multiple>]>;
+    multiple?: Multiple;
+  };
+
+  let { value = $bindable(), children, ...rest }: Props = $props();
+
+  export const accordion = new Builder<Multiple>({
+    value: () => value as unknown as any,
+    onValueChange(v) {
+      value = v as any;
+    },
+    ...getters({ ...rest }),
+  });
+</script>
+
+{@render children(accordion)}
+
+=== 624 packages/melt/src/lib/components/Avatar.svelte	svelte
+<script lang="ts">
+  import { getters } from "$lib/utils/getters.svelte.js";
+  import { type Snippet } from "svelte";
+  import {
+    Avatar as Builder,
+    type AvatarProps,
+    type ImageLoadingStatus,
+  } from "../builders/Avatar.svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = ComponentProps<AvatarProps> & {
+    children: Snippet<[Builder]>;
+    onLoadingStatusChange?: (value: ImageLoadingStatus) => void | undefined;
+  };
+
+  let { children, onLoadingStatusChange, ...rest }: Props = $props();
+
+  export const avatar = new Builder(getters({ ...rest }));
+</script>
+
+{@render children(avatar)}
+
+=== 616 packages/melt/src/lib/components/Collapsible.svelte	svelte
+<script lang="ts">
+  import { getters } from "$lib/utils/getters.svelte.js";
+  import { type Snippet } from "svelte";
+  import {
+    Collapsible as Builder,
+    type CollapsibleProps,
+  } from "../builders/Collapsible.svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = ComponentProps<CollapsibleProps> & {
+    children: Snippet<[Builder]>;
+  };
+
+  let { open = $bindable(false), children, ...rest }: Props = $props();
+
+  export const collapsible = new Builder({
+    open: () => open,
+    onOpenChange: (v) => (open = v),
+    ...getters(rest),
+  });
+</script>
+
+{@render children(collapsible)}
+
+=== 1206 packages/melt/src/lib/components/Combobox.svelte	svelte
+<script lang="ts" generics="T, Multiple extends boolean">
+  import { getters } from "../utils/getters.svelte";
+  import { type Snippet } from "svelte";
+  import {
+    Combobox as Builder,
+    type ComboboxProps,
+  } from "../builders/Combobox.svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = Omit<
+    ComponentProps<ComboboxProps<T, Multiple>>,
+    "multiple" | "onNavigate"
+  > & {
+    children: Snippet<[Builder<T, Multiple>]>;
+    multiple?: Multiple;
+    onNavigate?: (current: T | null, direction: "next" | "prev") => T | null;
+  };
+
+  let {
+    value = $bindable(),
+    highlighted = $bindable(),
+    children,
+    ...rest
+  }: Props = $props();
+
+  export const select = new Builder<T, Multiple>({
+    value: () => value as unknown as any,
+    onValueChange(v) {
+      value = v as unknown as any;
+    },
+    highlighted: () => highlighted as unknown as any,
+    onHighlightChange(v) {
+      highlighted = v as unknown as any;
+    },
+    ...getters({ ...rest }),
+    focus: {
+      ...getters(rest).focus,
+    },
+    // onNavigate should not be wrapped in a getter since it's a callback function
+    onNavigate: rest.onNavigate,
+  });
+</script>
+
+{@render children(select)}
+
+=== 785 packages/melt/src/lib/components/FileUpload.svelte	svelte
+<script lang="ts" generics="Multiple extends boolean">
+  import { getters } from "$lib/utils/getters.svelte.js";
+  import { type Snippet } from "svelte";
+  import {
+    FileUpload,
+    type FileUploadProps,
+  } from "../builders/FileUpload.svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = ComponentProps<FileUploadProps<Multiple>> & {
+    children: Snippet<[FileUpload<Multiple>]>;
+  };
+
+  let {
+    selected = $bindable(),
+    children,
+    validate,
+    multiple,
+    ...rest
+  }: Props = $props();
+
+  const fileUpload = new FileUpload<Multiple>({
+    ...getters(rest),
+    selected: () => selected as any,
+    onSelectedChange(v) {
+      selected = v as any;
+    },
+    multiple: () => multiple as Multiple,
+  });
+</script>
+
+{@render children(fileUpload)}
+
+=== 598 packages/melt/src/lib/components/PinInput.svelte	svelte
+<script lang="ts">
+  import { getters } from "$lib/utils/getters.svelte.js";
+  import { type Snippet } from "svelte";
+  import {
+    PinInput as Builder,
+    type PinInputProps,
+  } from "../builders/PinInput.svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = ComponentProps<PinInputProps> & {
+    children: Snippet<[Builder]>;
+  };
+
+  let { value = $bindable(), children, ...rest }: Props = $props();
+
+  export const pinInput = new Builder({
+    value: () => value,
+    onValueChange: (v) => (value = v),
+    ...getters(rest),
+  });
+</script>
+
+{@render children(pinInput)}
+
+=== 637 packages/melt/src/lib/components/Popover.svelte	svelte
+<script lang="ts">
+  import { getters } from "../utils/getters.svelte";
+  import { type Snippet } from "svelte";
+  import {
+    Popover as Builder,
+    type PopoverProps,
+  } from "../builders/Popover.svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = ComponentProps<PopoverProps> & {
+    children: Snippet<[Builder]>;
+  };
+
+  let { open = $bindable(false), children, ...rest }: Props = $props();
+
+  export const popover = new Builder({
+    open: () => open,
+    onOpenChange: (v) => (open = v),
+    ...getters(rest),
+    focus: {
+      ...getters(rest).focus,
+    },
+  });
+</script>
+
+{@render children(popover)}
+
+=== 598 packages/melt/src/lib/components/Progress.svelte	svelte
+<script lang="ts">
+  import { getters } from "$lib/utils/getters.svelte.js";
+  import { type Snippet } from "svelte";
+  import {
+    Progress as Builder,
+    type ProgressProps,
+  } from "../builders/Progress.svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = ComponentProps<ProgressProps> & {
+    children: Snippet<[Builder]>;
+  };
+
+  let { value = $bindable(), children, ...rest }: Props = $props();
+
+  export const progress = new Builder({
+    value: () => value,
+    onValueChange: (v) => (value = v),
+    ...getters(rest),
+  });
+</script>
+
+{@render children(progress)}
+
+=== 609 packages/melt/src/lib/components/RadioGroup.svelte	svelte
+<script lang="ts">
+  import { getters } from "$lib/utils/getters.svelte.js";
+  import { type Snippet } from "svelte";
+  import {
+    RadioGroup as Builder,
+    type RadioGroupProps,
+  } from "../builders/RadioGroup.svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = ComponentProps<RadioGroupProps> & {
+    children: Snippet<[Builder]>;
+  };
+
+  let { value = $bindable(undefined), children, ...rest }: Props = $props();
+
+  export const group = new Builder({
+    value: () => value,
+    onValueChange: (v) => (value = v),
+    ...getters(rest),
+  });
+</script>
+
+{@render children(group)}
+
+=== 1199 packages/melt/src/lib/components/Select.svelte	svelte
+<script lang="ts" generics="T , Multiple extends boolean">
+  import { getters } from "../utils/getters.svelte";
+  import { type Snippet } from "svelte";
+  import {
+    Select as Builder,
+    type SelectProps,
+  } from "../builders/Select.svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = Omit<
+    ComponentProps<SelectProps<T, Multiple>>,
+    "multiple" | "onNavigate"
+  > & {
+    children: Snippet<[Builder<T, Multiple>]>;
+    multiple?: Multiple;
+    onNavigate?: (current: T | null, direction: "next" | "prev") => T | null;
+  };
+
+  let {
+    value = $bindable(),
+    children,
+    highlighted = $bindable(),
+    ...rest
+  }: Props = $props();
+
+  export const select = new Builder<T, Multiple>({
+    value: () => value as unknown as any,
+    onValueChange(v) {
+      value = v as unknown as any;
+    },
+    highlighted: () => highlighted as unknown as any,
+    onHighlightChange(v) {
+      highlighted = v as unknown as any;
+    },
+    ...getters({ ...rest }),
+    focus: {
+      ...getters(rest).focus,
+    },
+    // onNavigate should not be wrapped in a getter since it's a callback function
+    onNavigate: rest.onNavigate,
+  });
+</script>
+
+{@render children(select)}
+
+=== 586 packages/melt/src/lib/components/Slider.svelte	svelte
+<script lang="ts">
+  import { getters } from "$lib/utils/getters.svelte.js";
+  import { type Snippet } from "svelte";
+  import {
+    Slider as Builder,
+    type SliderProps,
+  } from "../builders/Slider.svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = ComponentProps<SliderProps> & {
+    children: Snippet<[Builder]>;
+  };
+
+  let { value = $bindable(), children, ...rest }: Props = $props();
+
+  export const slider = new Builder({
+    value: () => value,
+    onValueChange: (v) => (value = v),
+    ...getters(rest),
+  });
+</script>
+
+{@render children(slider)}
+
+=== 496 packages/melt/src/lib/components/SpatialMenu.svelte	svelte
+<script lang="ts">
+  import {
+    SpatialMenu as SpatialMenuBuilder,
+    type SpatialMenuProps,
+  } from "../builders/SpatialMenu.svelte";
+  import { type Snippet } from "svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props<T = unknown> = ComponentProps<SpatialMenuProps<T>> & {
+    children: Snippet<[SpatialMenuBuilder<T>]>;
+  };
+
+  let { children, ...rest }: Props = $props();
+
+  const spatialMenu = new SpatialMenuBuilder(rest);
+</script>
+
+{@render children(spatialMenu)}
+
+=== 563 packages/melt/src/lib/components/Tabs.svelte	svelte
+<script lang="ts">
+  import { getters } from "$lib/utils/getters.svelte.js";
+  import { type Snippet } from "svelte";
+  import { Tabs as Builder, type TabsProps } from "../builders/Tabs.svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = ComponentProps<TabsProps> & {
+    children: Snippet<[Builder]>;
+  };
+
+  let { value = $bindable(), children, ...rest }: Props = $props();
+
+  export const tabs = new Builder({
+    value: () => value,
+    onValueChange: (v) => (value = v),
+    ...getters(rest),
+  });
+</script>
+
+{@render children(tabs)}
+
+=== 546 packages/melt/src/lib/components/Toggle.svelte	svelte
+<script lang="ts">
+  import {
+    Toggle as Builder,
+    type ToggleProps,
+  } from "../builders/Toggle.svelte";
+  import { type Snippet } from "svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = ComponentProps<ToggleProps> & {
+    children: Snippet<[Builder]>;
+  };
+
+  let { value = $bindable(false), children, ...rest }: Props = $props();
+
+  export const toggle = new Builder({
+    value: () => value,
+    onValueChange: (v) => (value = v),
+    disabled: () => rest.disabled,
+  });
+</script>
+
+{@render children(toggle)}
+
+=== 561 packages/melt/src/lib/components/Tooltip.svelte	svelte
+<script lang="ts">
+  import { Tooltip as Builder, type TooltipProps } from "$lib/builders";
+  import { getters } from "$lib/utils/getters.svelte.js";
+  import { type Snippet } from "svelte";
+  import type { ComponentProps } from "../types";
+
+  type Props = ComponentProps<TooltipProps> & {
+    children: Snippet<[Builder]>;
+  };
+
+  let { open = $bindable(false), children, ...rest }: Props = $props();
+
+  const tooltip = new Builder({
+    open: () => open,
+    onOpenChange: (v) => (open = v),
+    ...getters(rest),
+  });
+</script>
+
+{@render children(tooltip)}
+

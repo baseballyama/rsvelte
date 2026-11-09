@@ -1,0 +1,4173 @@
+# rsvelte pack 1
+=== 1192 src/components/CodeBlock.svelte	css
+
+	.root.svelte-ipr7k2 {
+		padding: 16px;
+		margin: 0;
+		background: var(--gray1);
+		border-radius: 0;
+		position: relative;
+		line-height: 17px;
+		white-space: pre-wrap;
+		background: linear-gradient(to top, var(--gray2), var(--gray1) 16px);
+	}
+
+	.wrapper.svelte-ipr7k2 {
+		overflow: hidden;
+		margin: 0;
+		position: relative;
+		border-radius: 6px;
+		margin-top: 16px;
+		border: 1px solid var(--gray3);
+	}
+
+	.copyButton.svelte-ipr7k2 {
+		position: absolute;
+		top: 12px;
+		right: 12px;
+		z-index: 1;
+		width: 26px;
+		height: 26px;
+		border: 1px solid var(--gray4);
+		border-radius: 6px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--gray0);
+		cursor: pointer;
+		opacity: 0;
+		color: var(--gray12);
+		transition:
+			background 200ms,
+			box-shadow 200ms,
+			opacity 200ms;
+	}
+
+	.copyButton.svelte-ipr7k2:hover {
+		background: var(--gray1);
+	}
+
+	.copyButton.svelte-ipr7k2:focus-visible {
+		box-shadow: 0 0 0 1px var(--gray4);
+	}
+
+	.copyButton.svelte-ipr7k2 > div:where(.svelte-ipr7k2) {
+		display: flex;
+	}
+
+	.outerWrapper.svelte-ipr7k2 {
+		position: relative;
+	}
+
+	.outerWrapper.svelte-ipr7k2:hover .copyButton:where(.svelte-ipr7k2) {
+		opacity: 1;
+	}
+
+=== 4015 src/components/CodeBlock.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import hljs from 'highlight.js/lib/core';
+import javascript from 'highlight.js/lib/languages/javascript';
+import xml from 'highlight.js/lib/languages/xml';
+import 'highlight.js/styles/github.css';
+import copy from 'copy-to-clipboard';
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'autodetect',
+	'language',
+	'setLanguage',
+	'ignoreIllegals',
+	'code'
+]);
+
+var root = $.from_html(`<div class="svelte-ipr7k2"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" shape-rendering="geometricPrecision"><path d="M20 6L9 17l-5-5"></path></svg></div>`);
+var root_1 = $.from_html(`<div class="svelte-ipr7k2"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" shape-rendering="geometricPrecision"><path d="M8 17.929H6c-1.105 0-2-.912-2-2.036V5.036C4 3.91 4.895 3 6 3h8c1.105 0 2 .911 2 2.036v1.866m-6 .17h8c1.105 0 2 .91 2 2.035v10.857C20 21.09 19.105 22 18 22h-8c-1.105 0-2-.911-2-2.036V9.107c0-1.124.895-2.036 2-2.036z"></path></svg></div>`);
+var root_2 = $.from_html(`<div class="outerWrapper svelte-ipr7k2"><button class="copyButton svelte-ipr7k2" aria-label="Copy code"><!></button> <div class="wrapper svelte-ipr7k2"><div><code></code></div></div></div>`);
+
+export default function CodeBlock($$anchor, $$props) {
+	$.push($$props, true);
+	hljs.registerLanguage('javascript', javascript);
+	hljs.registerLanguage('xml', xml);
+
+	let codeElement;
+
+	function escapeHtml(value) {
+		return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+	}
+
+	let autodetect = $.prop($$props, 'autodetect', 3, true),
+		language = $.prop($$props, 'language', 3, ''),
+		setLanguage = $.prop($$props, 'setLanguage', 3, () => {}),
+		ignoreIllegals = $.prop($$props, 'ignoreIllegals', 3, true),
+		restProps = $.rest_props($$props, rest_excludes);
+
+	let copying = $.state(0);
+	let highlightedCode = $.state('');
+	const cannotDetectLanguage = $.derived(() => !autodetect() && !hljs.getLanguage(language()));
+	const className = $.derived(() => $.get(cannotDetectLanguage) ? '' : `hljs ${language()} ${$$props.class ?? ''}`);
+
+	$.user_effect(() => {
+		if (!$$props.code) return;
+
+		if ($.get(cannotDetectLanguage)) {
+			$.set(highlightedCode, escapeHtml($$props.code), true);
+		}
+
+		if (autodetect()) {
+			const result = hljs.highlightAuto($$props.code);
+
+			setLanguage()(result.language ?? '');
+			$.set(highlightedCode, result.value, true);
+		} else {
+			const result = hljs.highlight($$props.code, { language: language(), ignoreIllegals: ignoreIllegals() });
+
+			$.set(highlightedCode, result.value, true);
+		}
+	});
+
+	$.user_effect(() => {
+		if (codeElement) {
+			// eslint-disable-next-line svelte/no-dom-manipulating
+			codeElement.innerHTML = $.get(highlightedCode);
+		}
+	});
+
+	function onCopy() {
+		if (!$$props.code) return;
+
+		copy($$props.code);
+		$.update(copying);
+
+		setTimeout(
+			() => {
+				$.update(copying, -1);
+			},
+			2000
+		);
+	}
+
+	var div = root_2();
+	var button = $.child(div);
+	var node = $.child(button);
+
+	{
+		var consequent = ($$anchor) => {
+			var div_1 = root();
+
+			$.append($$anchor, div_1);
+		};
+
+		var alternate = ($$anchor) => {
+			var div_2 = root_1();
+
+			$.append($$anchor, div_2);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(copying)) $$render(consequent); else $$render(alternate, -1);
+		});
+	}
+
+	$.reset(button);
+
+	var div_3 = $.sibling(button, 2);
+	var div_4 = $.child(div_3);
+	var code_1 = $.child(div_4);
+
+	$.bind_this(code_1, ($$value) => codeElement = $$value, () => codeElement);
+	$.reset(div_4);
+	$.reset(div_3);
+	$.reset(div);
+	$.template_effect(() => $.set_class(div_4, 1, `${$.get(className)} root`, 'svelte-ipr7k2'));
+	$.delegated('click', button, onCopy);
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 254 src/components/Custom.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div>A custom toast with default styling</div>`);
+
+export default function Custom($$anchor) {
+	var div = root();
+
+	$.append($$anchor, div);
+}
+=== 1382 src/components/Expand.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { toast } from '$lib/index.js';
+import CodeBlock from './CodeBlock.svelte';
+
+var root = $.from_html(`<div><h2>Expand</h2> <p>You can change the amount of toasts visible through the <code>visibleToasts</code> prop.</p> <div class="buttons"><button class="button">Expand</button> <button class="button">Default</button></div> <!></div>`);
+
+export default function Expand($$anchor, $$props) {
+	$.push($$props, true);
+
+	var div = root();
+	var div_1 = $.sibling($.child(div), 4);
+	var button = $.child(div_1);
+	var button_1 = $.sibling(button, 2);
+
+	$.reset(div_1);
+
+	var node = $.sibling(div_1, 2);
+
+	{
+		let $0 = $.derived(() => `<Toaster expand={${$$props.expand}} />`);
+
+		CodeBlock(node, {
+			get code() {
+				return $.get($0);
+			}
+		});
+	}
+
+	$.reset(div);
+
+	$.template_effect(() => {
+		$.set_attribute(button, 'data-active', $$props.expand);
+		$.set_attribute(button_1, 'data-active', !$$props.expand);
+	});
+
+	$.delegated('click', button, () => {
+		toast('Event has been created', { description: 'Monday, January 3rd at 6:00pm' });
+		$$props.setExpand(true);
+	});
+
+	$.delegated('click', button_1, () => {
+		toast('Event has been created', { description: 'Monday, January 3rd at 6:00pm' });
+		$$props.setExpand(false);
+	});
+
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 627 src/components/Footer.svelte	css
+
+	.wrapper.svelte-1sr6y3t {
+		padding: 32px 0;
+		border-top: 1px solid var(--gray3);
+		background: var(--gray1);
+		margin-top: 164px;
+	}
+
+	.p.svelte-1sr6y3t {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin: 0;
+		font-size: 14px;
+	}
+
+	.p.svelte-1sr6y3t img:where(.svelte-1sr6y3t) {
+		border-radius: 50%;
+	}
+
+	.p.svelte-1sr6y3t a:where(.svelte-1sr6y3t) {
+		font-weight: 600;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.p.svelte-1sr6y3t a:where(.svelte-1sr6y3t):hover {
+		text-decoration: underline;
+	}
+
+	@media (max-width: 600px) {
+		.wrapper.svelte-1sr6y3t {
+			margin-top: 128px;
+			padding: 16px 0;
+		}
+	}
+
+=== 479 src/components/Footer.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<footer class="wrapper svelte-1sr6y3t"><div class="container"><p class="p svelte-1sr6y3t"><img src="" alt="" class="svelte-1sr6y3t"/> <span>Ported by <a href="https://x.com/wobsoriano" target="_blank" class="svelte-1sr6y3t">wobsoriano.</a></span></p></div></footer>`);
+
+export default function Footer($$anchor) {
+	var footer = root();
+
+	$.append($$anchor, footer);
+}
+=== 3403 src/components/Hero.svelte	css
+
+	.wrapper.svelte-juboms {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		align-items: center;
+	}
+
+	.toastWrapper.svelte-juboms {
+		display: flex;
+		flex-direction: column;
+		margin: 0 auto;
+		height: 100px;
+		width: 400px;
+		position: relative;
+		mask-image: linear-gradient(to top, transparent 0%, black 35%);
+		-webkit-mask-image: linear-gradient(to top, transparent 0%, black 35%);
+		opacity: 1;
+	}
+
+	.toast.svelte-juboms {
+		width: 356px;
+		height: 40px;
+		background: var(--gray0);
+		box-shadow: 0 4px 12px #0000001a;
+		border: 1px solid var(--gray3);
+		border-radius: 6px;
+		position: absolute;
+		bottom: 0;
+		left: 50%;
+		transform: translateX(-50%);
+	}
+
+	.toast.svelte-juboms:nth-child(1) {
+		transform: translateY(-60%) translateX(-50%) scale(0.9);
+	}
+
+	.toast.svelte-juboms:nth-child(2) {
+		transform: translateY(-30%) translateX(-50%) scale(0.95);
+	}
+
+	.buttons.svelte-juboms {
+		display: flex;
+		gap: 8px;
+	}
+
+	.button.svelte-juboms {
+		height: 40px;
+		border-radius: 6px;
+		border: none;
+		background: linear-gradient(
+			156deg,
+			rgba(255, 255, 255, 1) 0%,
+			rgba(240, 240, 240, 1) 100%
+		);
+		padding: 0 30px;
+		font-weight: 600;
+		flex-shrink: 0;
+		font-family: inherit;
+		box-shadow:
+			0px 0px 0px 1px rgba(0, 0, 0, 0.06),
+			0px 1px 0px 0px rgba(0, 0, 0, 0.08),
+			0px 2px 2px 0px rgba(0, 0, 0, 0.04),
+			0px 3px 3px 0px rgba(0, 0, 0, 0.02),
+			0px 4px 4px 0px rgba(0, 0, 0, 0.01);
+		position: relative;
+		overflow: hidden;
+		cursor: pointer;
+		text-decoration: none;
+		color: hsl(0, 0%, 9%);
+		font-size: 13px;
+		display: inline-flex;
+		align-items: center;
+		transition:
+			box-shadow 200ms,
+			background 200ms;
+	}
+
+	.button[data-primary].svelte-juboms {
+		box-shadow: 0px 0px 0px 1px var(--gray12);
+		background: var(--gray12);
+		color: var(--gray1);
+	}
+	.button.svelte-juboms:focus-visible {
+		outline: none;
+		box-shadow:
+			0px 0px 0px 1px rgba(0, 0, 0, 0.06),
+			0px 1px 0px 0px rgba(0, 0, 0, 0.08),
+			0px 2px 2px 0px rgba(0, 0, 0, 0.04),
+			0px 3px 3px 0px rgba(0, 0, 0, 0.02),
+			0px 4px 4px 0px rgba(0, 0, 0, 0.01),
+			0 0 0 2px rgba(0, 0, 0, 0.15);
+	}
+
+	.button.svelte-juboms:after {
+		content: '';
+		position: absolute;
+		top: 100%;
+		background: blue;
+		left: 0;
+		width: 100%;
+		height: 35%;
+		background: linear-gradient(
+			to top,
+			hsl(0, 0%, 91%) 0%,
+			hsla(0, 0%, 91%, 0.987) 8.1%,
+			hsla(0, 0%, 91%, 0.951) 15.5%,
+			hsla(0, 0%, 91%, 0.896) 22.5%,
+			hsla(0, 0%, 91%, 0.825) 29%,
+			hsla(0, 0%, 91%, 0.741) 35.3%,
+			hsla(0, 0%, 91%, 0.648) 41.2%,
+			hsla(0, 0%, 91%, 0.55) 47.1%,
+			hsla(0, 0%, 91%, 0.45) 52.9%,
+			hsla(0, 0%, 91%, 0.352) 58.8%,
+			hsla(0, 0%, 91%, 0.259) 64.7%,
+			hsla(0, 0%, 91%, 0.175) 71%,
+			hsla(0, 0%, 91%, 0.104) 77.5%,
+			hsla(0, 0%, 91%, 0.049) 84.5%,
+			hsla(0, 0%, 91%, 0.013) 91.9%,
+			hsla(0, 0%, 91%, 0) 100%
+		);
+		opacity: 0.6;
+		transition: transform 200ms;
+	}
+
+	.button.svelte-juboms:hover:not([data-primary]):after {
+		transform: translateY(-100%);
+	}
+
+	.button[data-primary].svelte-juboms:hover {
+		background: var(--hover);
+	}
+
+	.heading.svelte-juboms {
+		font-size: 48px;
+		font-weight: 700;
+		margin: -20px 0 12px;
+	}
+
+	.hero-description.svelte-juboms {
+		margin-top: 0;
+		font-size: 18px;
+		text-align: center;
+		text-wrap: balance;
+	}
+
+	.wrapper.svelte-juboms p:where(.svelte-juboms) {
+		margin-bottom: 12px;
+	}
+
+	@media (max-width: 600px) {
+		.toastWrapper.svelte-juboms {
+			width: 100%;
+		}
+	}
+
+=== 1201 src/components/Hero.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { toast } from '$lib/index.js';
+
+var root = $.from_html(`<div class="wrapper svelte-juboms"><div class="toastWrapper svelte-juboms"><div class="toast svelte-juboms"></div> <div class="toast svelte-juboms"></div> <div class="toast svelte-juboms"></div></div> <h1 class="heading svelte-juboms">Svelte Sonner</h1> <p class="hero-description svelte-juboms">An opinionated toast component for Svelte.<br/> A port of Emil Kowalski's
+		Sonner.</p> <div class="buttons svelte-juboms"><button data-testid="default-button" data-primary="" class="button svelte-juboms">Render a toast</button> <a class="button svelte-juboms" href="https://github.com/wobsoriano/svelte-sonner" target="_blank">GitHub</a></div></div>`);
+
+export default function Hero($$anchor, $$props) {
+	$.push($$props, true);
+
+	var div = root();
+	var div_1 = $.sibling($.child(div), 6);
+	var button = $.child(div_1);
+
+	$.next(2);
+	$.reset(div_1);
+	$.reset(div);
+
+	$.delegated('click', button, () => {
+		toast('Sonner', { description: 'An opinionated toast component for Svelte.' });
+	});
+
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 757 src/components/Installation.svelte	css
+
+	.code.svelte-ieftj0 {
+		padding: 0 62px 0 12px;
+		border-radius: 6px;
+		background: linear-gradient(to top, var(--gray2), var(--gray1) 8px);
+		font-family: var(--font-mono);
+		font-size: 14px;
+		position: relative;
+		cursor: copy;
+		height: 40px;
+		border: 1px solid var(--gray3);
+		display: flex;
+		align-items: center;
+	}
+
+	.copy.svelte-ieftj0 {
+		position: absolute;
+		right: 6px;
+		top: 50%;
+		transform: translateY(-50%);
+		cursor: pointer;
+		border-radius: 50%;
+		border: none;
+		border: 1px solid var(--gray4);
+		background: #fff;
+		color: var(--gray12);
+		border-radius: 5px;
+		width: 26px;
+		height: 26px;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
+
+	.copy.svelte-ieftj0 div:where(.svelte-ieftj0) {
+		display: flex;
+	}
+
+=== 1915 src/components/Installation.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import copy from 'copy-to-clipboard';
+
+var root = $.from_html(`<div class="svelte-ieftj0"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" shape-rendering="geometricPrecision"><path d="M20 6L9 17l-5-5"></path></svg></div>`);
+var root_1 = $.from_html(`<div class="svelte-ieftj0"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" shape-rendering="geometricPrecision"><path d="M8 17.929H6c-1.105 0-2-.912-2-2.036V5.036C4 3.91 4.895 3 6 3h8c1.105 0 2 .911 2 2.036v1.866m-6 .17h8c1.105 0 2 .91 2 2.035v10.857C20 21.09 19.105 22 18 22h-8c-1.105 0-2-.911-2-2.036V9.107c0-1.124.895-2.036 2-2.036z"></path></svg></div>`);
+var root_2 = $.from_html(`<div><h2>Installation</h2>  <code class="code svelte-ieftj0">npm install svelte-sonner <button aria-label="Copy code" class="copy svelte-ieftj0"><!></button></code></div>`);
+
+export default function Installation($$anchor, $$props) {
+	$.push($$props, true);
+
+	let copying = 0;
+
+	function onCopy() {
+		copy('npm install svelte-sonner');
+		copying++;
+
+		setTimeout(
+			() => {
+				copying--;
+			},
+			2000
+		);
+	}
+
+	var div = root_2();
+	var code = $.sibling($.child(div), 2);
+	var button = $.sibling($.child(code));
+	var node = $.child(button);
+
+	{
+		var consequent = ($$anchor) => {
+			var div_1 = root();
+
+			$.append($$anchor, div_1);
+		};
+
+		var alternate = ($$anchor) => {
+			var div_2 = root_1();
+
+			$.append($$anchor, div_2);
+		};
+
+		$.if(node, ($$render) => {
+			if (copying) $$render(consequent); else $$render(alternate, -1);
+		});
+	}
+
+	$.reset(button);
+	$.reset(code);
+	$.reset(div);
+	$.delegated('click', code, onCopy);
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 1889 src/components/Installation.svelte	warnings.json
+[
+	{
+		"code": "legacy_code",
+		"message": "`a11y-no-noninteractive-element-interactions` is no longer valid — please use `a11y_no_noninteractive_element_interactions` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 18,
+			"column": 20,
+			"character": 317
+		},
+		"end": {
+			"line": 18,
+			"column": 63,
+			"character": 360
+		}
+	},
+	{
+		"code": "legacy_code",
+		"message": "`a11y-click-events-have-key-events` is no longer valid — please use `a11y_click_events_have_key_events` instead\nhttps://svelte.dev/e/legacy_code",
+		"start": {
+			"line": 17,
+			"column": 20,
+			"character": 259
+		},
+		"end": {
+			"line": 17,
+			"column": 53,
+			"character": 292
+		}
+	},
+	{
+		"code": "a11y_click_events_have_key_events",
+		"message": "Visible, non-interactive element `<code>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events",
+		"start": {
+			"line": 19,
+			"column": 1,
+			"character": 366
+		},
+		"end": {
+			"line": 58,
+			"column": 8,
+			"character": 1385
+		}
+	},
+	{
+		"code": "a11y_no_noninteractive_element_interactions",
+		"message": "Non-interactive element `<code>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions",
+		"start": {
+			"line": 19,
+			"column": 1,
+			"character": 366
+		},
+		"end": {
+			"line": 58,
+			"column": 8,
+			"character": 1385
+		}
+	},
+	{
+		"code": "non_reactive_update",
+		"message": "`copying` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+		"start": {
+			"line": 4,
+			"column": 5,
+			"character": 64
+		},
+		"end": {
+			"line": 4,
+			"column": 12,
+			"character": 71
+		}
+	}
+]
+
+=== 4033 src/components/Other.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { toast } from '$lib/index.js';
+import CodeBlock from './CodeBlock.svelte';
+import Test from './Test.svelte';
+import TestWithProps from './TestWithProps.svelte';
+import { getOtherCodeSnippet } from './code-snippets.js';
+
+var root = $.from_html(`<button class="button"> <!></button>`);
+var root_1 = $.from_html(`<div><h2>Other</h2> <div class="buttons"></div> <!></div>`);
+
+export default function Other($$anchor, $$props) {
+	$.push($$props, true);
+
+	let closeButton = $.prop($$props, 'closeButton', 15, false),
+		setRichColors = $.prop($$props, 'setRichColors', 3, () => {});
+
+	const allTypes = [
+		{
+			name: 'Rich Colors Success',
+			snippet: "toast.success('Event has been created')",
+			action: () => {
+				toast.success('Event has been created');
+				setRichColors()(true);
+			}
+		},
+
+		{
+			name: 'Rich Colors Error',
+			snippet: "toast.error('Event has not been created')",
+			action: () => {
+				toast.error('Event has not been created');
+				setRichColors()(true);
+			}
+		},
+
+		{
+			name: 'Rich Colors Info',
+			snippet: "toast.info('Info')",
+			action: () => {
+				toast.info('Be at the area 10 minutes before the event time');
+				setRichColors()(true);
+			}
+		},
+
+		{
+			name: 'Rich Colors Warning',
+			snippet: "toast.warning('Warning')",
+			action: () => {
+				toast.warning('Event start time cannot be earlier than 8am');
+				setRichColors()(true);
+			}
+		},
+
+		{
+			name: 'Close buttons',
+			snippet: `toast('Event has been created', {
+    description: 'Monday, January 3rd at 6:00pm',
+  })`,
+
+			action: () => {
+				toast('Event has been created', { description: 'Monday, January 3rd at 6:00pm' });
+				closeButton(!closeButton());
+			}
+		},
+
+		{
+			name: 'Headless',
+			snippet: `import HeadlessToast from './HeadlessToast.svelte'
+
+  toast.custom(HeadlessToast)
+
+  // With props:
+  toast.custom(HeadlessToast, {
+    componentProps: {
+      eventName: 'Louvre Museum'
+    }
+  })
+  `,
+
+			action: () => {
+				toast.custom(Test, { componentProps: { eventName: 'Louvre Museum' } });
+			}
+		},
+
+		{
+			name: 'Custom with properties',
+			snippet: `import TestWithProps from './TestWithProps.svelte'
+
+  toast.warning(TestWithProps, {
+    componentProps: {
+      message: 'This is <br />multiline message',
+    }
+  })
+  `,
+
+			action: () => {
+				toast.warning(TestWithProps, {
+					componentProps: { message: 'This is <br />multiline message' }
+				});
+			}
+		}
+	];
+
+	let activeType = $.state($.proxy(allTypes[0]));
+	const richColorsActive = $.derived(() => $.get(activeType)?.name?.includes('Rich') ?? false);
+	const closeButtonActive = $.derived(() => $.get(activeType)?.name?.includes('Close') ?? false);
+	var div = root_1();
+	var div_1 = $.sibling($.child(div), 2);
+
+	$.each(div_1, 21, () => allTypes, (type) => type.name, ($$anchor, type) => {
+		var button = root();
+		var text = $.child(button);
+		var node = $.sibling(text);
+
+		{
+			var consequent = ($$anchor) => {
+				var text_1 = $.text();
+
+				$.template_effect(() => $.set_text(text_1, `(${closeButton() ? 'Visible' : 'Hidden'})`));
+				$.append($$anchor, text_1);
+			};
+
+			$.if(node, ($$render) => {
+				if ($.get(type).name === 'Close buttons') $$render(consequent);
+			});
+		}
+
+		$.reset(button);
+
+		$.template_effect(() => {
+			$.set_attribute(button, 'data-testid', `other-${$.get(type).name}`);
+			$.set_attribute(button, 'data-active', $.get(activeType)?.name === $.get(type).name);
+			$.set_text(text, `${$.get(type).name ?? ''} `);
+		});
+
+		$.delegated('click', button, () => {
+			$.get(type).action?.();
+			$.set(activeType, $.get(type), true);
+		});
+
+		$.append($$anchor, button);
+	});
+
+	$.reset(div_1);
+
+	var node_1 = $.sibling(div_1, 2);
+
+	{
+		let $0 = $.derived(() => getOtherCodeSnippet($.get(activeType)?.snippet ?? '', $.get(richColorsActive), $.get(closeButtonActive)));
+
+		CodeBlock(node_1, {
+			get code() {
+				return $.get($0);
+			},
+			language: 'svelte'
+		});
+	}
+
+	$.reset(div);
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 1591 src/components/Position.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { toast } from '$lib/index.js';
+import CodeBlock from './CodeBlock.svelte';
+
+var root = $.from_html(`<button class="button"> </button>`);
+var root_1 = $.from_html(`<div><h2>Position</h2> <p>Swipe direction changes depending on the position.</p> <div class="buttons"></div> <!></div>`);
+
+export default function Position($$anchor, $$props) {
+	$.push($$props, true);
+
+	const positions = [
+		'top-left',
+		'top-center',
+		'top-right',
+		'bottom-left',
+		'bottom-center',
+		'bottom-right'
+	];
+
+	var div = root_1();
+	var div_1 = $.sibling($.child(div), 4);
+
+	$.each(div_1, 20, () => positions, (pos) => pos, ($$anchor, pos) => {
+		var button = root();
+		var text = $.only_child(button, true);
+
+		$.template_effect(() => {
+			$.set_attribute(button, 'data-active', $$props.position === pos);
+			$.set_text(text, pos);
+		});
+
+		$.delegated('click', button, () => {
+			const toastsAmount = document.querySelectorAll('[data-sonner-toast]').length;
+
+			$$props.setPosition(pos);
+
+			// No need to show a toast when there is already one
+			if (toastsAmount > 0 && pos !== $$props.position) return;
+
+			toast('Event has been created', { description: 'Monday, January 3rd at 6:00pm' });
+		});
+
+		$.append($$anchor, button);
+	});
+
+	$.reset(div_1);
+
+	var node = $.sibling(div_1, 2);
+
+	{
+		let $0 = $.derived(() => `<Toaster position="${$$props.position}" />`);
+
+		CodeBlock(node, {
+			get code() {
+				return $.get($0);
+			}
+		});
+	}
+
+	$.reset(div);
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 823 src/components/Test.svelte	css
+
+	.headless.svelte-hx6gt8 {
+		padding: 16px;
+		width: 356px;
+		box-sizing: border-box;
+		border-radius: 8px;
+		background: var(--gray1);
+		border: 1px solid var(--gray4);
+		position: relative;
+	}
+
+	.headlessDescription.svelte-hx6gt8 {
+		margin: 0;
+		color: var(--gray10);
+		font-size: 14px;
+		line-height: 1;
+	}
+
+	.headlessTitle.svelte-hx6gt8 {
+		font-size: 14px;
+		margin: 0 0 8px;
+		color: var(--gray12);
+		font-weight: 500;
+		line-height: 1;
+	}
+
+	.headlessClose.svelte-hx6gt8 {
+		position: absolute;
+		cursor: pointer;
+		top: 6px;
+		height: 24px;
+		width: 24px;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		right: 6px;
+		color: var(--gray10);
+		padding: 0;
+		background: transparent;
+		border: none;
+		transition: color 200ms;
+	}
+
+	.headlessClose.svelte-hx6gt8:hover {
+		color: var(--gray12);
+	}
+
+=== 1408 src/components/Test.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div class="headless svelte-hx6gt8"><p class="headlessTitle svelte-hx6gt8">Event Created</p> <p class="headlessDescription svelte-hx6gt8"> </p> <button data-testid="close-button" class="headlessClose svelte-hx6gt8" aria-label="Close"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M2.96967 2.96967C3.26256 2.67678 3.73744 2.67678 4.03033 2.96967L8 6.939L11.9697 2.96967C12.2626 2.67678 12.7374 2.67678 13.0303 2.96967C13.3232 3.26256 13.3232 3.73744 13.0303 4.03033L9.061 8L13.0303 11.9697C13.2966 12.2359 13.3208 12.6526 13.1029 12.9462L13.0303 13.0303C12.7374 13.3232 12.2626 13.3232 11.9697 13.0303L8 9.061L4.03033 13.0303C3.73744 13.3232 3.26256 13.3232 2.96967 13.0303C2.67678 12.7374 2.67678 12.2626 2.96967 11.9697L6.939 8L2.96967 4.03033C2.7034 3.76406 2.6792 3.3474 2.89705 3.05379L2.96967 2.96967Z"></path></svg></button></div>`);
+
+export default function Test($$anchor, $$props) {
+	$.push($$props, true);
+
+	var div = root();
+	var p = $.sibling($.child(div), 2);
+	var text = $.only_child(p);
+	var button = $.sibling(p, 2);
+
+	$.reset(div);
+	$.template_effect(() => $.set_text(text, `Today at 4:00pm - "${$$props.eventName ?? ''}"`));
+	$.delegated('click', button, () => $$props.closeToast?.());
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 293 src/components/TestWithProps.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div></div>`);
+
+export default function TestWithProps($$anchor, $$props) {
+	var div = root();
+
+	$.html(div, () => $$props.message, true);
+	$.reset(div);
+	$.append($$anchor, div);
+}
+=== 3892 src/components/Types.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { toast } from '$lib/index.js';
+import CodeBlock from './CodeBlock.svelte';
+import Custom from './Custom.svelte';
+import { richColorsContext } from '$lib/internal/ctx.js';
+
+var root = $.from_html(`<button class="button"> </button>`);
+
+var root_1 = $.from_html(`<div><h2>Types</h2> <p>You can customize the type of toast you want to render, and pass an
+		options object as the second argument.</p> <div class="buttons"></div> <!></div>`);
+
+export default function Types($$anchor, $$props) {
+	$.push($$props, true);
+
+	const richColors = richColorsContext.get();
+
+	const allTypes = [
+		{
+			name: 'Default',
+			snippet: "toast('Event has been created')",
+			action: () => {
+				richColors.setRichColors(false);
+				toast('Event has been created');
+			}
+		},
+
+		{
+			name: 'Description',
+			snippet: `toast.message('Event has been created', {
+				description: 'Monday, January 3rd at 6:00pm',
+				})`,
+			action: () => toast('Event has been created', { description: 'Monday, January 3rd at 6:00pm' })
+		},
+
+		{
+			name: 'Success',
+			snippet: "toast.success('Event has been created')",
+			action: () => {
+				richColors.setRichColors(false);
+				toast.success('Event has been created');
+			}
+		},
+
+		{
+			name: 'Info',
+			snippet: "toast.info('Event will be created')",
+			action: () => {
+				richColors.setRichColors(false);
+				toast.info('Event will be created');
+			}
+		},
+
+		{
+			name: 'Warning',
+			snippet: "toast.warning('Event has warnings')",
+			action: () => {
+				richColors.setRichColors(false);
+				toast.warning('Event has warnings');
+			}
+		},
+
+		{
+			name: 'Error',
+			snippet: "toast.error('Event has not been created')",
+			action: () => {
+				richColors.setRichColors(false);
+				toast.error('Event has not been created');
+			}
+		},
+
+		{
+			name: 'Action',
+			snippet: `toast('Event has been created', {
+  action: {
+    label: 'Undo',
+    onClick: () => console.log('Undo')
+  },
+})`,
+
+			action: () => toast.message('Event has been created', {
+				action: { label: 'Undo', onClick: () => console.log('Undo') }
+			})
+		},
+
+		{
+			name: 'Promise',
+			snippet: `const promise = new Promise((resolve, reject) => setTimeout(() => {
+  if (Math.random() > 0.5) {
+    resolve({ name: 'Svelte Sonner' });
+  } else {
+    reject();
+  }
+}, 1500));
+
+toast.promise(promise, {
+  loading: 'Loading...',
+  success: (data) => {
+    return data.name +  " toast has been added";
+  },
+  error: 'Error... :( Try again!',
+});`,
+
+			action: () => toast.promise(
+				() => new Promise((resolve) => setTimeout(
+					() => {
+						resolve({ name: 'Svelte Sonner' });
+					},
+					1500
+				)),
+				{
+					loading: 'Loading...',
+					success: (data) => {
+						return `${data.name} toast has been added`;
+					},
+					error: 'Error... :( Try again!'
+				}
+			)
+		},
+
+		{
+			name: 'Custom',
+			snippet: `import Custom from './Custom.svelte'
+
+toast(Custom)`,
+			action: () => toast(Custom, { duration: 1000000 })
+		}
+	];
+
+	let activeType = $.state($.proxy(allTypes[0]));
+	var div = root_1();
+	var div_1 = $.sibling($.child(div), 4);
+
+	$.each(div_1, 21, () => allTypes, (type) => type.name, ($$anchor, type) => {
+		var button = root();
+		var text = $.only_child(button, true);
+
+		$.template_effect(() => {
+			$.set_attribute(button, 'data-testid', $.get(type).name);
+			$.set_attribute(button, 'data-active', $.get(activeType)?.name === $.get(type).name);
+			$.set_text(text, $.get(type).name);
+		});
+
+		$.delegated('click', button, () => {
+			$.get(type).action?.();
+			$.set(activeType, $.get(type), true);
+		});
+
+		$.append($$anchor, button);
+	});
+
+	$.reset(div_1);
+
+	var node = $.sibling(div_1, 2);
+
+	{
+		let $0 = $.derived(() => $.get(activeType)?.snippet);
+
+		CodeBlock(node, {
+			get code() {
+				return $.get($0);
+			}
+		});
+	}
+
+	$.reset(div);
+	$.append($$anchor, div);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 505 src/components/Usage.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import CodeBlock from './CodeBlock.svelte';
+import { usageSnippet } from './code-snippets.js';
+
+var root = $.from_html(`<div><h2>Usage</h2> <p>Render the toaster in the root of your app.</p> <!></div>`);
+
+export default function Usage($$anchor) {
+	var div = root();
+	var node = $.sibling($.child(div), 4);
+
+	CodeBlock(node, {
+		get code() {
+			return usageSnippet;
+		}
+	});
+
+	$.reset(div);
+	$.append($$anchor, div);
+}
+=== 3179 src/lib/Icon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" height="20" width="20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"></path></svg>`);
+var root_1 = $.from_svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" height="20" width="20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"></path></svg>`);
+var root_2 = $.from_svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" height="20" width="20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"></path></svg>`);
+var root_3 = $.from_svg(`<svg viewBox="0 0 64 64" fill="currentColor" height="20" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M32.427,7.987c2.183,0.124 4,1.165 5.096,3.281l17.936,36.208c1.739,3.66 -0.954,8.585 -5.373,8.656l-36.119,0c-4.022,-0.064 -7.322,-4.631 -5.352,-8.696l18.271,-36.207c0.342,-0.65 0.498,-0.838 0.793,-1.179c1.186,-1.375 2.483,-2.111 4.748,-2.063Zm-0.295,3.997c-0.687,0.034 -1.316,0.419 -1.659,1.017c-6.312,11.979 -12.397,24.081 -18.301,36.267c-0.546,1.225 0.391,2.797 1.762,2.863c12.06,0.195 24.125,0.195 36.185,0c1.325,-0.064 2.321,-1.584 1.769,-2.85c-5.793,-12.184 -11.765,-24.286 -17.966,-36.267c-0.366,-0.651 -0.903,-1.042 -1.79,-1.03Z"></path><path d="M33.631,40.581l-3.348,0l-0.368,-16.449l4.1,0l-0.384,16.449Zm-3.828,5.03c0,-0.609 0.197,-1.113 0.592,-1.514c0.396,-0.4 0.935,-0.601 1.618,-0.601c0.684,0 1.223,0.201 1.618,0.601c0.395,0.401 0.593,0.905 0.593,1.514c0,0.587 -0.193,1.078 -0.577,1.473c-0.385,0.395 -0.929,0.593 -1.634,0.593c-0.705,0 -1.249,-0.198 -1.634,-0.593c-0.384,-0.395 -0.576,-0.886 -0.576,-1.473Z"></path></svg>`);
+
+export default function Icon($$anchor, $$props) {
+	const type = $.prop($$props, 'type', 3, 'success');
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			var svg = root();
+
+			$.append($$anchor, svg);
+		};
+
+		var consequent_1 = ($$anchor) => {
+			var svg_1 = root_1();
+
+			$.append($$anchor, svg_1);
+		};
+
+		var consequent_2 = ($$anchor) => {
+			var svg_2 = root_2();
+
+			$.append($$anchor, svg_2);
+		};
+
+		var consequent_3 = ($$anchor) => {
+			var svg_3 = root_3();
+
+			$.append($$anchor, svg_3);
+		};
+
+		var alternate = ($$anchor) => {};
+
+		$.if(node, ($$render) => {
+			if (type() === 'success') $$render(consequent); else if (type() === 'error') $$render(consequent_1, 1); else if (type() === 'info') $$render(consequent_2, 2); else if (type() === 'warning') $$render(consequent_3, 3); else $$render(alternate, -1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+}
+=== 818 src/lib/Loader.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+const bars = Array(12).fill(0);
+var root = $.from_html(`<div class="sonner-loading-bar"></div>`);
+var root_1 = $.from_html(`<div><div class="sonner-spinner"></div></div>`);
+
+export default function Loader($$anchor, $$props) {
+	$.push($$props, true);
+
+	var div = root_1();
+	var div_1 = $.child(div);
+
+	$.each(div_1, 23, () => bars, (_, i) => `spinner-bar-${i}`, ($$anchor, _) => {
+		var div_2 = root();
+
+		$.append($$anchor, div_2);
+	});
+
+	$.reset(div_1);
+	$.reset(div);
+
+	$.template_effect(
+		($0) => {
+			$.set_class(div, 1, $0);
+			$.set_attribute(div, 'data-visible', $$props.visible);
+		},
+		[
+			() => $.clsx(['sonner-loading-wrapper', $$props.class].filter(Boolean).join(' '))
+		]
+	);
+
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 31649 src/lib/Toast.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onMount, untrack } from 'svelte';
+import { isAction } from './types.js';
+import { toastState } from './toast-state.svelte.js';
+import { cn } from './internal/helpers.js';
+import { useDocumentHidden } from './internal/use-document-hidden.svelte.js';
+import Loader from './Loader.svelte';
+
+const TOAST_LIFETIME = 4000;
+const GAP = 14;
+const SWIPE_THRESHOLD = 45;
+const TIME_BEFORE_UNMOUNT = 200;
+const SCALE_MULTIPLIER = 0.05;
+
+const DEFAULT_TOAST_CLASSES = {
+	toast: '',
+	title: '',
+	description: '',
+	loader: '',
+	closeButton: '',
+	cancelButton: '',
+	actionButton: '',
+	action: '',
+	warning: '',
+	error: '',
+	success: '',
+	default: '',
+	info: '',
+	loading: ''
+};
+
+function getDefaultSwipeDirections(position) {
+	const [y, x] = position.split('-');
+	const directions = [];
+
+	if (y) {
+		directions.push(y);
+	}
+
+	if (x) {
+		directions.push(x);
+	}
+
+	return directions;
+}
+
+function getDampening(delta) {
+	const factor = Math.abs(delta) / 20;
+
+	return 1 / (1.5 + factor);
+}
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'toast',
+	'index',
+	'expanded',
+	'invert',
+	'position',
+	'visibleToasts',
+	'expandByDefault',
+	'closeButton',
+	'interacting',
+	'cancelButtonStyle',
+	'actionButtonStyle',
+	'duration',
+	'descriptionClass',
+	'classes',
+	'unstyled',
+	'loadingIcon',
+	'successIcon',
+	'errorIcon',
+	'warningIcon',
+	'closeIcon',
+	'infoIcon',
+	'defaultRichColors',
+	'gap',
+	'swipeDirections',
+	'closeButtonAriaLabel',
+	'pauseWhenPageIsHidden'
+]);
+
+var root = $.from_html(`<div><!></div>`);
+var root_1 = $.from_html(`<button data-close-button=""><!></button>`);
+var root_2 = $.from_html(`<div data-icon=""><!> <!></div>`);
+var root_3 = $.from_html(`<div data-description=""><!></div>`);
+var root_4 = $.from_html(`<button data-button="" data-cancel=""> </button>`);
+var root_5 = $.from_html(`<button data-button=""> </button>`);
+var root_6 = $.from_html(`<!> <div data-content=""><div data-title=""><!></div> <!></div> <!> <!>`, 1);
+var root_7 = $.from_html(`<li aria-atomic="true" data-sonner-toast=""><!> <!></li>`);
+
+export default function Toast($$anchor, $$props) {
+	$.push($$props, true);
+
+	const // height index is used to calculate the offset as it gets updated before the toast array, which means we can calculate the new layout faster.
+	// Only the heights of this toaster + position matter for the offset math,
+	// otherwise toasts of another toaster (or another corner) push these around.
+	// findIndex returns -1 when not yet measured; -1 is truthy, so `|| 0` left a negative index in the offset math.
+	// use scaledRectHeight as it's more precise
+	// toast was transitioning its scale, so scaledRectHeight isn't accurate
+	// save the offset for the exit swipe animation
+	// Both the timer effect and the `updated` effect can start a timer in the
+	// same flush (a recreated toast mounts with `updated` already set); clear
+	// first so only one runs.
+	// let the toast know it has started
+	// get the elapsed time since the timer started
+	// if the toast has been updated after the initial render,
+	// we want to reset the timer and set the remaining time to the
+	// new duration
+	// `markDismissed` flips `delete` for dismissals that already ran
+	// `deleteToast` themselves (close button, swipe, auto-close), so
+	// don't re-enter and double-fire `onDismiss`.
+	// The toast was recreated with the same id while this instance's exit animation
+	// was running (`create` cancelled the pending removal). The keyed each reuses
+	// this component instance, so revive its local exit state.
+	// ensure we maintain correct pointer capture even when going outside of the toast (e.g. when swiping)
+	// Movement towards a direction that isn't allowed is dampened, not blocked,
+	// so a fast flick can still pass the velocity check. Only dismiss if the
+	// direction is allowed.
+	// remove only if threshold is met
+	// Determine swipe direction if not already locked
+	// handle vertical swipes
+	// smoothly transition to dampened movement
+	// ensure we don't jump when transition to dampened movement
+	// handle horizontal swipes
+	// Smoothly transition to dampened movement
+	// Ensure we don't jump when transitioning to dampened movement
+	LoadingIcon = ($$anchor) => {
+		var fragment = $.comment();
+		var node = $.first_child(fragment);
+
+		{
+			var consequent = ($$anchor) => {
+				var div = root();
+				var node_1 = $.child(div);
+
+				$.snippet(node_1, () => $$props.loadingIcon);
+				$.reset(div);
+
+				$.template_effect(
+					($0) => {
+						$.set_class(div, 1, $0);
+						$.set_attribute(div, 'data-visible', $.get(toastType) === 'loading');
+					},
+					[
+						() => $.clsx(cn($.get(classes)?.loader, $$props.toast?.classes?.loader, 'sonner-loader'))
+					]
+				);
+
+				$.append($$anchor, div);
+			};
+
+			var alternate = ($$anchor) => {
+				{
+					let $0 = $.derived(() => cn($.get(classes)?.loader, $$props.toast.classes?.loader));
+					let $1 = $.derived(() => $.get(toastType) === 'loading');
+
+					Loader($$anchor, {
+						get class() {
+							return $.get($0);
+						},
+
+						get visible() {
+							return $.get($1);
+						}
+					});
+				}
+			};
+
+			$.if(node, ($$render) => {
+				if ($$props.loadingIcon) $$render(consequent); else $$render(alternate, -1);
+			});
+		}
+
+		$.append($$anchor, fragment);
+	};
+
+	let cancelButtonStyle = $.prop($$props, 'cancelButtonStyle', 3, ''),
+		actionButtonStyle = $.prop($$props, 'actionButtonStyle', 3, ''),
+		descriptionClass = $.prop($$props, 'descriptionClass', 3, ''),
+		unstyled = $.prop($$props, 'unstyled', 3, false),
+		defaultRichColors = $.prop($$props, 'defaultRichColors', 3, false),
+		gap = $.prop($$props, 'gap', 3, GAP),
+		restProps = $.rest_props($$props, rest_excludes);
+
+	const defaultClasses = { ...DEFAULT_TOAST_CLASSES };
+	let mounted = $.state(false);
+	let removed = $.state(false);
+	let swiping = $.state(false);
+	let swipeOut = $.state(false);
+	let isSwiped = $.state(false);
+	let offsetBeforeRemove = $.state(0);
+	let initialHeight = $.state(0);
+	let remainingTime = $$props.toast.duration || $$props.duration || TOAST_LIFETIME;
+	let dragStartTime = $.state(null);
+	let toastRef = $.state(void 0);
+	let swipeDirection = $.state(null);
+	let swipeOutDirection = $.state(null);
+	const isFront = $.derived(() => $$props.index === 0);
+	const isVisible = $.derived(() => $$props.index + 1 <= $$props.visibleToasts);
+	const toastType = $.derived(() => $$props.toast.type);
+
+	const dismissible = $.derived(() => $$props.toast.dismissible !== undefined
+		? $$props.toast.dismissible !== false
+		: $$props.toast.dismissable !== false);
+
+	const toastClass = $.derived(() => $$props.toast.class || '');
+	const toastDescriptionClass = $.derived(() => $$props.toast.descriptionClass || '');
+	const relevantHeights = $.derived(() => toastState.heights.filter((height) => height.toasterId === $$props.toast.toasterId && height.position === $$props.position));
+
+	const heightIndex = $.derived(() => {
+		const idx = $.get(relevantHeights).findIndex((height) => height.toastId === $$props.toast.id);
+
+		return idx === -1 ? 0 : idx;
+	});
+
+	const closeButton = $.derived(() => $$props.toast.closeButton ?? $$props.closeButton);
+	const duration = $.derived(() => $$props.toast.duration ?? $$props.duration ?? TOAST_LIFETIME);
+	let pointerStart = null;
+	const coords = $.derived(() => $$props.position.split('-'));
+	const swipeDirections = $.derived(() => $$props.swipeDirections ?? getDefaultSwipeDirections($$props.position));
+
+	const toastsHeightBefore = $.derived(() => $.get(relevantHeights).reduce(
+		(prev, curr, reducerIndex) => {
+			if (reducerIndex >= $.get(heightIndex)) return prev;
+
+			return prev + curr.height;
+		},
+		0
+	));
+
+	const isDocumentHidden = useDocumentHidden();
+	const invert = $.derived(() => $$props.toast.invert || $$props.invert);
+	const disabled = $.derived(() => $.get(toastType) === 'loading');
+	const classes = $.derived(() => ({ ...defaultClasses, ...$$props.classes }));
+	const toastTitle = $.derived(() => $$props.toast.title);
+	const toastDescription = $.derived(() => $$props.toast.description);
+	let closeTimerStartTime = $.state(0);
+	let lastCloseTimerStartTime = $.state(0);
+	const offset = $.derived(() => Math.round($.get(heightIndex) * gap() + $.get(toastsHeightBefore)));
+
+	$.user_effect(() => {
+		$.get(toastTitle);
+		$.get(toastDescription);
+
+		let scale;
+
+		if ($$props.expanded || $$props.expandByDefault) {
+			scale = 1;
+		} else {
+			scale = 1 - $$props.index * SCALE_MULTIPLIER;
+		}
+
+		const toastEl = untrack(() => $.get(toastRef));
+
+		if (toastEl === undefined) return;
+
+		toastEl.style.setProperty('height', 'auto');
+
+		const offsetHeight = toastEl.offsetHeight;
+		const rectHeight = toastEl.getBoundingClientRect().height;
+		const scaledRectHeight = Math.round((rectHeight / scale + Number.EPSILON) * 100) / 100;
+
+		toastEl.style.removeProperty('height');
+
+		let finalHeight;
+
+		if (Math.abs(scaledRectHeight - offsetHeight) < 1) {
+			// use scaledRectHeight as it's more precise
+			finalHeight = scaledRectHeight;
+		} else {
+			// toast was transitioning its scale, so scaledRectHeight isn't accurate
+			finalHeight = offsetHeight;
+		}
+
+		$.set(initialHeight, finalHeight, true);
+
+		toastState.setHeight({
+			toastId: $$props.toast.id,
+			height: finalHeight,
+			toasterId: $$props.toast.toasterId,
+			position: $$props.position
+		});
+	});
+
+	function deleteToast() {
+		$.set(removed, true);
+
+		// save the offset for the exit swipe animation
+		$.set(offsetBeforeRemove, $.get(offset), true);
+
+		toastState.removeHeight($$props.toast.id);
+		toastState.markDismissed($$props.toast.id);
+		toastState.scheduleRemoval($$props.toast.id, TIME_BEFORE_UNMOUNT);
+	}
+
+	let timeoutId;
+	const isPromiseLoadingOrInfiniteDuration = $.derived(() => $$props.toast.promise && $.get(toastType) === 'loading' || $$props.toast.duration === Number.POSITIVE_INFINITY);
+
+	function startTimer() {
+		// Both the timer effect and the `updated` effect can start a timer in the
+		// same flush (a recreated toast mounts with `updated` already set); clear
+		// first so only one runs.
+		clearTimeout(timeoutId);
+
+		$.set(closeTimerStartTime, new Date().getTime(), true);
+
+		// let the toast know it has started
+		timeoutId = setTimeout(
+			() => {
+				$$props.toast.onAutoClose?.($$props.toast);
+				deleteToast();
+			},
+			remainingTime
+		);
+	}
+
+	function pauseTimer() {
+		if ($.get(lastCloseTimerStartTime) < $.get(closeTimerStartTime)) {
+			// get the elapsed time since the timer started
+			const elapsedTime = new Date().getTime() - $.get(closeTimerStartTime);
+
+			remainingTime = remainingTime - elapsedTime;
+		}
+
+		$.set(lastCloseTimerStartTime, new Date().getTime(), true);
+	}
+
+	$.user_effect(() => {
+		if ($$props.toast.updated) {
+			// if the toast has been updated after the initial render,
+			// we want to reset the timer and set the remaining time to the
+			// new duration
+			clearTimeout(timeoutId);
+
+			remainingTime = $.get(duration);
+
+			if (!$.get(isPromiseLoadingOrInfiniteDuration)) {
+				startTimer();
+			}
+		}
+	});
+
+	$.user_effect(() => {
+		if (!$.get(isPromiseLoadingOrInfiniteDuration)) {
+			if ($$props.expanded || $$props.interacting || $$props.pauseWhenPageIsHidden && isDocumentHidden.current) {
+				pauseTimer();
+			} else {
+				startTimer();
+			}
+		}
+
+		return () => clearTimeout(timeoutId);
+	});
+
+	onMount(() => {
+		$.set(mounted, true);
+
+		const height = $.get(toastRef)?.getBoundingClientRect().height;
+
+		$.set(initialHeight, height, true);
+
+		toastState.setHeight({
+			toastId: $$props.toast.id,
+			height,
+			toasterId: $$props.toast.toasterId,
+			position: $$props.position
+		});
+
+		return () => {
+			toastState.removeHeight($$props.toast.id);
+		};
+	});
+
+	$.user_effect(() => {
+		if ($$props.toast.delete) {
+			untrack(() => {
+				// `markDismissed` flips `delete` for dismissals that already ran
+				// `deleteToast` themselves (close button, swipe, auto-close), so
+				// don't re-enter and double-fire `onDismiss`.
+				if ($.get(removed)) return;
+
+				deleteToast();
+				$$props.toast.onDismiss?.($$props.toast);
+			});
+		}
+	});
+
+	// The toast was recreated with the same id while this instance's exit animation
+	// was running (`create` cancelled the pending removal). The keyed each reuses
+	// this component instance, so revive its local exit state.
+	$.user_effect(() => {
+		if (!$$props.toast.delete && !$$props.toast.dismiss && $.get(removed)) {
+			untrack(() => {
+				$.set(removed, false);
+				$.set(swipeOut, false);
+				$.set(isSwiped, false);
+				$.set(swiping, false);
+				$.set(swipeDirection, null);
+				$.set(swipeOutDirection, null);
+				pointerStart = null;
+				$.set(dragStartTime, null);
+				$.get(toastRef)?.style.removeProperty('--swipe-amount-x');
+				$.get(toastRef)?.style.removeProperty('--swipe-amount-y');
+				clearTimeout(timeoutId);
+				remainingTime = $.get(duration);
+
+				if (!$.get(isPromiseLoadingOrInfiniteDuration)) {
+					startTimer();
+				}
+
+				toastState.setHeight({
+					toastId: $$props.toast.id,
+					height: $.get(initialHeight),
+					toasterId: $$props.toast.toasterId,
+					position: $$props.position
+				});
+			});
+		}
+	});
+
+	const handlePointerDown = (event) => {
+		if ($.get(disabled)) return;
+
+		$.set(dragStartTime, new Date(), true);
+		$.set(offsetBeforeRemove, $.get(offset), true);
+
+		const target = event.target;
+
+		// ensure we maintain correct pointer capture even when going outside of the toast (e.g. when swiping)
+		target.setPointerCapture(event.pointerId);
+
+		if (target.tagName === 'BUTTON') return;
+
+		$.set(swiping, true);
+		pointerStart = { x: event.clientX, y: event.clientY };
+	};
+
+	const handlePointerUp = () => {
+		if ($.get(swipeOut) || !$.get(dismissible)) return;
+
+		pointerStart = null;
+
+		const swipeAmountX = Number($.get(toastRef)?.style.getPropertyValue('--swipe-amount-x').replace('px', '') || 0);
+		const swipeAmountY = Number($.get(toastRef)?.style.getPropertyValue('--swipe-amount-y').replace('px', '') || 0);
+		const timeTaken = new Date().getTime() - ($.get(dragStartTime)?.getTime() ?? 0);
+		const swipeAmount = $.get(swipeDirection) === 'x' ? swipeAmountX : swipeAmountY;
+		const velocity = Math.abs(swipeAmount) / timeTaken;
+
+		// Movement towards a direction that isn't allowed is dampened, not blocked,
+		// so a fast flick can still pass the velocity check. Only dismiss if the
+		// direction is allowed.
+		const isAllowedDirection = $.get(swipeDirection) === 'x'
+			? $.get(swipeDirections).includes(swipeAmountX > 0 ? 'right' : 'left')
+			: $.get(swipeDirections).includes(swipeAmountY > 0 ? 'bottom' : 'top');
+
+		// remove only if threshold is met
+		if (isAllowedDirection && (Math.abs(swipeAmount) >= SWIPE_THRESHOLD || velocity > 0.11)) {
+			$.set(offsetBeforeRemove, $.get(offset), true);
+			$$props.toast.onDismiss?.($$props.toast);
+
+			if ($.get(swipeDirection) === 'x') {
+				$.set(swipeOutDirection, swipeAmountX > 0 ? 'right' : 'left', true);
+			} else {
+				$.set(swipeOutDirection, swipeAmountY > 0 ? 'down' : 'up', true);
+			}
+
+			deleteToast();
+			$.set(swipeOut, true);
+
+			return;
+		} else {
+			$.get(toastRef)?.style.setProperty('--swipe-amount-x', '0px');
+			$.get(toastRef)?.style.setProperty('--swipe-amount-y', '0px');
+		}
+
+		$.set(isSwiped, false);
+		$.set(swiping, false);
+		$.set(swipeDirection, null);
+	};
+
+	const handlePointerMove = (event) => {
+		if (!pointerStart || !$.get(dismissible)) return;
+
+		const isHighlighted = (window.getSelection()?.toString().length ?? -1) > 0;
+
+		if (isHighlighted) return;
+
+		const yDelta = event.clientY - pointerStart.y;
+		const xDelta = event.clientX - pointerStart.x;
+
+		// Determine swipe direction if not already locked
+		if (!$.get(swipeDirection) && (Math.abs(xDelta) > 1 || Math.abs(yDelta) > 1)) {
+			$.set(swipeDirection, Math.abs(xDelta) > Math.abs(yDelta) ? 'x' : 'y', true);
+		}
+
+		let swipeAmount = { x: 0, y: 0 };
+
+		if ($.get(swipeDirection) === 'y') {
+			// handle vertical swipes
+			if ($.get(swipeDirections).includes('top') || $.get(swipeDirections).includes('bottom')) {
+				if ($.get(swipeDirections).includes('top') && yDelta < 0 || $.get(swipeDirections).includes('bottom') && yDelta > 0) {
+					swipeAmount.y = yDelta;
+				} else {
+					// smoothly transition to dampened movement
+					const dampenedDelta = yDelta * getDampening(yDelta);
+
+					// ensure we don't jump when transition to dampened movement
+					swipeAmount.y = Math.abs(dampenedDelta) < Math.abs(yDelta) ? dampenedDelta : yDelta;
+				}
+			}
+		} else if ($.get(swipeDirection) === 'x') {
+			// handle horizontal swipes
+			if ($.get(swipeDirections).includes('left') || $.get(swipeDirections).includes('right')) {
+				if ($.get(swipeDirections).includes('left') && xDelta < 0 || $.get(swipeDirections).includes('right') && xDelta > 0) {
+					swipeAmount.x = xDelta;
+				} else {
+					// Smoothly transition to dampened movement
+					const dampenedDelta = xDelta * getDampening(xDelta);
+
+					// Ensure we don't jump when transitioning to dampened movement
+					swipeAmount.x = Math.abs(dampenedDelta) < Math.abs(xDelta) ? dampenedDelta : xDelta;
+				}
+			}
+		}
+
+		if (Math.abs(swipeAmount.x) > 0 || Math.abs(swipeAmount.y) > 0) {
+			$.set(isSwiped, true);
+		}
+
+		$.get(toastRef)?.style.setProperty('--swipe-amount-x', `${swipeAmount.x}px`);
+		$.get(toastRef)?.style.setProperty('--swipe-amount-y', `${swipeAmount.y}px`);
+	};
+
+	const handleDragEnd = () => {
+		$.set(swiping, false);
+		$.set(swipeDirection, null);
+		pointerStart = null;
+	};
+
+	const icon = $.derived(() => {
+		if ($$props.toast.icon) return $$props.toast.icon;
+		if ($.get(toastType) === 'success') return $$props.successIcon;
+		if ($.get(toastType) === 'error') return $$props.errorIcon;
+		if ($.get(toastType) === 'warning') return $$props.warningIcon;
+		if ($.get(toastType) === 'info') return $$props.infoIcon;
+		if ($.get(toastType) === 'loading') return $$props.loadingIcon;
+
+		return null;
+	});
+
+	var li = root_7();
+
+	$.set_attribute(li, 'tabindex', 0);
+
+	let styles;
+	var node_2 = $.child(li);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var button = root_1();
+			var node_3 = $.child(button);
+
+			$.snippet(node_3, () => $$props.closeIcon ?? $.noop);
+			$.reset(button);
+
+			$.template_effect(
+				($0) => {
+					$.set_attribute(button, 'aria-label', $$props.closeButtonAriaLabel);
+					$.set_attribute(button, 'data-disabled', $.get(disabled));
+					$.set_class(button, 1, $0);
+				},
+				[
+					() => $.clsx(cn($.get(classes)?.closeButton, $$props.toast?.classes?.closeButton))
+				]
+			);
+
+			$.delegated('click', button, () => {
+				if ($.get(disabled) || !$.get(dismissible)) return;
+
+				deleteToast();
+				$$props.toast.onDismiss?.($$props.toast);
+			});
+
+			$.append($$anchor, button);
+		};
+
+		$.if(node_2, ($$render) => {
+			if ($.get(closeButton) && !$$props.toast.component && $.get(toastType) !== 'loading' && $$props.closeIcon !== null) $$render(consequent_1);
+		});
+	}
+
+	var node_4 = $.sibling(node_2, 2);
+
+	{
+		var consequent_2 = ($$anchor) => {
+			const Component = $.derived(() => $$props.toast.component);
+			var fragment_2 = $.comment();
+			var node_5 = $.first_child(fragment_2);
+
+			$.component(node_5, () => $.get(Component), ($$anchor, Component_1) => {
+				Component_1($$anchor, $.spread_props(() => $$props.toast.componentProps, { closeToast: deleteToast }));
+			});
+
+			$.append($$anchor, fragment_2);
+		};
+
+		var alternate_4 = ($$anchor) => {
+			var fragment_3 = root_6();
+			var node_6 = $.first_child(fragment_3);
+
+			{
+				var consequent_12 = ($$anchor) => {
+					var div_1 = root_2();
+					var node_7 = $.child(div_1);
+
+					{
+						var consequent_4 = ($$anchor) => {
+							var fragment_4 = $.comment();
+							var node_8 = $.first_child(fragment_4);
+
+							{
+								var consequent_3 = ($$anchor) => {
+									var fragment_5 = $.comment();
+									var node_9 = $.first_child(fragment_5);
+
+									$.component(node_9, () => $$props.toast.icon, ($$anchor, toast_icon) => {
+										toast_icon($$anchor, {});
+									});
+
+									$.append($$anchor, fragment_5);
+								};
+
+								var alternate_1 = ($$anchor) => {
+									LoadingIcon($$anchor);
+								};
+
+								$.if(node_8, ($$render) => {
+									if ($$props.toast.icon) $$render(consequent_3); else $$render(alternate_1, -1);
+								});
+							}
+
+							$.append($$anchor, fragment_4);
+						};
+
+						var consequent_5 = ($$anchor) => {
+							LoadingIcon($$anchor);
+						};
+
+						$.if(node_7, ($$render) => {
+							if ($.get(toastType) === 'loading') $$render(consequent_4); else if ($$props.toast.promise) $$render(consequent_5, 1);
+						});
+					}
+
+					var node_10 = $.sibling(node_7, 2);
+
+					{
+						var consequent_11 = ($$anchor) => {
+							var fragment_8 = $.comment();
+							var node_11 = $.first_child(fragment_8);
+
+							{
+								var consequent_6 = ($$anchor) => {
+									var fragment_9 = $.comment();
+									var node_12 = $.first_child(fragment_9);
+
+									$.component(node_12, () => $$props.toast.icon, ($$anchor, toast_icon_1) => {
+										toast_icon_1($$anchor, {});
+									});
+
+									$.append($$anchor, fragment_9);
+								};
+
+								var consequent_7 = ($$anchor) => {
+									var fragment_10 = $.comment();
+									var node_13 = $.first_child(fragment_10);
+
+									$.snippet(node_13, () => $$props.successIcon ?? $.noop);
+									$.append($$anchor, fragment_10);
+								};
+
+								var consequent_8 = ($$anchor) => {
+									var fragment_11 = $.comment();
+									var node_14 = $.first_child(fragment_11);
+
+									$.snippet(node_14, () => $$props.errorIcon ?? $.noop);
+									$.append($$anchor, fragment_11);
+								};
+
+								var consequent_9 = ($$anchor) => {
+									var fragment_12 = $.comment();
+									var node_15 = $.first_child(fragment_12);
+
+									$.snippet(node_15, () => $$props.warningIcon ?? $.noop);
+									$.append($$anchor, fragment_12);
+								};
+
+								var consequent_10 = ($$anchor) => {
+									var fragment_13 = $.comment();
+									var node_16 = $.first_child(fragment_13);
+
+									$.snippet(node_16, () => $$props.infoIcon ?? $.noop);
+									$.append($$anchor, fragment_13);
+								};
+
+								$.if(node_11, ($$render) => {
+									if ($$props.toast.icon) $$render(consequent_6); else if ($.get(toastType) === 'success') $$render(consequent_7, 1); else if ($.get(toastType) === 'error') $$render(consequent_8, 2); else if ($.get(toastType) === 'warning') $$render(consequent_9, 3); else if ($.get(toastType) === 'info') $$render(consequent_10, 4);
+								});
+							}
+
+							$.append($$anchor, fragment_8);
+						};
+
+						$.if(node_10, ($$render) => {
+							if ($.get(toastType) !== 'loading') $$render(consequent_11);
+						});
+					}
+
+					$.reset(div_1);
+
+					$.template_effect(($0) => $.set_class(div_1, 1, $0), [
+						() => $.clsx(cn($.get(classes)?.icon, $$props.toast?.classes?.icon))
+					]);
+
+					$.append($$anchor, div_1);
+				};
+
+				$.if(node_6, ($$render) => {
+					if (($.get(toastType) || $$props.toast.icon || $$props.toast.promise) && $$props.toast.icon !== null && ($.get(icon) !== null || $$props.toast.icon)) $$render(consequent_12);
+				});
+			}
+
+			var div_2 = $.sibling(node_6, 2);
+			var div_3 = $.child(div_2);
+			var node_17 = $.child(div_3);
+
+			{
+				var consequent_14 = ($$anchor) => {
+					var fragment_14 = $.comment();
+					var node_18 = $.first_child(fragment_14);
+
+					{
+						var consequent_13 = ($$anchor) => {
+							const Title = $.derived(() => $$props.toast.title);
+							var fragment_15 = $.comment();
+							var node_19 = $.first_child(fragment_15);
+
+							$.component(node_19, () => $.get(Title), ($$anchor, Title_1) => {
+								Title_1($$anchor, $.spread_props(() => $$props.toast.componentProps));
+							});
+
+							$.append($$anchor, fragment_15);
+						};
+
+						var alternate_2 = ($$anchor) => {
+							var text = $.text();
+
+							$.template_effect(() => $.set_text(text, $$props.toast.title));
+							$.append($$anchor, text);
+						};
+
+						$.if(node_18, ($$render) => {
+							if (typeof $$props.toast.title !== 'string') $$render(consequent_13); else $$render(alternate_2, -1);
+						});
+					}
+
+					$.append($$anchor, fragment_14);
+				};
+
+				$.if(node_17, ($$render) => {
+					if ($$props.toast.title) $$render(consequent_14);
+				});
+			}
+
+			$.reset(div_3);
+
+			var node_20 = $.sibling(div_3, 2);
+
+			{
+				var consequent_16 = ($$anchor) => {
+					var div_4 = root_3();
+					var node_21 = $.child(div_4);
+
+					{
+						var consequent_15 = ($$anchor) => {
+							const Description = $.derived(() => $$props.toast.description);
+							var fragment_17 = $.comment();
+							var node_22 = $.first_child(fragment_17);
+
+							$.component(node_22, () => $.get(Description), ($$anchor, Description_1) => {
+								Description_1($$anchor, $.spread_props(() => $$props.toast.componentProps));
+							});
+
+							$.append($$anchor, fragment_17);
+						};
+
+						var alternate_3 = ($$anchor) => {
+							var text_1 = $.text();
+
+							$.template_effect(() => $.set_text(text_1, $$props.toast.description));
+							$.append($$anchor, text_1);
+						};
+
+						$.if(node_21, ($$render) => {
+							if (typeof $$props.toast.description !== 'string') $$render(consequent_15); else $$render(alternate_3, -1);
+						});
+					}
+
+					$.reset(div_4);
+
+					$.template_effect(($0) => $.set_class(div_4, 1, $0), [
+						() => $.clsx(cn(descriptionClass(), $.get(toastDescriptionClass), $.get(classes)?.description, $$props.toast.classes?.description))
+					]);
+
+					$.append($$anchor, div_4);
+				};
+
+				$.if(node_20, ($$render) => {
+					if ($$props.toast.description) $$render(consequent_16);
+				});
+			}
+
+			$.reset(div_2);
+
+			var node_23 = $.sibling(div_2, 2);
+
+			{
+				var consequent_19 = ($$anchor) => {
+					var fragment_19 = $.comment();
+					var node_24 = $.first_child(fragment_19);
+
+					{
+						var consequent_17 = ($$anchor) => {
+							var fragment_20 = $.comment();
+							var node_25 = $.first_child(fragment_20);
+
+							$.component(node_25, () => $$props.toast.cancel, ($$anchor, toast_cancel) => {
+								toast_cancel($$anchor, {});
+							});
+
+							$.append($$anchor, fragment_20);
+						};
+
+						var consequent_18 = ($$anchor) => {
+							var button_1 = root_4();
+							var text_2 = $.only_child(button_1, true);
+
+							$.template_effect(
+								($0) => {
+									$.set_style(button_1, $$props.toast.cancelButtonStyle ?? cancelButtonStyle());
+									$.set_class(button_1, 1, $0);
+									$.set_text(text_2, $$props.toast.cancel.label);
+								},
+								[
+									() => $.clsx(cn($.get(classes)?.cancelButton, $$props.toast?.classes?.cancelButton))
+								]
+							);
+
+							$.delegated('click', button_1, (event) => {
+								if (!isAction($$props.toast.cancel)) return;
+								if (!$.get(dismissible)) return;
+
+								$$props.toast.cancel?.onClick?.(event);
+								deleteToast();
+							});
+
+							$.append($$anchor, button_1);
+						};
+
+						var d = $.derived(() => isAction($$props.toast.cancel));
+
+						$.if(node_24, ($$render) => {
+							if (typeof $$props.toast.cancel === 'function') $$render(consequent_17); else if ($.get(d)) $$render(consequent_18, 1);
+						});
+					}
+
+					$.append($$anchor, fragment_19);
+				};
+
+				$.if(node_23, ($$render) => {
+					if ($$props.toast.cancel) $$render(consequent_19);
+				});
+			}
+
+			var node_26 = $.sibling(node_23, 2);
+
+			{
+				var consequent_22 = ($$anchor) => {
+					var fragment_21 = $.comment();
+					var node_27 = $.first_child(fragment_21);
+
+					{
+						var consequent_20 = ($$anchor) => {
+							var fragment_22 = $.comment();
+							var node_28 = $.first_child(fragment_22);
+
+							$.component(node_28, () => $$props.toast.action, ($$anchor, toast_action) => {
+								toast_action($$anchor, {});
+							});
+
+							$.append($$anchor, fragment_22);
+						};
+
+						var consequent_21 = ($$anchor) => {
+							var button_2 = root_5();
+							var text_3 = $.only_child(button_2, true);
+
+							$.template_effect(
+								($0) => {
+									$.set_style(button_2, $$props.toast.actionButtonStyle ?? actionButtonStyle());
+									$.set_class(button_2, 1, $0);
+									$.set_text(text_3, $$props.toast.action.label);
+								},
+								[
+									() => $.clsx(cn($.get(classes)?.actionButton, $$props.toast?.classes?.actionButton))
+								]
+							);
+
+							$.delegated('click', button_2, (event) => {
+								if (!isAction($$props.toast.action)) return;
+
+								$$props.toast.action?.onClick(event);
+
+								if (event.defaultPrevented) return;
+
+								deleteToast();
+							});
+
+							$.append($$anchor, button_2);
+						};
+
+						var d_1 = $.derived(() => isAction($$props.toast.action));
+
+						$.if(node_27, ($$render) => {
+							if (typeof $$props.toast.action === 'function') $$render(consequent_20); else if ($.get(d_1)) $$render(consequent_21, 1);
+						});
+					}
+
+					$.append($$anchor, fragment_21);
+				};
+
+				$.if(node_26, ($$render) => {
+					if ($$props.toast.action) $$render(consequent_22);
+				});
+			}
+
+			$.template_effect(
+				($0, $1) => {
+					$.set_class(div_2, 1, $0);
+					$.set_class(div_3, 1, $1);
+				},
+				[
+					() => $.clsx(cn($.get(classes)?.content, $$props.toast?.classes?.content)),
+					() => $.clsx(cn($.get(classes)?.title, $$props.toast?.classes?.title))
+				]
+			);
+
+			$.append($$anchor, fragment_3);
+		};
+
+		$.if(node_4, ($$render) => {
+			if ($$props.toast.component) $$render(consequent_2); else $$render(alternate_4, -1);
+		});
+	}
+
+	$.reset(li);
+	$.bind_this(li, ($$value) => $.set(toastRef, $$value), () => $.get(toastRef));
+
+	$.template_effect(
+		($0, $1, $2) => {
+			$.set_class(li, 1, $0);
+			$.set_attribute(li, 'aria-live', $$props.toast.important ? 'assertive' : 'polite');
+			$.set_attribute(li, 'data-rich-colors', $$props.toast.richColors ?? defaultRichColors());
+			$.set_attribute(li, 'data-styled', !($$props.toast.component || $$props.toast.unstyled || unstyled()));
+			$.set_attribute(li, 'data-mounted', $.get(mounted));
+			$.set_attribute(li, 'data-promise', $1);
+			$.set_attribute(li, 'data-swiped', $.get(isSwiped));
+			$.set_attribute(li, 'data-removed', $.get(removed));
+			$.set_attribute(li, 'data-visible', $.get(isVisible));
+			$.set_attribute(li, 'data-y-position', $.get(coords)[0]);
+			$.set_attribute(li, 'data-x-position', $.get(coords)[1]);
+			$.set_attribute(li, 'data-index', $$props.index);
+			$.set_attribute(li, 'data-front', $.get(isFront));
+			$.set_attribute(li, 'data-swiping', $.get(swiping));
+			$.set_attribute(li, 'data-dismissible', $.get(dismissible));
+			$.set_attribute(li, 'data-type', $.get(toastType));
+			$.set_attribute(li, 'data-invert', $.get(invert));
+			$.set_attribute(li, 'data-swipe-out', $.get(swipeOut));
+			$.set_attribute(li, 'data-swipe-direction', $.get(swipeOutDirection));
+			$.set_attribute(li, 'data-expanded', $2);
+
+			styles = $.set_style(li, `${$$props.style} ${$$props.toast.style}`, styles, {
+				'--index': $$props.index,
+				'--toasts-before': $$props.index,
+				'--z-index': toastState.toasts.length - $$props.index,
+				'--offset': `${$.get(removed) ? $.get(offsetBeforeRemove) : $.get(offset)}px`,
+				'--initial-height': $$props.expandByDefault ? 'auto' : `${$.get(initialHeight)}px`
+			});
+		},
+		[
+			() => $.clsx(cn($$props.class, $.get(toastClass), $.get(classes)?.toast, $$props.toast?.classes?.toast, $.get(classes)?.[$.get(toastType)], $$props.toast?.classes?.[$.get(toastType)])),
+			() => Boolean($$props.toast.promise),
+			() => Boolean($$props.expanded || $$props.expandByDefault && $.get(mounted))
+		]
+	);
+
+	$.delegated('pointermove', li, handlePointerMove);
+	$.delegated('pointerup', li, handlePointerUp);
+	$.delegated('pointerdown', li, handlePointerDown);
+	$.event('dragend', li, handleDragEnd);
+	$.append($$anchor, li);
+	$.pop();
+}
+
+$.delegate(['pointermove', 'pointerup', 'pointerdown', 'click']);
+=== 743 src/lib/Toast.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `toast`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 113,
+			"column": 21,
+			"character": 2378
+		},
+		"end": {
+			"line": 113,
+			"column": 26,
+			"character": 2383
+		}
+	},
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `durationFromToaster`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 113,
+			"column": 39,
+			"character": 2396
+		},
+		"end": {
+			"line": 113,
+			"column": 58,
+			"character": 2415
+		}
+	}
+]
+
+=== 18738 src/lib/Toaster.svelte	css
+
+	/* :global {*/
+		html[dir='ltr'],
+		[data-sonner-toaster][dir='ltr'] {
+			--toast-icon-margin-start: -3px;
+			--toast-icon-margin-end: 4px;
+			--toast-svg-margin-start: -1px;
+			--toast-svg-margin-end: 0px;
+			--toast-button-margin-start: auto;
+			--toast-button-margin-end: 0;
+			--toast-close-button-start: 0;
+			--toast-close-button-end: unset;
+			--toast-close-button-transform: translate(-35%, -35%);
+		}
+
+		html[dir='rtl'],
+		[data-sonner-toaster][dir='rtl'] {
+			--toast-icon-margin-start: 4px;
+			--toast-icon-margin-end: -3px;
+			--toast-svg-margin-start: 0px;
+			--toast-svg-margin-end: -1px;
+			--toast-button-margin-start: 0;
+			--toast-button-margin-end: auto;
+			--toast-close-button-start: unset;
+			--toast-close-button-end: 0;
+			--toast-close-button-transform: translate(35%, -35%);
+		}
+
+		[data-sonner-toaster] {
+			position: fixed;
+			width: var(--width);
+			font-family:
+				ui-sans-serif,
+				system-ui,
+				-apple-system,
+				BlinkMacSystemFont,
+				Segoe UI,
+				Roboto,
+				Helvetica Neue,
+				Arial,
+				Noto Sans,
+				sans-serif,
+				Apple Color Emoji,
+				Segoe UI Emoji,
+				Segoe UI Symbol,
+				Noto Color Emoji;
+			--gray1: hsl(0, 0%, 99%);
+			--gray2: hsl(0, 0%, 97.3%);
+			--gray3: hsl(0, 0%, 95.1%);
+			--gray4: hsl(0, 0%, 93%);
+			--gray5: hsl(0, 0%, 90.9%);
+			--gray6: hsl(0, 0%, 88.7%);
+			--gray7: hsl(0, 0%, 85.8%);
+			--gray8: hsl(0, 0%, 78%);
+			--gray9: hsl(0, 0%, 56.1%);
+			--gray10: hsl(0, 0%, 52.3%);
+			--gray11: hsl(0, 0%, 43.5%);
+			--gray12: hsl(0, 0%, 9%);
+			--border-radius: 8px;
+			box-sizing: border-box;
+			padding: 0;
+			margin: 0;
+			list-style: none;
+			outline: none;
+			z-index: 999999999;
+			transition: transform 400ms ease;
+		}
+
+		@media (hover: none) and (pointer: coarse) {
+			[data-sonner-toaster][data-lifted='true'] {
+				transform: none;
+			}
+		}
+
+		[data-sonner-toaster][data-x-position='right'] {
+			right: var(--offset-right);
+		}
+
+		[data-sonner-toaster][data-x-position='left'] {
+			left: var(--offset-left);
+		}
+
+		[data-sonner-toaster][data-x-position='center'] {
+			left: 50%;
+			transform: translateX(-50%);
+		}
+
+		[data-sonner-toaster][data-y-position='top'] {
+			top: var(--offset-top);
+		}
+
+		[data-sonner-toaster][data-y-position='bottom'] {
+			bottom: var(--offset-bottom);
+		}
+
+		[data-sonner-toast] {
+			--y: translateY(100%);
+			--lift-amount: calc(var(--lift) * var(--gap));
+			z-index: var(--z-index);
+			position: absolute;
+			opacity: 0;
+			transform: var(--y);
+			touch-action: none;
+			transition:
+				transform 400ms,
+				opacity 400ms,
+				height 400ms,
+				box-shadow 200ms;
+			box-sizing: border-box;
+			outline: none;
+			overflow-wrap: anywhere;
+		}
+
+		[data-sonner-toast][data-styled='true'] {
+			padding: 16px;
+			background: var(--normal-bg);
+			border: 1px solid var(--normal-border);
+			color: var(--normal-text);
+			border-radius: var(--border-radius);
+			box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+			width: var(--width);
+			font-size: 13px;
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		[data-sonner-toast]:focus-visible {
+			box-shadow:
+				0px 4px 12px rgba(0, 0, 0, 0.1),
+				0 0 0 2px rgba(0, 0, 0, 0.2);
+		}
+
+		[data-sonner-toast][data-y-position='top'] {
+			top: 0;
+			--y: translateY(-100%);
+			--lift: 1;
+			--lift-amount: calc(1 * var(--gap));
+		}
+
+		[data-sonner-toast][data-y-position='bottom'] {
+			bottom: 0;
+			--y: translateY(100%);
+			--lift: -1;
+			--lift-amount: calc(var(--lift) * var(--gap));
+		}
+
+		[data-sonner-toast][data-styled='true'] [data-description] {
+			font-weight: 400;
+			line-height: 1.4;
+			color: #3f3f3f;
+		}
+
+		[data-rich-colors='true'][data-sonner-toast][data-styled='true']
+			[data-description] {
+			color: inherit;
+		}
+
+		[data-sonner-toaster][data-sonner-theme='dark'] [data-description] {
+			color: hsl(0, 0%, 91%);
+		}
+
+		[data-sonner-toast][data-styled='true'] [data-title] {
+			font-weight: 500;
+			line-height: 1.5;
+			color: inherit;
+		}
+
+		[data-sonner-toast][data-styled='true'] [data-icon] {
+			display: flex;
+			height: 16px;
+			width: 16px;
+			position: relative;
+			justify-content: flex-start;
+			align-items: center;
+			flex-shrink: 0;
+			margin-left: var(--toast-icon-margin-start);
+			margin-right: var(--toast-icon-margin-end);
+		}
+
+		[data-sonner-toast][data-promise='true'] [data-icon] > svg {
+			opacity: 0;
+			transform: scale(0.8);
+			transform-origin: center;
+			animation: sonner-fade-in 300ms ease forwards;
+		}
+
+		[data-sonner-toast][data-styled='true'] [data-icon] > * {
+			flex-shrink: 0;
+		}
+
+		[data-sonner-toast][data-styled='true'] [data-icon] svg {
+			margin-left: var(--toast-svg-margin-start);
+			margin-right: var(--toast-svg-margin-end);
+		}
+
+		[data-sonner-toast][data-styled='true'] [data-content] {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+			/* Take the space the icon and the buttons leave, so a custom title or
+		   description isn't limited to the width of its text */
+			flex: 1;
+			min-width: 0;
+		}
+
+		[data-sonner-toast][data-styled='true'] [data-button] {
+			border-radius: 4px;
+			padding-left: 8px;
+			padding-right: 8px;
+			height: 24px;
+			font-size: 12px;
+			color: var(--normal-bg);
+			background: var(--normal-text);
+			margin-left: var(--toast-button-margin-start);
+			margin-right: var(--toast-button-margin-end);
+			border: none;
+			font-weight: 500;
+			cursor: pointer;
+			outline: none;
+			display: flex;
+			align-items: center;
+			flex-shrink: 0;
+			transition:
+				opacity 400ms,
+				box-shadow 200ms;
+		}
+
+		[data-sonner-toast][data-styled='true'] [data-button]:focus-visible {
+			box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.4);
+		}
+
+		[data-sonner-toast][data-styled='true'] [data-button]:first-of-type {
+			margin-left: var(--toast-button-margin-start);
+			margin-right: var(--toast-button-margin-end);
+		}
+
+		[data-sonner-toast][data-styled='true'] [data-cancel] {
+			color: var(--normal-text);
+			background: rgba(0, 0, 0, 0.08);
+		}
+
+		[data-sonner-toaster][data-sonner-theme='dark']
+			[data-sonner-toast][data-styled='true']
+			[data-cancel] {
+			background: rgba(255, 255, 255, 0.3);
+		}
+
+		[data-sonner-toast][data-styled='true'] [data-close-button] {
+			position: absolute;
+			left: var(--toast-close-button-start);
+			right: var(--toast-close-button-end);
+			top: 0;
+			height: 20px;
+			width: 20px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			padding: 0;
+			color: var(--gray12);
+			background: var(--normal-bg);
+			border: 1px solid var(--gray4);
+			transform: var(--toast-close-button-transform);
+			border-radius: 50%;
+			cursor: pointer;
+			z-index: 1;
+			transition:
+				opacity 100ms,
+				background 200ms,
+				border-color 200ms;
+		}
+
+		[data-sonner-toast][data-styled='true']
+			[data-close-button]:focus-visible {
+			box-shadow:
+				0px 4px 12px rgba(0, 0, 0, 0.1),
+				0 0 0 2px rgba(0, 0, 0, 0.2);
+		}
+
+		[data-sonner-toast][data-styled='true'] [data-disabled='true'] {
+			cursor: not-allowed;
+		}
+
+		[data-sonner-toast][data-styled='true']:hover
+			[data-close-button]:hover {
+			background: var(--gray2);
+			border-color: var(--gray5);
+		}
+
+		[data-sonner-toast][data-swiping='true']::before {
+			content: '';
+			position: absolute;
+			left: -100%;
+			right: -100%;
+			height: 100%;
+			z-index: -1;
+		}
+
+		[data-sonner-toast][data-y-position='top'][data-swiping='true']::before {
+			bottom: 50%;
+			transform: scaleY(3) translateY(50%);
+		}
+
+		[data-sonner-toast][data-y-position='bottom'][data-swiping='true']::before {
+			top: 50%;
+			transform: scaleY(3) translateY(-50%);
+		}
+
+		[data-sonner-toast][data-swiping='false'][data-removed='true']::before {
+			content: '';
+			position: absolute;
+			inset: 0;
+			transform: scaleY(2);
+		}
+
+		[data-sonner-toast][data-expanded='true']::after {
+			content: '';
+			position: absolute;
+			left: 0;
+			height: calc(var(--gap) + 1px);
+			bottom: 100%;
+			width: 100%;
+		}
+
+		[data-sonner-toast][data-mounted='true'] {
+			--y: translateY(0);
+			opacity: 1;
+		}
+
+		[data-sonner-toast][data-expanded='false'][data-front='false'] {
+			--scale: var(--toasts-before) * 0.05 + 1;
+			--y: translateY(calc(var(--lift-amount) * var(--toasts-before)))
+				scale(calc(-1 * var(--scale)));
+			height: var(--front-toast-height);
+		}
+
+		[data-sonner-toast] > * {
+			transition: opacity 400ms;
+		}
+
+		[data-sonner-toast][data-x-position='right'] {
+			right: 0;
+		}
+
+		[data-sonner-toast][data-x-position='left'] {
+			left: 0;
+		}
+
+		[data-sonner-toast][data-expanded='false'][data-front='false'][data-styled='true']
+			> * {
+			opacity: 0;
+		}
+
+		[data-sonner-toast][data-visible='false'] {
+			opacity: 0;
+			pointer-events: none;
+		}
+
+		[data-sonner-toast][data-mounted='true'][data-expanded='true'] {
+			--y: translateY(calc(var(--lift) * var(--offset)));
+			height: var(--initial-height);
+		}
+
+		[data-sonner-toast][data-removed='true'][data-front='true'][data-swipe-out='false'] {
+			--y: translateY(calc(var(--lift) * -100%));
+			opacity: 0;
+		}
+
+		[data-sonner-toast][data-removed='true'][data-front='false'][data-swipe-out='false'][data-expanded='true'] {
+			--y: translateY(
+				calc(var(--lift) * var(--offset) + var(--lift) * -100%)
+			);
+			opacity: 0;
+		}
+
+		[data-sonner-toast][data-removed='true'][data-front='false'][data-swipe-out='false'][data-expanded='false'] {
+			--y: translateY(40%);
+			opacity: 0;
+			transition:
+				transform 500ms,
+				opacity 200ms;
+		}
+
+		[data-sonner-toast][data-removed='true'][data-front='false']::before {
+			height: calc(var(--initial-height) + 20%);
+		}
+
+		[data-sonner-toast][data-swiping='true'] {
+			transform: var(--y) translateY(var(--swipe-amount-y, 0px))
+				translateX(var(--swipe-amount-x, 0px));
+			transition: none;
+		}
+
+		[data-sonner-toast][data-swiped='true'] {
+			user-select: none;
+		}
+
+		[data-sonner-toast][data-swipe-out='true'][data-y-position='bottom'],
+		[data-sonner-toast][data-swipe-out='true'][data-y-position='top'] {
+			animation-duration: 200ms;
+			animation-timing-function: ease-out;
+			animation-fill-mode: forwards;
+		}
+
+		[data-sonner-toast][data-swipe-out='true'][data-swipe-direction='left'] {
+			animation-name: swipe-out-left;
+		}
+
+		[data-sonner-toast][data-swipe-out='true'][data-swipe-direction='right'] {
+			animation-name: swipe-out-right;
+		}
+
+		[data-sonner-toast][data-swipe-out='true'][data-swipe-direction='up'] {
+			animation-name: swipe-out-up;
+		}
+
+		[data-sonner-toast][data-swipe-out='true'][data-swipe-direction='down'] {
+			animation-name: swipe-out-down;
+		}
+
+		@keyframes swipe-out-left {
+			from {
+				transform: var(--y) translateX(var(--swipe-amount-x));
+				opacity: 1;
+			}
+
+			to {
+				transform: var(--y)
+					translateX(calc(var(--swipe-amount-x) - 100%));
+				opacity: 0;
+			}
+		}
+
+		@keyframes swipe-out-right {
+			from {
+				transform: var(--y) translateX(var(--swipe-amount-x));
+				opacity: 1;
+			}
+
+			to {
+				transform: var(--y)
+					translateX(calc(var(--swipe-amount-x) + 100%));
+				opacity: 0;
+			}
+		}
+
+		@keyframes swipe-out-up {
+			from {
+				transform: var(--y) translateY(var(--swipe-amount-y));
+				opacity: 1;
+			}
+
+			to {
+				transform: var(--y)
+					translateY(calc(var(--swipe-amount-y) - 100%));
+				opacity: 0;
+			}
+		}
+
+		@keyframes swipe-out-down {
+			from {
+				transform: var(--y) translateY(var(--swipe-amount-y));
+				opacity: 1;
+			}
+
+			to {
+				transform: var(--y)
+					translateY(calc(var(--swipe-amount-y) + 100%));
+				opacity: 0;
+			}
+		}
+
+		@media (max-width: 600px) {
+			[data-sonner-toaster] {
+				position: fixed;
+				right: var(--mobile-offset-right);
+				left: var(--mobile-offset-left);
+				width: 100%;
+			}
+
+			[data-sonner-toaster][dir='rtl'] {
+				left: calc(var(--mobile-offset-left) * -1);
+			}
+
+			[data-sonner-toaster] [data-sonner-toast] {
+				left: 0;
+				right: 0;
+				width: calc(100% - var(--mobile-offset-left) * 2);
+			}
+
+			[data-sonner-toaster][data-x-position='left'] {
+				left: var(--mobile-offset-left);
+			}
+
+			[data-sonner-toaster][data-y-position='bottom'] {
+				bottom: var(--mobile-offset-bottom);
+			}
+
+			[data-sonner-toaster][data-y-position='top'] {
+				top: var(--mobile-offset-top);
+			}
+
+			[data-sonner-toaster][data-x-position='center'] {
+				left: var(--mobile-offset-left);
+				right: var(--mobile-offset-right);
+				transform: none;
+			}
+		}
+
+		[data-sonner-toaster][data-sonner-theme='light'] {
+			--normal-bg: #fff;
+			--normal-border: var(--gray4);
+			--normal-text: var(--gray12);
+
+			--success-bg: hsl(143, 85%, 96%);
+			--success-border: hsl(145, 92%, 87%);
+			--success-text: hsl(140, 100%, 27%);
+
+			--info-bg: hsl(208, 100%, 97%);
+			--info-border: hsl(221, 91%, 93%);
+			--info-text: hsl(210, 92%, 45%);
+
+			--warning-bg: hsl(49, 100%, 97%);
+			--warning-border: hsl(49, 91%, 84%);
+			--warning-text: hsl(31, 92%, 45%);
+
+			--error-bg: hsl(359, 100%, 97%);
+			--error-border: hsl(359, 100%, 94%);
+			--error-text: hsl(360, 100%, 45%);
+		}
+
+		[data-sonner-toaster][data-sonner-theme='light']
+			[data-sonner-toast][data-invert='true'] {
+			--normal-bg: #000;
+			--normal-border: hsl(0, 0%, 20%);
+			--normal-text: var(--gray1);
+		}
+
+		[data-sonner-toaster][data-sonner-theme='dark']
+			[data-sonner-toast][data-invert='true'] {
+			--normal-bg: #fff;
+			--normal-border: var(--gray3);
+			--normal-text: var(--gray12);
+		}
+
+		[data-sonner-toaster][data-sonner-theme='dark'] {
+			--normal-bg: #000;
+			--normal-bg-hover: hsl(0, 0%, 12%);
+			--normal-border: hsl(0, 0%, 20%);
+			--normal-border-hover: hsl(0, 0%, 25%);
+			--normal-text: var(--gray1);
+
+			--success-bg: hsl(150, 100%, 6%);
+			--success-border: hsl(147, 100%, 12%);
+			--success-text: hsl(150, 86%, 65%);
+
+			--info-bg: hsl(215, 100%, 6%);
+			--info-border: hsl(223, 43%, 17%);
+			--info-text: hsl(216, 87%, 65%);
+
+			--warning-bg: hsl(64, 100%, 6%);
+			--warning-border: hsl(60, 100%, 9%);
+			--warning-text: hsl(46, 87%, 65%);
+
+			--error-bg: hsl(358, 76%, 10%);
+			--error-border: hsl(357, 89%, 16%);
+			--error-text: hsl(358, 100%, 81%);
+		}
+
+		[data-sonner-toaster][data-sonner-theme='dark']
+			[data-sonner-toast][data-styled='true']
+			[data-close-button] {
+			background: var(--normal-bg);
+			border-color: var(--normal-border);
+			color: var(--normal-text);
+		}
+
+		[data-sonner-toaster][data-sonner-theme='dark']
+			[data-sonner-toast][data-styled='true']
+			[data-close-button]:hover {
+			background: var(--normal-bg-hover);
+			border-color: var(--normal-border-hover);
+		}
+
+		[data-rich-colors='true'][data-sonner-toast][data-type='success'] {
+			background: var(--success-bg);
+			border-color: var(--success-border);
+			color: var(--success-text);
+		}
+
+		[data-rich-colors='true'][data-sonner-toast][data-styled='true'][data-type='success']
+			[data-close-button] {
+			background: var(--success-bg);
+			border-color: var(--success-border);
+			color: var(--success-text);
+		}
+
+		[data-rich-colors='true'][data-sonner-toast][data-type='info'] {
+			background: var(--info-bg);
+			border-color: var(--info-border);
+			color: var(--info-text);
+		}
+
+		[data-rich-colors='true'][data-sonner-toast][data-styled='true'][data-type='info']
+			[data-close-button] {
+			background: var(--info-bg);
+			border-color: var(--info-border);
+			color: var(--info-text);
+		}
+
+		[data-rich-colors='true'][data-sonner-toast][data-type='warning'] {
+			background: var(--warning-bg);
+			border-color: var(--warning-border);
+			color: var(--warning-text);
+		}
+
+		[data-rich-colors='true'][data-sonner-toast][data-styled='true'][data-type='warning']
+			[data-close-button] {
+			background: var(--warning-bg);
+			border-color: var(--warning-border);
+			color: var(--warning-text);
+		}
+
+		[data-rich-colors='true'][data-sonner-toast][data-type='error'] {
+			background: var(--error-bg);
+			border-color: var(--error-border);
+			color: var(--error-text);
+		}
+
+		[data-rich-colors='true'][data-sonner-toast][data-styled='true'][data-type='error']
+			[data-close-button] {
+			background: var(--error-bg);
+			border-color: var(--error-border);
+			color: var(--error-text);
+		}
+
+		.sonner-loading-wrapper {
+			--size: 16px;
+			height: var(--size);
+			width: var(--size);
+			position: absolute;
+			inset: 0;
+			z-index: 10;
+		}
+
+		.sonner-loading-wrapper[data-visible='false'] {
+			transform-origin: center;
+			animation: sonner-fade-out 0.2s ease forwards;
+		}
+
+		.sonner-spinner {
+			position: relative;
+			top: 50%;
+			left: 50%;
+			height: var(--size);
+			width: var(--size);
+		}
+
+		.sonner-loading-bar {
+			animation: sonner-spin 1.2s linear infinite;
+			background: var(--gray11);
+			border-radius: 6px;
+			height: 8%;
+			left: -10%;
+			position: absolute;
+			top: -3.9%;
+			width: 24%;
+		}
+
+		.sonner-loading-bar:nth-child(1) {
+			animation-delay: -1.2s;
+			transform: rotate(0.0001deg) translate(146%);
+		}
+
+		.sonner-loading-bar:nth-child(2) {
+			animation-delay: -1.1s;
+			transform: rotate(30deg) translate(146%);
+		}
+
+		.sonner-loading-bar:nth-child(3) {
+			animation-delay: -1s;
+			transform: rotate(60deg) translate(146%);
+		}
+
+		.sonner-loading-bar:nth-child(4) {
+			animation-delay: -0.9s;
+			transform: rotate(90deg) translate(146%);
+		}
+
+		.sonner-loading-bar:nth-child(5) {
+			animation-delay: -0.8s;
+			transform: rotate(120deg) translate(146%);
+		}
+
+		.sonner-loading-bar:nth-child(6) {
+			animation-delay: -0.7s;
+			transform: rotate(150deg) translate(146%);
+		}
+
+		.sonner-loading-bar:nth-child(7) {
+			animation-delay: -0.6s;
+			transform: rotate(180deg) translate(146%);
+		}
+
+		.sonner-loading-bar:nth-child(8) {
+			animation-delay: -0.5s;
+			transform: rotate(210deg) translate(146%);
+		}
+
+		.sonner-loading-bar:nth-child(9) {
+			animation-delay: -0.4s;
+			transform: rotate(240deg) translate(146%);
+		}
+
+		.sonner-loading-bar:nth-child(10) {
+			animation-delay: -0.3s;
+			transform: rotate(270deg) translate(146%);
+		}
+
+		.sonner-loading-bar:nth-child(11) {
+			animation-delay: -0.2s;
+			transform: rotate(300deg) translate(146%);
+		}
+
+		.sonner-loading-bar:nth-child(12) {
+			animation-delay: -0.1s;
+			transform: rotate(330deg) translate(146%);
+		}
+
+		@keyframes sonner-fade-in {
+			0% {
+				opacity: 0;
+				transform: scale(0.8);
+			}
+			100% {
+				opacity: 1;
+				transform: scale(1);
+			}
+		}
+
+		@keyframes sonner-fade-out {
+			0% {
+				opacity: 1;
+				transform: scale(1);
+			}
+			100% {
+				opacity: 0;
+				transform: scale(0.8);
+			}
+		}
+
+		@keyframes sonner-spin {
+			0% {
+				opacity: 1;
+			}
+			100% {
+				opacity: 0.15;
+			}
+		}
+
+		@media (prefers-reduced-motion) {
+			[data-sonner-toast],
+			[data-sonner-toast] > *,
+			.sonner-loading-bar {
+				transition: none !important;
+				animation: none !important;
+			}
+		}
+
+		.sonner-loader {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			transform-origin: center;
+			transition:
+				opacity 200ms,
+				transform 200ms;
+		}
+
+		.sonner-loader[data-visible='false'] {
+			opacity: 0;
+			transform: scale(0.8) translate(-50%, -50%);
+		}
+	/*}*/
+
+=== 18624 src/lib/Toaster.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onMount, untrack } from 'svelte';
+import { SonnerState, toastState } from './toast-state.svelte';
+import Toast from './Toast.svelte';
+import SuccessIcon from './icons/SuccessIcon.svelte';
+import ErrorIcon from './icons/ErrorIcon.svelte';
+import WarningIcon from './icons/WarningIcon.svelte';
+import InfoIcon from './icons/InfoIcon.svelte';
+import CloseIcon from './icons/CloseIcon.svelte';
+import { sonnerContext } from './internal/ctx.js';
+import { on } from 'svelte/events';
+
+const VISIBLE_TOASTS_AMOUNT = 3;
+const VIEWPORT_OFFSET = '24px';
+const MOBILE_VIEWPORT_OFFSET = '16px';
+const TOAST_LIFETIME = 4000;
+const TOAST_WIDTH = 356;
+const GAP = 14;
+const DARK = 'dark';
+const LIGHT = 'light';
+
+function getOffsetObject(defaultOffset, mobileOffset) {
+	const styles = {};
+
+	[defaultOffset, mobileOffset].forEach((offset, index) => {
+		const isMobile = index === 1;
+		const prefix = isMobile ? '--mobile-offset' : '--offset';
+		const defaultValue = isMobile ? MOBILE_VIEWPORT_OFFSET : VIEWPORT_OFFSET;
+
+		function assignAll(offset) {
+			['top', 'right', 'bottom', 'left'].forEach((key) => {
+				styles[`${prefix}-${key}`] = typeof offset === 'number' ? `${offset}px` : offset;
+			});
+		}
+
+		if (typeof offset === 'number' || typeof offset === 'string') {
+			assignAll(offset);
+		} else if (typeof offset === 'object') {
+			['top', 'right', 'bottom', 'left'].forEach((key) => {
+				const value = offset[key];
+
+				if (value === undefined) {
+					styles[`${prefix}-${key}`] = defaultValue;
+				} else {
+					styles[`${prefix}-${key}`] = typeof value === 'number' ? `${value}px` : value;
+				}
+			});
+		} else {
+			assignAll(defaultValue);
+		}
+	});
+
+	return styles;
+}
+
+var rest_excludes = new Set([
+	'$$slots',
+	'$$events',
+	'$$legacy',
+	'id',
+	'invert',
+	'position',
+	'hotkey',
+	'expand',
+	'closeButton',
+	'offset',
+	'mobileOffset',
+	'theme',
+	'richColors',
+	'duration',
+	'visibleToasts',
+	'toastOptions',
+	'dir',
+	'gap',
+	'swipeDirections',
+	'pauseWhenPageIsHidden',
+	'loadingIcon',
+	'successIcon',
+	'errorIcon',
+	'warningIcon',
+	'closeIcon',
+	'infoIcon',
+	'containerAriaLabel',
+	'class',
+	'closeButtonAriaLabel',
+	'onblur',
+	'onfocus',
+	'onmouseenter',
+	'onmousemove',
+	'onmouseleave',
+	'ondragend',
+	'onpointerdown',
+	'onpointerup'
+]);
+
+var root = $.from_html(`<ol></ol>`);
+var root_1 = $.from_html(`<section aria-live="polite" aria-relevant="additions text" aria-atomic="false"><!></section>`);
+
+export default function Toaster($$anchor, $$props) {
+	$.push($$props, true);
+
+	function getInitialTheme(t) {
+		if (t !== 'system') return t;
+
+		if (typeof window !== 'undefined') {
+			if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+				return DARK;
+			}
+
+			return LIGHT;
+		}
+
+		return LIGHT;
+	}
+
+	let invert = $.prop($$props, 'invert', 3, false),
+		position = $.prop($$props, 'position', 3, 'bottom-right'),
+		hotkey = $.prop($$props, 'hotkey', 19, () => ['altKey', 'KeyT']),
+		expand = $.prop($$props, 'expand', 3, false),
+		closeButton = $.prop($$props, 'closeButton', 3, false),
+		offset = $.prop($$props, 'offset', 3, VIEWPORT_OFFSET),
+		mobileOffset = $.prop($$props, 'mobileOffset', 3, MOBILE_VIEWPORT_OFFSET),
+		theme = $.prop($$props, 'theme', 3, 'light'),
+		richColors = $.prop($$props, 'richColors', 3, false),
+		duration = $.prop($$props, 'duration', 3, TOAST_LIFETIME),
+		visibleToasts = $.prop($$props, 'visibleToasts', 3, VISIBLE_TOASTS_AMOUNT),
+		toastOptions = $.prop($$props, 'toastOptions', 19, () => ({})),
+		dir = $.prop($$props, 'dir', 7, 'auto'),
+		gap = $.prop($$props, 'gap', 3, GAP),
+		pauseWhenPageIsHidden = $.prop($$props, 'pauseWhenPageIsHidden', 3, false),
+		containerAriaLabel = $.prop($$props, 'containerAriaLabel', 3, 'Notifications'),
+		closeButtonAriaLabel = $.prop($$props, 'closeButtonAriaLabel', 3, 'Close toast'),
+		restProps = $.rest_props($$props, rest_excludes);
+
+	function getDocumentDirection() {
+		if (dir() !== 'auto') return dir();
+		if (typeof window === 'undefined') return 'ltr';
+		if (typeof document === 'undefined') return 'ltr'; // For Fresh purpose
+
+		const dirAttribute = document.documentElement.getAttribute('dir');
+
+		if (dirAttribute === 'auto' || !dirAttribute) {
+			untrack(() => dir(window.getComputedStyle(document.documentElement).direction ?? 'ltr'));
+
+			return dir();
+		}
+
+		untrack(() => dir(dirAttribute));
+
+		return dirAttribute;
+	}
+
+	// The slice of the shared toast state this toaster renders: an id-less toaster
+	// shows only toasts without a toasterId (upstream sonner semantics).
+	const filteredToasts = $.derived(() => $$props.id
+		? toastState.toasts.filter((toast) => toast.toasterId === $$props.id)
+		: toastState.toasts.filter((toast) => !toast.toasterId));
+
+	const possiblePositions = $.derived(() => Array.from(new Set([
+		position(),
+		...$.get(filteredToasts).filter((toast) => toast.position).map((toast) => toast.position)
+	].filter(Boolean))));
+
+	let expanded = $.state(false);
+	let interacting = $.state(false);
+	let actualTheme = $.state($.proxy(getInitialTheme(theme())));
+	let listRef = $.state(void 0);
+	let lastFocusedElementRef = $.state(null);
+	let isFocusWithin = $.state(false);
+	let lastMousePosition = null;
+	const hotkeyLabel = $.derived(() => hotkey().join('+').replace(/Key/g, '').replace(/Digit/g, ''));
+
+	$.user_effect(() => {
+		if ($.get(filteredToasts).length <= 1) {
+			$.set(expanded, false);
+		}
+	});
+
+	// Check for dismissed toasts and remove them. We need to do this to have dismiss animation.
+	$.user_effect(() => {
+		const toastsToDismiss = $.get(filteredToasts).filter((toast) => toast.dismiss && !toast.delete);
+
+		if (toastsToDismiss.length > 0) {
+			const updatedToasts = toastState.toasts.map((toast) => {
+				const matchingToast = toastsToDismiss.find((dismissToast) => dismissToast.id === toast.id);
+
+				if (matchingToast) {
+					return { ...toast, delete: true };
+				}
+
+				return toast;
+			});
+
+			toastState.toasts = updatedToasts;
+		}
+	});
+
+	$.user_effect(() => {
+		return () => {
+			if ($.get(listRef) && $.get(lastFocusedElementRef)) {
+				$.get(lastFocusedElementRef).focus({ preventScroll: true });
+				$.set(lastFocusedElementRef, null);
+				$.set(isFocusWithin, false);
+			}
+		};
+	});
+
+	onMount(() => {
+		const handleKeydown = (event) => {
+			const isHotkeyPressed = hotkey().every((key
+
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			) => event[key] || event.code === key);
+
+			if (isHotkeyPressed) {
+				$.set(expanded, true);
+				$.get(listRef)?.focus();
+			}
+
+			if (event.code === 'Escape' && (document.activeElement === $.get(listRef) || $.get(listRef)?.contains(document.activeElement))) {
+				$.set(expanded, false);
+			}
+		};
+
+		return on(document, 'keydown', handleKeydown);
+	});
+
+	$.user_effect(() => {
+		if (theme() !== 'system') {
+			$.set(actualTheme, theme());
+		}
+
+		if (typeof window !== 'undefined') {
+			if (theme() === 'system') {
+				if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+					$.set(actualTheme, DARK);
+				} else {
+					$.set(actualTheme, LIGHT);
+				}
+			}
+
+			const mediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
+
+			const changeHandler = ({ matches }) => {
+				if (theme() !== 'system') return;
+
+				$.set(actualTheme, matches ? DARK : LIGHT, true);
+			};
+
+			if ('addEventListener' in mediaQueryList) {
+				mediaQueryList.addEventListener('change', changeHandler);
+			} else {
+				// @ts-expect-error deprecated API
+				mediaQueryList.addListener(changeHandler);
+			}
+		}
+	});
+
+	const handleBlur = (event) => {
+		$$props.onblur?.(event);
+
+		if ($.get(isFocusWithin) && !event.currentTarget.contains(event.relatedTarget)) {
+			$.set(isFocusWithin, false);
+
+			if ($.get(lastFocusedElementRef)) {
+				$.get(lastFocusedElementRef).focus({ preventScroll: true });
+				$.set(lastFocusedElementRef, null);
+			}
+		}
+	};
+
+	const handleFocus = (event) => {
+		$$props.onfocus?.(event);
+
+		const isNotDismissable = event.target instanceof HTMLElement && event.target.dataset.dismissible === 'false';
+
+		if (isNotDismissable) return;
+
+		if (!$.get(isFocusWithin)) {
+			$.set(isFocusWithin, true);
+			$.set(lastFocusedElementRef, event.relatedTarget, true);
+		}
+	};
+
+	const handlePointerDown = (event) => {
+		$$props.onpointerdown?.(event);
+
+		const isNotDismissable = event.target instanceof HTMLElement && event.target.dataset.dismissible === 'false';
+
+		if (isNotDismissable) return;
+
+		$.set(interacting, true);
+	};
+
+	const handleMouseEnter = (event) => {
+		$$props.onmouseenter?.(event);
+		lastMousePosition = { x: event.clientX, y: event.clientY };
+		$.set(expanded, true);
+	};
+
+	const handleMouseLeave = (event) => {
+		$$props.onmouseleave?.(event);
+
+		// fix firefox firing mouseleave when the toast is closed by clicking
+		// the close button and the toast leaves the mouse position. This doesn't
+		// happen on other browsers, since the mouse wasn't moved by the user.
+		// so we only collapse if mouse actually moved from last known position
+		const currentPosition = { x: event.clientX, y: event.clientY };
+
+		const mouseActuallyMoved = !lastMousePosition || Math.abs(currentPosition.x - lastMousePosition.x) > 1 || Math.abs(currentPosition.y - lastMousePosition.y) > 1;
+
+		if (!$.get(interacting) && mouseActuallyMoved) {
+			$.set(expanded, false);
+		}
+	};
+
+	const handleMouseMove = (event) => {
+		$$props.onmousemove?.(event);
+		lastMousePosition = { x: event.clientX, y: event.clientY };
+		$.set(expanded, true);
+	};
+
+	const handleDragEnd = (event) => {
+		$$props.ondragend?.(event);
+		$.set(expanded, false);
+	};
+
+	const handlePointerUp = (event) => {
+		$$props.onpointerup?.(event);
+		$.set(interacting, false);
+	};
+
+	sonnerContext.set(new SonnerState());
+
+	var section = root_1();
+
+	$.set_attribute(section, 'tabindex', -1);
+
+	var node = $.child(section);
+
+	{
+		var consequent_10 = ($$anchor) => {
+			var fragment = $.comment();
+			var node_1 = $.first_child(fragment);
+
+			$.each(node_1, 18, () => $.get(possiblePositions), (position) => position, ($$anchor, position, index, $$array) => {
+				const computed_const = $.derived(() => {
+					const [y, x] = position.split('-');
+
+					return { y, x };
+				});
+
+				const offsetObject = $.derived(() => getOffsetObject(offset(), mobileOffset()));
+				const frontHeight = $.derived(() => toastState.heights.find((height) => height.toasterId === $$props.id && height.position === position)?.height ?? 0);
+				var ol = root();
+
+				$.attribute_effect(
+					ol,
+					($0) => ({
+						tabindex: -1,
+						dir: $0,
+						class: $$props.class,
+						'data-sonner-toaster': true,
+						'data-sonner-theme': $.get(actualTheme),
+						'data-y-position': $.get(computed_const).y,
+						'data-x-position': $.get(computed_const).x,
+						style: $$props.style,
+						onblur: handleBlur,
+						onfocus: handleFocus,
+						onmouseenter: handleMouseEnter,
+						onmousemove: handleMouseMove,
+						onmouseleave: handleMouseLeave,
+						ondragend: handleDragEnd,
+						onpointerdown: handlePointerDown,
+						onpointerup: handlePointerUp,
+						...restProps,
+						[$.STYLE]: {
+							'--front-toast-height': `${$.get(frontHeight)}px`,
+							'--width': `${TOAST_WIDTH}px`,
+							'--gap': `${gap()}px`,
+							'--offset-top': $.get(offsetObject)['--offset-top'],
+							'--offset-right': $.get(offsetObject)['--offset-right'],
+							'--offset-bottom': $.get(offsetObject)['--offset-bottom'],
+							'--offset-left': $.get(offsetObject)['--offset-left'],
+							'--mobile-offset-top': $.get(offsetObject)['--mobile-offset-top'],
+							'--mobile-offset-right': $.get(offsetObject)['--mobile-offset-right'],
+							'--mobile-offset-bottom': $.get(offsetObject)['--mobile-offset-bottom'],
+							'--mobile-offset-left': $.get(offsetObject)['--mobile-offset-left']
+						}
+					}),
+					[() => getDocumentDirection()]
+				);
+
+				$.each(ol, 23, () => $.get(filteredToasts).filter((toast) => !toast.position && $.get(index) === 0 || toast.position === position), (toast) => toast.id, ($$anchor, toast, index, $$array_1) => {
+					{
+						const successIcon = ($$anchor) => {
+							var fragment_2 = $.comment();
+							var node_2 = $.first_child(fragment_2);
+
+							{
+								var consequent = ($$anchor) => {
+									var fragment_3 = $.comment();
+									var node_3 = $.first_child(fragment_3);
+
+									$.snippet(node_3, () => $$props.successIcon ?? $.noop);
+									$.append($$anchor, fragment_3);
+								};
+
+								var consequent_1 = ($$anchor) => {
+									SuccessIcon($$anchor, {});
+								};
+
+								$.if(node_2, ($$render) => {
+									if ($$props.successIcon) $$render(consequent); else if ($$props.successIcon !== null) $$render(consequent_1, 1);
+								});
+							}
+
+							$.append($$anchor, fragment_2);
+						};
+
+						const errorIcon = ($$anchor) => {
+							var fragment_5 = $.comment();
+							var node_4 = $.first_child(fragment_5);
+
+							{
+								var consequent_2 = ($$anchor) => {
+									var fragment_6 = $.comment();
+									var node_5 = $.first_child(fragment_6);
+
+									$.snippet(node_5, () => $$props.errorIcon ?? $.noop);
+									$.append($$anchor, fragment_6);
+								};
+
+								var consequent_3 = ($$anchor) => {
+									ErrorIcon($$anchor, {});
+								};
+
+								$.if(node_4, ($$render) => {
+									if ($$props.errorIcon) $$render(consequent_2); else if ($$props.errorIcon !== null) $$render(consequent_3, 1);
+								});
+							}
+
+							$.append($$anchor, fragment_5);
+						};
+
+						const warningIcon = ($$anchor) => {
+							var fragment_8 = $.comment();
+							var node_6 = $.first_child(fragment_8);
+
+							{
+								var consequent_4 = ($$anchor) => {
+									var fragment_9 = $.comment();
+									var node_7 = $.first_child(fragment_9);
+
+									$.snippet(node_7, () => $$props.warningIcon ?? $.noop);
+									$.append($$anchor, fragment_9);
+								};
+
+								var consequent_5 = ($$anchor) => {
+									WarningIcon($$anchor, {});
+								};
+
+								$.if(node_6, ($$render) => {
+									if ($$props.warningIcon) $$render(consequent_4); else if ($$props.warningIcon !== null) $$render(consequent_5, 1);
+								});
+							}
+
+							$.append($$anchor, fragment_8);
+						};
+
+						const infoIcon = ($$anchor) => {
+							var fragment_11 = $.comment();
+							var node_8 = $.first_child(fragment_11);
+
+							{
+								var consequent_6 = ($$anchor) => {
+									var fragment_12 = $.comment();
+									var node_9 = $.first_child(fragment_12);
+
+									$.snippet(node_9, () => $$props.infoIcon ?? $.noop);
+									$.append($$anchor, fragment_12);
+								};
+
+								var consequent_7 = ($$anchor) => {
+									InfoIcon($$anchor, {});
+								};
+
+								$.if(node_8, ($$render) => {
+									if ($$props.infoIcon) $$render(consequent_6); else if ($$props.infoIcon !== null) $$render(consequent_7, 1);
+								});
+							}
+
+							$.append($$anchor, fragment_11);
+						};
+
+						const closeIcon = ($$anchor) => {
+							var fragment_14 = $.comment();
+							var node_10 = $.first_child(fragment_14);
+
+							{
+								var consequent_8 = ($$anchor) => {
+									var fragment_15 = $.comment();
+									var node_11 = $.first_child(fragment_15);
+
+									$.snippet(node_11, () => $$props.closeIcon ?? $.noop);
+									$.append($$anchor, fragment_15);
+								};
+
+								var consequent_9 = ($$anchor) => {
+									CloseIcon($$anchor, {});
+								};
+
+								$.if(node_10, ($$render) => {
+									if ($$props.closeIcon) $$render(consequent_8); else if ($$props.closeIcon !== null) $$render(consequent_9, 1);
+								});
+							}
+
+							$.append($$anchor, fragment_14);
+						};
+
+						let $0 = $.derived(() => toastOptions()?.duration ?? duration());
+						let $1 = $.derived(() => toastOptions()?.class ?? '');
+						let $2 = $.derived(() => toastOptions()?.descriptionClass || '');
+						let $3 = $.derived(() => toastOptions()?.closeButton ?? closeButton());
+						let $4 = $.derived(() => toastOptions()?.style ?? '');
+						let $5 = $.derived(() => toastOptions().classes || {});
+						let $6 = $.derived(() => toastOptions().unstyled ?? false);
+						let $7 = $.derived(() => toastOptions()?.cancelButtonStyle ?? '');
+						let $8 = $.derived(() => toastOptions()?.actionButtonStyle ?? '');
+						let $9 = $.derived(() => toastOptions()?.closeButtonAriaLabel ?? closeButtonAriaLabel());
+
+						Toast($$anchor, {
+							get index() {
+								return $.get(index);
+							},
+
+							get toast() {
+								return $.get(toast);
+							},
+
+							get defaultRichColors() {
+								return richColors();
+							},
+
+							get duration() {
+								return $.get($0);
+							},
+
+							get class() {
+								return $.get($1);
+							},
+
+							get descriptionClass() {
+								return $.get($2);
+							},
+
+							get invert() {
+								return invert();
+							},
+
+							get visibleToasts() {
+								return visibleToasts();
+							},
+
+							get closeButton() {
+								return $.get($3);
+							},
+
+							get interacting() {
+								return $.get(interacting);
+							},
+
+							get position() {
+								return position;
+							},
+
+							get gap() {
+								return gap();
+							},
+
+							get style() {
+								return $.get($4);
+							},
+
+							get classes() {
+								return $.get($5);
+							},
+
+							get unstyled() {
+								return $.get($6);
+							},
+
+							get cancelButtonStyle() {
+								return $.get($7);
+							},
+
+							get actionButtonStyle() {
+								return $.get($8);
+							},
+
+							get closeButtonAriaLabel() {
+								return $.get($9);
+							},
+
+							get expandByDefault() {
+								return expand();
+							},
+
+							get expanded() {
+								return $.get(expanded);
+							},
+
+							get swipeDirections() {
+								return $$props.swipeDirections;
+							},
+
+							get pauseWhenPageIsHidden() {
+								return pauseWhenPageIsHidden();
+							},
+
+							get loadingIcon() {
+								return $$props.loadingIcon;
+							},
+							successIcon,
+							errorIcon,
+							warningIcon,
+							infoIcon,
+							closeIcon,
+							$$slots: {
+								successIcon: true,
+								errorIcon: true,
+								warningIcon: true,
+								infoIcon: true,
+								closeIcon: true
+							}
+						});
+					}
+				});
+
+				$.reset(ol);
+				$.bind_this(ol, ($$value) => $.set(listRef, $$value), () => $.get(listRef));
+				$.template_effect(() => ol.dir = ol.dir);
+				$.append($$anchor, ol);
+			});
+
+			$.append($$anchor, fragment);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(filteredToasts).length > 0) $$render(consequent_10);
+		});
+	}
+
+	$.reset(section);
+	$.template_effect(() => $.set_attribute(section, 'aria-label', `${containerAriaLabel() ?? ''} ${$.get(hotkeyLabel) ?? ''}`));
+	$.append($$anchor, section);
+	$.pop();
+}
+=== 366 src/lib/Toaster.svelte	warnings.json
+[
+	{
+		"code": "state_referenced_locally",
+		"message": "This reference only captures the initial value of `theme`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally",
+		"start": {
+			"line": 196,
+			"column": 42,
+			"character": 5050
+		},
+		"end": {
+			"line": 196,
+			"column": 47,
+			"character": 5055
+		}
+	}
+]
+
+=== 530 src/lib/icons/CloseIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-sonner-close-icon=""><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`);
+
+export default function CloseIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 553 src/lib/icons/ErrorIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" height="20" width="20" data-sonner-error-icon=""><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"></path></svg>`);
+
+export default function ErrorIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 651 src/lib/icons/InfoIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" height="20" width="20" data-sonner-info-icon=""><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"></path></svg>`);
+
+export default function InfoIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 576 src/lib/icons/SuccessIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" height="20" width="20" data-sonner-success-icon=""><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"></path></svg>`);
+
+export default function SuccessIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 1302 src/lib/icons/WarningIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg aria-hidden="true" viewBox="0 0 64 64" fill="currentColor" height="20" width="20" data-sonner-warning-icon="" xmlns="http://www.w3.org/2000/svg"><path d="M32.427,7.987c2.183,0.124 4,1.165 5.096,3.281l17.936,36.208c1.739,3.66 -0.954,8.585 -5.373,8.656l-36.119,0c-4.022,-0.064 -7.322,-4.631 -5.352,-8.696l18.271,-36.207c0.342,-0.65 0.498,-0.838 0.793,-1.179c1.186,-1.375 2.483,-2.111 4.748,-2.063Zm-0.295,3.997c-0.687,0.034 -1.316,0.419 -1.659,1.017c-6.312,11.979 -12.397,24.081 -18.301,36.267c-0.546,1.225 0.391,2.797 1.762,2.863c12.06,0.195 24.125,0.195 36.185,0c1.325,-0.064 2.321,-1.584 1.769,-2.85c-5.793,-12.184 -11.765,-24.286 -17.966,-36.267c-0.366,-0.651 -0.903,-1.042 -1.79,-1.03Z"></path><path d="M33.631,40.581l-3.348,0l-0.368,-16.449l4.1,0l-0.384,16.449Zm-3.828,5.03c0,-0.609 0.197,-1.113 0.592,-1.514c0.396,-0.4 0.935,-0.601 1.618,-0.601c0.684,0 1.223,0.201 1.618,0.601c0.395,0.401 0.593,0.905 0.593,1.514c0,0.587 -0.193,1.078 -0.577,1.473c-0.385,0.395 -0.929,0.593 -1.634,0.593c-0.705,0 -1.249,-0.198 -1.634,-0.593c-0.384,-0.395 -0.576,-0.886 -0.576,-1.473Z"></path></svg>`);
+
+export default function WarningIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 306 src/routes/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import './styles.css';
+
+export default function _layout($$anchor, $$props) {
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.snippet(node, () => $$props.children);
+	$.append($$anchor, fragment);
+}
+=== 3500 src/routes/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Toaster } from '$lib/index.js';
+import Expand from '../components/Expand.svelte';
+import Footer from '../components/Footer.svelte';
+import Hero from '../components/Hero.svelte';
+import Installation from '../components/Installation.svelte';
+import Other from '../components/Other.svelte';
+import Position from '../components/Position.svelte';
+import Types from '../components/Types.svelte';
+import Usage from '../components/Usage.svelte';
+import { richColorsContext } from '$lib/internal/ctx.js';
+
+var root = $.from_html(`<meta content="width=device-width, initial-scale=1" name="viewport"/> <meta name="description" content="An opinionated toast component for Svelte."/> <meta name="keywords" content="svelte, toast, notification, web"/> <meta name="author" content="Robert Soriano"/> <meta name="og:title" content="Svelte Sonner"/> <meta name="og:description" content="An opinionated toast component for Svelte."/> <meta property="og:site_name" content="Svelte Sonner"/> <meta property="og:url" content="https://svelte-sonner.vercel.app"/> <meta property="og:image" content="https://og-image.vercel.app/Svelte%20Sonner"/> <link rel="icon" href="/favicon.png"/> <meta name="twitter:card" content="summary_large_image"/> <meta name="twitter:site" content="@wobsoriano"/> <meta name="twitter:description" content="An opinionated toast component for Svelte."/> <meta name="twitter:title" content="Svelte Sonner"/> <meta name="twitter:image" content="https://og-image.vercel.app/Svelte%20Sonner"/>`, 1);
+var root_1 = $.from_html(`<!> <main class="container"><!> <div class="content"><!> <!> <!> <!> <!> <!></div></main> <!>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let expand = $.state(false);
+	let position = $.state('bottom-right');
+	let richColors = $.state(false);
+	let closeButton = $.state(false);
+
+	richColorsContext.set({ setRichColors: (value) => $.set(richColors, value, true) });
+
+	var fragment_1 = root_1();
+
+	$.head('1uha8ag', ($$anchor) => {
+		var fragment = root();
+
+		$.next(28);
+
+		$.effect(() => {
+			$.document.title = 'Svelte Sonner';
+		});
+
+		$.append($$anchor, fragment);
+	});
+
+	var node = $.first_child(fragment_1);
+
+	Toaster(node, {
+		get expand() {
+			return $.get(expand);
+		},
+
+		get position() {
+			return $.get(position);
+		},
+
+		get richColors() {
+			return $.get(richColors);
+		},
+
+		get closeButton() {
+			return $.get(closeButton);
+		}
+	});
+
+	var main = $.sibling(node, 2);
+	var node_1 = $.child(main);
+
+	Hero(node_1, {});
+
+	var div = $.sibling(node_1, 2);
+	var node_2 = $.child(div);
+
+	Installation(node_2, {});
+
+	var node_3 = $.sibling(node_2, 2);
+
+	Usage(node_3, {});
+
+	var node_4 = $.sibling(node_3, 2);
+
+	Types(node_4, {});
+
+	var node_5 = $.sibling(node_4, 2);
+
+	Position(node_5, {
+		get position() {
+			return $.get(position);
+		},
+		setPosition: (pos) => $.set(position, pos, true)
+	});
+
+	var node_6 = $.sibling(node_5, 2);
+
+	Expand(node_6, {
+		get expand() {
+			return $.get(expand);
+		},
+		setExpand: (exp) => $.set(expand, exp, true)
+	});
+
+	var node_7 = $.sibling(node_6, 2);
+
+	Other(node_7, {
+		setRichColors: (value) => $.set(richColors, value, true),
+		get closeButton() {
+			return $.get(closeButton);
+		},
+
+		set closeButton($$value) {
+			$.set(closeButton, $$value, true);
+		}
+	});
+
+	$.reset(div);
+	$.reset(main);
+
+	var node_8 = $.sibling(main, 2);
+
+	Footer(node_8, {});
+	$.append($$anchor, fragment_1);
+	$.pop();
+}
+=== 3177 src/routes/test/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { page } from '$app/state';
+import { Toaster, toast } from '$lib/index.js';
+import CustomIcon from './CustomIcon.svelte';
+import WideDescription from './WideDescription.svelte';
+
+var root = $.from_html(`<!> <!> <main><button data-testid="default-button">Default</button> <button data-testid="success">Success</button> <button data-testid="promise-custom-icon">Promise with custom icon</button> <button data-testid="dismiss-and-recreate">Dismiss and recreate</button> <button data-testid="component-description">Wide description</button> <button data-testid="action">Action</button> <button data-testid="toast-to-secondary">To secondary toaster</button></main>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	const params = page.url.searchParams;
+	const position = params.get('position') ?? 'bottom-right';
+	const gap = params.has('gap') ? Number(params.get('gap')) : undefined;
+	const swipeDirections = params.get('swipeDirections')?.split(',');
+	const secondToaster = params.has('secondToaster');
+
+	// Runs during component init, before the <Toaster /> below has mounted
+	if (params.has('toastOnMount')) {
+		toast('Toast rendered on mount');
+	}
+
+	function promiseWithCustomIcon() {
+		toast.promise(new Promise((resolve) => setTimeout(resolve, 200)), { loading: 'Loading...', success: 'Loaded', icon: CustomIcon });
+	}
+
+	function dismissAndRecreate() {
+		const id = toast('Original toast');
+
+		toast.dismiss(id);
+
+		// recreate while the exit-animation removal is still pending
+		setTimeout(() => toast('Remounted toast', { id }), 100);
+	}
+
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	Toaster(node, {
+		get position() {
+			return position;
+		},
+
+		get gap() {
+			return gap;
+		},
+
+		get swipeDirections() {
+			return swipeDirections;
+		},
+
+		toastOptions: {
+			classes: {
+				default: 'default-toast-classname',
+				success: 'success-toast-classname'
+			}
+		}
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			Toaster($$anchor, { id: 'secondary', position: 'top-left' });
+		};
+
+		$.if(node_1, ($$render) => {
+			if (secondToaster) $$render(consequent);
+		});
+	}
+
+	var main = $.sibling(node_1, 2);
+	var button = $.child(main);
+	var button_1 = $.sibling(button, 2);
+	var button_2 = $.sibling(button_1, 2);
+	var button_3 = $.sibling(button_2, 2);
+	var button_4 = $.sibling(button_3, 2);
+	var button_5 = $.sibling(button_4, 2);
+	var button_6 = $.sibling(button_5, 2);
+
+	$.reset(main);
+	$.delegated('click', button, () => toast('My default toast'));
+	$.delegated('click', button_1, () => toast.success('My success toast'));
+	$.delegated('click', button_2, promiseWithCustomIcon);
+	$.delegated('click', button_3, dismissAndRecreate);
+	$.delegated('click', button_4, () => toast('Custom title', { description: WideDescription }));
+	$.delegated('click', button_5, () => toast('My message', { action: { label: 'Action', onClick: () => {} } }));
+	$.delegated('click', button_6, () => toast('Secondary toast', { toasterId: 'secondary' }));
+	$.append($$anchor, fragment);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 358 src/routes/test/CustomIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg data-testid="custom-success-icon" viewBox="0 0 20 20" width="20" height="20"><circle cx="10" cy="10" r="8" fill="currentColor"></circle></svg>`);
+
+export default function CustomIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 269 src/routes/test/WideDescription.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div data-testid="wide-description">Short text</div>`);
+
+export default function WideDescription($$anchor) {
+	var div = root();
+
+	$.append($$anchor, div);
+}
+=== 846 src/tests/MultiToasterTest.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Toaster, toast } from '$lib/index.js';
+
+var root = $.from_html(`<div data-testid="default-toaster"><!></div> <div data-testid="named-toaster"><!></div> <button data-testid="trigger">Trigger</button>`, 1);
+
+export default function MultiToasterTest($$anchor, $$props) {
+	$.push($$props, true);
+
+	function onClick() {
+		$$props.cb(toast);
+	}
+
+	var fragment = root();
+	var div = $.first_child(fragment);
+	var node = $.child(div);
+
+	Toaster(node, {});
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 2);
+	var node_1 = $.child(div_1);
+
+	Toaster(node_1, { id: 'secondary', position: 'top-center' });
+	$.reset(div_1);
+
+	var button = $.sibling(div_1, 2);
+
+	$.delegated('click', button, onClick);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 740 src/tests/PropsToastTest.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Toaster, toast } from '$lib/index.js';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'cb']);
+var root = $.from_html(`<!> <button data-testid="trigger">Trigger</button>`, 1);
+
+export default function PropsToastTest($$anchor, $$props) {
+	$.push($$props, true);
+
+	const toasterProps = $.rest_props($$props, rest_excludes);
+
+	function onClick() {
+		$$props.cb(toast);
+	}
+
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	Toaster(node, $.spread_props(() => toasterProps));
+
+	var button = $.sibling(node, 2);
+
+	$.delegated('click', button, onClick);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 328 src/tests/TestIcon.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_svg(`<svg data-testid="custom-icon" viewBox="0 0 20 20" width="20" height="20"><circle cx="10" cy="10" r="8"></circle></svg>`);
+
+export default function TestIcon($$anchor) {
+	var svg = root();
+
+	$.append($$anchor, svg);
+}
+=== 570 src/tests/ToastTest.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Toaster, toast } from '$lib/index.js';
+
+var root = $.from_html(`<!> <button data-testid="trigger">Trigger</button>`, 1);
+
+export default function ToastTest($$anchor, $$props) {
+	$.push($$props, true);
+
+	function onClick() {
+		$$props.cb(toast);
+	}
+
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	Toaster(node, {});
+
+	var button = $.sibling(node, 2);
+
+	$.delegated('click', button, onClick);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+
+$.delegate(['click']);

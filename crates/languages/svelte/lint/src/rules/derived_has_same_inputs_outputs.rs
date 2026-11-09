@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::finding::Suggestion;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::javascript::span;
 use super::svelte_store::{Scopes, rename, store_calls};

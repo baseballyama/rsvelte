@@ -135,7 +135,7 @@ fn seconds(code: String, comment_directive: bool) -> f64 {
     }
     let document = Document::new("test.svelte".to_owned(), code).expect("small");
     let context = DocumentContext::new(&document, registry.artifacts());
-    assert!(context.get::<rsvelte_svelte::Warned>().is_some());
+    assert!(context.get::<rsvelte_svelte_semantic::Warned>().is_some());
     let started = std::time::Instant::now();
     crate::lint(&context, &configuration).expect("parses");
     started.elapsed().as_secs_f64()

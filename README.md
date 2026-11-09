@@ -1,6 +1,6 @@
 # rsvelte (experimental)
 
-A native toolchain for Svelte 5 (and Vue), written from scratch in Rust: compile, lint, format
+A native toolchain for Svelte 5 (and Vue), written in Rust: compile, lint, format
 and type check. It reads each file once and keeps immutable trees and a database of facts derived
 from them. A task computes only what it needs, one file per thread. The old port on `main` is
 only a diff oracle and a performance baseline.
@@ -21,9 +21,11 @@ only a diff oracle and a performance baseline.
   artifacts (computed once per document and shared), and the scheduler that runs tasks.
 - Next to it, the **plugin interface** is how a host installs a plugin. The lint runner and the
   document printer are parts that lint and format tasks may use; any other task needs neither.
-- A language's **core** crate parses and analyses, and registers that work as artifacts.
+- A language's **syntax** crate holds its trees and parser; its **semantic** crate analyses those
+  trees. Each registers its work as artifacts.
 - Each **tool** (compile, lint, format, check) is its own crate. It registers one task, which
-  reads the artifacts it needs. Core never depends on a tool, so tools share one parse.
+  reads the artifacts it needs. Syntax and semantic never depend on a tool, so tools share one
+  parse.
 - A **host** (the `rsvelte` command line, the browser build) chooses which tools to register
   and runs them.
 

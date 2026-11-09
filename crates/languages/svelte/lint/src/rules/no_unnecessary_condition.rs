@@ -1,7 +1,7 @@
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript::operators::{LogicalOperator, UnaryOperator};
-use rsvelte_typescript::syntax_tree::TypeScriptKind;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::operators::{LogicalOperator, UnaryOperator};
+use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 use crate::types::TypeFacts;

@@ -1,0 +1,8108 @@
+# rsvelte pack 1
+=== 905 src/lib/components/AppNavigation.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 57
+		}
+	}
+]
+
+=== 906 src/lib/components/BackToTop.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 4,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/toast.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 53
+		}
+	}
+]
+
+=== 1141 src/lib/components/BaseModal.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'overlayscrollbars-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/scrollLock' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'overlayscrollbars/overlayscrollbars.css'.",
+		"start": {
+			"line": 5,
+			"character": 7
+		},
+		"end": {
+			"line": 5,
+			"character": 48
+		}
+	}
+]
+
+=== 234 src/lib/components/BetaLabel.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 1970 src/lib/components/CategoryNavigation.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-dnd-action' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 34
+		},
+		"end": {
+			"line": 4,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 18
+		},
+		"end": {
+			"line": 6,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 50
+		},
+		"end": {
+			"line": 7,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/categoryMetadata.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 38
+		},
+		"end": {
+			"line": 8,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 30
+		},
+		"end": {
+			"line": 9,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/category' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 39
+		},
+		"end": {
+			"line": 10,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/string.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 28
+		},
+		"end": {
+			"line": 11,
+			"character": 50
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'el' implicitly has an 'any' type.",
+		"start": {
+			"line": 357,
+			"character": 36
+		},
+		"end": {
+			"line": 357,
+			"character": 38
+		}
+	}
+]
+
+=== 3999 src/lib/components/ChaosIndex.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'chart.js/auto' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-portal' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 33
+		},
+		"end": {
+			"line": 5,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/dataService' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 28
+		},
+		"end": {
+			"line": 6,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/modalBehavior.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 36
+		},
+		"end": {
+			"line": 7,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/sentenceSplitter' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 35
+		},
+		"end": {
+			"line": 8,
+			"character": 64
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'chartjs-adapter-date-fns'.",
+		"start": {
+			"line": 10,
+			"character": 7
+		},
+		"end": {
+			"line": 10,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'overlayscrollbars-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 37
+		},
+		"end": {
+			"line": 11,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/lottie/snow.json' or its corresponding type declarations.",
+		"start": {
+			"line": 111,
+			"character": 10
+		},
+		"end": {
+			"line": 111,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/lottie/sunny-cloudy.json' or its corresponding type declarations.",
+		"start": {
+			"line": 112,
+			"character": 10
+		},
+		"end": {
+			"line": 112,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/lottie/storm.json' or its corresponding type declarations.",
+		"start": {
+			"line": 113,
+			"character": 10
+		},
+		"end": {
+			"line": 113,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/lottie/small-fire.json' or its corresponding type declarations.",
+		"start": {
+			"line": 114,
+			"character": 10
+		},
+		"end": {
+			"line": 114,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/assets/lottie/big-fire.json' or its corresponding type declarations.",
+		"start": {
+			"line": 115,
+			"character": 10
+		},
+		"end": {
+			"line": 115,
+			"character": 44
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'context' implicitly has an 'any' type.",
+		"start": {
+			"line": 310,
+			"character": 14
+		},
+		"end": {
+			"line": 310,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'context' implicitly has an 'any' type.",
+		"start": {
+			"line": 320,
+			"character": 14
+		},
+		"end": {
+			"line": 320,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 356,
+			"character": 17
+		},
+		"end": {
+			"line": 356,
+			"character": 22
+		}
+	}
+]
+
+=== 1122 src/lib/components/ClusteringExplainerModal.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 57
+		},
+		"end": {
+			"line": 1,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-portal' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/modalBehavior.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 36
+		},
+		"end": {
+			"line": 5,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/scrollLock.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 53
+		}
+	}
+]
+
+=== 2646 src/lib/components/DataLoader.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 68
+		},
+		"end": {
+			"line": 4,
+			"character": 98
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/dataService' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 47
+		},
+		"end": {
+			"line": 5,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/imagePreloadingService.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 39
+		},
+		"end": {
+			"line": 6,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/timeTravel.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 27
+		},
+		"end": {
+			"line": 7,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/timeTravelBatch.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 32
+		},
+		"end": {
+			"line": 8,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 37
+		},
+		"end": {
+			"line": 9,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/device' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 31
+		},
+		"end": {
+			"line": 10,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/formatTimeAgo' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 30
+		},
+		"end": {
+			"line": 11,
+			"character": 56
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'catId' implicitly has an 'any' type.",
+		"start": {
+			"line": 229,
+			"character": 69
+		},
+		"end": {
+			"line": 229,
+			"character": 74
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'catId' implicitly has an 'any' type.",
+		"start": {
+			"line": 468,
+			"character": 69
+		},
+		"end": {
+			"line": 468,
+			"character": 74
+		}
+	}
+]
+
+=== 672 src/lib/components/Footer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 65
+		},
+		"end": {
+			"line": 2,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	}
+]
+
+=== 2902 src/lib/components/Header.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 66
+		},
+		"end": {
+			"line": 1,
+			"character": 88
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/config/features' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 7
+		},
+		"end": {
+			"line": 13,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/dataService' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 47
+		},
+		"end": {
+			"line": 14,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/experimental.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 29
+		},
+		"end": {
+			"line": 15,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/headerAnimation.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 32
+		},
+		"end": {
+			"line": 16,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/timeTravel.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 27
+		},
+		"end": {
+			"line": 17,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/timeTravelBatch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 32
+		},
+		"end": {
+			"line": 18,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/formatTimeAgo' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 30
+		},
+		"end": {
+			"line": 19,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getTimeAgo' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 39
+		},
+		"end": {
+			"line": 20,
+			"character": 62
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Session'.",
+		"start": {
+			"line": 60,
+			"character": 27
+		},
+		"end": {
+			"line": 60,
+			"character": 34
+		}
+	}
+]
+
+=== 1331 src/lib/components/HistoryManager.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 35
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 68
+		},
+		"end": {
+			"line": 4,
+			"character": 98
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/dataService' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 28
+		},
+		"end": {
+			"line": 5,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/urlNavigationService' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 60
+		},
+		"end": {
+			"line": 6,
+			"character": 96
+		}
+	}
+]
+
+=== 920 src/lib/components/IntroScreen.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'overlayscrollbars-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'overlayscrollbars/overlayscrollbars.css'.",
+		"start": {
+			"line": 4,
+			"character": 7
+		},
+		"end": {
+			"line": 4,
+			"character": 48
+		}
+	}
+]
+
+=== 450 src/lib/components/KeyboardNavigationHandler.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/keyboardNavigation.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 35
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	}
+]
+
+=== 471 src/lib/components/KeyboardShortcutsHelp.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/keyboardNavigation.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 74
+		}
+	}
+]
+
+=== 423 src/lib/components/LottieAnimation.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lottie-web' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'lottie-web' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 31
+		}
+	}
+]
+
+=== 3 src/lib/components/MapView.svelte	json
+[]
+
+=== 599 src/lib/components/OnThisDay.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './onthisday/OnThisDaySkeleton.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-yzZYu5/src/lib/components/onthisday/OnThisDaySkeleton.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 4,
+			"character": 30
+		},
+		"end": {
+			"line": 4,
+			"character": 68
+		}
+	}
+]
+
+=== 1584 src/lib/components/OnboardingModal.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'overlayscrollbars-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 4,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/scrollLock.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 53
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'overlayscrollbars/overlayscrollbars.css'.",
+		"start": {
+			"line": 10,
+			"character": 7
+		},
+		"end": {
+			"line": 10,
+			"character": 48
+		}
+	}
+]
+
+=== 670 src/lib/components/ReportButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 64
+		},
+		"end": {
+			"line": 1,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	}
+]
+
+=== 1337 src/lib/components/Select.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 77
+		},
+		"end": {
+			"line": 1,
+			"character": 99
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'overlayscrollbars-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 43
+		},
+		"end": {
+			"line": 2,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-portal' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 18
+		},
+		"end": {
+			"line": 6,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 20
+		},
+		"end": {
+			"line": 7,
+			"character": 52
+		}
+	}
+]
+
+=== 2685 src/lib/components/Settings.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 7
+		},
+		"end": {
+			"line": 9,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'overlayscrollbars-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 37
+		},
+		"end": {
+			"line": 10,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-portal' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 19
+		},
+		"end": {
+			"line": 12,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 18
+		},
+		"end": {
+			"line": 13,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/sync-settings-watcher.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 36
+		},
+		"end": {
+			"line": 14,
+			"character": 78
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 7
+		},
+		"end": {
+			"line": 19,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/ttsManager.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 27
+		},
+		"end": {
+			"line": 20,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 30
+		},
+		"end": {
+			"line": 21,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/modalBehavior.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 36
+		},
+		"end": {
+			"line": 22,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/scrollLock.js' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 27
+		},
+		"end": {
+			"line": 23,
+			"character": 53
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'overlayscrollbars/overlayscrollbars.css'.",
+		"start": {
+			"line": 32,
+			"character": 7
+		},
+		"end": {
+			"line": 32,
+			"character": 48
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Session'.",
+		"start": {
+			"line": 49,
+			"character": 27
+		},
+		"end": {
+			"line": 49,
+			"character": 34
+		}
+	}
+]
+
+=== 1287 src/lib/components/ShareButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@skeletonlabs/floating-ui-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 50
+		},
+		"end": {
+			"line": 2,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-portal' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 18
+		},
+		"end": {
+			"line": 6,
+			"character": 51
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'NodeJS'.",
+		"start": {
+			"line": 32,
+			"character": 19
+		},
+		"end": {
+			"line": 32,
+			"character": 25
+		}
+	}
+]
+
+=== 2094 src/lib/components/SourceOverlay.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 7
+		},
+		"end": {
+			"line": 9,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'overlayscrollbars-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 37
+		},
+		"end": {
+			"line": 10,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 18
+		},
+		"end": {
+			"line": 11,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/FaviconImage.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 25
+		},
+		"end": {
+			"line": 12,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 20
+		},
+		"end": {
+			"line": 13,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/preferredSources.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 33
+		},
+		"end": {
+			"line": 14,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getTimeAgo' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 27
+		},
+		"end": {
+			"line": 15,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/scrollLock.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 27
+		},
+		"end": {
+			"line": 16,
+			"character": 53
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'overlayscrollbars/overlayscrollbars.css'.",
+		"start": {
+			"line": 17,
+			"character": 7
+		},
+		"end": {
+			"line": 17,
+			"character": 48
+		}
+	}
+]
+
+=== 462 src/lib/components/SplashScreen.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 60
+		}
+	}
+]
+
+=== 2686 src/lib/components/StoryList.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 42
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 50
+		},
+		"end": {
+			"line": 3,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/db/dexie' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/contentFilter.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/categoryMetadata.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 38
+		},
+		"end": {
+			"line": 6,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/keyboardNavigation.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 35
+		},
+		"end": {
+			"line": 7,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/timeTravelBatch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 32
+		},
+		"end": {
+			"line": 8,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 27
+		},
+		"end": {
+			"line": 9,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/contentFilter' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 50
+		},
+		"end": {
+			"line": 10,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/storyOrdering' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 39
+		},
+		"end": {
+			"line": 11,
+			"character": 65
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'cat' implicitly has an 'any' type.",
+		"start": {
+			"line": 297,
+			"character": 69
+		},
+		"end": {
+			"line": 297,
+			"character": 72
+		}
+	}
+]
+
+=== 1067 src/lib/components/TemporaryCategoryTooltip.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@skeletonlabs/floating-ui-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-portal' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 51
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'NodeJS'.",
+		"start": {
+			"line": 15,
+			"character": 15
+		},
+		"end": {
+			"line": 15,
+			"character": 21
+		}
+	}
+]
+
+=== 1379 src/lib/components/TimeTravel.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-portal' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 33
+		},
+		"end": {
+			"line": 4,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/timeTravelNavigationService' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 44
+		},
+		"end": {
+			"line": 5,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/timeTravel.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/modalBehavior.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 36
+		},
+		"end": {
+			"line": 7,
+			"character": 69
+		}
+	}
+]
+
+=== 447 src/lib/components/Toast.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 68
+		},
+		"end": {
+			"line": 1,
+			"character": 90
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/toast.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 39
+		},
+		"end": {
+			"line": 2,
+			"character": 65
+		}
+	}
+]
+
+=== 432 src/lib/components/Tooltip.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-portal' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 42
+		}
+	}
+]
+
+=== 234 src/lib/components/ViewModeToggle.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 3 src/lib/components/WikipediaPopup.svelte	json
+[]
+
+=== 2176 src/lib/components/WikipediaTooltip.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@skeletonlabs/floating-ui-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 62
+		},
+		"end": {
+			"line": 1,
+			"character": 96
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'overlayscrollbars-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 43
+		},
+		"end": {
+			"line": 2,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-portal' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 18
+		},
+		"end": {
+			"line": 6,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/wikipediaService' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 61
+		},
+		"end": {
+			"line": 7,
+			"character": 93
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/scrollLock' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 27
+		},
+		"end": {
+			"line": 8,
+			"character": 50
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'availableHeight' implicitly has an 'any' type.",
+		"start": {
+			"line": 34,
+			"character": 11
+		},
+		"end": {
+			"line": 34,
+			"character": 26
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element '_availableWidth' implicitly has an 'any' type.",
+		"start": {
+			"line": 34,
+			"character": 44
+		},
+		"end": {
+			"line": 34,
+			"character": 59
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element '_elements' implicitly has an 'any' type.",
+		"start": {
+			"line": 34,
+			"character": 71
+		},
+		"end": {
+			"line": 34,
+			"character": 80
+		}
+	}
+]
+
+=== 3 src/lib/components/__tests__/TestModalWithContent.svelte	json
+[]
+
+=== 420 src/lib/components/common/FaviconImage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/faviconService' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 53
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'result' implicitly has an 'any' type.",
+		"start": {
+			"line": 64,
+			"character": 24
+		},
+		"end": {
+			"line": 64,
+			"character": 30
+		}
+	}
+]
+
+=== 1062 src/lib/components/common/GlobePreview.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'three' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 30
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'topojson-client' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'topojson-specification' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 50
+		},
+		"end": {
+			"line": 3,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'world-atlas/countries-110m.json' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'f' implicitly has an 'any' type.",
+		"start": {
+			"line": 124,
+			"character": 36
+		},
+		"end": {
+			"line": 124,
+			"character": 37
+		}
+	}
+]
+
+=== 1711 src/lib/components/contribute/ContributeCategoryStep.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 7
+		},
+		"end": {
+			"line": 8,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'overlayscrollbars-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 43
+		},
+		"end": {
+			"line": 9,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 18
+		},
+		"end": {
+			"line": 10,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Select.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 19
+		},
+		"end": {
+			"line": 11,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 20
+		},
+		"end": {
+			"line": 12,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/feedContribution' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 54
+		},
+		"end": {
+			"line": 13,
+			"character": 83
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'data' is of type 'unknown'.",
+		"start": {
+			"line": 56,
+			"character": 20
+		},
+		"end": {
+			"line": 56,
+			"character": 24
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'data' is of type 'unknown'.",
+		"start": {
+			"line": 63,
+			"character": 62
+		},
+		"end": {
+			"line": 63,
+			"character": 66
+		}
+	}
+]
+
+=== 912 src/lib/components/contribute/ContributeFeedStep.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 7
+		},
+		"end": {
+			"line": 12,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'overlayscrollbars-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 43
+		},
+		"end": {
+			"line": 13,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 18
+		},
+		"end": {
+			"line": 14,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/feedContribution' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 37
+		},
+		"end": {
+			"line": 15,
+			"character": 66
+		}
+	}
+]
+
+=== 1402 src/lib/components/contribute/ContributeHistory.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 7
+		},
+		"end": {
+			"line": 9,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 18
+		},
+		"end": {
+			"line": 10,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 20
+		},
+		"end": {
+			"line": 11,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 38
+		},
+		"end": {
+			"line": 12,
+			"character": 50
+		}
+	},
+	{
+		"code": 7053,
+		"message": "Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ readonly submitted: { readonly color: \"bg-blue-500\"; readonly icon: any; }; readonly merged: { readonly color: \"bg-purple-500\"; readonly icon: any; }; readonly live: { readonly color: \"bg-green-500\"; readonly icon: any; }; readonly declined: { ...; }; }'.",
+		"start": {
+			"line": 82,
+			"character": 20
+		},
+		"end": {
+			"line": 82,
+			"character": 62
+		}
+	}
+]
+
+=== 457 src/lib/components/contribute/ContributeOnboarding.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 7
+		},
+		"end": {
+			"line": 10,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 18
+		},
+		"end": {
+			"line": 11,
+			"character": 51
+		}
+	}
+]
+
+=== 686 src/lib/components/contribute/ContributeSubmitStep.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 7
+		},
+		"end": {
+			"line": 10,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 18
+		},
+		"end": {
+			"line": 11,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/feedContribution' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 54
+		},
+		"end": {
+			"line": 12,
+			"character": 83
+		}
+	}
+]
+
+=== 454 src/lib/components/crypto/CryptoGrid.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 62
+		},
+		"end": {
+			"line": 1,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	}
+]
+
+=== 454 src/lib/components/crypto/CryptoPrice.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 62
+		},
+		"end": {
+			"line": 1,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	}
+]
+
+=== 453 src/lib/components/f1/F1Schedule.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 7
+		},
+		"end": {
+			"line": 7,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 18
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	}
+]
+
+=== 453 src/lib/components/f1/F1Standings.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 7
+		},
+		"end": {
+			"line": 7,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 18
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	}
+]
+
+=== 917 src/lib/components/nfl/NFLScores.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 7
+		},
+		"end": {
+			"line": 7,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 18
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/language.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 25
+		},
+		"end": {
+			"line": 11,
+			"character": 57
+		}
+	}
+]
+
+=== 457 src/lib/components/nfl/NFLStandings.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 7
+		},
+		"end": {
+			"line": 10,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 18
+		},
+		"end": {
+			"line": 12,
+			"character": 51
+		}
+	}
+]
+
+=== 917 src/lib/components/nhl/NHLScores.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 7
+		},
+		"end": {
+			"line": 7,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 18
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/language.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 25
+		},
+		"end": {
+			"line": 11,
+			"character": 57
+		}
+	}
+]
+
+=== 457 src/lib/components/nhl/NHLStandings.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 7
+		},
+		"end": {
+			"line": 10,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 18
+		},
+		"end": {
+			"line": 12,
+			"character": 51
+		}
+	}
+]
+
+=== 234 src/lib/components/onboarding/OnboardingStepAppearance.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 444 src/lib/components/onboarding/OnboardingStepCategories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	}
+]
+
+=== 487 src/lib/components/onboarding/OnboardingStepSections.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/settings/snippets/SectionsList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 80
+		}
+	}
+]
+
+=== 444 src/lib/components/onthisday/OnThisDayEventTimeline.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	}
+]
+
+=== 1566 src/lib/components/onthisday/OnThisDayPeopleCarousel.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/rtl-detection' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 33
+		},
+		"end": {
+			"line": 4,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/batchService' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/wikipediaService' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 38
+		},
+		"end": {
+			"line": 6,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 36
+		},
+		"end": {
+			"line": 7,
+			"character": 48
+		}
+	}
+]
+
+=== 3 src/lib/components/onthisday/OnThisDaySkeleton.svelte	json
+[]
+
+=== 674 src/lib/components/search/SearchInput.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/search' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 38
+		},
+		"end": {
+			"line": 3,
+			"character": 60
+		}
+	}
+]
+
+=== 1887 src/lib/components/search/SearchModal.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/search' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 49
+		},
+		"end": {
+			"line": 4,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 37
+		},
+		"end": {
+			"line": 5,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/scrollLock' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 50
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'f' implicitly has an 'any' type.",
+		"start": {
+			"line": 120,
+			"character": 40
+		},
+		"end": {
+			"line": 120,
+			"character": 41
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'error' implicitly has an 'any' type.",
+		"start": {
+			"line": 154,
+			"character": 12
+		},
+		"end": {
+			"line": 154,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'error' implicitly has an 'any' type.",
+		"start": {
+			"line": 378,
+			"character": 12
+		},
+		"end": {
+			"line": 378,
+			"character": 17
+		}
+	}
+]
+
+=== 1591 src/lib/components/search/SearchResults.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 7
+		},
+		"end": {
+			"line": 9,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'overlayscrollbars-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 37
+		},
+		"end": {
+			"line": 10,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 24
+		},
+		"end": {
+			"line": 11,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 18
+		},
+		"end": {
+			"line": 12,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/config/features' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 25
+		},
+		"end": {
+			"line": 13,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/search' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 34
+		},
+		"end": {
+			"line": 14,
+			"character": 56
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'overlayscrollbars/overlayscrollbars.css'.",
+		"start": {
+			"line": 15,
+			"character": 7
+		},
+		"end": {
+			"line": 15,
+			"character": 48
+		}
+	}
+]
+
+=== 1129 src/lib/components/settings/ContributeCategoryModal.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 7
+		},
+		"end": {
+			"line": 8,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-portal' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 19
+		},
+		"end": {
+			"line": 10,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 18
+		},
+		"end": {
+			"line": 11,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/modalBehavior.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 36
+		},
+		"end": {
+			"line": 12,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/scrollLock.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 27
+		},
+		"end": {
+			"line": 13,
+			"character": 53
+		}
+	}
+]
+
+=== 1146 src/lib/components/settings/SettingsAbout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 50
+		},
+		"end": {
+			"line": 3,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/keyboardNavigation.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 35
+		},
+		"end": {
+			"line": 4,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/language.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 54
+		}
+	}
+]
+
+=== 1308 src/lib/components/settings/SettingsAccount.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 7
+		},
+		"end": {
+			"line": 7,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 18
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/settings-backup' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 61
+		},
+		"end": {
+			"line": 10,
+			"character": 90
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/sync-manager' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 28
+		},
+		"end": {
+			"line": 11,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/utils/safe-storage' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 41
+		},
+		"end": {
+			"line": 12,
+			"character": 73
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Session'.",
+		"start": {
+			"line": 16,
+			"character": 27
+		},
+		"end": {
+			"line": 16,
+			"character": 34
+		}
+	}
+]
+
+=== 924 src/lib/components/settings/SettingsAppearance.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Select.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 7
+		},
+		"end": {
+			"line": 8,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/experimental.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 29
+		},
+		"end": {
+			"line": 9,
+			"character": 65
+		}
+	}
+]
+
+=== 4552 src/lib/components/settings/SettingsCategories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-dnd-action' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 34
+		},
+		"end": {
+			"line": 4,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Select.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 7
+		},
+		"end": {
+			"line": 13,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/categoryMetadataService' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 38
+		},
+		"end": {
+			"line": 14,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/categoryMetadata.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 38
+		},
+		"end": {
+			"line": 15,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/experimental.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 29
+		},
+		"end": {
+			"line": 16,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 30
+		},
+		"end": {
+			"line": 17,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/category' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 39
+		},
+		"end": {
+			"line": 18,
+			"character": 60
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'categoryId' implicitly has an 'any' type.",
+		"start": {
+			"line": 194,
+			"character": 11
+		},
+		"end": {
+			"line": 194,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'categoryId' implicitly has an 'any' type.",
+		"start": {
+			"line": 195,
+			"character": 8
+		},
+		"end": {
+			"line": 195,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'cat' implicitly has an 'any' type.",
+		"start": {
+			"line": 196,
+			"character": 57
+		},
+		"end": {
+			"line": 196,
+			"character": 60
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'categoryId' implicitly has an 'any' type.",
+		"start": {
+			"line": 217,
+			"character": 11
+		},
+		"end": {
+			"line": 217,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 217,
+			"character": 23
+		},
+		"end": {
+			"line": 217,
+			"character": 28
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'self' implicitly has an 'any' type.",
+		"start": {
+			"line": 217,
+			"character": 30
+		},
+		"end": {
+			"line": 217,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'categoryId' implicitly has an 'any' type.",
+		"start": {
+			"line": 218,
+			"character": 8
+		},
+		"end": {
+			"line": 218,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'cat' implicitly has an 'any' type.",
+		"start": {
+			"line": 219,
+			"character": 57
+		},
+		"end": {
+			"line": 219,
+			"character": 60
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 233,
+			"character": 9
+		},
+		"end": {
+			"line": 233,
+			"character": 10
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 233,
+			"character": 12
+		},
+		"end": {
+			"line": 233,
+			"character": 13
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'id' implicitly has an 'any' type.",
+		"start": {
+			"line": 363,
+			"character": 56
+		},
+		"end": {
+			"line": 363,
+			"character": 58
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'id' implicitly has an 'any' type.",
+		"start": {
+			"line": 424,
+			"character": 55
+		},
+		"end": {
+			"line": 424,
+			"character": 57
+		}
+	}
+]
+
+=== 2357 src/lib/components/settings/SettingsContentFilter.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 7
+		},
+		"end": {
+			"line": 8,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 18
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Select.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 19
+		},
+		"end": {
+			"line": 10,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 20
+		},
+		"end": {
+			"line": 11,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 45
+		},
+		"end": {
+			"line": 12,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/contentFilter.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 30
+		},
+		"end": {
+			"line": 13,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/dataLanguage.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 29
+		},
+		"end": {
+			"line": 14,
+			"character": 62
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'preset' implicitly has an 'any' type.",
+		"start": {
+			"line": 38,
+			"character": 28
+		},
+		"end": {
+			"line": 38,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'p' implicitly has an 'any' type.",
+		"start": {
+			"line": 128,
+			"character": 45
+		},
+		"end": {
+			"line": 128,
+			"character": 46
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'k' implicitly has an 'any' type.",
+		"start": {
+			"line": 138,
+			"character": 39
+		},
+		"end": {
+			"line": 138,
+			"character": 40
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'p' implicitly has an 'any' type.",
+		"start": {
+			"line": 311,
+			"character": 48
+		},
+		"end": {
+			"line": 311,
+			"character": 49
+		}
+	}
+]
+
+=== 468 src/lib/components/settings/SettingsExperimental.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/experimental.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 65
+		}
+	}
+]
+
+=== 2357 src/lib/components/settings/SettingsFilters.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 7
+		},
+		"end": {
+			"line": 8,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 18
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Select.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 19
+		},
+		"end": {
+			"line": 10,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 20
+		},
+		"end": {
+			"line": 11,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 45
+		},
+		"end": {
+			"line": 12,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/contentFilter.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 30
+		},
+		"end": {
+			"line": 13,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/dataLanguage.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 29
+		},
+		"end": {
+			"line": 14,
+			"character": 62
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'preset' implicitly has an 'any' type.",
+		"start": {
+			"line": 38,
+			"character": 28
+		},
+		"end": {
+			"line": 38,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'p' implicitly has an 'any' type.",
+		"start": {
+			"line": 128,
+			"character": 45
+		},
+		"end": {
+			"line": 128,
+			"character": 46
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'k' implicitly has an 'any' type.",
+		"start": {
+			"line": 138,
+			"character": 39
+		},
+		"end": {
+			"line": 138,
+			"character": 40
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'p' implicitly has an 'any' type.",
+		"start": {
+			"line": 311,
+			"character": 48
+		},
+		"end": {
+			"line": 311,
+			"character": 49
+		}
+	}
+]
+
+=== 692 src/lib/components/settings/SettingsGeneral.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Select.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 7
+		},
+		"end": {
+			"line": 13,
+			"character": 37
+		}
+	}
+]
+
+=== 474 src/lib/components/settings/SettingsImagePreloading.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/imagePreloadingService' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/preloadingConfig.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 33
+		},
+		"end": {
+			"line": 2,
+			"character": 70
+		}
+	}
+]
+
+=== 1398 src/lib/components/settings/SettingsLanguage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 7
+		},
+		"end": {
+			"line": 8,
+			"character": 34
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Session'.",
+		"start": {
+			"line": 13,
+			"character": 27
+		},
+		"end": {
+			"line": 13,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'cat' implicitly has an 'any' type.",
+		"start": {
+			"line": 87,
+			"character": 3
+		},
+		"end": {
+			"line": 87,
+			"character": 6
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 91,
+			"character": 26
+		},
+		"end": {
+			"line": 91,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 91,
+			"character": 29
+		},
+		"end": {
+			"line": 91,
+			"character": 30
+		}
+	}
+]
+
+=== 1874 src/lib/components/settings/SettingsSections.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-dnd-action' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 43
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/sections' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 35
+		},
+		"end": {
+			"line": 5,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sections.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 57
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 's' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 33
+		},
+		"end": {
+			"line": 19,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 9
+		},
+		"end": {
+			"line": 25,
+			"character": 10
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 12
+		},
+		"end": {
+			"line": 25,
+			"character": 13
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'section' implicitly has an 'any' type.",
+		"start": {
+			"line": 26,
+			"character": 8
+		},
+		"end": {
+			"line": 26,
+			"character": 15
+		}
+	}
+]
+
+=== 1394 src/lib/components/settings/SettingsStories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/FaviconImage.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Select.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 7
+		},
+		"end": {
+			"line": 11,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/preferredSources.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 33
+		},
+		"end": {
+			"line": 12,
+			"character": 73
+		}
+	}
+]
+
+=== 1074 src/lib/components/settings/SettingsSyncPrivacy.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 68
+		},
+		"end": {
+			"line": 1,
+			"character": 90
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/sync-manager' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/utils/safe-storage' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 41
+		},
+		"end": {
+			"line": 5,
+			"character": 73
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Session'.",
+		"start": {
+			"line": 8,
+			"character": 27
+		},
+		"end": {
+			"line": 8,
+			"character": 34
+		}
+	}
+]
+
+=== 1592 src/lib/components/settings/SyncSetupModal.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 76
+		},
+		"end": {
+			"line": 1,
+			"character": 98
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/BaseModal.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/settings-backup' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 39
+		},
+		"end": {
+			"line": 4,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/sync-manager' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 28
+		},
+		"end": {
+			"line": 5,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/utils/safe-storage' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 44
+		},
+		"end": {
+			"line": 7,
+			"character": 76
+		}
+	}
+]
+
+=== 4096 src/lib/components/settings/snippets/DataLanguageSelector.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 38
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Select.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 20
+		},
+		"end": {
+			"line": 5,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/languages.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 36
+		},
+		"end": {
+			"line": 6,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 67
+		},
+		"end": {
+			"line": 7,
+			"character": 97
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/dataService.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 34
+		},
+		"end": {
+			"line": 8,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/languageDetection.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 35
+		},
+		"end": {
+			"line": 9,
+			"character": 68
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'lang' implicitly has an 'any' type.",
+		"start": {
+			"line": 43,
+			"character": 3
+		},
+		"end": {
+			"line": 43,
+			"character": 7
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'lang' implicitly has an 'any' type.",
+		"start": {
+			"line": 44,
+			"character": 8
+		},
+		"end": {
+			"line": 44,
+			"character": 12
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 61,
+			"character": 44
+		},
+		"end": {
+			"line": 61,
+			"character": 45
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'lang' implicitly has an 'any' type.",
+		"start": {
+			"line": 102,
+			"character": 58
+		},
+		"end": {
+			"line": 102,
+			"character": 62
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'lang' implicitly has an 'any' type.",
+		"start": {
+			"line": 120,
+			"character": 3
+		},
+		"end": {
+			"line": 120,
+			"character": 7
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 229,
+			"character": 57
+		},
+		"end": {
+			"line": 229,
+			"character": 58
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'lang' implicitly has an 'any' type.",
+		"start": {
+			"line": 289,
+			"character": 74
+		},
+		"end": {
+			"line": 289,
+			"character": 78
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 292,
+			"character": 59
+		},
+		"end": {
+			"line": 292,
+			"character": 60
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 299,
+			"character": 65
+		},
+		"end": {
+			"line": 299,
+			"character": 66
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'lang' implicitly has an 'any' type.",
+		"start": {
+			"line": 302,
+			"character": 55
+		},
+		"end": {
+			"line": 302,
+			"character": 59
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 303,
+			"character": 55
+		},
+		"end": {
+			"line": 303,
+			"character": 56
+		}
+	}
+]
+
+=== 2610 src/lib/components/settings/snippets/LanguageSelector.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/storyLocalization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 34
+		},
+		"end": {
+			"line": 4,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Select.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 19
+		},
+		"end": {
+			"line": 5,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 20
+		},
+		"end": {
+			"line": 6,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/languages.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 36
+		},
+		"end": {
+			"line": 7,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 67
+		},
+		"end": {
+			"line": 8,
+			"character": 97
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/languageDetection.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 35
+		},
+		"end": {
+			"line": 9,
+			"character": 68
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'lang' implicitly has an 'any' type.",
+		"start": {
+			"line": 22,
+			"character": 29
+		},
+		"end": {
+			"line": 22,
+			"character": 33
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'lang' implicitly has an 'any' type.",
+		"start": {
+			"line": 23,
+			"character": 3
+		},
+		"end": {
+			"line": 23,
+			"character": 7
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'lang' implicitly has an 'any' type.",
+		"start": {
+			"line": 49,
+			"character": 44
+		},
+		"end": {
+			"line": 49,
+			"character": 48
+		}
+	}
+]
+
+=== 1690 src/lib/components/settings/snippets/SectionsList.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-dnd-action' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 43
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/sections' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 35
+		},
+		"end": {
+			"line": 5,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sections.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 57
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 24,
+			"character": 9
+		},
+		"end": {
+			"line": 24,
+			"character": 10
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 24,
+			"character": 12
+		},
+		"end": {
+			"line": 24,
+			"character": 13
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'section' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 8
+		},
+		"end": {
+			"line": 25,
+			"character": 15
+		}
+	}
+]
+
+=== 462 src/lib/components/settings/snippets/StoryCountSlider.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 42
+		},
+		"end": {
+			"line": 2,
+			"character": 72
+		}
+	}
+]
+
+=== 682 src/lib/components/settings/snippets/ThemeSelector.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 40
+		},
+		"end": {
+			"line": 3,
+			"character": 70
+		}
+	}
+]
+
+=== 907 src/lib/components/story/CitationItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/FaviconImage.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 48
+		},
+		"end": {
+			"line": 3,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getTimeAgo' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	}
+]
+
+=== 1136 src/lib/components/story/CitationText.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/FaviconImage.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 48
+		},
+		"end": {
+			"line": 3,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationContext' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationUtils' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 49
+		},
+		"end": {
+			"line": 5,
+			"character": 75
+		}
+	}
+]
+
+=== 1754 src/lib/components/story/CitationTooltip.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@skeletonlabs/floating-ui-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 55
+		},
+		"end": {
+			"line": 1,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'overlayscrollbars-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 43
+		},
+		"end": {
+			"line": 2,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-portal' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 18
+		},
+		"end": {
+			"line": 6,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 48
+		},
+		"end": {
+			"line": 7,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/scrollLock' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 27
+		},
+		"end": {
+			"line": 8,
+			"character": 50
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'availableHeight' implicitly has an 'any' type.",
+		"start": {
+			"line": 48,
+			"character": 11
+		},
+		"end": {
+			"line": 48,
+			"character": 26
+		}
+	}
+]
+
+=== 3 src/lib/components/story/SectionWrapper.svelte	json
+[]
+
+=== 3 src/lib/components/story/SelectableText.svelte	json
+[]
+
+=== 229 src/lib/components/story/SimplifyButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/translateApi' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 49
+		},
+		"end": {
+			"line": 2,
+			"character": 77
+		}
+	}
+]
+
+=== 899 src/lib/components/story/StoryActionItems.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 48
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationAggregator' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 40
+		},
+		"end": {
+			"line": 3,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationContext' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 67
+		},
+		"end": {
+			"line": 4,
+			"character": 95
+		}
+	}
+]
+
+=== 1116 src/lib/components/story/StoryActions.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/urlNavigationService' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 39
+		},
+		"end": {
+			"line": 5,
+			"character": 51
+		}
+	}
+]
+
+=== 1852 src/lib/components/story/StoryCard.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/storyLocalization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hooks/useImagePreloading.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 58
+		},
+		"end": {
+			"line": 5,
+			"character": 96
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hooks/useStoryFlashcards.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 35
+		},
+		"end": {
+			"line": 6,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hooks/useStorySimplification.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 39
+		},
+		"end": {
+			"line": 7,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hooks/useStoryTTS.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 28
+		},
+		"end": {
+			"line": 8,
+			"character": 59
+		}
+	}
+]
+
+=== 3 src/lib/components/story/StoryCardSkeleton.svelte	json
+[]
+
+=== 459 src/lib/components/story/StoryContentSkeleton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 61
+		}
+	}
+]
+
+=== 1280 src/lib/components/story/StoryDidYouKnow.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 39
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types/citation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationProcessing' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 38
+		},
+		"end": {
+			"line": 4,
+			"character": 69
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'articles' does not exist on type 'Props'.",
+		"start": {
+			"line": 21,
+			"character": 1
+		},
+		"end": {
+			"line": 21,
+			"character": 9
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'citationMapping' does not exist on type 'Props'.",
+		"start": {
+			"line": 22,
+			"character": 1
+		},
+		"end": {
+			"line": 22,
+			"character": 16
+		}
+	}
+]
+
+=== 2547 src/lib/components/story/StoryHeader.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 66
+		},
+		"end": {
+			"line": 1,
+			"character": 88
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/experimental.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sections.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/language.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationContext' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 67
+		},
+		"end": {
+			"line": 7,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/textUtils' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 28
+		},
+		"end": {
+			"line": 8,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/storyTextExtractor' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 33
+		},
+		"end": {
+			"line": 9,
+			"character": 64
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Session'.",
+		"start": {
+			"line": 67,
+			"character": 27
+		},
+		"end": {
+			"line": 67,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'sec' implicitly has an 'any' type.",
+		"start": {
+			"line": 106,
+			"character": 11
+		},
+		"end": {
+			"line": 106,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 107,
+			"character": 9
+		},
+		"end": {
+			"line": 107,
+			"character": 10
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 107,
+			"character": 12
+		},
+		"end": {
+			"line": 107,
+			"character": 13
+		}
+	}
+]
+
+=== 1121 src/lib/components/story/StoryHighlights.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 48
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationAggregator' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 40
+		},
+		"end": {
+			"line": 3,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationContext' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 67
+		},
+		"end": {
+			"line": 4,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/textParsing' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 36
+		},
+		"end": {
+			"line": 5,
+			"character": 60
+		}
+	}
+]
+
+=== 227 src/lib/components/story/StoryImage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/imagePreloader' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 7
+		},
+		"end": {
+			"line": 7,
+			"character": 34
+		}
+	}
+]
+
+=== 1121 src/lib/components/story/StoryInternationalReactions.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 48
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationAggregator' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 40
+		},
+		"end": {
+			"line": 3,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationContext' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 67
+		},
+		"end": {
+			"line": 4,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/textParsing' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 36
+		},
+		"end": {
+			"line": 5,
+			"character": 60
+		}
+	}
+]
+
+=== 668 src/lib/components/story/StoryListSection.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationAggregator' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 40
+		},
+		"end": {
+			"line": 2,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationContext' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 67
+		},
+		"end": {
+			"line": 3,
+			"character": 95
+		}
+	}
+]
+
+=== 1121 src/lib/components/story/StoryPerspectives.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 48
+		},
+		"end": {
+			"line": 3,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationAggregator' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationContext' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 67
+		},
+		"end": {
+			"line": 5,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/textParsing' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 36
+		},
+		"end": {
+			"line": 6,
+			"character": 60
+		}
+	}
+]
+
+=== 670 src/lib/components/story/StoryQuote.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationContext' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 67
+		},
+		"end": {
+			"line": 3,
+			"character": 95
+		}
+	}
+]
+
+=== 2122 src/lib/components/story/StorySectionManager.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sections.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 39
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationAggregator' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 44
+		},
+		"end": {
+			"line": 4,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationContext' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 7
+		},
+		"end": {
+			"line": 19,
+			"character": 35
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'section' implicitly has an 'any' type.",
+		"start": {
+			"line": 71,
+			"character": 23
+		},
+		"end": {
+			"line": 71,
+			"character": 30
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 71,
+			"character": 58
+		},
+		"end": {
+			"line": 71,
+			"character": 59
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 71,
+			"character": 61
+		},
+		"end": {
+			"line": 71,
+			"character": 62
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'section' implicitly has an 'any' type.",
+		"start": {
+			"line": 137,
+			"character": 58
+		},
+		"end": {
+			"line": 137,
+			"character": 65
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"articles\"' does not exist in type 'Props'.",
+		"start": {
+			"line": 526,
+			"character": 6
+		},
+		"end": {
+			"line": 526,
+			"character": 14
+		}
+	}
+]
+
+=== 2048 src/lib/components/story/StorySources.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/FaviconImage.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 33
+		},
+		"end": {
+			"line": 5,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/dataService' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 28
+		},
+		"end": {
+			"line": 6,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/preferredSources.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 33
+		},
+		"end": {
+			"line": 7,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 50
+		},
+		"end": {
+			"line": 8,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/getTimeAgo' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 53
+		},
+		"end": {
+			"line": 9,
+			"character": 76
+		}
+	}
+]
+
+=== 899 src/lib/components/story/StorySuggestedQnA.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 48
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationAggregator' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 40
+		},
+		"end": {
+			"line": 3,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationContext' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 67
+		},
+		"end": {
+			"line": 4,
+			"character": 95
+		}
+	}
+]
+
+=== 3076 src/lib/components/story/StorySummary.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/GlobePreview.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/countryCoordinates' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 4,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 32
+		},
+		"end": {
+			"line": 5,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 48
+		},
+		"end": {
+			"line": 6,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationAggregator' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 40
+		},
+		"end": {
+			"line": 7,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationContext' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 67
+		},
+		"end": {
+			"line": 8,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/mapUtils' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 51
+		},
+		"end": {
+			"line": 9,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/mapsProvider' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 43
+		},
+		"end": {
+			"line": 10,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@skeletonlabs/floating-ui-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 49
+		},
+		"end": {
+			"line": 13,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-portal' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 19
+		},
+		"end": {
+			"line": 15,
+			"character": 34
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Session'.",
+		"start": {
+			"line": 41,
+			"character": 27
+		},
+		"end": {
+			"line": 41,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'coords' implicitly has an 'any' type.",
+		"start": {
+			"line": 110,
+			"character": 10
+		},
+		"end": {
+			"line": 110,
+			"character": 16
+		}
+	}
+]
+
+=== 439 src/lib/components/story/StoryTextSection.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationContext' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 67
+		},
+		"end": {
+			"line": 2,
+			"character": 95
+		}
+	}
+]
+
+=== 1812 src/lib/components/story/StoryTimeline.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 33
+		},
+		"end": {
+			"line": 2,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/timeTravelBatch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 48
+		},
+		"end": {
+			"line": 4,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationAggregator' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 40
+		},
+		"end": {
+			"line": 5,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/citationContext' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 67
+		},
+		"end": {
+			"line": 6,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/formatTimelineDate' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 35
+		},
+		"end": {
+			"line": 7,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/textParsing' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 35
+		},
+		"end": {
+			"line": 8,
+			"character": 59
+		}
+	}
+]
+
+=== 454 src/lib/components/weather/Weather.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	}
+]
+
+=== 429 src/routes/+error.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 34
+		}
+	}
+]
+
+=== 3628 src/routes/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/rtl-detection' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/sync-manager' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 54
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../app.css'.",
+		"start": {
+			"line": 5,
+			"character": 7
+		},
+		"end": {
+			"line": 5,
+			"character": 19
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/sync-settings-watcher.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 36
+		},
+		"end": {
+			"line": 6,
+			"character": 78
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 7
+		},
+		"end": {
+			"line": 15,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/dataLanguage.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 29
+		},
+		"end": {
+			"line": 16,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/experimental.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 29
+		},
+		"end": {
+			"line": 17,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/language.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 25
+		},
+		"end": {
+			"line": 18,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/pageMetadata.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 29
+		},
+		"end": {
+			"line": 19,
+			"character": 65
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../styles/index.css'.",
+		"start": {
+			"line": 20,
+			"character": 7
+		},
+		"end": {
+			"line": 20,
+			"character": 28
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'overlayscrollbars-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 37
+		},
+		"end": {
+			"line": 21,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 30
+		},
+		"end": {
+			"line": 22,
+			"character": 40
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'overlayscrollbars/overlayscrollbars.css'.",
+		"start": {
+			"line": 23,
+			"character": 7
+		},
+		"end": {
+			"line": 23,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-meta-tags' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 36
+		},
+		"end": {
+			"line": 25,
+			"character": 54
+		}
+	}
+]
+
+=== 16843 src/routes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/BackToTop.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/CategoryNavigation.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 31
+		},
+		"end": {
+			"line": 6,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/crypto/CryptoGrid.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 23
+		},
+		"end": {
+			"line": 7,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/crypto/CryptoPrice.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 24
+		},
+		"end": {
+			"line": 8,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/DataLoader.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 23
+		},
+		"end": {
+			"line": 9,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Footer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 19
+		},
+		"end": {
+			"line": 10,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/f1/F1Schedule.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 23
+		},
+		"end": {
+			"line": 11,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/f1/F1Standings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 24
+		},
+		"end": {
+			"line": 12,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Header.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 19
+		},
+		"end": {
+			"line": 13,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/HistoryManager.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 27
+		},
+		"end": {
+			"line": 14,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/IntroScreen.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 24
+		},
+		"end": {
+			"line": 15,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/KeyboardNavigationHandler.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 38
+		},
+		"end": {
+			"line": 16,
+			"character": 88
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/KeyboardShortcutsHelp.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 34
+		},
+		"end": {
+			"line": 17,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nfl/NFLScores.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 22
+		},
+		"end": {
+			"line": 18,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nfl/NFLStandings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 25
+		},
+		"end": {
+			"line": 19,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nhl/NHLScores.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 22
+		},
+		"end": {
+			"line": 20,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/nhl/NHLStandings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 25
+		},
+		"end": {
+			"line": 21,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/OnThisDay.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 22
+		},
+		"end": {
+			"line": 22,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Settings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 21
+		},
+		"end": {
+			"line": 23,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/SourceOverlay.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 26
+		},
+		"end": {
+			"line": 24,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/StoryList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 22
+		},
+		"end": {
+			"line": 25,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/search' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 28
+		},
+		"end": {
+			"line": 26,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/story/StoryCardSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 30
+		},
+		"end": {
+			"line": 27,
+			"character": 78
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/TemporaryCategoryTooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 37
+		},
+		"end": {
+			"line": 28,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/TimeTravel.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 23
+		},
+		"end": {
+			"line": 29,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/Toast.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 18
+		},
+		"end": {
+			"line": 30,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/WikipediaPopup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 27
+		},
+		"end": {
+			"line": 31,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/weather/Weather.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 20
+		},
+		"end": {
+			"line": 32,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/data/settings.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 39,
+			"character": 7
+		},
+		"end": {
+			"line": 39,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/imagePreloadingService' or its corresponding type declarations.",
+		"start": {
+			"line": 40,
+			"character": 39
+		},
+		"end": {
+			"line": 40,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/navigationHandlerService' or its corresponding type declarations.",
+		"start": {
+			"line": 41,
+			"character": 41
+		},
+		"end": {
+			"line": 41,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/timeTravelBatch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 42,
+			"character": 32
+		},
+		"end": {
+			"line": 42,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/services/urlNavigationService' or its corresponding type declarations.",
+		"start": {
+			"line": 43,
+			"character": 60
+		},
+		"end": {
+			"line": 43,
+			"character": 96
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/categorySwipeHandler' or its corresponding type declarations.",
+		"start": {
+			"line": 44,
+			"character": 37
+		},
+		"end": {
+			"line": 44,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/imagePreloader' or its corresponding type declarations.",
+		"start": {
+			"line": 45,
+			"character": 72
+		},
+		"end": {
+			"line": 45,
+			"character": 99
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hooks/useCategoryManager.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 59,
+			"character": 35
+		},
+		"end": {
+			"line": 59,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hooks/useDataHandlers.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 60,
+			"character": 32
+		},
+		"end": {
+			"line": 60,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hooks/usePageDerived.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 61,
+			"character": 31
+		},
+		"end": {
+			"line": 61,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hooks/usePageEffects.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 62,
+			"character": 31
+		},
+		"end": {
+			"line": 62,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hooks/usePageHelpers.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 63,
+			"character": 31
+		},
+		"end": {
+			"line": 63,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hooks/usePageSetup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 64,
+			"character": 29
+		},
+		"end": {
+			"line": 64,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hooks/usePageState.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 66,
+			"character": 29
+		},
+		"end": {
+			"line": 66,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hooks/useSinglePageMode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 67,
+			"character": 34
+		},
+		"end": {
+			"line": 67,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/hooks/useStoryToggle.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 68,
+			"character": 31
+		},
+		"end": {
+			"line": 68,
+			"character": 65
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Session'.",
+		"start": {
+			"line": 84,
+			"character": 27
+		},
+		"end": {
+			"line": 84,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 153,
+			"character": 23
+		},
+		"end": {
+			"line": 153,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 156,
+			"character": 35
+		},
+		"end": {
+			"line": 156,
+			"character": 36
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 159,
+			"character": 25
+		},
+		"end": {
+			"line": 159,
+			"character": 26
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 162,
+			"character": 21
+		},
+		"end": {
+			"line": 162,
+			"character": 22
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 165,
+			"character": 22
+		},
+		"end": {
+			"line": 165,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 168,
+			"character": 24
+		},
+		"end": {
+			"line": 168,
+			"character": 25
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 171,
+			"character": 26
+		},
+		"end": {
+			"line": 171,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 174,
+			"character": 22
+		},
+		"end": {
+			"line": 174,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 177,
+			"character": 23
+		},
+		"end": {
+			"line": 177,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 180,
+			"character": 27
+		},
+		"end": {
+			"line": 180,
+			"character": 28
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 183,
+			"character": 26
+		},
+		"end": {
+			"line": 183,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 186,
+			"character": 23
+		},
+		"end": {
+			"line": 186,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 189,
+			"character": 19
+		},
+		"end": {
+			"line": 189,
+			"character": 20
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 192,
+			"character": 24
+		},
+		"end": {
+			"line": 192,
+			"character": 25
+		}
+	},
+	{
+		"code": 7019,
+		"message": "Rest parameter 'args' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 195,
+			"character": 25
+		},
+		"end": {
+			"line": 195,
+			"character": 32
+		}
+	},
+	{
+		"code": 7019,
+		"message": "Rest parameter 'args' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 196,
+			"character": 22
+		},
+		"end": {
+			"line": 196,
+			"character": 29
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 383,
+			"character": 2
+		},
+		"end": {
+			"line": 383,
+			"character": 7
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 387,
+			"character": 2
+		},
+		"end": {
+			"line": 387,
+			"character": 7
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 407,
+			"character": 24
+		},
+		"end": {
+			"line": 407,
+			"character": 25
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 410,
+			"character": 26
+		},
+		"end": {
+			"line": 410,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 413,
+			"character": 25
+		},
+		"end": {
+			"line": 413,
+			"character": 26
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 428,
+			"character": 22
+		},
+		"end": {
+			"line": 428,
+			"character": 23
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'kiteDebug' does not exist on type 'Window & typeof globalThis'.",
+		"start": {
+			"line": 517,
+			"character": 8
+		},
+		"end": {
+			"line": 517,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'story' implicitly has an 'any' type.",
+		"start": {
+			"line": 527,
+			"character": 26
+		},
+		"end": {
+			"line": 527,
+			"character": 31
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'kiteSettingsDebug' does not exist on type 'Window & typeof globalThis'.",
+		"start": {
+			"line": 543,
+			"character": 14
+		},
+		"end": {
+			"line": 543,
+			"character": 31
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'kiteSettingsDebug' does not exist on type 'Window & typeof globalThis'.",
+		"start": {
+			"line": 544,
+			"character": 11
+		},
+		"end": {
+			"line": 544,
+			"character": 28
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'kiteSettingsDebug' does not exist on type 'Window & typeof globalThis'.",
+		"start": {
+			"line": 554,
+			"character": 14
+		},
+		"end": {
+			"line": 554,
+			"character": 31
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'kiteSettingsDebug' does not exist on type 'Window & typeof globalThis'.",
+		"start": {
+			"line": 555,
+			"character": 11
+		},
+		"end": {
+			"line": 555,
+			"character": 28
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 912,
+			"character": 22
+		},
+		"end": {
+			"line": 912,
+			"character": 27
+		}
+	}
+]
+
+=== 3 src/routes/[batchId=batchId]/+page.svelte	json
+[]
+
+=== 3 src/routes/[batchId=batchId]/[categoryId=categoryId]/+page.svelte	json
+[]
+
+=== 3 src/routes/[batchId=batchId]/[categoryId=categoryId]/[storyIndex]/+page.svelte	json
+[]
+
+=== 3 src/routes/[categoryId=categoryId]/[encodedId=encodedId]/+page.svelte	json
+[]
+
+=== 3 src/routes/[categoryId=categoryId]/[encodedId=encodedId]/[slug]/+page.svelte	json
+[]
+
+=== 3 src/routes/[categoryId=categoryId]/latest/+page.svelte	json
+[]
+
+=== 3 src/routes/about/+page.svelte	json
+[]
+
+=== 2360 src/routes/contribute/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@tabler/icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 7
+		},
+		"end": {
+			"line": 6,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/client/localization.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 18
+		},
+		"end": {
+			"line": 8,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/contribute/ContributeCategoryStep.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 35
+		},
+		"end": {
+			"line": 9,
+			"character": 93
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/contribute/ContributeFeedStep.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 31
+		},
+		"end": {
+			"line": 10,
+			"character": 85
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/contribute/ContributeHistory.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 30
+		},
+		"end": {
+			"line": 11,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/contribute/ContributeOnboarding.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 33
+		},
+		"end": {
+			"line": 12,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/contribute/ContributeSubmitStep.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 33
+		},
+		"end": {
+			"line": 13,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/feedContribution' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 7
+		},
+		"end": {
+			"line": 22,
+			"character": 36
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'url' implicitly has an 'any' type.",
+		"start": {
+			"line": 223,
+			"character": 51
+		},
+		"end": {
+			"line": 223,
+			"character": 54
+		}
+	}
+]
+
+=== 3 src/routes/latest/+page.svelte	json
+[]
+
+=== 3 src/routes/latest/[categoryId]/+page.svelte	json
+[]
+
+=== 3 src/routes/latest/[categoryId]/[storyIndex]/+page.svelte	json
+[]
+

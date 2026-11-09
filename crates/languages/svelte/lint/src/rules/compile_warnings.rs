@@ -4,9 +4,9 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte::syntax::syntax_tree::{Component, Range, TemplateNode};
-use rsvelte_svelte::warnings::{CompileWarnings, code_for_v5};
-use rsvelte_typescript::Kind;
+use rsvelte_svelte_semantic::warnings::{CompileWarnings, code_for_v5};
+use rsvelte_svelte_syntax::syntax_tree::{Component, Range, TemplateNode};
+use rsvelte_typescript_syntax::Kind;
 
 use crate::rule::File;
 use crate::words::{is_js_space, words};
@@ -384,7 +384,7 @@ impl Targets<'_> {
     /// The comments before the top-level statement of `program` that holds `at`.
     fn statement(
         self,
-        program: rsvelte_typescript::NodeIdentifier,
+        program: rsvelte_typescript_syntax::NodeIdentifier,
         content: u32,
         at: u32,
     ) -> Vec<Vec<Span>> {

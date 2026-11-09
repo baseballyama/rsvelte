@@ -6,17 +6,17 @@
 //! It does not print and reparse a Vue component or call the JavaScript Vue compiler.
 //!
 //! Coverage and remaining work are listed in the crate's `COVERAGE.md`. Unsupported constructs
-//! produce `vuelte_unsupported` diagnostics. Validation lives in [`script`] and [`template`].
+//! produce `vuelte_unsupported` diagnostics. Validation lives in `script` and `template`.
 //!
 //! The existing `vuelte.compile/{client,server}` task identifiers remain available. Client
 //! modules require a Vue runtime with Vapor support and mount with `createVaporApp`.
 //! The native server target emits HTML and head content for Vue SSR. Hydration is not supported.
 //! Runtime tests use Vue 3.6.0-rc.14 and compare against official Svelte behavior.
 
-pub mod compilation;
-pub mod computation;
+pub(crate) mod compilation;
+pub(crate) mod computation;
 use compilation::{R, unsupported};
-pub use compilation::{Translation, check, compile, helpers, script, template, translate};
+pub(crate) use compilation::{helpers, script, template};
 pub use computation::{Checked, Compile, PLUGIN, register};
 
 /// Takes no options.
@@ -27,3 +27,6 @@ pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_inter
         Ok(())
     },
 };
+
+/// What the check artifact keeps of a component script.
+pub use compilation::script::Plan;

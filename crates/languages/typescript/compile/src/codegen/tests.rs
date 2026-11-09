@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::positions::{SourceLocation, Span};
-use rsvelte_typescript::operators::{BinaryOperator, LogicalOperator};
-use rsvelte_typescript::parser::parse_program;
-use rsvelte_typescript::syntax_tree::SyntaxTree;
+use rsvelte_typescript_syntax::operators::{BinaryOperator, LogicalOperator};
+use rsvelte_typescript_syntax::parser::parse_program;
+use rsvelte_typescript_syntax::syntax_tree::SyntaxTree;
 
 use super::{number, print_expression, print_program};
 

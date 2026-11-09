@@ -1,5 +1,5 @@
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte::syntax::syntax_tree::{AttributeKind, TemplateNode};
+use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, TemplateNode};
 use serde::Deserialize;
 
 use super::element_kind::{ElementKind, element_kind};

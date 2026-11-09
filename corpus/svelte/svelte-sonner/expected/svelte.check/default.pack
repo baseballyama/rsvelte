@@ -1,0 +1,600 @@
+# rsvelte pack 1
+=== 1145 src/components/CodeBlock.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'highlight.js/lib/core' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'highlight.js/lib/languages/javascript' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'highlight.js/lib/languages/xml' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 17
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'highlight.js/styles/github.css'.",
+		"start": {
+			"line": 4,
+			"character": 8
+		},
+		"end": {
+			"line": 4,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'copy-to-clipboard' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 37
+		}
+	}
+]
+
+=== 3 src/components/Custom.svelte	json
+[]
+
+=== 216 src/components/Expand.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	}
+]
+
+=== 3 src/components/Footer.svelte	json
+[]
+
+=== 216 src/components/Hero.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	}
+]
+
+=== 220 src/components/Installation.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'copy-to-clipboard' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 434 src/components/Other.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './code-snippets.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 37
+		},
+		"end": {
+			"line": 5,
+			"character": 57
+		}
+	}
+]
+
+=== 216 src/components/Position.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	}
+]
+
+=== 3 src/components/Test.svelte	json
+[]
+
+=== 3 src/components/TestWithProps.svelte	json
+[]
+
+=== 776 src/components/Types.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './Custom.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/components/Custom.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 20
+		},
+		"end": {
+			"line": 3,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/internal/ctx.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 35
+		},
+		"end": {
+			"line": 4,
+			"character": 57
+		}
+	}
+]
+
+=== 221 src/components/Usage.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './code-snippets.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	}
+]
+
+=== 216 src/lib/Icon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	}
+]
+
+=== 3 src/lib/Loader.svelte	json
+[]
+
+=== 437 src/lib/Toast.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 63,
+			"character": 8
+		},
+		"end": {
+			"line": 63,
+			"character": 20
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './internal/helpers.js' or its corresponding type declarations.",
+		"start": {
+			"line": 65,
+			"character": 20
+		},
+		"end": {
+			"line": 65,
+			"character": 43
+		}
+	}
+]
+
+=== 2603 src/lib/Toaster.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 79,
+			"character": 35
+		},
+		"end": {
+			"line": 79,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 80,
+			"character": 31
+		},
+		"end": {
+			"line": 80,
+			"character": 43
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './icons/SuccessIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/lib/icons/SuccessIcon.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 87,
+			"character": 25
+		},
+		"end": {
+			"line": 87,
+			"character": 53
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './icons/ErrorIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/lib/icons/ErrorIcon.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 88,
+			"character": 23
+		},
+		"end": {
+			"line": 88,
+			"character": 49
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './icons/WarningIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/lib/icons/WarningIcon.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 89,
+			"character": 25
+		},
+		"end": {
+			"line": 89,
+			"character": 53
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './icons/InfoIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/lib/icons/InfoIcon.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 90,
+			"character": 22
+		},
+		"end": {
+			"line": 90,
+			"character": 47
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './icons/CloseIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/lib/icons/CloseIcon.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 91,
+			"character": 23
+		},
+		"end": {
+			"line": 91,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './internal/ctx.js' or its corresponding type declarations.",
+		"start": {
+			"line": 92,
+			"character": 31
+		},
+		"end": {
+			"line": 92,
+			"character": 50
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'key' implicitly has an 'any' type.",
+		"start": {
+			"line": 246,
+			"character": 5
+		},
+		"end": {
+			"line": 246,
+			"character": 8
+		}
+	}
+]
+
+=== 3 src/lib/icons/CloseIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/ErrorIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/InfoIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/SuccessIcon.svelte	json
+[]
+
+=== 3 src/lib/icons/WarningIcon.svelte	json
+[]
+
+=== 222 src/routes/+layout.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of './styles.css'.",
+		"start": {
+			"line": 1,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"character": 22
+		}
+	}
+]
+
+=== 1003 src/routes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 47
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module '../components/Footer.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/components/Footer.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/internal/ctx.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 35
+		},
+		"end": {
+			"line": 11,
+			"character": 57
+		}
+	}
+]
+
+=== 1347 src/routes/test/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 47
+		},
+		"end": {
+			"line": 3,
+			"character": 62
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './CustomIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/routes/test/CustomIcon.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 45
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './WideDescription.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-qKKqmP/src/routes/test/WideDescription.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 55
+		}
+	}
+]
+
+=== 3 src/routes/test/CustomIcon.svelte	json
+[]
+
+=== 3 src/routes/test/WideDescription.svelte	json
+[]
+
+=== 216 src/tests/MultiToasterTest.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+
+=== 429 src/tests/PropsToastTest.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 35
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	}
+]
+
+=== 3 src/tests/TestIcon.svelte	json
+[]
+
+=== 216 src/tests/ToastTest.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	}
+]
+

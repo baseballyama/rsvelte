@@ -45,12 +45,12 @@ static EXTENSIONS: &[&rsvelte_plugin_interface::Extension] = &[
     &rsvelte_svelte_format::EXTENSION,
     &rsvelte_svelte_lint::EXTENSION,
     &rsvelte_svelte_typescript_projection::EXTENSION,
-    &rsvelte_svelte_typecheck::EXTENSION,
+    &rsvelte_svelte_check::EXTENSION,
     &rsvelte_vue_compile::EXTENSION,
     &rsvelte_vue_format::EXTENSION,
     &rsvelte_vue_lint::EXTENSION,
     &rsvelte_vue_check::EXTENSION,
-    &rsvelte_svue::EXTENSION,
+    &rsvelte_vue_compile_svelte::EXTENSION,
     &rsvelte_svelte_compile_vapor::EXTENSION,
 ];
 

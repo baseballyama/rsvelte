@@ -1,11 +1,11 @@
 use rsvelte_kernel::source::characters::split_ecmascript_whitespace;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_stylesheet::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_stylesheet_syntax::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
+use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, Range, TemplateNode, TemplateNodeIdentifier,
 };
-use rsvelte_typescript::NodeIdentifier;
-use rsvelte_typescript::syntax_tree::Kind;
+use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_syntax::syntax_tree::Kind;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 

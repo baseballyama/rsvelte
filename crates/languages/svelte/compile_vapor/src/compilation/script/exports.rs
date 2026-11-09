@@ -17,7 +17,7 @@ pub(super) fn collect(
                 let Kind::Declarator { identifier, .. } = tree.kind(declaration) else {
                     unreachable!("a declarator")
                 };
-                rsvelte_svelte::semantic::resolve::for_each_pattern_identifier(
+                rsvelte_svelte_semantic::resolve::for_each_pattern_identifier(
                     tree,
                     identifier,
                     &mut |name| names.push(name),
@@ -29,7 +29,7 @@ pub(super) fn collect(
             declaration: true,
             ..
         }
-        | Kind::Class(rsvelte_typescript::syntax_tree::Class::Definition {
+        | Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition {
             name: Some(name),
             declaration: true,
             ..
@@ -75,12 +75,12 @@ pub(super) fn expose(
             .expect("an exported binding");
         if matches!(
             resolution.sem.bindings[binding].kind,
-            rsvelte_typescript::scope::DeclarationKind::Function
-                | rsvelte_typescript::scope::DeclarationKind::Let
+            rsvelte_typescript_semantic::scope::DeclarationKind::Function
+                | rsvelte_typescript_semantic::scope::DeclarationKind::Let
         ) {
             let parameter = to.identifier("$$export_value");
             let assignment = to.assign(
-                rsvelte_typescript::operators::AssignmentOperator::Assign,
+                rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
                 key,
                 parameter,
                 SourceLocation::SYNTHETIC,

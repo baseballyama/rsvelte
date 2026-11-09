@@ -2,11 +2,11 @@
 //! class members) and TypeScript declarations, as upstream's `indent-helpers/ts.js` lays them out.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::lexer::T;
-use rsvelte_typescript::syntax_tree::{
+use rsvelte_typescript_syntax::lexer::T;
+use rsvelte_typescript_syntax::syntax_tree::{
     Class, SignatureKind, SyntaxTree, Type, TypeScriptKind, TypeScriptSyntax,
 };
-use rsvelte_typescript::{Kind, NodeIdentifier};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
 use super::Script;
 use crate::rules::indent::tokens::Token;

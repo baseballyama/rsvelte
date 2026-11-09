@@ -17,9 +17,16 @@ const metadata = JSON.parse(
 	}),
 ) as { packages: Package[] };
 
-type Role = 'kernel' | 'core' | 'support' | 'host_library' | 'host' | 'capability' | 'example';
+type Role =
+	| 'kernel'
+	| 'syntax'
+	| 'semantic'
+	| 'support'
+	| 'host_library'
+	| 'host'
+	| 'capability'
+	| 'example';
 
-// Crate names do not follow paths (`rsvelte_svue`, `rsvelte_markup`), so the role comes from the path.
 function role(manifestPath: string): Role | undefined {
 	// No role accepts an example, so nothing can depend on code that exists to be read.
 	if (/\/examples\/[^/]+\/Cargo\.toml$/.test(manifestPath) && !manifestPath.includes('/crates/'))
@@ -32,29 +39,27 @@ function role(manifestPath: string): Role | undefined {
 	// Only hosts load configuration files; a plugin reads its options through the plugin interface.
 	if (path === 'hosts/configuration_loading') return 'host_library';
 	if (path.startsWith('hosts/')) return 'host';
-	if (
-		/^languages\/[^/]+\/core$/.test(path) ||
-		/^languages\/svelte\/(syntax|parser|compiler_syntax_tree|semantic)$/.test(path)
-	) {
-		return 'core';
-	}
+	if (/^languages\/[^/]+\/syntax$/.test(path)) return 'syntax';
+	if (/^languages\/[^/]+\/semantic$/.test(path)) return 'semantic';
 	if (/^languages\/[^/]+\/[^/]+$/.test(path)) return 'capability';
 	return undefined;
 }
 
 const roles = new Map(metadata.packages.map((pkg) => [pkg.name, role(pkg.manifest_path)]));
 
+// Trees know no analysis, and analysis knows no tool.
 const allowed: Record<Role, readonly Role[]> = {
 	kernel: [],
-	core: ['kernel', 'core'],
+	syntax: ['kernel', 'syntax'],
+	semantic: ['kernel', 'syntax', 'semantic'],
 	support: ['kernel'],
 	host_library: ['kernel', 'support'],
-	capability: ['kernel', 'core', 'support', 'capability'],
-	host: ['kernel', 'core', 'support', 'host_library', 'capability'],
-	example: ['kernel', 'core', 'support', 'capability'],
+	capability: ['kernel', 'syntax', 'semantic', 'support', 'capability'],
+	host: ['kernel', 'syntax', 'semantic', 'support', 'host_library', 'capability'],
+	example: ['kernel', 'syntax', 'semantic', 'support', 'capability'],
 };
 
-function toolDependencies(packages: Package[]): string[] {
+function forbiddenDependencies(packages: Package[]): string[] {
 	const failures: string[] = [];
 	for (const pkg of packages) {
 		const own = role(pkg.manifest_path);
@@ -76,24 +81,44 @@ function named(target: Role): string[] {
 		.toSorted();
 }
 
+function inject(from: string, to: string): string[] {
+	assert.ok(roles.has(to), `${to} exists`);
+	const pkg = metadata.packages.find((candidate) => candidate.name === from);
+	assert.ok(pkg, `${from} exists`);
+	return forbiddenDependencies([{ ...pkg, dependencies: [...pkg.dependencies, { name: to }] }]);
+}
+
+// The name says the path, so a crate is found from either. Identifiers spell out `css` and `html`
+// (apps/site/scripts/code-names.ts); only the language directories keep the short names.
+const spelled: Record<string, string> = { css: 'stylesheet', html: 'markup' };
+function expectedName(manifestPath: string): string | undefined {
+	const [, language, directory] =
+		/\/crates\/languages\/([^/]+)\/([^/]+)\/Cargo\.toml$/.exec(manifestPath) ?? [];
+	if (language === undefined || directory === undefined) return undefined;
+	return `rsvelte_${spelled[language] ?? language}_${directory}`;
+}
+
 test('every workspace crate has a role from its path', () => {
 	assert.deepEqual(
 		[...roles].filter(([, r]) => r === undefined).map(([name]) => name),
 		[],
 	);
 	assert.deepEqual(named('kernel'), ['rsvelte_kernel']);
-	assert.deepEqual(named('core'), [
-		'rsvelte_markup',
-		'rsvelte_stylesheet',
-		'rsvelte_svelte',
-		'rsvelte_svelte_compiler_syntax_tree',
-		'rsvelte_svelte_parser',
-		'rsvelte_svelte_semantic',
+	assert.deepEqual(named('syntax'), [
+		'rsvelte_markup_syntax',
+		'rsvelte_stylesheet_syntax',
 		'rsvelte_svelte_syntax',
-		'rsvelte_typescript',
-		'rsvelte_vue',
+		'rsvelte_typescript_syntax',
+		'rsvelte_vue_syntax',
+	]);
+	assert.deepEqual(named('semantic'), [
+		'rsvelte_stylesheet_semantic',
+		'rsvelte_svelte_semantic',
+		'rsvelte_typescript_semantic',
+		'rsvelte_vue_semantic',
 	]);
 	assert.deepEqual(named('support'), [
+		'rsvelte_corpus',
 		'rsvelte_document_printer',
 		'rsvelte_lint_runner',
 		'rsvelte_plugin_interface',
@@ -110,121 +135,77 @@ test('every workspace crate has a role from its path', () => {
 	assert.deepEqual(named('example'), ['rsvelte_example_plugin']);
 });
 
-test('kernel and language cores do not depend on tools', () => {
-	assert.deepEqual(toolDependencies(metadata.packages), []);
-	assert.ok(metadata.packages.some((pkg) => pkg.name === 'rsvelte_kernel'));
-	assert.ok(metadata.packages.some((pkg) => pkg.manifest_path.includes('/core/')));
+test('every language crate is named for its path', () => {
+	const misnamed = metadata.packages
+		.map((pkg) => [pkg.name, expectedName(pkg.manifest_path)] as const)
+		.filter(([name, expected]) => expected !== undefined && name !== expected);
+	assert.deepEqual(misnamed, []);
+	assert.equal(
+		expectedName('/r/crates/languages/vue/compile_svelte/Cargo.toml'),
+		'rsvelte_vue_compile_svelte',
+	);
+	assert.equal(
+		expectedName('/r/crates/languages/css/syntax/Cargo.toml'),
+		'rsvelte_stylesheet_syntax',
+	);
+	assert.equal(expectedName('/r/crates/hosts/browser/Cargo.toml'), undefined);
 });
 
-test('the dependency check rejects an injected formatter dependency', () => {
-	const core = metadata.packages.find((pkg) => pkg.name === 'rsvelte_svelte');
-	assert.ok(core);
-	const injected = {
-		...core,
-		dependencies: [...core.dependencies, { name: 'rsvelte_svelte_format' }],
-	};
-	assert.deepEqual(toolDependencies([injected]), [
-		'rsvelte_svelte depends on rsvelte_svelte_format',
-	]);
+test('no crate depends on a crate its role does not accept', () => {
+	assert.deepEqual(forbiddenDependencies(metadata.packages), []);
 });
 
-const svelteLayers: Record<string, readonly string[]> = {
-	rsvelte_svelte_syntax: [],
-	rsvelte_svelte_parser: ['rsvelte_svelte_syntax'],
-	rsvelte_svelte_compiler_syntax_tree: ['rsvelte_svelte_syntax'],
-	rsvelte_svelte_semantic: ['rsvelte_svelte_compiler_syntax_tree'],
-};
-
-function svelteDependencies(packages: Package[]): string[] {
-	return packages.flatMap((pkg) => {
-		const allowedLayers = svelteLayers[pkg.name];
-		if (!allowedLayers) return [];
-		return pkg.dependencies
-			.filter(
-				(dependency) =>
-					(dependency.name === 'rsvelte_svelte' || dependency.name.startsWith('rsvelte_svelte_')) &&
-					!allowedLayers.includes(dependency.name),
-			)
-			.map((dependency) => `${pkg.name} depends on ${dependency.name}`);
-	});
-}
-
-test('Svelte shared crates keep their dependency boundaries', () => {
-	for (const name of Object.keys(svelteLayers)) {
-		assert.ok(
-			metadata.packages.some((pkg) => pkg.name === name),
-			`${name} is measured`,
-		);
+test('syntax rejects analysis, tools and hosts', () => {
+	for (const to of [
+		'rsvelte_svelte_semantic',
+		'rsvelte_typescript_semantic',
+		'rsvelte_svelte_format',
+		'rsvelte_stylesheet_compile',
+		'rsvelte_lint_runner',
+		'rsvelte_command_line',
+	]) {
+		assert.deepEqual(inject('rsvelte_svelte_syntax', to), [
+			`rsvelte_svelte_syntax depends on ${to}`,
+		]);
 	}
-	assert.deepEqual(svelteDependencies(metadata.packages), []);
+	assert.deepEqual(inject('rsvelte_svelte_syntax', 'rsvelte_stylesheet_syntax'), []);
 });
 
-test('Svelte boundaries reject injected dependencies on parsing, normalization, and tools', () => {
-	for (const [name, forbidden] of [
-		['rsvelte_svelte_syntax', 'rsvelte_svelte_parser'],
-		['rsvelte_svelte_compiler_syntax_tree', 'rsvelte_svelte_parser'],
-		['rsvelte_svelte_semantic', 'rsvelte_svelte_parser'],
-		['rsvelte_svelte_compiler_syntax_tree', 'rsvelte_svelte'],
-		['rsvelte_svelte_semantic', 'rsvelte_svelte_compile'],
-	] as const) {
-		const pkg = metadata.packages.find((candidate) => candidate.name === name);
-		assert.ok(pkg);
-		const injected = { ...pkg, dependencies: [...pkg.dependencies, { name: forbidden }] };
-		assert.deepEqual(svelteDependencies([injected]), [`${name} depends on ${forbidden}`]);
+test('semantic rejects tools and hosts whatever their names end with', () => {
+	for (const to of [
+		'rsvelte_stylesheet_compile',
+		'rsvelte_markup_lint',
+		'rsvelte_svelte_compile',
+		'rsvelte_svelte_lint',
+		'rsvelte_svelte_check',
+		'rsvelte_svelte_typescript_projection',
+		'rsvelte_vue_compile_svelte',
+		'rsvelte_lint_runner',
+		'rsvelte_command_line',
+	]) {
+		assert.deepEqual(inject('rsvelte_svelte_semantic', to), [
+			`rsvelte_svelte_semantic depends on ${to}`,
+		]);
 	}
-	for (const name of Object.keys(svelteLayers)) {
-		const pkg = metadata.packages.find((candidate) => candidate.name === name);
-		assert.ok(pkg);
-		const injected = {
-			...pkg,
-			dependencies: [...pkg.dependencies, { name: 'rsvelte_svelte_format' }],
-		};
-		assert.deepEqual(toolDependencies([injected]), [`${name} depends on rsvelte_svelte_format`]);
-	}
+	assert.deepEqual(inject('rsvelte_vue_semantic', 'rsvelte_svelte_semantic'), []);
 });
 
 test('the kernel rejects language data and shared task contracts', () => {
-	const kernel = metadata.packages.find((pkg) => pkg.name === 'rsvelte_kernel');
-	assert.ok(kernel);
-	for (const name of ['rsvelte_svelte', 'rsvelte_typescript', 'rsvelte_lint_runner']) {
-		const injected: Package = { ...kernel, dependencies: [...kernel.dependencies, { name }] };
-		assert.deepEqual(toolDependencies([injected]), [`rsvelte_kernel depends on ${name}`]);
-	}
-	for (const pkg of metadata.packages.filter((candidate) =>
-		candidate.manifest_path.includes('/core/'),
-	)) {
-		const injected = {
-			...pkg,
-			dependencies: [...pkg.dependencies, { name: 'rsvelte_lint_runner' }],
-		};
-		assert.deepEqual(toolDependencies([injected]), [`${pkg.name} depends on rsvelte_lint_runner`]);
-	}
-});
-
-test('cores reject tools and hosts whatever their names end with', () => {
-	const core = metadata.packages.find((pkg) => pkg.name === 'rsvelte_svelte');
-	assert.ok(core);
-	for (const name of [
-		'rsvelte_svue',
-		'rsvelte_svelte_lint',
-		'rsvelte_svelte_typecheck',
-		'rsvelte_svelte_typescript_projection',
-		'rsvelte_svelte_compile_vapor',
-		'rsvelte_command_line',
+	for (const to of [
+		'rsvelte_svelte_syntax',
+		'rsvelte_typescript_semantic',
+		'rsvelte_lint_runner',
 	]) {
-		assert.ok(
-			metadata.packages.some((pkg) => pkg.name === name),
-			`${name} exists`,
-		);
-		const injected: Package = { ...core, dependencies: [...core.dependencies, { name }] };
-		assert.deepEqual(toolDependencies([injected]), [`rsvelte_svelte depends on ${name}`]);
+		assert.deepEqual(inject('rsvelte_kernel', to), [`rsvelte_kernel depends on ${to}`]);
 	}
 });
 
 test('new crates get a role from where they are placed', () => {
 	for (const [path, expected] of [
-		['/r/crates/languages/rust/core/Cargo.toml', 'core'],
+		['/r/crates/languages/rust/syntax/Cargo.toml', 'syntax'],
+		['/r/crates/languages/rust/semantic/Cargo.toml', 'semantic'],
 		['/r/crates/languages/rust/lint/Cargo.toml', 'capability'],
+		['/r/crates/languages/rust/core/Cargo.toml', 'capability'],
 		['/r/crates/hosts/editor/Cargo.toml', 'host'],
 		['/r/crates/language_independent/document_printer/Cargo.toml', 'support'],
 		['/r/examples/plugin/Cargo.toml', 'example'],
@@ -238,22 +219,18 @@ test('new crates get a role from where they are placed', () => {
 
 test('support, plugin and host boundaries reject injected dependencies', () => {
 	for (const [from, to] of [
-		['rsvelte_lint_runner', 'rsvelte_svelte'],
+		['rsvelte_lint_runner', 'rsvelte_svelte_syntax'],
 		['rsvelte_plugin_interface', 'rsvelte_svelte_compile'],
 		['rsvelte_svelte_compile', 'rsvelte_configuration_loading'],
 		['rsvelte_svelte_compile', 'rsvelte_example_plugin'],
 		['rsvelte_example_plugin', 'rsvelte_command_line'],
 		['rsvelte_plugin_interface', 'rsvelte_configuration_loading'],
-		['rsvelte_typescript_content_mapper', 'rsvelte_typescript'],
+		['rsvelte_typescript_content_mapper', 'rsvelte_typescript_syntax'],
 		['rsvelte_svelte_lint', 'rsvelte_command_line'],
-		['rsvelte_svue', 'rsvelte_kernel_browser'],
+		['rsvelte_vue_compile_svelte', 'rsvelte_kernel_browser'],
 		['rsvelte_command_line', 'rsvelte_kernel_browser'],
 	] as const) {
-		const pkg = metadata.packages.find((candidate) => candidate.name === from);
-		assert.ok(pkg, from);
-		assert.ok(roles.has(to), to);
-		const injected = { ...pkg, dependencies: [...pkg.dependencies, { name: to }] };
-		assert.deepEqual(toolDependencies([injected]), [`${from} depends on ${to}`]);
+		assert.deepEqual(inject(from, to), [`${from} depends on ${to}`]);
 	}
 });
 
@@ -263,5 +240,5 @@ test('a crate outside the known places cannot depend on workspace crates', () =>
 		manifest_path: '/r/crates/misc/new/Cargo.toml',
 		dependencies: [{ name: 'rsvelte_kernel' }],
 	};
-	assert.deepEqual(toolDependencies([injected]), ['rsvelte_new depends on rsvelte_kernel']);
+	assert.deepEqual(forbiddenDependencies([injected]), ['rsvelte_new depends on rsvelte_kernel']);
 });

@@ -14,23 +14,27 @@ rsvelte_plugin_interface = { path = "crates/language_independent/plugin_interfac
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.154", features = ["raw_value"] }
 serde-saphyr = "2.1.0"
-regress = "0.11.1"
+regress = "0.12.0"
 toml = "1.1.5"
 libloading = "0.9.0"
 rsvelte_lint_runner = { path = "crates/language_independent/lint_runner" }
 rsvelte_kernel = { path = "crates/language_independent/kernel" }
+rsvelte_corpus = { path = "crates/language_independent/corpus" }
 rsvelte_test_harness = { path = "crates/language_independent/test_harness" }
 rsvelte_document_printer = { path = "crates/language_independent/document_printer" }
-rsvelte_typescript = { path = "crates/languages/typescript/core" }
-rsvelte_stylesheet = { path = "crates/languages/css/core" }
-rsvelte_svelte = { path = "crates/languages/svelte/core" }
+rsvelte_typescript_syntax = { path = "crates/languages/typescript/syntax" }
+rsvelte_typescript_tree = { path = "crates/languages/typescript/tree" }
+rsvelte_typescript_semantic = { path = "crates/languages/typescript/semantic" }
+rsvelte_stylesheet_syntax = { path = "crates/languages/css/syntax" }
+rsvelte_stylesheet_semantic = { path = "crates/languages/css/semantic" }
+rsvelte_stylesheet_compile = { path = "crates/languages/css/compile" }
 rsvelte_svelte_syntax = { path = "crates/languages/svelte/syntax" }
-rsvelte_svelte_parser = { path = "crates/languages/svelte/parser" }
-rsvelte_svelte_compiler_syntax_tree = { path = "crates/languages/svelte/compiler_syntax_tree" }
 rsvelte_svelte_semantic = { path = "crates/languages/svelte/semantic" }
-rsvelte_markup = { path = "crates/languages/html/core" }
-rsvelte_vue = { path = "crates/languages/vue/core" }
-rsvelte_svue = { path = "crates/languages/vue/compile_svelte" }
+rsvelte_markup_syntax = { path = "crates/languages/html/syntax" }
+rsvelte_markup_lint = { path = "crates/languages/html/lint" }
+rsvelte_vue_syntax = { path = "crates/languages/vue/syntax" }
+rsvelte_vue_semantic = { path = "crates/languages/vue/semantic" }
+rsvelte_vue_compile_svelte = { path = "crates/languages/vue/compile_svelte" }
 rsvelte_svelte_compile_vapor = { path = "crates/languages/svelte/compile_vapor" }
 rsvelte_typescript_format = { path = "crates/languages/typescript/format" }
 rsvelte_typescript_lint = { path = "crates/languages/typescript/lint" }
@@ -39,7 +43,7 @@ rsvelte_typescript_check = { path = "crates/languages/typescript/check" }
 rsvelte_svelte_format = { path = "crates/languages/svelte/format" }
 rsvelte_svelte_lint = { path = "crates/languages/svelte/lint" }
 rsvelte_svelte_typescript_projection = { path = "crates/languages/svelte/typescript_projection" }
-rsvelte_svelte_typecheck = { path = "crates/languages/svelte/typecheck" }
+rsvelte_svelte_check = { path = "crates/languages/svelte/check" }
 rsvelte_vue_format = { path = "crates/languages/vue/format" }
 rsvelte_vue_lint = { path = "crates/languages/vue/lint" }
 rsvelte_vue_check = { path = "crates/languages/vue/check" }
@@ -47,12 +51,19 @@ rsvelte_stylesheet_format = { path = "crates/languages/css/format" }
 rsvelte_typescript_compile = { path = "crates/languages/typescript/compile" }
 rsvelte_svelte_compile = { path = "crates/languages/svelte/compile" }
 rsvelte_vue_compile = { path = "crates/languages/vue/compile" }
-oxc_allocator = "0.157.0"
-oxc_ast = "0.157.0"
-oxc_ast_visit = "0.157.0"
-oxc_parser = "0.157.0"
-oxc_span = "0.157.0"
-oxc_syntax = "0.157.0"
+# TODO(oxc-project/oxc#29124): back to an upstream revision once `parse_expression_at` and
+# `with_start` merge.
+# Every oxc crate stays on one revision; `oxc_formatter` is not on crates.io.
+oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_ast = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_ast_visit = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_diagnostics = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_formatter = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_formatter_core = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_parser = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_span = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_syntax = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+self_cell = "1.2.0"
 rayon = "1.12.0"
 stacker = "0.1.25"
 semver = "1.0.28"
@@ -62,7 +73,6 @@ num-traits = "0.2.19"
 sha2 = { version = "0.11.1", default-features = false }
 libc = "0.2.191"
 unicode-id-start = "1.5.0"
-unicode-width = "0.2.3"
 
 # Everything below is `deny`: a lint that only warns is one nobody reads. A lint is left out only
 # with a reason written here; a local exception is `#[expect(lint, reason = "...")]`, never `allow`.

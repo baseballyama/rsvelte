@@ -20,18 +20,18 @@ use std::borrow::Cow;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte::compilation::compiler_syntax_tree::{
+use rsvelte_svelte_semantic::analyze::Analysis;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
     NodeKind,
 };
-use rsvelte_svelte::semantic::analyze::Analysis;
-use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution};
-pub use rsvelte_svelte::semantic::template::{cannot_be_set_statically, needs_clsx};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+pub(crate) use rsvelte_svelte_semantic::template::{cannot_be_set_statically, needs_clsx};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
 pub use crate::input::{CompileInput, Target};
-pub use crate::markup::escape_markup;
+pub(crate) use crate::markup::escape_markup;
 use crate::render_plan::RenderPlan;
 pub use crate::render_plan::{Cleaned, Item, Parent, clean_nodes};
 
@@ -64,7 +64,7 @@ pub fn lower_with_plan<'a>(
             &input.component,
             an,
             &identity,
-            rsvelte_stylesheet::scope::RenderMode::Minify,
+            rsvelte_stylesheet_compile::scope::RenderMode::Minify,
         )
     } else {
         None
@@ -111,7 +111,7 @@ pub(crate) struct Lowering<'context, 'source> {
 }
 
 #[derive(Debug)]
-pub struct ValidatedOptions {
+pub(crate) struct ValidatedOptions {
     custom_element: Option<custom_element::CustomElement>,
     rest_reads: rustc_hash::FxHashSet<NodeIdentifier>,
 }
@@ -169,5 +169,5 @@ use template::{
     check_binding, event_attribute, has_dependency, is_directive, is_dom_property,
     is_load_error_element, synthetic_value,
 };
-pub use validation::check_foreign_element;
+pub(crate) use validation::check_foreign_element;
 use validation::{check_runes, check_stores};

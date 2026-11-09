@@ -1,7 +1,7 @@
 #![expect(clippy::print_stdout, reason = "reports the measured memory layout")]
 
-use rsvelte_svelte::compilation::compiler_syntax_tree::{Attribute, Node};
 use rsvelte_svelte_compile::render_plan::{Cleaned, Item, Region};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, Node};
 
 fn main() {
     println!(

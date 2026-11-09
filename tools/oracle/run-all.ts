@@ -1,5 +1,6 @@
-// Runs every rsvelte task over every fixture unit, the check tasks with the oracle's own TypeScript 7
-// and packages, for inspecting every task's output at once. `--binary` defaults to the release build.
+// Runs every rsvelte task over every corpus unit and writes each source's actual/ packs, the check
+// tasks with the oracle's own TypeScript 7 and packages, for inspecting every task's output at once.
+// `--binary` defaults to the release build.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import module from 'node:module';
@@ -24,7 +25,7 @@ export async function main(args: string[]): Promise<void> {
 		'corpus',
 		...families.map((f) => path.join(CORPUS, f)),
 		...options('typescript.check', { command: [getExePath({ fs, module, path, url })] }),
-		...options('svelte.typecheck', { svelte: pkg('svelte') }),
+		...options('svelte.check', { svelte: pkg('svelte') }),
 		...options('vue.check', { vue: pkg('vue') }),
 	];
 	const r = spawnSync(values.binary, command, { stdio: 'inherit' });

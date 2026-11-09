@@ -18,19 +18,19 @@ mod special;
 use events::{capture_event, push_captured_events};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_markup::decode_attribute;
-use rsvelte_svelte::compilation::compiler_syntax_tree::{
+use rsvelte_markup_syntax::decode_attribute;
+use rsvelte_svelte_semantic::analyze::Analysis;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
     NodeKind, Part,
 };
-use rsvelte_svelte::semantic::analyze::Analysis;
-use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution};
-use rsvelte_svelte::syntax::parse::is_void;
-use rsvelte_typescript::copy::copy;
-use rsvelte_typescript::operators::{BinaryOperator, UpdateOperator};
-use rsvelte_typescript::scope::ScopeIdentifier;
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+use rsvelte_svelte_syntax::parse::is_void;
+use rsvelte_typescript_compile::copy::copy;
+use rsvelte_typescript_semantic::scope::ScopeIdentifier;
+use rsvelte_typescript_syntax::operators::{BinaryOperator, UpdateOperator};
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
 use super::javascript::{call_arguments, init_property, runtime_call};
@@ -60,10 +60,10 @@ enum Piece {
 }
 
 /// `String(value ?? '')` for a known value.
-fn known_string(v: &rsvelte_svelte::semantic::evaluate::Value) -> String {
+fn known_string(v: &rsvelte_svelte_semantic::evaluate::Value) -> String {
     match v {
-        rsvelte_svelte::semantic::evaluate::Value::Null
-        | rsvelte_svelte::semantic::evaluate::Value::Undefined => String::new(),
+        rsvelte_svelte_semantic::evaluate::Value::Null
+        | rsvelte_svelte_semantic::evaluate::Value::Undefined => String::new(),
         v => v.to_javascript_string(),
     }
 }

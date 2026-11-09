@@ -1,0 +1,1098 @@
+# rsvelte pack 1
+=== 5575 src/lib/box/box-extras.svelte.ts	svelte-module-ts	runes	-
+import type { Getter, MaybeBoxOrGetter } from "$lib/types.js";
+import { isFunction, isObject } from "$lib/utils/is.js";
+
+export const BoxSymbol = Symbol("box");
+export const isWritableSymbol = Symbol("is-writable");
+
+export type ReadableBox<T> = {
+	readonly [BoxSymbol]: true;
+	readonly current: T;
+};
+
+export type WritableBox<T> = ReadableBox<T> & {
+	readonly [isWritableSymbol]: true;
+	current: T;
+};
+
+/**
+ * Creates a readonly box
+ *
+ * @param getter Function to get the value of the box
+ * @returns A box with a `current` property whose value is the result of the getter.
+ * Useful to pass state to other functions.
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+function boxWith<T>(getter: () => T): ReadableBox<T>;
+/**
+ * Creates a writable box
+ *
+ * @param getter Function to get the value of the box
+ * @param setter Function to set the value of the box
+ * @returns A box with a `current` property which can be set to a new value.
+ * Useful to pass state to other functions.
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+function boxWith<T>(getter: () => T, setter: (v: T) => void): WritableBox<T>;
+function boxWith<T>(getter: () => T, setter?: (v: T) => void) {
+	const derived = $derived.by(getter);
+
+	if (setter) {
+		return {
+			[BoxSymbol]: true,
+			[isWritableSymbol]: true,
+			get current() {
+				return derived;
+			},
+			set current(v: T) {
+				setter(v);
+			}
+		};
+	}
+
+	return {
+		[BoxSymbol]: true,
+		get current() {
+			return getter();
+		}
+	};
+}
+
+/**
+ * @returns Whether the value is a Box
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+function isBox(value: unknown): value is ReadableBox<unknown> {
+	return isObject(value) && BoxSymbol in value;
+}
+/**
+ * @returns Whether the value is a WritableBox
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+function isWritableBox(value: unknown): value is WritableBox<unknown> {
+	return isBox(value) && isWritableSymbol in value;
+}
+
+/**
+ * Creates a box from either a static value, a box, or a getter function.
+ * Useful when you want to receive any of these types of values and generate a boxed version of it.
+ *
+ * @returns A box with a `current` property whose value.
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+function boxFrom<T>(value: T | WritableBox<T>): WritableBox<T>;
+function boxFrom<T>(value: ReadableBox<T>): ReadableBox<T>;
+function boxFrom<T>(value: Getter<T>): ReadableBox<T>;
+function boxFrom<T>(value: MaybeBoxOrGetter<T>): ReadableBox<T>;
+function boxFrom<T>(value: T): WritableBox<T>;
+function boxFrom<T>(value: MaybeBoxOrGetter<T>) {
+	if (isBox(value)) return value;
+	if (isFunction(value)) return boxWith(value);
+	return simpleBox(value);
+}
+
+type GetKeys<T, U> = {
+	[K in keyof T]: T[K] extends U ? K : never;
+}[keyof T];
+type RemoveValues<T, U> = Omit<T, GetKeys<T, U>>;
+
+type BoxFlatten<R extends Record<string, unknown>> = Expand<
+	RemoveValues<
+		{
+			[K in keyof R]: R[K] extends WritableBox<infer T> ? T : never;
+		},
+		never
+	> &
+		RemoveValues<
+			{
+				readonly [K in keyof R]: R[K] extends WritableBox<infer _>
+					? never
+					: R[K] extends ReadableBox<infer T>
+						? T
+						: never;
+			},
+			never
+		>
+> &
+	RemoveValues<
+		{
+			[K in keyof R]: R[K] extends ReadableBox<infer _> ? never : R[K];
+		},
+		never
+	>;
+
+/**
+ * Function that gets an object of boxes, and returns an object of reactive values
+ *
+ * @example
+ * const count = box(0)
+ * const flat = box.flatten({ count, double: box.with(() => count.current) })
+ * // type of flat is { count: number, readonly double: number }
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+function boxFlatten<R extends Record<string, unknown>>(boxes: R): BoxFlatten<R> {
+	return Object.entries(boxes).reduce<BoxFlatten<R>>((acc, [key, b]) => {
+		if (!isBox(b)) {
+			return Object.assign(acc, { [key]: b });
+		}
+
+		if (isWritableBox(b)) {
+			Object.defineProperty(acc, key, {
+				get() {
+					return b.current;
+				},
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				set(v: any) {
+					b.current = v;
+				}
+			});
+		} else {
+			Object.defineProperty(acc, key, {
+				get() {
+					return b.current;
+				}
+			});
+		}
+
+		return acc;
+	}, {} as BoxFlatten<R>);
+}
+
+/**
+ * Function that converts a box to a readonly box.
+ *
+ * @example
+ * const count = box(0) // WritableBox<number>
+ * const countReadonly = box.readonly(count) // ReadableBox<number>
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+function toReadonlyBox<T>(b: ReadableBox<T>): ReadableBox<T> {
+	if (!isWritableBox(b)) return b;
+
+	return {
+		[BoxSymbol]: true,
+		get current() {
+			return b.current;
+		}
+	};
+}
+
+/**
+ * Creates a writable box.
+ *
+ * @returns A box with a `current` property which can be set to a new value.
+ * Useful to pass state to other functions.
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+function simpleBox<T>(): WritableBox<T | undefined>;
+/**
+ * Creates a writable box with an initial value.
+ *
+ * @param initialValue The initial value of the box.
+ * @returns A box with a `current` property which can be set to a new value.
+ * Useful to pass state to other functions.
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+function simpleBox<T>(initialValue: T): WritableBox<T>;
+function simpleBox(initialValue?: unknown) {
+	let current = $state(initialValue);
+
+	return {
+		[BoxSymbol]: true,
+		[isWritableSymbol]: true,
+		get current() {
+			return current as unknown;
+		},
+		set current(v: unknown) {
+			current = v;
+		}
+	};
+}
+
+export { boxWith, isBox, isWritableBox, boxFrom, boxFlatten, toReadonlyBox, simpleBox };
+
+=== 1182 src/lib/box/box.svelte.ts	svelte-module-ts	runes	-
+import {
+	boxFrom,
+	boxWith,
+	boxFlatten,
+	toReadonlyBox,
+	isBox,
+	isWritableBox,
+	type WritableBox,
+	BoxSymbol,
+	isWritableSymbol
+} from "./box-extras.svelte.js";
+
+/**
+ * Creates a writable box.
+ *
+ * @returns A box with a `current` property which can be set to a new value.
+ * Useful to pass state to other functions.
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+export function box<T>(): WritableBox<T | undefined>;
+/**
+ * Creates a writable box with an initial value.
+ *
+ * @param initialValue The initial value of the box.
+ * @returns A box with a `current` property which can be set to a new value.
+ * Useful to pass state to other functions.
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+export function box<T>(initialValue: T): WritableBox<T>;
+export function box(initialValue?: unknown) {
+	let current = $state(initialValue);
+
+	return {
+		[BoxSymbol]: true,
+		[isWritableSymbol]: true,
+		get current() {
+			return current as unknown;
+		},
+		set current(v: unknown) {
+			current = v;
+		}
+	};
+}
+
+box.from = boxFrom;
+box.with = boxWith;
+box.flatten = boxFlatten;
+box.readonly = toReadonlyBox;
+box.isBox = isBox;
+box.isWritableBox = isWritableBox;
+
+=== 5662 src/lib/box/box.test.svelte.ts	svelte-module-ts	runes	-
+import { describe, expect, expectTypeOf, test } from "vitest";
+import { box } from "./box.svelte.js";
+import { type ReadableBox, type WritableBox } from "./box-extras.svelte.js";
+import type { MaybeBoxOrGetter } from "$lib/types.js";
+
+describe("box", () => {
+	test("box with initial value should be settable", () => {
+		const count = box(0);
+		expect(count.current).toBe(0);
+		count.current = 1;
+		expect(count.current).toBe(1);
+	});
+});
+
+describe("box.from", () => {
+	test("box of writable box should be settable", () => {
+		const count = box.from(box(0));
+		expect(count.current).toBe(0);
+		count.current = 1;
+		expect(count.current).toBe(1);
+	});
+
+	test("box of readable box should not be settable", () => {
+		const count = box.from(box.with(() => 0));
+		expect(count.current).toBe(0);
+		// @ts-expect-error -- we're testing that the setter is not run
+		expect(() => (count.current = 1)).toThrow();
+	});
+
+	test("can set box of box or value", () => {
+		const count = 0 as number | WritableBox<number>;
+		const reCount = box.from(count);
+		expect(reCount.current).toBe(0);
+		reCount.current = 1;
+		expect(reCount.current).toBe(1);
+	});
+});
+
+describe("box.with", () => {
+	test("box with getter only should return value and not be settable", () => {
+		const count = box.with(() => 0);
+		expect(count.current).toBe(0);
+		// @ts-expect-error -- we're testing that the setter is not run
+		expect(() => (count.current = 1)).toThrow();
+	});
+
+	test("box with state getter should be reactive", () => {
+		let value = $state(0);
+		const count = box.with(() => value);
+		expect(count.current).toBe(0);
+		value++;
+		expect(count.current).toBe(1);
+	});
+
+	test("box with getter and setter should be reactive", () => {
+		let value = $state(0);
+		const double = box.with(
+			() => value,
+			(v) => (value = v * 2)
+		);
+		expect(double.current).toBe(0);
+		double.current = 1;
+		expect(double.current).toBe(2);
+		expect(value).toBe(2);
+	});
+});
+
+describe("box.isBox", () => {
+	test("box should be a box", () => {
+		const count = box(0);
+		expect(box.isBox(count)).toBe(true);
+	});
+});
+
+describe("box.isWritableBox", () => {
+	test("writable box should be a writable box", () => {
+		const count = box(0);
+		expect(box.isWritableBox(count)).toBe(true);
+	});
+
+	test("readable box should not be a writable box", () => {
+		const count = box.from(() => 0);
+		expect(box.isWritableBox(count)).toBe(false);
+	});
+});
+
+describe("box.flatten", () => {
+	test("flattens an object of boxes", () => {
+		const count = box(0);
+		const double = box.with(() => count.current * 2);
+		function increment() {
+			count.current++;
+		}
+		const flat = box.flatten({ count, double, increment });
+
+		expect(flat.count).toBe(0);
+		expect(flat.double).toBe(0);
+
+		count.current = 1;
+		expect(flat.count).toBe(1);
+		expect(flat.double).toBe(2);
+
+		flat.count = 2;
+		expect(count.current).toBe(2);
+		expect(flat.count).toBe(2);
+		expect(double.current).toBe(4);
+		expect(flat.double).toBe(4);
+
+		// @ts-expect-error -- we're testing that the setter is not run
+		expect(() => (flat.double = 3)).toThrow();
+
+		flat.increment();
+		expect(count.current).toBe(3);
+		expect(double.current).toBe(6);
+		expect(flat.count).toBe(3);
+		expect(flat.double).toBe(6);
+	});
+});
+
+describe("box.readonly", () => {
+	test("box.readonly returns a non-settable box", () => {
+		const count = box(0);
+		const readonlyCount = box.readonly(count);
+
+		function setReadOnlyCount() {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(readonlyCount as any).current = 1;
+		}
+
+		expect(setReadOnlyCount).toThrow();
+	});
+
+	test("box.readonly returned box should update with original box", () => {
+		const count = box(0);
+		const readonlyCount = box.readonly(count);
+
+		expect(readonlyCount.current).toBe(0);
+		count.current = 1;
+		expect(readonlyCount.current).toBe(1);
+
+		count.current = 2;
+		expect(readonlyCount.current).toBe(2);
+	});
+});
+
+describe("box types", () => {
+	test("box without initial value", () => {
+		const count = box<number>();
+		expectTypeOf(count).toExtend<WritableBox<number | undefined>>();
+		expectTypeOf(count).toExtend<ReadableBox<number | undefined>>();
+	});
+
+	test("box with initial value", () => {
+		const count = box(0);
+		expectTypeOf(count).toExtend<WritableBox<number>>();
+		expectTypeOf(count).toExtend<ReadableBox<number>>();
+	});
+
+	test("box from writable box", () => {
+		const count = box.from(box(0));
+		expectTypeOf(count).toExtend<WritableBox<number>>();
+	});
+
+	test("box from readable box", () => {
+		const count = box.from(box.with(() => 0));
+		expectTypeOf(count).toMatchObjectType<ReadableBox<number>>();
+		expectTypeOf(count).not.toMatchTypeOf<WritableBox<number>>();
+	});
+
+	test("box from box or value", () => {
+		const count = 0 as number | ReadableBox<number>;
+		const count2 = box.from(count);
+		expectTypeOf(count2).toMatchObjectType<ReadableBox<number>>();
+	});
+
+	test("box from maybe box or getter", () => {
+		const count = 0 as MaybeBoxOrGetter<number>;
+		const count2 = box.from(count);
+		expectTypeOf(count2).toExtend<ReadableBox<number>>();
+	});
+
+	test("box.isWritableBox = true should allow box to be settable", () => {
+		const count = box(0) as WritableBox<number> | ReadableBox<number>;
+		expectTypeOf(count).toExtend<ReadableBox<number>>();
+		expect(box.isWritableBox(count)).toBe(true);
+
+		if (box.isWritableBox(count)) {
+			expectTypeOf(count).toExtend<WritableBox<number>>();
+		}
+	});
+
+	test("box.readonly should return a non-settable box", () => {
+		const count = box(0);
+		const readonlyCount = box.readonly(count);
+		expectTypeOf(readonlyCount).toExtend<ReadableBox<number>>();
+		expectTypeOf(readonlyCount).not.toMatchTypeOf<WritableBox<number>>();
+	});
+});
+
+=== 369 src/lib/unbox/unbox.svelte.ts	svelte-module-ts	runes	-
+import { isBox } from "$lib/box/box-extras.svelte.js";
+import type { Getter, MaybeBoxOrGetter } from "$lib/types.js";
+import { isFunction } from "$lib/utils/is.js";
+
+export function unbox<T>(value: MaybeBoxOrGetter<T>): T {
+	if (isBox(value)) return value.current;
+
+	if (isFunction(value)) {
+		const getter = value as Getter<T>;
+		return getter();
+	}
+
+	return value;
+}
+
+=== 1606 src/lib/utils/dom-context.svelte.ts	svelte-module-ts	runes	-
+import { boxWith } from "$lib/box/box-extras.svelte.js";
+import type { Box } from "$lib/types.js";
+import { getActiveElement, getDocument } from "./dom.js";
+
+type ElementGetter = () => HTMLElement | null;
+
+export class DOMContext {
+	readonly element: Box<HTMLElement | null>;
+	readonly root: Document | ShadowRoot = $derived.by(() => {
+		if (!this.element.current) return document;
+		const rootNode = this.element.current.getRootNode() ?? document;
+		return rootNode as Document | ShadowRoot;
+	});
+
+	constructor(element: Box<HTMLElement | null> | ElementGetter) {
+		if (typeof element === "function") {
+			this.element = boxWith(element);
+		} else {
+			this.element = element;
+		}
+	}
+
+	getDocument = () => {
+		return getDocument(this.root);
+	};
+
+	getWindow = () => {
+		return this.getDocument().defaultView ?? window;
+	};
+
+	getActiveElement = () => {
+		return getActiveElement(this.root);
+	};
+
+	isActiveElement = (node: HTMLElement | null) => {
+		return node === this.getActiveElement();
+	};
+
+	getElementById<T extends Element = HTMLElement>(id: string) {
+		return this.root.getElementById(id) as T | null;
+	}
+
+	querySelector = (selector: string) => {
+		if (!this.root) return null;
+		return this.root.querySelector(selector);
+	};
+
+	querySelectorAll = (selector: string) => {
+		if (!this.root) return [] as unknown as NodeListOf<Element>;
+		return this.root.querySelectorAll(selector);
+	};
+
+	setTimeout = (callback: () => void, delay: number) => {
+		return this.getWindow().setTimeout(callback, delay);
+	};
+
+	clearTimeout = (timeoutId: number) => {
+		return this.getWindow().clearTimeout(timeoutId);
+	};
+}
+
+=== 12107 src/lib/utils/dom-context.test.svelte.ts	svelte-module-ts	runes	-
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { DOMContext } from "./dom-context.svelte.js";
+import { box } from "$lib/box/box.svelte.js";
+
+describe("DOMContext", () => {
+	let container: HTMLElement;
+	let shadowHost: HTMLElement;
+	let shadowRoot: ShadowRoot;
+
+	beforeEach(() => {
+		// Clean up DOM
+		document.body.innerHTML = "";
+
+		// Create test container
+		container = document.createElement("div");
+		container.id = "test-container";
+		document.body.appendChild(container);
+
+		// Create shadow DOM setup
+		shadowHost = document.createElement("div");
+		shadowHost.id = "shadow-host";
+		shadowRoot = shadowHost.attachShadow({ mode: "open" });
+		shadowRoot.innerHTML = `
+			<div id="shadow-content">
+				<button id="shadow-button">Shadow Button</button>
+				<input id="shadow-input" />
+			</div>
+		`;
+		container.appendChild(shadowHost);
+	});
+
+	afterEach(() => {
+		document.body.innerHTML = "";
+	});
+
+	describe("constructor", () => {
+		it("should accept a Box<HTMLElement | null>", () => {
+			const element = document.createElement("div");
+			const elementBox = box(element);
+			const context = new DOMContext(elementBox);
+
+			expect(context.element.current).toBe(element);
+		});
+
+		it("should accept an ElementGetter function", () => {
+			const element = document.createElement("div");
+			const getter = () => element;
+			const context = new DOMContext(getter);
+
+			expect(context.element.current).toBe(element);
+		});
+
+		it("should handle null element", () => {
+			const context = new DOMContext(box(null));
+			expect(context.element.current).toBe(null);
+		});
+
+		it("should handle getter returning null", () => {
+			const getter = () => null;
+			const context = new DOMContext(getter);
+			expect(context.element.current).toBe(null);
+		});
+	});
+
+	describe("root", () => {
+		it("should return document when element is null", () => {
+			const context = new DOMContext(box(null));
+			expect(context.root).toBe(document);
+		});
+
+		it("should return document for regular DOM elements", () => {
+			const element = document.createElement("div");
+			document.body.appendChild(element);
+			const context = new DOMContext(box(element));
+
+			expect(context.root).toBe(document);
+		});
+
+		it("should return shadow root for shadow DOM elements", () => {
+			const shadowButton = shadowRoot.getElementById("shadow-button")!;
+			const context = new DOMContext(box(shadowButton));
+
+			expect(context.root).toBe(shadowRoot);
+		});
+
+		it("should handle nested shadow DOM", () => {
+			// Create nested shadow DOM
+			const nestedHost = document.createElement("div");
+			const nestedShadow = nestedHost.attachShadow({ mode: "open" });
+			nestedShadow.innerHTML = '<span id="nested-span">Nested</span>';
+			shadowRoot.appendChild(nestedHost);
+
+			const nestedSpan = nestedShadow.getElementById("nested-span")!;
+			const context = new DOMContext(box(nestedSpan));
+
+			expect(context.root).toBe(nestedShadow);
+		});
+	});
+
+	describe("getDocument", () => {
+		it("should return document for regular DOM context", () => {
+			const element = document.createElement("div");
+			const context = new DOMContext(box(element));
+
+			expect(context.getDocument()).toBe(document);
+		});
+
+		it("should return document for shadow DOM context", () => {
+			const shadowButton = shadowRoot.getElementById("shadow-button")!;
+			const context = new DOMContext(box(shadowButton));
+
+			expect(context.getDocument()).toBe(document);
+		});
+
+		it("should return document when element is null", () => {
+			const context = new DOMContext(box(null));
+			expect(context.getDocument()).toBe(document);
+		});
+	});
+
+	describe("getWindow", () => {
+		it("should return window for regular DOM context", () => {
+			const element = document.createElement("div");
+			const context = new DOMContext(box(element));
+
+			expect(context.getWindow()).toBe(window);
+		});
+
+		it("should return window for shadow DOM context", () => {
+			const shadowButton = shadowRoot.getElementById("shadow-button")!;
+			const context = new DOMContext(box(shadowButton));
+
+			expect(context.getWindow()).toBe(window);
+		});
+
+		it("should return window when element is null", () => {
+			const context = new DOMContext(box(null));
+			expect(context.getWindow()).toBe(window);
+		});
+	});
+
+	describe("getActiveElement", () => {
+		it("should return active element from document context", () => {
+			const button = document.createElement("button");
+			container.appendChild(button);
+			button.focus();
+
+			const context = new DOMContext(box(container));
+			expect(context.getActiveElement()).toBe(button);
+		});
+
+		it("should return active element from shadow DOM context", () => {
+			const shadowButton = shadowRoot.getElementById("shadow-button") as HTMLButtonElement;
+			shadowButton.focus();
+
+			const context = new DOMContext(box(shadowHost));
+			expect(context.getActiveElement()).toBe(shadowButton);
+		});
+
+		it("should handle null element context", () => {
+			const context = new DOMContext(box(null));
+			// Should return whatever is currently active in document
+			expect(context.getActiveElement()).toBeDefined();
+		});
+	});
+
+	describe("isActiveElement", () => {
+		it("should return true for active element", () => {
+			const button = document.createElement("button");
+			container.appendChild(button);
+			button.focus();
+
+			const context = new DOMContext(box(container));
+			expect(context.isActiveElement(button)).toBe(true);
+		});
+
+		it("should return false for non-active element", () => {
+			const button1 = document.createElement("button");
+			const button2 = document.createElement("button");
+			container.appendChild(button1);
+			container.appendChild(button2);
+			button1.focus();
+
+			const context = new DOMContext(box(container));
+			expect(context.isActiveElement(button2)).toBe(false);
+		});
+
+		it("should return false for null element", () => {
+			const context = new DOMContext(box(container));
+			expect(context.isActiveElement(null)).toBe(false);
+		});
+
+		it("should work with shadow DOM elements", () => {
+			const shadowButton = shadowRoot.getElementById("shadow-button") as HTMLButtonElement;
+			shadowButton.focus();
+
+			const shadowContext = new DOMContext(box(shadowButton));
+			expect(shadowContext.isActiveElement(shadowButton)).toBe(true);
+		});
+	});
+
+	describe("getElementById", () => {
+		it("should find element by ID in document context", () => {
+			const testDiv = document.createElement("div");
+			testDiv.id = "test-div";
+			container.appendChild(testDiv);
+
+			const context = new DOMContext(box(container));
+			expect(context.getElementById("test-div")).toBe(testDiv);
+		});
+
+		it("should find element by ID in shadow DOM context", () => {
+			const shadowButton = shadowRoot.getElementById("shadow-button")!;
+			const context = new DOMContext(box(shadowButton));
+
+			expect(context.getElementById("shadow-button")).toBe(shadowButton);
+		});
+
+		it("should return null for non-existent ID", () => {
+			const context = new DOMContext(box(container));
+			expect(context.getElementById("non-existent")).toBe(null);
+		});
+
+		it("should not find shadow DOM elements from document context", () => {
+			const context = new DOMContext(box(container));
+			expect(context.getElementById("shadow-button")).toBe(null);
+		});
+
+		it("should support generic typing", () => {
+			const input = document.createElement("input");
+			input.id = "test-input";
+			container.appendChild(input);
+
+			const context = new DOMContext(box(container));
+			const foundInput = context.getElementById<HTMLInputElement>("test-input");
+			expect(foundInput).toBe(input);
+			// TypeScript should infer this as HTMLInputElement | null
+		});
+	});
+
+	describe("querySelector", () => {
+		it("should find element by selector in document context", () => {
+			const testDiv = document.createElement("div");
+			testDiv.className = "test-class";
+			container.appendChild(testDiv);
+
+			const context = new DOMContext(box(container));
+			expect(context.querySelector(".test-class")).toBe(testDiv);
+		});
+
+		it("should find element by selector in shadow DOM context", () => {
+			const shadowButton = shadowRoot.getElementById("shadow-button")!;
+			const context = new DOMContext(box(shadowButton));
+
+			expect(context.querySelector("button")).toBe(shadowButton);
+		});
+
+		it("should return null for non-existent selector", () => {
+			const context = new DOMContext(box(container));
+			expect(context.querySelector(".non-existent")).toBe(null);
+		});
+
+		it("should return null when root is null", () => {
+			const context = new DOMContext(box(null));
+			// Mock the root to be null for this test
+			Object.defineProperty(context, "root", { value: null });
+			expect(context.querySelector("div")).toBe(null);
+		});
+
+		it("should not find shadow DOM elements from document context", () => {
+			const context = new DOMContext(box(container));
+			expect(context.querySelector("#shadow-button")).toBe(null);
+		});
+	});
+
+	describe("querySelectorAll", () => {
+		it("should find all elements by selector in document context", () => {
+			const div1 = document.createElement("div");
+			const div2 = document.createElement("div");
+			div1.className = "test-class";
+			div2.className = "test-class";
+			container.appendChild(div1);
+			container.appendChild(div2);
+
+			const context = new DOMContext(box(container));
+			const elements = context.querySelectorAll(".test-class");
+			expect(elements.length).toBe(2);
+			expect(elements[0]).toBe(div1);
+			expect(elements[1]).toBe(div2);
+		});
+
+		it("should find all elements by selector in shadow DOM context", () => {
+			// Add another button to shadow DOM
+			const extraButton = document.createElement("button");
+			extraButton.textContent = "Extra Button";
+			shadowRoot.appendChild(extraButton);
+
+			const shadowButton = shadowRoot.getElementById("shadow-button")!;
+			const context = new DOMContext(box(shadowButton));
+
+			const buttons = context.querySelectorAll("button");
+			expect(buttons.length).toBe(2);
+		});
+
+		it("should return empty NodeList for non-existent selector", () => {
+			const context = new DOMContext(box(container));
+			const elements = context.querySelectorAll(".non-existent");
+			expect(elements.length).toBe(0);
+		});
+
+		it("should return empty array when root is null", () => {
+			const context = new DOMContext(box(null));
+			// Mock the root to be null for this test
+			Object.defineProperty(context, "root", { value: null });
+			const elements = context.querySelectorAll("div");
+			expect(Array.isArray(elements)).toBe(true);
+			expect(elements.length).toBe(0);
+		});
+
+		it("should not find shadow DOM elements from document context", () => {
+			const context = new DOMContext(box(container));
+			const buttons = context.querySelectorAll("#shadow-button");
+			expect(buttons.length).toBe(0);
+		});
+	});
+
+	describe("reactive updates", () => {
+		it("should update root when element changes", () => {
+			const elementBox = box<HTMLElement | null>(container);
+			const context = new DOMContext(elementBox);
+
+			// Initially should use document root
+			expect(context.root).toBe(document);
+
+			// Change to shadow DOM element
+			const shadowButton = shadowRoot.getElementById("shadow-button")!;
+			elementBox.current = shadowButton;
+
+			// Should now use shadow root
+			expect(context.root).toBe(shadowRoot);
+		});
+
+		it("should handle element changing from non-null to null", () => {
+			const elementBox = box<HTMLElement | null>(container);
+			const context = new DOMContext(elementBox);
+
+			expect(context.root).toBe(document);
+
+			// Change to null
+			elementBox.current = null;
+
+			// Should fall back to document
+			expect(context.root).toBe(document);
+		});
+
+		it("should update queries when element context changes", () => {
+			const elementBox = box<HTMLElement | null>(container);
+			const context = new DOMContext(elementBox);
+
+			// Initially can't find shadow button
+			expect(context.getElementById("shadow-button")).toBe(null);
+
+			// Change to shadow DOM context
+			const shadowButton = shadowRoot.getElementById("shadow-button")!;
+			elementBox.current = shadowButton;
+
+			// Now should find shadow button
+			expect(context.getElementById("shadow-button")).toBe(shadowButton);
+		});
+	});
+});
+
+=== 105 src/lib/utils/on-destroy-effect.svelte.ts	svelte-module-ts	runes	-
+export function onDestroyEffect(fn: () => void) {
+	$effect(() => {
+		return () => {
+			fn();
+		};
+	});
+}
+
+=== 164 src/lib/utils/on-mount-effect.svelte.ts	svelte-module-ts	runes	-
+import { untrack } from "svelte";
+
+export function onMountEffect(fn: () => void) {
+	$effect(() => {
+		const cleanup = untrack(() => fn());
+		return cleanup;
+	});
+}
+
+=== 739 src/lib/utils/use-on-change.svelte.ts	svelte-module-ts	runes	-
+import type { Getter } from "$lib/types.js";
+import { watch } from "runed";
+
+/**
+ * Simple helper function to sync a read-only dependency with writable state. This only syncs
+ * in one direction, from the dependency to the state. If you need to sync both directions, you
+ * should use the `box.with(() => dep, (v) => (dep = v))` pattern.
+ *
+ * @param getDep - A getter that returns the value that may change and whose new value will be
+ * passed to the `onChange` function passed as the second argument.
+ * @param onChange - A function that accepts a new value to react to or keep other state in sync
+ * with the dependency.
+ */
+export function useOnChange<T>(getDep: Getter<T>, onChange: (value: T) => void) {
+	watch(getDep, onChange);
+}
+
+=== 1370 src/lib/utils/use-ref-by-id.svelte.ts	svelte-module-ts	runes	-
+import type { WritableBox } from "$lib/box/box-extras.svelte.js";
+import type { Box, Getter } from "$lib/types.js";
+import { watch } from "runed";
+import { onDestroyEffect } from "./on-destroy-effect.svelte.js";
+
+type UseRefByIdProps = {
+	/**
+	 * The ID of the node to find.
+	 */
+	id: Box<string>;
+
+	/**
+	 * The ref to set the node to.
+	 */
+	ref: WritableBox<HTMLElement | null>;
+
+	/**
+	 * A reactive condition that will cause the node to be set.
+	 */
+	deps?: Getter<unknown>;
+
+	/**
+	 * A callback fired when the ref changes.
+	 */
+	onRefChange?: (node: HTMLElement | null) => void;
+
+	/**
+	 * A function that returns the root node to search for the element by ID.
+	 * Defaults to `() => document`.
+	 */
+	getRootNode?: Getter<Document | ShadowRoot | undefined>;
+};
+
+/**
+ * Finds the node with that ID and sets it to the boxed node.
+ * Reactive using `$effect` to ensure when the ID or deps change,
+ * an update is triggered and new node is found.
+ */
+export function useRefById({
+	id,
+	ref,
+	deps = () => true,
+	onRefChange,
+	getRootNode
+}: UseRefByIdProps) {
+	watch([() => id.current, deps], ([_id]) => {
+		const rootNode = getRootNode?.() ?? document;
+		const node = rootNode?.getElementById(_id);
+		if (node) ref.current = node;
+		else ref.current = null;
+		onRefChange?.(ref.current);
+	});
+
+	onDestroyEffect(() => {
+		ref.current = null;
+		onRefChange?.(null);
+	});
+}
+
+=== 1100 src/lib/watch/watch.svelte.ts	svelte-module-ts	runes	-
+import { untrack } from "svelte";
+import type { Box } from "$lib/types.js";
+
+type WatcherCallback<T> = (
+	curr: T,
+	prev: T
+) => void | Promise<void> | (() => void) | (() => Promise<void>);
+
+type WatchOptions = {
+	/**
+	 * Whether to eagerly run the watcher before the state is updated.
+	 */
+	immediate?: boolean;
+
+	/**
+	 * Whether to run the watcher only once.
+	 */
+	once?: boolean;
+};
+
+export function watch<T>(box: Box<T>, callback: WatcherCallback<T>, options: WatchOptions = {}) {
+	let prev = $state(box.current);
+	let ranOnce = false;
+
+	const watchEffect = $effect.root(() => {
+		$effect.pre(() => {
+			if (prev === box.current || !options.immediate) return;
+			if (options.once && ranOnce) return;
+			callback(
+				box.current,
+				untrack(() => prev)
+			);
+			untrack(() => (prev = box.current));
+			ranOnce = true;
+		});
+
+		$effect(() => {
+			if (prev === box.current || options.immediate) return;
+			if (options.once && ranOnce) return;
+
+			callback(
+				box.current,
+				untrack(() => prev)
+			);
+			untrack(() => (prev = box.current));
+			ranOnce = true;
+		});
+	});
+	return watchEffect;
+}
+
+=== 395 src/routes/+page.svelte	svelte	runes	runes
+<script lang="ts">
+	import { box } from "$lib/box/box.svelte";
+	import { attachRef } from "$lib/utils/attach-ref.js";
+
+	const ref = box<Element | null>(null);
+	const props = { ...attachRef(ref) };
+
+	$effect(() => {
+		console.log(ref.current);
+	});
+
+	let show = $state(false);
+</script>
+
+<button onclick={() => (show = !show)}>Toggle</button>
+
+{#if show}
+	<div {...props}>Hello world</div>
+{/if}
+

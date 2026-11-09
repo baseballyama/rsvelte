@@ -16,7 +16,7 @@ const number = (code: number): string => String(code).replace(/\B(?=(\d{3})+(?!\
 export async function main(): Promise<void> {
 	const require = createRequire(path.join(import.meta.dirname, 'package.json'));
 	const root = fileURLToPath(new URL('../../', import.meta.url));
-	const directory = path.join(root, 'crates/languages/html/core/src/vendor');
+	const directory = path.join(root, 'crates/languages/html/syntax/src/vendor');
 	const svelte = path.dirname(require.resolve('svelte/package.json'));
 	const vue = path.dirname(require.resolve('@vue/compiler-sfc/package.json'));
 	const source = path.join(svelte, 'src/compiler/phases/1-parse/utils/entities.js');

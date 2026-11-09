@@ -1,0 +1,4643 @@
+# rsvelte pack 1
+=== 486 src/components/Counter.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div class="mt-8 py-16 shadow-md flex items-center justify-center text-6xl dark:bg-dark-mode-gray dark:text-light-gray"> </div>`);
+
+export default function Counter($$anchor, $$props) {
+	let counter = $.prop($$props, 'counter', 3, 0);
+	var div = root();
+	var text = $.only_child(div, true);
+
+	$.template_effect(() => $.set_text(text, counter()));
+	$.append($$anchor, div);
+}
+=== 999 src/components/Features.svelte	css
+
+	.features.svelte-84hc0p {
+		position: relative;
+	}
+
+	.features-header.svelte-84hc0p {
+		text-align: center;
+		max-width: 600px;
+		margin: 0 auto var(--space-3xl);
+	}
+
+	.features-header.svelte-84hc0p .badge:where(.svelte-84hc0p) {
+		margin-bottom: var(--space-md);
+	}
+
+	.features-header.svelte-84hc0p h2:where(.svelte-84hc0p) {
+		margin-bottom: var(--space-md);
+	}
+
+	.features-header.svelte-84hc0p p:where(.svelte-84hc0p) {
+		font-size: 1.125rem;
+	}
+
+	.feature-card.svelte-84hc0p {
+		padding: var(--space-xl);
+	}
+
+	.feature-card.svelte-84hc0p h3:where(.svelte-84hc0p) {
+		font-size: 1.125rem;
+		margin-bottom: var(--space-sm);
+	}
+
+	.feature-card.svelte-84hc0p p:where(.svelte-84hc0p) {
+		font-size: 0.9375rem;
+		line-height: 1.6;
+	}
+
+	.feature-icon.svelte-84hc0p {
+		width: 48px;
+		height: 48px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 1.5rem;
+		background: var(--color-accent-subtle);
+		border-radius: var(--radius-md);
+		margin-bottom: var(--space-md);
+	}
+
+=== 2478 src/components/Features.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div class="card feature-card svelte-84hc0p"><div class="feature-icon svelte-84hc0p"> </div> <h3 class="svelte-84hc0p"> </h3> <p class="svelte-84hc0p"> </p></div>`);
+var root_1 = $.from_html(`<section class="features section svelte-84hc0p"><div class="container"><div class="features-header svelte-84hc0p"><span class="badge svelte-84hc0p">Features</span> <h2 class="svelte-84hc0p">Everything you need,<br/>nothing you don't</h2> <p class="svelte-84hc0p">Built with developer experience in mind. Get up and running in minutes.</p></div> <div class="feature-grid"></div></div></section>`);
+
+export default function Features($$anchor) {
+	const features = [
+		{
+			icon: '⌨️',
+			title: 'Keyboard First',
+			description: 'Full keyboard navigation with customizable shortcuts. Works seamlessly with your existing keybindings.'
+		},
+
+		{
+			icon: '🔍',
+			title: 'Fuzzy Search',
+			description: 'Powered by Fuse.js for intelligent, typo-tolerant search across titles, descriptions, and keywords.'
+		},
+
+		{
+			icon: '🎨',
+			title: 'Fully Customizable',
+			description: 'Style every element with CSS classes or inline styles. Or go completely unstyled for total control.'
+		},
+
+		{
+			icon: '♿',
+			title: 'Accessible',
+			description: 'ARIA compliant with focus management, screen reader support, and keyboard trap handling.'
+		},
+
+		{
+			icon: '📦',
+			title: 'Lightweight',
+			description: 'Only ~5KB gzipped with zero dependencies besides Svelte itself. No bloat, just features.'
+		},
+
+		{
+			icon: '🔷',
+			title: 'TypeScript Ready',
+			description: 'Written in TypeScript with full type definitions. Enjoy autocomplete and type safety.'
+		}
+	];
+
+	var section = root_1();
+	var div = $.child(section);
+	var div_1 = $.sibling($.child(div), 2);
+
+	$.each(div_1, 21, () => features, $.index, ($$anchor, feature) => {
+		var div_2 = root();
+		var div_3 = $.child(div_2);
+		var text = $.only_child(div_3, true);
+		var h3 = $.sibling(div_3, 2);
+		var text_1 = $.only_child(h3, true);
+		var p = $.sibling(h3, 2);
+		var text_2 = $.only_child(p, true);
+
+		$.reset(div_2);
+
+		$.template_effect(() => {
+			$.set_text(text, $.get(feature).icon);
+			$.set_text(text_1, $.get(feature).title);
+			$.set_text(text_2, $.get(feature).description);
+		});
+
+		$.append($$anchor, div_2);
+	});
+
+	$.reset(div_1);
+	$.reset(div);
+	$.reset(section);
+	$.append($$anchor, section);
+}
+=== 4938 src/components/Hero.svelte	css
+
+	.hero.svelte-juboms {
+		position: relative;
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 8rem 1.5rem 4rem;
+		overflow: hidden;
+	}
+
+	.hero-glow.svelte-juboms {
+		position: absolute;
+		top: -50%;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 100%;
+		max-width: 800px;
+		height: 600px;
+		background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(255, 62, 0, 0.15), transparent);
+		pointer-events: none;
+	}
+
+	.hero-content.svelte-juboms {
+		position: relative;
+		max-width: 720px;
+		text-align: center;
+		margin-bottom: 4rem;
+	}
+
+	.hero-badge.svelte-juboms {
+		margin-bottom: 1.5rem;
+	}
+
+	.hero-title.svelte-juboms {
+		margin-bottom: 1.5rem;
+		font-size: clamp(2.5rem, 6vw, 4.5rem);
+		line-height: 1.1;
+		letter-spacing: -0.03em;
+	}
+
+	.hero-description.svelte-juboms {
+		max-width: 560px;
+		margin: 0 auto 2rem;
+		font-size: 1.125rem;
+		line-height: 1.7;
+		color: var(--color-text-secondary);
+	}
+
+	.hero-actions.svelte-juboms {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 1rem;
+		margin-bottom: 3rem;
+	}
+
+	.btn-lg.svelte-juboms {
+		padding: 0.875rem 1.5rem;
+		font-size: 1rem;
+	}
+
+	.btn-primary.svelte-juboms .kbd-group:where(.svelte-juboms) {
+		display: flex;
+		gap: 0.25rem;
+		margin-left: 0.5rem;
+		padding-left: 0.75rem;
+		border-left: 1px solid rgba(255, 255, 255, 0.2);
+	}
+
+	.btn-primary.svelte-juboms .kbd:where(.svelte-juboms) {
+		background: rgba(255, 255, 255, 0.15);
+		border-color: rgba(255, 255, 255, 0.2);
+		color: white;
+		box-shadow: none;
+	}
+
+	.hero-stats.svelte-juboms {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 2rem;
+	}
+
+	.stat.svelte-juboms {
+		text-align: center;
+	}
+
+	.stat-value.svelte-juboms {
+		display: block;
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: var(--color-text-primary);
+	}
+
+	.stat-label.svelte-juboms {
+		font-size: 0.875rem;
+		color: var(--color-text-tertiary);
+	}
+
+	.stat-divider.svelte-juboms {
+		width: 1px;
+		height: 40px;
+		background: var(--color-border);
+	}
+
+	/* Demo Window */
+	.hero-visual.svelte-juboms {
+		position: relative;
+		width: 100%;
+		max-width: 560px;
+		perspective: 1000px;
+	}
+
+	.demo-window.svelte-juboms {
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+		box-shadow: 
+			0 25px 50px -12px rgba(0, 0, 0, 0.4),
+			0 0 0 1px rgba(255, 255, 255, 0.05);
+		animation: float 6s ease-in-out infinite;
+	}
+
+	.demo-header.svelte-juboms {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.75rem 1rem;
+		background: var(--color-bg-tertiary);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.demo-dots.svelte-juboms {
+		display: flex;
+		gap: 0.375rem;
+	}
+
+	.demo-dots.svelte-juboms span:where(.svelte-juboms) {
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+	}
+
+	.demo-dots.svelte-juboms span:where(.svelte-juboms):nth-child(1) { background: #ff5f57; }
+	.demo-dots.svelte-juboms span:where(.svelte-juboms):nth-child(2) { background: #ffbd2e; }
+	.demo-dots.svelte-juboms span:where(.svelte-juboms):nth-child(3) { background: #28c840; }
+
+	.demo-title.svelte-juboms {
+		font-size: 0.8125rem;
+		color: var(--color-text-tertiary);
+	}
+
+	.demo-content.svelte-juboms {
+		padding: 0.5rem;
+	}
+
+	.demo-search.svelte-juboms {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.875rem 1rem;
+		border-bottom: 1px solid var(--color-border);
+		color: var(--color-text-tertiary);
+	}
+
+	.demo-search.svelte-juboms span:where(.svelte-juboms) {
+		flex: 1;
+	}
+
+	.demo-results.svelte-juboms {
+		padding: 0.5rem 0;
+	}
+
+	.demo-result.svelte-juboms {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.75rem 1rem;
+		border-radius: var(--radius-md);
+		transition: background var(--transition-fast);
+	}
+
+	.demo-result.active.svelte-juboms {
+		background: var(--color-bg-hover);
+	}
+
+	.demo-result-icon.svelte-juboms {
+		font-size: 1.25rem;
+		width: 36px;
+		height: 36px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--color-bg-tertiary);
+		border-radius: var(--radius-sm);
+	}
+
+	.demo-result-content.svelte-juboms {
+		flex: 1;
+	}
+
+	.demo-result-title.svelte-juboms {
+		display: block;
+		font-weight: 500;
+		color: var(--color-text-primary);
+	}
+
+	.demo-result-subtitle.svelte-juboms {
+		font-size: 0.8125rem;
+		color: var(--color-text-tertiary);
+	}
+
+	.demo-result-kbd.svelte-juboms {
+		display: flex;
+		gap: 0.25rem;
+	}
+
+	@media (max-width: 768px) {
+		.hero.svelte-juboms {
+			padding: 6rem 1rem 2rem;
+		}
+
+		.hero-content.svelte-juboms {
+			margin-bottom: 2rem;
+		}
+
+		.hero-actions.svelte-juboms {
+			flex-direction: column;
+		}
+
+		.btn-lg.svelte-juboms {
+			width: 100%;
+			justify-content: center;
+		}
+
+		.hero-stats.svelte-juboms {
+			gap: 1.5rem;
+		}
+
+		.stat-value.svelte-juboms {
+			font-size: 1.25rem;
+		}
+
+		.demo-window.svelte-juboms {
+			animation: none;
+		}
+	}
+
+=== 4408 src/components/Hero.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<section class="hero svelte-juboms"><div class="hero-glow svelte-juboms"></div> <div class="hero-content stagger svelte-juboms"><div class="hero-badge svelte-juboms"><span class="badge">✨ Now with Svelte 5 support</span></div> <h1 class="hero-title svelte-juboms">The <span class="text-gradient">Command Palette</span><br/> Your Users Deserve</h1> <p class="hero-description svelte-juboms">A beautiful, accessible, and fully customizable command palette for Svelte applications. 
+			Boost productivity with keyboard shortcuts and fuzzy search.</p> <div class="hero-actions svelte-juboms"><button class="btn btn-primary btn-lg svelte-juboms"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg> Try it now <span class="kbd-group svelte-juboms"><kbd class="kbd svelte-juboms">⌘</kbd> <kbd class="kbd svelte-juboms">K</kbd></span></button> <a href="/docs" class="btn btn-secondary btn-lg svelte-juboms">Read the docs <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"></path></svg></a></div> <div class="hero-stats svelte-juboms"><div class="stat svelte-juboms"><span class="stat-value svelte-juboms">5KB</span> <span class="stat-label svelte-juboms">Gzipped</span></div> <div class="stat-divider svelte-juboms"></div> <div class="stat svelte-juboms"><span class="stat-value svelte-juboms">A11y</span> <span class="stat-label svelte-juboms">Accessible</span></div> <div class="stat-divider svelte-juboms"></div> <div class="stat svelte-juboms"><span class="stat-value svelte-juboms">100%</span> <span class="stat-label svelte-juboms">TypeScript</span></div></div></div> <div class="hero-visual animate-fade-in svelte-juboms"><div class="demo-window svelte-juboms"><div class="demo-header svelte-juboms"><div class="demo-dots svelte-juboms"><span class="svelte-juboms"></span> <span class="svelte-juboms"></span> <span class="svelte-juboms"></span></div> <span class="demo-title svelte-juboms">Command Palette</span></div> <div class="demo-content svelte-juboms"><div class="demo-search svelte-juboms"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg> <span class="svelte-juboms">Search for actions...</span> <kbd class="kbd">Esc</kbd></div> <div class="demo-results svelte-juboms"><div class="demo-result active svelte-juboms"><span class="demo-result-icon svelte-juboms">🚀</span> <div class="demo-result-content svelte-juboms"><span class="demo-result-title svelte-juboms">Deploy to production</span> <span class="demo-result-subtitle svelte-juboms">Push changes to live server</span></div> <div class="demo-result-kbd svelte-juboms"><kbd class="kbd">D</kbd> <kbd class="kbd">P</kbd></div></div> <div class="demo-result svelte-juboms"><span class="demo-result-icon svelte-juboms">🎨</span> <div class="demo-result-content svelte-juboms"><span class="demo-result-title svelte-juboms">Toggle dark mode</span> <span class="demo-result-subtitle svelte-juboms">Switch between light and dark</span></div> <div class="demo-result-kbd svelte-juboms"><kbd class="kbd">⌘</kbd> <kbd class="kbd">D</kbd></div></div> <div class="demo-result svelte-juboms"><span class="demo-result-icon svelte-juboms">📦</span> <div class="demo-result-content svelte-juboms"><span class="demo-result-title svelte-juboms">Install dependencies</span> <span class="demo-result-subtitle svelte-juboms">Run npm install</span></div> <div class="demo-result-kbd svelte-juboms"><kbd class="kbd">I</kbd> <kbd class="kbd">D</kbd></div></div></div></div></div></div></section>`);
+
+export default function Hero($$anchor, $$props) {
+	let openCommandPalette = $.prop($$props, 'openCommandPalette', 3, () => {});
+	var section = root();
+	var div = $.sibling($.child(section), 2);
+	var div_1 = $.sibling($.child(div), 6);
+	var button = $.child(div_1);
+
+	$.next(2);
+	$.reset(div_1);
+	$.next(2);
+	$.reset(div);
+	$.next(2);
+	$.reset(section);
+
+	$.delegated('click', button, function (...$$args) {
+		openCommandPalette()?.apply(this, $$args);
+	});
+
+	$.append($$anchor, section);
+}
+
+$.delegate(['click']);
+=== 1268 src/components/KeyboardShortcut.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div class="rounded-md h-8 w-8 inline-flex items-center justify-center"> </div>`);
+var root_1 = $.from_html(`<button></button>`);
+
+export default function KeyboardShortcut($$anchor, $$props) {
+	$.push($$props, true);
+
+	let theme = $.prop($$props, 'theme', 3, 'primary'),
+		shortcuts = $.prop($$props, 'shortcuts', 19, () => []);
+
+	const onClick = (event) => {
+		$$props.onShortcutClick?.({ event });
+	};
+
+	let bgColor = $.derived(() => theme() === 'primary'
+		? 'bg-gray-800 dark:bg-dark-mode-gray text-white dark:text-light-gray'
+		: 'bg-gray-100 shadow text-black  dark:text-light-gray dark:bg-dark-mode-gray');
+
+	var button = root_1();
+
+	$.each(button, 21, shortcuts, $.index, ($$anchor, shortcut) => {
+		var div = root();
+		var text = $.only_child(div, true);
+
+		$.template_effect(() => $.set_text(text, $.get(shortcut)));
+		$.append($$anchor, div);
+	});
+
+	$.reset(button);
+	$.template_effect(() => $.set_class(button, 1, `p-2 ${$.get(bgColor)} mx-2 inline-flex gap-1 font-semibold rounded-md hover:scale-110 transition-transform duration-300`));
+	$.delegated('click', button, onClick);
+	$.append($$anchor, button);
+	$.pop();
+}
+
+$.delegate(['click']);
+=== 2493 src/components/Navbar.svelte	css
+
+	.navbar.svelte-d8j1hi {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		z-index: 100;
+		background: rgba(10, 10, 15, 0.8);
+		backdrop-filter: blur(20px);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.light .navbar.svelte-d8j1hi {
+		background: rgba(255, 255, 255, 0.8);
+	}
+
+	.navbar-container.svelte-d8j1hi {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 0.875rem 1.5rem;
+	}
+
+	.navbar-brand.svelte-d8j1hi {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		font-size: 1.125rem;
+		font-weight: 600;
+		color: var(--color-text-primary);
+		text-decoration: none;
+	}
+
+	.navbar-brand.svelte-d8j1hi svg:where(.svelte-d8j1hi) {
+		color: var(--color-accent);
+	}
+
+	.navbar-toggle.svelte-d8j1hi {
+		display: none;
+		background: none;
+		border: none;
+		color: var(--color-text-primary);
+		cursor: pointer;
+		padding: 0.5rem;
+	}
+
+	.navbar-menu.svelte-d8j1hi {
+		display: flex;
+		align-items: center;
+		gap: 2rem;
+	}
+
+	.navbar-link.svelte-d8j1hi {
+		font-size: 0.9375rem;
+		color: var(--color-text-secondary);
+		text-decoration: none;
+		transition: color var(--transition-fast);
+	}
+
+	.navbar-link.svelte-d8j1hi:hover,
+	.navbar-link.active.svelte-d8j1hi {
+		color: var(--color-text-primary);
+	}
+
+	.navbar-theme-toggle.svelte-d8j1hi {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		background: var(--color-bg-tertiary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		color: var(--color-text-secondary);
+		cursor: pointer;
+		transition: all var(--transition-fast);
+	}
+
+	.navbar-theme-toggle.svelte-d8j1hi:hover {
+		background: var(--color-bg-hover);
+		color: var(--color-text-primary);
+	}
+
+	.navbar-cta.svelte-d8j1hi {
+		padding: 0.5rem 1.25rem;
+		font-size: 0.875rem;
+	}
+
+	@media (max-width: 768px) {
+		.navbar-toggle.svelte-d8j1hi {
+			display: flex;
+		}
+
+		.navbar-menu.svelte-d8j1hi {
+			position: fixed;
+			top: 60px;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			flex-direction: column;
+			gap: 1rem;
+			padding: 2rem;
+			background: var(--color-bg-primary);
+			border-top: 1px solid var(--color-border);
+			transform: translateX(100%);
+			transition: transform var(--transition-normal);
+		}
+
+		.navbar-menu.active.svelte-d8j1hi {
+			transform: translateX(0);
+		}
+
+		.navbar-link.svelte-d8j1hi {
+			font-size: 1.125rem;
+			padding: 0.75rem 0;
+		}
+
+		.navbar-cta.svelte-d8j1hi {
+			width: 100%;
+			margin-top: 1rem;
+		}
+	}
+
+=== 3887 src/components/Navbar.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { page } from '$app/stores';
+import switchTheme from '../utils/switchTheme';
+
+var root = $.from_svg(`<path d="M18 6L6 18M6 6l12 12"></path>`);
+var root_1 = $.from_svg(`<path d="M4 6h16M4 12h16M4 18h16"></path>`);
+var root_2 = $.from_html(`<nav class="navbar svelte-d8j1hi"><div class="navbar-container svelte-d8j1hi"><a href="/" class="navbar-brand svelte-d8j1hi"><svg width="28" height="28" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" class="svelte-d8j1hi"><path d="M239.03 38.97C230.63 30.57 219.43 26 207.62 26H48.38C24.11 26 4.38 45.73 4.38 70V186C4.38 210.27 24.11 230 48.38 230H207.62C231.89 230 251.62 210.27 251.62 186V70C251.62 58.19 247.05 46.99 238.65 38.59L239.03 38.97ZM195.92 137.06L147.42 206.06C145.66 208.56 142.81 210.06 139.77 210.06C139.21 210.06 138.64 210.02 138.08 209.93C134.49 209.38 131.46 206.99 130.08 203.64L113.54 166.27L75.39 182.27C71.72 183.81 67.54 183.06 64.61 180.35C61.68 177.64 60.58 173.53 61.79 169.74L93.79 71.74C95.13 67.63 98.91 64.72 103.22 64.47C107.53 64.22 111.59 66.67 113.42 70.56L147.42 144.56L189.23 85.06C191.93 81.22 197.01 80.03 201.1 82.33C205.19 84.63 206.91 89.55 205.04 93.86L195.92 137.06Z" fill="currentColor"></path></svg> <span>Svelte Command Palette</span></a> <button class="navbar-toggle svelte-d8j1hi" aria-label="Toggle menu"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><!></svg></button> <div><a href="/docs">Documentation</a> <a href="https://github.com/rohitpotato/svelte-command-palette" target="_blank" rel="noopener" class="navbar-link svelte-d8j1hi">GitHub</a> <button class="navbar-theme-toggle svelte-d8j1hi" aria-label="Toggle theme"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg></button> <a href="/docs" class="btn btn-primary navbar-cta svelte-d8j1hi">Get Started</a></div></div></nav>`);
+
+export default function Navbar($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $page = () => $.store_get(page, '$page', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	let isMenuOpen = $.state(false);
+
+	const toggleMenu = () => {
+		$.set(isMenuOpen, !$.get(isMenuOpen));
+	};
+
+	const closeMenu = () => {
+		$.set(isMenuOpen, false);
+	};
+
+	var nav = root_2();
+	var div = $.child(nav);
+	var button = $.sibling($.child(div), 2);
+	var svg = $.child(button);
+	var node = $.child(svg);
+
+	{
+		var consequent = ($$anchor) => {
+			var path = root();
+
+			$.append($$anchor, path);
+		};
+
+		var alternate = ($$anchor) => {
+			var path_1 = root_1();
+
+			$.append($$anchor, path_1);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(isMenuOpen)) $$render(consequent); else $$render(alternate, -1);
+		});
+	}
+
+	$.reset(svg);
+	$.reset(button);
+
+	var div_1 = $.sibling(button, 2);
+	let classes;
+	var a = $.child(div_1);
+	let classes_1;
+	var a_1 = $.sibling(a, 2);
+	var button_1 = $.sibling(a_1, 2);
+	var a_2 = $.sibling(button_1, 2);
+
+	$.reset(div_1);
+	$.reset(div);
+	$.reset(nav);
+
+	$.template_effect(
+		($0) => {
+			classes = $.set_class(div_1, 1, 'navbar-menu svelte-d8j1hi', null, classes, { active: $.get(isMenuOpen) });
+			classes_1 = $.set_class(a, 1, 'navbar-link svelte-d8j1hi', null, classes_1, { active: $0 });
+		},
+		[() => $page().url.pathname.startsWith('/docs')]
+	);
+
+	$.delegated('click', button, toggleMenu);
+	$.delegated('click', a, closeMenu);
+	$.delegated('click', a_1, closeMenu);
+
+	$.delegated('click', button_1, function (...$$args) {
+		switchTheme?.apply(this, $$args);
+	});
+
+	$.delegated('click', a_2, closeMenu);
+	$.append($$anchor, nav);
+	$.pop();
+	$$cleanup();
+}
+
+$.delegate(['click']);
+=== 2875 src/components/Sidebar.svelte	css
+
+	.sidebar-toggle.svelte-181dlmc {
+		display: none;
+		align-items: center;
+		gap: 0.5rem;
+		position: fixed;
+		bottom: 1rem;
+		right: 1rem;
+		z-index: 50;
+		padding: 0.75rem 1rem;
+		font-size: 0.875rem;
+		font-weight: 500;
+		background: var(--color-accent);
+		color: white;
+		border: none;
+		border-radius: var(--radius-full);
+		cursor: pointer;
+		box-shadow: var(--shadow-lg);
+	}
+
+	.sidebar.svelte-181dlmc {
+		position: fixed;
+		top: 60px;
+		left: 0;
+		bottom: 0;
+		width: 280px;
+		background: var(--color-bg-secondary);
+		border-right: 1px solid var(--color-border);
+		overflow-y: auto;
+		padding: var(--space-lg);
+		z-index: 40;
+	}
+
+	.sidebar-header.svelte-181dlmc {
+		display: none;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: var(--space-lg);
+		padding-bottom: var(--space-lg);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.sidebar-brand.svelte-181dlmc {
+		font-size: 1.125rem;
+		font-weight: 600;
+		color: var(--color-text-primary);
+		text-decoration: none;
+	}
+
+	.sidebar-close.svelte-181dlmc {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		background: var(--color-bg-tertiary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-secondary);
+		cursor: pointer;
+	}
+
+	.sidebar-nav.svelte-181dlmc {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-xl);
+	}
+
+	.nav-section-title.svelte-181dlmc {
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--color-text-tertiary);
+		margin-bottom: var(--space-sm);
+	}
+
+	.nav-list.svelte-181dlmc {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.nav-link.svelte-181dlmc {
+		display: block;
+		padding: 0.5rem 0.75rem;
+		font-size: 0.9375rem;
+		color: var(--color-text-secondary);
+		text-decoration: none;
+		border-radius: var(--radius-sm);
+		transition: all var(--transition-fast);
+	}
+
+	.nav-link.svelte-181dlmc:hover {
+		color: var(--color-text-primary);
+		background: var(--color-bg-hover);
+	}
+
+	.nav-link.active.svelte-181dlmc {
+		color: var(--color-accent);
+		background: var(--color-accent-subtle);
+		font-weight: 500;
+	}
+
+	.sidebar-overlay.svelte-181dlmc {
+		display: none;
+	}
+
+	@media (max-width: 1024px) {
+		.sidebar-toggle.svelte-181dlmc {
+			display: flex;
+		}
+
+		.sidebar.svelte-181dlmc {
+			transform: translateX(-100%);
+			transition: transform var(--transition-normal);
+			top: 0;
+			width: 100%;
+			max-width: 320px;
+			z-index: 60;
+		}
+
+		.sidebar.open.svelte-181dlmc {
+			transform: translateX(0);
+		}
+
+		.sidebar-header.svelte-181dlmc {
+			display: flex;
+		}
+
+		.sidebar-overlay.svelte-181dlmc {
+			display: block;
+			position: fixed;
+			inset: 0;
+			background: rgba(0, 0, 0, 0.5);
+			z-index: 55;
+			border: none;
+			cursor: pointer;
+		}
+	}
+
+=== 4209 src/components/Sidebar.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { page } from '$app/stores';
+
+var root = $.from_html(`<li><a> </a></li>`);
+var root_1 = $.from_html(`<div class="nav-section"><h4 class="nav-section-title svelte-181dlmc"> </h4> <ul class="nav-list svelte-181dlmc"></ul></div>`);
+var root_2 = $.from_html(`<button class="sidebar-overlay svelte-181dlmc" aria-label="Close menu"></button>`);
+var root_3 = $.from_html(`<button class="sidebar-toggle svelte-181dlmc" aria-label="Toggle sidebar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"></path></svg> Menu</button> <aside><div class="sidebar-header svelte-181dlmc"><a href="/docs" class="sidebar-brand svelte-181dlmc">Documentation</a> <button class="sidebar-close svelte-181dlmc" aria-label="Close sidebar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg></button></div> <nav class="sidebar-nav svelte-181dlmc"></nav></aside> <!>`, 1);
+
+export default function Sidebar($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $page = () => $.store_get(page, '$page', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	const navigation = [
+		{
+			title: 'Getting Started',
+			items: [
+				{ title: 'Installation', href: '/docs/installation' },
+				{ title: 'Quick Start', href: '/docs/quick-start' }
+			]
+		},
+
+		{
+			title: 'Core Concepts',
+			items: [
+				{ title: 'Defining Actions', href: '/docs/define-actions' },
+				{ title: 'Keyboard Shortcuts', href: '/docs/shortcuts' },
+				{ title: 'Palette Store', href: '/docs/palette-store' }
+			]
+		},
+
+		{
+			title: 'Customization',
+			items: [
+				{ title: 'Styling', href: '/docs/styling' },
+				{ title: 'Theming', href: '/docs/theming' },
+				{ title: 'Custom Components', href: '/docs/custom-components' }
+			]
+		},
+
+		{
+			title: 'API Reference',
+			items: [
+				{ title: 'CommandPalette', href: '/docs/command-palette-api' },
+				{ title: 'defineActions', href: '/docs/define-actions-api' },
+				{ title: 'createStoreMethods', href: '/docs/store-methods-api' }
+			]
+		}
+	];
+
+	let isMobileMenuOpen = $.state(false);
+
+	const toggleMobileMenu = () => {
+		$.set(isMobileMenuOpen, !$.get(isMobileMenuOpen));
+	};
+
+	const closeMobileMenu = () => {
+		$.set(isMobileMenuOpen, false);
+	};
+
+	var fragment = root_3();
+	var button = $.first_child(fragment);
+	var aside = $.sibling(button, 2);
+	let classes;
+	var div = $.child(aside);
+	var a = $.child(div);
+	var button_1 = $.sibling(a, 2);
+
+	$.reset(div);
+
+	var nav = $.sibling(div, 2);
+
+	$.each(nav, 21, () => navigation, $.index, ($$anchor, section) => {
+		var div_1 = root_1();
+		var h4 = $.child(div_1);
+		var text = $.only_child(h4, true);
+		var ul = $.sibling(h4, 2);
+
+		$.each(ul, 21, () => $.get(section).items, $.index, ($$anchor, item) => {
+			var li = root();
+			var a_1 = $.child(li);
+			let classes_1;
+			var text_1 = $.only_child(a_1, true);
+
+			$.reset(li);
+
+			$.template_effect(() => {
+				$.set_attribute(a_1, 'href', $.get(item).href);
+				classes_1 = $.set_class(a_1, 1, 'nav-link svelte-181dlmc', null, classes_1, { active: $page().url.pathname === $.get(item).href });
+				$.set_text(text_1, $.get(item).title);
+			});
+
+			$.delegated('click', a_1, closeMobileMenu);
+			$.append($$anchor, li);
+		});
+
+		$.reset(ul);
+		$.reset(div_1);
+		$.template_effect(() => $.set_text(text, $.get(section).title));
+		$.append($$anchor, div_1);
+	});
+
+	$.reset(nav);
+	$.reset(aside);
+
+	var node = $.sibling(aside, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			var button_2 = root_2();
+
+			$.delegated('click', button_2, closeMobileMenu);
+			$.append($$anchor, button_2);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(isMobileMenuOpen)) $$render(consequent);
+		});
+	}
+
+	$.template_effect(() => classes = $.set_class(aside, 1, 'sidebar svelte-181dlmc', null, classes, { open: $.get(isMobileMenuOpen) }));
+	$.delegated('click', button, toggleMobileMenu);
+	$.delegated('click', a, closeMobileMenu);
+	$.delegated('click', button_1, closeMobileMenu);
+	$.append($$anchor, fragment);
+	$.pop();
+	$$cleanup();
+}
+
+$.delegate(['click']);
+=== 3311 src/lib/components/CommandPalette.svelte	css
+
+	.sr-only.svelte-wh9uu8 {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	.cp-overlay.svelte-wh9uu8 {
+		position: fixed;
+		inset: 0;
+		z-index: 9999;
+		background: rgba(0, 0, 0, 0.6);
+		backdrop-filter: blur(4px);
+		display: flex;
+		align-items: flex-start;
+		justify-content: center;
+		padding: 10vh 1rem 1rem;
+		animation: svelte-wh9uu8-fadeIn 0.15s ease-out;
+	}
+
+	@keyframes svelte-wh9uu8-fadeIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	@keyframes svelte-wh9uu8-slideIn {
+		from {
+			opacity: 0;
+			transform: scale(0.96) translateY(-10px);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1) translateY(0);
+		}
+	}
+
+	.cp-wrapper {
+		width: 100%;
+		max-width: 640px;
+		animation: svelte-wh9uu8-slideIn 0.2s ease-out;
+	}
+
+	.cp-wrapper * {
+		box-sizing: border-box;
+	}
+
+	/* Default: Dark mode styles */
+	.cp-container.svelte-wh9uu8 {
+		width: 100%;
+		background: #1f2937;
+		border-radius: 12px;
+		box-shadow:
+			0 25px 50px -12px rgba(0, 0, 0, 0.5),
+			0 0 0 1px rgba(255, 255, 255, 0.1);
+		overflow: hidden;
+		max-height: 70vh;
+		display: flex;
+		flex-direction: column;
+	}
+
+	form.svelte-wh9uu8 {
+		width: 100%;
+		border-bottom: 1px solid #374151;
+	}
+
+	.cp-input-wrapper.svelte-wh9uu8 {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.875rem 1rem;
+	}
+
+	.cp-search-icon.svelte-wh9uu8 {
+		flex-shrink: 0;
+		color: #6b7280;
+	}
+
+	.cp-input.svelte-wh9uu8 {
+		flex: 1;
+		font-size: 1rem;
+		border: none;
+		outline: none;
+		background: transparent;
+		color: #f9fafb;
+	}
+
+	.cp-input.svelte-wh9uu8::placeholder {
+		color: #6b7280;
+	}
+
+	@media (max-width: 640px) {
+		.cp-overlay.svelte-wh9uu8 {
+			padding: 0;
+			align-items: flex-end;
+		}
+
+		.cp-wrapper {
+			max-width: 100%;
+		}
+
+		.cp-container.svelte-wh9uu8 {
+			border-radius: 12px 12px 0 0;
+			max-height: 85vh;
+		}
+	}
+
+	/* Light mode: class-based (for sites using .light class) */
+	.light .cp-container.svelte-wh9uu8,
+	html.light .cp-container.svelte-wh9uu8,
+	body.light .cp-container.svelte-wh9uu8 {
+		background: #ffffff;
+		box-shadow:
+			0 25px 50px -12px rgba(0, 0, 0, 0.15),
+			0 0 0 1px rgba(0, 0, 0, 0.08);
+	}
+
+	.light form.svelte-wh9uu8,
+	html.light form.svelte-wh9uu8,
+	body.light form.svelte-wh9uu8 {
+		border-bottom-color: #e5e7eb;
+	}
+
+	.light .cp-input.svelte-wh9uu8,
+	html.light .cp-input.svelte-wh9uu8,
+	body.light .cp-input.svelte-wh9uu8 {
+		color: #111827;
+	}
+
+	.light .cp-input.svelte-wh9uu8::placeholder,
+	html.light .cp-input.svelte-wh9uu8::placeholder,
+	body.light .cp-input.svelte-wh9uu8::placeholder {
+		color: #9ca3af;
+	}
+
+	.light .cp-search-icon.svelte-wh9uu8,
+	html.light .cp-search-icon.svelte-wh9uu8,
+	body.light .cp-search-icon.svelte-wh9uu8 {
+		color: #9ca3af;
+	}
+
+	/* Light mode: media query fallback for users without class-based theming */
+	@media (prefers-color-scheme: light) {
+		.cp-container.svelte-wh9uu8 {
+			background: #ffffff;
+			box-shadow:
+				0 25px 50px -12px rgba(0, 0, 0, 0.15),
+				0 0 0 1px rgba(0, 0, 0, 0.08);
+		}
+
+		form.svelte-wh9uu8 {
+			border-bottom-color: #e5e7eb;
+		}
+
+		.cp-input.svelte-wh9uu8 {
+			color: #111827;
+		}
+
+		.cp-input.svelte-wh9uu8::placeholder {
+			color: #9ca3af;
+		}
+
+		.cp-search-icon.svelte-wh9uu8 {
+			color: #9ca3af;
+		}
+	}
+
+=== 14044 src/lib/components/CommandPalette.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { onDestroy, onMount, setContext as setThemeContext } from 'svelte';
+import { writable } from 'svelte/store';
+import { paletteStore } from '../store/PaletteStore';
+import Portal from './Portal.svelte';
+import ResultPanel from './ResultPanel.svelte';
+import KeyboardButton from './KeyboardButton.svelte';
+import createShortcuts from '../utils/createShortcuts';
+
+import {
+	createFuse,
+	formatResults,
+	getNonEmptyArray,
+	runAction,
+	toCssString
+} from '../utils';
+
+import createStoreMethods from '../utils/createStoreMethods';
+import createActionMap from '../utils/createActionMap';
+import { THEME_CONTEXT } from '../constants';
+
+var root = $.from_html(`<div id="command-palette-overlay" role="presentation"><div class="cp-wrapper" role="dialog" aria-modal="true" aria-label="Command palette"><div role="combobox" aria-expanded="true" aria-haspopup="listbox" aria-controls="command-palette-results"><form autocomplete="off" role="search" novalidate="" class="svelte-wh9uu8"><label class="sr-only svelte-wh9uu8">Search for an action</label> <div class="cp-input-wrapper svelte-wh9uu8"><svg class="cp-search-icon svelte-wh9uu8" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg> <input type="text" aria-autocomplete="list" autocomplete="off" autocapitalize="off"/> <!></div></form> <!></div></div></div>`);
+
+export default function CommandPalette($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $paletteStore = () => $.store_get(paletteStore, '$paletteStore', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	// Component-level event callbacks
+	// Style classes
+	// Style objects
+	// Custom rendering
+	let commandsProp = $.prop($$props, 'commands', 19, () => []),
+		placeholder = $.prop($$props, 'placeholder', 3, 'Search for an action...'),
+		shortcut = $.prop($$props, 'shortcut', 3, '$mod+k'),
+		inputClass = $.prop($$props, 'inputClass', 3, null),
+		overlayClass = $.prop($$props, 'overlayClass', 3, null),
+		paletteWrapperInnerClass = $.prop($$props, 'paletteWrapperInnerClass', 3, null),
+		resultsContainerClass = $.prop($$props, 'resultsContainerClass', 3, null),
+		resultContainerClass = $.prop($$props, 'resultContainerClass', 3, null),
+		optionSelectedClass = $.prop($$props, 'optionSelectedClass', 3, null),
+		titleClass = $.prop($$props, 'titleClass', 3, null),
+		subtitleClass = $.prop($$props, 'subtitleClass', 3, null),
+		descriptionClass = $.prop($$props, 'descriptionClass', 3, null),
+		keyboardButtonClass = $.prop($$props, 'keyboardButtonClass', 3, null),
+		unstyled = $.prop($$props, 'unstyled', 3, false),
+		inputStyle = $.prop($$props, 'inputStyle', 19, () => ({})),
+		overlayStyle = $.prop($$props, 'overlayStyle', 19, () => ({})),
+		paletteWrapperInnerStyle = $.prop($$props, 'paletteWrapperInnerStyle', 19, () => ({})),
+		resultsContainerStyle = $.prop($$props, 'resultsContainerStyle', 19, () => ({})),
+		resultContainerStyle = $.prop($$props, 'resultContainerStyle', 19, () => ({})),
+		optionSelectedStyle = $.prop($$props, 'optionSelectedStyle', 19, () => ({})),
+		titleStyle = $.prop($$props, 'titleStyle', 19, () => ({})),
+		subtitleStyle = $.prop($$props, 'subtitleStyle', 19, () => ({})),
+		descriptionStyle = $.prop($$props, 'descriptionStyle', 19, () => ({})),
+		keyboardButtonStyle = $.prop($$props, 'keyboardButtonStyle', 19, () => ({}));
+
+	let wrapperElement = $.state(void 0);
+	let searchInputRef = $.state(void 0);
+	let commandPaletteRef = $.state(void 0);
+	let unsubscribeKbdListener;
+	let isPaletteVisible = $.state(false);
+	let activeCommand = $.state(null);
+	let lastActiveElement = null;
+	let searchResults = $.state($.proxy([]));
+	const searchInputId = 'paletteInput';
+	let actions = $.state($.proxy([]));
+
+	// set themes to context to pass down to deeply nested components
+	const themeStore = writable({});
+
+	setThemeContext(THEME_CONTEXT, themeStore);
+
+	const storeMethods = createStoreMethods();
+	let formattedEscKey = $.state('');
+	const { togglePalette, closePalette: closeCommandPalette } = storeMethods;
+
+	// Create actionMap reactively based on commandsProp
+	let actionMap = $.derived(() => createActionMap(commandsProp()));
+
+	const updateStore = () => {
+		paletteStore.update((n) => ({
+			...n,
+			commands: commandsProp(),
+			storeMethods,
+			actionMap: createActionMap(commandsProp()),
+			activeCommandId: null,
+			results: commandsProp()
+		}));
+	};
+
+	// Initial store update
+	$.user_effect(() => {
+		updateStore();
+	});
+
+	// Track visibility changes for callbacks
+	let prevVisible = false;
+
+	const unsubscribePaletteStore = paletteStore.subscribe((value) => {
+		const wasVisible = prevVisible;
+
+		$.set(isPaletteVisible, value.isVisible, true);
+		$.set(actions, value.commands, true);
+		$.set(activeCommand, value.activeCommandId ?? null, true);
+		$.set(searchResults, getNonEmptyArray(value.results, value.commands, []), true);
+
+		// Fire callbacks on visibility change
+		if (!wasVisible && value.isVisible) {
+			lastActiveElement = document.activeElement;
+			$$props.onOpen?.();
+		} else if (wasVisible && !value.isVisible) {
+			$$props.onClose?.();
+		}
+
+		prevVisible = value.isVisible;
+	});
+
+	const focusLastElement = () => {
+		if (lastActiveElement && typeof lastActiveElement.focus === 'function') {
+			lastActiveElement.focus();
+		}
+	};
+
+	const closePalette = (event) => {
+		event?.preventDefault?.();
+		closeCommandPalette();
+		focusLastElement();
+	};
+
+	const focusSearchInput = () => {
+		if ($.get(isPaletteVisible) && $.get(searchInputRef)) {
+			$.get(searchInputRef).focus();
+		}
+	};
+
+	const setActiveCommand = (id) => {
+		paletteStore.update((n) => ({ ...n, activeCommandId: id }));
+	};
+
+	// Only handle arrow keys when palette is visible
+	const handleArrowUp = (event) => {
+		if (!$.get(isPaletteVisible)) return;
+
+		event.preventDefault();
+
+		let activeCommandIndex = $.get(searchResults).findIndex((a) => a.actionId === $.get(activeCommand)) ?? 0;
+
+		activeCommandIndex = activeCommandIndex === -1 ? 0 : activeCommandIndex;
+
+		const totalCommands = $.get(searchResults).length;
+		const prevCommandIndex = (totalCommands + activeCommandIndex - 1) % totalCommands;
+		const indexToSet = $.get(searchResults)[prevCommandIndex] ? prevCommandIndex : activeCommandIndex;
+
+		setActiveCommand($.get(searchResults)[indexToSet]?.actionId || '');
+	};
+
+	const handleArrowDown = (event) => {
+		if (!$.get(isPaletteVisible)) return;
+
+		event.preventDefault();
+
+		if ($.get(searchResults).length) {
+			let activeCommandIndex = $.get(searchResults).findIndex((a) => a.actionId === $.get(activeCommand)) ?? 0;
+
+			activeCommandIndex = activeCommandIndex === -1 ? -1 : activeCommandIndex;
+
+			const totalCommands = $.get(searchResults).length;
+			const nextCommand = (activeCommandIndex + 1) % totalCommands;
+			const indexToSet = $.get(searchResults)[nextCommand] ? nextCommand : activeCommandIndex;
+
+			setActiveCommand($.get(searchResults)[indexToSet]?.actionId || '');
+		}
+	};
+
+	const handleEnterKey = (event) => {
+		if (!$.get(isPaletteVisible)) return;
+
+		event.preventDefault();
+
+		const action = $.get(actionMap)[$.get(activeCommand)];
+
+		if (action) {
+			$$props.onActionSelect?.(action);
+			runAction({ action });
+		}
+	};
+
+	const handleOutsideClick = (event) => {
+		if ($.get(commandPaletteRef) && !$.get(commandPaletteRef).contains(event.target)) {
+			closePalette();
+		}
+	};
+
+	const toggleCommandPalette = (event) => {
+		event.preventDefault();
+		togglePalette();
+	};
+
+	// Focus trap - handle Tab key
+	const handleTab = (event) => {
+		if (!$.get(isPaletteVisible) || !$.get(commandPaletteRef)) return;
+
+		const focusableElements = $.get(commandPaletteRef).querySelectorAll('input, button, [tabindex]:not([tabindex="-1"])');
+		const firstElement = focusableElements[0];
+		const lastElement = focusableElements[focusableElements.length - 1];
+
+		if (event.shiftKey && document.activeElement === firstElement) {
+			event.preventDefault();
+			lastElement?.focus();
+		} else if (!event.shiftKey && document.activeElement === lastElement) {
+			event.preventDefault();
+			firstElement?.focus();
+		}
+	};
+
+	onMount(async () => {
+		const { tinykeys, parseKeybinding } = await import('tinykeys');
+
+		$.set(formattedEscKey, parseKeybinding('Esc').flat().join(''), true);
+
+		const shortcuts = createShortcuts({ actions: commandsProp() });
+
+		// Build keyboard bindings with customizable shortcut
+		const keyBindings = {
+			...shortcuts,
+			[shortcut()]: toggleCommandPalette,
+			Escape: closePalette,
+			ArrowUp: handleArrowUp,
+			ArrowDown: handleArrowDown,
+			Enter: handleEnterKey,
+			Tab: handleTab
+		};
+
+		unsubscribeKbdListener = tinykeys(window, keyBindings);
+	});
+
+	// Create fuse reactively based on actions
+	let fuse = $.derived(() => createFuse($.get(actions)));
+
+	const updateSearchResults = (results) => {
+		paletteStore.update((n) => ({ ...n, results, activeCommandId: results?.[0]?.actionId || '' }));
+	};
+
+	const handleSearch = (event) => {
+		event.preventDefault();
+
+		let results = [...$.get(actions)];
+
+		if ($paletteStore().textInput) {
+			const value = $paletteStore().textInput;
+
+			results = formatResults($.get(fuse).search(value));
+		}
+
+		updateSearchResults(results);
+	};
+
+	// Effect for focusing and click handler setup
+	$.user_effect(() => {
+		if ($.get(isPaletteVisible)) {
+			focusSearchInput();
+
+			if ($.get(wrapperElement)) {
+				$.get(wrapperElement).addEventListener('click', handleOutsideClick);
+			}
+		}
+
+		return () => {
+			$.get(wrapperElement)?.removeEventListener('click', handleOutsideClick);
+		};
+	});
+
+	// Separate effect for theme store updates
+	$.user_effect(() => {
+		themeStore.set({
+			inputClass: inputClass(),
+			overlayClass: overlayClass(),
+			paletteWrapperInnerClass: paletteWrapperInnerClass(),
+			resultsContainerClass: resultsContainerClass(),
+			resultContainerClass: resultContainerClass(),
+			optionSelectedClass: optionSelectedClass(),
+			titleClass: titleClass(),
+			subtitleClass: subtitleClass(),
+			descriptionClass: descriptionClass(),
+			keyboardButtonClass: keyboardButtonClass(),
+			unstyled: unstyled(),
+			inputStyle: toCssString(inputStyle()),
+			overlayStyle: toCssString(overlayStyle()),
+			paletteWrapperInnerStyle: toCssString(paletteWrapperInnerStyle()),
+			resultsContainerStyle: toCssString(resultsContainerStyle()),
+			resultContainerStyle: toCssString(resultContainerStyle()),
+			optionSelectedStyle: toCssString(optionSelectedStyle()),
+			titleStyle: toCssString(titleStyle()),
+			subtitleStyle: toCssString(subtitleStyle()),
+			descriptionStyle: toCssString(descriptionStyle()),
+			keyboardButtonStyle: toCssString(keyboardButtonStyle()),
+			emptyState: $$props.emptyState
+		});
+	});
+
+	onDestroy(() => {
+		unsubscribeKbdListener?.();
+		unsubscribePaletteStore();
+		focusLastElement();
+	});
+
+	const handleFormSubmit = (ev) => ev.preventDefault();
+
+	{
+		const children = ($$anchor) => {
+			var fragment_1 = $.comment();
+			var node = $.first_child(fragment_1);
+
+			{
+				var consequent = ($$anchor) => {
+					var div = root();
+					let classes;
+					var div_1 = $.child(div);
+					var div_2 = $.child(div_1);
+					let classes_1;
+					var form = $.child(div_2);
+					var label = $.child(form);
+
+					$.set_attribute(label, 'for', searchInputId);
+
+					var div_3 = $.sibling(label, 2);
+					var input = $.sibling($.child(div_3), 2);
+
+					$.remove_input_defaults(input);
+
+					let classes_2;
+
+					$.set_attribute(input, 'spellcheck', false);
+					$.set_attribute(input, 'id', searchInputId);
+					$.bind_this(input, ($$value) => $.set(searchInputRef, $$value), () => $.get(searchInputRef));
+
+					var node_1 = $.sibling(input, 2);
+
+					{
+						const children = ($$anchor) => {
+							$.next();
+
+							var text = $.text();
+
+							$.template_effect(() => $.set_text(text, $.get(formattedEscKey)));
+							$.append($$anchor, text);
+						};
+
+						KeyboardButton(node_1, {
+							onKeyboardButtonClicked: () => closePalette(),
+							children,
+							$$slots: { default: true }
+						});
+					}
+
+					$.reset(div_3);
+					$.reset(form);
+
+					var node_2 = $.sibling(form, 2);
+
+					ResultPanel(node_2, {
+						get emptyState() {
+							return $$props.emptyState;
+						}
+					});
+
+					$.reset(div_2);
+					$.bind_this(div_2, ($$value) => $.set(commandPaletteRef, $$value), () => $.get(commandPaletteRef));
+					$.reset(div_1);
+					$.reset(div);
+					$.bind_this(div, ($$value) => $.set(wrapperElement, $$value), () => $.get(wrapperElement));
+
+					$.template_effect(
+						($0, $1, $2) => {
+							classes = $.set_class(div, 1, $.clsx(overlayClass()), 'svelte-wh9uu8', classes, { 'cp-overlay': !unstyled() });
+							$.set_style(div, $0);
+							classes_1 = $.set_class(div_2, 1, $.clsx(paletteWrapperInnerClass()), 'svelte-wh9uu8', classes_1, { 'cp-container': !unstyled() });
+							$.set_style(div_2, $1);
+							classes_2 = $.set_class(input, 1, $.clsx(inputClass()), 'svelte-wh9uu8', classes_2, { 'cp-input': !unstyled() });
+							$.set_style(input, $2);
+							$.set_attribute(input, 'placeholder', placeholder());
+							$.set_attribute(input, 'aria-activedescendant', $.get(activeCommand) ? `palette-${$.get(activeCommand)}` : undefined);
+						},
+						[
+							() => toCssString(overlayStyle()),
+							() => toCssString(paletteWrapperInnerStyle()),
+							() => toCssString(inputStyle())
+						]
+					);
+
+					$.event('submit', form, handleFormSubmit);
+					$.delegated('input', input, handleSearch);
+					$.bind_value(input, () => $paletteStore().textInput, ($$value) => $.store_mutate(paletteStore, $.untrack($paletteStore).textInput = $$value, $.untrack($paletteStore)));
+					$.append($$anchor, div);
+				};
+
+				$.if(node, ($$render) => {
+					if ($.get(isPaletteVisible)) $$render(consequent);
+				});
+			}
+
+			$.append($$anchor, fragment_1);
+		};
+
+		Portal($$anchor, { target: 'body', children, $$slots: { default: true } });
+	}
+
+	$.pop();
+	$$cleanup();
+}
+
+$.delegate(['input']);
+=== 882 src/lib/components/KeyboardButton.svelte	css
+
+	/* Default: Dark mode styles */
+	.cp-kbd.svelte-1x8w717 {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 1.5rem;
+		height: 1.5rem;
+		padding: 0 0.375rem;
+		font-family: inherit;
+		font-size: 0.75rem;
+		font-weight: 500;
+		color: #9ca3af;
+		background: #374151;
+		border: 1px solid #4b5563;
+		border-radius: 4px;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+	}
+
+	/* Light mode: class-based */
+	.light .cp-kbd.svelte-1x8w717,
+	html.light .cp-kbd.svelte-1x8w717,
+	body.light .cp-kbd.svelte-1x8w717 {
+		color: #6b7280;
+		background: #f3f4f6;
+		border-color: #e5e7eb;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+	}
+
+	/* Light mode: media query fallback */
+	@media (prefers-color-scheme: light) {
+		.cp-kbd.svelte-1x8w717 {
+			color: #6b7280;
+			background: #f3f4f6;
+			border-color: #e5e7eb;
+			box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+		}
+	}
+
+=== 1516 src/lib/components/KeyboardButton.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { THEME_CONTEXT } from '$lib/constants';
+import { getContext } from 'svelte';
+
+var root = $.from_html(`<kbd role="button"><!></kbd>`);
+
+export default function KeyboardButton($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $themeCtx = () => $.store_get(themeCtx, '$themeCtx', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+
+	const handleButtonClick = (event) => {
+		event.stopPropagation();
+		$$props.onKeyboardButtonClicked?.({ event });
+	};
+
+	const themeCtx = getContext(THEME_CONTEXT);
+	const { unstyled, keyboardButtonClass, keyboardButtonStyle } = $themeCtx();
+	var kbd = root();
+	let classes;
+	var node = $.child(kbd);
+
+	{
+		var consequent = ($$anchor) => {
+			var fragment = $.comment();
+			var node_1 = $.first_child(fragment);
+
+			$.snippet(node_1, () => $$props.children);
+			$.append($$anchor, fragment);
+		};
+
+		$.if(node, ($$render) => {
+			if ($$props.children) $$render(consequent);
+		});
+	}
+
+	$.reset(kbd);
+
+	$.template_effect(() => {
+		$.set_attribute(kbd, 'tabindex', $$props.onKeyboardButtonClicked ? 0 : -1);
+		$.set_style(kbd, keyboardButtonStyle);
+		classes = $.set_class(kbd, 1, $.clsx(keyboardButtonClass), 'svelte-1x8w717', classes, { 'cp-kbd': !unstyled });
+	});
+
+	$.delegated('click', kbd, handleButtonClick);
+	$.delegated('keydown', kbd, (e) => e.key === 'Enter' && handleButtonClick(e));
+	$.append($$anchor, kbd);
+	$.pop();
+	$$cleanup();
+}
+
+$.delegate(['click', 'keydown']);
+=== 1325 src/lib/components/Portal.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { tick } from 'svelte';
+
+var root = $.from_html(`<div><!></div>`);
+
+export default function Portal($$anchor, $$props) {
+	$.push($$props, true);
+
+	let target = $.prop($$props, 'target', 3, 'body');
+
+	const portal = (node, targetSelector) => {
+		async function update(targetSelector) {
+			let targetElement = document.querySelector(targetSelector);
+
+			if (targetElement === null) {
+				await tick();
+				targetElement = document.querySelector(targetSelector);
+			}
+
+			if (targetElement === null) {
+				throw new Error('No element found matching selector');
+			}
+
+			targetElement.appendChild(node);
+		}
+
+		function destroy() {
+			if (node.parentNode) {
+				node.parentNode.removeChild(node);
+			}
+		}
+
+		update(targetSelector);
+
+		return { update, destroy };
+	};
+
+	var div = root();
+	var node_1 = $.child(div);
+
+	{
+		var consequent = ($$anchor) => {
+			var fragment = $.comment();
+			var node_2 = $.first_child(fragment);
+
+			$.snippet(node_2, () => $$props.children);
+			$.append($$anchor, fragment);
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($$props.children) $$render(consequent);
+		});
+	}
+
+	$.reset(div);
+	$.action(div, ($$node, $$action_arg) => portal?.($$node, $$action_arg), target);
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 2669 src/lib/components/Result.svelte	css
+
+	.cp-result.svelte-16jqtxf {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.75rem;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: background-color 0.1s ease;
+	}
+
+	/* Default: Dark mode styles */
+	.cp-result.svelte-16jqtxf:hover,
+	.cp-result-active.svelte-16jqtxf {
+		background: #374151;
+	}
+
+	.cp-result-icon.svelte-16jqtxf {
+		flex-shrink: 0;
+		width: 36px;
+		height: 36px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #374151;
+		border-radius: 8px;
+	}
+
+	.cp-result-emoji.svelte-16jqtxf {
+		font-size: 1.25rem;
+	}
+
+	.cp-result-icon.svelte-16jqtxf img:where(.svelte-16jqtxf) {
+		border-radius: 4px;
+	}
+
+	.cp-result-content.svelte-16jqtxf {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.cp-result-title.svelte-16jqtxf {
+		font-weight: 500;
+		color: #f9fafb;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.cp-result-subtitle.svelte-16jqtxf {
+		font-size: 0.875rem;
+		color: #9ca3af;
+		margin-top: 0.125rem;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.cp-result-description.svelte-16jqtxf {
+		font-size: 0.75rem;
+		color: #6b7280;
+		margin-top: 0.25rem;
+	}
+
+	.cp-result-shortcuts.svelte-16jqtxf {
+		display: flex;
+		gap: 0.25rem;
+		flex-shrink: 0;
+	}
+
+	/* Light mode: class-based */
+	.light .cp-result.svelte-16jqtxf:hover,
+	.light .cp-result-active.svelte-16jqtxf,
+	html.light .cp-result.svelte-16jqtxf:hover,
+	html.light .cp-result-active.svelte-16jqtxf,
+	body.light .cp-result.svelte-16jqtxf:hover,
+	body.light .cp-result-active.svelte-16jqtxf {
+		background: #f3f4f6;
+	}
+
+	.light .cp-result-icon.svelte-16jqtxf,
+	html.light .cp-result-icon.svelte-16jqtxf,
+	body.light .cp-result-icon.svelte-16jqtxf {
+		background: #f3f4f6;
+	}
+
+	.light .cp-result-title.svelte-16jqtxf,
+	html.light .cp-result-title.svelte-16jqtxf,
+	body.light .cp-result-title.svelte-16jqtxf {
+		color: #111827;
+	}
+
+	.light .cp-result-subtitle.svelte-16jqtxf,
+	html.light .cp-result-subtitle.svelte-16jqtxf,
+	body.light .cp-result-subtitle.svelte-16jqtxf {
+		color: #6b7280;
+	}
+
+	.light .cp-result-description.svelte-16jqtxf,
+	html.light .cp-result-description.svelte-16jqtxf,
+	body.light .cp-result-description.svelte-16jqtxf {
+		color: #9ca3af;
+	}
+
+	/* Light mode: media query fallback */
+	@media (prefers-color-scheme: light) {
+		.cp-result.svelte-16jqtxf:hover,
+		.cp-result-active.svelte-16jqtxf {
+			background: #f3f4f6;
+		}
+
+		.cp-result-icon.svelte-16jqtxf {
+			background: #f3f4f6;
+		}
+
+		.cp-result-title.svelte-16jqtxf {
+			color: #111827;
+		}
+
+		.cp-result-subtitle.svelte-16jqtxf {
+			color: #6b7280;
+		}
+
+		.cp-result-description.svelte-16jqtxf {
+			color: #9ca3af;
+		}
+	}
+
+=== 7160 src/lib/components/Result.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { paletteStore } from '../store/PaletteStore';
+import { onMount, getContext } from 'svelte';
+import { runAction } from '../utils';
+import KeyboardButton from './KeyboardButton.svelte';
+import { THEME_CONTEXT } from '../constants';
+
+var root = $.from_html(`<img alt="" width="20" height="20" class="svelte-16jqtxf"/>`);
+var root_1 = $.from_html(`<span class="cp-result-emoji svelte-16jqtxf"> </span>`);
+var root_2 = $.from_html(`<div class="cp-result-icon svelte-16jqtxf"><!></div>`);
+var root_3 = $.from_html(`<div> </div>`);
+var root_4 = $.from_html(`<span> </span>`);
+var root_5 = $.from_html(`<div class="cp-result-shortcuts svelte-16jqtxf"></div>`);
+var root_6 = $.from_html(`<div role="option"><!> <div class="cp-result-content svelte-16jqtxf"><div><span> </span></div> <!> <!></div> <!></div>`);
+
+export default function Result($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $themeCtx = () => $.store_get(themeCtx, '$themeCtx', $$stores);
+	const $paletteStore = () => $.store_get(paletteStore, '$paletteStore', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	let elRef = $.state(void 0);
+	let isActive = $.state(false);
+	let formattedShortcut = $.state($.proxy([]));
+	const themeCtx = getContext(THEME_CONTEXT);
+
+	const {
+		resultContainerClass,
+		unstyled,
+		optionSelectedClass,
+		titleClass,
+		subtitleClass,
+		descriptionClass,
+		resultContainerStyle,
+		titleStyle,
+		subtitleStyle,
+		descriptionStyle,
+		optionSelectedStyle
+	} = $themeCtx();
+
+	// Replace afterUpdate with $effect
+	$.user_effect(() => {
+		if ($$props.action.actionId === $paletteStore().activeCommandId && $.get(elRef)) {
+			$.set(isActive, true);
+
+			requestAnimationFrame(() => {
+				$.get(elRef)?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+			});
+		} else {
+			$.set(isActive, false);
+		}
+	});
+
+	const handleRunAction = () => {
+		runAction({ action: $$props.action });
+	};
+
+	onMount(async () => {
+		const tinyKeys = await import('tinykeys');
+		const { parseKeybinding } = tinyKeys;
+
+		if ($$props.action.shortcut) {
+			const parsedShortcut = parseKeybinding($$props.action.shortcut);
+
+			$.set(formattedShortcut, parsedShortcut.flat().filter((s) => s.length > 0), true);
+		}
+	});
+
+	const onMouseEnter = () => {
+		$.set(isActive, true);
+
+		paletteStore.update((value) => {
+			return {
+				...value,
+				activeCommandId: $$props.action.actionId || '',
+				selectedCommandId: $$props.action.actionId || ''
+			};
+		});
+	};
+
+	const onMouseLeave = () => {
+		$.set(isActive, false);
+	};
+
+	var div = root_6();
+	let classes;
+
+	$.set_attribute(div, 'tabindex', -1);
+
+	var node = $.child(div);
+
+	{
+		var consequent_3 = ($$anchor) => {
+			var div_1 = root_2();
+			var node_1 = $.child(div_1);
+
+			{
+				var consequent = ($$anchor) => {
+					var fragment = $.comment();
+					var node_2 = $.first_child(fragment);
+
+					$.snippet(node_2, () => $$props.action.icon);
+					$.append($$anchor, fragment);
+				};
+
+				var consequent_2 = ($$anchor) => {
+					var fragment_1 = $.comment();
+					var node_3 = $.first_child(fragment_1);
+
+					{
+						var consequent_1 = ($$anchor) => {
+							var img = root();
+
+							$.template_effect(() => $.set_attribute(img, 'src', $$props.action.icon));
+							$.append($$anchor, img);
+						};
+
+						var d = $.derived(() => $$props.action.icon.startsWith('http') || $$props.action.icon.startsWith('/'));
+
+						var alternate = ($$anchor) => {
+							var span = root_1();
+							var text = $.only_child(span, true);
+
+							$.template_effect(() => $.set_text(text, $$props.action.icon));
+							$.append($$anchor, span);
+						};
+
+						$.if(node_3, ($$render) => {
+							if ($.get(d)) $$render(consequent_1); else $$render(alternate, -1);
+						});
+					}
+
+					$.append($$anchor, fragment_1);
+				};
+
+				$.if(node_1, ($$render) => {
+					if (typeof $$props.action.icon === 'function') $$render(consequent); else if (typeof $$props.action.icon === 'string') $$render(consequent_2, 1);
+				});
+			}
+
+			$.reset(div_1);
+			$.append($$anchor, div_1);
+		};
+
+		$.if(node, ($$render) => {
+			if ($$props.action.icon) $$render(consequent_3);
+		});
+	}
+
+	var div_2 = $.sibling(node, 2);
+	var div_3 = $.child(div_2);
+	let classes_1;
+	var span_1 = $.child(div_3);
+	var text_1 = $.only_child(span_1, true);
+
+	$.reset(div_3);
+
+	var node_4 = $.sibling(div_3, 2);
+
+	{
+		var consequent_4 = ($$anchor) => {
+			var div_4 = root_3();
+			var text_2 = $.only_child(div_4, true);
+
+			$.template_effect(() => {
+				$.set_class(div_4, 1, `cp-result-subtitle ${subtitleClass || ''}`, 'svelte-16jqtxf');
+				$.set_style(div_4, subtitleStyle || '');
+				$.set_text(text_2, $$props.action.subTitle);
+			});
+
+			$.append($$anchor, div_4);
+		};
+
+		$.if(node_4, ($$render) => {
+			if ($$props.action.subTitle) $$render(consequent_4);
+		});
+	}
+
+	var node_5 = $.sibling(node_4, 2);
+
+	{
+		var consequent_5 = ($$anchor) => {
+			var div_5 = root_3();
+			var text_3 = $.only_child(div_5, true);
+
+			$.template_effect(() => {
+				$.set_class(div_5, 1, `cp-result-description ${descriptionClass || ''}`, 'svelte-16jqtxf');
+				$.set_style(div_5, descriptionStyle || '');
+				$.set_text(text_3, $$props.action.description);
+			});
+
+			$.append($$anchor, div_5);
+		};
+
+		$.if(node_5, ($$render) => {
+			if ($$props.action.description) $$render(consequent_5);
+		});
+	}
+
+	$.reset(div_2);
+
+	var node_6 = $.sibling(div_2, 2);
+
+	{
+		var consequent_6 = ($$anchor) => {
+			var div_6 = root_5();
+
+			$.each(div_6, 21, () => $.get(formattedShortcut), $.index, ($$anchor, shortcut) => {
+				{
+					const children = ($$anchor) => {
+						var span_2 = root_4();
+						var text_4 = $.only_child(span_2, true);
+
+						$.template_effect(() => $.set_text(text_4, $.get(shortcut)));
+						$.append($$anchor, span_2);
+					};
+
+					KeyboardButton($$anchor, { children, $$slots: { default: true } });
+				}
+			});
+
+			$.reset(div_6);
+			$.append($$anchor, div_6);
+		};
+
+		$.if(node_6, ($$render) => {
+			if ($.get(formattedShortcut).length > 0) $$render(consequent_6);
+		});
+	}
+
+	$.reset(div);
+	$.bind_this(div, ($$value) => $.set(elRef, $$value), () => $.get(elRef));
+
+	$.template_effect(() => {
+		classes = $.set_class(div, 1, `${resultContainerClass || ''} ${$.get(isActive) ? !unstyled ? '' : optionSelectedClass || '' : ''}`, 'svelte-16jqtxf', classes, {
+			'cp-result': !unstyled,
+			'cp-result-active': !unstyled && $.get(isActive)
+		});
+
+		$.set_style(div, `${resultContainerStyle || ''} ${$.get(isActive) ? optionSelectedStyle || '' : ''}`);
+		$.set_attribute(div, 'aria-selected', $.get(isActive));
+		$.set_attribute(div, 'id', `palette-${$$props.action.actionId}`);
+		classes_1 = $.set_class(div_3, 1, `cp-result-title ${titleClass || ''}`, 'svelte-16jqtxf', classes_1, { title: !unstyled });
+		$.set_style(div_3, titleStyle || '');
+		$.set_text(text_1, $$props.action.title);
+	});
+
+	$.delegated('click', div, handleRunAction);
+	$.delegated('keydown', div, (e) => e.key === 'Enter' && handleRunAction());
+	$.event('mouseenter', div, onMouseEnter);
+	$.event('mouseleave', div, onMouseLeave);
+	$.append($$anchor, div);
+	$.pop();
+	$$cleanup();
+}
+
+$.delegate(['click', 'keydown']);
+=== 1889 src/lib/components/ResultPanel.svelte	css
+
+	.cp-results.svelte-1wexb39 {
+		width: 100%;
+		overflow-y: auto;
+		max-height: calc(70vh - 60px);
+		padding: 0.5rem;
+	}
+
+	/* Default: Dark mode styles */
+	.cp-group-header.svelte-1wexb39 {
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #9ca3af;
+		padding: 0.75rem 0.75rem 0.5rem;
+		margin-top: 0.5rem;
+	}
+
+	.cp-group-header.svelte-1wexb39:first-child {
+		margin-top: 0;
+	}
+
+	.cp-empty.svelte-1wexb39 {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 3rem 1rem;
+	}
+
+	.cp-empty-content.svelte-1wexb39 {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.75rem;
+		color: #6b7280;
+		text-align: center;
+	}
+
+	.cp-empty-content.svelte-1wexb39 p:where(.svelte-1wexb39) {
+		font-weight: 500;
+		color: #9ca3af;
+		margin: 0;
+	}
+
+	.cp-empty-content.svelte-1wexb39 span:where(.svelte-1wexb39) {
+		font-size: 0.875rem;
+	}
+
+	@media (max-width: 640px) {
+		.cp-results.svelte-1wexb39 {
+			max-height: calc(85vh - 60px);
+		}
+	}
+
+	/* Light mode: class-based */
+	.light .cp-group-header.svelte-1wexb39,
+	html.light .cp-group-header.svelte-1wexb39,
+	body.light .cp-group-header.svelte-1wexb39 {
+		color: #6b7280;
+	}
+
+	.light .cp-empty-content.svelte-1wexb39,
+	html.light .cp-empty-content.svelte-1wexb39,
+	body.light .cp-empty-content.svelte-1wexb39 {
+		color: #9ca3af;
+	}
+
+	.light .cp-empty-content.svelte-1wexb39 p:where(.svelte-1wexb39),
+	html.light .cp-empty-content.svelte-1wexb39 p:where(.svelte-1wexb39),
+	body.light .cp-empty-content.svelte-1wexb39 p:where(.svelte-1wexb39) {
+		color: #6b7280;
+	}
+
+	/* Light mode: media query fallback */
+	@media (prefers-color-scheme: light) {
+		.cp-group-header.svelte-1wexb39 {
+			color: #6b7280;
+		}
+
+		.cp-empty-content.svelte-1wexb39 {
+			color: #9ca3af;
+		}
+
+		.cp-empty-content.svelte-1wexb39 p:where(.svelte-1wexb39) {
+			color: #6b7280;
+		}
+	}
+
+=== 3910 src/lib/components/ResultPanel.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { paletteStore } from '../store/PaletteStore';
+import { onDestroy, getContext } from 'svelte';
+import Result from './Result.svelte';
+import { getNonEmptyArray, groupActions } from '../utils';
+import { THEME_CONTEXT } from '../constants';
+
+var root = $.from_html(`<div class="cp-group-header svelte-1wexb39"> </div>`);
+var root_1 = $.from_html(`<!> <!>`, 1);
+var root_2 = $.from_html(`<div role="listbox" id="command-palette-results"></div>`);
+var root_3 = $.from_html(`<div class="cp-empty-content svelte-1wexb39"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg> <p class="svelte-1wexb39">No results found</p> <span class="svelte-1wexb39">Try a different search term</span></div>`);
+var root_4 = $.from_html(`<div class="cp-empty svelte-1wexb39"><!></div>`);
+
+export default function ResultPanel($$anchor, $$props) {
+	$.push($$props, true);
+
+	const $themeCtx = () => $.store_get(themeCtx, '$themeCtx', $$stores);
+	const [$$stores, $$cleanup] = $.setup_stores();
+	let actions = $.state($.proxy([]));
+
+	const unsubscribe = paletteStore.subscribe((value) => {
+		$.set(
+			actions,
+			value.results.length > 0
+				? getNonEmptyArray(value.results)
+				: getNonEmptyArray(value.commands),
+			true
+		);
+	});
+
+	const themeCtx = getContext(THEME_CONTEXT);
+	const { resultsContainerClass, unstyled, resultsContainerStyle } = $themeCtx();
+
+	// Group actions by their group property
+	let groupedActions = $.derived(() => groupActions($.get(actions)));
+
+	onDestroy(unsubscribe);
+
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var div = root_2();
+			let classes;
+
+			$.each(div, 21, () => [...$.get(groupedActions).entries()], $.index, ($$anchor, $$item, $$index_1, $$array) => {
+				var $$array_1 = $.derived(() => $.to_array($.get($$item), 2));
+				let groupName = () => $.get($$array_1)[0];
+				let groupActions = () => $.get($$array_1)[1];
+				var fragment_1 = root_1();
+				var node_1 = $.first_child(fragment_1);
+
+				{
+					var consequent = ($$anchor) => {
+						var div_1 = root();
+						var text = $.only_child(div_1, true);
+
+						$.template_effect(() => $.set_text(text, groupName()));
+						$.append($$anchor, div_1);
+					};
+
+					$.if(node_1, ($$render) => {
+						if (groupName()) $$render(consequent);
+					});
+				}
+
+				var node_2 = $.sibling(node_1, 2);
+
+				$.each(node_2, 17, groupActions, (action) => action.actionId, ($$anchor, action) => {
+					Result($$anchor, {
+						get action() {
+							return $.get(action);
+						}
+					});
+				});
+
+				$.append($$anchor, fragment_1);
+			});
+
+			$.reset(div);
+
+			$.template_effect(() => {
+				classes = $.set_class(div, 1, $.clsx(resultsContainerClass), 'svelte-1wexb39', classes, { 'cp-results': !unstyled });
+				$.set_style(div, resultsContainerStyle);
+			});
+
+			$.append($$anchor, div);
+		};
+
+		var alternate_1 = ($$anchor) => {
+			var div_2 = root_4();
+			var node_3 = $.child(div_2);
+
+			{
+				var consequent_2 = ($$anchor) => {
+					var fragment_3 = $.comment();
+					var node_4 = $.first_child(fragment_3);
+
+					$.snippet(node_4, () => $$props.emptyState);
+					$.append($$anchor, fragment_3);
+				};
+
+				var alternate = ($$anchor) => {
+					var div_3 = root_3();
+
+					$.append($$anchor, div_3);
+				};
+
+				$.if(node_3, ($$render) => {
+					if ($$props.emptyState) $$render(consequent_2); else $$render(alternate, -1);
+				});
+			}
+
+			$.reset(div_2);
+			$.append($$anchor, div_2);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(actions).length > 0) $$render(consequent_1); else $$render(alternate_1, -1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+	$$cleanup();
+}
+=== 48 src/routes/+layout.svelte	css
+
+	main.svelte-12qhfyh {
+		min-height: 100vh;
+	}
+
+=== 1620 src/routes/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import Navbar from '../components/Navbar.svelte';
+import '../app.css';
+
+var root = $.with_script($.from_html(
+	`<meta name="description" content="A beautiful, accessible command palette for Svelte 5. Boost productivity with keyboard shortcuts and fuzzy search."/> <meta name="theme-color" content="#0a0a0f"/> <link rel="preconnect" href="https://fonts.googleapis.com"/> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/> <script>
+		// Theme initialization
+		const getTheme = () => localStorage.getItem('theme') || 'dark';
+		const applyTheme = () => {
+			const theme = getTheme();
+			document.documentElement.classList.remove('light', 'dark');
+			document.documentElement.classList.add(theme);
+		};
+		applyTheme();
+	</script>`,
+	1
+));
+
+var root_1 = $.from_html(`<!> <main class="svelte-12qhfyh"><!></main>`, 1);
+
+export default function _layout($$anchor, $$props) {
+	var fragment_1 = root_1();
+
+	$.head('12qhfyh', ($$anchor) => {
+		var fragment = root();
+
+		$.next(10);
+
+		$.effect(() => {
+			$.document.title = 'Svelte Command Palette - Keyboard-driven productivity for Svelte apps';
+		});
+
+		$.append($$anchor, fragment);
+	});
+
+	var node = $.first_child(fragment_1);
+
+	Navbar(node, {});
+
+	var main = $.sibling(node, 2);
+	var node_1 = $.child(main);
+
+	$.snippet(node_1, () => $$props.children);
+	$.reset(main);
+	$.append($$anchor, fragment_1);
+}
+=== 1503 src/routes/+page.svelte	css
+
+	.cta.svelte-1uha8ag {
+		padding-bottom: var(--space-3xl);
+	}
+
+	.cta-card.svelte-1uha8ag {
+		text-align: center;
+		padding: var(--space-3xl);
+	}
+
+	.cta-card.svelte-1uha8ag h2:where(.svelte-1uha8ag) {
+		margin-bottom: var(--space-md);
+	}
+
+	.cta-card.svelte-1uha8ag > p:where(.svelte-1uha8ag) {
+		max-width: 480px;
+		margin: 0 auto var(--space-xl);
+		font-size: 1.125rem;
+	}
+
+	.cta-install.svelte-1uha8ag {
+		max-width: 400px;
+		margin: 0 auto var(--space-xl);
+	}
+
+	.cta-install.svelte-1uha8ag .code-block:where(.svelte-1uha8ag) {
+		text-align: left;
+	}
+
+	.cta-install.svelte-1uha8ag pre:where(.svelte-1uha8ag) {
+		margin: 0;
+		padding: var(--space-md) var(--space-lg);
+	}
+
+	.cta-actions.svelte-1uha8ag {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: var(--space-md);
+	}
+
+	.footer.svelte-1uha8ag {
+		padding: var(--space-xl) 0;
+		text-align: center;
+		border-top: 1px solid var(--color-border);
+	}
+
+	.footer.svelte-1uha8ag p:where(.svelte-1uha8ag) {
+		font-size: 0.875rem;
+	}
+
+	.footer-links.svelte-1uha8ag {
+		display: flex;
+		justify-content: center;
+		gap: var(--space-md);
+		margin-top: var(--space-sm);
+	}
+
+	.footer-links.svelte-1uha8ag span:where(.svelte-1uha8ag) {
+		color: var(--color-text-tertiary);
+	}
+
+	@media (max-width: 768px) {
+		.cta-card.svelte-1uha8ag {
+			padding: var(--space-xl);
+		}
+
+		.cta-actions.svelte-1uha8ag {
+			flex-direction: column;
+		}
+
+		.cta-actions.svelte-1uha8ag .btn:where(.svelte-1uha8ag) {
+			width: 100%;
+			justify-content: center;
+		}
+	}
+
+=== 4951 src/routes/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { goto } from '$app/navigation';
+import { onMount } from 'svelte';
+import Hero from '../components/Hero.svelte';
+import Features from '../components/Features.svelte';
+import CommandPalette, { defineActions, createStoreMethods } from '$lib';
+import themeStore from '../store/themeStore';
+import switchTheme from '../utils/switchTheme';
+
+var root = $.from_html(`<!> <!> <!> <section class="cta section svelte-1uha8ag"><div class="container"><div class="cta-card card card-highlight svelte-1uha8ag"><h2 class="svelte-1uha8ag">Ready to get started?</h2> <p class="svelte-1uha8ag">Install Svelte Command Palette and boost your app's productivity in minutes.</p> <div class="cta-install svelte-1uha8ag"><div class="code-block svelte-1uha8ag"><pre class="svelte-1uha8ag"><code>npm install svelte-command-palette</code></pre></div></div> <div class="cta-actions svelte-1uha8ag"><a href="/docs" class="btn btn-primary svelte-1uha8ag">Read the docs <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"></path></svg></a> <a href="https://github.com/rohitpotato/svelte-command-palette" target="_blank" rel="noopener" class="btn btn-secondary svelte-1uha8ag">View on GitHub</a></div></div></div></section> <footer class="footer svelte-1uha8ag"><div class="container"><p class="svelte-1uha8ag">Built with ❤️ by <a href="https://twitter.com/rohitpotato" target="_blank" rel="noopener">Rohit Kashyap</a></p> <p class="footer-links svelte-1uha8ag"><a href="https://github.com/rohitpotato/svelte-command-palette" target="_blank" rel="noopener">GitHub</a> <span class="svelte-1uha8ag">•</span> <a href="https://twitter.com/rohitpotato" target="_blank" rel="noopener">Twitter</a> <span class="svelte-1uha8ag">•</span> <a href="/docs">Documentation</a></p></div></footer>`, 1);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let currentTheme = $.state('dark');
+	const paletteMethods = createStoreMethods();
+
+	onMount(() => {
+		const savedTheme = localStorage.getItem('theme') || 'dark';
+
+		themeStore.set(savedTheme);
+
+		themeStore.subscribe((value) => {
+			$.set(currentTheme, value, true);
+		});
+	});
+
+	const actions = defineActions([
+		{
+			title: 'Go to documentation',
+			subTitle: 'Learn how to use Svelte Command Palette',
+			icon: '📚',
+			group: 'Navigation',
+			onRun: () => goto('/docs'),
+			shortcut: 'G D'
+		},
+
+		{
+			title: 'View on GitHub',
+			subTitle: 'Star us on GitHub!',
+			icon: '⭐',
+			group: 'Navigation',
+			onRun: () => window.open('https://github.com/rohitpotato/svelte-command-palette', '_blank'),
+			shortcut: 'G H'
+		},
+
+		{
+			title: 'Toggle theme',
+			subTitle: 'Switch between light and dark mode',
+			icon: '🎨',
+			group: 'Preferences',
+			onRun: switchTheme,
+			shortcut: 'T T'
+		},
+
+		{
+			title: 'Copy npm install command',
+			subTitle: 'Copy installation command to clipboard',
+			icon: '📋',
+			group: 'Quick Actions',
+			onRun: () => {
+				navigator.clipboard.writeText('npm install svelte-command-palette');
+				alert('Copied to clipboard!');
+			},
+			shortcut: 'C I'
+		},
+
+		{
+			title: 'Report an issue',
+			subTitle: 'Found a bug? Let us know!',
+			icon: '🐛',
+			group: 'Quick Actions',
+			onRun: () => window.open('https://github.com/rohitpotato/svelte-command-palette/issues', '_blank')
+		},
+
+		{
+			title: 'Follow on Twitter',
+			subTitle: '@rohitpotato',
+			icon: '🐦',
+			group: 'Social',
+			onRun: () => window.open('https://twitter.com/rohitpotato', '_blank')
+		}
+	]);
+
+	const openCommandPalette = () => {
+		paletteMethods.openPalette();
+	};
+
+	// Dynamic theme styles
+	let paletteStyles = $.derived(() => $.get(currentTheme) === 'light'
+		? {
+			inputStyle: { background: 'white', color: '#111827' },
+			paletteWrapperInnerStyle: { background: 'white' },
+			resultsContainerStyle: { background: 'white' }
+		}
+		: {
+			inputStyle: { background: '#1f2937', color: '#f9fafb' },
+			paletteWrapperInnerStyle: { background: '#1f2937' },
+			resultsContainerStyle: { background: '#1f2937' }
+		});
+
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	CommandPalette(node, {
+		get commands() {
+			return actions;
+		},
+		placeholder: 'Search actions...',
+		shortcut: '$mod+k',
+		onOpen: () => console.log('Palette opened'),
+		onClose: () => console.log('Palette closed'),
+		onActionSelect: (action) => console.log('Selected:', action.title),
+		get inputStyle() {
+			return $.get(paletteStyles).inputStyle;
+		},
+
+		get paletteWrapperInnerStyle() {
+			return $.get(paletteStyles).paletteWrapperInnerStyle;
+		},
+
+		get resultsContainerStyle() {
+			return $.get(paletteStyles).resultsContainerStyle;
+		}
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	Hero(node_1, { openCommandPalette });
+
+	var node_2 = $.sibling(node_1, 2);
+
+	Features(node_2, {});
+	$.next(4);
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1866 src/routes/docs/+layout.svelte	css
+
+	.docs-layout.svelte-1bpnej {
+		display: flex;
+		min-height: calc(100vh - 60px);
+		margin-top: 60px;
+	}
+
+	.docs-main.svelte-1bpnej {
+		flex: 1;
+		margin-left: 280px;
+		padding: var(--space-2xl);
+	}
+
+	.docs-content.svelte-1bpnej {
+		max-width: 800px;
+		margin: 0 auto;
+	}
+
+	/* Prose styles for documentation content */
+	.docs-content.svelte-1bpnej h1 {
+		font-size: 2.5rem;
+		margin-bottom: var(--space-lg);
+	}
+
+	.docs-content.svelte-1bpnej h2 {
+		font-size: 1.75rem;
+		margin-top: var(--space-2xl);
+		margin-bottom: var(--space-md);
+		padding-bottom: var(--space-sm);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.docs-content.svelte-1bpnej h3 {
+		font-size: 1.25rem;
+		margin-top: var(--space-xl);
+		margin-bottom: var(--space-sm);
+	}
+
+	.docs-content.svelte-1bpnej p {
+		margin-bottom: var(--space-md);
+		line-height: 1.7;
+	}
+
+	.docs-content.svelte-1bpnej ul,
+	.docs-content.svelte-1bpnej ol {
+		margin-bottom: var(--space-md);
+		padding-left: var(--space-lg);
+	}
+
+	.docs-content.svelte-1bpnej li {
+		margin-bottom: var(--space-sm);
+		color: var(--color-text-secondary);
+	}
+
+	.docs-content.svelte-1bpnej pre {
+		margin: var(--space-lg) 0;
+	}
+
+	.docs-content.svelte-1bpnej table {
+		width: 100%;
+		border-collapse: collapse;
+		margin: var(--space-lg) 0;
+		font-size: 0.9375rem;
+	}
+
+	.docs-content.svelte-1bpnej th,
+	.docs-content.svelte-1bpnej td {
+		text-align: left;
+		padding: var(--space-sm) var(--space-md);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.docs-content.svelte-1bpnej th {
+		font-weight: 600;
+		color: var(--color-text-primary);
+		background: var(--color-bg-secondary);
+	}
+
+	.docs-content.svelte-1bpnej td {
+		color: var(--color-text-secondary);
+	}
+
+	.docs-content.svelte-1bpnej td code {
+		font-size: 0.8125rem;
+	}
+
+	@media (max-width: 1024px) {
+		.docs-main.svelte-1bpnej {
+			margin-left: 0;
+			padding: var(--space-lg);
+		}
+	}
+
+=== 4237 src/routes/docs/+layout.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { goto } from '$app/navigation';
+import Sidebar from '../../components/Sidebar.svelte';
+import CommandPalette, { defineActions, createStoreMethods } from '$lib';
+
+import {
+	BookOpen,
+	Zap,
+	FileCode,
+	Target,
+	Database,
+	Paintbrush,
+	Moon,
+	Keyboard,
+	Puzzle,
+	Home,
+	Github
+} from 'lucide-svelte';
+
+const bookOpenIcon = ($$anchor) => {
+	BookOpen($$anchor, { size: 18 });
+};
+
+const zapIcon = ($$anchor) => {
+	Zap($$anchor, { size: 18 });
+};
+
+const fileCodeIcon = ($$anchor) => {
+	FileCode($$anchor, { size: 18 });
+};
+
+const targetIcon = ($$anchor) => {
+	Target($$anchor, { size: 18 });
+};
+
+const databaseIcon = ($$anchor) => {
+	Database($$anchor, { size: 18 });
+};
+
+const paintbrushIcon = ($$anchor) => {
+	Paintbrush($$anchor, { size: 18 });
+};
+
+const moonIcon = ($$anchor) => {
+	Moon($$anchor, { size: 18 });
+};
+
+const keyboardIcon = ($$anchor) => {
+	Keyboard($$anchor, { size: 18 });
+};
+
+const puzzleIcon = ($$anchor) => {
+	Puzzle($$anchor, { size: 18 });
+};
+
+const homeIcon = ($$anchor) => {
+	Home($$anchor, { size: 18 });
+};
+
+const githubIcon = ($$anchor) => {
+	Github($$anchor, { size: 18 });
+};
+
+var root = $.from_html(`<!> <div class="docs-layout svelte-1bpnej"><!> <main class="docs-main svelte-1bpnej"><article class="docs-content svelte-1bpnej"><!></article></main></div>`, 1);
+
+export default function _layout($$anchor, $$props) {
+	$.push($$props, true);
+
+	const paletteMethods = createStoreMethods();
+	var fragment_11 = root();
+	var node = $.first_child(fragment_11);
+
+	{
+		let $0 = $.derived(() => defineActions([
+			{
+				title: 'Getting Started',
+				subTitle: 'Installation and quick start guide',
+				icon: bookOpenIcon,
+				group: 'Documentation',
+				onRun: () => goto('/docs/installation'),
+				shortcut: 'G I'
+			},
+
+			{
+				title: 'Quick Start',
+				subTitle: 'Get up and running in 5 minutes',
+				icon: zapIcon,
+				group: 'Documentation',
+				onRun: () => goto('/docs/quick-start'),
+				shortcut: 'G Q'
+			},
+
+			{
+				title: 'Command Palette API',
+				subTitle: 'Component props and configuration',
+				icon: fileCodeIcon,
+				group: 'API Reference',
+				onRun: () => goto('/docs/command-palette-api'),
+				shortcut: 'G A'
+			},
+
+			{
+				title: 'Define Actions',
+				subTitle: 'Creating and configuring actions',
+				icon: targetIcon,
+				group: 'API Reference',
+				onRun: () => goto('/docs/define-actions')
+			},
+
+			{
+				title: 'Palette Store',
+				subTitle: 'Store methods and state management',
+				icon: databaseIcon,
+				group: 'API Reference',
+				onRun: () => goto('/docs/palette-store')
+			},
+
+			{
+				title: 'Styling',
+				subTitle: 'Customize the look and feel',
+				icon: paintbrushIcon,
+				group: 'Customization',
+				onRun: () => goto('/docs/styling'),
+				shortcut: 'G S'
+			},
+
+			{
+				title: 'Theming',
+				subTitle: 'Light and dark mode support',
+				icon: moonIcon,
+				group: 'Customization',
+				onRun: () => goto('/docs/theming')
+			},
+
+			{
+				title: 'Keyboard Shortcuts',
+				subTitle: 'Configure keyboard bindings',
+				icon: keyboardIcon,
+				group: 'Customization',
+				onRun: () => goto('/docs/shortcuts')
+			},
+
+			{
+				title: 'Custom Components',
+				subTitle: 'Icons, groups, and empty states',
+				icon: puzzleIcon,
+				group: 'Customization',
+				onRun: () => goto('/docs/custom-components')
+			},
+
+			{
+				title: 'Go to Homepage',
+				subTitle: 'Return to the main page',
+				icon: homeIcon,
+				group: 'Navigation',
+				onRun: () => goto('/'),
+				shortcut: 'G H'
+			},
+
+			{
+				title: 'View on GitHub',
+				subTitle: 'Check out the source code',
+				icon: githubIcon,
+				group: 'Navigation',
+				onRun: () => window.open('https://github.com/rohitpotato/svelte-command-palette', '_blank')
+			}
+		]));
+
+		CommandPalette(node, {
+			get commands() {
+				return $.get($0);
+			},
+			placeholder: 'Search documentation...',
+			shortcut: '$mod+k'
+		});
+	}
+
+	var div = $.sibling(node, 2);
+	var node_1 = $.child(div);
+
+	Sidebar(node_1, {});
+
+	var main = $.sibling(node_1, 2);
+	var article = $.child(main);
+	var node_2 = $.child(article);
+
+	$.snippet(node_2, () => $$props.children);
+	$.reset(article);
+	$.reset(main);
+	$.reset(div);
+	$.append($$anchor, fragment_11);
+	$.pop();
+}
+=== 525 src/routes/docs/+page.svelte	css
+
+	.loading.svelte-1xmjmrw {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		min-height: 50vh;
+		gap: var(--space-md);
+	}
+
+	.spinner.svelte-1xmjmrw {
+		width: 32px;
+		height: 32px;
+		border: 3px solid var(--color-border);
+		border-top-color: var(--color-accent);
+		border-radius: 50%;
+		animation: svelte-1xmjmrw-spin 0.8s linear infinite;
+	}
+
+	@keyframes svelte-1xmjmrw-spin {
+		to { transform: rotate(360deg); }
+	}
+
+	p.svelte-1xmjmrw {
+		color: var(--color-text-secondary);
+	}
+
+=== 517 src/routes/docs/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { goto } from '$app/navigation';
+import { onMount } from 'svelte';
+
+var root = $.from_html(`<div class="loading svelte-1xmjmrw"><div class="spinner svelte-1xmjmrw"></div> <p class="svelte-1xmjmrw">Loading documentation...</p></div>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	onMount(() => {
+		goto('/docs/installation');
+	});
+
+	var div = root();
+
+	$.append($$anchor, div);
+	$.pop();
+}
+=== 815 src/routes/docs/command-palette-api/+page.svelte	css
+
+	.lead.svelte-ha33iz {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+	.table-wrapper.svelte-ha33iz {
+		overflow-x: auto;
+		margin: var(--space-lg) 0;
+	}
+
+	.shortcuts-grid.svelte-ha33iz {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: var(--space-md);
+		margin: var(--space-lg) 0;
+	}
+
+	.shortcut-item.svelte-ha33iz {
+		display: flex;
+		align-items: center;
+		gap: var(--space-md);
+		padding: var(--space-md);
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+
+	.shortcut-keys.svelte-ha33iz {
+		display: flex;
+		gap: 0.25rem;
+	}
+
+	.shortcut-item.svelte-ha33iz span:where(.svelte-ha33iz) {
+		font-size: 0.875rem;
+		color: var(--color-text-secondary);
+	}
+
+=== 7286 src/routes/docs/command-palette-api/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(
+	`<h1>CommandPalette API</h1> <p class="lead svelte-ha33iz">The <code>CommandPalette</code> component is the main entry point for the command palette. 
+	It handles rendering, keyboard navigation, and action execution.</p> <h2>Basic Usage</h2> <p>Import and render the CommandPalette at the root of your application:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>+page.svelte</span></div> <pre><code></code></pre></div> <h2>Props</h2> <div class="table-wrapper svelte-ha33iz"><table><thead><tr><th>Prop</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody><tr><td><code>commands</code></td><td><code>action[]</code></td><td><code>[]</code></td><td>Array of action objects to display in the palette</td></tr><tr><td><code>placeholder</code></td><td><code>string</code></td><td><code>"Search..."</code></td><td>Placeholder text for the search input</td></tr><tr><td><code>shortcut</code></td><td><code>string</code></td><td><code>"$mod+k"</code></td><td>Keyboard shortcut to toggle the palette</td></tr><tr><td><code>unstyled</code></td><td><code>boolean</code></td><td><code>false</code></td><td>Disable all default styles</td></tr></tbody></table></div> <h2>Event Callbacks</h2> <div class="table-wrapper svelte-ha33iz"><table><thead><tr><th>Prop</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>onOpen</code></td><td><code>() => void</code></td><td>Called when the palette opens</td></tr><tr><td><code>onClose</code></td><td><code>() => void</code></td><td>Called when the palette closes</td></tr><tr><td><code>onActionSelect</code></td><td><code>(action) => void</code></td><td>Called when an action is selected (before <code>onRun</code>)</td></tr></tbody></table></div> <h2>Styling Props</h2> <p>Every visual element can be styled via class or inline style props:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Styled Example</span></div> <pre><code></code></pre></div> <div class="table-wrapper svelte-ha33iz"><table><thead><tr><th>Class Prop</th><th>Style Prop</th><th>Target Element</th></tr></thead><tbody><tr><td><code>inputClass</code></td><td><code>inputStyle</code></td><td>Search input field</td></tr><tr><td><code>overlayClass</code></td><td><code>overlayStyle</code></td><td>Background overlay</td></tr><tr><td><code>paletteWrapperInnerClass</code></td><td><code>paletteWrapperInnerStyle</code></td><td>Main palette container</td></tr><tr><td><code>resultsContainerClass</code></td><td><code>resultsContainerStyle</code></td><td>Results list container</td></tr><tr><td><code>resultContainerClass</code></td><td><code>resultContainerStyle</code></td><td>Individual result item</td></tr><tr><td><code>optionSelectedClass</code></td><td><code>optionSelectedStyle</code></td><td>Active/selected result</td></tr><tr><td><code>titleClass</code></td><td><code>titleStyle</code></td><td>Result title</td></tr><tr><td><code>subtitleClass</code></td><td><code>subtitleStyle</code></td><td>Result subtitle</td></tr><tr><td><code>descriptionClass</code></td><td><code>descriptionStyle</code></td><td>Result description</td></tr><tr><td><code>keyboardButtonClass</code></td><td><code>keyboardButtonStyle</code></td><td>Keyboard shortcut badges</td></tr></tbody></table></div> <h2>Keyboard Navigation</h2> <p>The palette supports the following keyboard shortcuts out of the box:</p> <div class="shortcuts-grid svelte-ha33iz"><div class="shortcut-item svelte-ha33iz"><div class="shortcut-keys svelte-ha33iz"><kbd class="kbd">⌘</kbd><kbd class="kbd">K</kbd></div> <span class="svelte-ha33iz">Toggle palette (customizable)</span></div> <div class="shortcut-item svelte-ha33iz"><div class="shortcut-keys svelte-ha33iz"><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd></div> <span class="svelte-ha33iz">Navigate results</span></div> <div class="shortcut-item svelte-ha33iz"><div class="shortcut-keys svelte-ha33iz"><kbd class="kbd">Enter</kbd></div> <span class="svelte-ha33iz">Execute selected action</span></div> <div class="shortcut-item svelte-ha33iz"><div class="shortcut-keys svelte-ha33iz"><kbd class="kbd">Esc</kbd></div> <span class="svelte-ha33iz">Close palette</span></div></div>`,
+	1
+);
+
+export default function _page($$anchor) {
+	const basicExample = `<script lang="ts">
+  import CommandPalette, { defineActions } from '$lib';
+
+  const actions = defineActions([
+    {
+      title: 'Go to Dashboard',
+      subTitle: 'Navigate to the main dashboard',
+      icon: '🏠',
+      onRun: () => goto('/dashboard'),
+      shortcut: 'G D'
+    },
+    {
+      title: 'Toggle Theme',
+      subTitle: 'Switch between light and dark mode',
+      icon: '🎨',
+      group: 'Preferences',
+      onRun: () => toggleTheme(),
+      shortcut: 'T T'
+    }
+  ]);
+<\/script>
+
+<CommandPalette
+  commands={actions}
+  placeholder="Search actions..."
+  shortcut="$mod+k"
+  onOpen={() => console.log('opened')}
+  onClose={() => console.log('closed')}
+/>`;
+
+	const styledExample = `<CommandPalette
+  commands={actions}
+  unstyled={false}
+  placeholder="What do you want to do?"
+  
+  <!-- Style classes (Tailwind, etc.) -->
+  inputClass="bg-gray-100 dark:bg-gray-800"
+  resultContainerClass="hover:bg-blue-50"
+  
+  <!-- Or inline styles -->
+  inputStyle={{ background: '#1a1a24', color: '#fff' }}
+  overlayStyle={{ backdropFilter: 'blur(8px)' }}
+  optionSelectedStyle={{ background: 'rgba(99, 102, 241, 0.1)' }}
+/>`;
+
+	var fragment = root();
+	var div = $.sibling($.first_child(fragment), 8);
+	var pre = $.sibling($.child(div), 2);
+	var code = $.child(pre);
+
+	code.textContent = '<script lang="ts">\n  import CommandPalette, { defineActions } from \'$lib\';\n\n  const actions = defineActions([\n    {\n      title: \'Go to Dashboard\',\n      subTitle: \'Navigate to the main dashboard\',\n      icon: \'🏠\',\n      onRun: () => goto(\'/dashboard\'),\n      shortcut: \'G D\'\n    },\n    {\n      title: \'Toggle Theme\',\n      subTitle: \'Switch between light and dark mode\',\n      icon: \'🎨\',\n      group: \'Preferences\',\n      onRun: () => toggleTheme(),\n      shortcut: \'T T\'\n    }\n  ]);\n</script>\n\n<CommandPalette\n  commands={actions}\n  placeholder="Search actions..."\n  shortcut="$mod+k"\n  onOpen={() => console.log(\'opened\')}\n  onClose={() => console.log(\'closed\')}\n/>';
+	$.reset(pre);
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 14);
+	var pre_1 = $.sibling($.child(div_1), 2);
+	var code_1 = $.child(pre_1);
+
+	code_1.textContent = '<CommandPalette\n  commands={actions}\n  unstyled={false}\n  placeholder="What do you want to do?"\n  \n  <!-- Style classes (Tailwind, etc.) -->\n  inputClass="bg-gray-100 dark:bg-gray-800"\n  resultContainerClass="hover:bg-blue-50"\n  \n  <!-- Or inline styles -->\n  inputStyle={{ background: \'#1a1a24\', color: \'#fff\' }}\n  overlayStyle={{ backdropFilter: \'blur(8px)\' }}\n  optionSelectedStyle={{ background: \'rgba(99, 102, 241, 0.1)\' }}\n/>';
+	$.reset(pre_1);
+	$.reset(div_1);
+	$.next(8);
+	$.append($$anchor, fragment);
+}
+=== 2713 src/routes/docs/custom-components/+page.svelte	css
+
+	.lead.svelte-v7y62z {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+	.icon-types.svelte-v7y62z {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: var(--space-md);
+		margin: var(--space-lg) 0;
+	}
+
+	@media (max-width: 768px) {
+		.icon-types.svelte-v7y62z {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	.icon-type.svelte-v7y62z {
+		text-align: center;
+		padding: var(--space-lg);
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+
+	.icon-demo.svelte-v7y62z {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 48px;
+		height: 48px;
+		margin: 0 auto var(--space-sm);
+		font-size: 1.5rem;
+		background: var(--color-bg-tertiary);
+		border-radius: var(--radius-md);
+		color: var(--color-text-primary);
+	}
+
+	.icon-type.svelte-v7y62z h4:where(.svelte-v7y62z) {
+		font-size: 0.9375rem;
+		margin-bottom: var(--space-xs);
+	}
+
+	.icon-type.svelte-v7y62z p:where(.svelte-v7y62z) {
+		font-size: 0.8125rem;
+		margin: 0;
+	}
+
+	.icon-demo-grid.svelte-v7y62z {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+		gap: var(--space-md);
+		margin: var(--space-lg) 0;
+	}
+
+	.icon-demo-item.svelte-v7y62z {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		padding: var(--space-md);
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+
+	.icon-box.svelte-v7y62z {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 36px;
+		height: 36px;
+		background: var(--color-bg-tertiary);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-primary);
+	}
+
+	.icon-demo-item.svelte-v7y62z span:where(.svelte-v7y62z):last-child {
+		font-size: 0.875rem;
+		color: var(--color-text-secondary);
+	}
+
+	.callout.svelte-v7y62z {
+		display: flex;
+		gap: var(--space-md);
+		padding: var(--space-md);
+		background: var(--color-accent-subtle);
+		border: 1px solid rgba(255, 62, 0, 0.2);
+		border-radius: var(--radius-md);
+		margin: var(--space-lg) 0;
+	}
+
+	.callout-info.svelte-v7y62z {
+		background: rgba(99, 102, 241, 0.1);
+		border-color: rgba(99, 102, 241, 0.3);
+	}
+
+	.callout-info.svelte-v7y62z strong:where(.svelte-v7y62z) {
+		color: var(--color-secondary);
+	}
+
+	.callout-icon.svelte-v7y62z {
+		font-size: 1.25rem;
+	}
+
+	.callout-content.svelte-v7y62z {
+		flex: 1;
+	}
+
+	.callout-content.svelte-v7y62z strong:where(.svelte-v7y62z) {
+		color: var(--color-accent);
+	}
+
+	.callout-content.svelte-v7y62z code:where(.svelte-v7y62z) {
+		background: var(--color-bg-tertiary);
+		padding: 0.125rem 0.375rem;
+		border-radius: 4px;
+		font-size: 0.875rem;
+	}
+
+=== 12393 src/routes/docs/custom-components/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { Settings, Search, User, Home, FolderPlus, Download } from 'lucide-svelte';
+
+var root = $.from_html(
+	`<h1>Custom Components</h1> <p class="lead svelte-v7y62z">Extend the command palette with custom empty states, icons, and grouped actions.</p> <h2>Custom Empty State</h2> <p>Provide a custom UI when no search results are found:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Custom Empty State</span></div> <pre><code></code></pre></div> <h2>Action Icons</h2> <p>Add visual icons to your actions using emojis or image URLs:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Icon Types</span></div> <pre><code></code></pre></div> <div class="icon-types svelte-v7y62z"><div class="icon-type svelte-v7y62z"><span class="icon-demo svelte-v7y62z">🚀</span> <h4 class="svelte-v7y62z">Emoji</h4> <p class="svelte-v7y62z">Simple and universal</p></div> <div class="icon-type svelte-v7y62z"><span class="icon-demo svelte-v7y62z"><img src="https://github.githubassets.com/favicons/favicon.svg" alt="GitHub" width="24" height="24"/></span> <h4 class="svelte-v7y62z">URL</h4> <p class="svelte-v7y62z">External images</p></div> <div class="icon-type svelte-v7y62z"><span class="icon-demo svelte-v7y62z">📁</span> <h4 class="svelte-v7y62z">Local</h4> <p class="svelte-v7y62z">Static assets</p></div> <div class="icon-type svelte-v7y62z"><span class="icon-demo svelte-v7y62z"><!></span> <h4 class="svelte-v7y62z">Snippet</h4> <p class="svelte-v7y62z">Custom SVG/Components</p></div></div> <h2>Using Icon Libraries (Lucide, Heroicons, etc.)</h2> <p>For professional-looking icons, use third-party libraries like <a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a>, <a href="https://heroicons.com" target="_blank" rel="noopener">Heroicons</a>, or any Svelte icon library.
+	Define your icons as Snippets and pass them to the <code>icon</code> property:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Using Lucide Icons</span></div> <pre><code></code></pre></div> <h3>Live Demo</h3> <p>Here's how Lucide icons look in practice:</p> <div class="icon-demo-grid svelte-v7y62z"><div class="icon-demo-item svelte-v7y62z"><span class="icon-box svelte-v7y62z"><!></span> <span class="svelte-v7y62z">Settings</span></div> <div class="icon-demo-item svelte-v7y62z"><span class="icon-box svelte-v7y62z"><!></span> <span class="svelte-v7y62z">Search</span></div> <div class="icon-demo-item svelte-v7y62z"><span class="icon-box svelte-v7y62z"><!></span> <span class="svelte-v7y62z">User</span></div> <div class="icon-demo-item svelte-v7y62z"><span class="icon-box svelte-v7y62z"><!></span> <span class="svelte-v7y62z">Home</span></div> <div class="icon-demo-item svelte-v7y62z"><span class="icon-box svelte-v7y62z"><!></span> <span class="svelte-v7y62z">FolderPlus</span></div> <div class="icon-demo-item svelte-v7y62z"><span class="icon-box svelte-v7y62z"><!></span> <span class="svelte-v7y62z">Download</span></div></div> <div class="callout callout-info svelte-v7y62z"><div class="callout-icon svelte-v7y62z">📦</div> <div class="callout-content svelte-v7y62z"><strong class="svelte-v7y62z">Install Lucide:</strong> <code class="svelte-v7y62z">npm install lucide-svelte</code></div></div> <h2>Action Groups</h2> <p>Organize related actions under group headers:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Grouped Actions</span></div> <pre><code></code></pre></div> <div class="callout svelte-v7y62z"><div class="callout-icon svelte-v7y62z">💡</div> <div class="callout-content svelte-v7y62z"><strong class="svelte-v7y62z">Tip:</strong> Actions without a <code class="svelte-v7y62z">group</code> property appear at the top of the list.
+		Groups are displayed in the order they first appear in your actions array.</div></div>`,
+	1
+);
+
+export default function _page($$anchor) {
+	const emptyStateExample = `<script lang="ts">
+  import CommandPalette, { defineActions } from '$lib';
+<\/script>
+
+<CommandPalette commands={actions}>
+  {#snippet emptyState()}
+    <div class="custom-empty">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="11" cy="11" r="8"/>
+        <path d="m21 21-4.3-4.3"/>
+      </svg>
+      <h3>No results found</h3>
+      <p>Try searching for something else</p>
+      <button on:click={() => console.log('Create new')}>
+        Create new action
+      </button>
+    </div>
+  {/snippet}
+</CommandPalette>`;
+
+	const iconExamples = `const actions = defineActions([
+  // Emoji icons
+  {
+    title: 'Settings',
+    icon: '⚙️',
+    onRun: () => openSettings()
+  },
+  
+  // Image URL icons
+  {
+    title: 'GitHub',
+    icon: 'https://github.githubassets.com/favicons/favicon.svg',
+    onRun: () => window.open('https://github.com')
+  },
+  
+  // Local image icons
+  {
+    title: 'Profile',
+    icon: '/icons/user.svg',
+    onRun: () => openProfile()
+  }
+]);`;
+
+	const lucideExample = `<script lang="ts">
+  import CommandPalette, { defineActions } from 'svelte-command-palette';
+  import { Settings, Search, User, Home, FolderPlus, Download } from 'lucide-svelte';
+<\/script>
+
+<!-- Define snippets for each icon -->
+{#snippet settingsIcon()}
+  <Settings size={20} />
+{/snippet}
+
+{#snippet searchIcon()}
+  <Search size={20} />
+{/snippet}
+
+{#snippet userIcon()}
+  <User size={20} />
+{/snippet}
+
+{#snippet homeIcon()}
+  <Home size={20} />
+{/snippet}
+
+<!-- Use snippets in your actions -->
+<script>
+  const actions = defineActions([
+    {
+      title: 'Open Settings',
+      subTitle: 'Configure your preferences',
+      icon: settingsIcon,
+      onRun: () => goto('/settings')
+    },
+    {
+      title: 'Search Files',
+      subTitle: 'Find files in your project',
+      icon: searchIcon,
+      onRun: () => openSearch()
+    },
+    {
+      title: 'View Profile',
+      subTitle: 'See your account details',
+      icon: userIcon,
+      onRun: () => goto('/profile')
+    },
+    {
+      title: 'Go Home',
+      subTitle: 'Return to dashboard',
+      icon: homeIcon,
+      onRun: () => goto('/')
+    }
+  ]);
+<\/script>
+
+<CommandPalette commands={actions} />`;
+
+	const groupExample = `const actions = defineActions([
+  // Navigation group
+  {
+    title: 'Go to Dashboard',
+    group: 'Navigation',
+    icon: '🏠',
+    onRun: () => goto('/dashboard')
+  },
+  {
+    title: 'Go to Settings',
+    group: 'Navigation', 
+    icon: '⚙️',
+    onRun: () => goto('/settings')
+  },
+  
+  // Actions group
+  {
+    title: 'Create New Project',
+    group: 'Actions',
+    icon: '➕',
+    onRun: () => createProject()
+  },
+  {
+    title: 'Export Data',
+    group: 'Actions',
+    icon: '📤',
+    onRun: () => exportData()
+  },
+  
+  // Ungrouped items appear at the top
+  {
+    title: 'Quick Search',
+    icon: '🔍',
+    onRun: () => quickSearch()
+  }
+]);`;
+
+	var fragment = root();
+	var div = $.sibling($.first_child(fragment), 8);
+	var pre = $.sibling($.child(div), 2);
+	var code = $.child(pre);
+
+	code.textContent = '<script lang="ts">\n  import CommandPalette, { defineActions } from \'$lib\';\n</script>\n\n<CommandPalette commands={actions}>\n  {#snippet emptyState()}\n    <div class="custom-empty">\n      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">\n        <circle cx="11" cy="11" r="8"/>\n        <path d="m21 21-4.3-4.3"/>\n      </svg>\n      <h3>No results found</h3>\n      <p>Try searching for something else</p>\n      <button on:click={() => console.log(\'Create new\')}>\n        Create new action\n      </button>\n    </div>\n  {/snippet}\n</CommandPalette>';
+	$.reset(pre);
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 6);
+	var pre_1 = $.sibling($.child(div_1), 2);
+	var code_1 = $.child(pre_1);
+
+	code_1.textContent = 'const actions = defineActions([\n  // Emoji icons\n  {\n    title: \'Settings\',\n    icon: \'⚙️\',\n    onRun: () => openSettings()\n  },\n  \n  // Image URL icons\n  {\n    title: \'GitHub\',\n    icon: \'https://github.githubassets.com/favicons/favicon.svg\',\n    onRun: () => window.open(\'https://github.com\')\n  },\n  \n  // Local image icons\n  {\n    title: \'Profile\',\n    icon: \'/icons/user.svg\',\n    onRun: () => openProfile()\n  }\n]);';
+	$.reset(pre_1);
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 2);
+	var div_3 = $.sibling($.child(div_2), 6);
+	var span = $.child(div_3);
+	var node = $.child(span);
+
+	Settings(node, { size: 24 });
+	$.reset(span);
+	$.next(4);
+	$.reset(div_3);
+	$.reset(div_2);
+
+	var div_4 = $.sibling(div_2, 6);
+	var pre_2 = $.sibling($.child(div_4), 2);
+	var code_2 = $.child(pre_2);
+
+	code_2.textContent = '<script lang="ts">\n  import CommandPalette, { defineActions } from \'svelte-command-palette\';\n  import { Settings, Search, User, Home, FolderPlus, Download } from \'lucide-svelte\';\n</script>\n\n<!-- Define snippets for each icon -->\n{#snippet settingsIcon()}\n  <Settings size={20} />\n{/snippet}\n\n{#snippet searchIcon()}\n  <Search size={20} />\n{/snippet}\n\n{#snippet userIcon()}\n  <User size={20} />\n{/snippet}\n\n{#snippet homeIcon()}\n  <Home size={20} />\n{/snippet}\n\n<!-- Use snippets in your actions -->\n<script>\n  const actions = defineActions([\n    {\n      title: \'Open Settings\',\n      subTitle: \'Configure your preferences\',\n      icon: settingsIcon,\n      onRun: () => goto(\'/settings\')\n    },\n    {\n      title: \'Search Files\',\n      subTitle: \'Find files in your project\',\n      icon: searchIcon,\n      onRun: () => openSearch()\n    },\n    {\n      title: \'View Profile\',\n      subTitle: \'See your account details\',\n      icon: userIcon,\n      onRun: () => goto(\'/profile\')\n    },\n    {\n      title: \'Go Home\',\n      subTitle: \'Return to dashboard\',\n      icon: homeIcon,\n      onRun: () => goto(\'/\')\n    }\n  ]);\n</script>\n\n<CommandPalette commands={actions} />';
+	$.reset(pre_2);
+	$.reset(div_4);
+
+	var div_5 = $.sibling(div_4, 6);
+	var div_6 = $.child(div_5);
+	var span_1 = $.child(div_6);
+	var node_1 = $.child(span_1);
+
+	Settings(node_1, { size: 20 });
+	$.reset(span_1);
+	$.next(2);
+	$.reset(div_6);
+
+	var div_7 = $.sibling(div_6, 2);
+	var span_2 = $.child(div_7);
+	var node_2 = $.child(span_2);
+
+	Search(node_2, { size: 20 });
+	$.reset(span_2);
+	$.next(2);
+	$.reset(div_7);
+
+	var div_8 = $.sibling(div_7, 2);
+	var span_3 = $.child(div_8);
+	var node_3 = $.child(span_3);
+
+	User(node_3, { size: 20 });
+	$.reset(span_3);
+	$.next(2);
+	$.reset(div_8);
+
+	var div_9 = $.sibling(div_8, 2);
+	var span_4 = $.child(div_9);
+	var node_4 = $.child(span_4);
+
+	Home(node_4, { size: 20 });
+	$.reset(span_4);
+	$.next(2);
+	$.reset(div_9);
+
+	var div_10 = $.sibling(div_9, 2);
+	var span_5 = $.child(div_10);
+	var node_5 = $.child(span_5);
+
+	FolderPlus(node_5, { size: 20 });
+	$.reset(span_5);
+	$.next(2);
+	$.reset(div_10);
+
+	var div_11 = $.sibling(div_10, 2);
+	var span_6 = $.child(div_11);
+	var node_6 = $.child(span_6);
+
+	Download(node_6, { size: 20 });
+	$.reset(span_6);
+	$.next(2);
+	$.reset(div_11);
+	$.reset(div_5);
+
+	var div_12 = $.sibling(div_5, 8);
+	var pre_3 = $.sibling($.child(div_12), 2);
+	var code_3 = $.child(pre_3);
+
+	code_3.textContent = 'const actions = defineActions([\n  // Navigation group\n  {\n    title: \'Go to Dashboard\',\n    group: \'Navigation\',\n    icon: \'🏠\',\n    onRun: () => goto(\'/dashboard\')\n  },\n  {\n    title: \'Go to Settings\',\n    group: \'Navigation\', \n    icon: \'⚙️\',\n    onRun: () => goto(\'/settings\')\n  },\n  \n  // Actions group\n  {\n    title: \'Create New Project\',\n    group: \'Actions\',\n    icon: \'➕\',\n    onRun: () => createProject()\n  },\n  {\n    title: \'Export Data\',\n    group: \'Actions\',\n    icon: \'📤\',\n    onRun: () => exportData()\n  },\n  \n  // Ungrouped items appear at the top\n  {\n    title: \'Quick Search\',\n    icon: \'🔍\',\n    onRun: () => quickSearch()\n  }\n]);';
+	$.reset(pre_3);
+	$.reset(div_12);
+	$.next(2);
+	$.append($$anchor, fragment);
+}
+=== 207 src/routes/docs/define-actions-api/+page.svelte	css
+
+	.lead.svelte-wz1ix7 {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+	.table-wrapper.svelte-wz1ix7 {
+		overflow-x: auto;
+		margin: var(--space-lg) 0;
+	}
+
+=== 6472 src/routes/docs/define-actions-api/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(
+	`<h1>defineActions API</h1> <p class="lead svelte-wz1ix7">The <code>defineActions</code> helper function creates properly typed action arrays
+	for the command palette.</p> <h2>Function Signature</h2> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Signature</span></div> <pre><code>function defineActions(actions: action[]): action[]</code></pre></div> <h2>Full Example</h2> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Complete Action</span></div> <pre><code></code></pre></div> <h2>Type Definition</h2> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>TypeScript Types</span></div> <pre><code></code></pre></div> <h2>Property Reference</h2> <div class="table-wrapper svelte-wz1ix7"><table><thead><tr><th>Property</th><th>Type</th><th>Required</th><th>Description</th></tr></thead><tbody><tr><td><code>title</code></td><td><code>string</code></td><td>✓</td><td>Main display text for the action</td></tr><tr><td><code>actionId</code></td><td><code>string | number</code></td><td></td><td>Unique identifier (auto-generated if omitted)</td></tr><tr><td><code>subTitle</code></td><td><code>string</code></td><td></td><td>Secondary text below title</td></tr><tr><td><code>description</code></td><td><code>string</code></td><td></td><td>Additional descriptive text</td></tr><tr><td><code>icon</code></td><td><code>string</code></td><td></td><td>Emoji or image URL</td></tr><tr><td><code>group</code></td><td><code>string</code></td><td></td><td>Group header name</td></tr><tr><td><code>keywords</code></td><td><code>string[]</code></td><td></td><td>Additional search terms</td></tr><tr><td><code>shortcut</code></td><td><code>string</code></td><td></td><td>Keyboard shortcut (tinykeys format)</td></tr><tr><td><code>onRun</code></td><td><code>function</code></td><td></td><td>Callback when action executes</td></tr><tr><td><code>canActionRun</code></td><td><code>function</code></td><td></td><td>Conditional check before execution</td></tr></tbody></table></div> <h2>Callback Parameters</h2> <p>Both <code>onRun</code> and <code>canActionRun</code> receive:</p> <div class="table-wrapper svelte-wz1ix7"><table><thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>action</code></td><td>The current action being executed</td></tr><tr><td><code>storeProps</code></td><td><code>storeParams</code></td><td>Current palette state (commands, results, etc.)</td></tr><tr><td><code>storeMethods</code></td><td><code>StoreMethods</code></td><td>Methods to control the palette</td></tr></tbody></table></div>`,
+	1
+);
+
+export default function _page($$anchor) {
+	const fullExample = `import { defineActions } from '$lib';
+import type { action } from '$lib';
+
+const actions = defineActions([
+  {
+    // Required
+    title: 'Go to Dashboard',
+    
+    // Optional - Unique identifier
+    actionId: 'nav-dashboard',
+    
+    // Optional - Secondary text
+    subTitle: 'View your analytics',
+    
+    // Optional - Additional description  
+    description: 'Opens the main dashboard with all your metrics',
+    
+    // Optional - Icon (emoji or image URL)
+    icon: '📊',
+    
+    // Optional - Group header
+    group: 'Navigation',
+    
+    // Optional - Search keywords
+    keywords: ['analytics', 'metrics', 'home', 'main'],
+    
+    // Optional - Keyboard shortcut
+    shortcut: 'G D',
+    
+    // Optional - Action handler
+    onRun: ({ action, storeProps, storeMethods }) => {
+      console.log('Executing:', action.title);
+      goto('/dashboard');
+    },
+    
+    // Optional - Conditional execution
+    canActionRun: ({ action, storeProps, storeMethods }) => {
+      return storeProps.isAuthenticated;
+    }
+  }
+]);`;
+
+	const typeDefinition = `interface action {
+  title: string;
+  actionId?: string | number;
+  subTitle?: string;
+  description?: string;
+  icon?: string;
+  group?: string;
+  keywords?: string[];
+  shortcut?: string;
+  onRun?: (params: onRunParams) => void;
+  canActionRun?: (params: onRunParams) => boolean;
+}
+
+interface onRunParams {
+  action: action;
+  storeProps: storeParams;
+  storeMethods: StoreMethods;
+}`;
+
+	var fragment = root();
+	var div = $.sibling($.first_child(fragment), 10);
+	var pre = $.sibling($.child(div), 2);
+	var code = $.child(pre);
+
+	code.textContent = 'import { defineActions } from \'$lib\';\nimport type { action } from \'$lib\';\n\nconst actions = defineActions([\n  {\n    // Required\n    title: \'Go to Dashboard\',\n    \n    // Optional - Unique identifier\n    actionId: \'nav-dashboard\',\n    \n    // Optional - Secondary text\n    subTitle: \'View your analytics\',\n    \n    // Optional - Additional description  \n    description: \'Opens the main dashboard with all your metrics\',\n    \n    // Optional - Icon (emoji or image URL)\n    icon: \'📊\',\n    \n    // Optional - Group header\n    group: \'Navigation\',\n    \n    // Optional - Search keywords\n    keywords: [\'analytics\', \'metrics\', \'home\', \'main\'],\n    \n    // Optional - Keyboard shortcut\n    shortcut: \'G D\',\n    \n    // Optional - Action handler\n    onRun: ({ action, storeProps, storeMethods }) => {\n      console.log(\'Executing:\', action.title);\n      goto(\'/dashboard\');\n    },\n    \n    // Optional - Conditional execution\n    canActionRun: ({ action, storeProps, storeMethods }) => {\n      return storeProps.isAuthenticated;\n    }\n  }\n]);';
+	$.reset(pre);
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 4);
+	var pre_1 = $.sibling($.child(div_1), 2);
+	var code_1 = $.child(pre_1);
+
+	code_1.textContent = 'interface action {\n  title: string;\n  actionId?: string | number;\n  subTitle?: string;\n  description?: string;\n  icon?: string;\n  group?: string;\n  keywords?: string[];\n  shortcut?: string;\n  onRun?: (params: onRunParams) => void;\n  canActionRun?: (params: onRunParams) => boolean;\n}\n\ninterface onRunParams {\n  action: action;\n  storeProps: storeParams;\n  storeMethods: StoreMethods;\n}';
+	$.reset(pre_1);
+	$.reset(div_1);
+	$.next(10);
+	$.append($$anchor, fragment);
+}
+=== 1907 src/routes/docs/define-actions/+page.svelte	css
+
+	.lead.svelte-1631d2a {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+	.table-wrapper.svelte-1631d2a {
+		overflow-x: auto;
+		margin: var(--space-lg) 0;
+	}
+
+	.callback-params.svelte-1631d2a {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: var(--space-md);
+		margin: var(--space-lg) 0;
+	}
+
+	.param-card.svelte-1631d2a {
+		padding: var(--space-md);
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+
+	.param-card.svelte-1631d2a h4:where(.svelte-1631d2a) {
+		margin-bottom: var(--space-xs);
+		font-size: 0.9375rem;
+	}
+
+	.param-card.svelte-1631d2a p:where(.svelte-1631d2a) {
+		font-size: 0.875rem;
+		margin: 0;
+	}
+
+	.callout.svelte-1631d2a {
+		display: flex;
+		gap: var(--space-md);
+		padding: var(--space-md);
+		background: var(--color-accent-subtle);
+		border: 1px solid rgba(255, 62, 0, 0.2);
+		border-radius: var(--radius-md);
+		margin: var(--space-lg) 0;
+	}
+
+	.callout-icon.svelte-1631d2a {
+		font-size: 1.25rem;
+	}
+
+	.callout-content.svelte-1631d2a {
+		flex: 1;
+	}
+
+	.callout-content.svelte-1631d2a strong:where(.svelte-1631d2a) {
+		color: var(--color-accent);
+	}
+
+	.shortcuts-examples.svelte-1631d2a {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: var(--space-md);
+		margin: var(--space-lg) 0;
+	}
+
+	.shortcut-example.svelte-1631d2a {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-xs);
+		padding: var(--space-md);
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+
+	.shortcut-example.svelte-1631d2a code:where(.svelte-1631d2a) {
+		font-size: 0.9375rem;
+		color: var(--color-accent);
+	}
+
+	.shortcut-example.svelte-1631d2a span:where(.svelte-1631d2a) {
+		font-size: 0.8125rem;
+		color: var(--color-text-tertiary);
+	}
+
+=== 8844 src/routes/docs/define-actions/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(
+	`<h1>Defining Actions</h1> <p class="lead svelte-1631d2a">Actions are the building blocks of your command palette. Each action defines what appears 
+	in the palette and what happens when it's triggered.</p> <h2>Basic Structure</h2> <p>Use the <code>defineActions</code> helper to create properly typed actions:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>actions.ts</span></div> <pre><code></code></pre></div> <h2>Action Properties</h2> <div class="table-wrapper svelte-1631d2a"><table><thead><tr><th>Property</th><th>Type</th><th>Required</th><th>Description</th></tr></thead><tbody><tr><td><code>title</code></td><td><code>string</code></td><td>✓</td><td>Main display text for the action</td></tr><tr><td><code>actionId</code></td><td><code>string | number</code></td><td></td><td>Unique identifier (auto-generated if not provided)</td></tr><tr><td><code>subTitle</code></td><td><code>string</code></td><td></td><td>Secondary text displayed below the title</td></tr><tr><td><code>description</code></td><td><code>string</code></td><td></td><td>Additional description text</td></tr><tr><td><code>icon</code></td><td><code>string | Snippet</code></td><td></td><td>Emoji, image URL, or Svelte snippet</td></tr><tr><td><code>group</code></td><td><code>string</code></td><td></td><td>Group name for organizing actions</td></tr><tr><td><code>keywords</code></td><td><code>string[]</code></td><td></td><td>Additional search terms</td></tr><tr><td><code>shortcut</code></td><td><code>string</code></td><td></td><td>Keyboard shortcut (e.g., "G D", "$mod+S")</td></tr><tr><td><code>onRun</code></td><td><code>function</code></td><td></td><td>Callback when action is executed</td></tr><tr><td><code>canActionRun</code></td><td><code>function</code></td><td></td><td>Conditional check before execution</td></tr></tbody></table></div> <h2>Callback Parameters</h2> <p>Both <code>onRun</code> and <code>canActionRun</code> receive an object with:</p> <div class="callback-params svelte-1631d2a"><div class="param-card svelte-1631d2a"><h4 class="svelte-1631d2a"><code>action</code></h4> <p class="svelte-1631d2a">The current action object being executed</p></div> <div class="param-card svelte-1631d2a"><h4 class="svelte-1631d2a"><code>storeProps</code></h4> <p class="svelte-1631d2a">Current state of the palette store (commands, results, calledActions, etc.)</p></div> <div class="param-card svelte-1631d2a"><h4 class="svelte-1631d2a"><code>storeMethods</code></h4> <p class="svelte-1631d2a">Methods to control the palette (openPalette, closePalette, togglePalette)</p></div></div> <h2>Conditional Actions</h2> <p>Use <code>canActionRun</code> to conditionally enable or disable actions:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Conditional Actions</span></div> <pre><code></code></pre></div> <div class="callout svelte-1631d2a"><div class="callout-icon svelte-1631d2a">💡</div> <div class="callout-content svelte-1631d2a"><strong class="svelte-1631d2a">Tip:</strong> When <code>canActionRun</code> returns <code>false</code>, the action 
+		still appears in search results but won't execute. You can show a message using <code>alert()</code> before returning <code>false</code>.</div></div> <h2>Grouped Actions</h2> <p>Organize related actions using the <code>group</code> property:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Grouped Actions</span></div> <pre><code></code></pre></div> <h2>Keyboard Shortcuts</h2> <p>Shortcuts use the <a href="https://github.com/jamiebuilds/tinykeys" target="_blank" rel="noopener">tinykeys</a> format:</p> <div class="shortcuts-examples svelte-1631d2a"><div class="shortcut-example svelte-1631d2a"><code class="svelte-1631d2a">"G D"</code> <span class="svelte-1631d2a">Press G, then D (sequence)</span></div> <div class="shortcut-example svelte-1631d2a"><code class="svelte-1631d2a">"$mod+S"</code> <span class="svelte-1631d2a">Cmd/Ctrl + S (modifier)</span></div> <div class="shortcut-example svelte-1631d2a"><code class="svelte-1631d2a">"Shift+Alt+P"</code> <span class="svelte-1631d2a">Multiple modifiers</span></div> <div class="shortcut-example svelte-1631d2a"><code class="svelte-1631d2a">"ArrowUp"</code> <span class="svelte-1631d2a">Special keys</span></div></div>`,
+	1
+);
+
+export default function _page($$anchor) {
+	const basicExample = `import { defineActions } from '$lib'; // Use 'svelte-command-palette' in your project
+
+const actions = defineActions([
+  {
+    title: 'Search Users',
+    subTitle: 'Find users by name or email',
+    description: 'Opens the user search modal',
+    icon: '👥',
+    group: 'Users',
+    keywords: ['find', 'lookup', 'people'],
+    shortcut: 'S U',
+    onRun: ({ action, storeProps, storeMethods }) => {
+      openUserSearch();
+      storeMethods.closePalette();
+    },
+    canActionRun: ({ storeProps }) => {
+      // Only show if user is authenticated
+      return storeProps.isAuthenticated;
+    }
+  }
+]);`;
+
+	const conditionalExample = `const actions = defineActions([
+  {
+    actionId: 'admin-panel',
+    title: 'Open Admin Panel',
+    icon: '🔐',
+    canActionRun: ({ storeProps }) => {
+      // Only admins can see this action
+      return storeProps.user?.role === 'admin';
+    },
+    onRun: () => goto('/admin')
+  },
+  {
+    actionId: 'dependent-action',
+    title: 'Run Follow-up Task',
+    subTitle: 'Requires "admin-panel" to be run first',
+    canActionRun: ({ storeProps }) => {
+      // Check if admin-panel was executed
+      return storeProps.calledActions.includes('admin-panel');
+    },
+    onRun: () => runFollowUp()
+  }
+]);`;
+
+	const groupedExample = `const actions = defineActions([
+  // Navigation group
+  { title: 'Go to Dashboard', group: 'Navigation', icon: '🏠', ... },
+  { title: 'Go to Settings', group: 'Navigation', icon: '⚙️', ... },
+  
+  // Actions group
+  { title: 'Create New Project', group: 'Actions', icon: '➕', ... },
+  { title: 'Export Data', group: 'Actions', icon: '📤', ... },
+  
+  // Ungrouped actions appear first
+  { title: 'Search Everything', icon: '🔍', ... }
+]);`;
+
+	var fragment = root();
+	var div = $.sibling($.first_child(fragment), 8);
+	var pre = $.sibling($.child(div), 2);
+	var code = $.child(pre);
+
+	code.textContent = 'import { defineActions } from \'$lib\'; // Use \'svelte-command-palette\' in your project\n\nconst actions = defineActions([\n  {\n    title: \'Search Users\',\n    subTitle: \'Find users by name or email\',\n    description: \'Opens the user search modal\',\n    icon: \'👥\',\n    group: \'Users\',\n    keywords: [\'find\', \'lookup\', \'people\'],\n    shortcut: \'S U\',\n    onRun: ({ action, storeProps, storeMethods }) => {\n      openUserSearch();\n      storeMethods.closePalette();\n    },\n    canActionRun: ({ storeProps }) => {\n      // Only show if user is authenticated\n      return storeProps.isAuthenticated;\n    }\n  }\n]);';
+	$.reset(pre);
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 16);
+	var pre_1 = $.sibling($.child(div_1), 2);
+	var code_1 = $.child(pre_1);
+
+	code_1.textContent = 'const actions = defineActions([\n  {\n    actionId: \'admin-panel\',\n    title: \'Open Admin Panel\',\n    icon: \'🔐\',\n    canActionRun: ({ storeProps }) => {\n      // Only admins can see this action\n      return storeProps.user?.role === \'admin\';\n    },\n    onRun: () => goto(\'/admin\')\n  },\n  {\n    actionId: \'dependent-action\',\n    title: \'Run Follow-up Task\',\n    subTitle: \'Requires "admin-panel" to be run first\',\n    canActionRun: ({ storeProps }) => {\n      // Check if admin-panel was executed\n      return storeProps.calledActions.includes(\'admin-panel\');\n    },\n    onRun: () => runFollowUp()\n  }\n]);';
+	$.reset(pre_1);
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 8);
+	var pre_2 = $.sibling($.child(div_2), 2);
+	var code_2 = $.child(pre_2);
+
+	code_2.textContent = 'const actions = defineActions([\n  // Navigation group\n  { title: \'Go to Dashboard\', group: \'Navigation\', icon: \'🏠\', ... },\n  { title: \'Go to Settings\', group: \'Navigation\', icon: \'⚙️\', ... },\n  \n  // Actions group\n  { title: \'Create New Project\', group: \'Actions\', icon: \'➕\', ... },\n  { title: \'Export Data\', group: \'Actions\', icon: \'📤\', ... },\n  \n  // Ungrouped actions appear first\n  { title: \'Search Everything\', icon: \'🔍\', ... }\n]);';
+	$.reset(pre_2);
+	$.reset(div_2);
+	$.next(6);
+	$.append($$anchor, fragment);
+}
+=== 207 src/routes/docs/installation/+page.svelte	css
+
+	.lead.svelte-t7c0hb {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+	.table-wrapper.svelte-t7c0hb {
+		overflow-x: auto;
+		margin: var(--space-lg) 0;
+	}
+
+=== 2616 src/routes/docs/installation/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h1>Installation</h1> <p class="lead svelte-t7c0hb">Get started with Svelte Command Palette in just a few minutes.</p> <h2>Requirements</h2> <ul><li>Svelte 5.0 or higher</li> <li>SvelteKit 2.0 or higher (recommended)</li> <li>Node.js 18 or higher</li></ul> <h2>Package Installation</h2> <p>Install the package using your preferred package manager:</p> <h3>npm</h3> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Terminal</span></div> <pre><code></code></pre></div> <h3>yarn</h3> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Terminal</span></div> <pre><code></code></pre></div> <h3>pnpm</h3> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Terminal</span></div> <pre><code></code></pre></div> <h2>Dependencies</h2> <p>The package has minimal dependencies:</p> <div class="table-wrapper svelte-t7c0hb"><table><thead><tr><th>Package</th><th>Purpose</th></tr></thead><tbody><tr><td><code>fuse.js</code></td><td>Fuzzy search functionality</td></tr><tr><td><code>tinykeys</code></td><td>Keyboard shortcut handling</td></tr><tr><td><code>csstype</code></td><td>TypeScript CSS property types</td></tr></tbody></table></div> <h2>Next Steps</h2> <p>After installation, head to the <a href="/docs/quick-start">Quick Start guide</a> to set up your first command palette.</p>`, 1);
+
+export default function _page($$anchor) {
+	const npmInstall = `npm install svelte-command-palette`;
+	const yarnInstall = `yarn add svelte-command-palette`;
+	const pnpmInstall = `pnpm add svelte-command-palette`;
+	var fragment = root();
+	var div = $.sibling($.first_child(fragment), 14);
+	var pre = $.sibling($.child(div), 2);
+	var code = $.child(pre);
+
+	code.textContent = 'npm install svelte-command-palette';
+	$.reset(pre);
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 4);
+	var pre_1 = $.sibling($.child(div_1), 2);
+	var code_1 = $.child(pre_1);
+
+	code_1.textContent = 'yarn add svelte-command-palette';
+	$.reset(pre_1);
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 4);
+	var pre_2 = $.sibling($.child(div_2), 2);
+	var code_2 = $.child(pre_2);
+
+	code_2.textContent = 'pnpm add svelte-command-palette';
+	$.reset(pre_2);
+	$.reset(div_2);
+	$.next(10);
+	$.append($$anchor, fragment);
+}
+=== 1216 src/routes/docs/palette-store/+page.svelte	css
+
+	.lead.svelte-is21r0 {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+	.table-wrapper.svelte-is21r0 {
+		overflow-x: auto;
+		margin: var(--space-lg) 0;
+	}
+
+	.methods-grid.svelte-is21r0 {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: var(--space-md);
+		margin: var(--space-lg) 0;
+	}
+
+	.method-card.svelte-is21r0 {
+		padding: var(--space-md);
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+
+	.method-card.svelte-is21r0 h4:where(.svelte-is21r0) {
+		font-size: 0.9375rem;
+		margin-bottom: var(--space-xs);
+	}
+
+	.method-card.svelte-is21r0 p:where(.svelte-is21r0) {
+		font-size: 0.875rem;
+		margin: 0;
+	}
+
+	.callout.svelte-is21r0 {
+		display: flex;
+		gap: var(--space-md);
+		padding: var(--space-md);
+		background: var(--color-accent-subtle);
+		border: 1px solid rgba(255, 62, 0, 0.2);
+		border-radius: var(--radius-md);
+		margin: var(--space-lg) 0;
+	}
+
+	.callout-icon.svelte-is21r0 {
+		font-size: 1.25rem;
+	}
+
+	.callout-content.svelte-is21r0 {
+		flex: 1;
+	}
+
+	.callout-content.svelte-is21r0 strong:where(.svelte-is21r0) {
+		color: var(--color-accent);
+	}
+
+=== 7876 src/routes/docs/palette-store/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(
+	`<h1>Palette Store</h1> <p class="lead svelte-is21r0">The palette store is a standard Svelte store that holds all command palette state. 
+	Subscribe to it, update it, and extend it with your own properties.</p> <h2>Store Structure</h2> <p>The store contains the following properties:</p> <div class="table-wrapper svelte-is21r0"><table><thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>isVisible</code></td><td><code>boolean</code></td><td>Whether the palette is currently open</td></tr><tr><td><code>textInput</code></td><td><code>string</code></td><td>Current search query</td></tr><tr><td><code>commands</code></td><td><code>action[]</code></td><td>All registered actions</td></tr><tr><td><code>results</code></td><td><code>action[]</code></td><td>Filtered search results</td></tr><tr><td><code>activeCommandId</code></td><td><code>string | number | null</code></td><td>Currently highlighted action ID</td></tr><tr><td><code>selectedCommandId</code></td><td><code>string | number | null</code></td><td>Last selected action ID</td></tr><tr><td><code>calledActions</code></td><td><code>Array&lt;ActionId&gt;</code></td><td>History of executed action IDs</td></tr><tr><td><code>actionMap</code></td><td><code>object</code></td><td>Map of actionId to action object</td></tr><tr><td><code>storeMethods</code></td><td><code>object</code></td><td>Methods to control the palette</td></tr></tbody></table></div> <h2>Subscribing & Updating</h2> <p>Use standard Svelte store patterns to interact with the palette:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Store Usage</span></div> <pre><code></code></pre></div> <h2>Store Methods</h2> <p>Use <code>createStoreMethods()</code> to get helper functions:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Store Methods</span></div> <pre><code></code></pre></div> <h3>Available Methods</h3> <div class="methods-grid svelte-is21r0"><div class="method-card svelte-is21r0"><h4 class="svelte-is21r0"><code>openPalette()</code></h4> <p class="svelte-is21r0">Opens the command palette and focuses the search input</p></div> <div class="method-card svelte-is21r0"><h4 class="svelte-is21r0"><code>closePalette()</code></h4> <p class="svelte-is21r0">Closes the palette and clears the search</p></div> <div class="method-card svelte-is21r0"><h4 class="svelte-is21r0"><code>togglePalette()</code></h4> <p class="svelte-is21r0">Toggles the palette visibility</p></div></div> <h2>Extending the Store</h2> <p>Add your own properties to track custom state:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Custom State</span></div> <pre><code></code></pre></div> <div class="callout svelte-is21r0"><div class="callout-icon svelte-is21r0">💡</div> <div class="callout-content svelte-is21r0"><strong class="svelte-is21r0">Pro tip:</strong> The <code>calledActions</code> array persists across palette opens. 
+		Use it to implement features like "recently used" or conditional action chains.</div></div> <h2>Reactive Store in Components</h2> <p>Access the store reactively in Svelte components:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>+page.svelte</span></div> <pre><code></code></pre></div>`,
+	1
+);
+
+export default function _page($$anchor) {
+	const storeExample = `import { paletteStore } from '$lib';
+
+// Subscribe to store changes
+paletteStore.subscribe((state) => {
+  console.log('Visibility:', state.isVisible);
+  console.log('Search text:', state.textInput);
+  console.log('Active command:', state.activeCommandId);
+  console.log('Called actions:', state.calledActions);
+});
+
+// Update the store
+paletteStore.update((state) => ({
+  ...state,
+  textInput: 'prefilled search',
+  isVisible: true
+}));`;
+
+	const storeMethodsExample = `import { createStoreMethods } from '$lib';
+
+// Create store methods
+const { openPalette, closePalette, togglePalette } = createStoreMethods();
+
+// Open programmatically
+<button onclick={() => openPalette()}>
+  Open Command Palette
+</button>
+
+// Or toggle
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'p' && e.metaKey) {
+    togglePalette();
+  }
+});`;
+
+	const customStateExample = `// Add custom state to track user preferences
+paletteStore.update((state) => ({
+  ...state,
+  // Your custom properties
+  lastUsedActions: [],
+  favoriteActions: ['action-1', 'action-2'],
+  settings: {
+    showDescriptions: true,
+    maxResults: 10
+  }
+}));
+
+// Access in action callbacks
+const actions = defineActions([
+  {
+    title: 'Toggle Descriptions',
+    onRun: ({ storeProps }) => {
+      paletteStore.update(s => ({
+        ...s,
+        settings: {
+          ...s.settings,
+          showDescriptions: !storeProps.settings.showDescriptions
+        }
+      }));
+    }
+  }
+]);`;
+
+	var fragment = root();
+	var div = $.sibling($.first_child(fragment), 14);
+	var pre = $.sibling($.child(div), 2);
+	var code = $.child(pre);
+
+	code.textContent = 'import { paletteStore } from \'$lib\';\n\n// Subscribe to store changes\npaletteStore.subscribe((state) => {\n  console.log(\'Visibility:\', state.isVisible);\n  console.log(\'Search text:\', state.textInput);\n  console.log(\'Active command:\', state.activeCommandId);\n  console.log(\'Called actions:\', state.calledActions);\n});\n\n// Update the store\npaletteStore.update((state) => ({\n  ...state,\n  textInput: \'prefilled search\',\n  isVisible: true\n}));';
+	$.reset(pre);
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 6);
+	var pre_1 = $.sibling($.child(div_1), 2);
+	var code_1 = $.child(pre_1);
+
+	code_1.textContent = 'import { createStoreMethods } from \'$lib\';\n\n// Create store methods\nconst { openPalette, closePalette, togglePalette } = createStoreMethods();\n\n// Open programmatically\n<button onclick={() => openPalette()}>\n  Open Command Palette\n</button>\n\n// Or toggle\ndocument.addEventListener(\'keydown\', (e) => {\n  if (e.key === \'p\' && e.metaKey) {\n    togglePalette();\n  }\n});';
+	$.reset(pre_1);
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 10);
+	var pre_2 = $.sibling($.child(div_2), 2);
+	var code_2 = $.child(pre_2);
+
+	code_2.textContent = '// Add custom state to track user preferences\npaletteStore.update((state) => ({\n  ...state,\n  // Your custom properties\n  lastUsedActions: [],\n  favoriteActions: [\'action-1\', \'action-2\'],\n  settings: {\n    showDescriptions: true,\n    maxResults: 10\n  }\n}));\n\n// Access in action callbacks\nconst actions = defineActions([\n  {\n    title: \'Toggle Descriptions\',\n    onRun: ({ storeProps }) => {\n      paletteStore.update(s => ({\n        ...s,\n        settings: {\n          ...s.settings,\n          showDescriptions: !storeProps.settings.showDescriptions\n        }\n      }));\n    }\n  }\n]);';
+	$.reset(pre_2);
+	$.reset(div_2);
+
+	var div_3 = $.sibling(div_2, 8);
+	var pre_3 = $.sibling($.child(div_3), 2);
+	var code_3 = $.child(pre_3);
+
+	code_3.textContent = '<script>\n  import { paletteStore } from \'$lib\'; // Use \'svelte-command-palette\' in your project\n  \n  // Reactive access\n  $: isOpen = $paletteStore.isVisible;\n  $: searchQuery = $paletteStore.textInput;\n  $: resultCount = $paletteStore.results.length;\n</script>\n\n{#if isOpen}\n  <div class="status">\n    Searching: "{searchQuery}" ({resultCount} results)\n  </div>\n{/if}';
+	$.reset(pre_3);
+	$.reset(div_3);
+	$.append($$anchor, fragment);
+}
+=== 1149 src/routes/docs/quick-start/+page.svelte	css
+
+	.lead.svelte-1r7540z {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+	.next-steps.svelte-1r7540z {
+		margin-top: var(--space-2xl);
+	}
+
+	.next-steps-grid.svelte-1r7540z {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: var(--space-md);
+		margin-top: var(--space-lg);
+	}
+
+	.next-step-card.svelte-1r7540z {
+		display: flex;
+		flex-direction: column;
+		padding: var(--space-lg);
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		text-decoration: none;
+		transition: all var(--transition-fast);
+	}
+
+	.next-step-card.svelte-1r7540z:hover {
+		border-color: var(--color-accent);
+		transform: translateY(-2px);
+	}
+
+	.next-step-icon.svelte-1r7540z {
+		font-size: 2rem;
+		margin-bottom: var(--space-sm);
+	}
+
+	.next-step-card.svelte-1r7540z h3:where(.svelte-1r7540z) {
+		font-size: 1rem;
+		color: var(--color-text-primary);
+		margin-bottom: var(--space-xs);
+	}
+
+	.next-step-card.svelte-1r7540z p:where(.svelte-1r7540z) {
+		font-size: 0.875rem;
+		color: var(--color-text-secondary);
+		margin: 0;
+	}
+
+=== 4824 src/routes/docs/quick-start/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h1>Quick Start</h1> <p class="lead svelte-1r7540z">Get a fully functional command palette running in under 5 minutes.</p> <h2>Step 1: Basic Setup</h2> <p>Import the component and define your actions:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>+page.svelte</span></div> <pre><code></code></pre></div> <h2>Step 2: Add to Layout (Recommended)</h2> <p>For app-wide access, add CommandPalette to your root layout:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>+layout.svelte</span></div> <pre><code></code></pre></div> <h2>Step 3: Try It Out</h2> <p>Press <kbd class="kbd">⌘</kbd> + <kbd class="kbd">K</kbd> (or <kbd class="kbd">Ctrl</kbd> + <kbd class="kbd">K</kbd> on Windows/Linux) to open the command palette!</p> <div class="next-steps svelte-1r7540z"><h2>Next Steps</h2> <div class="next-steps-grid svelte-1r7540z"><a href="/docs/define-actions" class="next-step-card svelte-1r7540z"><span class="next-step-icon svelte-1r7540z">📝</span> <h3 class="svelte-1r7540z">Define Actions</h3> <p class="svelte-1r7540z">Learn about all action properties</p></a> <a href="/docs/shortcuts" class="next-step-card svelte-1r7540z"><span class="next-step-icon svelte-1r7540z">⌨️</span> <h3 class="svelte-1r7540z">Keyboard Shortcuts</h3> <p class="svelte-1r7540z">Set up custom shortcuts</p></a> <a href="/docs/styling" class="next-step-card svelte-1r7540z"><span class="next-step-icon svelte-1r7540z">🎨</span> <h3 class="svelte-1r7540z">Styling</h3> <p class="svelte-1r7540z">Customize the appearance</p></a></div></div>`, 1);
+
+export default function _page($$anchor) {
+	const basicSetup = `<script lang="ts">
+  import CommandPalette, { defineActions, createStoreMethods } from '$lib';
+  // Use 'svelte-command-palette' in your project
+
+  // Define your actions
+  const actions = defineActions([
+    {
+      title: 'Go to Home',
+      subTitle: 'Navigate to homepage',
+      icon: '🏠',
+      onRun: () => window.location.href = '/',
+      shortcut: 'G H'
+    },
+    {
+      title: 'Toggle Dark Mode',
+      subTitle: 'Switch theme',
+      icon: '🌙',
+      onRun: () => document.body.classList.toggle('dark'),
+      shortcut: 'T D'
+    }
+  ]);
+
+  // Optional: Get store methods to control palette programmatically
+  const { openPalette } = createStoreMethods();
+<\/script>
+
+<!-- Render CommandPalette at the root of your app -->
+<CommandPalette
+  commands={actions}
+  placeholder="What do you want to do?"
+/>
+
+<!-- Optional: Button to open palette -->
+<button on:click={openPalette}>
+  Open Command Palette
+</button>`;
+
+	const layoutExample = `<!-- src/routes/+layout.svelte -->
+<script>
+  import CommandPalette, { defineActions } from '$lib';
+  import '../app.css';
+
+  const actions = defineActions([
+    // Your global actions here
+  ]);
+<\/script>
+
+<CommandPalette commands={actions} />
+<slot />`;
+
+	var fragment = root();
+	var div = $.sibling($.first_child(fragment), 8);
+	var pre = $.sibling($.child(div), 2);
+	var code = $.child(pre);
+
+	code.textContent = '<script lang="ts">\n  import CommandPalette, { defineActions, createStoreMethods } from \'$lib\';\n  // Use \'svelte-command-palette\' in your project\n\n  // Define your actions\n  const actions = defineActions([\n    {\n      title: \'Go to Home\',\n      subTitle: \'Navigate to homepage\',\n      icon: \'🏠\',\n      onRun: () => window.location.href = \'/\',\n      shortcut: \'G H\'\n    },\n    {\n      title: \'Toggle Dark Mode\',\n      subTitle: \'Switch theme\',\n      icon: \'🌙\',\n      onRun: () => document.body.classList.toggle(\'dark\'),\n      shortcut: \'T D\'\n    }\n  ]);\n\n  // Optional: Get store methods to control palette programmatically\n  const { openPalette } = createStoreMethods();\n</script>\n\n<!-- Render CommandPalette at the root of your app -->\n<CommandPalette\n  commands={actions}\n  placeholder="What do you want to do?"\n/>\n\n<!-- Optional: Button to open palette -->\n<button on:click={openPalette}>\n  Open Command Palette\n</button>';
+	$.reset(pre);
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 6);
+	var pre_1 = $.sibling($.child(div_1), 2);
+	var code_1 = $.child(pre_1);
+
+	code_1.textContent = '<!-- src/routes/+layout.svelte -->\n<script>\n  import CommandPalette, { defineActions } from \'$lib\';\n  import \'../app.css\';\n\n  const actions = defineActions([\n    // Your global actions here\n  ]);\n</script>\n\n<CommandPalette commands={actions} />\n<slot />';
+	$.reset(pre_1);
+	$.reset(div_1);
+	$.next(6);
+	$.append($$anchor, fragment);
+}
+=== 822 src/routes/docs/shortcuts/+page.svelte	css
+
+	.lead.svelte-12icydk {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+	.table-wrapper.svelte-12icydk {
+		overflow-x: auto;
+		margin: var(--space-lg) 0;
+	}
+
+	.shortcuts-grid.svelte-12icydk {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		gap: var(--space-md);
+		margin: var(--space-lg) 0;
+	}
+
+	.shortcut-item.svelte-12icydk {
+		display: flex;
+		align-items: center;
+		gap: var(--space-md);
+		padding: var(--space-md);
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+
+	.shortcut-keys.svelte-12icydk {
+		display: flex;
+		gap: 0.25rem;
+	}
+
+	.shortcut-item.svelte-12icydk span:where(.svelte-12icydk) {
+		font-size: 0.875rem;
+		color: var(--color-text-secondary);
+	}
+
+=== 5066 src/routes/docs/shortcuts/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h1>Keyboard Shortcuts</h1> <p class="lead svelte-12icydk">Svelte Command Palette uses <a href="https://github.com/jamiebuilds/tinykeys" target="_blank" rel="noopener">tinykeys</a> for keyboard shortcut handling, supporting complex key combinations and sequences.</p> <h2>Shortcut Syntax</h2> <p>Shortcuts follow the tinykeys format:</p> <div class="table-wrapper svelte-12icydk"><table><thead><tr><th>Syntax</th><th>Description</th><th>Example</th></tr></thead><tbody><tr><td><code>$mod</code></td><td>Meta on Mac, Ctrl on Windows/Linux</td><td><code>$mod+K</code></td></tr><tr><td><code>Shift</code></td><td>Shift key</td><td><code>Shift+Enter</code></td></tr><tr><td><code>Alt</code></td><td>Alt/Option key</td><td><code>Alt+S</code></td></tr><tr><td><code>Control</code></td><td>Control key (explicit)</td><td><code>Control+C</code></td></tr><tr><td><code>Meta</code></td><td>Meta key (explicit)</td><td><code>Meta+K</code></td></tr><tr><td><code>Space</code></td><td>Single space-separated keys</td><td><code>G D</code> (G then D)</td></tr></tbody></table></div> <h2>Special Keys</h2> <div class="table-wrapper svelte-12icydk"><table><thead><tr><th>Key</th><th>Syntax</th></tr></thead><tbody><tr><td>Arrow keys</td><td><code>ArrowUp</code>, <code>ArrowDown</code>, <code>ArrowLeft</code>, <code>ArrowRight</code></td></tr><tr><td>Enter</td><td><code>Enter</code></td></tr><tr><td>Escape</td><td><code>Escape</code> or <code>Esc</code></td></tr><tr><td>Tab</td><td><code>Tab</code></td></tr><tr><td>Backspace</td><td><code>Backspace</code></td></tr><tr><td>Delete</td><td><code>Delete</code></td></tr><tr><td>Space</td><td><code>Space</code></td></tr></tbody></table></div> <h2>Defining Action Shortcuts</h2> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>actions.ts</span></div> <pre><code></code></pre></div> <h2>Custom Palette Trigger</h2> <p>Change the shortcut that opens the command palette:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Custom Trigger</span></div> <pre><code></code></pre></div> <h2>Built-in Shortcuts</h2> <p>These shortcuts are always active when the palette is open:</p> <div class="shortcuts-grid svelte-12icydk"><div class="shortcut-item svelte-12icydk"><div class="shortcut-keys svelte-12icydk"><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd></div> <span class="svelte-12icydk">Navigate results</span></div> <div class="shortcut-item svelte-12icydk"><div class="shortcut-keys svelte-12icydk"><kbd class="kbd">Enter</kbd></div> <span class="svelte-12icydk">Execute action</span></div> <div class="shortcut-item svelte-12icydk"><div class="shortcut-keys svelte-12icydk"><kbd class="kbd">Esc</kbd></div> <span class="svelte-12icydk">Close palette</span></div> <div class="shortcut-item svelte-12icydk"><div class="shortcut-keys svelte-12icydk"><kbd class="kbd">Tab</kbd></div> <span class="svelte-12icydk">Cycle focus</span></div></div>`, 1);
+
+export default function _page($$anchor) {
+	const shortcutExample = `const actions = defineActions([
+  {
+    title: 'Save Document',
+    shortcut: '$mod+S',        // Cmd+S on Mac, Ctrl+S on Windows
+    onRun: () => saveDocument()
+  },
+  {
+    title: 'Search Files',
+    shortcut: '$mod+Shift+F',  // Multiple modifiers
+    onRun: () => openFileSearch()
+  },
+  {
+    title: 'Quick Actions',
+    shortcut: 'G G',           // Press G twice (sequence)
+    onRun: () => showQuickActions()
+  },
+  {
+    title: 'Navigate to Dashboard',
+    shortcut: 'G D',           // Press G then D
+    onRun: () => goto('/dashboard')
+  }
+]);`;
+
+	const customTrigger = `<CommandPalette
+  commands={actions}
+  shortcut="$mod+p"  // Change from Cmd+K to Cmd+P
+/>`;
+
+	var fragment = root();
+	var div = $.sibling($.first_child(fragment), 16);
+	var pre = $.sibling($.child(div), 2);
+	var code = $.child(pre);
+
+	code.textContent = 'const actions = defineActions([\n  {\n    title: \'Save Document\',\n    shortcut: \'$mod+S\',        // Cmd+S on Mac, Ctrl+S on Windows\n    onRun: () => saveDocument()\n  },\n  {\n    title: \'Search Files\',\n    shortcut: \'$mod+Shift+F\',  // Multiple modifiers\n    onRun: () => openFileSearch()\n  },\n  {\n    title: \'Quick Actions\',\n    shortcut: \'G G\',           // Press G twice (sequence)\n    onRun: () => showQuickActions()\n  },\n  {\n    title: \'Navigate to Dashboard\',\n    shortcut: \'G D\',           // Press G then D\n    onRun: () => goto(\'/dashboard\')\n  }\n]);';
+	$.reset(pre);
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 6);
+	var pre_1 = $.sibling($.child(div_1), 2);
+	var code_1 = $.child(pre_1);
+
+	code_1.textContent = '<CommandPalette\n  commands={actions}\n  shortcut="$mod+p"  // Change from Cmd+K to Cmd+P\n/>';
+	$.reset(pre_1);
+	$.reset(div_1);
+	$.next(6);
+	$.append($$anchor, fragment);
+}
+=== 876 src/routes/docs/store-methods-api/+page.svelte	css
+
+	.lead.svelte-2wiflo {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+	.methods-grid.svelte-2wiflo {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: var(--space-md);
+		margin: var(--space-lg) 0;
+	}
+
+	.method-card.svelte-2wiflo {
+		padding: var(--space-lg);
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+
+	.method-card.svelte-2wiflo h3:where(.svelte-2wiflo) {
+		font-size: 1rem;
+		margin-bottom: var(--space-sm);
+	}
+
+	.method-card.svelte-2wiflo p:where(.svelte-2wiflo) {
+		font-size: 0.875rem;
+		margin-bottom: var(--space-sm);
+	}
+
+	.method-return.svelte-2wiflo {
+		font-size: 0.75rem;
+		color: var(--color-text-tertiary);
+	}
+
+	.table-wrapper.svelte-2wiflo {
+		overflow-x: auto;
+		margin: var(--space-lg) 0;
+	}
+
+=== 6548 src/routes/docs/store-methods-api/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(
+	`<h1>createStoreMethods API</h1> <p class="lead svelte-2wiflo">The <code>createStoreMethods</code> function provides methods to programmatically 
+	control the command palette's visibility.</p> <h2>Basic Usage</h2> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Store Methods</span></div> <pre><code></code></pre></div> <h2>Available Methods</h2> <div class="methods-grid svelte-2wiflo"><div class="method-card svelte-2wiflo"><h3 class="svelte-2wiflo"><code>openPalette()</code></h3> <p class="svelte-2wiflo">Opens the command palette and focuses the search input</p> <code class="method-return svelte-2wiflo">Returns: void</code></div> <div class="method-card svelte-2wiflo"><h3 class="svelte-2wiflo"><code>closePalette()</code></h3> <p class="svelte-2wiflo">Closes the palette and clears the search input</p> <code class="method-return svelte-2wiflo">Returns: void</code></div> <div class="method-card svelte-2wiflo"><h3 class="svelte-2wiflo"><code>togglePalette()</code></h3> <p class="svelte-2wiflo">Toggles the palette visibility</p> <code class="method-return svelte-2wiflo">Returns: void</code></div></div> <h2>With Palette Store</h2> <p>Combine with <code>paletteStore</code> for reactive state:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Reactive Store</span></div> <pre><code></code></pre></div> <h2>Inside Action Callbacks</h2> <p>Store methods are automatically available in action callbacks:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Action Callbacks</span></div> <pre><code></code></pre></div> <h2>Store Properties</h2> <p>The <code>paletteStore</code> contains:</p> <div class="table-wrapper svelte-2wiflo"><table><thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>isVisible</code></td><td><code>boolean</code></td><td>Whether palette is currently open</td></tr><tr><td><code>textInput</code></td><td><code>string</code></td><td>Current search query</td></tr><tr><td><code>commands</code></td><td><code>action[]</code></td><td>All registered actions</td></tr><tr><td><code>results</code></td><td><code>action[]</code></td><td>Filtered search results</td></tr><tr><td><code>activeCommandId</code></td><td><code>string | number | null</code></td><td>Currently highlighted action</td></tr><tr><td><code>calledActions</code></td><td><code>Array&lt;ActionId&gt;</code></td><td>History of executed action IDs</td></tr></tbody></table></div>`,
+	1
+);
+
+export default function _page($$anchor) {
+	const basicUsage = `import { createStoreMethods } from '$lib';
+
+// Create store methods instance
+const { openPalette, closePalette, togglePalette } = createStoreMethods();
+
+// Open programmatically
+function handleButtonClick() {
+  openPalette();
+}
+
+// Close with custom logic
+function handleSave() {
+  saveData();
+  closePalette();
+}
+
+// Toggle visibility
+function handleKeyPress(event) {
+  if (event.key === 'p' && event.metaKey) {
+    togglePalette();
+  }
+}`;
+
+	const withStore = `<script lang="ts">
+  import { paletteStore, createStoreMethods } from '$lib';
+  
+  const { openPalette, closePalette } = createStoreMethods();
+  
+  // React to store changes
+  $: if ($paletteStore.isVisible) {
+    console.log('Palette opened');
+  }
+  
+  // Access called actions history
+  $: recentActions = $paletteStore.calledActions;
+<\/script>
+
+<button on:click={openPalette}>
+  Open Palette
+</button>
+
+{#if recentActions.length > 0}
+  <p>Last action: {recentActions[recentActions.length - 1]}</p>
+{/if}`;
+
+	const inActions = `const actions = defineActions([
+  {
+    title: 'Close and Navigate',
+    onRun: ({ storeMethods }) => {
+      // storeMethods is available in callbacks
+      storeMethods.closePalette();
+      goto('/dashboard');
+    }
+  },
+  {
+    title: 'Keep Open',
+    onRun: ({ action, storeProps }) => {
+      // Access current state
+      console.log('Current search:', storeProps.textInput);
+      console.log('Active command:', storeProps.activeCommandId);
+      // Don't close - palette stays open
+    }
+  }
+]);`;
+
+	var fragment = root();
+	var div = $.sibling($.first_child(fragment), 6);
+	var pre = $.sibling($.child(div), 2);
+	var code = $.child(pre);
+
+	code.textContent = 'import { createStoreMethods } from \'$lib\';\n\n// Create store methods instance\nconst { openPalette, closePalette, togglePalette } = createStoreMethods();\n\n// Open programmatically\nfunction handleButtonClick() {\n  openPalette();\n}\n\n// Close with custom logic\nfunction handleSave() {\n  saveData();\n  closePalette();\n}\n\n// Toggle visibility\nfunction handleKeyPress(event) {\n  if (event.key === \'p\' && event.metaKey) {\n    togglePalette();\n  }\n}';
+	$.reset(pre);
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 10);
+	var pre_1 = $.sibling($.child(div_1), 2);
+	var code_1 = $.child(pre_1);
+
+	code_1.textContent = '<script lang="ts">\n  import { paletteStore, createStoreMethods } from \'$lib\';\n  \n  const { openPalette, closePalette } = createStoreMethods();\n  \n  // React to store changes\n  $: if ($paletteStore.isVisible) {\n    console.log(\'Palette opened\');\n  }\n  \n  // Access called actions history\n  $: recentActions = $paletteStore.calledActions;\n</script>\n\n<button on:click={openPalette}>\n  Open Palette\n</button>\n\n{#if recentActions.length > 0}\n  <p>Last action: {recentActions[recentActions.length - 1]}</p>\n{/if}';
+	$.reset(pre_1);
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 6);
+	var pre_2 = $.sibling($.child(div_2), 2);
+	var code_2 = $.child(pre_2);
+
+	code_2.textContent = 'const actions = defineActions([\n  {\n    title: \'Close and Navigate\',\n    onRun: ({ storeMethods }) => {\n      // storeMethods is available in callbacks\n      storeMethods.closePalette();\n      goto(\'/dashboard\');\n    }\n  },\n  {\n    title: \'Keep Open\',\n    onRun: ({ action, storeProps }) => {\n      // Access current state\n      console.log(\'Current search:\', storeProps.textInput);\n      console.log(\'Active command:\', storeProps.activeCommandId);\n      // Don\'t close - palette stays open\n    }\n  }\n]);';
+	$.reset(pre_2);
+	$.reset(div_2);
+	$.next(6);
+	$.append($$anchor, fragment);
+}
+=== 1369 src/routes/docs/styling/+page.svelte	css
+
+	.lead.svelte-1hdbpu7 {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+	.approach-grid.svelte-1hdbpu7 {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: var(--space-md);
+		margin: var(--space-xl) 0;
+	}
+
+	.approach-card.svelte-1hdbpu7 {
+		padding: var(--space-lg);
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		text-align: center;
+	}
+
+	.approach-icon.svelte-1hdbpu7 {
+		font-size: 2rem;
+		margin-bottom: var(--space-sm);
+	}
+
+	.approach-card.svelte-1hdbpu7 h3:where(.svelte-1hdbpu7) {
+		font-size: 1rem;
+		margin-bottom: var(--space-xs);
+	}
+
+	.approach-card.svelte-1hdbpu7 p:where(.svelte-1hdbpu7) {
+		font-size: 0.875rem;
+		margin: 0;
+	}
+
+	.table-wrapper.svelte-1hdbpu7 {
+		overflow-x: auto;
+		margin: var(--space-lg) 0;
+	}
+
+	.callout.svelte-1hdbpu7 {
+		display: flex;
+		gap: var(--space-md);
+		padding: var(--space-md);
+		border-radius: var(--radius-md);
+		margin: var(--space-lg) 0;
+	}
+
+	.callout.warning.svelte-1hdbpu7 {
+		background: rgba(251, 191, 36, 0.1);
+		border: 1px solid rgba(251, 191, 36, 0.3);
+	}
+
+	.callout-icon.svelte-1hdbpu7 {
+		font-size: 1.25rem;
+	}
+
+	.callout-content.svelte-1hdbpu7 {
+		flex: 1;
+	}
+
+	.callout-content.svelte-1hdbpu7 strong:where(.svelte-1hdbpu7) {
+		color: #fbbf24;
+	}
+
+=== 9764 src/routes/docs/styling/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(
+	`<h1>Styling</h1> <p class="lead svelte-1hdbpu7">Customize every aspect of the command palette's appearance using CSS classes, 
+	inline styles, or by going completely unstyled.</p> <h2>Three Approaches</h2> <div class="approach-grid svelte-1hdbpu7"><div class="approach-card svelte-1hdbpu7"><div class="approach-icon svelte-1hdbpu7">🎨</div> <h3 class="svelte-1hdbpu7">CSS Classes</h3> <p class="svelte-1hdbpu7">Use Tailwind, CSS modules, or any class-based styling. Best for design systems.</p></div> <div class="approach-card svelte-1hdbpu7"><div class="approach-icon svelte-1hdbpu7">✨</div> <h3 class="svelte-1hdbpu7">Inline Styles</h3> <p class="svelte-1hdbpu7">Pass CSS properties directly. Great for dynamic theming based on state.</p></div> <div class="approach-card svelte-1hdbpu7"><div class="approach-icon svelte-1hdbpu7">🔧</div> <h3 class="svelte-1hdbpu7">Unstyled Mode</h3> <p class="svelte-1hdbpu7">Remove all defaults and build from scratch. Full control for custom designs.</p></div></div> <h2>Using Classes & Inline Styles</h2> <p>Mix and match classes and styles to achieve the look you want:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Basic Styling</span></div> <pre><code></code></pre></div> <h2>Dark Mode / Theming</h2> <p>Create theme objects and switch between them dynamically:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Dynamic Theming</span></div> <pre><code></code></pre></div> <h2>Going Unstyled</h2> <p>Set <code>unstyled=&#123;true&#125;</code> to remove all default styles:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Unstyled Mode</span></div> <pre><code></code></pre></div> <div class="callout warning svelte-1hdbpu7"><div class="callout-icon svelte-1hdbpu7">⚠️</div> <div class="callout-content svelte-1hdbpu7"><strong class="svelte-1hdbpu7">Important:</strong> When using <code>unstyled</code>, you're responsible for all 
+		positioning, scrolling, and visual feedback. Make sure to handle the overlay, container 
+		dimensions, and scroll behavior.</div></div> <h2>CSS Class Reference</h2> <p>When not using <code>unstyled</code> mode, these classes are applied:</p> <div class="table-wrapper svelte-1hdbpu7"><table><thead><tr><th>Class</th><th>Element</th></tr></thead><tbody><tr><td><code>.cp-overlay</code></td><td>Fullscreen backdrop</td></tr><tr><td><code>.cp-wrapper</code></td><td>Centered wrapper</td></tr><tr><td><code>.cp-container</code></td><td>Main palette box</td></tr><tr><td><code>.cp-input-wrapper</code></td><td>Input container</td></tr><tr><td><code>.cp-input</code></td><td>Search input</td></tr><tr><td><code>.cp-search-icon</code></td><td>Search icon</td></tr><tr><td><code>.cp-results</code></td><td>Results list</td></tr><tr><td><code>.cp-group-header</code></td><td>Group name header</td></tr><tr><td><code>.cp-result</code></td><td>Individual result</td></tr><tr><td><code>.cp-result-active</code></td><td>Active result</td></tr><tr><td><code>.cp-result-icon</code></td><td>Result icon container</td></tr><tr><td><code>.cp-result-title</code></td><td>Result title</td></tr><tr><td><code>.cp-result-subtitle</code></td><td>Result subtitle</td></tr><tr><td><code>.cp-kbd</code></td><td>Keyboard shortcut badge</td></tr><tr><td><code>.cp-empty</code></td><td>Empty state container</td></tr></tbody></table></div> <h2>Custom CSS Overrides</h2> <p>Override default styles using global CSS:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Custom Overrides</span></div> <pre><code></code></pre></div>`,
+	1
+);
+
+export default function _page($$anchor) {
+	const basicStyling = `<CommandPalette
+  commands={actions}
+  
+  <!-- Use CSS classes (works with Tailwind!) -->
+  inputClass="rounded-lg border-gray-200 focus:ring-2"
+  resultContainerClass="hover:bg-gray-50"
+  optionSelectedClass="bg-blue-50 border-l-2 border-blue-500"
+  
+  <!-- Or inline styles (CSS Properties) -->
+  inputStyle={{ fontSize: '16px', padding: '1rem' }}
+  overlayStyle={{ backdropFilter: 'blur(8px)' }}
+/>`;
+
+	const darkModeExample = `<script>
+  let isDark = $state(false);
+  
+  const darkTheme = {
+    inputStyle: { background: '#1f2937', color: '#f9fafb' },
+    paletteWrapperInnerStyle: { 
+      background: '#1f2937',
+      boxShadow: '0 25px 50px rgba(0,0,0,0.5)'
+    },
+    resultContainerStyle: { borderColor: '#374151' },
+    optionSelectedStyle: { background: '#374151' }
+  };
+  
+  const lightTheme = {
+    inputStyle: { background: '#ffffff', color: '#111827' },
+    paletteWrapperInnerStyle: { background: '#ffffff' },
+    resultContainerStyle: { borderColor: '#e5e7eb' },
+    optionSelectedStyle: { background: '#f3f4f6' }
+  };
+  
+  const theme = $derived(isDark ? darkTheme : lightTheme);
+<\/script>
+
+<CommandPalette
+  commands={actions}
+  inputStyle={theme.inputStyle}
+  paletteWrapperInnerStyle={theme.paletteWrapperInnerStyle}
+  resultContainerStyle={theme.resultContainerStyle}
+  optionSelectedStyle={theme.optionSelectedStyle}
+/>`;
+
+	const unstyledExample = `<!-- Remove all default styles for full control -->
+<CommandPalette
+  commands={actions}
+  unstyled={true}
+  
+  <!-- Now add your own classes -->
+  overlayClass="fixed inset-0 bg-black/50 z-50"
+  paletteWrapperInnerClass="max-w-xl mx-auto mt-20 bg-white rounded-xl shadow-2xl"
+  inputClass="w-full px-4 py-3 text-lg border-b outline-none"
+  resultsContainerClass="max-h-80 overflow-y-auto"
+  resultContainerClass="px-4 py-3 cursor-pointer"
+  optionSelectedClass="bg-blue-50"
+/>`;
+
+	const customCssExample = `/* Override default styles with CSS */
+:global(.cp-overlay) {
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(12px);
+}
+
+:global(.cp-container) {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+}
+
+:global(.cp-input) {
+  background: transparent;
+  color: white;
+  font-size: 18px;
+}
+
+:global(.cp-result) {
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+:global(.cp-result-active) {
+  background: rgba(99, 102, 241, 0.2);
+  transform: translateX(4px);
+}`;
+
+	var fragment = root();
+	var div = $.sibling($.first_child(fragment), 12);
+	var pre = $.sibling($.child(div), 2);
+	var code = $.child(pre);
+
+	code.textContent = '<CommandPalette\n  commands={actions}\n  \n  <!-- Use CSS classes (works with Tailwind!) -->\n  inputClass="rounded-lg border-gray-200 focus:ring-2"\n  resultContainerClass="hover:bg-gray-50"\n  optionSelectedClass="bg-blue-50 border-l-2 border-blue-500"\n  \n  <!-- Or inline styles (CSS Properties) -->\n  inputStyle={{ fontSize: \'16px\', padding: \'1rem\' }}\n  overlayStyle={{ backdropFilter: \'blur(8px)\' }}\n/>';
+	$.reset(pre);
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 6);
+	var pre_1 = $.sibling($.child(div_1), 2);
+	var code_1 = $.child(pre_1);
+
+	code_1.textContent = '<script>\n  let isDark = $state(false);\n  \n  const darkTheme = {\n    inputStyle: { background: \'#1f2937\', color: \'#f9fafb\' },\n    paletteWrapperInnerStyle: { \n      background: \'#1f2937\',\n      boxShadow: \'0 25px 50px rgba(0,0,0,0.5)\'\n    },\n    resultContainerStyle: { borderColor: \'#374151\' },\n    optionSelectedStyle: { background: \'#374151\' }\n  };\n  \n  const lightTheme = {\n    inputStyle: { background: \'#ffffff\', color: \'#111827\' },\n    paletteWrapperInnerStyle: { background: \'#ffffff\' },\n    resultContainerStyle: { borderColor: \'#e5e7eb\' },\n    optionSelectedStyle: { background: \'#f3f4f6\' }\n  };\n  \n  const theme = $derived(isDark ? darkTheme : lightTheme);\n</script>\n\n<CommandPalette\n  commands={actions}\n  inputStyle={theme.inputStyle}\n  paletteWrapperInnerStyle={theme.paletteWrapperInnerStyle}\n  resultContainerStyle={theme.resultContainerStyle}\n  optionSelectedStyle={theme.optionSelectedStyle}\n/>';
+	$.reset(pre_1);
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 6);
+	var pre_2 = $.sibling($.child(div_2), 2);
+	var code_2 = $.child(pre_2);
+
+	code_2.textContent = '<!-- Remove all default styles for full control -->\n<CommandPalette\n  commands={actions}\n  unstyled={true}\n  \n  <!-- Now add your own classes -->\n  overlayClass="fixed inset-0 bg-black/50 z-50"\n  paletteWrapperInnerClass="max-w-xl mx-auto mt-20 bg-white rounded-xl shadow-2xl"\n  inputClass="w-full px-4 py-3 text-lg border-b outline-none"\n  resultsContainerClass="max-h-80 overflow-y-auto"\n  resultContainerClass="px-4 py-3 cursor-pointer"\n  optionSelectedClass="bg-blue-50"\n/>';
+	$.reset(pre_2);
+	$.reset(div_2);
+
+	var div_3 = $.sibling(div_2, 14);
+	var pre_3 = $.sibling($.child(div_3), 2);
+	var code_3 = $.child(pre_3);
+
+	code_3.textContent = '/* Override default styles with CSS */\n:global(.cp-overlay) {\n  background: rgba(0, 0, 0, 0.8);\n  backdrop-filter: blur(12px);\n}\n\n:global(.cp-container) {\n  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);\n  border: 1px solid rgba(255, 255, 255, 0.1);\n  border-radius: 16px;\n}\n\n:global(.cp-input) {\n  background: transparent;\n  color: white;\n  font-size: 18px;\n}\n\n:global(.cp-result) {\n  border-radius: 8px;\n  transition: all 0.15s ease;\n}\n\n:global(.cp-result-active) {\n  background: rgba(99, 102, 241, 0.2);\n  transform: translateX(4px);\n}';
+	$.reset(pre_3);
+	$.reset(div_3);
+	$.append($$anchor, fragment);
+}
+=== 123 src/routes/docs/theming/+page.svelte	css
+
+	.lead.svelte-1xfzdbj {
+		font-size: 1.125rem;
+		color: var(--color-text-secondary);
+		margin-bottom: var(--space-xl);
+	}
+
+=== 9000 src/routes/docs/theming/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(
+	`<h1>Theming</h1> <p class="lead svelte-1xfzdbj">Create beautiful, branded command palettes with full theming support.
+	Switch between themes dynamically based on user preference.</p> <h2>Theme Object Pattern</h2> <p>The recommended approach is to create theme objects and spread them:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Theme Object Pattern</span></div> <pre><code></code></pre></div> <h2>Theme Presets</h2> <p>Here are some ready-to-use theme inspirations:</p> <h3>Linear-Inspired Theme</h3> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Linear Theme</span></div> <pre><code></code></pre></div> <h3>GitHub-Inspired Theme</h3> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>GitHub Theme</span></div> <pre><code></code></pre></div> <h2>CSS Variables</h2> <p>You can also theme using CSS variables for a more declarative approach:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>CSS Variables</span></div> <pre><code></code></pre></div> <h2>Tailwind Integration</h2> <p>Use Tailwind classes directly for rapid theming:</p> <div class="code-block"><div class="code-block-header"><div class="dots"><span class="dot"></span> <span class="dot"></span> <span class="dot"></span></div> <span>Tailwind Classes</span></div> <pre><code></code></pre></div>`,
+	1
+);
+
+export default function _page($$anchor) {
+	const themeObjectExample = `<script lang="ts">
+  import { writable } from 'svelte/store';
+  
+  // Create a theme store
+  const isDark = writable(true);
+  
+  // Define theme configurations
+  const themes = {
+    dark: {
+      inputStyle: { 
+        background: '#1f2937', 
+        color: '#f9fafb',
+        border: '1px solid #374151'
+      },
+      paletteWrapperInnerStyle: { 
+        background: '#1f2937',
+        boxShadow: '0 25px 50px rgba(0,0,0,0.5)'
+      },
+      resultsContainerStyle: { background: '#1f2937' },
+      resultContainerStyle: { borderRadius: '8px' },
+      optionSelectedStyle: { background: '#374151' },
+      titleStyle: { color: '#f9fafb' },
+      subtitleStyle: { color: '#9ca3af' },
+      keyboardButtonStyle: { 
+        background: '#374151', 
+        color: '#9ca3af',
+        border: '1px solid #4b5563'
+      }
+    },
+    light: {
+      inputStyle: { 
+        background: '#ffffff', 
+        color: '#111827',
+        border: '1px solid #e5e7eb'
+      },
+      paletteWrapperInnerStyle: { 
+        background: '#ffffff',
+        boxShadow: '0 25px 50px rgba(0,0,0,0.15)'
+      },
+      resultsContainerStyle: { background: '#ffffff' },
+      resultContainerStyle: { borderRadius: '8px' },
+      optionSelectedStyle: { background: '#f3f4f6' },
+      titleStyle: { color: '#111827' },
+      subtitleStyle: { color: '#6b7280' },
+      keyboardButtonStyle: { 
+        background: '#f3f4f6', 
+        color: '#6b7280',
+        border: '1px solid #e5e7eb'
+      }
+    }
+  };
+  
+  $: currentTheme = $isDark ? themes.dark : themes.light;
+<\/script>
+
+<CommandPalette
+  commands={actions}
+  {...currentTheme}
+/>`;
+
+	const linearTheme = `// Linear-inspired theme
+const linearTheme = {
+  overlayStyle: {
+    background: 'rgba(0, 0, 0, 0.6)',
+    backdropFilter: 'blur(8px)'
+  },
+  paletteWrapperInnerStyle: {
+    background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    borderRadius: '16px'
+  },
+  inputStyle: {
+    background: 'transparent',
+    color: '#ffffff',
+    fontSize: '18px'
+  },
+  optionSelectedStyle: {
+    background: 'rgba(99, 102, 241, 0.15)',
+    borderLeft: '2px solid #6366f1'
+  }
+};`;
+
+	const githubTheme = `// GitHub-inspired theme
+const githubTheme = {
+  overlayStyle: {
+    background: 'rgba(27, 31, 36, 0.5)'
+  },
+  paletteWrapperInnerStyle: {
+    background: '#ffffff',
+    border: '1px solid #d0d7de',
+    borderRadius: '12px',
+    boxShadow: '0 8px 24px rgba(140, 149, 159, 0.2)'
+  },
+  inputStyle: {
+    background: '#f6f8fa',
+    border: '1px solid #d0d7de',
+    borderRadius: '6px',
+    padding: '8px 12px'
+  },
+  optionSelectedStyle: {
+    background: '#f6f8fa'
+  },
+  titleStyle: {
+    color: '#24292f',
+    fontWeight: '600'
+  }
+};`;
+
+	var fragment = root();
+	var div = $.sibling($.first_child(fragment), 8);
+	var pre = $.sibling($.child(div), 2);
+	var code = $.child(pre);
+
+	code.textContent = '<script lang="ts">\n  import { writable } from \'svelte/store\';\n  \n  // Create a theme store\n  const isDark = writable(true);\n  \n  // Define theme configurations\n  const themes = {\n    dark: {\n      inputStyle: { \n        background: \'#1f2937\', \n        color: \'#f9fafb\',\n        border: \'1px solid #374151\'\n      },\n      paletteWrapperInnerStyle: { \n        background: \'#1f2937\',\n        boxShadow: \'0 25px 50px rgba(0,0,0,0.5)\'\n      },\n      resultsContainerStyle: { background: \'#1f2937\' },\n      resultContainerStyle: { borderRadius: \'8px\' },\n      optionSelectedStyle: { background: \'#374151\' },\n      titleStyle: { color: \'#f9fafb\' },\n      subtitleStyle: { color: \'#9ca3af\' },\n      keyboardButtonStyle: { \n        background: \'#374151\', \n        color: \'#9ca3af\',\n        border: \'1px solid #4b5563\'\n      }\n    },\n    light: {\n      inputStyle: { \n        background: \'#ffffff\', \n        color: \'#111827\',\n        border: \'1px solid #e5e7eb\'\n      },\n      paletteWrapperInnerStyle: { \n        background: \'#ffffff\',\n        boxShadow: \'0 25px 50px rgba(0,0,0,0.15)\'\n      },\n      resultsContainerStyle: { background: \'#ffffff\' },\n      resultContainerStyle: { borderRadius: \'8px\' },\n      optionSelectedStyle: { background: \'#f3f4f6\' },\n      titleStyle: { color: \'#111827\' },\n      subtitleStyle: { color: \'#6b7280\' },\n      keyboardButtonStyle: { \n        background: \'#f3f4f6\', \n        color: \'#6b7280\',\n        border: \'1px solid #e5e7eb\'\n      }\n    }\n  };\n  \n  $: currentTheme = $isDark ? themes.dark : themes.light;\n</script>\n\n<CommandPalette\n  commands={actions}\n  {...currentTheme}\n/>';
+	$.reset(pre);
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 8);
+	var pre_1 = $.sibling($.child(div_1), 2);
+	var code_1 = $.child(pre_1);
+
+	code_1.textContent = '// Linear-inspired theme\nconst linearTheme = {\n  overlayStyle: {\n    background: \'rgba(0, 0, 0, 0.6)\',\n    backdropFilter: \'blur(8px)\'\n  },\n  paletteWrapperInnerStyle: {\n    background: \'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)\',\n    border: \'1px solid rgba(255, 255, 255, 0.1)\',\n    borderRadius: \'16px\'\n  },\n  inputStyle: {\n    background: \'transparent\',\n    color: \'#ffffff\',\n    fontSize: \'18px\'\n  },\n  optionSelectedStyle: {\n    background: \'rgba(99, 102, 241, 0.15)\',\n    borderLeft: \'2px solid #6366f1\'\n  }\n};';
+	$.reset(pre_1);
+	$.reset(div_1);
+
+	var div_2 = $.sibling(div_1, 4);
+	var pre_2 = $.sibling($.child(div_2), 2);
+	var code_2 = $.child(pre_2);
+
+	code_2.textContent = '// GitHub-inspired theme\nconst githubTheme = {\n  overlayStyle: {\n    background: \'rgba(27, 31, 36, 0.5)\'\n  },\n  paletteWrapperInnerStyle: {\n    background: \'#ffffff\',\n    border: \'1px solid #d0d7de\',\n    borderRadius: \'12px\',\n    boxShadow: \'0 8px 24px rgba(140, 149, 159, 0.2)\'\n  },\n  inputStyle: {\n    background: \'#f6f8fa\',\n    border: \'1px solid #d0d7de\',\n    borderRadius: \'6px\',\n    padding: \'8px 12px\'\n  },\n  optionSelectedStyle: {\n    background: \'#f6f8fa\'\n  },\n  titleStyle: {\n    color: \'#24292f\',\n    fontWeight: \'600\'\n  }\n};';
+	$.reset(pre_2);
+	$.reset(div_2);
+
+	var div_3 = $.sibling(div_2, 6);
+	var pre_3 = $.sibling($.child(div_3), 2);
+	var code_3 = $.child(pre_3);
+
+	code_3.textContent = ':root {\n  --cp-bg: #1f2937;\n  --cp-text: #f9fafb;\n  --cp-border: #374151;\n  --cp-accent: #6366f1;\n}\n\n.light {\n  --cp-bg: #ffffff;\n  --cp-text: #111827;\n  --cp-border: #e5e7eb;\n  --cp-accent: #4f46e5;\n}';
+	$.reset(pre_3);
+	$.reset(div_3);
+
+	var div_4 = $.sibling(div_3, 6);
+	var pre_4 = $.sibling($.child(div_4), 2);
+	var code_4 = $.child(pre_4);
+
+	code_4.textContent = '<CommandPalette\n  commands={actions}\n  overlayClass="bg-black/50 backdrop-blur-sm"\n  paletteWrapperInnerClass="bg-white dark:bg-gray-900 rounded-xl shadow-2xl"\n  inputClass="bg-gray-50 dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500"\n  resultContainerClass="hover:bg-gray-100 dark:hover:bg-gray-800"\n  optionSelectedClass="bg-indigo-50 dark:bg-indigo-900/30"\n/>';
+	$.reset(pre_4);
+	$.reset(div_4);
+	$.append($$anchor, fragment);
+}

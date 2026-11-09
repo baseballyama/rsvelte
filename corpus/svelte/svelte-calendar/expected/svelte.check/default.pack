@@ -1,0 +1,58 @@
+# rsvelte pack 1
+=== 3 src/lib/components/calendar/Calendar.svelte	json
+[]
+
+=== 3 src/lib/components/generic/ViewTransitionEffect.svelte	json
+[]
+
+=== 3 src/lib/components/generic/crossfade/CrossfadeBoundary.svelte	json
+[]
+
+=== 3 src/lib/components/generic/crossfade/CrossfadeProvider.svelte	json
+[]
+
+=== 3 src/lib/docs/JSONEditorModal.svelte	json
+[]
+
+=== 3 src/lib/docs/NavBar.svelte	json
+[]
+
+=== 3 src/lib/docs/SvgThing.svelte	json
+[]
+
+=== 3 src/lib/docs/examples/CustomTheme.svelte	json
+[]
+
+=== 3 src/lib/docs/examples/CustomTrigger.svelte	json
+[]
+
+=== 3 src/lib/docs/examples/DarkTheme.svelte	json
+[]
+
+=== 3 src/lib/docs/examples/Formatting.svelte	json
+[]
+
+=== 3 src/lib/docs/examples/InlineCalendar.svelte	json
+[]
+
+=== 3 src/lib/docs/examples/QuickStart.svelte	json
+[]
+
+=== 3 src/lib/docs/examples/StartAndEnd.svelte	json
+[]
+
+=== 3 src/lib/docs/examples/Store.svelte	json
+[]
+
+=== 3 src/routes/docs/examples.svelte	json
+[]
+
+=== 3 src/routes/docs/props.svelte	json
+[]
+
+=== 3 src/routes/docs/quick-start.svelte	json
+[]
+
+=== 3 src/routes/index.svelte	json
+[]
+

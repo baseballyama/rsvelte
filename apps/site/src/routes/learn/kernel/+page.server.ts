@@ -18,9 +18,9 @@ export const load = () => {
 		libDocs: sourceModule('kernel/lib').docs,
 		crates: crateSizes(),
 		code: excerpts({
-			register: 'svelte/computation/register',
-			vueRegister: 'vue/computation/artifacts/register',
-			vueParsed: 'vue/computation/artifacts/impl Artifact for Parsed',
+			register: 'svelte/semantic/computation/register',
+			vueRegister: 'vue/semantic/computation/register',
+			vueParsed: 'vue/syntax/computation/impl Artifact for Parsed',
 			registry: 'kernel/computation/registry/Registry',
 			runDocument: 'kernel/computation/pipeline/run_document',
 		}),

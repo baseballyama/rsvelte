@@ -3,8 +3,8 @@
 
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::{Attribute, Component, Part, TemplateNode};
-use rsvelte_typescript::NodeIdentifier;
+use rsvelte_svelte_syntax::syntax_tree::{Attribute, Component, Part, TemplateNode};
+use rsvelte_typescript_syntax::NodeIdentifier;
 
 use super::expressions::Expressions;
 use super::markup::parts;

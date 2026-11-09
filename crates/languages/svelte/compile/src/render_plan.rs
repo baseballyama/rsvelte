@@ -2,7 +2,7 @@
 
 use rsvelte_kernel::index::IndexVector;
 use rsvelte_kernel::newtype_index;
-use rsvelte_svelte::compilation::compiler_syntax_tree::{
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, Children, ElementKind, MetadataTag, NodeKind,
 };
 use rustc_hash::FxHashMap;
@@ -20,7 +20,7 @@ newtype_index!(
 
 #[derive(Debug)]
 pub struct Region {
-    pub hoisted: Box<[rsvelte_svelte::compilation::compiler_syntax_tree::CompilerNodeIdentifier]>,
+    pub hoisted: Box<[rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier]>,
     pub items: Box<[Item<'static>]>,
     pub text_first: bool,
 }
@@ -37,7 +37,7 @@ impl NamespacePlan {
     #[must_use]
     pub fn get(
         &self,
-        node: rsvelte_svelte::compilation::compiler_syntax_tree::CompilerNodeIdentifier,
+        node: rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier,
     ) -> Namespace {
         self.0.get(node)
     }
@@ -45,7 +45,7 @@ impl NamespacePlan {
     pub fn clean_foreign_whitespace(
         &self,
         cleaned: &mut Cleaned<'_>,
-        tree: &rsvelte_svelte::compilation::compiler_syntax_tree::CompilerSyntaxTree,
+        tree: &rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree,
         preserve: bool,
     ) {
         if matches!(self.0, namespace::Namespaces::AllDefault) {
@@ -114,7 +114,7 @@ impl RenderPlan {
                                             AttributeValue::Expression { expression, .. }
                                             | AttributeValue::Shorthand(expression) => matches!(
                                                 input.component.javascript.kind(expression),
-                                                rsvelte_typescript::Kind::Boolean(true)
+                                                rsvelte_typescript_syntax::Kind::Boolean(true)
                                             ),
                                             _ => false,
                                         }
@@ -125,9 +125,9 @@ impl RenderPlan {
     }
 
     #[must_use]
-    pub fn namespace(
+    pub(crate) fn namespace(
         &self,
-        node: rsvelte_svelte::compilation::compiler_syntax_tree::CompilerNodeIdentifier,
+        node: rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier,
     ) -> Namespace {
         self.namespaces.get(node)
     }

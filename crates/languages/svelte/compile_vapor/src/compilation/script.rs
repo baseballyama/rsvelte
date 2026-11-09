@@ -5,18 +5,18 @@
 //! same in both runtimes is refused in [`plan`], before anything is built.
 
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution};
-use rsvelte_svelte::syntax::syntax_tree::Component;
-use rsvelte_typescript::copy::{Rewrite, Verbatim, copy};
-use rsvelte_typescript::scope::BindingIdentifier;
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+use rsvelte_svelte_syntax::syntax_tree::Component;
+use rsvelte_typescript_compile::copy::{Rewrite, Verbatim, copy};
+use rsvelte_typescript_semantic::scope::BindingIdentifier;
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::helpers::{self, Helper};
 use crate::{R, unsupported};
 
-/// What [`plan`] found: the script's runes and the names the template needs.
+/// What `plan` found: the script's runes and the names the template needs.
 #[derive(Debug, Default)]
 pub struct Plan {
     constructors: constructors::Plan,
@@ -78,7 +78,7 @@ const VUE_HELPERS: &[&str] = &[
 
 /// `@vue/shared` `GLOBALS_ALLOWED`: a template name outside the list and the component's bindings
 /// is read from `_ctx`, which a Svelte global is not; a prop key in it would be read as a prop.
-pub const VUE_GLOBALS: &[&str] = &[
+pub(crate) const VUE_GLOBALS: &[&str] = &[
     "Infinity",
     "undefined",
     "NaN",
@@ -134,7 +134,7 @@ fn is_internal(name: &str) -> bool {
 /// # Panics
 ///
 /// If the resolution does not match the input tree.
-pub fn plan(c: &Component, resolution: &Resolution, source_text: &str) -> R<Plan> {
+pub(crate) fn plan(c: &Component, resolution: &Resolution, source_text: &str) -> R<Plan> {
     let mut plan = Plan::default();
     let javascript = &c.javascript;
     check_names(javascript, resolution)?;
@@ -387,7 +387,7 @@ fn check_writes(javascript: &SyntaxTree, resolution: &Resolution) -> R<()> {
 /// # Errors
 ///
 /// The first error `f` returns.
-pub fn walk(
+pub(crate) fn walk(
     javascript: &SyntaxTree,
     root: NodeIdentifier,
     f: &mut impl FnMut(NodeIdentifier) -> R<()>,
@@ -516,7 +516,7 @@ fn props(javascript: &SyntaxTree, resolution: &Resolution, pattern: NodeIdentifi
 fn is_literal(javascript: &SyntaxTree, e: NodeIdentifier) -> bool {
     match javascript.kind(e) {
         Kind::String | Kind::Number(_) | Kind::Boolean(_) | Kind::Null => true,
-        Kind::Unary(rsvelte_typescript::operators::UnaryOperator::Neg, n) => {
+        Kind::Unary(rsvelte_typescript_syntax::operators::UnaryOperator::Neg, n) => {
             matches!(javascript.kind(n), Kind::Number(_))
         }
         Kind::Template { expressions, .. } => expressions.is_empty(),
@@ -535,7 +535,7 @@ mod module;
 mod patterns;
 pub(crate) mod runes;
 pub(crate) use emit::rune_value;
-pub use emit::{emit, prop_member};
+pub(crate) use emit::{emit, prop_member};
 pub(crate) use patterns::declaration as pattern_declaration;
 
 pub(crate) fn prop_cell(

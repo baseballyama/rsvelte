@@ -1,9 +1,9 @@
 //! How JavaScript constructs lay out their tokens.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::lexer::T;
-use rsvelte_typescript::syntax_tree::{Class, Control, TypeScriptKind};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::lexer::T;
+use rsvelte_typescript_syntax::syntax_tree::{Class, Control, TypeScriptKind};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::layout::{Item, Layout};
 use super::tokens::Token;

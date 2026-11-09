@@ -1,1 +1,0 @@
-<p>nested component</p>

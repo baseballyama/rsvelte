@@ -1,9 +1,9 @@
 mod asynchronous;
 pub(super) use asynchronous::script_getter;
-use rsvelte_typescript::copy::{Rewrite, copy};
-use rsvelte_typescript::scope::{BindingIdentifier, DeclarationKind};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::resolve::{BindingType, Resolution};
+use rsvelte_typescript_compile::copy::{Rewrite, copy};
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_vue_semantic::resolve::{BindingType, Resolution};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::Builder;
@@ -186,10 +186,11 @@ impl ExpressionRewrite<'_> {
             .and_then(|a| self.resolution.binding_type(a));
         let state = declaration.initializer(from).is_some_and(|initializer| {
             if let Kind::Await(value) = from.kind(initializer) {
-                return rsvelte_vue::resolve::call_name(from, value) == Some("$$async_derived");
+                return rsvelte_vue_semantic::resolve::call_name(from, value)
+                    == Some("$$async_derived");
             }
             matches!(
-                rsvelte_vue::resolve::call_name(from, initializer),
+                rsvelte_vue_semantic::resolve::call_name(from, initializer),
                 Some("$$ref" | "$$computed" | "$$prop_cell")
             )
         });
@@ -228,7 +229,7 @@ impl Rewrite for ExpressionRewrite<'_> {
                 }
                 // `script::plan` refused every `$` call that is no rune; syntax suffices here.
                 let (name, argument) =
-                    rsvelte_svelte::semantic::resolve::rune_call(from, identifier)?;
+                    rsvelte_svelte_semantic::resolve::rune_call(from, identifier)?;
                 if !crate::script::runes::value(name) {
                     return None;
                 }
@@ -244,8 +245,18 @@ impl Rewrite for ExpressionRewrite<'_> {
                 && from.name(object).starts_with("$$pattern_")
                 && from.name(property) == "value" =>
             {
-                let object = copy(from, to, &mut rsvelte_typescript::copy::Verbatim, object);
-                let property = copy(from, to, &mut rsvelte_typescript::copy::Verbatim, property);
+                let object = copy(
+                    from,
+                    to,
+                    &mut rsvelte_typescript_compile::copy::Verbatim,
+                    object,
+                );
+                let property = copy(
+                    from,
+                    to,
+                    &mut rsvelte_typescript_compile::copy::Verbatim,
+                    property,
+                );
                 Some(to.member(object, property, false, optional, super::SYNTHETIC))
             }
             Kind::Identifier(_) => self.reference(from, to, identifier),

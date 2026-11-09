@@ -11,7 +11,7 @@ const version = (installed: string): string =>
 export async function main(): Promise<void> {
 	const require = createRequire(path.join(import.meta.dirname, 'package.json'));
 	const root = fileURLToPath(new URL('../../', import.meta.url));
-	const directory = path.join(root, 'crates/languages/typescript/core/src/semantic/vendor');
+	const directory = path.join(root, 'crates/languages/typescript/semantic/src/vendor');
 	const eslint = path.dirname(require.resolve('eslint/package.json'));
 	const globals = path.dirname(require.resolve('globals/package.json'));
 	const builtins: Record<string, unknown> = require(path.join(eslint, 'conf/globals.js')).es2026;

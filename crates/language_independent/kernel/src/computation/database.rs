@@ -83,7 +83,7 @@ impl ArtifactRegistry {
     /// # Panics
     ///
     /// If another artifact or facet uses `A::NAME`.
-    pub fn register<A: Artifact>(&mut self) {
+    pub(crate) fn register<A: Artifact>(&mut self) {
         let next = self.names.len();
         if let std::collections::hash_map::Entry::Vacant(e) =
             self.index.entry(TypeIdentifier::of::<A>())
@@ -103,7 +103,7 @@ impl ArtifactRegistry {
     /// # Panics
     ///
     /// If `identifier` already provides `F`.
-    pub fn provide<F: Facet>(
+    pub(crate) fn provide<F: Facet>(
         &mut self,
         identifier: &'static str,
         applies: impl Fn(&Document) -> bool + Send + Sync + 'static,

@@ -1,5 +1,5 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript::lexer::T;
+use rsvelte_typescript_syntax::lexer::T;
 
 use super::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};

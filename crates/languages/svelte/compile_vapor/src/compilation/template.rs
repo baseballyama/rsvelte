@@ -1,5 +1,5 @@
 //! The template: the Svelte HIR, read with Svelte's meaning, as a Vue template HIR built through
-//! [`rsvelte_vue::compiler_syntax_tree::CompilerSyntaxTreeBuilder`].
+//! [`rsvelte_vue_semantic::compiler_syntax_tree::CompilerSyntaxTreeBuilder`].
 //!
 //! Text is what Svelte's [`clean_nodes`] leaves; the Vue HIR is post-condense, so the Vue compiler
 //! keeps it as is. Expressions are copied into the component's tree; a reference to a prop becomes
@@ -11,25 +11,25 @@
 
 use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::positions::{SourceLocation, Span};
-use rsvelte_svelte::compilation::compiler_syntax_tree::{
+use rsvelte_svelte_compile::lower::{Item, Parent, clean_nodes, sanitize_template_string};
+use rsvelte_svelte_compile::render_plan::Namespace;
+use rsvelte_svelte_semantic::analyze::Analysis;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
     ElementKind, NodeKind, Part,
 };
-use rsvelte_svelte::semantic::analyze::Analysis;
-use rsvelte_svelte::semantic::evaluate::Value;
-use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution};
-use rsvelte_svelte_compile::lower::{Item, Parent, clean_nodes, sanitize_template_string};
-use rsvelte_svelte_compile::render_plan::Namespace;
-use rsvelte_typescript::copy::{Rewrite, Verbatim, copy};
-use rsvelte_typescript::operators::{
+use rsvelte_svelte_semantic::evaluate::Value;
+use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
+use rsvelte_typescript_compile::copy::{Rewrite, Verbatim, copy};
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind, ScopeIdentifier};
+use rsvelte_typescript_syntax::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator,
 };
-use rsvelte_typescript::scope::{BindingIdentifier, DeclarationKind, ScopeIdentifier};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::compiler_syntax_tree::{
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_vue_semantic::compiler_syntax_tree::{
     self as vue, CompilerSyntaxTreeBuilder, Name, PropertyKind, Text,
 };
-use rsvelte_vue::syntax_tree::{DirectiveExpression, DirectiveName, LoopExpression};
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName, LoopExpression};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::helpers::{self, Helper};
@@ -37,7 +37,7 @@ use crate::script::{Plan, prop_member, walk};
 use crate::{R, unsupported};
 
 #[derive(Debug)]
-pub struct Built {
+pub(crate) struct Built {
     pub compiler_syntax_tree: vue::CompilerSyntaxTree,
     /// The helpers the template calls, sorted.
     pub helpers: Vec<Helper>,
@@ -53,7 +53,7 @@ const PASSIVE_EVENTS: &[&str] = &["touchstart", "touchmove"];
 
 /// What [`build`] reads.
 #[derive(Clone, Copy, Debug)]
-pub struct Input<'a> {
+pub(crate) struct Input<'a> {
     pub compiler_syntax_tree: &'a CompilerSyntaxTree,
     pub resolution: &'a Resolution,
     pub analysis: &'a Analysis,
@@ -72,7 +72,7 @@ pub struct Input<'a> {
 /// # Panics
 ///
 /// If resolution does not include the snippet bindings.
-pub fn build(input: Input<'_>, to: &mut SyntaxTree) -> R<Built> {
+pub(crate) fn build(input: Input<'_>, to: &mut SyntaxTree) -> R<Built> {
     let compiler_syntax_tree = input.compiler_syntax_tree;
     let mut snippet_names = FxHashMap::default();
     let mut declarations = Vec::new();
@@ -243,9 +243,9 @@ use properties::{
 };
 
 mod check;
-pub use check::check;
+pub(crate) use check::check;
 pub(crate) use options::copy_options;
-pub use options::{CssMode, CustomElement, Options};
+pub(crate) use options::{CssMode, CustomElement, Options};
 
 mod attributes;
 mod await_block;

@@ -1,0 +1,1287 @@
+# rsvelte pack 1
+=== 774 packages/logo/src/routes/+page.svelte	css
+
+    main.svelte-i2fmny {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        width: 1280px;
+        height: 640px;
+    }
+
+    .canvas-container.svelte-i2fmny {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: -1;
+
+        width: 100%;
+        height: 100%;
+    }
+
+    .text.svelte-i2fmny {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+
+        color: white;
+        font-family: "Kanit";
+    }
+
+    img.svelte-i2fmny {
+        height: 200px;
+        width: 200px;
+
+        margin: -40px -50px;
+    }
+
+    h1.svelte-i2fmny {
+        margin: 0;
+        font-size: 80px;
+        font-style: italic;
+    }
+
+=== 1386 packages/logo/src/routes/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGlShader } from "svader";
+import shaderCode from "./shader.frag?raw";
+import logo from "./logoDark.png";
+
+var root = $.from_html(`<link rel="preconnect" href="https://fonts.googleapis.com"/> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/> <link href="https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,100;0,400;1,800&amp;display=swap" rel="stylesheet"/>`, 1);
+var root_1 = $.from_html(`<main class="svelte-i2fmny"><div class="canvas-container svelte-i2fmny"><!></div> <div class="text svelte-i2fmny"><img alt="S" class="svelte-i2fmny"/> <h1 class="svelte-i2fmny">SVADER</h1></div></main>`);
+
+export default function _page($$anchor) {
+	var main = root_1();
+
+	$.head('i2fmny', ($$anchor) => {
+		var fragment = root();
+
+		$.next(4);
+		$.append($$anchor, fragment);
+	});
+
+	var div = $.child(main);
+	var node = $.child(div);
+
+	WebGlShader(node, {
+		get code() {
+			return shaderCode;
+		},
+
+		parameters: [
+			{ name: "u_resolution", value: "resolution" },
+			{ name: "u_offset", value: "offset" },
+			{ name: "u_scale", value: "scale" }
+		]
+	});
+
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 2);
+	var img = $.child(div_1);
+
+	$.next(2);
+	$.reset(div_1);
+	$.reset(main);
+	$.template_effect(() => $.set_attribute(img, 'src', logo));
+	$.append($$anchor, main);
+}
+=== 4841 packages/test-site/src/invalid.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGlShader, WebGpuShader } from "svader";
+
+var root = $.from_html(`<!> <!>`, 1);
+
+export default function Invalid($$anchor, $$props) {
+	$.push($$props, true);
+
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	WebGlShader(node, {
+		forceAnimation: 'yeah',
+		width: // @ts-expect-error: forceAnimation must be a boolean
+		// @ts-expect-error: width must be a string
+		100,
+
+		height: // @ts-expect-error: height must be a string
+		100,
+
+		code: // @ts-expect-error: code is not a string
+		42,
+
+		parameters: [
+			// @ts-expect-error: missing name property
+			{ type: "float", value: 42 },
+
+			// @ts-expect-error: missing type property
+			{ name: "value1", value: 42 },
+
+			// @ts-expect-error: missing value property
+			{ name: "value2", type: "float" },
+
+			{
+				name: "value3",
+				// @ts-expect-error: type should not be present with built-in value
+				type: "float",
+				value: "resolution"
+			},
+
+			{
+				name: "value4",
+				// @ts-expect-error: misspelled type
+				type: "flote",
+				value: 42
+			},
+
+			{
+				name: "value5",
+				// @ts-expect-error: misspelled built-in value
+				value: "resoltion"
+			},
+
+			{
+				// @ts-expect-error: name must be a string
+				name: 6,
+				type: "float",
+				value: 42
+			},
+
+			{
+				name: "value7",
+				// @ts-expect-error: type must be a string
+				type: 7,
+				value: 42
+			},
+
+			{
+				name: "value8",
+				type: "float",
+				// @ts-expect-error: float corresponds to number
+				value: [0, 0]
+			},
+
+			{
+				name: "value9",
+				type: "int",
+				// @ts-expect-error: int corresponds to number
+				value: [0, 0]
+			},
+
+			{
+				name: "value10",
+				type: "uint",
+				// @ts-expect-error: uint corresponds to number
+				value: [0, 0]
+			},
+
+			// @ts-expect-error: vec2 corresponds to [number, number]
+			{ name: "value11", type: "vec2", value: 0 },
+
+			// @ts-expect-error: ivec2 corresponds to [number, number]
+			{ name: "value12", type: "ivec2", value: 0 },
+
+			// @ts-expect-error: uvec2 corresponds to [number, number]
+			{ name: "value13", type: "uvec2", value: 0 },
+
+			// @ts-expect-error: vec3 corresponds to [number, number, number]
+			{ name: "value14", type: "vec3", value: [0, 0] },
+
+			// @ts-expect-error: ivec3 corresponds to [number, number, number]
+			{ name: "value15", type: "ivec3", value: [0, 0] },
+
+			// @ts-expect-error: uvec3 corresponds to [number, number, number]
+			{ name: "value16", type: "uvec3", value: [0, 0] },
+
+			// @ts-expect-error: vec4 corresponds to [number, number, number, number]
+			{ name: "value17", type: "vec4", value: [0, 0, 0] },
+
+			// @ts-expect-error: ivec4 corresponds to [number, number, number, number]
+			{ name: "value18", type: "ivec4", value: [0, 0, 0] },
+
+			// @ts-expect-error: uvec4 corresponds to [number, number, number, number]
+			{ name: "value19", type: "uvec4", value: [0, 0, 0] },
+
+			// @ts-expect-error: mat2 corresponds to
+			// [number, number,
+			//  number, number]
+			{ name: "value20", type: "mat2", value: [0, 0, 0] },
+
+			// @ts-expect-error: mat3 corresponds to
+			// [number, number, number,
+			//  number, number, number,
+			//  number, number, number]
+			{ name: "value21", type: "mat3", value: [0, 0, 0, 0] },
+
+			// @ts-expect-error: mat4 corresponds to
+			// [number, number, number, number,
+			//  number, number, number, number,
+			//  number, number, number, number,
+			//  number, number, number, number]
+			{
+				name: "value22",
+				type: "mat4",
+				value: [0, 0, 0, 0, 0, 0, 0, 0, 0]
+			}
+		]
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	WebGpuShader(node_1, {
+		forceAnimation: 'yeah',
+		width: // @ts-expect-error: forceAnimation must be a boolean
+		// @ts-expect-error: width must be a string
+		100,
+
+		height: // @ts-expect-error: height must be a string
+		100,
+
+		code: // @ts-expect-error: code is not a string
+		42,
+
+		parameters: [
+			// @ts-expect-error: missing label property
+			{ binding: 0, value: "resolution" },
+
+			// @ts-expect-error: missing binding property
+			{ label: "Value1", value: "resolution" },
+
+			// @ts-expect-error: missing value property
+			{ label: "Value2", binding: 2 },
+
+			{
+				// @ts-expect-error: label must be a string
+				label: 3,
+				binding: 3,
+				value: "resolution"
+			},
+
+			{
+				label: "Value4",
+				// @ts-expect-error: binding must be a number
+				binding: "4",
+				value: "resolution"
+			},
+
+			{
+				label: "Value5",
+				binding: 5,
+				// @ts-expect-error: value must be a buffer
+				value: 42
+			},
+
+			{
+				label: "Value6",
+				binding: 6,
+				// @ts-expect-error: misspelled built-in value
+				value: "resoltion"
+			},
+
+			{
+				label: "Value7",
+				binding: 7,
+				value: new Float32Array([42]),
+				// @ts-expect-error: storage must be a boolean
+				storage: "read-only"
+			}
+		]
+	});
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1388 packages/test-site/src/routes/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { resolve } from "$app/paths";
+
+var root = $.from_html(`<ol><li><a>Hello world</a></li> <li><a>Remounting canvas</a></li> <li><a>Oversized canvas</a></li> <li><a>Landing page with bubbles</a></li> <li><a>Landing page with a halo</a></li> <li><a>Slider component</a></li></ol>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	var ol = root();
+	var li = $.child(ol);
+	var a = $.only_child(li);
+	var li_1 = $.sibling(li, 2);
+	var a_1 = $.only_child(li_1);
+	var li_2 = $.sibling(li_1, 2);
+	var a_2 = $.only_child(li_2);
+	var li_3 = $.sibling(li_2, 2);
+	var a_3 = $.only_child(li_3);
+	var li_4 = $.sibling(li_3, 2);
+	var a_4 = $.only_child(li_4);
+	var li_5 = $.sibling(li_4, 2);
+	var a_5 = $.only_child(li_5);
+
+	$.reset(ol);
+
+	$.template_effect(
+		($0, $1, $2, $3, $4, $5) => {
+			$.set_attribute(a, 'href', $0);
+			$.set_attribute(a_1, 'href', $1);
+			$.set_attribute(a_2, 'href', $2);
+			$.set_attribute(a_3, 'href', $3);
+			$.set_attribute(a_4, 'href', $4);
+			$.set_attribute(a_5, 'href', $5);
+		},
+		[
+			() => resolve("/hello-world"),
+			() => resolve("/remount"),
+			() => resolve("/oversized-canvas"),
+			() => resolve("/landing-page-bubbles"),
+			() => resolve("/landing-page-halo"),
+			() => resolve("/slider")
+		]
+	);
+
+	$.append($$anchor, ol);
+	$.pop();
+}
+=== 672 packages/test-site/src/routes/hello-world/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { resolve } from "$app/paths";
+
+var root = $.from_html(`<ul><li><a>WebGL</a></li> <li><a>WebGPU</a></li></ul>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	var ul = root();
+	var li = $.child(ul);
+	var a = $.only_child(li);
+	var li_1 = $.sibling(li, 2);
+	var a_1 = $.only_child(li_1);
+
+	$.reset(ul);
+
+	$.template_effect(
+		($0, $1) => {
+			$.set_attribute(a, 'href', $0);
+			$.set_attribute(a_1, 'href', $1);
+		},
+		[
+			() => resolve("/hello-world/webgl"),
+			() => resolve("/hello-world/webgpu")
+		]
+	);
+
+	$.append($$anchor, ul);
+	$.pop();
+}
+=== 659 packages/test-site/src/routes/hello-world/webgl/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGlShader } from "svader";
+import shaderCode from "./shader.frag?raw";
+
+var root = $.from_html(`<div class="fallback">WebGL not supported in this environment.</div>`);
+
+export default function _page($$anchor) {
+	WebGlShader($$anchor, {
+		width: '500px',
+		height: '500px',
+		get code() {
+			return shaderCode;
+		},
+
+		parameters: [
+			{ name: "u_resolution", value: "resolution" },
+			{ name: "u_offset", value: "offset" }
+		],
+
+		children: ($$anchor, $$slotProps) => {
+			var div = root();
+
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 684 packages/test-site/src/routes/hello-world/webgpu/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGpuShader } from "svader";
+import shaderCode from "./shader.wgsl?raw";
+
+var root = $.from_html(`<div class="fallback">WebGPU not supported in this environment.</div>`);
+
+export default function _page($$anchor) {
+	WebGpuShader($$anchor, {
+		width: '500px',
+		height: '500px',
+		get code() {
+			return shaderCode;
+		},
+
+		parameters: [
+			{ label: "Resolution", binding: 0, value: "resolution" },
+			{ label: "Offset", binding: 1, value: "offset" }
+		],
+
+		children: ($$anchor, $$slotProps) => {
+			var div = root();
+
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 690 packages/test-site/src/routes/landing-page-bubbles/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { resolve } from "$app/paths";
+
+var root = $.from_html(`<ul><li><a>WebGL</a></li> <li><a>WebGPU</a></li></ul>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	var ul = root();
+	var li = $.child(ul);
+	var a = $.only_child(li);
+	var li_1 = $.sibling(li, 2);
+	var a_1 = $.only_child(li_1);
+
+	$.reset(ul);
+
+	$.template_effect(
+		($0, $1) => {
+			$.set_attribute(a, 'href', $0);
+			$.set_attribute(a_1, 'href', $1);
+		},
+		[
+			() => resolve("/landing-page-bubbles/webgl"),
+			() => resolve("/landing-page-bubbles/webgpu")
+		]
+	);
+
+	$.append($$anchor, ul);
+	$.pop();
+}
+=== 710 packages/test-site/src/routes/landing-page-bubbles/webgl/+page.svelte	css
+
+    main.svelte-1wbdv87 {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+
+        /* Prevent margin collapsing */
+        overflow: hidden;
+    }
+
+    .canvas-container.svelte-1wbdv87 {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: -1;
+
+        width: 100%;
+        height: 100%;
+
+        background-color: black;
+    }
+
+    h1.svelte-1wbdv87 {
+        font-family: "SUSE", sans-serif;
+        font-size: 12rem;
+
+        mix-blend-mode: difference;
+        color: var(--color);
+
+        margin: 10rem 0 0 10rem;
+    }
+
+    @media (max-width: 1000px) {
+        h1.svelte-1wbdv87 {
+            font-size: 4rem;
+            margin: 2rem;
+        }
+    }
+
+=== 1652 packages/test-site/src/routes/landing-page-bubbles/webgl/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGlShader } from "svader";
+import shaderCode from "./shader.frag?raw";
+
+var root = $.from_html(`<link rel="preconnect" href="https://fonts.googleapis.com"/> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/> <link href="https://fonts.googleapis.com/css2?family=SUSE:wght@800&amp;display=swap" rel="stylesheet"/>`, 1);
+var root_1 = $.from_html(`<main class="svelte-1wbdv87"><div class="canvas-container svelte-1wbdv87"><!></div> <h1 class="svelte-1wbdv87">SVADER</h1></main>`);
+
+export default function _page($$anchor) {
+	const color = /** @type {const} */ ([0.8, 0.3, 0.0]);
+
+	/**
+	 * @param {number} r
+	 * @param {number} g
+	 * @param {number} b
+	 */
+	function rgbString(r, g, b) {
+		return `rgb(${r * 255}, ${g * 255}, ${b * 255})`;
+	}
+
+	var main = root_1();
+
+	$.head('1wbdv87', ($$anchor) => {
+		var fragment = root();
+
+		$.next(4);
+		$.append($$anchor, fragment);
+	});
+
+	var div = $.child(main);
+	var node = $.child(div);
+
+	{
+		let $0 = $.derived(() => [
+			{ name: "u_resolution", value: "resolution" },
+			{ name: "u_offset", value: "offset" },
+			{ name: "u_scale", value: "scale" },
+			{ name: "u_time", value: "time" },
+			{ name: "u_color", type: "vec3", value: color }
+		]);
+
+		WebGlShader(node, {
+			get code() {
+				return shaderCode;
+			},
+
+			get parameters() {
+				return $.get($0);
+			}
+		});
+	}
+
+	$.reset(div);
+
+	var h1 = $.sibling(div, 2);
+	let styles;
+
+	$.reset(main);
+	$.template_effect(($0) => styles = $.set_style(h1, '', styles, { '--color': $0 }), [() => rgbString(...color)]);
+	$.append($$anchor, main);
+}
+=== 706 packages/test-site/src/routes/landing-page-bubbles/webgpu/+page.svelte	css
+
+    main.svelte-1hz7ps {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+
+        /* Prevent margin collapsing */
+        overflow: hidden;
+    }
+
+    .canvas-container.svelte-1hz7ps {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: -1;
+
+        width: 100%;
+        height: 100%;
+
+        background-color: black;
+    }
+
+    h1.svelte-1hz7ps {
+        font-family: "SUSE", sans-serif;
+        font-size: 12rem;
+
+        mix-blend-mode: difference;
+        color: var(--color);
+
+        margin: 10rem 0 0 10rem;
+    }
+
+    @media (max-width: 1000px) {
+        h1.svelte-1hz7ps {
+            font-size: 4rem;
+            margin: 2rem;
+        }
+    }
+
+=== 1692 packages/test-site/src/routes/landing-page-bubbles/webgpu/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGpuShader } from "svader";
+import shaderCode from "./shader.wgsl?raw";
+
+var root = $.from_html(`<link rel="preconnect" href="https://fonts.googleapis.com"/> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/> <link href="https://fonts.googleapis.com/css2?family=SUSE:wght@800&amp;display=swap" rel="stylesheet"/>`, 1);
+var root_1 = $.from_html(`<main class="svelte-1hz7ps"><div class="canvas-container svelte-1hz7ps"><!></div> <h1 class="svelte-1hz7ps">SVADER</h1></main>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	const color = /** @type {const} */ ([0.8, 0.3, 0.0]);
+
+	/**
+	 * @param {number} r
+	 * @param {number} g
+	 * @param {number} b
+	 */
+	function rgbString(r, g, b) {
+		return `rgb(${r * 255}, ${g * 255}, ${b * 255})`;
+	}
+
+	var main = root_1();
+
+	$.head('1hz7ps', ($$anchor) => {
+		var fragment = root();
+
+		$.next(4);
+		$.append($$anchor, fragment);
+	});
+
+	var div = $.child(main);
+	var node = $.child(div);
+
+	{
+		let $0 = $.derived(() => [
+			{ label: "Offset", binding: 0, value: "offset" },
+			{ label: "Scale", binding: 1, value: "scale" },
+			{ label: "Time", binding: 2, value: "time" },
+			{ label: "Color", binding: 3, value: new Float32Array(color) }
+		]);
+
+		WebGpuShader(node, {
+			get code() {
+				return shaderCode;
+			},
+
+			get parameters() {
+				return $.get($0);
+			}
+		});
+	}
+
+	$.reset(div);
+
+	var h1 = $.sibling(div, 2);
+	let styles;
+
+	$.reset(main);
+	$.template_effect(($0) => styles = $.set_style(h1, '', styles, { '--color': $0 }), [() => rgbString(...color)]);
+	$.append($$anchor, main);
+	$.pop();
+}
+=== 684 packages/test-site/src/routes/landing-page-halo/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { resolve } from "$app/paths";
+
+var root = $.from_html(`<ul><li><a>WebGL</a></li> <li><a>WebGPU</a></li></ul>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	var ul = root();
+	var li = $.child(ul);
+	var a = $.only_child(li);
+	var li_1 = $.sibling(li, 2);
+	var a_1 = $.only_child(li_1);
+
+	$.reset(ul);
+
+	$.template_effect(
+		($0, $1) => {
+			$.set_attribute(a, 'href', $0);
+			$.set_attribute(a_1, 'href', $1);
+		},
+		[
+			() => resolve("/landing-page-halo/webgl"),
+			() => resolve("/landing-page-halo/webgpu")
+		]
+	);
+
+	$.append($$anchor, ul);
+	$.pop();
+}
+=== 682 packages/test-site/src/routes/landing-page-halo/webgl/+page.svelte	css
+
+    main.svelte-1m16zh0 {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+    }
+
+    .canvas-container.svelte-1m16zh0 {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: -1;
+
+        width: 100%;
+        height: 100%;
+
+        background-color: black;
+    }
+
+    h1.svelte-1m16zh0 {
+        font-family: "Teko", sans-serif;
+        font-size: 8rem;
+
+        color: rgb(250, 250, 250);
+
+        margin: 0;
+    }
+
+    @media (max-width: 700px) or (max-height: 700px) {
+        h1.svelte-1m16zh0 {
+            font-size: 3.5rem;
+        }
+    }
+
+=== 1072 packages/test-site/src/routes/landing-page-halo/webgl/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGlShader } from "svader";
+import shaderCode from "./shader.frag?raw";
+
+var root = $.from_html(`<link rel="preconnect" href="https://fonts.googleapis.com"/> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/> <link href="https://fonts.googleapis.com/css2?family=Teko&amp;display=swap" rel="stylesheet"/>`, 1);
+var root_1 = $.from_html(`<main class="svelte-1m16zh0"><div class="canvas-container svelte-1m16zh0"><!></div> <h1 class="svelte-1m16zh0">SVADER</h1></main>`);
+
+export default function _page($$anchor) {
+	var main = root_1();
+
+	$.head('1m16zh0', ($$anchor) => {
+		var fragment = root();
+
+		$.next(4);
+		$.append($$anchor, fragment);
+	});
+
+	var div = $.child(main);
+	var node = $.child(div);
+
+	WebGlShader(node, {
+		get code() {
+			return shaderCode;
+		},
+
+		parameters: [
+			{ name: "u_resolution", value: "resolution" },
+			{ name: "u_offset", value: "offset" }
+		]
+	});
+
+	$.reset(div);
+	$.next(2);
+	$.reset(main);
+	$.append($$anchor, main);
+}
+=== 682 packages/test-site/src/routes/landing-page-halo/webgpu/+page.svelte	css
+
+    main.svelte-1bv6x0d {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+    }
+
+    .canvas-container.svelte-1bv6x0d {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: -1;
+
+        width: 100%;
+        height: 100%;
+
+        background-color: black;
+    }
+
+    h1.svelte-1bv6x0d {
+        font-family: "Teko", sans-serif;
+        font-size: 8rem;
+
+        color: rgb(250, 250, 250);
+
+        margin: 0;
+    }
+
+    @media (max-width: 700px) or (max-height: 700px) {
+        h1.svelte-1bv6x0d {
+            font-size: 3.5rem;
+        }
+    }
+
+=== 1096 packages/test-site/src/routes/landing-page-halo/webgpu/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGpuShader } from "svader";
+import shaderCode from "./shader.wgsl?raw";
+
+var root = $.from_html(`<link rel="preconnect" href="https://fonts.googleapis.com"/> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/> <link href="https://fonts.googleapis.com/css2?family=Teko&amp;display=swap" rel="stylesheet"/>`, 1);
+var root_1 = $.from_html(`<main class="svelte-1bv6x0d"><div class="canvas-container svelte-1bv6x0d"><!></div> <h1 class="svelte-1bv6x0d">SVADER</h1></main>`);
+
+export default function _page($$anchor) {
+	var main = root_1();
+
+	$.head('1bv6x0d', ($$anchor) => {
+		var fragment = root();
+
+		$.next(4);
+		$.append($$anchor, fragment);
+	});
+
+	var div = $.child(main);
+	var node = $.child(div);
+
+	WebGpuShader(node, {
+		get code() {
+			return shaderCode;
+		},
+
+		parameters: [
+			{ label: "Resolution", binding: 0, value: "resolution" },
+			{ label: "Offset", binding: 1, value: "offset" }
+		]
+	});
+
+	$.reset(div);
+	$.next(2);
+	$.reset(main);
+	$.append($$anchor, main);
+}
+=== 682 packages/test-site/src/routes/oversized-canvas/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { resolve } from "$app/paths";
+
+var root = $.from_html(`<ul><li><a>WebGL</a></li> <li><a>WebGPU</a></li></ul>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	var ul = root();
+	var li = $.child(ul);
+	var a = $.only_child(li);
+	var li_1 = $.sibling(li, 2);
+	var a_1 = $.only_child(li_1);
+
+	$.reset(ul);
+
+	$.template_effect(
+		($0, $1) => {
+			$.set_attribute(a, 'href', $0);
+			$.set_attribute(a_1, 'href', $1);
+		},
+		[
+			() => resolve("/oversized-canvas/webgl"),
+			() => resolve("/oversized-canvas/webgpu")
+		]
+	);
+
+	$.append($$anchor, ul);
+	$.pop();
+}
+=== 663 packages/test-site/src/routes/oversized-canvas/webgl/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGlShader } from "svader";
+import shaderCode from "./shader.frag?raw";
+
+var root = $.from_html(`<div class="fallback">WebGL not supported in this environment.</div>`);
+
+export default function _page($$anchor) {
+	WebGlShader($$anchor, {
+		width: '10000px',
+		height: '10000px',
+		get code() {
+			return shaderCode;
+		},
+
+		parameters: [
+			{ name: "u_resolution", value: "resolution" },
+			{ name: "u_offset", value: "offset" }
+		],
+
+		children: ($$anchor, $$slotProps) => {
+			var div = root();
+
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 688 packages/test-site/src/routes/oversized-canvas/webgpu/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGpuShader } from "svader";
+import shaderCode from "./shader.wgsl?raw";
+
+var root = $.from_html(`<div class="fallback">WebGPU not supported in this environment.</div>`);
+
+export default function _page($$anchor) {
+	WebGpuShader($$anchor, {
+		width: '10000px',
+		height: '10000px',
+		get code() {
+			return shaderCode;
+		},
+
+		parameters: [
+			{ label: "Resolution", binding: 0, value: "resolution" },
+			{ label: "Offset", binding: 1, value: "offset" }
+		],
+
+		children: ($$anchor, $$slotProps) => {
+			var div = root();
+
+			$.append($$anchor, div);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 664 packages/test-site/src/routes/remount/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { resolve } from "$app/paths";
+
+var root = $.from_html(`<ul><li><a>WebGL</a></li> <li><a>WebGPU</a></li></ul>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	var ul = root();
+	var li = $.child(ul);
+	var a = $.only_child(li);
+	var li_1 = $.sibling(li, 2);
+	var a_1 = $.only_child(li_1);
+
+	$.reset(ul);
+
+	$.template_effect(
+		($0, $1) => {
+			$.set_attribute(a, 'href', $0);
+			$.set_attribute(a_1, 'href', $1);
+		},
+		[
+			() => resolve("/remount/webgl"),
+			() => resolve("/remount/webgpu")
+		]
+	);
+
+	$.append($$anchor, ul);
+	$.pop();
+}
+=== 1201 packages/test-site/src/routes/remount/webgl/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGlShader } from "svader";
+import shaderCode from "./shader.frag?raw";
+
+var root = $.from_html(`<div class="fallback">WebGL not supported in this environment.</div>`);
+var root_1 = $.from_html(`<label for="show">Show</label> <input id="show" type="checkbox"/> <!>`, 1);
+
+export default function _page($$anchor) {
+	let show = $.state(true);
+	var fragment = root_1();
+	var input = $.sibling($.first_child(fragment), 2);
+
+	$.remove_input_defaults(input);
+
+	var node = $.sibling(input, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			WebGlShader($$anchor, {
+				width: '500px',
+				height: '500px',
+				get code() {
+					return shaderCode;
+				},
+
+				parameters: [
+					{ name: "u_resolution", value: "resolution" },
+					{ name: "u_offset", value: "offset" }
+				],
+
+				children: ($$anchor, $$slotProps) => {
+					var div = root();
+
+					$.append($$anchor, div);
+				},
+				$$slots: { default: true }
+			});
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(show)) $$render(consequent);
+		});
+	}
+
+	$.bind_checked(input, () => $.get(show), ($$value) => $.set(show, $$value));
+	$.append($$anchor, fragment);
+}
+=== 1226 packages/test-site/src/routes/remount/webgpu/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGpuShader } from "svader";
+import shaderCode from "./shader.wgsl?raw";
+
+var root = $.from_html(`<div class="fallback">WebGPU not supported in this environment.</div>`);
+var root_1 = $.from_html(`<label for="show">Show</label> <input id="show" type="checkbox"/> <!>`, 1);
+
+export default function _page($$anchor) {
+	let show = $.state(true);
+	var fragment = root_1();
+	var input = $.sibling($.first_child(fragment), 2);
+
+	$.remove_input_defaults(input);
+
+	var node = $.sibling(input, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			WebGpuShader($$anchor, {
+				width: '500px',
+				height: '500px',
+				get code() {
+					return shaderCode;
+				},
+
+				parameters: [
+					{ label: "Resolution", binding: 0, value: "resolution" },
+					{ label: "Offset", binding: 1, value: "offset" }
+				],
+
+				children: ($$anchor, $$slotProps) => {
+					var div = root();
+
+					$.append($$anchor, div);
+				},
+				$$slots: { default: true }
+			});
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get(show)) $$render(consequent);
+		});
+	}
+
+	$.bind_checked(input, () => $.get(show), ($$value) => $.set(show, $$value));
+	$.append($$anchor, fragment);
+}
+=== 662 packages/test-site/src/routes/slider/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { resolve } from "$app/paths";
+
+var root = $.from_html(`<ul><li><a>WebGL</a></li> <li><a>WebGPU</a></li></ul>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	var ul = root();
+	var li = $.child(ul);
+	var a = $.only_child(li);
+	var li_1 = $.sibling(li, 2);
+	var a_1 = $.only_child(li_1);
+
+	$.reset(ul);
+
+	$.template_effect(
+		($0, $1) => {
+			$.set_attribute(a, 'href', $0);
+			$.set_attribute(a_1, 'href', $1);
+		},
+		[
+			() => resolve("/slider/webgl"),
+			() => resolve("/slider/webgpu")
+		]
+	);
+
+	$.append($$anchor, ul);
+	$.pop();
+}
+=== 694 packages/test-site/src/routes/slider/webgl/+page.svelte	css
+
+    main.svelte-1sp0hbd {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 5rem;
+    }
+
+    h1.svelte-1sp0hbd {
+        font-family: sans-serif;
+        font-style: italic;
+        margin-bottom: 0;
+    }
+
+    span.svelte-1sp0hbd {
+        display: inline-block;
+        position: relative;
+    }
+
+    .canvas-container.svelte-1sp0hbd {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: -1;
+
+        width: 100%;
+        height: 100%;
+    }
+
+    input.svelte-1sp0hbd {
+        opacity: 0;
+        margin: 0;
+        width: 200px;
+        height: 60px;
+        margin: 0 20px;
+
+        cursor: ew-resize;
+    }
+
+=== 1193 packages/test-site/src/routes/slider/webgl/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGlShader } from "svader";
+import shaderCode from "./shader.frag?raw";
+
+var root = $.from_html(`<main class="svelte-1sp0hbd"><h1 class="svelte-1sp0hbd">SLIDE ME</h1> <span class="svelte-1sp0hbd"><div class="canvas-container svelte-1sp0hbd"><!></div> <input type="range" min="0" max="1" step="0.01" class="svelte-1sp0hbd"/></span></main>`);
+
+export default function _page($$anchor) {
+	let val = $.state(0.75);
+	var main = root();
+	var span = $.sibling($.child(main), 2);
+	var div = $.child(span);
+	var node = $.child(div);
+
+	{
+		let $0 = $.derived(() => [
+			{ name: "u_resolution", value: "resolution" },
+			{ name: "u_offset", value: "offset" },
+			{ name: "u_scale", value: "scale" },
+			{ name: "u_value", type: "float", value: $.get(val) }
+		]);
+
+		WebGlShader(node, {
+			get code() {
+				return shaderCode;
+			},
+
+			get parameters() {
+				return $.get($0);
+			}
+		});
+	}
+
+	$.reset(div);
+
+	var input = $.sibling(div, 2);
+
+	$.remove_input_defaults(input);
+	$.reset(span);
+	$.reset(main);
+	$.bind_value(input, () => $.get(val), ($$value) => $.set(val, $$value));
+	$.append($$anchor, main);
+}
+=== 694 packages/test-site/src/routes/slider/webgpu/+page.svelte	css
+
+    main.svelte-1jcq176 {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 5rem;
+    }
+
+    h1.svelte-1jcq176 {
+        font-family: sans-serif;
+        font-style: italic;
+        margin-bottom: 0;
+    }
+
+    span.svelte-1jcq176 {
+        display: inline-block;
+        position: relative;
+    }
+
+    .canvas-container.svelte-1jcq176 {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: -1;
+
+        width: 100%;
+        height: 100%;
+    }
+
+    input.svelte-1jcq176 {
+        opacity: 0;
+        margin: 0;
+        width: 200px;
+        height: 60px;
+        margin: 0 20px;
+
+        cursor: ew-resize;
+    }
+
+=== 1303 packages/test-site/src/routes/slider/webgpu/+page.svelte	js
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import { WebGpuShader } from "svader";
+import shaderCode from "./shader.wgsl?raw";
+
+var root = $.from_html(`<main class="svelte-1jcq176"><h1 class="svelte-1jcq176">SLIDE ME</h1> <span class="svelte-1jcq176"><div class="canvas-container svelte-1jcq176"><!></div> <input type="range" min="0" max="1" step="0.01" class="svelte-1jcq176"/></span></main>`);
+
+export default function _page($$anchor, $$props) {
+	$.push($$props, true);
+
+	let val = $.state(0.75);
+	var main = root();
+	var span = $.sibling($.child(main), 2);
+	var div = $.child(span);
+	var node = $.child(div);
+
+	{
+		let $0 = $.derived(() => [
+			{ label: "Resolution", binding: 0, value: "resolution" },
+			{ label: "Offset", binding: 1, value: "offset" },
+			{ label: "Scale", binding: 2, value: "scale" },
+			{
+				label: "Value",
+				binding: 3,
+				value: new Float32Array([$.get(val)])
+			}
+		]);
+
+		WebGpuShader(node, {
+			get code() {
+				return shaderCode;
+			},
+
+			get parameters() {
+				return $.get($0);
+			}
+		});
+	}
+
+	$.reset(div);
+
+	var input = $.sibling(div, 2);
+
+	$.remove_input_defaults(input);
+	$.reset(span);
+	$.reset(main);
+	$.bind_value(input, () => $.get(val), ($$value) => $.set(val, $$value));
+	$.append($$anchor, main);
+	$.pop();
+}

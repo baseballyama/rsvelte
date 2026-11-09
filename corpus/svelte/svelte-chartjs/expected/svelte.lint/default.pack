@@ -1,0 +1,296 @@
+# rsvelte pack 1
+=== 0 sandboxes/bar/App.svelte	lint.txt
+
+=== 80 sandboxes/bar/components/Chart.svelte	lint.txt
+25:13 25:43 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 80 sandboxes/bubble/components/Chart.svelte	lint.txt
+17:16 17:46 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 80 sandboxes/doughnut/components/Chart.svelte	lint.txt
+17:18 17:48 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 567 sandboxes/events/components/Chart.svelte	lint.txt
+40:5 40:12 no-undef "'console' is not defined."
+48:5 48:12 no-undef "'console' is not defined."
+54:5 54:12 no-undef "'console' is not defined."
+70:19 70:29 svelte/max-attributes-per-line "'type' should be on a new line."
+70:19 70:29 svelte/sort-attributes "Attribute 'type' should go before 'bind:chart'."
+70:30 70:47 svelte/sort-attributes "Attribute 'onclick' should go before 'bind:chart'."
+70:48 70:54 svelte/sort-attributes "Attribute 'data' should go before 'bind:chart'."
+70:55 70:64 svelte/sort-attributes "Attribute 'options' should go before 'bind:chart'."
+
+=== 80 sandboxes/line/components/Chart.svelte	lint.txt
+27:14 27:44 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 80 sandboxes/pie/components/Chart.svelte	lint.txt
+17:13 17:43 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 80 sandboxes/polar/components/Chart.svelte	lint.txt
+17:19 17:49 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 80 sandboxes/radar/components/Chart.svelte	lint.txt
+25:15 25:45 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 335 sandboxes/ref/components/Chart.svelte	lint.txt
+71:19 71:29 svelte/max-attributes-per-line "'type' should be on a new line."
+71:19 71:29 svelte/sort-attributes "Attribute 'type' should go before 'bind:chart'."
+71:30 71:36 svelte/sort-attributes "Attribute 'data' should go before 'bind:chart'."
+71:37 71:46 svelte/sort-attributes "Attribute 'options' should go before 'bind:chart'."
+
+=== 80 sandboxes/scatter/components/Chart.svelte	lint.txt
+27:17 27:47 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 2947 sites/docs/src/lib/components/Header.svelte	lint.txt
+9:5 9:81 svelte/button-has-type "Missing an explicit type attribute for button."
+9:30 9:55 svelte/max-attributes-per-line "'onclick' should be on a new line."
+9:56 9:80 svelte/sort-attributes "Attribute 'aria-label' should go before 'onclick'."
+10:23 10:34 svelte/max-attributes-per-line "'height' should be on a new line."
+10:23 10:34 svelte/sort-attributes "Attribute 'height' should go before 'width'."
+10:35 10:54 svelte/sort-attributes "Attribute 'viewBox' should go before 'width'."
+10:55 10:66 svelte/sort-attributes "Attribute 'fill' should go before 'width'."
+15:11 15:33 svelte/sort-attributes "Attribute 'stroke-linecap' should go before 'stroke-width'."
+19:13 19:25 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
+19:26 19:38 svelte/max-attributes-per-line "'class' should be on a new line."
+19:26 19:38 svelte/sort-attributes "Attribute 'class' should go before 'href'."
+21:13 21:36 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
+22:9 22:29 svelte/sort-attributes "Attribute 'alt' should go before 'src'."
+24:9 24:20 svelte/sort-attributes "Attribute 'height' should go before 'src'."
+33:7 33:32 svelte/sort-attributes "Attribute 'rel' should go before 'target'."
+34:7 34:26 svelte/sort-attributes "Attribute 'aria-label' should go before 'href'."
+36:23 36:34 svelte/max-attributes-per-line "'height' should be on a new line."
+36:23 36:34 svelte/sort-attributes "Attribute 'height' should go before 'width'."
+36:35 36:54 svelte/sort-attributes "Attribute 'viewBox' should go before 'width'."
+36:55 36:74 svelte/sort-attributes "Attribute 'fill' should go before 'width'."
+38:11 38:583 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+46:7 46:32 svelte/sort-attributes "Attribute 'rel' should go before 'target'."
+47:7 47:23 svelte/sort-attributes "Attribute 'aria-label' should go before 'href'."
+49:23 49:34 svelte/max-attributes-per-line "'height' should be on a new line."
+49:23 49:34 svelte/sort-attributes "Attribute 'height' should go before 'width'."
+49:35 49:54 svelte/sort-attributes "Attribute 'viewBox' should go before 'width'."
+49:55 49:74 svelte/sort-attributes "Attribute 'fill' should go before 'width'."
+51:11 51:75 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+76:3 76:8 svelte/consistent-selector-style "Selector should select by element type instead of class"
+82:3 82:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
+92:3 92:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
+96:3 96:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
+105:3 105:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
+128:5 128:14 svelte/consistent-selector-style "Selector should select by element type instead of class"
+
+=== 2599 sites/docs/src/lib/components/Sidebar.svelte	lint.txt
+47:12 47:24 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
+48:7 48:54 svelte/sort-attributes "Attribute 'class:active' should go before 'href'."
+49:30 49:30 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
+49:38 50:5 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
+53:5 53:38 svelte/require-each-key "Each block should have a key"
+55:14 55:32 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
+56:9 56:62 svelte/sort-attributes "Attribute 'class:active' should go before 'href'."
+57:32 57:32 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
+57:43 58:7 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
+62:5 62:40 svelte/require-each-key "Each block should have a key"
+64:14 64:32 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
+65:9 65:62 svelte/sort-attributes "Attribute 'class:active' should go before 'href'."
+66:32 66:32 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
+66:43 67:7 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
+71:5 71:38 svelte/require-each-key "Each block should have a key"
+73:14 73:32 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
+74:9 74:62 svelte/sort-attributes "Attribute 'class:active' should go before 'href'."
+75:32 75:32 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
+75:43 76:7 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
+81:12 81:27 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
+82:7 82:57 svelte/sort-attributes "Attribute 'class:active' should go before 'href'."
+83:30 83:30 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
+83:37 84:5 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
+89:3 89:11 svelte/consistent-selector-style "Selector should select by element type instead of class"
+139:5 139:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
+
+=== 689 sites/docs/src/lib/components/TableOfContents.svelte	lint.txt
+25:26 25:46 no-undef "'IntersectionObserver' is not defined."
+45:20 45:50 svelte/max-attributes-per-line "'aria-label' should be on a new line."
+48:7 48:34 svelte/require-each-key "Each block should have a key"
+50:35 50:73 svelte/max-attributes-per-line "'class:active' should be on a new line."
+50:35 50:73 svelte/sort-attributes "Attribute 'class:active' should go before 'href'."
+60:3 60:7 svelte/consistent-selector-style "Selector should select by element type instead of class"
+70:3 70:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
+118:5 118:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
+
+=== 3191 sites/docs/src/lib/components/ThemeToggle.svelte	lint.txt
+5:12 5:18 no-undef "'window' is not defined."
+12:5 12:13 no-undef "'document' is not defined."
+16:19 16:31 no-undef "'localStorage' is not defined."
+27:5 27:17 no-undef "'localStorage' is not defined."
+31:1 31:73 svelte/button-has-type "Missing an explicit type attribute for button."
+31:26 31:46 svelte/max-attributes-per-line "'class' should be on a new line."
+31:26 31:46 svelte/sort-attributes "Attribute 'class' should go before 'onclick'."
+31:47 31:72 svelte/sort-attributes "Attribute 'aria-label' should go before 'onclick'."
+35:7 35:18 svelte/sort-attributes "Attribute 'height' should go before 'width'."
+36:7 36:26 svelte/sort-attributes "Attribute 'viewBox' should go before 'width'."
+37:7 37:18 svelte/sort-attributes "Attribute 'fill' should go before 'width'."
+38:7 38:28 svelte/sort-attributes "Attribute 'stroke' should go before 'width'."
+39:7 39:23 svelte/sort-attributes "Attribute 'stroke-width' should go before 'width'."
+40:7 40:29 svelte/sort-attributes "Attribute 'stroke-linecap' should go before 'width'."
+41:7 41:30 svelte/sort-attributes "Attribute 'stroke-linejoin' should go before 'width'."
+43:23 43:30 svelte/max-attributes-per-line "'cy' should be on a new line."
+44:21 44:27 svelte/max-attributes-per-line "'y1' should be on a new line."
+44:28 44:35 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+45:21 45:28 svelte/max-attributes-per-line "'y1' should be on a new line."
+45:29 45:36 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+46:23 46:32 svelte/max-attributes-per-line "'y1' should be on a new line."
+46:33 46:42 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+47:24 47:34 svelte/max-attributes-per-line "'y1' should be on a new line."
+47:35 47:45 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+48:20 48:27 svelte/max-attributes-per-line "'y1' should be on a new line."
+48:28 48:34 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+49:21 49:28 svelte/max-attributes-per-line "'y1' should be on a new line."
+49:29 49:36 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+50:23 50:33 svelte/max-attributes-per-line "'y1' should be on a new line."
+50:34 50:43 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+51:24 51:33 svelte/max-attributes-per-line "'y1' should be on a new line."
+51:34 51:44 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
+56:7 56:18 svelte/sort-attributes "Attribute 'height' should go before 'width'."
+57:7 57:26 svelte/sort-attributes "Attribute 'viewBox' should go before 'width'."
+58:7 58:18 svelte/sort-attributes "Attribute 'fill' should go before 'width'."
+59:7 59:28 svelte/sort-attributes "Attribute 'stroke' should go before 'width'."
+60:7 60:23 svelte/sort-attributes "Attribute 'stroke-width' should go before 'width'."
+61:7 61:29 svelte/sort-attributes "Attribute 'stroke-linecap' should go before 'width'."
+62:7 62:30 svelte/sort-attributes "Attribute 'stroke-linejoin' should go before 'width'."
+70:3 70:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
+85:3 85:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
+
+=== 80 sites/docs/src/lib/demos/BarDemo.svelte	lint.txt
+50:13 50:43 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 80 sites/docs/src/lib/demos/BubbleDemo.svelte	lint.txt
+39:16 39:46 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 80 sites/docs/src/lib/demos/DoughnutDemo.svelte	lint.txt
+38:18 38:48 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 602 sites/docs/src/lib/demos/EventsDemo.svelte	lint.txt
+85:11 85:18 no-unused-vars "'dataset' is assigned a value but never used."
+96:19 96:29 svelte/max-attributes-per-line "'type' should be on a new line."
+96:19 96:29 svelte/sort-attributes "Attribute 'type' should go before 'bind:chart'."
+96:30 96:47 svelte/sort-attributes "Attribute 'onclick' should go before 'bind:chart'."
+96:48 96:54 svelte/sort-attributes "Attribute 'data' should go before 'bind:chart'."
+96:55 96:64 svelte/sort-attributes "Attribute 'options' should go before 'bind:chart'."
+100:3 100:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
+
+=== 169 sites/docs/src/lib/demos/GradientDemo.svelte	lint.txt
+75:3 75:9 svelte/sort-attributes "Attribute 'data' should go before 'bind:chart'."
+76:3 79:5 svelte/sort-attributes "Attribute 'options' should go before 'bind:chart'."
+
+=== 80 sites/docs/src/lib/demos/HorizontalBarDemo.svelte	lint.txt
+57:13 57:22 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 80 sites/docs/src/lib/demos/LineDemo.svelte	lint.txt
+73:14 73:44 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 238 sites/docs/src/lib/demos/MultitypeDemo.svelte	lint.txt
+85:19 85:25 svelte/max-attributes-per-line "'data' should be on a new line."
+85:19 85:25 svelte/sort-attributes "Attribute 'data' should go before 'type'."
+85:26 85:35 svelte/sort-attributes "Attribute 'options' should go before 'type'."
+
+=== 80 sites/docs/src/lib/demos/PieDemo.svelte	lint.txt
+40:13 40:43 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 80 sites/docs/src/lib/demos/PolarDemo.svelte	lint.txt
+32:19 32:49 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 80 sites/docs/src/lib/demos/RadarDemo.svelte	lint.txt
+49:15 49:45 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 611 sites/docs/src/lib/demos/ReactiveDemo.svelte	lint.txt
+127:3 127:34 svelte/button-has-type "Missing an explicit type attribute for button."
+128:3 128:37 svelte/button-has-type "Missing an explicit type attribute for button."
+129:3 129:35 svelte/button-has-type "Missing an explicit type attribute for button."
+130:3 130:32 svelte/button-has-type "Missing an explicit type attribute for button."
+131:3 131:35 svelte/button-has-type "Missing an explicit type attribute for button."
+134:14 134:23 svelte/max-attributes-per-line "'options' should be on a new line."
+137:3 137:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
+
+=== 343 sites/docs/src/lib/demos/RefDemo.svelte	lint.txt
+104:19 104:29 svelte/max-attributes-per-line "'type' should be on a new line."
+104:19 104:29 svelte/sort-attributes "Attribute 'type' should go before 'bind:chart'."
+104:30 104:36 svelte/sort-attributes "Attribute 'data' should go before 'bind:chart'."
+104:37 104:46 svelte/sort-attributes "Attribute 'options' should go before 'bind:chart'."
+
+=== 80 sites/docs/src/lib/demos/ScatterDemo.svelte	lint.txt
+69:17 69:47 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 80 sites/docs/src/lib/demos/StackedBarDemo.svelte	lint.txt
+72:13 72:22 svelte/max-attributes-per-line "'options' should be on a new line."
+
+=== 1174 sites/docs/src/lib/layouts/DocPage.svelte	lint.txt
+19:30 19:51 svelte/max-attributes-per-line "'content' should be on a new line."
+28:27 28:42 svelte/max-attributes-per-line "'target' should be on a new line."
+28:43 28:68 svelte/sort-attributes "Attribute 'rel' should go before 'target'."
+28:68 29:9 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
+29:1 29:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
+29:37 30:7 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
+40:3 40:14 svelte/consistent-selector-style "Selector should select by element type instead of class"
+54:5 54:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
+60:5 60:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
+65:3 65:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
+71:3 71:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
+76:3 76:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
+
+=== 101 sites/docs/src/routes/+layout.svelte	lint.txt
+23:3 23:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
+
+=== 466 src/Bar.svelte	lint.txt
+1:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+1:19 1:79 svelte/max-attributes-per-line "'generics=\"TData = DefaultDataPoint<'bar'>, TLabel = unknown\"' should be on a new line."
+1:19 1:79 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
+15:19 15:29 svelte/max-attributes-per-line "'type' should be on a new line."
+15:19 15:29 svelte/sort-attributes "Attribute 'type' should go before 'bind:chart'."
+
+=== 332 src/Bubble.svelte	lint.txt
+1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+3:3 3:66 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
+18:19 18:32 svelte/max-attributes-per-line "'type' should be on a new line."
+18:19 18:32 svelte/sort-attributes "Attribute 'type' should go before 'bind:chart'."
+
+=== 317 src/Chart.svelte	lint.txt
+1:1 58:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+3:3 3:100 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
+20:18 20:35 no-undef "'HTMLCanvasElement' is not defined."
+60:31 60:45 svelte/max-attributes-per-line "'{...restProps}' should be on a new line."
+
+=== 332 src/Doughnut.svelte	lint.txt
+1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+3:3 3:68 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
+18:19 18:34 svelte/max-attributes-per-line "'type' should be on a new line."
+18:19 18:34 svelte/sort-attributes "Attribute 'type' should go before 'bind:chart'."
+
+=== 467 src/Line.svelte	lint.txt
+1:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+1:19 1:80 svelte/max-attributes-per-line "'generics=\"TData = DefaultDataPoint<'line'>, TLabel = unknown\"' should be on a new line."
+1:19 1:80 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
+15:19 15:30 svelte/max-attributes-per-line "'type' should be on a new line."
+15:19 15:30 svelte/sort-attributes "Attribute 'type' should go before 'bind:chart'."
+
+=== 466 src/Pie.svelte	lint.txt
+1:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+1:19 1:79 svelte/max-attributes-per-line "'generics=\"TData = DefaultDataPoint<'pie'>, TLabel = unknown\"' should be on a new line."
+1:19 1:79 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
+15:19 15:29 svelte/max-attributes-per-line "'type' should be on a new line."
+15:19 15:29 svelte/sort-attributes "Attribute 'type' should go before 'bind:chart'."
+
+=== 332 src/PolarArea.svelte	lint.txt
+1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+3:3 3:69 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
+18:19 18:35 svelte/max-attributes-per-line "'type' should be on a new line."
+18:19 18:35 svelte/sort-attributes "Attribute 'type' should go before 'bind:chart'."
+
+=== 332 src/Radar.svelte	lint.txt
+1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+3:3 3:65 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
+18:19 18:31 svelte/max-attributes-per-line "'type' should be on a new line."
+18:19 18:31 svelte/sort-attributes "Attribute 'type' should go before 'bind:chart'."
+
+=== 332 src/Scatter.svelte	lint.txt
+1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+3:3 3:67 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
+18:19 18:33 svelte/max-attributes-per-line "'type' should be on a new line."
+18:19 18:33 svelte/sort-attributes "Attribute 'type' should go before 'bind:chart'."
+

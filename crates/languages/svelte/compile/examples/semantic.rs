@@ -4,11 +4,11 @@ use std::hint::black_box;
 use std::time::Instant;
 
 use rsvelte_kernel::performance::measurement::{CountingAllocator, thread_allocations};
-use rsvelte_svelte::compilation::compiler_syntax_tree::{CompilerSyntaxTree, lower};
-use rsvelte_svelte::semantic::evaluate::Tree;
-use rsvelte_svelte::semantic::input::ComponentInput;
-use rsvelte_svelte::semantic::{analyze, resolve};
-use rsvelte_svelte::syntax::syntax_tree::Component;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{CompilerSyntaxTree, lower};
+use rsvelte_svelte_semantic::evaluate::Tree;
+use rsvelte_svelte_semantic::input::ComponentInput;
+use rsvelte_svelte_semantic::{analyze, resolve};
+use rsvelte_svelte_syntax::syntax_tree::Component;
 
 #[global_allocator]
 static ALLOCATOR: CountingAllocator = CountingAllocator;
@@ -112,7 +112,7 @@ fn run(case: &Case, mode: &str) {
             black_box(analyze::analyze(&case.input(), &case.resolution));
         }
         "evaluate" => {
-            let mut evaluator = rsvelte_svelte::semantic::evaluate::Evaluator::new(
+            let mut evaluator = rsvelte_svelte_semantic::evaluate::Evaluator::new(
                 &case.component.javascript,
                 &case.source,
                 &case.resolution,
@@ -129,7 +129,7 @@ fn dump(list: &str) -> Result<(), Box<dyn std::error::Error>> {
     let paths = std::fs::read_to_string(list)?;
     for path in paths.lines() {
         let source = std::fs::read_to_string(path)?;
-        let component = match rsvelte_svelte::syntax::parse::parse(&source) {
+        let component = match rsvelte_svelte_syntax::parse::parse(&source) {
             Ok(component) => component,
             Err(error) => {
                 println!("{path}\tUNPARSED\t{error:?}");
@@ -207,7 +207,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .into_iter()
         .map(|source| {
             let component =
-                rsvelte_svelte::syntax::parse::parse(&source).expect("valid benchmark source");
+                rsvelte_svelte_syntax::parse::parse(&source).expect("valid benchmark source");
             let tree = lower(&component, &source);
             let resolution = resolve::resolve_with_module(
                 &component.javascript,
@@ -248,7 +248,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         elapsed,
         after.0 - before.0,
         after.1 - before.1,
-        size_of::<rsvelte_svelte::semantic::evaluate::Evaluation>(),
+        size_of::<rsvelte_svelte_semantic::evaluate::Evaluation>(),
         size_of::<resolve::BindingInformation>()
     );
     Ok(())

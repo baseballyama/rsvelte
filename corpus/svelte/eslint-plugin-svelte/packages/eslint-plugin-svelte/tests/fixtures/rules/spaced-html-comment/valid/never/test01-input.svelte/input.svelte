@@ -1,7 +1,0 @@
-<!--comment-->
-<!--
-    comment
-    -->
-<!--
-comment
--->

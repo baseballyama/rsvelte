@@ -3,7 +3,7 @@ use super::{
 };
 
 /// `$$props.<key>` for a prop reference and `$$attrs` for rest props.
-pub fn prop_member(
+pub(crate) fn prop_member(
     resolution: &Resolution,
     from: &SyntaxTree,
     to: &mut SyntaxTree,

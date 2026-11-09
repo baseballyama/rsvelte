@@ -1,4 +1,4 @@
-use rsvelte_svelte::compilation::compiler_syntax_tree::MetadataTag;
+use rsvelte_svelte_semantic::compiler_syntax_tree::MetadataTag;
 
 use super::{
     CompilerNodeIdentifier, ElementKind, NodeKind, Piece, R, ServerCompilationContext,

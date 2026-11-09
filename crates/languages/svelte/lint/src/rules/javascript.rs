@@ -1,7 +1,7 @@
 //! Walking the JavaScript of a document, which the rules over any expression share.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 use crate::rule::File;
 

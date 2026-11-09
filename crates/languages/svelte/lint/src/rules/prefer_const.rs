@@ -1,8 +1,8 @@
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_typescript::scope::{BindingIdentifier, Semantic};
-use rsvelte_typescript::syntax_tree::Control;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use rsvelte_typescript_lint::{JavaScriptFacts, PreferConstOptions, ProgramStatements};
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, Semantic};
+use rsvelte_typescript_syntax::syntax_tree::Control;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
@@ -183,7 +183,7 @@ fn props(file: &File<'_>) -> FxHashSet<BindingIdentifier> {
 fn lookup(
     tree: &SyntaxTree,
     sem: &Semantic,
-    scope: rsvelte_typescript::scope::ScopeIdentifier,
+    scope: rsvelte_typescript_semantic::scope::ScopeIdentifier,
     local: NodeIdentifier,
 ) -> Option<BindingIdentifier> {
     sem.lookup(scope, tree.atom(local)?)

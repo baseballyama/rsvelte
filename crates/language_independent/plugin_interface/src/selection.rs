@@ -24,7 +24,7 @@ pub enum TaskKind {
 impl Selection {
     /// Whether the run will run task `identifier`.
     #[must_use]
-    pub fn runs(&self, identifier: &str, kind: TaskKind) -> bool {
+    pub(crate) fn runs(&self, identifier: &str, kind: TaskKind) -> bool {
         match self {
             Self::Named(names) => names.iter().any(|name| name == identifier),
             Self::Every => true,

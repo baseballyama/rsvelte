@@ -1,0 +1,7845 @@
+# rsvelte pack 1
+=== 445 docs/src/App.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@roxi/routify' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../.routify/routes.default.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	}
+]
+
+=== 227 docs/src/components/ComponentTocLabel.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 49
+		}
+	}
+]
+
+=== 709 docs/src/components/HomePageActions.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/ArrowRight.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/LogoGithub.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 68
+		}
+	}
+]
+
+=== 227 docs/src/pages/[...404].svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 51
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	}
+]
+
+=== 3 docs/src/pages/framed/Accordion/BatchDisableAccordion.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Accordion/ExpandableAccordion.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/BadgeIndicator/FormattedCount.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Breadcrumbs/Breadcrumbs.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Breakpoint/Breakpoint.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Breakpoint/BreakpointObserver.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Button/AdjacentIconOnlyButtons.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Button/ProgrammaticFocus.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Button/SelectedIconOnlyButton.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Checkbox/CheckboxGroupReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Checkbox/CheckboxReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Checkbox/MultipleCheckboxes.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ClickableTile/ReactiveClickableTile.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetAsync.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetCustomText.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetDisabledMulti.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetExpanded.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetFeedback.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetHideButtons.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetHideCopyButton.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetHideShowMore.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetInModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetMultiLine.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetOverride.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetPortalTooltip.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetRowCounts.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetSyntaxHighlight.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetTooltipAlignment.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetTooltipPosition.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/CodeSnippetWrapText.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CodeSnippet/HiddenCodeSnippet.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/AllowCustomValue.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/ClearFilterOnOpen.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/ComboBoxClear.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/ComboBoxHighlightMatch.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/ComboBoxPortalMenu.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/ComboBoxSlot.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/FilterableComboBox.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/FilterableComboBoxCustomLabel.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/ReactiveComboBox.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/ScrollEndComboBox.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/TypeaheadComboBox.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/TypeaheadCustomFilter.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/VirtualizeItemHeight.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/VirtualizeOverscan.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ComboBox/VirtualizeThreshold.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ContentSwitcher/ContentSwitcherConditional.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ContentSwitcher/ContentSwitcherReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ContextMenu/ContextMenu.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ContextMenu/ContextMenuNested.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ContextMenu/ContextMenuOptionProps.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ContextMenu/ContextMenuPreventDefault.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ContextMenu/ContextMenuRadioGroupNested.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ContextMenu/ContextMenuSelectableNested.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ContextMenu/ContextMenuTarget.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ContextMenu/ContextMenuTargets.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CopyButton/CopyButtonAsync.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CopyButton/CopyButtonInModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CopyButton/CopyButtonOverride.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CopyButton/CopyButtonPortalTooltip.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CopyInput/CopyInputAsync.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CopyInput/CopyInputInModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/CopyInput/CopyInputPortalTooltip.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableAppendColumns.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableColumnVisibility.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableCustomCellRowState.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableEditableCells.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableEditableCellsRefreshCells.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableExpandIcon.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableExpandableZebra.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableExport.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableFilterMode.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableFooter.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableHeaderWidth.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableNonExpandableRows.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableNonSelectableRows.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTablePagination.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableRowClass.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableSortPreventDefault.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/DataTableSortProp.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/StickyHeaderMaxHeight.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/VirtualizeMaxVisibleRows.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/VirtualizeOverscan.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/VirtualizeRowHeight.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DataTable/VirtualizedDataTable.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerAllowInput.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerCalendarInstance.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerCloseOnSelect.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerCustomFormat.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerDialog.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerDisableAnimation.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerFlatpickrProps.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerLocale.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerMinMax.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerMonth.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerMonthCustomFormat.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerMonthProgrammatic.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerNonEnglishLocale.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerPopover.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerProgrammatic.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerRange.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerSingle.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerYear.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/DatePicker/DatePickerYearProgrammatic.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Dialog/Dialog.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Dialog/DialogCloseTriggers.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Dialog/DialogPreventOutsideClick.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Dialog/ModalDialog.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Disclosure/ReactiveDisclosure.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Dropdown/DropdownPortalMenu.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Dropdown/DropdownSlot.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Dropdown/ScrollToSelected.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Dropdown/VirtualizeItemHeight.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Dropdown/VirtualizeOverscan.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Dropdown/VirtualizeThreshold.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ExpandableTile/ExpandableTileReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FileUploader/FileUploaderClearFiles.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FileUploader/FileUploaderDropContainerValidation.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FileUploader/FileUploaderMaxFileSize.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FileUploader/FileUploaderOrderFilesCustom.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FileUploader/FileUploaderOrderFilesPrepend.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FileUploader/FileUploaderPerFileStatus.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FileUploader/FileUploaderPreventDuplicate.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FileUploader/FileUploaderProgrammaticInputAccess.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FloatingPortal/FloatingPortalBasic.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FloatingPortal/FloatingPortalDialog.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FloatingPortal/FloatingPortalDirection.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FloatingPortal/FloatingPortalIntrinsicAlign.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FloatingPortal/FloatingPortalIntrinsicWidth.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FloatingPortal/FloatingPortalOverflow.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FloatingPortal/FloatingPortalPopover.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FloatingPortal/FloatingPortalSlotDirection.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/FluidForm/FluidFormModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Grid/AspectRatioColumns.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Grid/CondensedGrid.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Grid/FullWidthGrid.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Grid/Grid.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Grid/NarrowGrid.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Grid/OffsetColumns.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Grid/PaddedGrid.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Grid/ResponsiveGrid.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ImageLoader/ProgrammaticImageLoader.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/InlineNotification/InlineNotificationReusable.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Loading/Loading.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/LocalStorage/LocalStorageObject.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Menu/MenuBasic.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Menu/MenuDirection.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Menu/MenuIntrinsicAlign.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Menu/MenuIntrinsicWidth.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Menu/MenuItemDanger.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Menu/MenuItemDividers.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Menu/MenuItemIcons.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Menu/MenuItemNested.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Menu/MenuItemShortcuts.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Menu/MenuScrollable.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Menu/MenuSizeLarge.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Menu/MenuSizeMedium.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/MenuButton/MenuButtonKeepOpen.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/MenuButton/MenuButtonRadioGroup.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/MenuButton/MenuButtonScrollable.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/3ButtonComposedModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/3ButtonModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ComposedModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ComposedModalHideCloseButton.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ComposedModalPreventClose.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ComposedModalPrimaryButtonLoading.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/DangerComposedModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/DangerModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/FullWidthComposedModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/FullWidthModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/Modal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ModalButtonWithIcon.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ModalCustomFocus.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ModalExtraSmall.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ModalHideCloseButton.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ModalLarge.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ModalMultiple.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ModalPreventClose.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ModalPreventOutsideClick.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ModalPrimaryButtonLoading.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ModalScrollingContent.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ModalSmall.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ModalWithDropdowns.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ModalWithForm.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/PassiveModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Modal/ProgressModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/MultiSelect/MultiSelectFuzzyFilter.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/MultiSelect/MultiSelectHighlightMatch.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/MultiSelect/MultiSelectPortalMenu.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/MultiSelect/MultiSelectSelectAll.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/MultiSelect/MultiSelectSlot.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/MultiSelect/MultiSelectSortedItems.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/MultiSelect/VirtualizeItemHeight.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/MultiSelect/VirtualizeOverscan.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/MultiSelect/VirtualizeThreshold.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/NotificationQueue/NotificationQueueBasic.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/NotificationQueue/NotificationQueueDeduplication.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/NotificationQueue/NotificationQueueMax.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/NotificationQueue/NotificationQueueOffsets.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/NotificationQueue/NotificationQueuePersistent.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/NotificationQueue/NotificationQueuePosition.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/NotificationQueue/NotificationQueueRemove.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/NotificationQueue/NotificationQueueUpdate.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/NumberInput/NumberInputDecimal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/NumberInput/NumberInputEmpty.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/NumberInput/NumberInputStepperEvents.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/OverflowMenu/OverflowMenuCancelableClose.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/OverflowMenu/OverflowMenuPortalMenu.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/OverflowMenu/OverflowMenuPreventDefault.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/OverflowMenu/OverflowMenuScrollable.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Pagination/PageWindow.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/PaginationNav/PaginationNavReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/PasswordInput/ResetPasswordModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/PinCodeInput/PinCodeInputBindable.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/PinCodeInput/PinCodeInputProgrammatic.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/PinCodeInput/PinCodeInputUx.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Popover/WithButton.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Portal/BasicPortal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Portal/ComposedModalPortal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Portal/CustomTagPortal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Portal/CustomTargetPortal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Portal/ModalPortal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Portal/MultiplePortals.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ProgressIndicator/ProgrammaticProgressIndicator.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/RadioButton/RadioButtonReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/RadioButton/RadioButtonStandalone.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/RadioTile/RadioTileReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/RadioTile/RadioTileReactiveOneWay.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/RecursiveList/RecursiveList.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/RecursiveList/RecursiveListExpressive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/RecursiveList/RecursiveListFlatArray.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/RecursiveList/RecursiveListOrdered.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/RecursiveList/RecursiveListOrderedNative.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/RecursiveList/RecursiveListStableKeys.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Search/SearchExpandableReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Search/SearchReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/CustomFilter.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/CustomFuzzyOptions.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/CustomHighlight.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/DefaultSearchMenu.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/DisabledItems.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/GroupedResults.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/RecentSearches.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/SearchInputSkeleton.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/SizeDecoupled.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/SizeExtraLarge.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/SizeExtraSmall.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/SizeLarge.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/SizeSmall.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SearchMenu/SkeletonState.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Select/SelectReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SelectableTile/SelectableTileReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SelectableTile/SelectableTileReactiveOneWay.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/SessionStorage/SessionStorageObject.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Stack/StackHorizontalGap.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Stack/StackVerticalGap.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/StructuredList/StructuredListMultiSelect.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tabs/TabsConditional.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tabs/TabsDismissible.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tabs/TabsDismissibleContainer.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tabs/TabsDismissibleIcons.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tabs/TabsNavigation.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tabs/TabsOverflow.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tabs/TabsOverflowContainer.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tabs/TabsOverflowDismissible.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tabs/TabsOverflowIconOnly.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tabs/TabsOverflowTall.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tabs/TabsReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tabs/TabsVerticalOverflow.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tag/SelectableTagIconReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tag/SelectableTagReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TagSet/TagSetCustomOverflowTooltip.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TagSet/TagSetDismissible.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TagSet/TagSetGap.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TagSet/TagSetMaxVisible.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TagSet/TagSetMultiline.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TagSet/TagSetOverflow.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Theme/Theme.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Theme/ThemeDropdown.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Theme/ThemeDropdownCustom.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Theme/ThemePersist.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Theme/ThemeSelect.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Theme/ThemeSelectCustom.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Theme/ThemeToggle.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Theme/ThemeToggleCustom.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Theme/ThemeTokens.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/ToastNotification/ToastNotificationReusable.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Toggle/ToggleReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Toggletip/ToggletipModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Toggletip/ToggletipReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Toolbar/ToolbarSearchClear.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Toolbar/ToolbarSearchReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tooltip/TooltipModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/Tooltip/TooltipReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TooltipDefinition/TooltipDefinitionEvents.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TooltipDefinition/TooltipDefinitionModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TooltipDefinition/TooltipDefinitionReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TooltipIcon/TooltipIconModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TooltipIcon/TooltipIconReactive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeView.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewActive.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewAutoCollapse.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewCheckbox.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewCheckboxCompact.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewCheckboxIndependent.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewCollapseAll.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewCollapseNodes.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewCompact.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewEvents.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewExpandAll.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewExpandNodes.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewExpanded.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewFilterById.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewFilterNodes.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewFlatArray.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewIcons.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewInlineEditing.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewLazyLoad.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewLinks.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewMultiselectDeep.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewMultiselectNode.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewMultiselectShallow.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewPerformance.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewShowNode.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewShowNodeOptions.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewSlot.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/TreeView/TreeViewVirtualizeLazy.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/Header.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/HeaderMultipleSwitcher.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/HeaderNav.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/HeaderNavClassic.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/HeaderNavCustomBreakpoint.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/HeaderNavExternalLinks.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/HeaderNavFixed.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/HeaderNavRail.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/HeaderSearchMenu.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/HeaderSideNavItems.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/HeaderSwitcher.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/HeaderUtilities.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/HeaderWithModal.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/HeaderWithToast.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/PersistedHamburgerMenu.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/ProfileMenu.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/ProfileMenuDefaultAvatar.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UIShell/ProfileMenuSimple.svelte	json
+[]
+
+=== 3 docs/src/pages/framed/UserAvatar/UserAvatarModal.svelte	json
+[]
+
+=== 4981 docs/src/pages/index.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 9
+		},
+		"end": {
+			"line": 8,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Apps.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 19
+		},
+		"end": {
+			"line": 9,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Carbon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 21
+		},
+		"end": {
+			"line": 10,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Connect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 22
+		},
+		"end": {
+			"line": 11,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/ConnectionSignal.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 31
+		},
+		"end": {
+			"line": 12,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/DataStructured.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 29
+		},
+		"end": {
+			"line": 13,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Edit.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 19
+		},
+		"end": {
+			"line": 14,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/List.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 19
+		},
+		"end": {
+			"line": 15,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Popup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 20
+		},
+		"end": {
+			"line": 16,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Replicate.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 24
+		},
+		"end": {
+			"line": 17,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Settings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 23
+		},
+		"end": {
+			"line": 18,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Template.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 23
+		},
+		"end": {
+			"line": 19,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Types.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 20
+		},
+		"end": {
+			"line": 20,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../components/DocBenefitGrid.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 29
+		},
+		"end": {
+			"line": 21,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../components/DocFooterCta.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 27
+		},
+		"end": {
+			"line": 22,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../components/DocHero.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 22
+		},
+		"end": {
+			"line": 23,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../components/DocMetric.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 24
+		},
+		"end": {
+			"line": 25,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../components/DocSection.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 25
+		},
+		"end": {
+			"line": 26,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../components/DocSectionHeader.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 31
+		},
+		"end": {
+			"line": 27,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../components/DocSplitRow.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 26
+		},
+		"end": {
+			"line": 28,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../components/TileCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 23
+		},
+		"end": {
+			"line": 29,
+			"character": 54
+		}
+	}
+]
+
+=== 3 e2e/fixtures/AccordionFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/AccordionNestedFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/BreadcrumbFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/BreakpointFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ButtonFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/CheckboxFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/CheckboxGroupFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ClickableTileFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ComboBoxFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ComboButtonFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ComposedModalFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ContainedListFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ContentSwitcherFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ContextMenuFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/CopyButtonFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/DataTableFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/DataTableOverflowMenuFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/DataTableVirtualFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/DatePickerFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/DatePickerTopLayerFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/DialogFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/DropdownFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ExpandableTileFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/FileUploaderAdvancedFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/FileUploaderFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/FloatingPortalDialogFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/FloatingPortalFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/FloatingPortalIntrinsicFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/FloatingPortalPopoverFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/InlineNotificationFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ItemsResyncFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/LinkFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/LocalStorageFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/MenuButtonFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ModalFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ModalWithDropdownsFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/MultiSelectFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/NotificationQueueFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/NumberInputFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/OverflowMenuFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/PaginationFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/PaginationNavFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/PasswordInputFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/PinCodeInputFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/PopoverFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/PortalFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ProgressIndicatorFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/RadioButtonGroupFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/RadioTileFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/RangeSliderFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/SearchFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/SearchMenuFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/SelectFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/SelectableTileFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/SessionStorageFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/SliderFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/StructuredListFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TabsFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TabsOverflowFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TagFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TextAreaFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TextInputFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ThemeFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TimePickerFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ToastNotificationFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/ToggleFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TooltipDefinitionFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TooltipDefinitionModalFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TooltipFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TooltipIconFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TooltipIconModalFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TooltipIconReactiveFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TooltipNarrowContainerFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TreeViewFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TreeViewMultiselectFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/TreeViewVirtualizeFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/UIShellFixture.svelte	json
+[]
+
+=== 3 e2e/fixtures/UserAvatarGroupFixture.svelte	json
+[]
+
+=== 3 examples/rollup/src/App.svelte	json
+[]
+
+=== 3 examples/sveltekit/src/routes/+layout.svelte	json
+[]
+
+=== 3 examples/sveltekit/src/routes/+page.svelte	json
+[]
+
+=== 3 examples/vite/src/App.svelte	json
+[]
+
+=== 3 src/ContextMenu/ContextMenuDivider.svelte	json
+[]
+
+=== 3 src/UIShell/HeaderPanelDivider.svelte	json
+[]
+
+=== 3 src/UIShell/HeaderPanelLinks.svelte	json
+[]
+
+=== 3 src/UIShell/HeaderUtilities.svelte	json
+[]
+
+=== 3 src/UIShell/ProfileMenuDivider.svelte	json
+[]
+
+=== 3 src/UIShell/SideNavItems.svelte	json
+[]
+
+=== 509 tests/Accordion/Accordion.disabled.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Accordion/Accordion.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Accordion/AccordionItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 85
+		}
+	}
+]
+
+=== 754 tests/Accordion/Accordion.programmatic.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Accordion/Accordion.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Accordion/AccordionItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 85
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Button/Button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 68
+		}
+	}
+]
+
+=== 509 tests/Accordion/Accordion.single.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Accordion/Accordion.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Accordion/AccordionItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 85
+		}
+	}
+]
+
+=== 258 tests/AspectRatio/AspectRatio.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/AspectRatio/AspectRatio.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 264 tests/BadgeIndicator/BadgeIndicator.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/BadgeIndicator/BadgeIndicator.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 92
+		}
+	}
+]
+
+=== 242 tests/Box/Box.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Box/Box.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	}
+]
+
+=== 513 tests/Breadcrumb/Breadcrumb.ariaCurrent.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Breadcrumb/Breadcrumb.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Breadcrumb/BreadcrumbItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 88
+		}
+	}
+]
+
+=== 513 tests/Breadcrumb/Breadcrumb.labelText.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Breadcrumb/Breadcrumb.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Breadcrumb/BreadcrumbItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 88
+		}
+	}
+]
+
+=== 513 tests/Breadcrumb/Breadcrumb.noTrailingSlash.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Breadcrumb/Breadcrumb.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Breadcrumb/BreadcrumbItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 88
+		}
+	}
+]
+
+=== 513 tests/Breadcrumb/Breadcrumb.size.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Breadcrumb/Breadcrumb.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Breadcrumb/BreadcrumbItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 88
+		}
+	}
+]
+
+=== 256 tests/Breadcrumb/Breadcrumb.skeleton-sm.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Breadcrumb/Breadcrumb.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 80
+		}
+	}
+]
+
+=== 256 tests/Breadcrumb/Breadcrumb.skeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Breadcrumb/Breadcrumb.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 80
+		}
+	}
+]
+
+=== 513 tests/Breadcrumb/Breadcrumb.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Breadcrumb/Breadcrumb.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Breadcrumb/BreadcrumbItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 88
+		}
+	}
+]
+
+=== 250 tests/Breakpoint/Breakpoints.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Breakpoint/breakpoints' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 75
+		}
+	}
+]
+
+=== 743 tests/Button/Button.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/BadgeIndicator/BadgeIndicator.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 92
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Button/Button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Add.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	}
+]
+
+=== 482 tests/Button/ButtonPortalAdjacent.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Button/Button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Add.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	}
+]
+
+=== 495 tests/Button/HeaderGlobalActionPortal.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderGlobalAction.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 93
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Add.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	}
+]
+
+=== 252 tests/Checkbox/Checkbox.skeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Checkbox/Checkbox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 74
+		}
+	}
+]
+
+=== 252 tests/Checkbox/Checkbox.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Checkbox/Checkbox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 74
+		}
+	}
+]
+
+=== 688 tests/Checkbox/CheckboxGroupStaticSelected.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Checkbox/Checkbox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Checkbox/CheckboxGroup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 9,
+			"character": 14
+		},
+		"end": {
+			"line": 9,
+			"character": 15
+		}
+	}
+]
+
+=== 506 tests/Checkbox/CheckboxReadonlyChange.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Checkbox/Checkbox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Checkbox/CheckboxGroup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	}
+]
+
+=== 498 tests/CodeSnippet/CodeSnippetCopyButton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CodeSnippet/CodeSnippet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Checkmark.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 66
+		}
+	}
+]
+
+=== 258 tests/CodeSnippet/CodeSnippetCustomEvents.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CodeSnippet/CodeSnippet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 258 tests/CodeSnippet/CodeSnippetExpandable.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CodeSnippet/CodeSnippet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 258 tests/CodeSnippet/CodeSnippetExpandedByDefault.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CodeSnippet/CodeSnippet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 258 tests/CodeSnippet/CodeSnippetInline.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CodeSnippet/CodeSnippet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 258 tests/CodeSnippet/CodeSnippetMultiline.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CodeSnippet/CodeSnippet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 258 tests/CodeSnippet/CodeSnippetRestPropsButton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CodeSnippet/CodeSnippet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 258 tests/CodeSnippet/CodeSnippetRestPropsSingle.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CodeSnippet/CodeSnippet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 258 tests/CodeSnippet/CodeSnippetRestPropsSpan.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CodeSnippet/CodeSnippet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 258 tests/CodeSnippet/CodeSnippetWithCustomCopyText.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CodeSnippet/CodeSnippet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 258 tests/CodeSnippet/CodeSnippetWithHideShowMore.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CodeSnippet/CodeSnippet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 258 tests/CodeSnippet/CodeSnippetWithWrapText.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CodeSnippet/CodeSnippet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 503 tests/ComboBox/ComboBox.fluidForm.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComboBox/ComboBox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/FluidForm/FluidForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 77
+		}
+	}
+]
+
+=== 266 tests/ComboBox/ComboBox.fluidSkeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComboBox/FluidComboBoxSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 100
+		}
+	}
+]
+
+=== 501 tests/ComboBox/ComboBox.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComboBox/ComboBox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComboBox/ComboBox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	}
+]
+
+=== 252 tests/ComboBox/ComboBoxDuplicateIds.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComboBox/ComboBox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 74
+		}
+	}
+]
+
+=== 436 tests/ComboBox/ComboBoxGenerics.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComboBox/ComboBox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 74
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 14
+		},
+		"end": {
+			"line": 14,
+			"character": 15
+		}
+	}
+]
+
+=== 501 tests/ComboBox/ComboBoxIconSlots.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComboBox/ComboBox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComboBox/ComboBox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	}
+]
+
+=== 736 tests/ComboBox/ComboBoxItemIcon.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComboBox/ComboBox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComboBox/ComboBox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Edit.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	}
+]
+
+=== 503 tests/ComboButton/ComboButton.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComboButton/ComboButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Menu/MenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 70
+		}
+	}
+]
+
+=== 1031 tests/ComposedModal/ComposedModalFocusReturn.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComposedModal/ComposedModal.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComposedModal/ModalBody.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComposedModal/ModalFooter.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 85
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComposedModal/ModalHeader.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 85
+		}
+	}
+]
+
+=== 519 tests/ComposedModal/ComposedModalStacked.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComposedModal/ComposedModal.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComposedModal/ModalHeader.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 85
+		}
+	}
+]
+
+=== 525 tests/ContainedList/ContainedList.labelChildren.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContainedList/ContainedList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContainedList/ContainedListItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 97
+		}
+	}
+]
+
+=== 1006 tests/ContainedList/ContainedListItem.action.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Button/Button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContainedList/ContainedList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContainedList/ContainedListItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 97
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Close.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 58
+		}
+	}
+]
+
+=== 525 tests/ContainedList/ContainedListItem.href.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContainedList/ContainedList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContainedList/ContainedListItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 97
+		}
+	}
+]
+
+=== 520 tests/ContentSwitcher/ContentSwitcher.custom.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/ContentSwitcher.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/Switch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 77
+		}
+	}
+]
+
+=== 520 tests/ContentSwitcher/ContentSwitcher.disabled.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/ContentSwitcher.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/Switch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 77
+		}
+	}
+]
+
+=== 1006 tests/ContentSwitcher/ContentSwitcher.iconOnlyMixed.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/ContentSwitcher.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/Switch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Dashboard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/TableOfContents.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 30
+		},
+		"end": {
+			"line": 4,
+			"character": 78
+		}
+	}
+]
+
+=== 520 tests/ContentSwitcher/ContentSwitcher.lowContrast.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/ContentSwitcher.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/Switch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 77
+		}
+	}
+]
+
+=== 1241 tests/ContentSwitcher/ContentSwitcher.lowContrastIconOnly.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/ContentSwitcher.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/Switch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Dashboard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/List.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/TableOfContents.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 78
+		}
+	}
+]
+
+=== 520 tests/ContentSwitcher/ContentSwitcher.nested.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/ContentSwitcher.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/Switch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 77
+		}
+	}
+]
+
+=== 520 tests/ContentSwitcher/ContentSwitcher.size.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/ContentSwitcher.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContentSwitcher/Switch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 77
+		}
+	}
+]
+
+=== 703 tests/ContextMenu/ContextMenu.target.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContextMenu/ContextMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContextMenu/ContextMenuOption.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 95
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 24,
+			"character": 12
+		},
+		"end": {
+			"line": 24,
+			"character": 13
+		}
+	}
+]
+
+=== 519 tests/ContextMenu/ContextMenuOption.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContextMenu/ContextMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ContextMenu/ContextMenuOption.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 95
+		}
+	}
+]
+
+=== 505 tests/CopyInput/CopyInput.fluidForm.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CopyInput/CopyInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/FluidForm/FluidForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 77
+		}
+	}
+]
+
+=== 268 tests/CopyInput/CopyInput.fluidSkeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/CopyInput/FluidCopyInputSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 103
+		}
+	}
+]
+
+=== 254 tests/DataTable/DataTableCustomBoth.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	}
+]
+
+=== 254 tests/DataTable/DataTableCustomDescription.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	}
+]
+
+=== 254 tests/DataTable/DataTableCustomSlots.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	}
+]
+
+=== 254 tests/DataTable/DataTableDeepNesting.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	}
+]
+
+=== 497 tests/DataTable/DataTableExpandIcon.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/ChevronRight.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 72
+		}
+	}
+]
+
+=== 254 tests/DataTable/DataTableExpandableDuplicateIds.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	}
+]
+
+=== 505 tests/DataTable/DataTableExplicitGenerics.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 92
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 77
+		}
+	}
+]
+
+=== 1014 tests/DataTable/DataTableHiddenColumnSearch.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/Toolbar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/ToolbarContent.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/ToolbarSearch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 85
+		}
+	}
+]
+
+=== 724 tests/DataTable/DataTableRefilterOnRowsChange.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Button/Button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './FilterRowsCaller.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 58
+		}
+	}
+]
+
+=== 262 tests/DataTable/DataTableSkeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTableSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 93
+		}
+	}
+]
+
+=== 254 tests/DataTable/DuplicateDataTables.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	}
+]
+
+=== 2348 tests/DataTable/ToolbarSearchGenerics.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 9
+		},
+		"end": {
+			"line": 4,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/Toolbar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 22
+		},
+		"end": {
+			"line": 6,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/ToolbarContent.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 29
+		},
+		"end": {
+			"line": 7,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/ToolbarSearch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 28
+		},
+		"end": {
+			"line": 8,
+			"character": 85
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'id' does not exist in type 'ProductRow'.",
+		"start": {
+			"line": 51,
+			"character": 6
+		},
+		"end": {
+			"line": 51,
+			"character": 8
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'id' does not exist in type 'ProductRow'.",
+		"start": {
+			"line": 52,
+			"character": 6
+		},
+		"end": {
+			"line": 52,
+			"character": 8
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'id' does not exist in type 'ProductRow'.",
+		"start": {
+			"line": 53,
+			"character": 6
+		},
+		"end": {
+			"line": 53,
+			"character": 8
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'id' does not exist on type 'ProductRow'.",
+		"start": {
+			"line": 63,
+			"character": 54
+		},
+		"end": {
+			"line": 63,
+			"character": 58
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'id' does not exist on type 'ProductRow'.",
+		"start": {
+			"line": 70,
+			"character": 10
+		},
+		"end": {
+			"line": 70,
+			"character": 12
+		}
+	}
+]
+
+=== 765 tests/DatePicker/DatePicker.fluidForm.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DatePicker/DatePicker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DatePicker/DatePickerInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 90
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/FluidForm/FluidForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 77
+		}
+	}
+]
+
+=== 514 tests/DatePicker/DatePickerInput.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DatePicker/DatePicker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DatePicker/DatePickerInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 90
+		}
+	}
+]
+
+=== 256 tests/Disclosure/DisclosureSummaryProp.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Disclosure/Disclosure.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 80
+		}
+	}
+]
+
+=== 503 tests/Dropdown/Dropdown.fluidForm.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Dropdown/Dropdown.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/FluidForm/FluidForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 77
+		}
+	}
+]
+
+=== 266 tests/Dropdown/Dropdown.fluidSkeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Dropdown/FluidDropdownSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 100
+		}
+	}
+]
+
+=== 501 tests/Dropdown/Dropdown.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Dropdown/Dropdown.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Dropdown/Dropdown.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	}
+]
+
+=== 252 tests/Dropdown/DropdownDuplicateIds.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Dropdown/Dropdown.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 74
+		}
+	}
+]
+
+=== 436 tests/Dropdown/DropdownGenerics.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Dropdown/Dropdown.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 74
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 15,
+			"character": 14
+		},
+		"end": {
+			"line": 15,
+			"character": 15
+		}
+	}
+]
+
+=== 501 tests/Dropdown/DropdownIconSlots.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Dropdown/Dropdown.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Dropdown/Dropdown.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	}
+]
+
+=== 736 tests/Dropdown/DropdownItemIcon.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Dropdown/Dropdown.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Dropdown/Dropdown.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Edit.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	}
+]
+
+=== 266 tests/FileUploader/FileUploaderButton.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/FileUploader/FileUploaderButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 98
+		}
+	}
+]
+
+=== 274 tests/FileUploader/FileUploaderDropContainer.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/FileUploader/FileUploaderDropContainer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 112
+		}
+	}
+]
+
+=== 497 tests/Heading/Heading.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Heading/Heading.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Heading/Section.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 71
+		}
+	}
+]
+
+=== 262 tests/IconIndicator/IconIndicator.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/IconIndicator/IconIndicator.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 89
+		}
+	}
+]
+
+=== 262 tests/InlineLoading/InlineLoading.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/InlineLoading/InlineLoading.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 89
+		}
+	}
+]
+
+=== 536 tests/InlineNotification/InlineNotificationActionHref.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Notification/InlineNotification.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 98
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Notification/NotificationActionButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 39
+		},
+		"end": {
+			"line": 2,
+			"character": 110
+		}
+	}
+]
+
+=== 536 tests/InlineNotification/InlineNotificationCustom.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Notification/InlineNotification.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 98
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Notification/NotificationActionButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 39
+		},
+		"end": {
+			"line": 2,
+			"character": 110
+		}
+	}
+]
+
+=== 266 tests/InlineNotification/InlineNotificationSubtitleSlot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Notification/InlineNotification.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 98
+		}
+	}
+]
+
+=== 266 tests/InlineNotification/InlineNotificationTitleSlot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Notification/InlineNotification.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 98
+		}
+	}
+]
+
+=== 665 tests/Link/Link.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Link/Link.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Carbon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 60
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 11,
+			"character": 15
+		},
+		"end": {
+			"line": 11,
+			"character": 16
+		}
+	}
+]
+
+=== 252 tests/Link/OutboundLink.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Link/OutboundLink.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 78
+		}
+	}
+]
+
+=== 250 tests/Loading/Loading.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Loading/Loading.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 260 tests/LocalStorage/LocalStorage.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/LocalStorage/LocalStorage.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 86
+		}
+	}
+]
+
+=== 489 tests/Menu/MenuItem.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Menu/Menu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Menu/MenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 70
+		}
+	}
+]
+
+=== 971 tests/Menu/MenuItem.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Menu/Menu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Menu/MenuDivider.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Menu/MenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Add.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 54
+		}
+	}
+]
+
+=== 501 tests/MenuButton/MenuButton.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Menu/MenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/MenuButton/MenuButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 80
+		}
+	}
+]
+
+=== 246 tests/Modal/ModalFocusReturn.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Modal/Modal.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 65
+		}
+	}
+]
+
+=== 246 tests/Modal/ModalStacked.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Modal/Modal.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 65
+		}
+	}
+]
+
+=== 509 tests/MultiSelect/MultiSelect.fluidForm.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/FluidForm/FluidForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/MultiSelect/MultiSelect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 83
+		}
+	}
+]
+
+=== 272 tests/MultiSelect/MultiSelect.fluidSkeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/MultiSelect/FluidMultiSelectSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 109
+		}
+	}
+]
+
+=== 513 tests/MultiSelect/MultiSelect.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/MultiSelect/MultiSelect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 96
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/MultiSelect/MultiSelect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 83
+		}
+	}
+]
+
+=== 258 tests/MultiSelect/MultiSelectDuplicateIds.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/MultiSelect/MultiSelect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 442 tests/MultiSelect/MultiSelectGenerics.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/MultiSelect/MultiSelect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 14
+		},
+		"end": {
+			"line": 14,
+			"character": 15
+		}
+	}
+]
+
+=== 445 tests/MultiSelect/MultiSelectItemToStringId.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/MultiSelect/MultiSelect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 12,
+			"character": 17
+		},
+		"end": {
+			"line": 12,
+			"character": 21
+		}
+	}
+]
+
+=== 272 tests/NumberInput/NumberInput.fluidSkeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/NumberInput/FluidNumberInputSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 39
+		},
+		"end": {
+			"line": 1,
+			"character": 109
+		}
+	}
+]
+
+=== 258 tests/NumberInput/NumberInputCustom.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/NumberInput/NumberInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 521 tests/OverflowMenu/OverflowMenu.allDisabled.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 94
+		}
+	}
+]
+
+=== 521 tests/OverflowMenu/OverflowMenu.disabled.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 94
+		}
+	}
+]
+
+=== 703 tests/OverflowMenu/OverflowMenu.disabledLink.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 94
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 6,
+			"character": 13
+		},
+		"end": {
+			"line": 6,
+			"character": 14
+		}
+	}
+]
+
+=== 887 tests/OverflowMenu/OverflowMenu.preventDefault.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 94
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 6,
+			"character": 13
+		},
+		"end": {
+			"line": 6,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 12,
+			"character": 15
+		},
+		"end": {
+			"line": 12,
+			"character": 16
+		}
+	}
+]
+
+=== 993 tests/OverflowMenu/OverflowMenuItem.icons.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Edit.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Launch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 60
+		}
+	}
+]
+
+=== 521 tests/OverflowMenu/OverflowMenuPrimaryFocus.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 94
+		}
+	}
+]
+
+=== 258 tests/PasswordInput/PasswordInput.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TextInput/PasswordInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 85
+		}
+	}
+]
+
+=== 511 tests/PinCodeInput/PinCodeInput.fluidForm.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/FluidForm/FluidForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/PinCodeInput/PinCodeInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 86
+		}
+	}
+]
+
+=== 274 tests/PinCodeInput/PinCodeInput.fluidSkeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/PinCodeInput/FluidPinCodeInputSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 112
+		}
+	}
+]
+
+=== 248 tests/Portal/Portal.multiple.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Portal/Portal.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	}
+]
+
+=== 258 tests/ProgressBar/ProgressBar.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ProgressBar/ProgressBar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 258 tests/ProgressBar/ProgressBar.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ProgressBar/ProgressBar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 533 tests/ProgressIndicator/ProgressStepIconSlot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ProgressIndicator/ProgressIndicator.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 101
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ProgressIndicator/ProgressStep.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 91
+		}
+	}
+]
+
+=== 265 tests/ProgressIndicator/ProgressStepStandalone.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ProgressIndicator/ProgressStep.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 91
+		}
+	}
+]
+
+=== 258 tests/RadioButton/RadioButtonCustom.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/RadioButton/RadioButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 523 tests/RadioButton/RadioButtonReadonlyChange.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/RadioButton/RadioButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/RadioButtonGroup/RadioButtonGroup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 98
+		}
+	}
+]
+
+=== 740 tests/RadioTile/RadioTile.group.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Button/Button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tile/RadioTile.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tile/TileGroup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 72
+		}
+	}
+]
+
+=== 249 tests/RadioTile/RadioTile.single.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tile/RadioTile.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 72
+		}
+	}
+]
+
+=== 495 tests/RadioTile/RadioTileCustom.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tile/RadioTile.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tile/TileGroup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 72
+		}
+	}
+]
+
+=== 689 tests/RecursiveList/RecursiveList.hierarchy.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/RecursiveList/RecursiveList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/utils/toHierarchy' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'node' implicitly has an 'any' type.",
+		"start": {
+			"line": 34,
+			"character": 5
+		},
+		"end": {
+			"line": 34,
+			"character": 9
+		}
+	}
+]
+
+=== 506 tests/RecursiveList/RecursiveList.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/RecursiveList/RecursiveList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../src/RecursiveList/RecursiveList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 87
+		}
+	}
+]
+
+=== 499 tests/Search/Search.fluidForm.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/FluidForm/FluidForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Search/Search.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	}
+]
+
+=== 261 tests/Search/Search.fluidSkeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Search/FluidSearchSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 94
+		}
+	}
+]
+
+=== 248 tests/Search/Search.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Search/Search.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	}
+]
+
+=== 501 tests/Search/SearchSkeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Search/Search.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Search/SearchSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	}
+]
+
+=== 509 tests/SearchMenu/SearchMenuSkeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Search/Search.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/SearchMenu/SearchMenuSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 33
+		},
+		"end": {
+			"line": 2,
+			"character": 96
+		}
+	}
+]
+
+=== 497 tests/Select/Select.falsy.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Select/Select.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Select/SelectItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 76
+		}
+	}
+]
+
+=== 748 tests/Select/Select.fluidForm.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/FluidForm/FluidForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Select/Select.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Select/SelectItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 76
+		}
+	}
+]
+
+=== 261 tests/Select/Select.fluidSkeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Select/FluidSelectSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 94
+		}
+	}
+]
+
+=== 256 tests/Select/Select.skeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Select/SelectSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 84
+		}
+	}
+]
+
+=== 497 tests/Select/Select.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Select/Select.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Select/SelectItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 76
+		}
+	}
+]
+
+=== 264 tests/SessionStorage/SessionStorage.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/SessionStorage/SessionStorage.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 92
+		}
+	}
+]
+
+=== 264 tests/ShapeIndicator/ShapeIndicator.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ShapeIndicator/ShapeIndicator.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 92
+		}
+	}
+]
+
+=== 8460 tests/Snippets/Snippets.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Button/Button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ComboBox/ComboBox.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/DataTable/DataTable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Dropdown/Dropdown.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/IconIndicator/IconIndicator.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 28
+		},
+		"end": {
+			"line": 5,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/OverflowMenu/OverflowMenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 31
+		},
+		"end": {
+			"line": 7,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ProgressIndicator/ProgressIndicator.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 32
+		},
+		"end": {
+			"line": 8,
+			"character": 101
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ProgressIndicator/ProgressStep.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 27
+		},
+		"end": {
+			"line": 9,
+			"character": 91
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/ShapeIndicator/ShapeIndicator.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 29
+		},
+		"end": {
+			"line": 10,
+			"character": 92
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tabs/Tab.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 18
+		},
+		"end": {
+			"line": 11,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tabs/TabContent.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 25
+		},
+		"end": {
+			"line": 12,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tabs/Tabs.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 19
+		},
+		"end": {
+			"line": 13,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Theme/Theme.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 20
+		},
+		"end": {
+			"line": 14,
+			"character": 65
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'expanded' implicitly has an 'any' type.",
+		"start": {
+			"line": 39,
+			"character": 25
+		},
+		"end": {
+			"line": 39,
+			"character": 33
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'row' implicitly has an 'any' type.",
+		"start": {
+			"line": 39,
+			"character": 35
+		},
+		"end": {
+			"line": 39,
+			"character": 38
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 39,
+			"character": 40
+		},
+		"end": {
+			"line": 39,
+			"character": 45
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'row' implicitly has an 'any' type.",
+		"start": {
+			"line": 46,
+			"character": 26
+		},
+		"end": {
+			"line": 46,
+			"character": 29
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element '_rowSelected' implicitly has an 'any' type.",
+		"start": {
+			"line": 46,
+			"character": 44
+		},
+		"end": {
+			"line": 46,
+			"character": 56
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 52,
+			"character": 23
+		},
+		"end": {
+			"line": 52,
+			"character": 27
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 52,
+			"character": 29
+		},
+		"end": {
+			"line": 52,
+			"character": 34
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'selected' implicitly has an 'any' type.",
+		"start": {
+			"line": 52,
+			"character": 36
+		},
+		"end": {
+			"line": 52,
+			"character": 44
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'highlighted' implicitly has an 'any' type.",
+		"start": {
+			"line": 52,
+			"character": 46
+		},
+		"end": {
+			"line": 52,
+			"character": 57
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 90,
+			"character": 19
+		},
+		"end": {
+			"line": 90,
+			"character": 23
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 93,
+			"character": 24
+		},
+		"end": {
+			"line": 93,
+			"character": 28
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'selected' implicitly has an 'any' type.",
+		"start": {
+			"line": 93,
+			"character": 30
+		},
+		"end": {
+			"line": 93,
+			"character": 38
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 101,
+			"character": 23
+		},
+		"end": {
+			"line": 101,
+			"character": 27
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 101,
+			"character": 29
+		},
+		"end": {
+			"line": 101,
+			"character": 34
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'selected' implicitly has an 'any' type.",
+		"start": {
+			"line": 101,
+			"character": 36
+		},
+		"end": {
+			"line": 101,
+			"character": 44
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'theme' implicitly has an 'any' type.",
+		"start": {
+			"line": 126,
+			"character": 25
+		},
+		"end": {
+			"line": 126,
+			"character": 30
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'complete' implicitly has an 'any' type.",
+		"start": {
+			"line": 134,
+			"character": 21
+		},
+		"end": {
+			"line": 134,
+			"character": 29
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'current' implicitly has an 'any' type.",
+		"start": {
+			"line": 134,
+			"character": 31
+		},
+		"end": {
+			"line": 134,
+			"character": 38
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'invalid' implicitly has an 'any' type.",
+		"start": {
+			"line": 134,
+			"character": 40
+		},
+		"end": {
+			"line": 134,
+			"character": 47
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'complete' implicitly has an 'any' type.",
+		"start": {
+			"line": 145,
+			"character": 21
+		},
+		"end": {
+			"line": 145,
+			"character": 29
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'current' implicitly has an 'any' type.",
+		"start": {
+			"line": 145,
+			"character": 31
+		},
+		"end": {
+			"line": 145,
+			"character": 38
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'invalid' implicitly has an 'any' type.",
+		"start": {
+			"line": 145,
+			"character": 40
+		},
+		"end": {
+			"line": 145,
+			"character": 47
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'complete' implicitly has an 'any' type.",
+		"start": {
+			"line": 156,
+			"character": 21
+		},
+		"end": {
+			"line": 156,
+			"character": 29
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'current' implicitly has an 'any' type.",
+		"start": {
+			"line": 156,
+			"character": 31
+		},
+		"end": {
+			"line": 156,
+			"character": 38
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'invalid' implicitly has an 'any' type.",
+		"start": {
+			"line": 156,
+			"character": 40
+		},
+		"end": {
+			"line": 156,
+			"character": 47
+		}
+	}
+]
+
+=== 246 tests/Stack/Stack.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Stack/Stack.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 65
+		}
+	}
+]
+
+=== 1326 tests/StructuredList/StructuredListCustom.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/StructuredList/StructuredList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 92
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/StructuredList/StructuredListBody.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 33
+		},
+		"end": {
+			"line": 2,
+			"character": 100
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/StructuredList/StructuredListCell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 100
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/StructuredList/StructuredListHead.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 33
+		},
+		"end": {
+			"line": 4,
+			"character": 100
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/StructuredList/StructuredListRow.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 32
+		},
+		"end": {
+			"line": 5,
+			"character": 98
+		}
+	}
+]
+
+=== 1840 tests/StructuredList/StructuredListCustomIcon.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/StructuredList/StructuredList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 92
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/StructuredList/StructuredListBody.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 33
+		},
+		"end": {
+			"line": 2,
+			"character": 100
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/StructuredList/StructuredListCell.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 100
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/StructuredList/StructuredListHead.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 33
+		},
+		"end": {
+			"line": 4,
+			"character": 100
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/StructuredList/StructuredListInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 34
+		},
+		"end": {
+			"line": 5,
+			"character": 102
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/StructuredList/StructuredListRow.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 32
+		},
+		"end": {
+			"line": 6,
+			"character": 98
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/CheckmarkOutline.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 31
+		},
+		"end": {
+			"line": 7,
+			"character": 80
+		}
+	}
+]
+
+=== 270 tests/StructuredList/StructuredListInputStandalone.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/StructuredList/StructuredListInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 102
+		}
+	}
+]
+
+=== 1427 tests/Tabs/TabIconSecondaryLabel.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tabs/Tab.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tabs/TabContent.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tabs/Tabs.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../src/icons/Calendar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../src/icons/Information.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../src/icons/Settings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 23
+		},
+		"end": {
+			"line": 6,
+			"character": 56
+		}
+	}
+]
+
+=== 731 tests/Tabs/TabSecondaryLabel.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tabs/Tab.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tabs/TabContent.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tabs/Tabs.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 62
+		}
+	}
+]
+
+=== 731 tests/Tabs/TabsAllDisabled.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tabs/Tab.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tabs/TabContent.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tabs/Tabs.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 62
+		}
+	}
+]
+
+=== 252 tests/Tag/SelectableTag.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tag/SelectableTag.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 79
+		}
+	}
+]
+
+=== 476 tests/Tag/Tag.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tag/Tag.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Add.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	}
+]
+
+=== 487 tests/TagSet/TagSet.customTooltip.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tag/Tag.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TagSet/TagSet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	}
+]
+
+=== 244 tests/Text/Text.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Text/Text.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	}
+]
+
+=== 503 tests/TextArea/TextArea.fluidForm.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/FluidForm/FluidForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TextArea/TextArea.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	}
+]
+
+=== 266 tests/TextArea/TextArea.fluidSkeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TextArea/FluidTextAreaSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 36
+		},
+		"end": {
+			"line": 1,
+			"character": 100
+		}
+	}
+]
+
+=== 252 tests/TextArea/TextAreaCustom.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TextArea/TextArea.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 74
+		}
+	}
+]
+
+=== 268 tests/TextInput/TextInput.fluidSkeleton.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TextInput/FluidTextInputSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 103
+		}
+	}
+]
+
+=== 254 tests/TextInput/TextInputCustom.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TextInput/TextInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	}
+]
+
+=== 254 tests/TextInput/TextInputInlineLabelChildren.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TextInput/TextInput.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	}
+]
+
+=== 439 tests/Theme/ThemeDropdown.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Theme/Theme.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 65
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'detail' implicitly has an 'any' type.",
+		"start": {
+			"line": 6,
+			"character": 16
+		},
+		"end": {
+			"line": 6,
+			"character": 22
+		}
+	}
+]
+
+=== 441 tests/Theme/ThemeDropdownCustom.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Theme/Theme.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 65
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'detail' implicitly has an 'any' type.",
+		"start": {
+			"line": 11,
+			"character": 16
+		},
+		"end": {
+			"line": 11,
+			"character": 22
+		}
+	}
+]
+
+=== 439 tests/Theme/ThemeSelect.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Theme/Theme.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 65
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'detail' implicitly has an 'any' type.",
+		"start": {
+			"line": 6,
+			"character": 16
+		},
+		"end": {
+			"line": 6,
+			"character": 22
+		}
+	}
+]
+
+=== 441 tests/Theme/ThemeSelectCustom.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Theme/Theme.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 65
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'detail' implicitly has an 'any' type.",
+		"start": {
+			"line": 11,
+			"character": 16
+		},
+		"end": {
+			"line": 11,
+			"character": 22
+		}
+	}
+]
+
+=== 929 tests/Theme/ThemeSelectExported.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Theme/Theme.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Theme/Theme.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Theme/Theme.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 65
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'detail' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 16
+		},
+		"end": {
+			"line": 19,
+			"character": 22
+		}
+	}
+]
+
+=== 439 tests/Theme/ThemeToggle.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Theme/Theme.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 65
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'detail' implicitly has an 'any' type.",
+		"start": {
+			"line": 6,
+			"character": 16
+		},
+		"end": {
+			"line": 6,
+			"character": 22
+		}
+	}
+]
+
+=== 441 tests/Theme/ThemeToggleCustom.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Theme/Theme.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 65
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'detail' implicitly has an 'any' type.",
+		"start": {
+			"line": 13,
+			"character": 16
+		},
+		"end": {
+			"line": 13,
+			"character": 22
+		}
+	}
+]
+
+=== 249 tests/Tile/RadioTileStandalone.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tile/RadioTile.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 72
+		}
+	}
+]
+
+=== 259 tests/Tile/SelectableTileGroup.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tile/SelectableTileGroup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 92
+		}
+	}
+]
+
+=== 254 tests/Tile/SelectableTileStandalone.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tile/SelectableTile.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 82
+		}
+	}
+]
+
+=== 244 tests/Tile/Tile.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tile/Tile.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	}
+]
+
+=== 249 tests/Tile/TileGroup.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tile/TileGroup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 72
+		}
+	}
+]
+
+=== 1015 tests/TimePicker/TimePicker.fluidForm.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/FluidForm/FluidForm.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Select/SelectItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TimePicker/TimePicker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TimePicker/TimePickerSelect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 31
+		},
+		"end": {
+			"line": 4,
+			"character": 92
+		}
+	}
+]
+
+=== 511 tests/TimePicker/TimePickerSelect.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Select/SelectItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TimePicker/TimePickerSelect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 92
+		}
+	}
+]
+
+=== 265 tests/ToastNotification/ToastNotificationCaptionSlot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Notification/ToastNotification.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 96
+		}
+	}
+]
+
+=== 265 tests/ToastNotification/ToastNotificationCustom.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Notification/ToastNotification.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 96
+		}
+	}
+]
+
+=== 265 tests/ToastNotification/ToastNotificationSubtitleSlot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Notification/ToastNotification.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 96
+		}
+	}
+]
+
+=== 265 tests/ToastNotification/ToastNotificationTitleSlot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Notification/ToastNotification.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 96
+		}
+	}
+]
+
+=== 256 tests/Toggle/ToggleSkeleton.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Toggle/ToggleSkeleton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 84
+		}
+	}
+]
+
+=== 250 tests/Tooltip/TooltipAlignments.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 250 tests/Tooltip/TooltipCustomContent.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 250 tests/Tooltip/TooltipCustomIcon.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 250 tests/Tooltip/TooltipDefault.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 250 tests/Tooltip/TooltipDirections.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 250 tests/Tooltip/TooltipEvents.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 503 tests/Tooltip/TooltipFooterFocus.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/TooltipFooter.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 83
+		}
+	}
+]
+
+=== 256 tests/Tooltip/TooltipFooterStandalone.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/TooltipFooter.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	}
+]
+
+=== 250 tests/Tooltip/TooltipHideIcon.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 250 tests/Tooltip/TooltipNoLabel.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 250 tests/Tooltip/TooltipOpen.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 250 tests/Tooltip/TooltipPortalDirections.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 250 tests/Tooltip/TooltipTwoInstancesFocus.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Tooltip/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 271 tests/TooltipDefinition/TooltipDefinitionPortal.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TooltipDefinition/TooltipDefinition.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 101
+		}
+	}
+]
+
+=== 495 tests/TooltipIcon/TooltipIconPortal.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TooltipIcon/TooltipIcon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Carbon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	}
+]
+
+=== 746 tests/TreeView/TreeView.getNode.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Button/Button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TreeView/TreeView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TreeView/TreeView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 74
+		}
+	}
+]
+
+=== 497 tests/TreeView/TreeView.showNode.idEscape.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Button/Button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TreeView/TreeView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	}
+]
+
+=== 252 tests/TreeView/TreeView.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TreeView/TreeView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 74
+		}
+	}
+]
+
+=== 501 tests/TreeView/TreeViewDuplicateIds.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TreeView/TreeView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/TreeView/TreeView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 74
+		}
+	}
+]
+
+=== 249 tests/UIShell/Header.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/Header.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 69
+		}
+	}
+]
+
+=== 255 tests/UIShell/HeaderAction.slot.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderAction.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 81
+		}
+	}
+]
+
+=== 765 tests/UIShell/HeaderGlobalAction.badge.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/BadgeIndicator/BadgeIndicator.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 92
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderGlobalAction.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 33
+		},
+		"end": {
+			"line": 2,
+			"character": 93
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Notification.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 27
+		},
+		"end": {
+			"line": 3,
+			"character": 72
+		}
+	}
+]
+
+=== 988 tests/UIShell/HeaderNavItemIcon.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/Header.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderNav.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderNavItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Launch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 60
+		}
+	}
+]
+
+=== 1004 tests/UIShell/HeaderNavKeyboard.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/Header.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderNav.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderNavItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderNavMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 83
+		}
+	}
+]
+
+=== 491 tests/UIShell/HeaderSearchIcon.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderSearch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 27
+		},
+		"end": {
+			"line": 1,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './HeaderSearchCustomIcon.test.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 63
+		}
+	}
+]
+
+=== 4019 tests/UIShell/HeaderSwitcher.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Grid/Column.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Grid/Grid.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Grid/Row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/Content.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/Header.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 21
+		},
+		"end": {
+			"line": 5,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderAction.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderPanelDivider.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 33
+		},
+		"end": {
+			"line": 7,
+			"character": 93
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderPanelLink.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 30
+		},
+		"end": {
+			"line": 8,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderPanelLinks.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 31
+		},
+		"end": {
+			"line": 9,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderUtilities.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 30
+		},
+		"end": {
+			"line": 10,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/SideNav.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 22
+		},
+		"end": {
+			"line": 11,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/SideNavItems.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 27
+		},
+		"end": {
+			"line": 12,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/SideNavLink.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 26
+		},
+		"end": {
+			"line": 13,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/SideNavMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 26
+		},
+		"end": {
+			"line": 14,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/SideNavMenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 30
+		},
+		"end": {
+			"line": 15,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/SkipToContent.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 28
+		},
+		"end": {
+			"line": 16,
+			"character": 83
+		}
+	}
+]
+
+=== 4526 tests/UIShell/HeaderUtilities.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Grid/Column.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Grid/Grid.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/Grid/Row.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/Content.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/Header.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 21
+		},
+		"end": {
+			"line": 5,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderAction.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderGlobalAction.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 33
+		},
+		"end": {
+			"line": 7,
+			"character": 93
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderPanelDivider.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 33
+		},
+		"end": {
+			"line": 8,
+			"character": 93
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderPanelLink.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 30
+		},
+		"end": {
+			"line": 9,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderPanelLinks.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 31
+		},
+		"end": {
+			"line": 10,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/HeaderUtilities.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 30
+		},
+		"end": {
+			"line": 11,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/SideNav.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 22
+		},
+		"end": {
+			"line": 12,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/SideNavItems.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 27
+		},
+		"end": {
+			"line": 13,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/SideNavLink.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 26
+		},
+		"end": {
+			"line": 14,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/SideNavMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 26
+		},
+		"end": {
+			"line": 15,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/SideNavMenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 30
+		},
+		"end": {
+			"line": 16,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/SkipToContent.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 28
+		},
+		"end": {
+			"line": 17,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/SettingsAdjust.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 29
+		},
+		"end": {
+			"line": 18,
+			"character": 76
+		}
+	}
+]
+
+=== 260 tests/UIShell/ProfileMenuHeader.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/ProfileMenuHeader.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 91
+		}
+	}
+]
+
+=== 495 tests/UIShell/ProfileMenuItem.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/ProfileMenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Logout.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	}
+]
+
+=== 513 tests/UIShell/ProfileMenuList.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/ProfileMenuItem.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UIShell/ProfileMenuList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 87
+		}
+	}
+]
+
+=== 490 tests/UserAvatar/UserAvatar.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UserAvatar/UserAvatar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-icons-svelte/lib/Add.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	}
+]
+
+=== 519 tests/UserAvatarGroup/UserAvatarGroup.test.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UserAvatar/UserAvatar.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'carbon-components-svelte/UserAvatarGroup/UserAvatarGroup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 95
+		}
+	}
+]
+

@@ -1,12 +1,12 @@
 //! What the `SvelteKit` navigation rules share: the uses of `$app/navigation` and `$app/paths`,
 //! the `href` of each `<a>`, and the URL shapes they accept.
 
-use rsvelte_svelte::syntax::syntax_tree::{
+use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, TemplateNode,
 };
-use rsvelte_typescript::scope::{BindingIdentifier, Semantic};
-use rsvelte_typescript::semantic::reference_tracker::import_references;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::reference_tracker::import_references;
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, Semantic};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use serde::Deserialize;
 
 use crate::rule::File;
@@ -123,7 +123,7 @@ impl<'a> Script<'a> {
         &self,
         specifier: &str,
         exports: &[&'e str],
-    ) -> Vec<rsvelte_typescript::semantic::reference_tracker::TrackedReference<'e>> {
+    ) -> Vec<rsvelte_typescript_semantic::reference_tracker::TrackedReference<'e>> {
         import_references(
             self.tree,
             self.sem,

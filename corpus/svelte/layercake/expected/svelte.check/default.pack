@@ -1,0 +1,529 @@
+# rsvelte pack 1
+=== 3 src/_components/Annotations.html.svelte	json
+[]
+
+=== 3 src/_components/AnnotationsData.html.svelte	json
+[]
+
+=== 3 src/_components/Area-D3.svelte	json
+[]
+
+=== 3 src/_components/Area.svelte	json
+[]
+
+=== 3 src/_components/AreaStacked.svelte	json
+[]
+
+=== 3 src/_components/ArrowheadMarker.svelte	json
+[]
+
+=== 3 src/_components/Arrows.svelte	json
+[]
+
+=== 3 src/_components/AxisRadial.svelte	json
+[]
+
+=== 3 src/_components/AxisX.percent-range.html.svelte	json
+[]
+
+=== 3 src/_components/AxisX.svelte	json
+[]
+
+=== 3 src/_components/AxisXTop.percent-range.html.svelte	json
+[]
+
+=== 3 src/_components/AxisXTop.svelte	json
+[]
+
+=== 3 src/_components/AxisY.percent-range.html.svelte	json
+[]
+
+=== 3 src/_components/AxisY.svelte	json
+[]
+
+=== 3 src/_components/AxisYRight.percent-range.html.svelte	json
+[]
+
+=== 3 src/_components/AxisYRight.svelte	json
+[]
+
+=== 3 src/_components/Bar.svelte	json
+[]
+
+=== 3 src/_components/BarStacked.svelte	json
+[]
+
+=== 3 src/_components/Beeswarm.html.svelte	json
+[]
+
+=== 3 src/_components/Beeswarm.svelte	json
+[]
+
+=== 3 src/_components/BeeswarmForce.html.svelte	json
+[]
+
+=== 3 src/_components/BeeswarmForce.svelte	json
+[]
+
+=== 3 src/_components/Brush.html.svelte	json
+[]
+
+=== 3 src/_components/CalendarMonth.svelte	json
+[]
+
+=== 3 src/_components/CirclePack.html.svelte	json
+[]
+
+=== 3 src/_components/CirclePackForce.svelte	json
+[]
+
+=== 3 src/_components/ClevelandDotPlot.percent-range.html.svelte	json
+[]
+
+=== 3 src/_components/ClevelandDotPlot.svelte	json
+[]
+
+=== 3 src/_components/Column.svelte	json
+[]
+
+=== 3 src/_components/ColumnStacked.svelte	json
+[]
+
+=== 3 src/_components/GroupLabels.html.svelte	json
+[]
+
+=== 3 src/_components/Key.html.svelte	json
+[]
+
+=== 3 src/_components/Labels.html.svelte	json
+[]
+
+=== 3 src/_components/Line-D3.svelte	json
+[]
+
+=== 3 src/_components/Line.svelte	json
+[]
+
+=== 3 src/_components/Map.canvas.svelte	json
+[]
+
+=== 3 src/_components/Map.svg.svelte	json
+[]
+
+=== 3 src/_components/MapLabels.html.svelte	json
+[]
+
+=== 3 src/_components/MapLabels.svg.svelte	json
+[]
+
+=== 3 src/_components/MapPoints.canvas.svelte	json
+[]
+
+=== 3 src/_components/MapPoints.html.svelte	json
+[]
+
+=== 3 src/_components/MapPoints.svelte	json
+[]
+
+=== 3 src/_components/MultiLine.svelte	json
+[]
+
+=== 3 src/_components/QuadTree.html.svelte	json
+[]
+
+=== 3 src/_components/QuadTree.percent-range.html.svelte	json
+[]
+
+=== 3 src/_components/Radar.svelte	json
+[]
+
+=== 3 src/_components/Sankey.svelte	json
+[]
+
+=== 3 src/_components/Scatter.canvas.svelte	json
+[]
+
+=== 3 src/_components/Scatter.html.svelte	json
+[]
+
+=== 3 src/_components/Scatter.svg.svelte	json
+[]
+
+=== 3 src/_components/Scatter.webgl.svelte	json
+[]
+
+=== 3 src/_components/SharedTooltip.html.svelte	json
+[]
+
+=== 3 src/_components/SharedTooltip.percent-range.html.svelte	json
+[]
+
+=== 3 src/_components/SmallMultipleWrapper.percent-range.svelte	json
+[]
+
+=== 3 src/_components/SmallMultipleWrapper.svelte	json
+[]
+
+=== 3 src/_components/SyncedBrushWrapper.percent-range.svelte	json
+[]
+
+=== 3 src/_components/SyncedBrushWrapper.svelte	json
+[]
+
+=== 3 src/_components/Tooltip.html.svelte	json
+[]
+
+=== 3 src/_components/Voronoi.svelte	json
+[]
+
+=== 3 src/lib/layouts/Canvas.svelte	json
+[]
+
+=== 3 src/lib/layouts/Html.svelte	json
+[]
+
+=== 3 src/lib/layouts/ScaledSvg.svelte	json
+[]
+
+=== 3 src/lib/layouts/Svg.svelte	json
+[]
+
+=== 3 src/lib/layouts/Webgl.svelte	json
+[]
+
+=== 3 src/routes/+layout.svelte	json
+[]
+
+=== 3 src/routes/+page.svelte	json
+[]
+
+=== 3 src/routes/_components/Annotations.html.svelte	json
+[]
+
+=== 3 src/routes/_components/AnnotationsData.html.svelte	json
+[]
+
+=== 3 src/routes/_components/Area-D3.svelte	json
+[]
+
+=== 3 src/routes/_components/Area.svelte	json
+[]
+
+=== 3 src/routes/_components/AreaStacked.svelte	json
+[]
+
+=== 3 src/routes/_components/Arrows.svelte	json
+[]
+
+=== 3 src/routes/_components/AxisRadial.svelte	json
+[]
+
+=== 3 src/routes/_components/AxisX.svelte	json
+[]
+
+=== 3 src/routes/_components/AxisXTop.svelte	json
+[]
+
+=== 3 src/routes/_components/AxisY.svelte	json
+[]
+
+=== 3 src/routes/_components/AxisYRight.svelte	json
+[]
+
+=== 3 src/routes/_components/Bar.svelte	json
+[]
+
+=== 3 src/routes/_components/BarStacked.svelte	json
+[]
+
+=== 3 src/routes/_components/Beeswarm.html.svelte	json
+[]
+
+=== 3 src/routes/_components/Beeswarm.svelte	json
+[]
+
+=== 3 src/routes/_components/BeeswarmForce.html.svelte	json
+[]
+
+=== 3 src/routes/_components/BeeswarmForce.svelte	json
+[]
+
+=== 3 src/routes/_components/Brush.svelte	json
+[]
+
+=== 3 src/routes/_components/Calendar.svelte	json
+[]
+
+=== 3 src/routes/_components/CirclePack.svelte	json
+[]
+
+=== 3 src/routes/_components/CirclePackForce.svelte	json
+[]
+
+=== 3 src/routes/_components/ClevelandDotPlot.html.svelte	json
+[]
+
+=== 3 src/routes/_components/ClevelandDotPlot.svelte	json
+[]
+
+=== 3 src/routes/_components/Column.svelte	json
+[]
+
+=== 3 src/routes/_components/ColumnStacked.svelte	json
+[]
+
+=== 3 src/routes/_components/GroupLabels.html.svelte	json
+[]
+
+=== 3 src/routes/_components/Labels.html.svelte	json
+[]
+
+=== 3 src/routes/_components/Line-D3.svelte	json
+[]
+
+=== 3 src/routes/_components/Line.svelte	json
+[]
+
+=== 3 src/routes/_components/Map.canvas.svelte	json
+[]
+
+=== 3 src/routes/_components/Map.svg.svelte	json
+[]
+
+=== 3 src/routes/_components/MapLabels.html.svelte	json
+[]
+
+=== 3 src/routes/_components/MapLabels.svelte	json
+[]
+
+=== 3 src/routes/_components/MapPoints.canvas.svelte	json
+[]
+
+=== 3 src/routes/_components/MapPoints.html.svelte	json
+[]
+
+=== 3 src/routes/_components/MapPoints.svelte	json
+[]
+
+=== 3 src/routes/_components/MultiLine.svelte	json
+[]
+
+=== 3 src/routes/_components/QuadTree.html.svelte	json
+[]
+
+=== 3 src/routes/_components/Radar.svelte	json
+[]
+
+=== 3 src/routes/_components/Sankey.svelte	json
+[]
+
+=== 3 src/routes/_components/Scatter.canvas.svelte	json
+[]
+
+=== 3 src/routes/_components/Scatter.svg.svelte	json
+[]
+
+=== 3 src/routes/_components/ScatterWebgl.svelte	json
+[]
+
+=== 3 src/routes/_components/SharedTooltip.html.svelte	json
+[]
+
+=== 3 src/routes/_components/Tooltip.html.svelte	json
+[]
+
+=== 3 src/routes/_components/Voronoi.svelte	json
+[]
+
+=== 3 src/routes/_components_ssr/AxisX.html.svelte	json
+[]
+
+=== 3 src/routes/_components_ssr/AxisXTop.html.svelte	json
+[]
+
+=== 3 src/routes/_components_ssr/AxisY.html.svelte	json
+[]
+
+=== 3 src/routes/_components_ssr/AxisYRight.html.svelte	json
+[]
+
+=== 3 src/routes/_components_ssr/Key.html.svelte	json
+[]
+
+=== 3 src/routes/_components_ssr/QuadTree.percent-range.html.svelte	json
+[]
+
+=== 3 src/routes/_components_ssr/Scatter.html.svelte	json
+[]
+
+=== 3 src/routes/_components_ssr/SharedTooltip.percent-range.html.svelte	json
+[]
+
+=== 3 src/routes/_error.svelte	json
+[]
+
+=== 3 src/routes/_examples/AreaStacked.svelte	json
+[]
+
+=== 3 src/routes/_examples/Bar.svelte	json
+[]
+
+=== 3 src/routes/_examples/BarStacked.svelte	json
+[]
+
+=== 3 src/routes/_examples/Beeswarm.svelte	json
+[]
+
+=== 3 src/routes/_examples/BeeswarmForce.svelte	json
+[]
+
+=== 3 src/routes/_examples/Brush.svelte	json
+[]
+
+=== 3 src/routes/_examples/Calendar.svelte	json
+[]
+
+=== 3 src/routes/_examples/CirclePack.svelte	json
+[]
+
+=== 3 src/routes/_examples/CirclePackForce.svelte	json
+[]
+
+=== 3 src/routes/_examples/CirclePackNested.svelte	json
+[]
+
+=== 3 src/routes/_examples/ClevelandDotPlot.svelte	json
+[]
+
+=== 3 src/routes/_examples/Column.svelte	json
+[]
+
+=== 3 src/routes/_examples/ColumnStacked.svelte	json
+[]
+
+=== 3 src/routes/_examples/Histogram.svelte	json
+[]
+
+=== 3 src/routes/_examples/Line.svelte	json
+[]
+
+=== 3 src/routes/_examples/MapLayered.svelte	json
+[]
+
+=== 3 src/routes/_examples/MapSvg.svelte	json
+[]
+
+=== 3 src/routes/_examples/MultiLine.svelte	json
+[]
+
+=== 3 src/routes/_examples/Radar.svelte	json
+[]
+
+=== 3 src/routes/_examples/Sankey.svelte	json
+[]
+
+=== 3 src/routes/_examples/Scatter.svelte	json
+[]
+
+=== 3 src/routes/_examples/ScatterWebgl.svelte	json
+[]
+
+=== 3 src/routes/_examples/SmallMultiples.svelte	json
+[]
+
+=== 3 src/routes/_examples/SyncedBrush.svelte	json
+[]
+
+=== 3 src/routes/_examples/Timeplot.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/AreaStacked.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/Bar.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/BarStacked.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/Brush.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/Calendar.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/ClevelandDotPlot.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/Column.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/ColumnStacked.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/Histogram.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/Line.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/MapLayered.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/MapSvg.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/MultiLine.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/Scatter.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/ScatterWebgl.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/SmallMultiples.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/SyncedBrush.svelte	json
+[]
+
+=== 3 src/routes/_examples_ssr/Timeplot.svelte	json
+[]
+
+=== 3 src/routes/_site-components/CopyBtn.svelte	json
+[]
+
+=== 3 src/routes/_site-components/CopyIcon.svelte	json
+[]
+
+=== 3 src/routes/_site-components/DownloadBtn.svelte	json
+[]
+
+=== 3 src/routes/_site-components/DownloadComponentBtn.svelte	json
+[]
+
+=== 3 src/routes/_site-components/GuideContents.svelte	json
+[]
+
+=== 3 src/routes/_site-components/Nav.svelte	json
+[]
+
+=== 3 src/routes/components/+page.svelte	json
+[]
+
+=== 3 src/routes/components/[slug]/+page.svelte	json
+[]
+
+=== 3 src/routes/example-ssr/[slug]/+page.svelte	json
+[]
+
+=== 3 src/routes/example/[slug]/+page.svelte	json
+[]
+
+=== 3 src/routes/guide/+page.svelte	json
+[]
+
+=== 3 src/scripts/svelte-app/src/routes/+layout.svelte	json
+[]
+

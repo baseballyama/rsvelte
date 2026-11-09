@@ -1,23 +1,23 @@
 //! The template: Vue's HIR to Svelte's.
 
 use rsvelte_kernel::source::positions::{SourceLocation, Span};
-use rsvelte_svelte::compilation::compiler_syntax_tree::{
+use rsvelte_svelte_compile::Target;
+use rsvelte_svelte_semantic::compiler_syntax_tree::{
     self as svelte, Attribute, AttributeValue, Branch,
     CompilerNodeIdentifier as SvelteNodeIdentifier, CompilerSyntaxTreeBuilder, Each,
     Element as SvelteElement, NodeKind as SvelteNodeKind,
 };
-use rsvelte_svelte_compile::Target;
-use rsvelte_typescript::operators::{
+use rsvelte_typescript_semantic::scope::{BindingIdentifier, DeclarationKind};
+use rsvelte_typescript_syntax::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator,
 };
-use rsvelte_typescript::scope::{BindingIdentifier, DeclarationKind};
-use rsvelte_typescript::syntax_tree::flag;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
-use rsvelte_vue::compiler_syntax_tree::{
+use rsvelte_typescript_syntax::syntax_tree::flag;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_vue_semantic::compiler_syntax_tree::{
     CompilerNodeIdentifier, CompilerSyntaxTree, Directive, Element, NodeKind, Property,
     PropertyKind, TagType,
 };
-use rsvelte_vue::syntax_tree::{DirectiveExpression, DirectiveName};
+use rsvelte_vue_syntax::syntax_tree::{DirectiveExpression, DirectiveName};
 use rustc_hash::FxHashMap;
 
 use crate::context::{Class, Helper, Info, Names, R, Rewriter, span_of, unsupported};

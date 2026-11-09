@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .begin_object()
             .key("input")
             .write_string(&file.to_string_lossy());
-        match rsvelte_svelte_parser::parse::parse(&source) {
+        match rsvelte_svelte_syntax::parse::parse(&source) {
             Err(error) => {
                 record
                     .key("status")

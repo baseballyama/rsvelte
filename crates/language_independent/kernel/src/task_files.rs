@@ -11,7 +11,7 @@ use crate::output::structured_data::StructuredDataWriter;
 use crate::source::positions::LineIndex;
 
 /// The extension of the diagnostics file.
-pub const DIAGNOSTICS: &str = "diagnostics.json";
+pub(crate) const DIAGNOSTICS: &str = "diagnostics.json";
 
 /// The directory and the variant of a task identifier: `svelte.compile/client` is
 /// (`svelte.compile`, `client`), and an identifier without a variant has `default`.

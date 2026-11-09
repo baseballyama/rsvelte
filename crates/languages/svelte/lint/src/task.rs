@@ -20,11 +20,11 @@ pub static PLUGIN: Plugin = Plugin {
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[
         Dependency {
-            identifier: "svelte",
+            identifier: "svelte.semantic",
             requirement: concat!("=", env!("CARGO_PKG_VERSION")),
         },
         Dependency {
-            identifier: "typescript",
+            identifier: "typescript.semantic",
             requirement: concat!("=", env!("CARGO_PKG_VERSION")),
         },
     ],
@@ -38,8 +38,8 @@ pub fn register(registry: &mut Registry) {
 
 pub fn register_artifacts(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_svelte::register(registry);
-    rsvelte_typescript::register(registry);
+    rsvelte_svelte_semantic::register(registry);
+    rsvelte_typescript_semantic::register(registry);
     registry
         .artifact::<Parents>()
         .artifact::<ModuleParents>()
@@ -58,21 +58,25 @@ pub fn register_type_provider(
     registry: &mut Registry,
     provider: impl Fn(&DocumentContext<'_>) -> TypeFacts + Send + Sync + 'static,
 ) {
-    registry.provide::<ConditionTypes>("svelte.lint", rsvelte_svelte::matches, move |context| {
-        let facts = provider(context);
-        let Ok(component) = context.get::<rsvelte_svelte::Parsed>() else {
-            return Err("the type provider ran on a component that does not parse".to_owned());
-        };
-        let nodes = component.javascript.len();
-        if facts.len() == nodes {
-            Ok(facts)
-        } else {
-            Err(format!(
-                "the type provider gave {} condition types for {nodes} JavaScript nodes",
-                facts.len()
-            ))
-        }
-    });
+    registry.provide::<ConditionTypes>(
+        "svelte.lint",
+        rsvelte_svelte_syntax::matches,
+        move |context| {
+            let facts = provider(context);
+            let Ok(component) = context.get::<rsvelte_svelte_syntax::Parsed>() else {
+                return Err("the type provider ran on a component that does not parse".to_owned());
+            };
+            let nodes = component.javascript.len();
+            if facts.len() == nodes {
+                Ok(facts)
+            } else {
+                Err(format!(
+                    "the type provider gave {} condition types for {nodes} JavaScript nodes",
+                    facts.len()
+                ))
+            }
+        },
+    );
 }
 
 /// Turns on `svelte.lint/default` with `configuration`. It lints modules only when a configured
@@ -98,9 +102,10 @@ impl Task for Lint {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_svelte::matches(document)
+        rsvelte_svelte_syntax::matches(document)
             || (self.modules
-                && (rsvelte_typescript::matches(document) || rsvelte_typescript::is_jsx(document)))
+                && (rsvelte_typescript_syntax::matches(document)
+                    || rsvelte_typescript_syntax::is_jsx(document)))
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {

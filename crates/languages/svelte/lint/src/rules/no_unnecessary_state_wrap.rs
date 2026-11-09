@@ -1,7 +1,7 @@
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript::semantic::reference_tracker::import_references;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::reference_tracker::import_references;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use serde::Deserialize;
 
 use super::nodes::{is_named, roots, span, text, walk};

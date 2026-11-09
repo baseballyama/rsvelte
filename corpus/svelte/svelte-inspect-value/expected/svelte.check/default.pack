@@ -1,0 +1,5808 @@
+# rsvelte pack 1
+=== 223 apps/docs/src/components/Inspect.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 67
+		}
+	}
+]
+
+=== 890 apps/docs/src/components/editor/CodeEditor.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'ace-builds' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 30
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'ace-builds/src-noconflict/mode-javascript'.",
+		"start": {
+			"line": 2,
+			"character": 9
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './ace-inspect-theme' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 50
+		},
+		"end": {
+			"line": 3,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './aceprops' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 32
+		},
+		"end": {
+			"line": 8,
+			"character": 44
+		}
+	}
+]
+
+=== 225 apps/docs/src/components/global-opts/GlobalOptionsList.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 34
+		},
+		"end": {
+			"line": 21,
+			"character": 56
+		}
+	}
+]
+
+=== 783 apps/docs/src/components/global-opts/OptionToggleCheck.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 38
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'string | number | symbol' is not assignable to type 'string | null | undefined'.\n  Type 'number' is not assignable to type 'string'.",
+		"start": {
+			"line": 23,
+			"character": 29
+		},
+		"end": {
+			"line": 23,
+			"character": 31
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'string | number | symbol' is not assignable to type 'string | null | undefined'.\n  Type 'number' is not assignable to type 'string'.",
+		"start": {
+			"line": 23,
+			"character": 38
+		},
+		"end": {
+			"line": 23,
+			"character": 42
+		}
+	}
+]
+
+=== 3 apps/docs/src/components/global-opts/ScrollToButton.svelte	json
+[]
+
+=== 1955 apps/docs/src/components/theming/DefineTheme.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'runed' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 31
+		},
+		"end": {
+			"line": 4,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-awesome-color-picker' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './themes.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 38
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'entry' implicitly has an 'any' type.",
+		"start": {
+			"line": 44,
+			"character": 5
+		},
+		"end": {
+			"line": 44,
+			"character": 10
+		}
+	},
+	{
+		"code": 2731,
+		"message": "Implicit conversion of a 'symbol' to a 'string' will fail at runtime. Consider wrapping this expression in 'String(...)'.",
+		"start": {
+			"line": 51,
+			"character": 30
+		},
+		"end": {
+			"line": 51,
+			"character": 31
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'color' implicitly has an 'any' type.",
+		"start": {
+			"line": 135,
+			"character": 20
+		},
+		"end": {
+			"line": 135,
+			"character": 25
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'replaceAll' does not exist on type 'string | number | symbol'.\n  Property 'replaceAll' does not exist on type 'number'.",
+		"start": {
+			"line": 139,
+			"character": 21
+		},
+		"end": {
+			"line": 139,
+			"character": 31
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'h' implicitly has an 'any' type.",
+		"start": {
+			"line": 199,
+			"character": 52
+		},
+		"end": {
+			"line": 199,
+			"character": 53
+		}
+	}
+]
+
+=== 223 apps/docs/src/components/theming/HexString.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 56
+		},
+		"end": {
+			"line": 1,
+			"character": 78
+		}
+	}
+]
+
+=== 843 apps/docs/src/components/theming/Theming.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './themes.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 33
+		},
+		"end": {
+			"line": 7,
+			"character": 46
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 124,
+			"character": 7
+		},
+		"end": {
+			"line": 124,
+			"character": 12
+		}
+	}
+]
+
+=== 450 apps/docs/src/examples/BasicEditable.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/editor/CodeEditor.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 59
+		}
+	}
+]
+
+=== 214 apps/docs/src/examples/BuiltIns.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 214 apps/docs/src/examples/Classes.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 438 apps/docs/src/examples/EmbedMedia.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './media/squirtle_cry.ogg' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	}
+]
+
+=== 229 apps/docs/src/examples/Functions.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	}
+]
+
+=== 693 apps/docs/src/examples/Generic.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/global-opts/globalopts.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 36
+		},
+		"end": {
+			"line": 3,
+			"character": 58
+		}
+	}
+]
+
+=== 214 apps/docs/src/examples/GettersAndSetters.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 434 apps/docs/src/examples/GettingStarted.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	}
+]
+
+=== 214 apps/docs/src/examples/HTMLElements.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 214 apps/docs/src/examples/Iterators.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 449 apps/docs/src/examples/KeyboardNavDemo.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 58
+		}
+	}
+]
+
+=== 214 apps/docs/src/examples/PackageInfo.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 39
+		}
+	}
+]
+
+=== 214 apps/docs/src/examples/Promises.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	}
+]
+
+=== 1006 apps/docs/src/examples/Stores.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 38
+		},
+		"end": {
+			"line": 3,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'rxjs' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 61
+		},
+		"end": {
+			"line": 5,
+			"character": 67
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter '_' implicitly has an 'any' type.",
+		"start": {
+			"line": 33,
+			"character": 11
+		},
+		"end": {
+			"line": 33,
+			"character": 12
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'i' implicitly has an 'any' type.",
+		"start": {
+			"line": 33,
+			"character": 14
+		},
+		"end": {
+			"line": 33,
+			"character": 15
+		}
+	}
+]
+
+=== 3 apps/docs/src/examples/Themes.svelte	json
+[]
+
+=== 672 apps/docs/src/examples/config/Animation.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './values' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/global-opts/globalopts.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 72
+		}
+	}
+]
+
+=== 672 apps/docs/src/examples/config/ExpandLevel.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './values' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/global-opts/globalopts.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 72
+		}
+	}
+]
+
+=== 672 apps/docs/src/examples/config/PreviewSettings.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './values' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/global-opts/globalopts.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 72
+		}
+	}
+]
+
+=== 672 apps/docs/src/examples/config/RenderIf.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './values' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/global-opts/globalopts.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 72
+		}
+	}
+]
+
+=== 672 apps/docs/src/examples/config/VisibilityToggles.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './values' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/global-opts/globalopts.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 72
+		}
+	}
+]
+
+=== 597 apps/docs/src/examples/custom/AdvancedExample.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 63
+		},
+		"end": {
+			"line": 1,
+			"character": 85
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 15,
+			"character": 7
+		},
+		"end": {
+			"line": 15,
+			"character": 12
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 18,
+			"character": 7
+		},
+		"end": {
+			"line": 18,
+			"character": 12
+		}
+	}
+]
+
+=== 223 apps/docs/src/examples/custom/CustomNumber.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 56
+		},
+		"end": {
+			"line": 1,
+			"character": 78
+		}
+	}
+]
+
+=== 229 apps/docs/src/examples/custom/ErrorHandling.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	}
+]
+
+=== 223 apps/docs/src/examples/custom/ErrorOnHover.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 56
+		},
+		"end": {
+			"line": 2,
+			"character": 78
+		}
+	}
+]
+
+=== 223 apps/docs/src/examples/custom/ExpandableNumber.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 62
+		},
+		"end": {
+			"line": 1,
+			"character": 84
+		}
+	}
+]
+
+=== 223 apps/docs/src/examples/custom/HexString.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 56
+		},
+		"end": {
+			"line": 1,
+			"character": 78
+		}
+	}
+]
+
+=== 449 apps/docs/src/examples/custom/MinimalExample.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 40
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	}
+]
+
+=== 464 apps/docs/src/examples/panel/PanelExample.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/global-opts/globalopts.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 38
+		},
+		"end": {
+			"line": 3,
+			"character": 60
+		}
+	}
+]
+
+=== 464 apps/docs/src/examples/panel/Todo.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components/global-opts/globalopts.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 38
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	}
+]
+
+=== 434 apps/docs/src/examples/search/Narrowing.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 38
+		},
+		"end": {
+			"line": 4,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@components' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 39
+		}
+	}
+]
+
+=== 223 apps/docs/src/examples/values/ConfiguredExample.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	}
+]
+
+=== 223 apps/docs/src/examples/values/MinimalExampleValues.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-inspect-value' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	}
+]
+
+=== 1062 packages/svelte/src/doclib/Ace.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'brace' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './aceprops.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 4,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'brace' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 42
+		},
+		"end": {
+			"line": 16,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './brace-theme.js' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 17
+		},
+		"end": {
+			"line": 25,
+			"character": 35
+		}
+	}
+]
+
+=== 657 packages/svelte/src/doclib/Code.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/icons/Copy.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './shiki.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 28
+		},
+		"end": {
+			"line": 6,
+			"character": 40
+		}
+	}
+]
+
+=== 611 packages/svelte/src/doclib/DocSearch.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '@docsearch/css'.",
+		"start": {
+			"line": 1,
+			"character": 9
+		},
+		"end": {
+			"line": 1,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@docsearch/js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 39
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 5,
+			"character": 4
+		},
+		"end": {
+			"line": 5,
+			"character": 27
+		}
+	}
+]
+
+=== 432 packages/svelte/src/doclib/Editor.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './aceprops.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	}
+]
+
+=== 3 packages/svelte/src/doclib/Stack.svelte	json
+[]
+
+=== 1714 packages/svelte/src/doclib/examples/AllTypes.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 36
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'rxjs' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 39
+		},
+		"end": {
+			"line": 4,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './media/squirtle.png' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 21
+		},
+		"end": {
+			"line": 6,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './media/squirtle_cry.ogg' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 20
+		},
+		"end": {
+			"line": 7,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/options.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 62
+		},
+		"end": {
+			"line": 8,
+			"character": 86
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'subscriber' implicitly has an 'any' type.",
+		"start": {
+			"line": 74,
+			"character": 28
+		},
+		"end": {
+			"line": 74,
+			"character": 38
+		}
+	}
+]
+
+=== 438 packages/svelte/src/doclib/examples/BasicEditable.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/options.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 62
+		},
+		"end": {
+			"line": 2,
+			"character": 86
+		}
+	}
+]
+
+=== 216 packages/svelte/src/doclib/examples/Classes.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 3 packages/svelte/src/doclib/examples/ConfiguredExample.svelte	json
+[]
+
+=== 446 packages/svelte/src/doclib/examples/EmbedMedia.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './media/squirtle_cry.ogg' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 52
+		}
+	}
+]
+
+=== 216 packages/svelte/src/doclib/examples/Functions.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 443 packages/svelte/src/doclib/examples/GettersAndSetters.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './gettersandsetters.txt?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 22
+		},
+		"end": {
+			"line": 6,
+			"character": 51
+		}
+	}
+]
+
+=== 216 packages/svelte/src/doclib/examples/HTMLElements.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 435 packages/svelte/src/doclib/examples/Iterators.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './iterators.txt?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 22
+		},
+		"end": {
+			"line": 6,
+			"character": 43
+		}
+	}
+]
+
+=== 222 packages/svelte/src/doclib/examples/MapAndSet.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	}
+]
+
+=== 216 packages/svelte/src/doclib/examples/MinimalExample.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 45
+		},
+		"end": {
+			"line": 1,
+			"character": 60
+		}
+	}
+]
+
+=== 216 packages/svelte/src/doclib/examples/MinimalExampleValues.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 3 packages/svelte/src/doclib/examples/MultiCode.svelte	json
+[]
+
+=== 216 packages/svelte/src/doclib/examples/MultiLineStrings.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 216 packages/svelte/src/doclib/examples/Other.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 434 packages/svelte/src/doclib/examples/Promises.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './promises.txt?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 26
+		},
+		"end": {
+			"line": 6,
+			"character": 46
+		}
+	}
+]
+
+=== 1226 packages/svelte/src/doclib/examples/Stores.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/options.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 62
+		},
+		"end": {
+			"line": 3,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'rxjs' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 56
+		},
+		"end": {
+			"line": 4,
+			"character": 62
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter '_' implicitly has an 'any' type.",
+		"start": {
+			"line": 42,
+			"character": 11
+		},
+		"end": {
+			"line": 42,
+			"character": 12
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'i' implicitly has an 'any' type.",
+		"start": {
+			"line": 42,
+			"character": 14
+		},
+		"end": {
+			"line": 42,
+			"character": 15
+		}
+	}
+]
+
+=== 436 packages/svelte/src/doclib/examples/SymbolKeys.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './symbolkeys.txt?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 19
+		},
+		"end": {
+			"line": 7,
+			"character": 41
+		}
+	}
+]
+
+=== 216 packages/svelte/src/doclib/examples/Urls.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 3 packages/svelte/src/doclib/icons/Copy.svelte	json
+[]
+
+=== 431 packages/svelte/src/lib/CollapseStateProvider.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 33
+		},
+		"end": {
+			"line": 9,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './util/search.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 37
+		},
+		"end": {
+			"line": 10,
+			"character": 55
+		}
+	}
+]
+
+=== 213 packages/svelte/src/lib/CustomExpandable.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 44
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	}
+]
+
+=== 422 packages/svelte/src/lib/CustomLine.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 44
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 33
+		},
+		"end": {
+			"line": 4,
+			"character": 44
+		}
+	}
+]
+
+=== 609 packages/svelte/src/lib/Inspect.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 36
+		},
+		"end": {
+			"line": 7,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 67
+		},
+		"end": {
+			"line": 8,
+			"character": 78
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'prop' implicitly has an 'any' type.",
+		"start": {
+			"line": 49,
+			"character": 46
+		},
+		"end": {
+			"line": 49,
+			"character": 50
+		}
+	}
+]
+
+=== 3 packages/svelte/src/lib/InspectOptionsProvider.svelte	json
+[]
+
+=== 422 packages/svelte/src/lib/InspectValues.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 44
+		},
+		"end": {
+			"line": 7,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 29
+		},
+		"end": {
+			"line": 8,
+			"character": 40
+		}
+	}
+]
+
+=== 635 packages/svelte/src/lib/Panel.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'esm-env' or its corresponding type declarations.",
+		"start": {
+			"line": 40,
+			"character": 26
+		},
+		"end": {
+			"line": 40,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 53,
+			"character": 86
+		},
+		"end": {
+			"line": 53,
+			"character": 98
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 54,
+			"character": 58
+		},
+		"end": {
+			"line": 54,
+			"character": 69
+		}
+	}
+]
+
+=== 440 packages/svelte/src/lib/PanelToolbar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './components/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 66
+		},
+		"end": {
+			"line": 4,
+			"character": 78
+		}
+	}
+]
+
+=== 3 packages/svelte/src/lib/PanelValue.svelte	json
+[]
+
+=== 213 packages/svelte/src/lib/Resize.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	}
+]
+
+=== 2289 packages/svelte/src/lib/Wrapper.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './attachments/focus.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './components/icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 21
+		},
+		"end": {
+			"line": 8,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 58
+		},
+		"end": {
+			"line": 12,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './transition/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 29
+		},
+		"end": {
+			"line": 15,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 23
+		},
+		"end": {
+			"line": 17,
+			"character": 34
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './util/search.js' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 53
+		},
+		"end": {
+			"line": 18,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './util/hotkeys.js' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 27
+		},
+		"end": {
+			"line": 19,
+			"character": 46
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'cb' implicitly has an 'any' type.",
+		"start": {
+			"line": 68,
+			"character": 25
+		},
+		"end": {
+			"line": 68,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 85,
+			"character": 34
+		},
+		"end": {
+			"line": 85,
+			"character": 39
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 96,
+			"character": 36
+		},
+		"end": {
+			"line": 96,
+			"character": 41
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 107,
+			"character": 31
+		},
+		"end": {
+			"line": 107,
+			"character": 36
+		}
+	}
+]
+
+=== 1025 packages/svelte/src/lib/components/ArrayView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 37
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'prop' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 36
+		},
+		"end": {
+			"line": 16,
+			"character": 40
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 35,
+			"character": 27
+		},
+		"end": {
+			"line": 35,
+			"character": 38
+		}
+	}
+]
+
+=== 3 packages/svelte/src/lib/components/Bullet.svelte	json
+[]
+
+=== 1280 packages/svelte/src/lib/components/ClassView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 37
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 23,
+			"character": 27
+		},
+		"end": {
+			"line": 23,
+			"character": 38
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'unknown' is not assignable to parameter of type 'PropertyKey'.",
+		"start": {
+			"line": 41,
+			"character": 40
+		},
+		"end": {
+			"line": 41,
+			"character": 43
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'unknown' is not assignable to parameter of type 'PropertyKey'.",
+		"start": {
+			"line": 49,
+			"character": 40
+		},
+		"end": {
+			"line": 49,
+			"character": 43
+		}
+	}
+]
+
+=== 3 packages/svelte/src/lib/components/CollapseButton.svelte	json
+[]
+
+=== 213 packages/svelte/src/lib/components/Count.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	}
+]
+
+=== 414 packages/svelte/src/lib/components/DateView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 36,
+			"character": 27
+		},
+		"end": {
+			"line": 36,
+			"character": 38
+		}
+	}
+]
+
+=== 624 packages/svelte/src/lib/components/Default.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 35
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 29
+		},
+		"end": {
+			"line": 19,
+			"character": 40
+		}
+	}
+]
+
+=== 210 packages/svelte/src/lib/components/DevOnly.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'esm-env' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 31
+		}
+	}
+]
+
+=== 225 packages/svelte/src/lib/components/Entry.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../transition/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	}
+]
+
+=== 214 packages/svelte/src/lib/components/ErrorView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 37
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	}
+]
+
+=== 1083 packages/svelte/src/lib/components/Expandable.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../attachments/focus.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 44
+		},
+		"end": {
+			"line": 4,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../transition/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 37
+		},
+		"end": {
+			"line": 8,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 79
+		},
+		"end": {
+			"line": 9,
+			"character": 91
+		}
+	}
+]
+
+=== 1093 packages/svelte/src/lib/components/FunctionBody.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'highlight.js/lib/core' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'highlight.js/lib/languages/javascript' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'memoize' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 37
+		},
+		"end": {
+			"line": 18,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 33
+		},
+		"end": {
+			"line": 19,
+			"character": 45
+		}
+	}
+]
+
+=== 635 packages/svelte/src/lib/components/FunctionView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'esm-env' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 50
+		}
+	}
+]
+
+=== 1442 packages/svelte/src/lib/components/GetterSetter.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../transition/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 67
+		},
+		"end": {
+			"line": 4,
+			"character": 83
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 51
+		},
+		"end": {
+			"line": 6,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 69
+		},
+		"end": {
+			"line": 7,
+			"character": 81
+		}
+	},
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './icons/CloseIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-bW1cMx/packages/svelte/src/lib/components/icons/CloseIcon.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 15,
+			"character": 24
+		},
+		"end": {
+			"line": 15,
+			"character": 50
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 160,
+			"character": 29
+		},
+		"end": {
+			"line": 160,
+			"character": 40
+		}
+	}
+]
+
+=== 214 packages/svelte/src/lib/components/HTMLImageElementView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 37
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	}
+]
+
+=== 1088 packages/svelte/src/lib/components/HTMLValue.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'highlight.js/lib/core' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'highlight.js/lib/languages/xml' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'esm-env' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 26
+		},
+		"end": {
+			"line": 10,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 37
+		},
+		"end": {
+			"line": 13,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 33
+		},
+		"end": {
+			"line": 14,
+			"character": 45
+		}
+	}
+]
+
+=== 214 packages/svelte/src/lib/components/HTMLView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 50
+		}
+	}
+]
+
+=== 610 packages/svelte/src/lib/components/HTMLViewFull.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 37
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 47
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'prop' implicitly has an 'any' type.",
+		"start": {
+			"line": 17,
+			"character": 7
+		},
+		"end": {
+			"line": 17,
+			"character": 11
+		}
+	}
+]
+
+=== 1496 packages/svelte/src/lib/components/HTMLViewSimple.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 37
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 36
+		},
+		"end": {
+			"line": 3,
+			"character": 48
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'attr' is of type 'unknown'.",
+		"start": {
+			"line": 59,
+			"character": 28
+		},
+		"end": {
+			"line": 59,
+			"character": 32
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'attr' is of type 'unknown'.",
+		"start": {
+			"line": 59,
+			"character": 39
+		},
+		"end": {
+			"line": 59,
+			"character": 43
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'v' is of type 'unknown'.",
+		"start": {
+			"line": 91,
+			"character": 19
+		},
+		"end": {
+			"line": 91,
+			"character": 20
+		}
+	},
+	{
+		"code": 2769,
+		"message": "No overload matches this call.\n  Overload 1 of 2, '(o: ArrayLike<unknown> | { [s: string]: unknown; }): [string, unknown][]', gave the following error.\n    Argument of type 'unknown' is not assignable to parameter of type 'ArrayLike<unknown> | { [s: string]: unknown; }'.\n  Overload 2 of 2, '(o: {}): [string, any][]', gave the following error.\n    Argument of type 'unknown' is not assignable to parameter of type '{}'.",
+		"start": {
+			"line": 91,
+			"character": 59
+		},
+		"end": {
+			"line": 91,
+			"character": 60
+		}
+	}
+]
+
+=== 1590 packages/svelte/src/lib/components/Highlight.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'memoize' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util/highlight-text.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 59
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'text' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 16
+		},
+		"end": {
+			"line": 5,
+			"character": 20
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'terms' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'term' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 51
+		},
+		"end": {
+			"line": 5,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 35
+		},
+		"end": {
+			"line": 11,
+			"character": 51
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'term' implicitly has an 'any' type.",
+		"start": {
+			"line": 32,
+			"character": 13
+		},
+		"end": {
+			"line": 32,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'c' implicitly has an 'any' type.",
+		"start": {
+			"line": 62,
+			"character": 58
+		},
+		"end": {
+			"line": 62,
+			"character": 59
+		}
+	}
+]
+
+=== 225 packages/svelte/src/lib/components/Input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../transition/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 58
+		},
+		"end": {
+			"line": 4,
+			"character": 82
+		}
+	}
+]
+
+=== 214 packages/svelte/src/lib/components/InspectErrorView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 51
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	}
+]
+
+=== 1050 packages/svelte/src/lib/components/IteratorView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 49
+		},
+		"end": {
+			"line": 2,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 4,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 36
+		},
+		"end": {
+			"line": 10,
+			"character": 48
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 71,
+			"character": 27
+		},
+		"end": {
+			"line": 71,
+			"character": 38
+		}
+	}
+]
+
+=== 638 packages/svelte/src/lib/components/Key.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 44
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 52
+		},
+		"end": {
+			"line": 5,
+			"character": 64
+		}
+	}
+]
+
+=== 414 packages/svelte/src/lib/components/MapEntryView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 24,
+			"character": 27
+		},
+		"end": {
+			"line": 24,
+			"character": 38
+		}
+	}
+]
+
+=== 414 packages/svelte/src/lib/components/MapView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 27
+		},
+		"end": {
+			"line": 16,
+			"character": 38
+		}
+	}
+]
+
+=== 1032 packages/svelte/src/lib/components/Node.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 52
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 51
+		},
+		"end": {
+			"line": 5,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 57
+		},
+		"end": {
+			"line": 6,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 52
+		},
+		"end": {
+			"line": 9,
+			"character": 64
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'p' implicitly has an 'any' type.",
+		"start": {
+			"line": 75,
+			"character": 38
+		},
+		"end": {
+			"line": 75,
+			"character": 39
+		}
+	}
+]
+
+=== 3 packages/svelte/src/lib/components/NodeActionButton.svelte	json
+[]
+
+=== 225 packages/svelte/src/lib/components/NodeIconButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../transition/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 42
+		},
+		"end": {
+			"line": 4,
+			"character": 66
+		}
+	}
+]
+
+=== 3 packages/svelte/src/lib/components/NodeNote.svelte	json
+[]
+
+=== 624 packages/svelte/src/lib/components/ObjectView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 50
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 33,
+			"character": 27
+		},
+		"end": {
+			"line": 33,
+			"character": 38
+		}
+	}
+]
+
+=== 428 packages/svelte/src/lib/components/OneLineView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 44
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	}
+]
+
+=== 3 packages/svelte/src/lib/components/Options.svelte	json
+[]
+
+=== 648 packages/svelte/src/lib/components/Preview.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 43
+		},
+		"end": {
+			"line": 7,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 49
+		},
+		"end": {
+			"line": 8,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../transition/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 29
+		},
+		"end": {
+			"line": 14,
+			"character": 53
+		}
+	}
+]
+
+=== 414 packages/svelte/src/lib/components/PromiseView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 37
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 78,
+			"character": 27
+		},
+		"end": {
+			"line": 78,
+			"character": 38
+		}
+	}
+]
+
+=== 213 packages/svelte/src/lib/components/PropertyList.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 56
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	}
+]
+
+=== 214 packages/svelte/src/lib/components/RegexpView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	}
+]
+
+=== 227 packages/svelte/src/lib/components/Row.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../attachments/focus.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 9
+		},
+		"end": {
+			"line": 14,
+			"character": 34
+		}
+	}
+]
+
+=== 1017 packages/svelte/src/lib/components/Search.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 23
+		},
+		"end": {
+			"line": 6,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util/search.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 76
+		},
+		"end": {
+			"line": 7,
+			"character": 95
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'p' implicitly has an 'any' type.",
+		"start": {
+			"line": 60,
+			"character": 24
+		},
+		"end": {
+			"line": 60,
+			"character": 25
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'path' implicitly has an 'any' type.",
+		"start": {
+			"line": 61,
+			"character": 41
+		},
+		"end": {
+			"line": 61,
+			"character": 45
+		}
+	}
+]
+
+=== 225 packages/svelte/src/lib/components/Select.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../transition/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 48
+		}
+	}
+]
+
+=== 414 packages/svelte/src/lib/components/SetView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 16,
+			"character": 27
+		},
+		"end": {
+			"line": 16,
+			"character": 38
+		}
+	}
+]
+
+=== 806 packages/svelte/src/lib/components/StringValue.svelte	json
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './icons/LinkIcon.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-bW1cMx/packages/svelte/src/lib/components/icons/LinkIcon.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 10,
+			"character": 23
+		},
+		"end": {
+			"line": 10,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 37
+		},
+		"end": {
+			"line": 12,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 44
+		},
+		"end": {
+			"line": 13,
+			"character": 56
+		}
+	}
+]
+
+=== 838 packages/svelte/src/lib/components/StringView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 40
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 60,
+			"character": 29
+		},
+		"end": {
+			"line": 60,
+			"character": 40
+		}
+	}
+]
+
+=== 624 packages/svelte/src/lib/components/SvelteStoreView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 65
+		},
+		"end": {
+			"line": 4,
+			"character": 77
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 38,
+			"character": 31
+		},
+		"end": {
+			"line": 38,
+			"character": 42
+		}
+	}
+]
+
+=== 1075 packages/svelte/src/lib/components/Tools.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 42
+		},
+		"end": {
+			"line": 3,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 37
+		},
+		"end": {
+			"line": 8,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 49
+		},
+		"end": {
+			"line": 9,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util/search.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 35
+		},
+		"end": {
+			"line": 10,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './icons/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 25
+		},
+		"end": {
+			"line": 12,
+			"character": 43
+		}
+	}
+]
+
+=== 427 packages/svelte/src/lib/components/Type.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../contexts.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 33
+		},
+		"end": {
+			"line": 4,
+			"character": 45
+		}
+	}
+]
+
+=== 414 packages/svelte/src/lib/components/TypedArrayView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 24,
+			"character": 27
+		},
+		"end": {
+			"line": 24,
+			"character": 38
+		}
+	}
+]
+
+=== 414 packages/svelte/src/lib/components/URLSearchParamsView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showPreview' implicitly has an 'any' type.",
+		"start": {
+			"line": 32,
+			"character": 27
+		},
+		"end": {
+			"line": 32,
+			"character": 38
+		}
+	}
+]
+
+=== 214 packages/svelte/src/lib/components/URLView.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	}
+]
+
+=== 3 packages/svelte/src/lib/components/icons/AndOrIcon.svelte	json
+[]
+
+=== 3 packages/svelte/src/lib/components/icons/Caret.svelte	json
+[]
+
+=== 3 packages/svelte/src/lib/components/icons/CircleSolid.svelte	json
+[]
+
+=== 3 packages/svelte/src/lib/components/icons/ClipBoardIcon.svelte	json
+[]
+
+=== 3 packages/svelte/src/lib/components/icons/CloseIcon.svelte	json
+[]
+
+=== 3 packages/svelte/src/lib/components/icons/Console.svelte	json
+[]
+
+=== 229 packages/svelte/src/lib/components/icons/ExpandCollapseIcon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../transition/rotate.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	}
+]
+
+=== 3 packages/svelte/src/lib/components/icons/Fullscreen.svelte	json
+[]
+
+=== 3 packages/svelte/src/lib/components/icons/FullscreenExit.svelte	json
+[]
+
+=== 3 packages/svelte/src/lib/components/icons/LinkIcon.svelte	json
+[]
+
+=== 3 packages/svelte/src/lib/components/icons/OpacityIcon.svelte	json
+[]
+
+=== 229 packages/svelte/src/lib/components/icons/PanelValueIcon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../../transition/rotate.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 21
+		},
+		"end": {
+			"line": 5,
+			"character": 49
+		}
+	}
+]
+
+=== 3 packages/svelte/src/lib/components/icons/ResetResizeIcon.svelte	json
+[]
+
+=== 3 packages/svelte/src/lib/components/icons/SearchIcon.svelte	json
+[]
+
+=== 2398 packages/svelte/src/routes/(app)/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 71
+		},
+		"end": {
+			"line": 2,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'esm-env' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 34
+		},
+		"end": {
+			"line": 6,
+			"character": 47
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of './app.css'.",
+		"start": {
+			"line": 7,
+			"character": 9
+		},
+		"end": {
+			"line": 7,
+			"character": 20
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/DocSearch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 24
+		},
+		"end": {
+			"line": 10,
+			"character": 50
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'd' implicitly has an 'any' type.",
+		"start": {
+			"line": 91,
+			"character": 23
+		},
+		"end": {
+			"line": 91,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'd' implicitly has an 'any' type.",
+		"start": {
+			"line": 92,
+			"character": 20
+		},
+		"end": {
+			"line": 92,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'd' implicitly has an 'any' type.",
+		"start": {
+			"line": 102,
+			"character": 23
+		},
+		"end": {
+			"line": 102,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'd' implicitly has an 'any' type.",
+		"start": {
+			"line": 103,
+			"character": 20
+		},
+		"end": {
+			"line": 103,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'd' implicitly has an 'any' type.",
+		"start": {
+			"line": 113,
+			"character": 23
+		},
+		"end": {
+			"line": 113,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'd' implicitly has an 'any' type.",
+		"start": {
+			"line": 114,
+			"character": 20
+		},
+		"end": {
+			"line": 114,
+			"character": 21
+		}
+	}
+]
+
+=== 431 packages/svelte/src/routes/(app)/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 66
+		},
+		"end": {
+			"line": 2,
+			"character": 81
+		}
+	}
+]
+
+=== 237 packages/svelte/src/routes/(app)/Expandroute.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/icons/Caret.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 56
+		}
+	}
+]
+
+=== 225 packages/svelte/src/routes/(app)/GlobalOptions.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/options.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 38
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	}
+]
+
+=== 227 packages/svelte/src/routes/(app)/ToggleButton.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/transition/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	}
+]
+
+=== 1959 packages/svelte/src/routes/(app)/docs/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/global.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 34
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'type' implicitly has an 'any' type.",
+		"start": {
+			"line": 9,
+			"character": 33
+		},
+		"end": {
+			"line": 9,
+			"character": 37
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'title' implicitly has an 'any' type.",
+		"start": {
+			"line": 9,
+			"character": 39
+		},
+		"end": {
+			"line": 9,
+			"character": 44
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'children' implicitly has an 'any' type.",
+		"start": {
+			"line": 9,
+			"character": 46
+		},
+		"end": {
+			"line": 9,
+			"character": 54
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 17,
+			"character": 28
+		},
+		"end": {
+			"line": 17,
+			"character": 29
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 18,
+			"character": 30
+		},
+		"end": {
+			"line": 18,
+			"character": 31
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 19,
+			"character": 29
+		},
+		"end": {
+			"line": 19,
+			"character": 30
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 20,
+			"character": 32
+		},
+		"end": {
+			"line": 20,
+			"character": 33
+		}
+	}
+]
+
+=== 1344 packages/svelte/src/routes/(app)/docs/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'type' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 33
+		},
+		"end": {
+			"line": 5,
+			"character": 37
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'title' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 39
+		},
+		"end": {
+			"line": 5,
+			"character": 44
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'children' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 46
+		},
+		"end": {
+			"line": 5,
+			"character": 54
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 11,
+			"character": 30
+		},
+		"end": {
+			"line": 11,
+			"character": 31
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 12,
+			"character": 34
+		},
+		"end": {
+			"line": 12,
+			"character": 35
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 13,
+			"character": 34
+		},
+		"end": {
+			"line": 13,
+			"character": 35
+		}
+	}
+]
+
+=== 214 packages/svelte/src/routes/(app)/docs/[...file]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	}
+]
+
+=== 976 packages/svelte/src/routes/(app)/docs/functions/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'type' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 33
+		},
+		"end": {
+			"line": 5,
+			"character": 37
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'title' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 39
+		},
+		"end": {
+			"line": 5,
+			"character": 44
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'children' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 46
+		},
+		"end": {
+			"line": 5,
+			"character": 54
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 11,
+			"character": 30
+		},
+		"end": {
+			"line": 11,
+			"character": 31
+		}
+	}
+]
+
+=== 429 packages/svelte/src/routes/(app)/docs/functions/[slug]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	}
+]
+
+=== 976 packages/svelte/src/routes/(app)/docs/types/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'type' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 33
+		},
+		"end": {
+			"line": 5,
+			"character": 37
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'title' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 39
+		},
+		"end": {
+			"line": 5,
+			"character": 44
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'children' implicitly has an 'any' type.",
+		"start": {
+			"line": 5,
+			"character": 46
+		},
+		"end": {
+			"line": 5,
+			"character": 54
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 11,
+			"character": 30
+		},
+		"end": {
+			"line": 11,
+			"character": 31
+		}
+	}
+]
+
+=== 429 packages/svelte/src/routes/(app)/docs/types/[slug]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	}
+]
+
+=== 214 packages/svelte/src/routes/(app)/docs/variables/[slug]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 32
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	}
+]
+
+=== 1840 packages/svelte/src/routes/(app)/playground/[...example]/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/Editor.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 36
+		},
+		"end": {
+			"line": 5,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 26
+		},
+		"end": {
+			"line": 6,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './examples.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 23
+		},
+		"end": {
+			"line": 7,
+			"character": 38
+		}
+	},
+	{
+		"code": 2677,
+		"message": "A type predicate's type must be assignable to its parameter's type.\n  Type 'string | number | symbol' is not assignable to type 'string'.\n    Type 'number' is not assignable to type 'string'.",
+		"start": {
+			"line": 13,
+			"character": 50
+		},
+		"end": {
+			"line": 13,
+			"character": 60
+		}
+	}
+]
+
+=== 3 packages/svelte/src/routes/(app)/reference/+layout.svelte	json
+[]
+
+=== 3 packages/svelte/src/routes/(app)/reference/+page.svelte	json
+[]
+
+=== 1698 packages/svelte/src/routes/(app)/reference/custom/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/MultiCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 63
+		},
+		"end": {
+			"line": 3,
+			"character": 78
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './CustomNumber.txt?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 31
+		},
+		"end": {
+			"line": 5,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './example.txt?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 19
+		},
+		"end": {
+			"line": 7,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './HexString.txt?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 31
+		},
+		"end": {
+			"line": 10,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 28,
+			"character": 7
+		},
+		"end": {
+			"line": 28,
+			"character": 12
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 29,
+			"character": 7
+		},
+		"end": {
+			"line": 29,
+			"character": 12
+		}
+	}
+]
+
+=== 216 packages/svelte/src/routes/(app)/reference/custom/CustomNumber.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 56
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 216 packages/svelte/src/routes/(app)/reference/custom/ErrorOnHover.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 56
+		},
+		"end": {
+			"line": 2,
+			"character": 71
+		}
+	}
+]
+
+=== 216 packages/svelte/src/routes/(app)/reference/custom/ExpandableNumber.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 62
+		},
+		"end": {
+			"line": 1,
+			"character": 77
+		}
+	}
+]
+
+=== 216 packages/svelte/src/routes/(app)/reference/custom/HexString.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 56
+		},
+		"end": {
+			"line": 1,
+			"character": 71
+		}
+	}
+]
+
+=== 3480 packages/svelte/src/routes/(app)/reference/examples/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/BasicEditable.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/Classes.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/EmbedMedia.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/Functions.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/GettersAndSetters.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 32
+		},
+		"end": {
+			"line": 5,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/HTMLElements.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/Iterators.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/MapAndSet.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 24
+		},
+		"end": {
+			"line": 8,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/MultiLineStrings.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 31
+		},
+		"end": {
+			"line": 9,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/Other.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/Promises.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 23
+		},
+		"end": {
+			"line": 11,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/Stores.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 21
+		},
+		"end": {
+			"line": 12,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/Urls.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 19
+		},
+		"end": {
+			"line": 13,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 34
+		},
+		"end": {
+			"line": 14,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 29
+		},
+		"end": {
+			"line": 15,
+			"character": 44
+		}
+	}
+]
+
+=== 1840 packages/svelte/src/routes/(app)/reference/getting-started/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/Code.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/globalconfig.txt?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/globalconfiglayout.txt?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 82
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/MinimalExample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/minimalexample.txt?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/MultiCode.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 34
+		},
+		"end": {
+			"line": 7,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 22
+		},
+		"end": {
+			"line": 8,
+			"character": 37
+		}
+	}
+]
+
+=== 660 packages/svelte/src/routes/(app)/reference/panel/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './PanelExampleCode.md' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './PanelPersistCode.md' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 31
+		},
+		"end": {
+			"line": 4,
+			"character": 54
+		}
+	}
+]
+
+=== 373 packages/svelte/src/routes/(app)/reference/panel/PanelExample.svelte	json
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './Todo.svelte'. '/private/var/folders/1t/sbjc_qrd47nfm6ggb_qz32nr0000gn/T/svelte-check-bW1cMx/packages/svelte/src/routes/(app)/reference/panel/Todo.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 34
+		}
+	}
+]
+
+=== 3 packages/svelte/src/routes/(app)/reference/panel/Todo.svelte	json
+[]
+
+=== 1638 packages/svelte/src/routes/(app)/reference/values/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/Code.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/ConfiguredExample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/MinimalExampleValues.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/configured.txt?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/inlineconfig.txt?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 31
+		},
+		"end": {
+			"line": 5,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/inspectvalueexample.txt?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 34
+		},
+		"end": {
+			"line": 7,
+			"character": 51
+		}
+	}
+]
+
+=== 3 packages/svelte/src/routes/(app)/releases/+page.svelte	json
+[]
+
+=== 451 packages/svelte/src/routes/(app)/testing/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/attachments/inspect-element.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	}
+]
+
+=== 454 packages/svelte/src/routes/(app)/testing/alltypes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/AllTypes.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	}
+]
+
+=== 222 packages/svelte/src/routes/(app)/testing/expand/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	}
+]
+
+=== 431 packages/svelte/src/routes/(app)/testing/global/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../deep-nest.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	}
+]
+
+=== 3 packages/svelte/src/routes/(app)/testing/plain/+page.svelte	json
+[]
+
+=== 216 packages/svelte/src/routes/(app)/testing/screenshot/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 429 packages/svelte/src/routes/(app)/testing/search/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './haystack.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 61
+		},
+		"end": {
+			"line": 2,
+			"character": 76
+		}
+	}
+]
+
+=== 216 packages/svelte/src/routes/(app)/testing/with-options/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	}
+]
+
+=== 3003 packages/svelte/src/routes/(app)/theming/define/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/DevOnly.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/icons/Console.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'colord' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './themes.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 34
+		},
+		"end": {
+			"line": 8,
+			"character": 51
+		}
+	},
+	{
+		"code": 2731,
+		"message": "Implicit conversion of a 'symbol' to a 'string' will fail at runtime. Consider wrapping this expression in 'String(...)'.",
+		"start": {
+			"line": 24,
+			"character": 42
+		},
+		"end": {
+			"line": 24,
+			"character": 43
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'string | number | symbol' is not assignable to parameter of type 'string'.\n  Type 'number' is not assignable to type 'string'.",
+		"start": {
+			"line": 38,
+			"character": 32
+		},
+		"end": {
+			"line": 38,
+			"character": 33
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'string | number | symbol' is not assignable to parameter of type 'string'.\n  Type 'number' is not assignable to type 'string'.",
+		"start": {
+			"line": 56,
+			"character": 34
+		},
+		"end": {
+			"line": 56,
+			"character": 35
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'string | number | symbol' is not assignable to parameter of type 'string'.\n  Type 'number' is not assignable to type 'string'.",
+		"start": {
+			"line": 115,
+			"character": 45
+		},
+		"end": {
+			"line": 115,
+			"character": 48
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'replaceAll' does not exist on type 'string | number | symbol'.\n  Property 'replaceAll' does not exist on type 'number'.",
+		"start": {
+			"line": 117,
+			"character": 13
+		},
+		"end": {
+			"line": 117,
+			"character": 23
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'string | number | symbol' is not assignable to parameter of type 'string'.\n  Type 'number' is not assignable to type 'string'.",
+		"start": {
+			"line": 146,
+			"character": 34
+		},
+		"end": {
+			"line": 146,
+			"character": 37
+		}
+	}
+]
+
+=== 3 packages/svelte/src/routes/(app)/theming/define/HueRotate.svelte	json
+[]
+
+=== 1280 packages/svelte/src/routes/(app)/theming/define/Theming.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/interval-effect.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Inspect.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 36
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 31
+		},
+		"end": {
+			"line": 4,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './themes.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 33
+		},
+		"end": {
+			"line": 8,
+			"character": 46
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 120,
+			"character": 7
+		},
+		"end": {
+			"line": 120,
+			"character": 12
+		}
+	}
+]
+
+=== 450 packages/svelte/src/routes/(app)/theming/themes/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/AllTypes.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	}
+]
+
+=== 436 packages/svelte/src/routes/(app)/theming/vars/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 34
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './vars-defaults.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 39
+		}
+	}
+]
+
+=== 450 packages/svelte/src/routes/(app)/usage/hotkeys/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/AllTypes.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	}
+]
+
+=== 450 packages/svelte/src/routes/(app)/usage/search/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/examples/AllTypes.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$doclib/util.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	}
+]
+
+=== 3 packages/svelte/src/routes/(nostyles)/nostyles/+layout.svelte	json
+[]
+
+=== 216 packages/svelte/src/routes/(nostyles)/nostyles/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	}
+]
+
+=== 3 packages/svelte/src/routes/+layout.svelte	json
+[]
+

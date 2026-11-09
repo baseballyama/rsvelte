@@ -4,20 +4,21 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_vue::{Parsed, Resolved};
+use rsvelte_vue_semantic::Resolved;
+use rsvelte_vue_syntax::Parsed;
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "vue.lint",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "vue",
+        identifier: "vue.semantic",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
 
 pub fn register(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
-    rsvelte_vue::register(registry);
+    rsvelte_vue_semantic::register(registry);
     registry.task(Lint);
 }
 
@@ -30,7 +31,7 @@ impl Task for Lint {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_vue::matches(document)
+        rsvelte_vue_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {

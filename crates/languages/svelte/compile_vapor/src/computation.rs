@@ -7,7 +7,7 @@ use rsvelte_kernel::source::document::Document;
 
 use crate::script;
 
-/// [`check`] on the Svelte plugin's artifacts, shared by both targets.
+/// `check` on the Svelte plugin's artifacts, shared by both targets.
 #[derive(Debug)]
 pub struct Checked;
 
@@ -17,13 +17,13 @@ impl Artifact for Checked {
     const NAME: &'static str = "vuelte.check";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let c = rsvelte_svelte::fully_parsed(context).map_err(Clone::clone)?;
+        let c = rsvelte_svelte_syntax::fully_parsed(context).map_err(Clone::clone)?;
         let compiler_syntax_tree = context
-            .get::<rsvelte_svelte::Normalized>()
+            .get::<rsvelte_svelte_semantic::Lowered>()
             .as_ref()
             .expect("a parsed component is lowered to HIR");
         let resolution = context
-            .get::<rsvelte_svelte::Resolved>()
+            .get::<rsvelte_svelte_semantic::Resolved>()
             .as_ref()
             .expect("a parsed component is resolved");
         let _p = measurement::phase("vuelte.check");
@@ -35,16 +35,16 @@ pub static PLUGIN: Plugin = Plugin {
     identifier: "vuelte",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "svelte",
+        identifier: "svelte.semantic",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
 
 /// Registers vuelte's tasks on `.svelte` documents, and the Svelte plugin's artifacts they read
-/// (which [`rsvelte_svelte::register`] registers too; a second registration is a no-op).
+/// (which [`rsvelte_svelte_semantic::register`] registers too; a second registration is a no-op).
 pub fn register(reg: &mut Registry) {
     reg.plugin(&PLUGIN);
-    rsvelte_svelte::register(reg);
+    rsvelte_svelte_semantic::register(reg);
     reg.artifact::<Checked>()
         .task(Compile { server: false })
         .task(Compile { server: true });
@@ -60,17 +60,17 @@ pub struct Compile {
 impl Compile {
     fn module(&self, context: &DocumentContext<'_>) -> R<(String, Option<String>)> {
         let plan = context.get::<Checked>().as_ref().map_err(Clone::clone)?;
-        let c = rsvelte_svelte::fully_parsed(context).map_err(Clone::clone)?;
+        let c = rsvelte_svelte_syntax::fully_parsed(context).map_err(Clone::clone)?;
         let compiler_syntax_tree = context
-            .get::<rsvelte_svelte::Normalized>()
+            .get::<rsvelte_svelte_semantic::Lowered>()
             .as_ref()
             .expect("a parsed component is lowered to HIR");
         let resolution = context
-            .get::<rsvelte_svelte::Resolved>()
+            .get::<rsvelte_svelte_semantic::Resolved>()
             .as_ref()
             .expect("a parsed component is resolved");
         let analysis = context
-            .get::<rsvelte_svelte::Analyzed>()
+            .get::<rsvelte_svelte_semantic::Analyzed>()
             .as_ref()
             .expect("a parsed component is analysed");
         let t = {
@@ -87,7 +87,7 @@ impl Compile {
             )?
         };
         let _p = measurement::phase("vuelte.vapor");
-        let javascript = compile(&t, context.source_text(), &context.document.path)?;
+        let javascript = compile(&t, context.source_text());
         let external_stylesheet =
             t.css_mode == crate::template::CssMode::External && t.custom_element.is_none();
         Ok((
@@ -107,7 +107,7 @@ impl Task for Compile {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_svelte::matches(document)
+        rsvelte_svelte_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {

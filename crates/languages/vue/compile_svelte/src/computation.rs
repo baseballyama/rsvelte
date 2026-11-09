@@ -40,7 +40,7 @@ impl Side for Server {
 }
 
 /// The translation, or why there is none; `None` when the document did not parse (the error is
-/// on [`rsvelte_vue::Parsed`]).
+/// on [`rsvelte_vue_syntax::Parsed`]).
 #[derive(Debug)]
 pub struct Translated<S>(PhantomData<S>);
 
@@ -50,9 +50,9 @@ impl<S: Side> Artifact for Translated<S> {
     const NAME: &'static str = S::TRANSLATED;
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let sfc = context.get::<rsvelte_vue::Parsed>().as_ref().ok()?;
-        let compiler_syntax_tree = context.get::<rsvelte_vue::Lowered>().as_ref();
-        let resolution = context.get::<rsvelte_vue::Resolved>().as_ref()?;
+        let sfc = context.get::<rsvelte_vue_syntax::Parsed>().as_ref().ok()?;
+        let compiler_syntax_tree = context.get::<rsvelte_vue_semantic::Lowered>().as_ref();
+        let resolution = context.get::<rsvelte_vue_semantic::Resolved>().as_ref()?;
         Some(translate(
             sfc,
             compiler_syntax_tree,
@@ -68,13 +68,13 @@ impl<S: Side> Artifact for Translated<S> {
 pub struct Resolved<S>(PhantomData<S>);
 
 impl<S: Side> Artifact for Resolved<S> {
-    type Output = Option<rsvelte_svelte::semantic::resolve::Resolution>;
+    type Output = Option<rsvelte_svelte_semantic::resolve::Resolution>;
 
     const NAME: &'static str = S::RESOLVED;
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let t = context.get::<Translated<S>>().as_ref()?.as_ref().ok()?;
-        Some(rsvelte_svelte::semantic::resolve::resolve(
+        Some(rsvelte_svelte_semantic::resolve::resolve(
             &t.javascript,
             context.source_text(),
             t.program,
@@ -88,14 +88,14 @@ impl<S: Side> Artifact for Resolved<S> {
 pub struct Analyzed<S>(PhantomData<S>);
 
 impl<S: Side> Artifact for Analyzed<S> {
-    type Output = Option<rsvelte_svelte::semantic::analyze::Analysis>;
+    type Output = Option<rsvelte_svelte_semantic::analyze::Analysis>;
 
     const NAME: &'static str = S::ANALYZED;
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let t = context.get::<Translated<S>>().as_ref()?.as_ref().ok()?;
         let resolution = context.get::<Resolved<S>>().as_ref()?;
-        Some(rsvelte_svelte::semantic::analyze::analyze(
+        Some(rsvelte_svelte_semantic::analyze::analyze(
             &t.compile_input(context.source_text(), &context.document.path)
                 .component,
             resolution,
@@ -107,16 +107,16 @@ pub static PLUGIN: Plugin = Plugin {
     identifier: "svue",
     version: env!("CARGO_PKG_VERSION"),
     dependencies: &[Dependency {
-        identifier: "vue",
+        identifier: "vue.semantic",
         requirement: concat!("=", env!("CARGO_PKG_VERSION")),
     }],
 };
 
 /// Registers svue's tasks on `.vue` documents, and the Vue plugin's artifacts they read (which
-/// [`rsvelte_vue::register`] registers too; a second registration is a no-op).
+/// [`rsvelte_vue_semantic::register`] registers too; a second registration is a no-op).
 pub fn register(reg: &mut Registry) {
     reg.plugin(&PLUGIN);
-    rsvelte_vue::register(reg);
+    rsvelte_vue_semantic::register(reg);
     reg.artifact::<Translated<Client>>()
         .artifact::<Resolved<Client>>()
         .artifact::<Analyzed<Client>>()
@@ -137,11 +137,11 @@ impl<S: Side> Task for Compile<S> {
     }
 
     fn applies(&self, document: &Document) -> bool {
-        rsvelte_vue::matches(document)
+        rsvelte_vue_syntax::matches(document)
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        if let Err(e) = context.get::<rsvelte_vue::Parsed>() {
+        if let Err(e) = context.get::<rsvelte_vue_syntax::Parsed>() {
             out.diagnostics.push(e.clone());
             return;
         }
@@ -161,7 +161,7 @@ impl<S: Side> Task for Compile<S> {
             .get::<Analyzed<S>>()
             .as_ref()
             .expect("a translation is analysed");
-        match rsvelte_svelte_compile::compile(
+        match rsvelte_svelte_compile::compile_input(
             &t.compile_input(context.source_text(), &context.document.path),
             resolution,
             analysis,

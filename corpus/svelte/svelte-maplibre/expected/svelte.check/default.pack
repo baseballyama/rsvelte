@@ -1,0 +1,8802 @@
+# rsvelte pack 1
+=== 214 src/lib/AttributionControl.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	}
+]
+
+=== 884 src/lib/BackgroundLayer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 52
+		},
+		"end": {
+			"line": 5,
+			"character": 65
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'children' does not exist in type '$$render<Feature>.Props'.",
+		"start": {
+			"line": 40,
+			"character": 0
+		},
+		"end": {
+			"line": 40,
+			"character": 0
+		}
+	}
+]
+
+=== 4738 src/lib/CircleLayer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 48
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'id' does not exist on type 'Props'.",
+		"start": {
+			"line": 14,
+			"character": 4
+		},
+		"end": {
+			"line": 14,
+			"character": 6
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'source' does not exist on type 'Props'.",
+		"start": {
+			"line": 15,
+			"character": 4
+		},
+		"end": {
+			"line": 15,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'sourceLayer' does not exist on type 'Props'.",
+		"start": {
+			"line": 16,
+			"character": 4
+		},
+		"end": {
+			"line": 16,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeId' does not exist on type 'Props'.",
+		"start": {
+			"line": 17,
+			"character": 4
+		},
+		"end": {
+			"line": 17,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeLayerType' does not exist on type 'Props'.",
+		"start": {
+			"line": 18,
+			"character": 4
+		},
+		"end": {
+			"line": 18,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'filter' does not exist on type 'Props'.",
+		"start": {
+			"line": 21,
+			"character": 4
+		},
+		"end": {
+			"line": 21,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'minzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 23,
+			"character": 4
+		},
+		"end": {
+			"line": 23,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'maxzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 24,
+			"character": 4
+		},
+		"end": {
+			"line": 24,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hoverCursor' does not exist on type 'Props'.",
+		"start": {
+			"line": 25,
+			"character": 4
+		},
+		"end": {
+			"line": 25,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'manageHoverState' does not exist on type 'Props'.",
+		"start": {
+			"line": 26,
+			"character": 4
+		},
+		"end": {
+			"line": 26,
+			"character": 20
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hovered' does not exist on type 'Props'.",
+		"start": {
+			"line": 27,
+			"character": 4
+		},
+		"end": {
+			"line": 27,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'eventsIfTopMost' does not exist on type 'Props'.",
+		"start": {
+			"line": 28,
+			"character": 4
+		},
+		"end": {
+			"line": 28,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'interactive' does not exist on type 'Props'.",
+		"start": {
+			"line": 29,
+			"character": 4
+		},
+		"end": {
+			"line": 29,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'children' does not exist on type 'Props'.",
+		"start": {
+			"line": 30,
+			"character": 4
+		},
+		"end": {
+			"line": 30,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 32,
+			"character": 4
+		},
+		"end": {
+			"line": 32,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'ondblclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 33,
+			"character": 4
+		},
+		"end": {
+			"line": 33,
+			"character": 14
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'oncontextmenu' does not exist on type 'Props'.",
+		"start": {
+			"line": 34,
+			"character": 4
+		},
+		"end": {
+			"line": 34,
+			"character": 17
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseenter' does not exist on type 'Props'.",
+		"start": {
+			"line": 35,
+			"character": 4
+		},
+		"end": {
+			"line": 35,
+			"character": 16
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmousemove' does not exist on type 'Props'.",
+		"start": {
+			"line": 36,
+			"character": 4
+		},
+		"end": {
+			"line": 36,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseleave' does not exist on type 'Props'.",
+		"start": {
+			"line": 37,
+			"character": 4
+		},
+		"end": {
+			"line": 37,
+			"character": 16
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'children' does not exist in type '$$render<Feature>.Props'.",
+		"start": {
+			"line": 42,
+			"character": 0
+		},
+		"end": {
+			"line": 42,
+			"character": 0
+		}
+	}
+]
+
+=== 214 src/lib/Control.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 48
+		}
+	}
+]
+
+=== 3 src/lib/ControlButton.svelte	json
+[]
+
+=== 3 src/lib/ControlGroup.svelte	json
+[]
+
+=== 871 src/lib/DeckGlLayer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@deck.gl/core' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 35
+		},
+		"end": {
+			"line": 10,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@deck.gl/mapbox' or its corresponding type declarations.",
+		"start": {
+			"line": 58,
+			"character": 28
+		},
+		"end": {
+			"line": 58,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@deck.gl/mapbox' or its corresponding type declarations.",
+		"start": {
+			"line": 60,
+			"character": 26
+		},
+		"end": {
+			"line": 60,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@deck.gl/mapbox' or its corresponding type declarations.",
+		"start": {
+			"line": 105,
+			"character": 20
+		},
+		"end": {
+			"line": 105,
+			"character": 37
+		}
+	}
+]
+
+=== 1052 src/lib/DefaultMarker.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 45
+		},
+		"end": {
+			"line": 2,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 39
+		},
+		"end": {
+			"line": 6,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 38
+		},
+		"end": {
+			"line": 7,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/flush.js' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 24
+		},
+		"end": {
+			"line": 8,
+			"character": 39
+		}
+	}
+]
+
+=== 4738 src/lib/FillExtrusionLayer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 55
+		},
+		"end": {
+			"line": 5,
+			"character": 68
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'id' does not exist on type 'Props'.",
+		"start": {
+			"line": 13,
+			"character": 4
+		},
+		"end": {
+			"line": 13,
+			"character": 6
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'source' does not exist on type 'Props'.",
+		"start": {
+			"line": 14,
+			"character": 4
+		},
+		"end": {
+			"line": 14,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'sourceLayer' does not exist on type 'Props'.",
+		"start": {
+			"line": 15,
+			"character": 4
+		},
+		"end": {
+			"line": 15,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeId' does not exist on type 'Props'.",
+		"start": {
+			"line": 16,
+			"character": 4
+		},
+		"end": {
+			"line": 16,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeLayerType' does not exist on type 'Props'.",
+		"start": {
+			"line": 17,
+			"character": 4
+		},
+		"end": {
+			"line": 17,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'filter' does not exist on type 'Props'.",
+		"start": {
+			"line": 20,
+			"character": 4
+		},
+		"end": {
+			"line": 20,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'minzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 21,
+			"character": 4
+		},
+		"end": {
+			"line": 21,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'maxzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 22,
+			"character": 4
+		},
+		"end": {
+			"line": 22,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hoverCursor' does not exist on type 'Props'.",
+		"start": {
+			"line": 23,
+			"character": 4
+		},
+		"end": {
+			"line": 23,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'manageHoverState' does not exist on type 'Props'.",
+		"start": {
+			"line": 24,
+			"character": 4
+		},
+		"end": {
+			"line": 24,
+			"character": 20
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hovered' does not exist on type 'Props'.",
+		"start": {
+			"line": 25,
+			"character": 4
+		},
+		"end": {
+			"line": 25,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'eventsIfTopMost' does not exist on type 'Props'.",
+		"start": {
+			"line": 26,
+			"character": 4
+		},
+		"end": {
+			"line": 26,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'interactive' does not exist on type 'Props'.",
+		"start": {
+			"line": 27,
+			"character": 4
+		},
+		"end": {
+			"line": 27,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'children' does not exist on type 'Props'.",
+		"start": {
+			"line": 28,
+			"character": 4
+		},
+		"end": {
+			"line": 28,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 30,
+			"character": 4
+		},
+		"end": {
+			"line": 30,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'ondblclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 31,
+			"character": 4
+		},
+		"end": {
+			"line": 31,
+			"character": 14
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'oncontextmenu' does not exist on type 'Props'.",
+		"start": {
+			"line": 32,
+			"character": 4
+		},
+		"end": {
+			"line": 32,
+			"character": 17
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseenter' does not exist on type 'Props'.",
+		"start": {
+			"line": 33,
+			"character": 4
+		},
+		"end": {
+			"line": 33,
+			"character": 16
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmousemove' does not exist on type 'Props'.",
+		"start": {
+			"line": 34,
+			"character": 4
+		},
+		"end": {
+			"line": 34,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseleave' does not exist on type 'Props'.",
+		"start": {
+			"line": 35,
+			"character": 4
+		},
+		"end": {
+			"line": 35,
+			"character": 16
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'children' does not exist in type '$$render<Feature>.Props'.",
+		"start": {
+			"line": 40,
+			"character": 0
+		},
+		"end": {
+			"line": 40,
+			"character": 0
+		}
+	}
+]
+
+=== 4738 src/lib/FillLayer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 46
+		},
+		"end": {
+			"line": 5,
+			"character": 59
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'id' does not exist on type 'Props'.",
+		"start": {
+			"line": 13,
+			"character": 4
+		},
+		"end": {
+			"line": 13,
+			"character": 6
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'source' does not exist on type 'Props'.",
+		"start": {
+			"line": 14,
+			"character": 4
+		},
+		"end": {
+			"line": 14,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'sourceLayer' does not exist on type 'Props'.",
+		"start": {
+			"line": 15,
+			"character": 4
+		},
+		"end": {
+			"line": 15,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeId' does not exist on type 'Props'.",
+		"start": {
+			"line": 16,
+			"character": 4
+		},
+		"end": {
+			"line": 16,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeLayerType' does not exist on type 'Props'.",
+		"start": {
+			"line": 17,
+			"character": 4
+		},
+		"end": {
+			"line": 17,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'filter' does not exist on type 'Props'.",
+		"start": {
+			"line": 20,
+			"character": 4
+		},
+		"end": {
+			"line": 20,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'minzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 21,
+			"character": 4
+		},
+		"end": {
+			"line": 21,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'maxzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 22,
+			"character": 4
+		},
+		"end": {
+			"line": 22,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hoverCursor' does not exist on type 'Props'.",
+		"start": {
+			"line": 23,
+			"character": 4
+		},
+		"end": {
+			"line": 23,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'manageHoverState' does not exist on type 'Props'.",
+		"start": {
+			"line": 24,
+			"character": 4
+		},
+		"end": {
+			"line": 24,
+			"character": 20
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hovered' does not exist on type 'Props'.",
+		"start": {
+			"line": 25,
+			"character": 4
+		},
+		"end": {
+			"line": 25,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'eventsIfTopMost' does not exist on type 'Props'.",
+		"start": {
+			"line": 26,
+			"character": 4
+		},
+		"end": {
+			"line": 26,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'interactive' does not exist on type 'Props'.",
+		"start": {
+			"line": 27,
+			"character": 4
+		},
+		"end": {
+			"line": 27,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'children' does not exist on type 'Props'.",
+		"start": {
+			"line": 28,
+			"character": 4
+		},
+		"end": {
+			"line": 28,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 30,
+			"character": 4
+		},
+		"end": {
+			"line": 30,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'ondblclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 31,
+			"character": 4
+		},
+		"end": {
+			"line": 31,
+			"character": 14
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'oncontextmenu' does not exist on type 'Props'.",
+		"start": {
+			"line": 32,
+			"character": 4
+		},
+		"end": {
+			"line": 32,
+			"character": 17
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseenter' does not exist on type 'Props'.",
+		"start": {
+			"line": 33,
+			"character": 4
+		},
+		"end": {
+			"line": 33,
+			"character": 16
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmousemove' does not exist on type 'Props'.",
+		"start": {
+			"line": 34,
+			"character": 4
+		},
+		"end": {
+			"line": 34,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseleave' does not exist on type 'Props'.",
+		"start": {
+			"line": 35,
+			"character": 4
+		},
+		"end": {
+			"line": 35,
+			"character": 16
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'children' does not exist in type '$$render<Feature>.Props'.",
+		"start": {
+			"line": 40,
+			"character": 0
+		},
+		"end": {
+			"line": 40,
+			"character": 0
+		}
+	}
+]
+
+=== 214 src/lib/FullscreenControl.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	}
+]
+
+=== 1055 src/lib/GeoJSON.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 46
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 38
+		},
+		"end": {
+			"line": 5,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './source.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 42
+		},
+		"end": {
+			"line": 6,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/flush.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 62
+		},
+		"end": {
+			"line": 8,
+			"character": 75
+		}
+	}
+]
+
+=== 214 src/lib/GeolocateControl.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	}
+]
+
+=== 4738 src/lib/HeatmapLayer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 49
+		},
+		"end": {
+			"line": 5,
+			"character": 62
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'id' does not exist on type 'Props'.",
+		"start": {
+			"line": 13,
+			"character": 4
+		},
+		"end": {
+			"line": 13,
+			"character": 6
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'source' does not exist on type 'Props'.",
+		"start": {
+			"line": 14,
+			"character": 4
+		},
+		"end": {
+			"line": 14,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'sourceLayer' does not exist on type 'Props'.",
+		"start": {
+			"line": 15,
+			"character": 4
+		},
+		"end": {
+			"line": 15,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeId' does not exist on type 'Props'.",
+		"start": {
+			"line": 16,
+			"character": 4
+		},
+		"end": {
+			"line": 16,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeLayerType' does not exist on type 'Props'.",
+		"start": {
+			"line": 17,
+			"character": 4
+		},
+		"end": {
+			"line": 17,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'filter' does not exist on type 'Props'.",
+		"start": {
+			"line": 20,
+			"character": 4
+		},
+		"end": {
+			"line": 20,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'minzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 21,
+			"character": 4
+		},
+		"end": {
+			"line": 21,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'maxzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 22,
+			"character": 4
+		},
+		"end": {
+			"line": 22,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hoverCursor' does not exist on type 'Props'.",
+		"start": {
+			"line": 23,
+			"character": 4
+		},
+		"end": {
+			"line": 23,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'manageHoverState' does not exist on type 'Props'.",
+		"start": {
+			"line": 24,
+			"character": 4
+		},
+		"end": {
+			"line": 24,
+			"character": 20
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hovered' does not exist on type 'Props'.",
+		"start": {
+			"line": 25,
+			"character": 4
+		},
+		"end": {
+			"line": 25,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'eventsIfTopMost' does not exist on type 'Props'.",
+		"start": {
+			"line": 26,
+			"character": 4
+		},
+		"end": {
+			"line": 26,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'interactive' does not exist on type 'Props'.",
+		"start": {
+			"line": 27,
+			"character": 4
+		},
+		"end": {
+			"line": 27,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'children' does not exist on type 'Props'.",
+		"start": {
+			"line": 28,
+			"character": 4
+		},
+		"end": {
+			"line": 28,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 30,
+			"character": 4
+		},
+		"end": {
+			"line": 30,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'ondblclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 31,
+			"character": 4
+		},
+		"end": {
+			"line": 31,
+			"character": 14
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'oncontextmenu' does not exist on type 'Props'.",
+		"start": {
+			"line": 32,
+			"character": 4
+		},
+		"end": {
+			"line": 32,
+			"character": 17
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseenter' does not exist on type 'Props'.",
+		"start": {
+			"line": 33,
+			"character": 4
+		},
+		"end": {
+			"line": 33,
+			"character": 16
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmousemove' does not exist on type 'Props'.",
+		"start": {
+			"line": 34,
+			"character": 4
+		},
+		"end": {
+			"line": 34,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseleave' does not exist on type 'Props'.",
+		"start": {
+			"line": 35,
+			"character": 4
+		},
+		"end": {
+			"line": 35,
+			"character": 16
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'children' does not exist in type '$$render<Feature>.Props'.",
+		"start": {
+			"line": 40,
+			"character": 0
+		},
+		"end": {
+			"line": 40,
+			"character": 0
+		}
+	}
+]
+
+=== 3380 src/lib/HillshadeLayer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 51
+		},
+		"end": {
+			"line": 5,
+			"character": 64
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'id' does not exist on type 'Props'.",
+		"start": {
+			"line": 13,
+			"character": 4
+		},
+		"end": {
+			"line": 13,
+			"character": 6
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'source' does not exist on type 'Props'.",
+		"start": {
+			"line": 14,
+			"character": 4
+		},
+		"end": {
+			"line": 14,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeId' does not exist on type 'Props'.",
+		"start": {
+			"line": 15,
+			"character": 4
+		},
+		"end": {
+			"line": 15,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeLayerType' does not exist on type 'Props'.",
+		"start": {
+			"line": 16,
+			"character": 4
+		},
+		"end": {
+			"line": 16,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'minzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 19,
+			"character": 4
+		},
+		"end": {
+			"line": 19,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'maxzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 20,
+			"character": 4
+		},
+		"end": {
+			"line": 20,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'children' does not exist on type 'Props'.",
+		"start": {
+			"line": 21,
+			"character": 4
+		},
+		"end": {
+			"line": 21,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 23,
+			"character": 4
+		},
+		"end": {
+			"line": 23,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'ondblclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 24,
+			"character": 4
+		},
+		"end": {
+			"line": 24,
+			"character": 14
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'oncontextmenu' does not exist on type 'Props'.",
+		"start": {
+			"line": 25,
+			"character": 4
+		},
+		"end": {
+			"line": 25,
+			"character": 17
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseenter' does not exist on type 'Props'.",
+		"start": {
+			"line": 26,
+			"character": 4
+		},
+		"end": {
+			"line": 26,
+			"character": 16
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmousemove' does not exist on type 'Props'.",
+		"start": {
+			"line": 27,
+			"character": 4
+		},
+		"end": {
+			"line": 27,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseleave' does not exist on type 'Props'.",
+		"start": {
+			"line": 28,
+			"character": 4
+		},
+		"end": {
+			"line": 28,
+			"character": 16
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'children' does not exist in type '$$render<Feature>.Props'.",
+		"start": {
+			"line": 33,
+			"character": 0
+		},
+		"end": {
+			"line": 33,
+			"character": 0
+		}
+	}
+]
+
+=== 828 src/lib/ImageSource.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './source.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 42
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 71
+		},
+		"end": {
+			"line": 5,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/flush.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'sourceId' implicitly has an 'any' type.",
+		"start": {
+			"line": 33,
+			"character": 9
+		},
+		"end": {
+			"line": 33,
+			"character": 17
+		}
+	}
+]
+
+=== 3 src/lib/JoinedData.svelte	json
+[]
+
+=== 6273 src/lib/Layer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/flush.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 9
+		},
+		"end": {
+			"line": 9,
+			"character": 22
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './compare.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 30
+		},
+		"end": {
+			"line": 11,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './filters.js' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 50
+		},
+		"end": {
+			"line": 13,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 56
+		},
+		"end": {
+			"line": 14,
+			"character": 68
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'id' does not exist on type 'Props'.",
+		"start": {
+			"line": 27,
+			"character": 4
+		},
+		"end": {
+			"line": 27,
+			"character": 6
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'source' does not exist on type 'Props'.",
+		"start": {
+			"line": 28,
+			"character": 4
+		},
+		"end": {
+			"line": 28,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'sourceLayer' does not exist on type 'Props'.",
+		"start": {
+			"line": 29,
+			"character": 4
+		},
+		"end": {
+			"line": 29,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeId' does not exist on type 'Props'.",
+		"start": {
+			"line": 30,
+			"character": 4
+		},
+		"end": {
+			"line": 30,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeLayerType' does not exist on type 'Props'.",
+		"start": {
+			"line": 31,
+			"character": 4
+		},
+		"end": {
+			"line": 31,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'filter' does not exist on type 'Props'.",
+		"start": {
+			"line": 35,
+			"character": 4
+		},
+		"end": {
+			"line": 35,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'minzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 38,
+			"character": 4
+		},
+		"end": {
+			"line": 38,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'maxzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 39,
+			"character": 4
+		},
+		"end": {
+			"line": 39,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'manageHoverState' does not exist on type 'Props'.",
+		"start": {
+			"line": 40,
+			"character": 4
+		},
+		"end": {
+			"line": 40,
+			"character": 20
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hovered' does not exist on type 'Props'.",
+		"start": {
+			"line": 41,
+			"character": 4
+		},
+		"end": {
+			"line": 41,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'interactive' does not exist on type 'Props'.",
+		"start": {
+			"line": 42,
+			"character": 4
+		},
+		"end": {
+			"line": 42,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hoverCursor' does not exist on type 'Props'.",
+		"start": {
+			"line": 43,
+			"character": 4
+		},
+		"end": {
+			"line": 43,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'eventsIfTopMost' does not exist on type 'Props'.",
+		"start": {
+			"line": 44,
+			"character": 4
+		},
+		"end": {
+			"line": 44,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'children' does not exist on type 'Props'.",
+		"start": {
+			"line": 45,
+			"character": 4
+		},
+		"end": {
+			"line": 45,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 47,
+			"character": 4
+		},
+		"end": {
+			"line": 47,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'ondblclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 48,
+			"character": 4
+		},
+		"end": {
+			"line": 48,
+			"character": 14
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'oncontextmenu' does not exist on type 'Props'.",
+		"start": {
+			"line": 49,
+			"character": 4
+		},
+		"end": {
+			"line": 49,
+			"character": 17
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseenter' does not exist on type 'Props'.",
+		"start": {
+			"line": 50,
+			"character": 4
+		},
+		"end": {
+			"line": 50,
+			"character": 16
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmousemove' does not exist on type 'Props'.",
+		"start": {
+			"line": 51,
+			"character": 4
+		},
+		"end": {
+			"line": 51,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseleave' does not exist on type 'Props'.",
+		"start": {
+			"line": 52,
+			"character": 4
+		},
+		"end": {
+			"line": 52,
+			"character": 16
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 259,
+			"character": 8
+		},
+		"end": {
+			"line": 259,
+			"character": 104
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'key' implicitly has an 'any' type.",
+		"start": {
+			"line": 293,
+			"character": 41
+		},
+		"end": {
+			"line": 293,
+			"character": 44
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 293,
+			"character": 46
+		},
+		"end": {
+			"line": 293,
+			"character": 51
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'key' implicitly has an 'any' type.",
+		"start": {
+			"line": 305,
+			"character": 42
+		},
+		"end": {
+			"line": 305,
+			"character": 45
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'value' implicitly has an 'any' type.",
+		"start": {
+			"line": 305,
+			"character": 47
+		},
+		"end": {
+			"line": 305,
+			"character": 52
+		}
+	}
+]
+
+=== 4738 src/lib/LineLayer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 46
+		},
+		"end": {
+			"line": 5,
+			"character": 59
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'id' does not exist on type 'Props'.",
+		"start": {
+			"line": 13,
+			"character": 4
+		},
+		"end": {
+			"line": 13,
+			"character": 6
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'source' does not exist on type 'Props'.",
+		"start": {
+			"line": 14,
+			"character": 4
+		},
+		"end": {
+			"line": 14,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'sourceLayer' does not exist on type 'Props'.",
+		"start": {
+			"line": 15,
+			"character": 4
+		},
+		"end": {
+			"line": 15,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeId' does not exist on type 'Props'.",
+		"start": {
+			"line": 16,
+			"character": 4
+		},
+		"end": {
+			"line": 16,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeLayerType' does not exist on type 'Props'.",
+		"start": {
+			"line": 17,
+			"character": 4
+		},
+		"end": {
+			"line": 17,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'filter' does not exist on type 'Props'.",
+		"start": {
+			"line": 20,
+			"character": 4
+		},
+		"end": {
+			"line": 20,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'minzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 21,
+			"character": 4
+		},
+		"end": {
+			"line": 21,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'maxzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 22,
+			"character": 4
+		},
+		"end": {
+			"line": 22,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hoverCursor' does not exist on type 'Props'.",
+		"start": {
+			"line": 23,
+			"character": 4
+		},
+		"end": {
+			"line": 23,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'manageHoverState' does not exist on type 'Props'.",
+		"start": {
+			"line": 24,
+			"character": 4
+		},
+		"end": {
+			"line": 24,
+			"character": 20
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hovered' does not exist on type 'Props'.",
+		"start": {
+			"line": 25,
+			"character": 4
+		},
+		"end": {
+			"line": 25,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'eventsIfTopMost' does not exist on type 'Props'.",
+		"start": {
+			"line": 26,
+			"character": 4
+		},
+		"end": {
+			"line": 26,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'interactive' does not exist on type 'Props'.",
+		"start": {
+			"line": 27,
+			"character": 4
+		},
+		"end": {
+			"line": 27,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'children' does not exist on type 'Props'.",
+		"start": {
+			"line": 28,
+			"character": 4
+		},
+		"end": {
+			"line": 28,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 30,
+			"character": 4
+		},
+		"end": {
+			"line": 30,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'ondblclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 31,
+			"character": 4
+		},
+		"end": {
+			"line": 31,
+			"character": 14
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'oncontextmenu' does not exist on type 'Props'.",
+		"start": {
+			"line": 32,
+			"character": 4
+		},
+		"end": {
+			"line": 32,
+			"character": 17
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseenter' does not exist on type 'Props'.",
+		"start": {
+			"line": 33,
+			"character": 4
+		},
+		"end": {
+			"line": 33,
+			"character": 16
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmousemove' does not exist on type 'Props'.",
+		"start": {
+			"line": 34,
+			"character": 4
+		},
+		"end": {
+			"line": 34,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseleave' does not exist on type 'Props'.",
+		"start": {
+			"line": 35,
+			"character": 4
+		},
+		"end": {
+			"line": 35,
+			"character": 16
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'children' does not exist in type '$$render<Feature>.Props'.",
+		"start": {
+			"line": 40,
+			"character": 0
+		},
+		"end": {
+			"line": 40,
+			"character": 0
+		}
+	}
+]
+
+=== 635 src/lib/MapEvents.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 30
+		},
+		"end": {
+			"line": 3,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 55
+		},
+		"end": {
+			"line": 4,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 36
+		},
+		"end": {
+			"line": 5,
+			"character": 48
+		}
+	}
+]
+
+=== 2633 src/lib/MapLibre.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/flush.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './hash.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 53
+		},
+		"end": {
+			"line": 3,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 30
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 9
+		},
+		"end": {
+			"line": 12,
+			"character": 22
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'just-compare' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 22
+		},
+		"end": {
+			"line": 13,
+			"character": 36
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'maplibre-gl/dist/maplibre-gl.css'.",
+		"start": {
+			"line": 14,
+			"character": 9
+		},
+		"end": {
+			"line": 14,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 9
+		},
+		"end": {
+			"line": 21,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 300,
+			"character": 20
+		},
+		"end": {
+			"line": 300,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ev' implicitly has an 'any' type.",
+		"start": {
+			"line": 317,
+			"character": 23
+		},
+		"end": {
+			"line": 317,
+			"character": 25
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ev' implicitly has an 'any' type.",
+		"start": {
+			"line": 372,
+			"character": 26
+		},
+		"end": {
+			"line": 372,
+			"character": 28
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 381,
+			"character": 49
+		},
+		"end": {
+			"line": 381,
+			"character": 50
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ev' implicitly has an 'any' type.",
+		"start": {
+			"line": 405,
+			"character": 25
+		},
+		"end": {
+			"line": 405,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 446,
+			"character": 11
+		},
+		"end": {
+			"line": 446,
+			"character": 12
+		}
+	}
+]
+
+=== 838 src/lib/Marker.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 45
+		},
+		"end": {
+			"line": 2,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 9
+		},
+		"end": {
+			"line": 8,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 38
+		},
+		"end": {
+			"line": 9,
+			"character": 47
+		}
+	}
+]
+
+=== 1725 src/lib/MarkerLayer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 33
+		},
+		"end": {
+			"line": 2,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './filters' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 50
+		},
+		"end": {
+			"line": 7,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'd3-geo' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 30
+		},
+		"end": {
+			"line": 8,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 78
+		},
+		"end": {
+			"line": 11,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'dequal/lite' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 25
+		},
+		"end": {
+			"line": 12,
+			"character": 38
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'minzoom' does not exist in type '$$render<Feature>.Props'.",
+		"start": {
+			"line": 233,
+			"character": 12
+		},
+		"end": {
+			"line": 233,
+			"character": 19
+		}
+	}
+]
+
+=== 214 src/lib/NavigationControl.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	}
+]
+
+=== 1572 src/lib/Popup.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 31
+		},
+		"end": {
+			"line": 1,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 77
+		},
+		"end": {
+			"line": 3,
+			"character": 90
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 39
+		},
+		"end": {
+			"line": 14,
+			"character": 51
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'popupElement' is possibly 'undefined'.",
+		"start": {
+			"line": 112,
+			"character": 6
+		},
+		"end": {
+			"line": 112,
+			"character": 18
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'popupElement' is possibly 'undefined'.",
+		"start": {
+			"line": 115,
+			"character": 4
+		},
+		"end": {
+			"line": 115,
+			"character": 16
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'popupElement' is possibly 'undefined'.",
+		"start": {
+			"line": 123,
+			"character": 4
+		},
+		"end": {
+			"line": 123,
+			"character": 16
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'popupElement' is possibly 'undefined'.",
+		"start": {
+			"line": 133,
+			"character": 4
+		},
+		"end": {
+			"line": 133,
+			"character": 16
+		}
+	}
+]
+
+=== 637 src/lib/RasterDEMTileSource.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './source.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 42
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/flush.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 9
+		},
+		"end": {
+			"line": 9,
+			"character": 22
+		}
+	}
+]
+
+=== 3380 src/lib/RasterLayer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 40
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 48
+		},
+		"end": {
+			"line": 5,
+			"character": 61
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'id' does not exist on type 'Props'.",
+		"start": {
+			"line": 13,
+			"character": 4
+		},
+		"end": {
+			"line": 13,
+			"character": 6
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'source' does not exist on type 'Props'.",
+		"start": {
+			"line": 14,
+			"character": 4
+		},
+		"end": {
+			"line": 14,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeId' does not exist on type 'Props'.",
+		"start": {
+			"line": 15,
+			"character": 4
+		},
+		"end": {
+			"line": 15,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeLayerType' does not exist on type 'Props'.",
+		"start": {
+			"line": 16,
+			"character": 4
+		},
+		"end": {
+			"line": 16,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'minzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 19,
+			"character": 4
+		},
+		"end": {
+			"line": 19,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'maxzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 20,
+			"character": 4
+		},
+		"end": {
+			"line": 20,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'children' does not exist on type 'Props'.",
+		"start": {
+			"line": 21,
+			"character": 4
+		},
+		"end": {
+			"line": 21,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 23,
+			"character": 4
+		},
+		"end": {
+			"line": 23,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'ondblclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 24,
+			"character": 4
+		},
+		"end": {
+			"line": 24,
+			"character": 14
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'oncontextmenu' does not exist on type 'Props'.",
+		"start": {
+			"line": 25,
+			"character": 4
+		},
+		"end": {
+			"line": 25,
+			"character": 17
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseenter' does not exist on type 'Props'.",
+		"start": {
+			"line": 26,
+			"character": 4
+		},
+		"end": {
+			"line": 26,
+			"character": 16
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmousemove' does not exist on type 'Props'.",
+		"start": {
+			"line": 27,
+			"character": 4
+		},
+		"end": {
+			"line": 27,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseleave' does not exist on type 'Props'.",
+		"start": {
+			"line": 28,
+			"character": 4
+		},
+		"end": {
+			"line": 28,
+			"character": 16
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'children' does not exist in type '$$render<Feature>.Props'.",
+		"start": {
+			"line": 33,
+			"character": 0
+		},
+		"end": {
+			"line": 33,
+			"character": 0
+		}
+	}
+]
+
+=== 1443 src/lib/RasterTileSource.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './source.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 42
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/flush.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'pmtiles' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 27
+		},
+		"end": {
+			"line": 7,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 30
+		},
+		"end": {
+			"line": 8,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 68
+		},
+		"end": {
+			"line": 9,
+			"character": 81
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 93,
+			"character": 8
+		},
+		"end": {
+			"line": 93,
+			"character": 125
+		}
+	}
+]
+
+=== 214 src/lib/ScaleControl.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	}
+]
+
+=== 4738 src/lib/SymbolLayer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 40
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 48
+		},
+		"end": {
+			"line": 4,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 31
+		},
+		"end": {
+			"line": 5,
+			"character": 40
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'id' does not exist on type 'Props'.",
+		"start": {
+			"line": 14,
+			"character": 4
+		},
+		"end": {
+			"line": 14,
+			"character": 6
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'source' does not exist on type 'Props'.",
+		"start": {
+			"line": 15,
+			"character": 4
+		},
+		"end": {
+			"line": 15,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'sourceLayer' does not exist on type 'Props'.",
+		"start": {
+			"line": 16,
+			"character": 4
+		},
+		"end": {
+			"line": 16,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeId' does not exist on type 'Props'.",
+		"start": {
+			"line": 17,
+			"character": 4
+		},
+		"end": {
+			"line": 17,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'beforeLayerType' does not exist on type 'Props'.",
+		"start": {
+			"line": 18,
+			"character": 4
+		},
+		"end": {
+			"line": 18,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'filter' does not exist on type 'Props'.",
+		"start": {
+			"line": 21,
+			"character": 4
+		},
+		"end": {
+			"line": 21,
+			"character": 10
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'minzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 23,
+			"character": 4
+		},
+		"end": {
+			"line": 23,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'maxzoom' does not exist on type 'Props'.",
+		"start": {
+			"line": 24,
+			"character": 4
+		},
+		"end": {
+			"line": 24,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hoverCursor' does not exist on type 'Props'.",
+		"start": {
+			"line": 25,
+			"character": 4
+		},
+		"end": {
+			"line": 25,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'manageHoverState' does not exist on type 'Props'.",
+		"start": {
+			"line": 26,
+			"character": 4
+		},
+		"end": {
+			"line": 26,
+			"character": 20
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'hovered' does not exist on type 'Props'.",
+		"start": {
+			"line": 27,
+			"character": 4
+		},
+		"end": {
+			"line": 27,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'eventsIfTopMost' does not exist on type 'Props'.",
+		"start": {
+			"line": 28,
+			"character": 4
+		},
+		"end": {
+			"line": 28,
+			"character": 19
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'interactive' does not exist on type 'Props'.",
+		"start": {
+			"line": 29,
+			"character": 4
+		},
+		"end": {
+			"line": 29,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'children' does not exist on type 'Props'.",
+		"start": {
+			"line": 30,
+			"character": 4
+		},
+		"end": {
+			"line": 30,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 32,
+			"character": 4
+		},
+		"end": {
+			"line": 32,
+			"character": 11
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'ondblclick' does not exist on type 'Props'.",
+		"start": {
+			"line": 33,
+			"character": 4
+		},
+		"end": {
+			"line": 33,
+			"character": 14
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'oncontextmenu' does not exist on type 'Props'.",
+		"start": {
+			"line": 34,
+			"character": 4
+		},
+		"end": {
+			"line": 34,
+			"character": 17
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseenter' does not exist on type 'Props'.",
+		"start": {
+			"line": 35,
+			"character": 4
+		},
+		"end": {
+			"line": 35,
+			"character": 16
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmousemove' does not exist on type 'Props'.",
+		"start": {
+			"line": 36,
+			"character": 4
+		},
+		"end": {
+			"line": 36,
+			"character": 15
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'onmouseleave' does not exist on type 'Props'.",
+		"start": {
+			"line": 37,
+			"character": 4
+		},
+		"end": {
+			"line": 37,
+			"character": 16
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and 'children' does not exist in type '$$render<Feature>.Props'.",
+		"start": {
+			"line": 42,
+			"character": 0
+		},
+		"end": {
+			"line": 42,
+			"character": 0
+		}
+	}
+]
+
+=== 3 src/lib/Terrain.svelte	json
+[]
+
+=== 214 src/lib/TerrainControl.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	}
+]
+
+=== 1070 src/lib/TopoJSON.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 50
+		},
+		"end": {
+			"line": 2,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'topojson-specification' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 47
+		},
+		"end": {
+			"line": 4,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 38
+		},
+		"end": {
+			"line": 5,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'topojson-client' or its corresponding type declarations.",
+		"start": {
+			"line": 66,
+			"character": 37
+		},
+		"end": {
+			"line": 66,
+			"character": 54
+		}
+	}
+]
+
+=== 1456 src/lib/VectorTileSource.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './source.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 42
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'pmtiles' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 30
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 68
+		},
+		"end": {
+			"line": 8,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/flush.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 24
+		},
+		"end": {
+			"line": 9,
+			"character": 39
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'sourceId' implicitly has an 'any' type.",
+		"start": {
+			"line": 69,
+			"character": 9
+		},
+		"end": {
+			"line": 69,
+			"character": 17
+		}
+	}
+]
+
+=== 3 src/lib/ZoomRange.svelte	json
+[]
+
+=== 1551 src/routes/+layout.svelte	json
+[
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../app.css'.",
+		"start": {
+			"line": 1,
+			"character": 9
+		},
+		"end": {
+			"line": 1,
+			"character": 21
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 30
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/menu' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 23
+		},
+		"end": {
+			"line": 5,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/components/ui/sheet' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 25
+		},
+		"end": {
+			"line": 8,
+			"character": 53
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 28,
+			"character": 26
+		},
+		"end": {
+			"line": 28,
+			"character": 31
+		}
+	}
+]
+
+=== 3 src/routes/+page.svelte	json
+[]
+
+=== 3 src/routes/LogoAndMenu.svelte	json
+[]
+
+=== 871 src/routes/NavBar.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/components/ui/button' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 53
+		}
+	}
+]
+
+=== 214 src/routes/examples/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	}
+]
+
+=== 1935 src/routes/examples/3d_buildings/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 59
+		},
+		"end": {
+			"line": 4,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 19
+		},
+		"end": {
+			"line": 5,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/FillExtrusionLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 33
+		},
+		"end": {
+			"line": 7,
+			"character": 65
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 31,
+			"character": 17
+		},
+		"end": {
+			"line": 31,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 42,
+			"character": 22
+		},
+		"end": {
+			"line": 42,
+			"character": 23
+		}
+	}
+]
+
+=== 3158 src/routes/examples/3d_terrain/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/NavigationControl.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 32
+		},
+		"end": {
+			"line": 4,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/AttributionControl.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 33
+		},
+		"end": {
+			"line": 5,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/RasterTileSource.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 31
+		},
+		"end": {
+			"line": 6,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/RasterDEMTileSource.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 34
+		},
+		"end": {
+			"line": 7,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/RasterLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/HillshadeLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 29
+		},
+		"end": {
+			"line": 9,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Terrain.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 22
+		},
+		"end": {
+			"line": 10,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/TerrainControl.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 29
+		},
+		"end": {
+			"line": 11,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 25
+		},
+		"end": {
+			"line": 12,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 19
+		},
+		"end": {
+			"line": 13,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 50
+		},
+		"end": {
+			"line": 14,
+			"character": 63
+		}
+	}
+]
+
+=== 874 src/routes/examples/ClusterPopup.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/context.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './cluster_feature_properties.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 59
+		},
+		"end": {
+			"line": 4,
+			"character": 92
+		}
+	}
+]
+
+=== 1554 src/routes/examples/background/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 34
+		},
+		"end": {
+			"line": 3,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/DefaultMarker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 23
+		},
+		"end": {
+			"line": 5,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 19
+		},
+		"end": {
+			"line": 7,
+			"character": 39
+		}
+	}
+]
+
+=== 1520 src/routes/examples/basic/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 40
+		},
+		"end": {
+			"line": 5,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 11,
+			"character": 43
+		},
+		"end": {
+			"line": 11,
+			"character": 44
+		}
+	}
+]
+
+=== 2188 src/routes/examples/changing_basemap_style/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 71
+		},
+		"end": {
+			"line": 3,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 19
+		},
+		"end": {
+			"line": 5,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/states.json?url' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 21
+		},
+		"end": {
+			"line": 7,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 41
+		},
+		"end": {
+			"line": 8,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/earthquake.png' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 28
+		},
+		"end": {
+			"line": 9,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/tsunami.png' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 30
+		},
+		"end": {
+			"line": 10,
+			"character": 49
+		}
+	}
+]
+
+=== 3536 src/routes/examples/clusters/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeoJSON.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 29
+		},
+		"end": {
+			"line": 7,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/CircleLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/SymbolLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 26
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/filters' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 35
+		},
+		"end": {
+			"line": 10,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Popup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 20
+		},
+		"end": {
+			"line": 11,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../ClusterPopup.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 31
+		},
+		"end": {
+			"line": 13,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/earthquakes.geojson?url' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 26
+		},
+		"end": {
+			"line": 15,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../cluster_feature_properties' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 9
+		},
+		"end": {
+			"line": 20,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 41
+		},
+		"end": {
+			"line": 21,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 38
+		},
+		"end": {
+			"line": 22,
+			"character": 44
+		}
+	}
+]
+
+=== 3347 src/routes/examples/controls/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 29
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 19
+		},
+		"end": {
+			"line": 5,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Control.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 22
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ControlGroup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 27
+		},
+		"end": {
+			"line": 8,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ControlButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 28
+		},
+		"end": {
+			"line": 9,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/NavigationControl.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 32
+		},
+		"end": {
+			"line": 10,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeolocateControl.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 31
+		},
+		"end": {
+			"line": 11,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/AttributionControl.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 33
+		},
+		"end": {
+			"line": 12,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ScaleControl.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 27
+		},
+		"end": {
+			"line": 13,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/FullscreenControl.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 32
+		},
+		"end": {
+			"line": 14,
+			"character": 63
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'map' implicitly has an 'any' type.",
+		"start": {
+			"line": 28,
+			"character": 23
+		},
+		"end": {
+			"line": 28,
+			"character": 26
+		}
+	}
+]
+
+=== 1125 src/routes/examples/cooperative_gestures/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 19
+		},
+		"end": {
+			"line": 5,
+			"character": 39
+		}
+	}
+]
+
+=== 1769 src/routes/examples/custom_marker/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Marker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Popup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 20
+		},
+		"end": {
+			"line": 8,
+			"character": 39
+		}
+	}
+]
+
+=== 3496 src/routes/examples/custom_marker_clusters/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeoJSON.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 29
+		},
+		"end": {
+			"line": 7,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Popup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 20
+		},
+		"end": {
+			"line": 8,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../ClusterPopup.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 31
+		},
+		"end": {
+			"line": 10,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MarkerLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 26
+		},
+		"end": {
+			"line": 11,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/earthquake.png' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 28
+		},
+		"end": {
+			"line": 12,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/tsunami.png' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 30
+		},
+		"end": {
+			"line": 13,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/earthquakes.geojson?url' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 26
+		},
+		"end": {
+			"line": 14,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../cluster_feature_properties.js' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 9
+		},
+		"end": {
+			"line": 19,
+			"character": 43
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 62,
+			"character": 52
+		},
+		"end": {
+			"line": 62,
+			"character": 53
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 86,
+			"character": 16
+		},
+		"end": {
+			"line": 86,
+			"character": 17
+		}
+	}
+]
+
+=== 2214 src/routes/examples/data_join/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/VectorTileSource.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 31
+		},
+		"end": {
+			"line": 4,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/FillLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 24
+		},
+		"end": {
+			"line": 8,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/JoinedData.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 25
+		},
+		"end": {
+			"line": 9,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 35
+		},
+		"end": {
+			"line": 10,
+			"character": 41
+		}
+	}
+]
+
+=== 4728 src/routes/examples/deckgl-arcs/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/DeckGlLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@deck.gl/layers' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 19
+		},
+		"end": {
+			"line": 7,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'd3-geo' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 30
+		},
+		"end": {
+			"line": 8,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'just-clamp' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 20
+		},
+		"end": {
+			"line": 9,
+			"character": 32
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/counties.json' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 23
+		},
+		"end": {
+			"line": 10,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/states.json' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 21
+		},
+		"end": {
+			"line": 11,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 59
+		},
+		"end": {
+			"line": 12,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Popup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 20
+		},
+		"end": {
+			"line": 13,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/FillLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 24
+		},
+		"end": {
+			"line": 14,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeoJSON.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 22
+		},
+		"end": {
+			"line": 15,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 35
+		},
+		"end": {
+			"line": 16,
+			"character": 41
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'f' implicitly has an 'any' type.",
+		"start": {
+			"line": 40,
+			"character": 43
+		},
+		"end": {
+			"line": 40,
+			"character": 44
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type '{ fromName: any; toName: any; fromState: any; toState: any; source: {}; target: {}; sourceColor: [number, number, number]; targetColor: [number, number, number]; }[]' is not assignable to type 'ArcData[]'.\n  Type '{ fromName: any; toName: any; fromState: any; toState: any; source: {}; target: {}; sourceColor: [number, number, number]; targetColor: [number, number, number]; }' is not assignable to type 'ArcData'.\n    Types of property 'source' are incompatible.\n      Type '{}' is not assignable to type '[number, number]'.",
+		"start": {
+			"line": 49,
+			"character": 4
+		},
+		"end": {
+			"line": 49,
+			"character": 10
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 118,
+			"character": 20
+		},
+		"end": {
+			"line": 118,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'f' implicitly has an 'any' type.",
+		"start": {
+			"line": 160,
+			"character": 27
+		},
+		"end": {
+			"line": 160,
+			"character": 28
+		}
+	}
+]
+
+=== 1756 src/routes/examples/draggable_custom_marker/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Marker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 39
+		},
+		"end": {
+			"line": 8,
+			"character": 45
+		}
+	}
+]
+
+=== 2364 src/routes/examples/draw/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@mapbox/mapbox-gl-draw' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 49
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'.",
+		"start": {
+			"line": 5,
+			"character": 9
+		},
+		"end": {
+			"line": 5,
+			"character": 57
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '$lib/draw-plugin.css'.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 23
+		},
+		"end": {
+			"line": 12,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 25
+		},
+		"end": {
+			"line": 13,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 19
+		},
+		"end": {
+			"line": 14,
+			"character": 39
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 27,
+			"character": 4
+		},
+		"end": {
+			"line": 27,
+			"character": 119
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 30,
+			"character": 6
+		},
+		"end": {
+			"line": 30,
+			"character": 39
+		}
+	},
+	{
+		"code": 2578,
+		"message": "Unused '@ts-expect-error' directive.",
+		"start": {
+			"line": 42,
+			"character": 4
+		},
+		"end": {
+			"line": 42,
+			"character": 23
+		}
+	}
+]
+
+=== 2622 src/routes/examples/geojson_extrusion/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeoJSON.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/cbsa.json' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 19
+		},
+		"end": {
+			"line": 8,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/FillExtrusionLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 33
+		},
+		"end": {
+			"line": 9,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Popup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 41
+		},
+		"end": {
+			"line": 11,
+			"character": 50
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'data' implicitly has an 'any' type.",
+		"start": {
+			"line": 48,
+			"character": 29
+		},
+		"end": {
+			"line": 48,
+			"character": 33
+		}
+	}
+]
+
+=== 2597 src/routes/examples/geojson_line_layer/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 23
+		},
+		"end": {
+			"line": 5,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeoJSON.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 22
+		},
+		"end": {
+			"line": 6,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 31
+		},
+		"end": {
+			"line": 7,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/LineLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 24
+		},
+		"end": {
+			"line": 8,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 29
+		},
+		"end": {
+			"line": 9,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 19
+		},
+		"end": {
+			"line": 10,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 25
+		},
+		"end": {
+			"line": 11,
+			"character": 50
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'url' implicitly has an 'any' type.",
+		"start": {
+			"line": 61,
+			"character": 15
+		},
+		"end": {
+			"line": 61,
+			"character": 18
+		}
+	}
+]
+
+=== 3056 src/routes/examples/geojson_polygon/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeoJSON.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/FillLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/LineLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 29
+		},
+		"end": {
+			"line": 7,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 19
+		},
+		"end": {
+			"line": 8,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 25
+		},
+		"end": {
+			"line": 9,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/states.json?url' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 21
+		},
+		"end": {
+			"line": 10,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/colors.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 35
+		},
+		"end": {
+			"line": 11,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/filters.js' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 35
+		},
+		"end": {
+			"line": 12,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 47
+		},
+		"end": {
+			"line": 13,
+			"character": 60
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'layer' implicitly has an 'any' type.",
+		"start": {
+			"line": 26,
+			"character": 38
+		},
+		"end": {
+			"line": 26,
+			"character": 43
+		}
+	}
+]
+
+=== 1125 src/routes/examples/globe/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 19
+		},
+		"end": {
+			"line": 5,
+			"character": 39
+		}
+	}
+]
+
+=== 2234 src/routes/examples/heatmap/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeoJSON.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/HeatmapLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 27
+		},
+		"end": {
+			"line": 8,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/CircleLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 26
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/earthquakes.geojson?url' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 26
+		},
+		"end": {
+			"line": 11,
+			"character": 57
+		}
+	}
+]
+
+=== 2220 src/routes/examples/image_source/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 23
+		},
+		"end": {
+			"line": 5,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 29
+		},
+		"end": {
+			"line": 6,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ImageSource.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/RasterLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Marker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 21
+		},
+		"end": {
+			"line": 9,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/earthquake.png' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 28
+		},
+		"end": {
+			"line": 10,
+			"character": 50
+		}
+	}
+]
+
+=== 3668 src/routes/examples/image_symbols/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeoJSON.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 29
+		},
+		"end": {
+			"line": 7,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/CircleLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/SymbolLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 26
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/filters' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 35
+		},
+		"end": {
+			"line": 10,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/earthquake.png' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 28
+		},
+		"end": {
+			"line": 12,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/tsunami.png' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 30
+		},
+		"end": {
+			"line": 13,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/earthquakes.geojson?url' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 26
+		},
+		"end": {
+			"line": 14,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 41
+		},
+		"end": {
+			"line": 15,
+			"character": 50
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'allImagesLoaded' implicitly has an 'any' type.",
+		"start": {
+			"line": 37,
+			"character": 23
+		},
+		"end": {
+			"line": 37,
+			"character": 38
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 74,
+			"character": 18
+		},
+		"end": {
+			"line": 74,
+			"character": 19
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 110,
+			"character": 18
+		},
+		"end": {
+			"line": 110,
+			"character": 19
+		}
+	}
+]
+
+=== 1776 src/routes/examples/marker/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/DefaultMarker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Popup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 20
+		},
+		"end": {
+			"line": 8,
+			"character": 39
+		}
+	}
+]
+
+=== 2415 src/routes/examples/marker_layer/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeoJSON.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/states.json?url' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 21
+		},
+		"end": {
+			"line": 8,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MarkerLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 26
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Popup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 39
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'feature' implicitly has an 'any' type.",
+		"start": {
+			"line": 24,
+			"character": 27
+		},
+		"end": {
+			"line": 24,
+			"character": 34
+		}
+	}
+]
+
+=== 1782 src/routes/examples/marker_on_click/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapEvents.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 24
+		},
+		"end": {
+			"line": 5,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/DefaultMarker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 28
+		},
+		"end": {
+			"line": 7,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 45
+		},
+		"end": {
+			"line": 8,
+			"character": 58
+		}
+	}
+]
+
+=== 4168 src/routes/examples/overlapping_layer_events/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 19
+		},
+		"end": {
+			"line": 5,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeoJSON.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 22
+		},
+		"end": {
+			"line": 6,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/CircleLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/filters' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 35
+		},
+		"end": {
+			"line": 8,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Popup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 20
+		},
+		"end": {
+			"line": 9,
+			"character": 39
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'GeoJSON'.",
+		"start": {
+			"line": 13,
+			"character": 22
+		},
+		"end": {
+			"line": 13,
+			"character": 29
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'GeoJSON'.",
+		"start": {
+			"line": 13,
+			"character": 38
+		},
+		"end": {
+			"line": 13,
+			"character": 45
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'GeoJSON'.",
+		"start": {
+			"line": 43,
+			"character": 20
+		},
+		"end": {
+			"line": 43,
+			"character": 27
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'GeoJSON'.",
+		"start": {
+			"line": 43,
+			"character": 36
+		},
+		"end": {
+			"line": 43,
+			"character": 43
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'GeoJSON'.",
+		"start": {
+			"line": 45,
+			"character": 27
+		},
+		"end": {
+			"line": 45,
+			"character": 34
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'GeoJSON'.",
+		"start": {
+			"line": 45,
+			"character": 43
+		},
+		"end": {
+			"line": 45,
+			"character": 50
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'c' implicitly has an 'any' type.",
+		"start": {
+			"line": 50,
+			"character": 39
+		},
+		"end": {
+			"line": 50,
+			"character": 40
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 113,
+			"character": 18
+		},
+		"end": {
+			"line": 113,
+			"character": 19
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 116,
+			"character": 23
+		},
+		"end": {
+			"line": 116,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 119,
+			"character": 22
+		},
+		"end": {
+			"line": 119,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'features' implicitly has an 'any' type.",
+		"start": {
+			"line": 126,
+			"character": 20
+		},
+		"end": {
+			"line": 126,
+			"character": 28
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'features' implicitly has an 'any' type.",
+		"start": {
+			"line": 128,
+			"character": 31
+		},
+		"end": {
+			"line": 128,
+			"character": 39
+		}
+	}
+]
+
+=== 1786 src/routes/examples/pmtile_source/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/VectorTileSource.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 31
+		},
+		"end": {
+			"line": 4,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/LineLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 24
+		},
+		"end": {
+			"line": 8,
+			"character": 47
+		}
+	}
+]
+
+=== 2210 src/routes/examples/popup_remote/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/DefaultMarker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './[id]/+server.ts?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 25
+		},
+		"end": {
+			"line": 8,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Popup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 20
+		},
+		"end": {
+			"line": 9,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 34
+		},
+		"end": {
+			"line": 10,
+			"character": 47
+		}
+	}
+]
+
+=== 2009 src/routes/examples/raster_source/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/RasterTileSource.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 31
+		},
+		"end": {
+			"line": 4,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/RasterLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 29
+		},
+		"end": {
+			"line": 6,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 19
+		},
+		"end": {
+			"line": 7,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 25
+		},
+		"end": {
+			"line": 8,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/LineLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 24
+		},
+		"end": {
+			"line": 9,
+			"character": 47
+		}
+	}
+]
+
+=== 1786 src/routes/examples/vector_source/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/VectorTileSource.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 31
+		},
+		"end": {
+			"line": 4,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/LineLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 24
+		},
+		"end": {
+			"line": 8,
+			"character": 47
+		}
+	}
+]
+
+=== 4301 src/routes/examples/zoom_transition/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 30
+		},
+		"end": {
+			"line": 1,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeoJSON.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../styles.js' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 29
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/states.json' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 21
+		},
+		"end": {
+			"line": 8,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/counties.json' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 23
+		},
+		"end": {
+			"line": 9,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/filters.js' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 30
+		},
+		"end": {
+			"line": 10,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/FillLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 24
+		},
+		"end": {
+			"line": 11,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/SymbolLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 26
+		},
+		"end": {
+			"line": 12,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/LineLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 24
+		},
+		"end": {
+			"line": 13,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'd3-geo' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 30
+		},
+		"end": {
+			"line": 14,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'geojson' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 57
+		},
+		"end": {
+			"line": 15,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/ZoomRange.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 24
+		},
+		"end": {
+			"line": 16,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/expressions.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 33
+		},
+		"end": {
+			"line": 17,
+			"character": 54
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'f' implicitly has an 'any' type.",
+		"start": {
+			"line": 22,
+			"character": 52
+		},
+		"end": {
+			"line": 22,
+			"character": 53
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'map' implicitly has an 'any' type.",
+		"start": {
+			"line": 64,
+			"character": 24
+		},
+		"end": {
+			"line": 64,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'l' implicitly has an 'any' type.",
+		"start": {
+			"line": 65,
+			"character": 17
+		},
+		"end": {
+			"line": 65,
+			"character": 18
+		}
+	}
+]
+
+=== 1079 src/routes/tests/change_center_zoom/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'maplibre-gl' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 49
+		},
+		"end": {
+			"line": 1,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 36
+		},
+		"end": {
+			"line": 5,
+			"character": 42
+		}
+	}
+]
+
+=== 664 src/routes/tests/map-style-update/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	}
+]
+
+=== 1523 src/routes/tests/marker-class-update/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/states.json?url' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MarkerLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeoJSON.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 22
+		},
+		"end": {
+			"line": 6,
+			"character": 43
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'feature' implicitly has an 'any' type.",
+		"start": {
+			"line": 34,
+			"character": 27
+		},
+		"end": {
+			"line": 34,
+			"character": 34
+		}
+	}
+]
+
+=== 1495 src/routes/tests/marker-z-index/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/GeoJSON.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MarkerLayer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Marker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 21
+		},
+		"end": {
+			"line": 6,
+			"character": 41
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'GeoJSON'.",
+		"start": {
+			"line": 8,
+			"character": 18
+		},
+		"end": {
+			"line": 8,
+			"character": 25
+		}
+	}
+]
+
+=== 216 src/routes/tests/replace_source/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 66
+		},
+		"end": {
+			"line": 1,
+			"character": 81
+		}
+	}
+]
+
+=== 1052 src/routes/tests/standalone-popup/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/MapLibre.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/CodeSample.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './+page.svelte?raw' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Popup.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 20
+		},
+		"end": {
+			"line": 4,
+			"character": 39
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'GeoJSON'.",
+		"start": {
+			"line": 6,
+			"character": 18
+		},
+		"end": {
+			"line": 6,
+			"character": 25
+		}
+	}
+]
+
+=== 442 src/site/CodeSample.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/components/CodeBlock.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'dedent' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 29
+		}
+	}
+]
+
+=== 675 src/site/components/CodeBlock.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'highlight.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 33
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of 'highlight.js/styles/github-dark.css'.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 21
+		},
+		"end": {
+			"line": 11,
+			"character": 37
+		}
+	}
+]
+
+=== 434 src/site/components/ui/button/button.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 42
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'tailwind-variants' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 40
+		},
+		"end": {
+			"line": 3,
+			"character": 59
+		}
+	}
+]
+
+=== 210 src/site/components/ui/sheet/sheet-close.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+
+=== 1079 src/site/components/ui/sheet/sheet-content.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 43
+		},
+		"end": {
+			"line": 5,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/components/ui/button/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 25
+		},
+		"end": {
+			"line": 9,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@lucide/svelte/icons/x' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 20
+		},
+		"end": {
+			"line": 10,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 50
+		},
+		"end": {
+			"line": 11,
+			"character": 66
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'props' implicitly has an 'any' type.",
+		"start": {
+			"line": 45,
+			"character": 26
+		},
+		"end": {
+			"line": 45,
+			"character": 31
+		}
+	}
+]
+
+=== 424 src/site/components/ui/sheet/sheet-description.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	}
+]
+
+=== 217 src/site/components/ui/sheet/sheet-footer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 42
+		},
+		"end": {
+			"line": 1,
+			"character": 58
+		}
+	}
+]
+
+=== 217 src/site/components/ui/sheet/sheet-header.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 42
+		},
+		"end": {
+			"line": 2,
+			"character": 58
+		}
+	}
+]
+
+=== 424 src/site/components/ui/sheet/sheet-overlay.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	}
+]
+
+=== 210 src/site/components/ui/sheet/sheet-portal.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+
+=== 424 src/site/components/ui/sheet/sheet-title.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$site/utils.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	}
+]
+
+=== 210 src/site/components/ui/sheet/sheet-trigger.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+
+=== 210 src/site/components/ui/sheet/sheet.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'bits-ui' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 43
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+

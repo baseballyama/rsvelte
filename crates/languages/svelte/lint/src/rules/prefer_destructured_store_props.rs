@@ -2,12 +2,12 @@ use rsvelte_kernel::index::TypedIndex;
 use rsvelte_kernel::source::tokens::TokenIdentifier;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::semantic::legacy::{Variable, is_top_level, reactive_body};
-use rsvelte_svelte::semantic::resolve::RUNE_ROOTS;
-use rsvelte_svelte::syntax::syntax_tree::{Component, TokenType};
-use rsvelte_typescript::scope::BindingIdentifier;
-use rsvelte_typescript::semantic::globals::global;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_svelte_semantic::legacy::{Variable, is_top_level, reactive_body};
+use rsvelte_svelte_semantic::resolve::RUNE_ROOTS;
+use rsvelte_svelte_syntax::syntax_tree::{Component, TokenType};
+use rsvelte_typescript_semantic::globals::global;
+use rsvelte_typescript_semantic::scope::BindingIdentifier;
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::javascript::span;

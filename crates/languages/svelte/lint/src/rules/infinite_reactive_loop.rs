@@ -1,8 +1,8 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript::scope::{DeclarationKind, ScopeIdentifier};
-use rsvelte_typescript::semantic::reference_tracker::{global_references, import_references};
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rsvelte_typescript_semantic::reference_tracker::{global_references, import_references};
+use rsvelte_typescript_semantic::scope::{DeclarationKind, ScopeIdentifier};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashSet;
 
 use super::javascript::span;

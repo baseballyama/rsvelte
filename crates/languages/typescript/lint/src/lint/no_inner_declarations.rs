@@ -1,5 +1,5 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_typescript::syntax_tree::{Class, Kind, NodeIdentifier, flag};
+use rsvelte_typescript_syntax::syntax_tree::{Class, Kind, NodeIdentifier, flag};
 
 use super::JavaScriptFacts;
 
