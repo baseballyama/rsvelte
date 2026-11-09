@@ -1,7 +1,7 @@
 use super::CompileWarnings;
 
 #[test]
-fn the_codes_come_from_the_svelte_the_oracle_installs() {
+fn the_tables_come_from_the_svelte_the_oracle_installs() {
     let package = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../../../tools/oracle/package.json"
@@ -11,15 +11,19 @@ fn the_codes_come_from_the_svelte_the_oracle_installs() {
         .nth(1)
         .and_then(|rest| rest.split('"').next())
         .expect("the oracle pins svelte");
-    let header = include_str!("vendor/codes.rs")
-        .lines()
-        .next()
-        .expect("a header");
-    assert_eq!(
-        header.strip_prefix("// svelte "),
-        Some(pinned),
-        "the oracle installs svelte {pinned}; run `node tools/oracle/oracle.ts warnings`"
-    );
+    for vendored in [
+        include_str!("vendor/codes.rs"),
+        include_str!("vendor/a11y.rs"),
+    ] {
+        let header = vendored.lines().next().expect("a header");
+        assert_eq!(
+            header
+                .strip_prefix("// svelte ")
+                .and_then(|rest| rest.split(',').next()),
+            Some(pinned),
+            "{header}: the oracle installs svelte {pinned}; run `node tools/oracle/oracle.ts warnings`"
+        );
+    }
 }
 
 #[test]

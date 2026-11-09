@@ -9,7 +9,7 @@
 //   lint-cases [--update]                                     write ESLint's reports for the lint crate's own rule cases
 //   entities                                                  vendor the Svelte compiler's entity table
 //   globals                                                   vendor the global variables the lint oracle declares
-//   warnings                                                  vendor the warning codes svelte-ignore accepts
+//   warnings                                                  vendor Svelte's warning codes and a11y tables
 //   semantic --report <file> [--inputs <dir>] [--projector <binary>] [--filter <text>] [--limit <n>]
 //                                                             compare the TypeScript projection's semantics
 const commands: Record<string, () => Promise<{ main(args: string[]): Promise<void> }>> = {
