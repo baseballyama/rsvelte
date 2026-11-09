@@ -9,6 +9,8 @@ mod no_reactive_functions;
 mod no_reactive_literals;
 mod no_unused_variables;
 mod reactive_statements;
+mod require_store_callbacks_use_set_param;
+mod svelte_store;
 mod valid_each_key;
 
 /// Every built-in rule.
@@ -20,5 +22,6 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_ignored_unsubscribe::RULE,
     &no_reactive_functions::RULE,
     &no_reactive_literals::RULE,
+    &require_store_callbacks_use_set_param::RULE,
     &valid_each_key::RULE,
 ];
