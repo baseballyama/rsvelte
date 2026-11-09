@@ -8,6 +8,7 @@ mod no_top_level_browser_globals;
 mod no_unnecessary_state_wrap;
 mod no_unused_variables;
 mod nodes;
+mod prefer_const;
 mod prefer_derived_over_derived_by;
 mod prefer_svelte_reactivity;
 mod prefer_writable_derived;
@@ -25,6 +26,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_top_level_browser_globals::RULE,
     &no_unnecessary_state_wrap::RULE,
     &inactive::NO_UNUSED_PROPS,
+    &prefer_const::RULE,
     &prefer_derived_over_derived_by::RULE,
     &prefer_svelte_reactivity::RULE,
     &prefer_writable_derived::RULE,
