@@ -98,7 +98,8 @@ no lint case covers these quirks.
 - In an inline style, eslint-plugin-svelte's `convertChild` places a declaration's value from the
   property's end. With a hack prefix (`*a: b`), that end moves one character left. This crate
   places the value where it is written.
-- The safe parser ends an unclosed comment one character past the source. For `a: b /* c`, the
-  end is 10. This crate ends it at the source's end, 9.
+- The safe parser ends an unclosed comment, string or escape one character past the source, and so
+  the declaration that holds it. For `a: b /* c`, the comment ends at 10. This crate ends it at the
+  source's end, 9.
 - An at-rule in an inline style, such as `style="@media x"`, has no end, and `convertChild`
   throws. This crate does not convert that style.
