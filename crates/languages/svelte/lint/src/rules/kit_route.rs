@@ -40,12 +40,30 @@ pub(super) fn route_file(
         reporter.fail("no host provides the document's SvelteKit project");
         return None;
     };
+    // Upstream tells no route file outside a SvelteKit project.
+    project.version.as_ref()?;
     let routes = settings.routes(Some(svelte_config));
     match &project.location {
         Location::InProject(path) => under(routes, path).then_some(kind),
         Location::NoProject => None,
         Location::NameOnly => Some(kind),
     }
+}
+
+/// The versions of `SvelteKit` that have `$app/paths`' `base` (`svelteKitVersions`).
+pub(super) const BASE_VERSIONS: &[&str] = &["1.0.0-next", "1", "2"];
+
+/// Whether the document is in a project of one of `versions` of `SvelteKit`. Without the host's
+/// facts, the rule fails instead of guessing.
+pub(super) fn runs_for(file: &File<'_>, reporter: &mut Reporter<'_>, versions: &[&str]) -> bool {
+    let Some(project) = file.svelte_kit() else {
+        reporter.fail("no host provides the document's SvelteKit project");
+        return false;
+    };
+    project
+        .version
+        .as_deref()
+        .is_some_and(|version| versions.contains(&version))
 }
 
 fn route_file_name(path: &str) -> Option<RouteFile> {

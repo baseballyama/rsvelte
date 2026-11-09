@@ -5,6 +5,7 @@ use rsvelte_typescript::scope::BindingIdentifier;
 use rsvelte_typescript::{Kind, NodeIdentifier};
 
 use super::kit_navigation::{Navigation, Options, Script, first_part, has_scheme, links};
+use super::kit_route::runs_for;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -40,6 +41,9 @@ enum Url<'a> {
 
 impl SvelteRule for NoNavigationWithoutResolve {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
+        if !runs_for(file, reporter, &["1.0.0-next", "1", "2", "3"]) {
+            return;
+        }
         let script = Script::new(file);
         let resolve = script.path_reads(&["asset", "resolve"]);
         let check = Check {

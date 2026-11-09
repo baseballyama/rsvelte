@@ -2,6 +2,7 @@ use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_typescript::Kind;
 
 use super::kit_navigation::{Navigation, Script, has_scheme};
+use super::kit_route::{BASE_VERSIONS, runs_for};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -20,6 +21,9 @@ struct NoGotoWithoutBase;
 
 impl SvelteRule for NoGotoWithoutBase {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
+        if !runs_for(file, reporter, BASE_VERSIONS) {
+            return;
+        }
         let script = Script::new(file);
         let calls = script.navigation_calls();
         if calls.is_empty() {

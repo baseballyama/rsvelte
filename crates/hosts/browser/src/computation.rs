@@ -142,7 +142,9 @@ fn registry(plugins: &[&str]) -> Registry {
                 reg.provide::<rsvelte_svelte_lint::computation::SvelteKit>(
                     "browser",
                     |_| true,
+                    // Upstream takes a page to be a Kit 2 project.
                     |_| rsvelte_svelte_lint::project::SvelteKitProject {
+                        version: Some("2".to_owned()),
                         location: rsvelte_svelte_lint::project::Location::NameOnly,
                     },
                 );

@@ -4,6 +4,7 @@ use rsvelte_typescript::scope::BindingIdentifier;
 use rsvelte_typescript::{Kind, NodeIdentifier};
 
 use super::kit_navigation::{Navigation, Options, Script, first_part, has_scheme, links};
+use super::kit_route::{BASE_VERSIONS, runs_for};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -21,6 +22,9 @@ struct NoNavigationWithoutBase(Options);
 
 impl SvelteRule for NoNavigationWithoutBase {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
+        if !runs_for(file, reporter, BASE_VERSIONS) {
+            return;
+        }
         let script = Script::new(file);
         let base = script.path_reads(&["base"]);
         let check = Check {

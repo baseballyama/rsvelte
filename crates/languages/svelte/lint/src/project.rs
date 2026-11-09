@@ -14,6 +14,9 @@ mod tests;
 /// What `eslint-plugin-svelte` knows of the `SvelteKit` project a document is in.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SvelteKitProject {
+    /// `@sveltejs/kit`'s version as upstream names it, `1.0.0-next` or a major version; `None`
+    /// outside a `SvelteKit` project.
+    pub version: Option<String>,
     pub location: Location,
 }
 
@@ -44,7 +47,8 @@ pub fn register_file_system(registry: &mut Registry) {
     );
 }
 
-/// The project of the nearest `package.json` above the document (`getProjectRootDir`).
+/// The project of the nearest `package.json` above the document (`getProjectRootDir`), with the
+/// version of `SvelteKit` it uses (`getSvelteKitVersion`).
 ///
 /// # Panics
 ///
@@ -52,11 +56,13 @@ pub fn register_file_system(registry: &mut Registry) {
 #[must_use]
 pub fn svelte_kit_project(document: &Path) -> SvelteKitProject {
     let file = absolute(document);
-    let root = file
+    let packages: Vec<(&Path, serde_json::Map<String, serde_json::Value>)> = file
         .ancestors()
         .skip(1)
-        .find(|directory| package_json(directory).is_some());
-    let location = root.map_or(Location::NoProject, |root| {
+        .filter_map(|directory| Some((directory, package_json(directory)?)))
+        .collect();
+    let version = installed_kit(&file).or_else(|| declared_kit(&packages));
+    let location = packages.first().map_or(Location::NoProject, |&(root, _)| {
         let relative = file.strip_prefix(root).expect("an ancestor of the file");
         Location::InProject(
             relative
@@ -66,7 +72,54 @@ pub fn svelte_kit_project(document: &Path) -> SvelteKitProject {
                 .join("/"),
         )
     });
-    SvelteKitProject { location }
+    SvelteKitProject { version, location }
+}
+
+/// The version of the nearest installed `@sveltejs/kit`.
+fn installed_kit(file: &Path) -> Option<String> {
+    let package = file
+        .ancestors()
+        .skip(1)
+        .map(|directory| directory.join("node_modules/@sveltejs/kit"))
+        .find(|package| package.is_dir())?;
+    let version = package_json(&package)?.get("version")?.as_str()?.to_owned();
+    kit_version(&version)
+}
+
+/// The version of `@sveltejs/kit` that the nearest `package.json` declaring one declares.
+fn declared_kit(
+    packages: &[(&Path, serde_json::Map<String, serde_json::Value>)],
+) -> Option<String> {
+    // Upstream's own tests run without SvelteKit installed, so its package counts as Kit 2.
+    if packages.first().is_some_and(|(_, package)| {
+        package.get("name").and_then(|n| n.as_str()) == Some("eslint-plugin-svelte")
+    }) {
+        return Some("2".to_owned());
+    }
+    packages.iter().find_map(|(_, package)| {
+        let declared = ["dependencies", "devDependencies"]
+            .iter()
+            .find_map(|field| package.get(*field)?.get("@sveltejs/kit"))?;
+        kit_version(declared.as_str()?)
+    })
+}
+
+/// `checkAndSetSvelteKitVersion`: `1.0.0-next` for Kit 1's prereleases, else the major version
+/// of a version or a `^` or `~` range.
+fn kit_version(version: &str) -> Option<String> {
+    let version = version.strip_prefix(['^', '~']).unwrap_or(version);
+    let digits = version.len()
+        - version
+            .trim_start_matches(|c: char| c.is_ascii_digit())
+            .len();
+    if digits == 0 {
+        return None;
+    }
+    let (major, rest) = version.split_at(digits);
+    if major == "1" && rest.starts_with(".0.0-next") {
+        return Some("1.0.0-next".to_owned());
+    }
+    rest.starts_with('.').then(|| major.to_owned())
 }
 
 /// The `package.json` of `directory`, when it holds a JSON object (`readPackageJson`).

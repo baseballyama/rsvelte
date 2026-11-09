@@ -528,6 +528,7 @@ fn run(case: &Case<'_>, deviation: Option<&Deviation>) -> Verdict {
             svelte_config: Ok(svelte_config.unwrap_or_default()),
             // Upstream's tests run from its package, whose `package.json` is the nearest.
             kit: SvelteKitProject {
+                version: Some("2".to_owned()),
                 location: Location::InProject(format!("tests/fixtures/rules/{}", case.document())),
             },
         }

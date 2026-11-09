@@ -148,3 +148,57 @@ fn routes_start_at_the_nearest_package_json() {
         [format!("svelte/{VALID_PROPS}")]
     );
 }
+
+const NAVIGATION: &str = concat!(
+    "<script>import { goto } from '$app/navigation'; goto('/x');</script>",
+    "<a href=\"/y\">y</a>"
+);
+const NAVIGATION_RULES: &[&str] = &[
+    "no-goto-without-base",
+    "no-navigation-without-base",
+    "no-navigation-without-resolve",
+];
+
+/// Outside a `SvelteKit` project, no file is a route file and no navigation rule runs.
+#[test]
+fn the_rules_need_sveltekit() {
+    let project = Project::new(&[
+        ("package.json", r#"{"devDependencies":{"svelte":"^5.0.0"}}"#),
+        ("src/routes/+page.svelte", PROP),
+        ("src/lib/Link.svelte", NAVIGATION),
+    ]);
+    assert_eq!(
+        project.rules(".", "src/routes/+page.svelte", &[VALID_PROPS]),
+        [""; 0]
+    );
+    assert_eq!(
+        project.rules(".", "src/lib/Link.svelte", NAVIGATION_RULES),
+        [""; 0]
+    );
+}
+
+/// Upstream runs only `no-navigation-without-resolve` in a `SvelteKit` 3 project.
+#[test]
+fn only_resolve_is_checked_in_sveltekit_3() {
+    let project = Project::new(&[
+        (
+            "package.json",
+            r#"{"devDependencies":{"@sveltejs/kit":"^3.0.0"}}"#,
+        ),
+        ("src/lib/Link.svelte", NAVIGATION),
+    ]);
+    assert_eq!(
+        project.rules(".", "src/lib/Link.svelte", NAVIGATION_RULES),
+        [
+            "svelte/no-navigation-without-resolve",
+            "svelte/no-navigation-without-resolve"
+        ]
+    );
+    let project = Project::new(&[("package.json", KIT_2), ("src/lib/Link.svelte", NAVIGATION)]);
+    assert_eq!(
+        project
+            .rules(".", "src/lib/Link.svelte", NAVIGATION_RULES)
+            .len(),
+        5
+    );
+}
