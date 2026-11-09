@@ -6,7 +6,7 @@ use crate::indent::else_if_branch;
 use crate::options::FormatOptions;
 
 use super::close_tag::{find_close_tag_span, push_close_tag};
-use super::elements::is_block_element;
+use super::elements::{is_block_element, is_void_element};
 use super::open_tag::push_open_tag;
 
 fn collect_if_open_tag_edits(
@@ -438,16 +438,18 @@ fn is_empty_nonhug_element(name: &str, fragment: &Fragment) -> bool {
 /// judged against the width without the `{/…}` after it and stayed flat by
 /// exactly the closers' width. Only a closer glued with no whitespace counts:
 /// anything else offers a break opportunity of its own.
-fn trailing_tag_width(source: &str, start: u32, end: u32, in_element: bool) -> usize {
+fn trailing_tag_width(source: &str, start: u32, end: u32, name: &str, in_element: bool) -> usize {
     // Only when the element itself renders on one line: otherwise the closers sit
     // on the CLOSE tag's line (`</td>{/each}`), not on the open tag's, and adding
-    // them there breaks an open tag that fits. A self-closing element has no
-    // close tag, so its closers follow the open tag however this run wrapped it;
-    // inside an element the collapse pass re-lays the whole parent out instead.
+    // them there breaks an open tag that fits. A self-closing or void element has
+    // no close tag, so its closers follow the open tag however this run wrapped
+    // it (`<input …>` prints as `<input … />`); inside an element the collapse
+    // pass re-lays the whole parent out instead.
     let self_closing = !in_element
-        && source
-            .get(..end as usize)
-            .is_some_and(|before| before.ends_with("/>"));
+        && (is_void_element(name)
+            || source
+                .get(..end as usize)
+                .is_some_and(|before| before.ends_with("/>")));
     if !self_closing
         && source
             .get(start as usize..end as usize)
@@ -517,7 +519,7 @@ fn handle_element(
         empty_nonhug,
         regular_element,
         in_pre,
-        trailing_tag_width(source, start, end, in_element),
+        trailing_tag_width(source, start, end, name, in_element),
         options,
         edits,
     )?;

@@ -72,6 +72,17 @@ fn control_that_fits_at_width_120() {
     );
 }
 
+// A void element written without `/>` has no close tag either, and prints as
+// `<input … />`, so the first run must count its closers too.
+#[test]
+fn void_element_without_a_slash_split_in_the_source() {
+    assert_fmt(
+        "{#if a}<input\n  viewer={b.view.as} {c} data-p=\"ppppppppppppppppppppp\"\n>{/if}{value}\n",
+        80,
+        "{#if a}<input\n    viewer={b.view.as}\n    {c}\n    data-p=\"ppppppppppppppppppppp\"\n  />{/if}{value}\n",
+    );
+}
+
 // The closers sit on the close tag's line for an element with a close tag, and
 // inside an element the collapse pass lays the parent out; neither may move.
 
