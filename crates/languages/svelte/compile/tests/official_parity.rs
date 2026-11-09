@@ -340,6 +340,16 @@ fn an_element_takes_its_namespace_from_its_name_when_a_fragment_is_inferred() {
 }
 
 #[test]
+fn a_scoped_custom_element_is_refused_on_the_client_only() {
+    let source = "<my-el></my-el><style>my-el { color: red; }</style>";
+    assert_eq!(
+        compile(source, Target::Client),
+        Err("unsupported".to_owned())
+    );
+    assert!(squashed(source, Target::Server).contains("<my-elclass=\"svelte-"));
+}
+
+#[test]
 fn a_grouped_optional_chain_in_a_prop_is_a_member() {
     let source = "<script>import C from './C.svelte'; let { a } = $props();</script><C x={(a?.b).c} y={a?.b} />";
     let client = squashed(source, Target::Client);

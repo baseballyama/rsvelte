@@ -41,8 +41,8 @@ use super::names::Names;
 use super::script::{Read, ScriptRewrite};
 use super::{
     Item, Prepared, Target, check_foreign_element, escape_markup, event_attribute, has_dependency,
-    is_customizable_select, is_directive, is_load_error_element, needs_clsx,
-    sanitize_template_string, synthetic_value, unsupported,
+    is_custom_element_node, is_customizable_select, is_directive, is_load_error_element,
+    needs_clsx, sanitize_template_string, synthetic_value, unsupported,
 };
 use crate::render_plan::RenderPlan;
 

@@ -25,7 +25,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, Children, CompilerNodeIdentifier, CompilerSyntaxTree, Element,
-    NodeKind,
+    ElementKind, NodeKind,
 };
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution};
 pub(crate) use rsvelte_svelte_semantic::template::{cannot_be_set_statically, needs_clsx};
@@ -157,6 +157,17 @@ pub(crate) struct Prepared<'a> {
     custom_element: Option<&'a custom_element::CustomElement>,
     /// Upstream `analysis.name`: the component name, renamed if the source declares it.
     component_name: String,
+}
+
+/// Upstream `is_custom_element_node`: a regular element with a `-` in its name or an `is`
+/// attribute, whose attributes upstream sets as properties.
+fn is_custom_element_node(tree: &CompilerSyntaxTree, source_text: &str, el: &Element) -> bool {
+    el.kind == ElementKind::Regular
+        && (el.name.text(source_text).contains('-')
+            || tree
+                .attributes(el.attributes)
+                .iter()
+                .any(|a| !is_directive(&a.value) && a.name.text(source_text) == "is"))
 }
 
 /// The diagnostic for input this compiler does not lower yet. `what` is a singular subject.

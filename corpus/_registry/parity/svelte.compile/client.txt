@@ -1,4 +1,4 @@
-# svelte.compile/client: 8504 match
+# svelte.compile/client: 8508 match
 svelte/animotion/src/lib/components/action.svelte	refused
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -3323,7 +3323,7 @@ svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-infer-props/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-shadowed-prop/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-attribute/input.svelte	refused
-svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-builtin-attribute/input.svelte	mismatch
+svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-builtin-attribute/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/debug-block/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/each-block-without-as.v5/input.svelte	refused
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-bare/input.svelte	refused
@@ -8852,8 +8852,8 @@ svelte/svelte/packages/svelte/tests/preprocess/samples/filename/input.svelte	mis
 svelte/svelte/packages/svelte/tests/preprocess/samples/filename/output.svelte	missing
 svelte/svelte/packages/svelte/tests/preprocess/samples/multiple-preprocessors/input.svelte	missing
 svelte/svelte/packages/svelte/tests/preprocess/samples/multiple-preprocessors/output.svelte	missing
-svelte/svelte/packages/svelte/tests/preprocess/samples/partial-names/input.svelte	refused
-svelte/svelte/packages/svelte/tests/preprocess/samples/partial-names/output.svelte	refused
+svelte/svelte/packages/svelte/tests/preprocess/samples/partial-names/input.svelte	missing
+svelte/svelte/packages/svelte/tests/preprocess/samples/partial-names/output.svelte	unexpected
 svelte/svelte/packages/svelte/tests/preprocess/samples/script-self-closing/output.svelte	missing
 svelte/svelte/packages/svelte/tests/print/samples/await-block/input.svelte	refused
 svelte/svelte/packages/svelte/tests/print/samples/block-element-separation/input.svelte	refused
@@ -9149,7 +9149,6 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/each-block-destructur
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/each-block-keyed-dynamic-2/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/each-block-keyed-index-in-event-handler/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/each-block-scope-shadow-bind-4/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/element-invalid-name/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/empty-component-destroy/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/empty-style-block/main.svelte	unexpected
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/escape-template-literals/main.svelte	refused
@@ -9236,7 +9235,6 @@ svelte/svelte/packages/svelte/tests/runtime-legacy/samples/script-style-non-top-
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/select-lazy-options/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/select-spread-preserve-selection/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/slot-children-prop/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-legacy/samples/slot-in-custom-element/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/slot-let-forwarding/inner.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/slot-let-forwarding/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-legacy/samples/slot-let-forwarding/outer.svelte	refused
@@ -9441,7 +9439,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/contenteditable-state/
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/create-raw-snippet-invalid-render/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/custom-element-attributes/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/custom-element-injected-styles/Thing.svelte	missing
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/custom-element-injected-styles/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/custom-element-slot-in-snippet/Component.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/custom-element-slot-in-snippet/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/custom-element-svelte-class/main.svelte	refused
@@ -9540,7 +9537,7 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/effect-tracking-unowne
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/effect-untrack-teardown/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/effect/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/effects-order/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/element-is-attribute/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/runtime-runes/samples/element-is-attribute/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/error-boundary-17/Child.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/error-boundary-21/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/error-boundary-4/main.svelte	refused
@@ -9967,7 +9964,6 @@ svelte/svelte/packages/svelte/tests/validator/samples/binding-this-input-type-dy
 svelte/svelte/packages/svelte/tests/validator/samples/catch-declares-error-variable/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/component-legacy-instantiation/input.svelte	missing
 svelte/svelte/packages/svelte/tests/validator/samples/component-name-lowercase/input.svelte	missing
-svelte/svelte/packages/svelte/tests/validator/samples/component-slotted-custom-element/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/const-tag-inside-key-block/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/const-tag-placement-svelte-boundary/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/custom-element-props-identifier-props-option/input.svelte	missing
@@ -9998,7 +9994,7 @@ svelte/svelte/packages/svelte/tests/validator/samples/inline-new-class/input.sve
 svelte/svelte/packages/svelte/tests/validator/samples/invalid-node-placement-3/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/invalid-node-placement-5/input.svelte	missing
 svelte/svelte/packages/svelte/tests/validator/samples/invalid-node-placement-template/input.svelte	refused
-svelte/svelte/packages/svelte/tests/validator/samples/invalid-self-closing-tag/input.svelte	refused
+svelte/svelte/packages/svelte/tests/validator/samples/invalid-self-closing-tag/input.svelte	missing
 svelte/svelte/packages/svelte/tests/validator/samples/multiple-var-same-name/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/mutate-derived-private-field/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/no-missing-declarations-for-same-node-let-variable/input.svelte	refused

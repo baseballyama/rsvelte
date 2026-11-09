@@ -64,6 +64,15 @@ fn check_element(
 ) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
+    // Upstream sets a custom element's attributes as properties, which is not lowered.
+    if super::is_custom_element_node(tree, source, el)
+        && let Some(a) = tree
+            .attributes(el.attributes)
+            .iter()
+            .find(|a| super::is_directive(&a.value) || a.name.text(source) != "is")
+    {
+        return unsupported("an attribute on a custom element", a.span);
+    }
     let component = el.kind == ElementKind::Component;
     let in_component = tree.node(identifier).parent.is_some_and(|parent| {
         matches!(&tree.node(parent).kind, NodeKind::Element(owner) if owner.kind.renders_component())
