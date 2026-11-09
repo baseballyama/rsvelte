@@ -342,10 +342,13 @@ impl Targets<'_> {
         let mut out = Vec::new();
         let mut fragments = vec![component.root];
         while let Some(fragment) = fragments.pop() {
-            let Some(&node) = component
-                .children(fragment)
-                .iter()
-                .find(|&&child| contains(component.node(child).span(), offset))
+            // Siblings are in document order and do not overlap.
+            let children = component.children(fragment);
+            let i = children
+                .partition_point(|&child| component.node(child).span().end_offset <= offset);
+            let Some(&node) = children
+                .get(i)
+                .filter(|&&child| contains(component.node(child).span(), offset))
             else {
                 continue;
             };
@@ -397,12 +400,12 @@ impl Targets<'_> {
             .map(|s| s.end_offset)
             .max();
         let mut out = Vec::new();
-        for &child in component.children(fragment).iter().rev() {
+        let children = component.children(fragment);
+        let before =
+            children.partition_point(|&child| component.node(child).span().start_offset < start);
+        for &child in children[..before].iter().rev() {
             let node = component.node(child);
             let span = node.span();
-            if span.start_offset >= start {
-                continue;
-            }
             if raw.is_some_and(|end| span.end_offset <= end) {
                 break;
             }
@@ -427,23 +430,25 @@ impl Targets<'_> {
         let Kind::Program(statements) = javascript.kind(program) else {
             return Vec::new();
         };
-        let mut previous_end = content;
-        for &statement in statements {
-            let Some(span) = javascript.source_location(statement).span() else {
-                continue;
-            };
-            if contains(span, at) {
-                let comments = javascript
-                    .comments
-                    .iter()
-                    .copied()
-                    .filter(|c| c.start_offset >= previous_end && c.end_offset <= span.start_offset)
-                    .collect();
-                return vec![comments];
-            }
-            previous_end = span.end_offset;
-        }
-        Vec::new()
+        let span = |statement| javascript.source_location(statement).span();
+        let i = statements
+            .partition_point(|&statement| span(statement).is_some_and(|s| s.end_offset <= at));
+        let Some(here) = statements
+            .get(i)
+            .and_then(|&s| span(s))
+            .filter(|s| contains(*s, at))
+        else {
+            return Vec::new();
+        };
+        let previous_end = statements[..i]
+            .iter()
+            .rev()
+            .find_map(|&s| span(s))
+            .map_or(content, |s| s.end_offset);
+        let comments = &javascript.comments;
+        let first = comments.partition_point(|c| c.start_offset < previous_end);
+        let last = comments.partition_point(|c| c.end_offset <= here.start_offset);
+        vec![comments[first..last.max(first)].to_vec()]
     }
 }
 

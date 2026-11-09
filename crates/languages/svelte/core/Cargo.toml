@@ -15,6 +15,7 @@ rsvelte_svelte_compiler_syntax_tree.workspace = true
 rsvelte_svelte_semantic.workspace = true
 rsvelte_typescript.workspace = true
 rsvelte_stylesheet.workspace = true
+rustc-hash.workspace = true
 
 [lints]
 workspace = true

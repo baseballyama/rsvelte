@@ -118,3 +118,54 @@ fn codes_separated_by_wide_spaces() {
     );
     assert_eq!(found, []);
 }
+
+/// Seconds to lint `code`. A file of 16000 warnings takes well under one when no per-warning
+/// work scans the whole file, and tens when it does.
+fn seconds(code: String, comment_directive: bool) -> f64 {
+    let mut registry = Registry::new();
+    crate::register_artifacts(&mut registry);
+    let mut configuration = Configuration::new(LintSettings::default());
+    configuration
+        .rule("svelte/valid-compile", Severity::Error, &[], &[])
+        .expect("configures");
+    if comment_directive {
+        configuration
+            .rule("svelte/comment-directive", Severity::Error, &[], &[])
+            .expect("configures");
+    }
+    let document = Document::new("test.svelte".to_owned(), code).expect("small");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    assert!(context.get::<rsvelte_svelte::Warned>().is_some());
+    let started = std::time::Instant::now();
+    crate::lint(&context, &configuration).expect("parses");
+    started.elapsed().as_secs_f64()
+}
+
+const MANY: usize = 16000;
+
+#[test]
+fn many_ignored_warnings_take_linear_time() {
+    let code = "<!-- svelte-ignore a11y_missing_attribute -->\n<img src=\"x\">\n".repeat(MANY);
+    let seconds = seconds(code, false);
+    assert!(seconds < 5.0, "{seconds}");
+}
+
+#[test]
+fn many_line_directives_take_linear_time() {
+    let code =
+        "<!-- eslint-disable-next-line svelte/valid-compile -->\n<img src=\"x\">\n".repeat(MANY);
+    let seconds = seconds(code, true);
+    assert!(seconds < 5.0, "{seconds}");
+}
+
+#[test]
+fn many_ignored_script_warnings_take_linear_time() {
+    let mut lets = String::new();
+    for i in 0..MANY {
+        lets.push_str("// svelte-ignore export_let_unused\nexport let a");
+        lets.push_str(&i.to_string());
+        lets.push_str(";\n");
+    }
+    let seconds = seconds(format!("<script>\n{lets}</script>\n"), false);
+    assert!(seconds < 5.0, "{seconds}");
+}

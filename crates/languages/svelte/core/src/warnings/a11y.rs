@@ -5,6 +5,8 @@
 
 use std::borrow::Cow;
 
+use rustc_hash::FxHashMap;
+
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::names::is_component_name;
@@ -33,7 +35,7 @@ pub(super) enum Parent<'a> {
 /// One element's attributes, the way `check_element` collects them.
 struct Attributes<'a> {
     /// `Attribute`s that are not event handlers, last one of a name winning.
-    map: Vec<(&'a str, &'a Attribute)>,
+    map: FxHashMap<&'a str, &'a Attribute>,
     spread: bool,
     source: &'a str,
     component: &'a Component,
@@ -41,7 +43,7 @@ struct Attributes<'a> {
 
 impl<'a> Attributes<'a> {
     fn new(component: &'a Component, source: &'a str, range: Range) -> Self {
-        let mut map: Vec<(&str, &Attribute)> = Vec::new();
+        let mut map: FxHashMap<&str, &Attribute> = FxHashMap::default();
         let mut spread = false;
         for attribute in component.attributes(range) {
             match attribute.kind {
@@ -51,8 +53,7 @@ impl<'a> Attributes<'a> {
                     if name.starts_with("on") && is_expression(component, attribute) {
                         continue;
                     }
-                    map.retain(|(n, _)| *n != name);
-                    map.push((name, attribute));
+                    map.insert(name, attribute);
                 }
                 _ => {}
             }
@@ -66,7 +67,7 @@ impl<'a> Attributes<'a> {
     }
 
     fn get(&self, name: &str) -> Option<&'a Attribute> {
-        self.map.iter().find(|(n, _)| *n == name).map(|(_, a)| *a)
+        self.map.get(name).copied()
     }
 
     fn has(&self, name: &str) -> bool {

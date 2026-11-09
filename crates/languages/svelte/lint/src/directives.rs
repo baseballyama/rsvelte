@@ -6,6 +6,8 @@ use rsvelte_kernel::source::positions::{LineColumn, LineIndex, Span};
 use rsvelte_lint_runner::finding::Finding;
 use rsvelte_svelte::syntax::syntax_tree::{Component, Script, TemplateNode};
 
+use rustc_hash::{FxHashMap, FxHashSet};
+
 use crate::Pattern;
 use crate::words::{is_js_space, words};
 
@@ -105,7 +107,7 @@ pub(crate) fn apply_javascript(
     lines: &LineIndex,
 ) {
     let mut blocks: Vec<(u32, bool, Vec<&str>)> = Vec::new();
-    let mut disabled_lines: Vec<(u32, Vec<&str>)> = Vec::new();
+    let mut disabled_lines: FxHashMap<u32, Vec<Vec<&str>>> = FxHashMap::default();
     for &comment in comments {
         let text = comment.text(source);
         let (block, value) = text.strip_prefix("/*").map_or_else(
@@ -144,10 +146,13 @@ pub(crate) fn apply_javascript(
                 blocks.push((comment.start_offset, kind == Kind::Disable, rules));
             }
             Kind::DisableLine if start == lines.line_column(comment.end_offset).line => {
-                disabled_lines.push((start, rules));
+                disabled_lines.entry(start).or_default().push(rules);
             }
             Kind::DisableNextLine => {
-                disabled_lines.push((lines.line_column(comment.end_offset).line + 1, rules));
+                disabled_lines
+                    .entry(lines.line_column(comment.end_offset).line + 1)
+                    .or_default()
+                    .push(rules);
             }
             _ => {}
         }
@@ -159,8 +164,8 @@ pub(crate) fn apply_javascript(
     // before them; a rule enabled after `eslint-disable` stays on.
     let mut next = 0;
     let mut all_disabled = false;
-    let mut disabled: Vec<&str> = Vec::new();
-    let mut enabled: Vec<&str> = Vec::new();
+    let mut disabled: FxHashSet<&str> = FxHashSet::default();
+    let mut enabled: FxHashSet<&str> = FxHashSet::default();
     findings.retain(|finding| {
         let at = finding.diagnostic.span.start_offset;
         while let Some((_, disable, rules)) = blocks.get(next).filter(|b| b.0 <= at) {
@@ -176,14 +181,18 @@ pub(crate) fn apply_javascript(
                     disabled.clear();
                 }
                 (true, false) => {
-                    enabled.retain(|r| !rules.contains(r));
-                    disabled.extend(rules);
+                    for rule in rules {
+                        enabled.remove(rule);
+                        disabled.insert(rule);
+                    }
                 }
                 (false, false) => {
-                    if all_disabled {
-                        enabled.extend(rules);
+                    for rule in rules {
+                        if all_disabled {
+                            enabled.insert(rule);
+                        }
+                        disabled.remove(rule);
                     }
-                    disabled.retain(|r| !rules.contains(r));
                 }
             }
         }
@@ -192,9 +201,11 @@ pub(crate) fn apply_javascript(
             return false;
         }
         let line = lines.line_column(at).line;
-        !disabled_lines
-            .iter()
-            .any(|(l, rules)| *l == line && (rules.is_empty() || rules.contains(&rule)))
+        !disabled_lines.get(&line).is_some_and(|directives| {
+            directives
+                .iter()
+                .any(|rules| rules.is_empty() || rules.contains(&rule))
+        })
     });
 }
 
@@ -270,74 +281,121 @@ impl<'a> ProcessorDirectives<'a> {
         lines: &LineIndex,
         unused_rule: Option<&str>,
     ) {
-        let mut used: Vec<u32> = Vec::new();
-        // Latest first; ties keep a named directive before a computed one, as upstream sorts.
+        // Earliest first; ties put a computed directive before a named one, so the named one is
+        // the later, as upstream sorts.
         let mut order: Vec<usize> = (0..self.blocks.len()).collect();
         order.sort_by(|&a, &b| {
             let (x, y) = (&self.blocks[a], &self.blocks[b]);
-            (y.at.line, y.at.column)
-                .cmp(&(x.at.line, x.at.column))
-                .then_with(|| is_rule(x.target).cmp(&is_rule(y.target)).reverse())
+            (x.at.line, x.at.column)
+                .cmp(&(y.at.line, y.at.column))
+                .then_with(|| is_rule(x.target).cmp(&is_rule(y.target)))
+                .then_with(|| b.cmp(&a))
         });
+        let mut used: FxHashSet<u32> = FxHashSet::default();
         if unused_rule.is_some() {
-            // An enable directive is used when a disable directive before it is.
-            let mut pending: Vec<usize> = Vec::new();
-            for &i in &order {
-                let block = &self.blocks[i];
-                match (block.enable, block.target) {
-                    (true, Target::Rule(_)) => pending.push(i),
-                    (true, _) => {
-                        pending.clear();
-                        pending.push(i);
-                    }
-                    (false, Target::Rule(name)) => pending.retain(|&e| {
-                        let hit = match self.blocks[e].target {
-                            Target::Rule(other) => other == name,
-                            _ => true,
-                        };
-                        if hit {
-                            used.push(self.blocks[e].define);
-                        }
-                        !hit
-                    }),
-                    (false, _) => {
-                        used.extend(pending.iter().map(|&e| self.blocks[e].define));
-                        pending.clear();
-                    }
-                }
-            }
+            self.used_enables(&order, &mut used);
         }
-        findings.retain(|finding| {
-            let rule = &*finding.diagnostic.code;
-            let at = lines.line_column(finding.diagnostic.span.start_offset);
-            let on_line = |named: bool| {
-                self.lines.iter().find(|l| {
-                    l.number == at.line && is_rule(l.target) == named && l.target.applies(rule)
-                })
-            };
-            if let Some(line) = on_line(true).or_else(|| on_line(false)) {
-                used.push(line.define);
-                return false;
+        let mut on_line: FxHashMap<u32, Vec<&Line<'_>>> = FxHashMap::default();
+        for line in &self.lines {
+            on_line.entry(line.number).or_default().push(line);
+        }
+        let positions: Vec<LineColumn> = findings
+            .iter()
+            .map(|f| lines.line_column(f.diagnostic.span.start_offset))
+            .collect();
+        let mut by_position: Vec<usize> = (0..findings.len()).collect();
+        by_position.sort_by_key(|&i| (positions[i].line, positions[i].column));
+        // The latest block so far of each target; the latest that applies decides.
+        let mut all: Option<usize> = None;
+        let mut named: FxHashMap<&str, usize> = FxHashMap::default();
+        let mut ignored: Vec<(&[Pattern], usize)> = Vec::new();
+        let mut next = 0;
+        let mut keep = vec![true; findings.len()];
+        for i in by_position {
+            let rule = &*findings[i].diagnostic.code;
+            let at = &positions[i];
+            let line = on_line.get(&at.line).and_then(|directives| {
+                let find = |is_named: bool| {
+                    directives
+                        .iter()
+                        .find(|l| is_rule(l.target) == is_named && l.target.applies(rule))
+                };
+                find(true).or_else(|| find(false))
+            });
+            if let Some(line) = line {
+                used.insert(line.define);
+                keep[i] = false;
+                continue;
             }
             // A finding's column counts from 1 and a directive's from 0, as upstream compares.
             let position = (at.line, at.column + 1);
-            for &i in &order {
-                let block = &self.blocks[i];
-                if position < (block.at.line, block.at.column) || !block.target.applies(rule) {
-                    continue;
+            while let Some(&b) = order.get(next) {
+                let block = &self.blocks[b];
+                if position < (block.at.line, block.at.column) {
+                    break;
                 }
-                if block.enable {
-                    return true;
+                next += 1;
+                match block.target {
+                    Target::All => all = Some(next),
+                    Target::Rule(name) => {
+                        named.insert(name, next);
+                    }
+                    Target::Ignored(patterns) => {
+                        match ignored.iter_mut().find(|(p, _)| std::ptr::eq(*p, patterns)) {
+                            Some(last) => last.1 = next,
+                            None => ignored.push((patterns, next)),
+                        }
+                    }
                 }
-                used.push(block.define);
-                return false;
             }
-            true
-        });
+            let decides = [all, named.get(rule).copied()]
+                .into_iter()
+                .chain(ignored.iter().filter_map(|&(patterns, rank)| {
+                    Target::Ignored(patterns)
+                        .applies(rule)
+                        .then_some(Some(rank))
+                }))
+                .flatten()
+                .max();
+            if let Some(rank) = decides {
+                let block = &self.blocks[order[rank - 1]];
+                if !block.enable {
+                    used.insert(block.define);
+                    keep[i] = false;
+                }
+            }
+        }
+        let mut keep = keep.into_iter();
+        findings.retain(|_| keep.next().expect("one verdict per finding"));
         if let Some(name) = unused_rule {
             findings.retain(|f| {
                 &*f.diagnostic.code != name || !used.contains(&f.diagnostic.span.start_offset)
             });
+        }
+    }
+
+    /// An enable directive is used when a disable directive before it is.
+    fn used_enables(&self, order: &[usize], used: &mut FxHashSet<u32>) {
+        let mut named: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
+        let mut other: Vec<u32> = Vec::new();
+        for &i in order.iter().rev() {
+            let block = &self.blocks[i];
+            match (block.enable, block.target) {
+                (true, Target::Rule(name)) => named.entry(name).or_default().push(block.define),
+                (true, _) => {
+                    named.clear();
+                    other.clear();
+                    other.push(block.define);
+                }
+                (false, Target::Rule(name)) => {
+                    used.extend(named.remove(name).into_iter().flatten());
+                    used.extend(std::mem::take(&mut other));
+                }
+                (false, _) => {
+                    used.extend(named.drain().flat_map(|(_, defines)| defines));
+                    used.extend(std::mem::take(&mut other));
+                }
+            }
         }
     }
 }
