@@ -34,12 +34,14 @@ impl Artifact for StyleSheetVerdict {
             return StyleVerdict::NoStyle;
         };
         let source = context.source_text();
+        // An empty `lang` leaves the default, as `svelte-eslint-parser` reads it.
         let language = style
             .attributes
             .iter()
-            .rev()
             .find_map(|(name, value)| (name.text(source) == "lang").then_some(*value)?)
-            .map_or("css", |value| value.text(source));
+            .map(|value| value.text(source))
+            .filter(|language| !language.is_empty())
+            .unwrap_or("css");
         let dialect = match language {
             "css" | "postcss" => Dialect::Css,
             "scss" => Dialect::Scss,
