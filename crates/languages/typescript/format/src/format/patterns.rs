@@ -4,8 +4,17 @@ use super::{
 };
 
 impl Formatter<'_> {
-    /// A binding target: identifier (with its annotation), pattern, default or rest.
+    /// A binding target: identifier (with its annotation), pattern, default or rest. Every
+    /// nesting cycle through patterns passes here; the parser bounds its depth.
     pub(super) fn pattern(
+        &mut self,
+        identifier: NodeIdentifier,
+        context: PatternContext,
+    ) -> R<LayoutInstructionIdentifier> {
+        rsvelte_kernel::performance::stack::grow(|| self.pattern_kind(identifier, context))
+    }
+
+    fn pattern_kind(
         &mut self,
         identifier: NodeIdentifier,
         context: PatternContext,

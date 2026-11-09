@@ -65,10 +65,15 @@ impl Formatter<'_> {
             .collect()
     }
 
+    /// Every nesting cycle through statements passes here; the parser bounds its depth.
     pub(super) fn statement(
         &mut self,
         identifier: NodeIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
+        rsvelte_kernel::performance::stack::grow(|| self.statement_kind(identifier))
+    }
+
+    fn statement_kind(&mut self, identifier: NodeIdentifier) -> R<LayoutInstructionIdentifier> {
         match self.syntax_tree.kind(identifier) {
             Kind::VariableDeclaration { kind, declarations } => {
                 self.var_declaration(kind, declarations)

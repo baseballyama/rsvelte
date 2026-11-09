@@ -71,19 +71,28 @@ fn long_chains_and_deep_blocks_format_without_recursing_per_level() {
             Some(expected.as_str())
         );
     }
-    let source = format!("{}x;{}", "{".repeat(DEPTH), "}".repeat(DEPTH));
-    let mut expected = String::new();
-    for level in 0..DEPTH {
-        expected.push_str(&"  ".repeat(level));
-        expected.push_str("{\n");
+    for (open, printed) in [("{", "{"), ("function f(){", "function f() {")] {
+        let source = format!("{}x;{}", open.repeat(DEPTH), "}".repeat(DEPTH));
+        let mut expected = String::new();
+        for level in 0..DEPTH {
+            expected.push_str(&"  ".repeat(level));
+            expected.push_str(printed);
+            expected.push('\n');
+        }
+        expected.push_str(&"  ".repeat(DEPTH));
+        expected.push_str("x;\n");
+        for level in (0..DEPTH).rev() {
+            expected.push_str(&"  ".repeat(level));
+            expected.push_str("}\n");
+        }
+        assert_eq!(format_on_small_stack(&source), Some(expected), "{open}");
     }
-    expected.push_str(&"  ".repeat(DEPTH));
-    expected.push_str("x;\n");
-    for level in (0..DEPTH).rev() {
-        expected.push_str(&"  ".repeat(level));
-        expected.push_str("}\n");
+    for flat in [
+        format!("x = {}{};", "[".repeat(DEPTH), "]".repeat(DEPTH)),
+        format!("let {}x{} = y;", "[".repeat(DEPTH), "]".repeat(DEPTH)),
+    ] {
+        assert_eq!(format_on_small_stack(&flat), Some(format!("{flat}\n")));
     }
-    assert_eq!(format_on_small_stack(&source), Some(expected));
 }
 
 #[test]
