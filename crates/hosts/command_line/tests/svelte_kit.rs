@@ -218,3 +218,23 @@ fn an_empty_link_is_not_checked() {
         [""; 0]
     );
 }
+
+/// `goto` reaches a call through a variable it is assigned to after the declaration.
+#[test]
+fn a_navigation_assigned_to_a_variable_is_followed() {
+    let project = Project::new(&[
+        ("package.json", KIT_2),
+        (
+            "src/lib/Go.svelte",
+            "<script>import { goto } from '$app/navigation'; let h; h = goto; h('/y');</script>",
+        ),
+    ]);
+    assert_eq!(
+        project.rules(".", "src/lib/Go.svelte", NAVIGATION_RULES),
+        [
+            "svelte/no-goto-without-base",
+            "svelte/no-navigation-without-base",
+            "svelte/no-navigation-without-resolve"
+        ]
+    );
+}
