@@ -3,6 +3,7 @@ use rsvelte_kernel::source::tokens::TokenIdentifier;
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte::semantic::legacy::{Variable, is_top_level, reactive_body};
+use rsvelte_svelte::semantic::resolve::RUNE_ROOTS;
 use rsvelte_svelte::syntax::syntax_tree::{Component, TokenType};
 use rsvelte_typescript::scope::BindingIdentifier;
 use rsvelte_typescript::semantic::globals::global;
@@ -11,7 +12,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::javascript::span;
 use super::legacy_reactivity::{legacy, property_name};
-use super::runes_mode::{RUNE_SYMBOLS, runes_mode};
+use super::runes::runes_mode;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -83,7 +84,7 @@ fn store_object(javascript: &SyntaxTree, node: NodeIdentifier, runes: bool) -> O
     };
     let name = javascript.atoms.get(javascript.atom(object)?);
     let rest = name.strip_prefix('$')?;
-    if rest.is_empty() || rest.starts_with('$') || (runes && RUNE_SYMBOLS.contains(&name)) {
+    if rest.is_empty() || rest.starts_with('$') || (runes && RUNE_ROOTS.contains(&name)) {
         return None;
     }
     Some(name)

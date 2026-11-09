@@ -91,7 +91,6 @@ mod require_store_callbacks_use_set_param;
 mod require_store_reactive_access;
 mod require_stores_init;
 mod runes;
-mod runes_mode;
 mod shorthand_attribute;
 mod shorthand_directive;
 mod sort_attributes;

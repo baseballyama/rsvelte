@@ -1,7 +1,7 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript::lexer::T;
 
-use super::runes_mode::runes;
+use super::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {

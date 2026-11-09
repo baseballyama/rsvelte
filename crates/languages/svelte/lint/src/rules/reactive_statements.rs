@@ -7,7 +7,7 @@ use rsvelte_svelte::semantic::legacy::reactive_body;
 use rsvelte_svelte::syntax::syntax_tree::{Component, TokenType};
 use rsvelte_typescript::{Kind, NodeIdentifier};
 
-use super::runes_mode::runes_mode;
+use super::runes::runes_mode;
 
 /// The scripts' programs, the module script's first.
 pub(super) fn programs(component: &Component) -> impl Iterator<Item = NodeIdentifier> + '_ {
