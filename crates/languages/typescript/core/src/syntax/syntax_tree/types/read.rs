@@ -1,7 +1,61 @@
 //! Reading [`Type`] nodes back from the columns.
 
-use super::{COMPUTED, KINDS, OPTIONAL, Signature, TAGS, Type, TypeTag, opt};
+use super::{COMPUTED, OPTIONAL, Signature, SignatureKind, Type, TypeTag, opt};
 use crate::syntax_tree::{NodeIdentifier, SyntaxTree};
+
+/// Each [`TypeTag`] by the number it is stored as.
+const TAGS: [TypeTag; 39] = [
+    TypeTag::Leaf,
+    TypeTag::Reference,
+    TypeTag::Qualified,
+    TypeTag::Arguments,
+    TypeTag::Parameters,
+    TypeTag::Parameter,
+    TypeTag::Signature,
+    TypeTag::Union,
+    TypeTag::Intersection,
+    TypeTag::Array,
+    TypeTag::Optional,
+    TypeTag::Rest,
+    TypeTag::NonNull,
+    TypeTag::Named,
+    TypeTag::NamedOptional,
+    TypeTag::Tuple,
+    TypeTag::Indexed,
+    TypeTag::Conditional,
+    TypeTag::Infer,
+    TypeTag::Operator,
+    TypeTag::Query,
+    TypeTag::Import,
+    TypeTag::TemplateLiteral,
+    TypeTag::Object,
+    TypeTag::Mapped,
+    TypeTag::Predicate,
+    TypeTag::AssertsPredicate,
+    TypeTag::Property,
+    TypeTag::Index,
+    TypeTag::Heritage,
+    TypeTag::Alias,
+    TypeTag::Interface,
+    TypeTag::Enum,
+    TypeTag::EnumMember,
+    TypeTag::Module,
+    TypeTag::ImportEquals,
+    TypeTag::External,
+    TypeTag::ExportAssignment,
+    TypeTag::NamespaceExport,
+];
+
+/// Each [`SignatureKind`] by the number it is stored as.
+const KINDS: [SignatureKind; 7] = [
+    SignatureKind::Function,
+    SignatureKind::Constructor,
+    SignatureKind::Call,
+    SignatureKind::Construct,
+    SignatureKind::Method,
+    SignatureKind::Getter,
+    SignatureKind::Setter,
+];
 
 impl SyntaxTree {
     #[expect(clippy::too_many_lines, reason = "one arm per type syntax")]

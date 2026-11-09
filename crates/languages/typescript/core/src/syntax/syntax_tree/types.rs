@@ -223,58 +223,6 @@ enum TypeTag {
     NamespaceExport,
 }
 
-const TAGS: [TypeTag; 39] = [
-    TypeTag::Leaf,
-    TypeTag::Reference,
-    TypeTag::Qualified,
-    TypeTag::Arguments,
-    TypeTag::Parameters,
-    TypeTag::Parameter,
-    TypeTag::Signature,
-    TypeTag::Union,
-    TypeTag::Intersection,
-    TypeTag::Array,
-    TypeTag::Optional,
-    TypeTag::Rest,
-    TypeTag::NonNull,
-    TypeTag::Named,
-    TypeTag::NamedOptional,
-    TypeTag::Tuple,
-    TypeTag::Indexed,
-    TypeTag::Conditional,
-    TypeTag::Infer,
-    TypeTag::Operator,
-    TypeTag::Query,
-    TypeTag::Import,
-    TypeTag::TemplateLiteral,
-    TypeTag::Object,
-    TypeTag::Mapped,
-    TypeTag::Predicate,
-    TypeTag::AssertsPredicate,
-    TypeTag::Property,
-    TypeTag::Index,
-    TypeTag::Heritage,
-    TypeTag::Alias,
-    TypeTag::Interface,
-    TypeTag::Enum,
-    TypeTag::EnumMember,
-    TypeTag::Module,
-    TypeTag::ImportEquals,
-    TypeTag::External,
-    TypeTag::ExportAssignment,
-    TypeTag::NamespaceExport,
-];
-
-const KINDS: [SignatureKind; 7] = [
-    SignatureKind::Function,
-    SignatureKind::Constructor,
-    SignatureKind::Call,
-    SignatureKind::Construct,
-    SignatureKind::Method,
-    SignatureKind::Getter,
-    SignatureKind::Setter,
-];
-
 /// Bits of a [`Type::Property`] or a [`Signature`], above a signature's kind.
 const COMPUTED: u32 = 0x100;
 const OPTIONAL: u32 = 0x200;
