@@ -14,6 +14,8 @@ pub mod syntax {
 }
 pub use syntax::{parser, postcss, syntax_tree};
 
+pub mod properties;
+
 pub mod semantic {
     pub mod matcher;
 }
