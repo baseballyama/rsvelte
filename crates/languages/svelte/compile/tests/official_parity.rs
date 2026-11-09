@@ -35,6 +35,33 @@ fn squashed(source: &str, target: Target) -> String {
 }
 
 #[test]
+fn an_await_while_rendering_needs_async_mode() {
+    for (source, error) in [
+        (
+            "<script>let a = await Promise.resolve(1);</script>{a}",
+            true,
+        ),
+        ("<script>let a = 1;</script>{await a}", true),
+        // Upstream prints this `for await` into the component function, which is not async.
+        ("<script>for await (const a of []) {}</script>", true),
+        (
+            "<script>async function f() { for await (const a of []) {} }</script>",
+            false,
+        ),
+        ("<script>async function f() { await 1; }</script>", false),
+        ("<script module>await Promise.resolve();</script>", false),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(
+                compile(source, target).err().as_deref() == Some("experimental_async"),
+                error,
+                "{source} on {target:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_byte_order_mark_is_no_text() {
     assert!(squashed("\u{feff}<p>a</p>", Target::Server).contains("`<p>a</p>`"));
 }

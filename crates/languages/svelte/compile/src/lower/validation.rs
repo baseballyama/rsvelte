@@ -1,6 +1,6 @@
 use rsvelte_svelte_semantic::resolve::RUNES;
 use rsvelte_typescript_semantic::scope::{DeclarationKind, ScopeIdentifier};
-use rsvelte_typescript_syntax::syntax_tree::{TypeScriptFeature, TypeScriptRuntime};
+use rsvelte_typescript_syntax::syntax_tree::{Control, TypeScriptFeature, TypeScriptRuntime};
 
 use super::{
     CompileInput, Diagnostic, Kind, NodeIdentifier, Resolution, Span, SyntaxTree, Target,
@@ -211,28 +211,53 @@ pub(super) fn check_runes(
     target: Target,
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
+    /// Where an expression sits.
+    #[derive(Clone, Copy)]
+    struct Place {
+        statement: bool,
+        in_class: bool,
+        /// Upstream evaluates it when the component renders: the instance's top level or a
+        /// template expression, outside any function.
+        rendering: bool,
+    }
     fn walk(
         javascript: &SyntaxTree,
         res: &Resolution,
         target: Target,
         custom_element: bool,
         e: NodeIdentifier,
-        statement: bool,
-        in_class: bool,
+        place: Place,
     ) -> Result<(), Diagnostic> {
+        // A `for await` suspends rendering as an `await` does; upstream prints it into a
+        // function that is not async.
+        if place.rendering
+            && matches!(
+                javascript.kind(e),
+                Kind::Await(_) | Kind::Control(Control::ForEach { is_await: true, .. })
+            )
+        {
+            let Some(span) = javascript.source_location(e).span() else {
+                unreachable!("an await is parsed from source")
+            };
+            return super::special::invalid(
+                "experimental_async",
+                "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`",
+                span,
+            );
+        }
         if let Some(rune) = get_rune(javascript, res, e) {
             let supported = match rune.as_str() {
-                "$state" | "$state.raw" | "$derived" | "$derived.by" => !in_class,
+                "$state" | "$state.raw" | "$derived" | "$derived.by" => !place.in_class,
                 "$props" | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
                 "$host" => custom_element,
-                "$effect" | "$effect.pre" => statement || target == Target::Client,
+                "$effect" | "$effect.pre" => place.statement || target == Target::Client,
                 _ => false,
             };
             if !supported {
                 let Some(span) = javascript.source_location(e).span() else {
                     unreachable!("a rune call is parsed from source")
                 };
-                return if in_class {
+                return if place.in_class {
                     unsupported(&format!("`{rune}` in a class body"), span)
                 } else {
                     unsupported(&format!("`{rune}`"), span)
@@ -244,51 +269,45 @@ pub(super) fn check_runes(
         }
         let mut children = Vec::new();
         javascript.for_each_child(e, |c| children.push(c));
-        let statement = matches!(javascript.kind(e), Kind::ExpressionStatement(_));
-        let in_class = in_class
-            || matches!(
-                javascript.kind(e),
-                Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition { .. })
-            );
+        let place = Place {
+            statement: matches!(javascript.kind(e), Kind::ExpressionStatement(_)),
+            in_class: place.in_class
+                || matches!(
+                    javascript.kind(e),
+                    Kind::Class(rsvelte_typescript_syntax::syntax_tree::Class::Definition { .. })
+                ),
+            rendering: place.rendering
+                && !matches!(
+                    javascript.kind(e),
+                    Kind::Function { .. } | Kind::Arrow { .. } | Kind::Class(_)
+                ),
+        };
         for c in children {
-            walk(
-                javascript,
-                res,
-                target,
-                custom_element,
-                c,
-                statement,
-                in_class,
-            )?;
+            walk(javascript, res, target, custom_element, c, place)?;
         }
         Ok(())
     }
-    for program in input
+    let javascript = input.component.javascript;
+    let roots = input
         .component
         .module
+        .map(|module| (module, false))
         .into_iter()
-        .chain([input.component.program])
-    {
-        walk(
-            input.component.javascript,
-            res,
-            target,
-            custom_element,
-            program,
-            false,
-            false,
-        )?;
-    }
-    for &e in input.component.template_expressions {
-        walk(
-            input.component.javascript,
-            res,
-            target,
-            custom_element,
-            e,
-            false,
-            false,
-        )?;
+        .chain([(input.component.program, true)])
+        .chain(
+            input
+                .component
+                .template_expressions
+                .iter()
+                .map(|&e| (e, true)),
+        );
+    for (root, rendering) in roots {
+        let place = Place {
+            statement: false,
+            in_class: false,
+            rendering,
+        };
+        walk(javascript, res, target, custom_element, root, place)?;
     }
     Ok(())
 }
