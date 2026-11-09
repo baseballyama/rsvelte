@@ -1,0 +1,12 @@
+- message: Use `{const ...}` declaration tag instead of legacy `{@const ...}`.
+  line: 6
+  column: 2
+  suggestions: null
+- message: Use `{const ...}` declaration tag instead of legacy `{@const ...}`.
+  line: 7
+  column: 2
+  suggestions: null
+- message: Use `{const ...}` declaration tag instead of legacy `{@const ...}`.
+  line: 8
+  column: 2
+  suggestions: null
