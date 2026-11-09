@@ -6,7 +6,26 @@ use crate::semantic::number::number;
 
 use super::conversions::{join, to_integer, to_number, to_string, to_uint32};
 use super::operators::{power, same_value_zero, strict_equals};
-use super::{Global, MAX_BUILT_LENGTH, OBJECT_PROTOTYPE, Value};
+use super::{Global, Value};
+
+/// Names every object inherits, whose values (functions) this module cannot hold.
+const OBJECT_PROTOTYPE: [&str; 12] = [
+    "__defineGetter__",
+    "__defineSetter__",
+    "__lookupGetter__",
+    "__lookupSetter__",
+    "__proto__",
+    "constructor",
+    "hasOwnProperty",
+    "isPrototypeOf",
+    "propertyIsEnumerable",
+    "toLocaleString",
+    "toString",
+    "valueOf",
+];
+
+/// Longest string a method may build, so a constant like `"".padEnd(1e9)` stays cheap.
+const MAX_BUILT_LENGTH: f64 = 1_048_576.0;
 
 /// Reads `key` of `object`.
 pub(super) fn member(object: &Value, key: &str) -> Option<Value> {

@@ -97,25 +97,6 @@ const MUTATING_METHODS: [&str; 9] = [
     "unshift",
 ];
 
-/// Names every object inherits, whose values (functions) this module cannot hold.
-const OBJECT_PROTOTYPE: [&str; 12] = [
-    "__defineGetter__",
-    "__defineSetter__",
-    "__lookupGetter__",
-    "__lookupSetter__",
-    "__proto__",
-    "constructor",
-    "hasOwnProperty",
-    "isPrototypeOf",
-    "propertyIsEnumerable",
-    "toLocaleString",
-    "toString",
-    "valueOf",
-];
-
-/// Longest string a method may build, so a constant like `"".padEnd(1e9)` stays cheap.
-const MAX_BUILT_LENGTH: f64 = 1_048_576.0;
-
 impl<'a> StaticValues<'a> {
     #[must_use]
     pub fn new(
