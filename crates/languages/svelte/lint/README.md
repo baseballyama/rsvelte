@@ -37,6 +37,17 @@ rsvelte's CSS parser, so they say nothing on a sheet that `PostCSS` accepts and 
 rejects. No corpus component has such a sheet: 0 of the 2,190 whose `<style>` has the language
 `css` or `scss`, and none the other way. The same count reports a hand-made sheet with `.a-#{$b}`.
 
+Not supported: `<style>` that needs a CSS language other than plain CSS. For `scss`, `sass`,
+`less` or `stylus`, `svelte/valid-compile` and `svelte/no-unused-svelte-ignore` compile the
+component without that `<style>`. The upstream plugin does the same when the package is
+missing. The two rules miss compiler warnings inside such a sheet. Upstream loads the
+package from the user's project, and rsvelte never starts Node. The upstream cases that need it
+wait in `tests/upstream_preprocessor.json` with their reasons. In the corpus, 213 of the 2,232
+components with a `<style>` use `scss`, `sass` or `less`.
+
+A later version could take a configured function, as `cssHash` does. It would read the language,
+filename and content and return the code with its source map. `svelte.compile` would use it too.
+
 ## Types
 
 A type-aware rule reads `File::condition_types`: one condition type per JS/TS node
