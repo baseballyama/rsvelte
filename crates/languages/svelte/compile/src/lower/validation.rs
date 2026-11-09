@@ -338,32 +338,20 @@ pub(super) fn check_runes(
         props_id: false,
         refused: None,
     };
-    let module = input
-        .component
-        .module
-        .map(|module| (module, Parent::Other, true, false));
-    let template =
-        (input.component.template_expressions.iter()).map(|&e| (e, Parent::Other, false, true));
+    let module = (input.component.module).map(|module| (module, true, false));
+    let template = (input.component.template_expressions.iter()).map(|&e| (e, false, true));
     let roots = module
         .into_iter()
-        .chain([(input.component.program, Parent::InstanceBody, false, true)])
+        .chain([(input.component.program, false, true)])
         .chain(template);
-    for (root, parent, module, rendering) in roots {
+    for (root, module, rendering) in roots {
         let place = Place {
             parent: Parent::Other,
             in_class: false,
             module,
             rendering,
         };
-        if parent == Parent::InstanceBody {
-            let mut statements = Vec::new();
-            walk.javascript.for_each_child(root, |c| statements.push(c));
-            for statement in statements {
-                walk.walk(statement, Place { parent, ..place })?;
-            }
-        } else {
-            walk.walk(root, place)?;
-        }
+        walk.walk(root, place)?;
     }
     walk.refused.map_or(Ok(()), Err)
 }
@@ -416,16 +404,18 @@ impl RuneWalk<'_> {
                 ),
         };
         for c in children {
-            let parent = self.parent_of(e, c, place.parent);
+            let parent = self.parent_of(e, c, place);
             self.walk(c, Place { parent, ..inner })?;
         }
         Ok(())
     }
 
     /// Where `child`, a child of `e`, sits, given where `e` sits.
-    fn parent_of(&self, e: NodeIdentifier, child: NodeIdentifier, parent: Parent) -> Parent {
+    fn parent_of(&self, e: NodeIdentifier, child: NodeIdentifier, place: Place) -> Parent {
         let javascript = self.javascript;
+        let parent = place.parent;
         match (javascript.kind(e), parent) {
+            (Kind::Program(_), _) if !place.module => Parent::InstanceBody,
             (Kind::VariableDeclaration { .. }, Parent::InstanceBody) => Parent::TopDeclarator,
             // Upstream asks for the instance scope, which an `export` does not leave.
             (Kind::ExportNamed(_), Parent::InstanceBody) => Parent::InstanceBody,
