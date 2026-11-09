@@ -211,16 +211,10 @@ impl LineIndex {
     /// replaced by a nearby one that does.
     #[must_use]
     pub fn offset(&self, line: u32, column: u32) -> Option<u32> {
-        let l = line.checked_sub(1)? as usize;
-        let start = *self.line_starts.get(l)?;
-        // The line ends at its newline, or at the end of the text.
-        let end = self.line_starts.get(l + 1).map_or(self.len, |&next| {
-            let terminator = self
-                .long_breaks
-                .binary_search_by_key(&(l as u32), |&(line, _)| line)
-                .map_or(1, |i| self.long_breaks[i].1);
-            next - terminator
-        });
+        let Span {
+            start_offset: start,
+            end_offset: end,
+        } = self.line_span(line)?;
         let target = self.utf16(start).checked_add(column)?;
         let i = self.wide.partition_point(|w| w.utf16_end() <= target);
         if self.wide.get(i).is_some_and(|w| w.utf16 < target) {
@@ -237,6 +231,21 @@ impl LineIndex {
     pub fn line(&self, byte: u32) -> u32 {
         let byte = byte.min(self.len);
         self.line_starts.partition_point(|&s| s <= byte) as u32
+    }
+
+    /// The bytes of a 1-based line, without its terminator; `None` past the last line.
+    #[must_use]
+    pub fn line_span(&self, line: u32) -> Option<Span> {
+        let l = line.checked_sub(1)? as usize;
+        let start = *self.line_starts.get(l)?;
+        let end = self.line_starts.get(l + 1).map_or(self.len, |&next| {
+            let terminator = self
+                .long_breaks
+                .binary_search_by_key(&(l as u32), |&(line, _)| line)
+                .map_or(1, |i| self.long_breaks[i].1);
+            next - terminator
+        });
+        Some(Span::new(start, end))
     }
 
     #[must_use]

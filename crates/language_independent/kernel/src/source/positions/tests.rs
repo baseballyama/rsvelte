@@ -110,3 +110,17 @@ fn ecmascript_lines_also_end_at_a_lone_cr_and_the_unicode_separators() {
         assert_eq!(ecmascript.offset(line, 2), None, "{ch}");
     }
 }
+
+#[test]
+fn a_line_span_leaves_out_the_terminator() {
+    let source_text = "ab\r\nc\u{2028}\nd";
+    let ecmascript = LineIndex::with_breaks(source_text, LineBreaks::Ecmascript);
+    let lines: Vec<&str> = (1..=ecmascript.line_count() as u32)
+        .map(|line| ecmascript.line_span(line).unwrap().text(source_text))
+        .collect();
+    assert_eq!(lines, ["ab", "c", "", "d"]);
+    assert_eq!(ecmascript.line_span(0), None);
+    assert_eq!(ecmascript.line_span(5), None);
+    let newline = LineIndex::new(source_text);
+    assert_eq!(newline.line_span(2).unwrap().text(source_text), "c\u{2028}");
+}
