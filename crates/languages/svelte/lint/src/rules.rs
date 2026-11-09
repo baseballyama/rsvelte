@@ -5,6 +5,7 @@ mod kit_route;
 mod no_export_load_in_svelte_module_in_kit_pages;
 mod no_unused_variables;
 mod valid_each_key;
+mod valid_prop_names_in_kit_pages;
 
 /// Every built-in rule.
 pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
@@ -12,4 +13,5 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &button_has_type::RULE,
     &no_export_load_in_svelte_module_in_kit_pages::RULE,
     &valid_each_key::RULE,
+    &valid_prop_names_in_kit_pages::RULE,
 ];
