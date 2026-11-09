@@ -50,6 +50,21 @@ So `let o: $state;` leaves runes mode off, while each of these turns it on:
 - `type T = $state;`
 - `interface I { a: $state }`
 
-A name in a type names no rune. This crate leaves runes mode off for all six.
+A name in a type names no rune. This crate leaves runes mode off for all three, and for the three
+that upstream already skips.
 Test: `runes_mode::tests::a_rune_named_in_a_type_does_not`. The agreeing half is the own cases
 `no-at-const-tags/valid/rune-names-in-types` and `no-inspect/valid/rune-name-in-a-type`.
+
+## svelte/no-not-function-handler: a destructured name is taken for its whole initializer
+
+`findRootExpression` follows `const { h } = { h: 1 }` to `{ h: 1 }` and reports "Unexpected
+object in event handler." for `onclick={h}`. `const [h] = [1]` gets "array". Here `h` is 1. This
+crate does not follow a destructured name, and reports nothing.
+Test: `no_not_function_handler::tests::a_destructured_name_is_not_its_initializer`.
+
+## svelte/no-not-function-handler: a `{@const}` is not followed
+
+`{#if 1}{@const h = 1}<button onclick={h}></button>{/if}` gets no report, because the variable's
+definition is not a script `const`. A `{@const}` is just as constant, so this crate follows it and
+reports "Unexpected number value in event handler.".
+Test: `no_not_function_handler::tests::a_const_tag_is_followed`.

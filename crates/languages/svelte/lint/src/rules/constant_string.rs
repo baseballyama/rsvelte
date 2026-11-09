@@ -28,6 +28,10 @@ pub(super) fn root<'s>(
         let Some(binding) = semantic.binding_of(expression) else {
             break;
         };
+        // A type of the same name makes it one name with two definitions.
+        if semantic.shares_name_with_type(binding) {
+            break;
+        }
         let binding = &semantic.bindings[binding];
         if binding.kind != DeclarationKind::Const {
             break;
