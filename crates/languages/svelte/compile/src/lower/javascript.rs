@@ -54,7 +54,13 @@ pub(crate) fn unthunk(out: &SyntaxTree, arrow: NodeIdentifier) -> NodeIdentifier
     else {
         return arrow;
     };
-    let same = out.is_identifier(callee)
+    // Upstream names a runtime function `$.name` as one identifier.
+    let runtime = matches!(
+        out.kind(callee),
+        Kind::Member { object, computed: false, optional: false, .. }
+            if out.is_identifier(object) && out.name(object) == "$"
+    );
+    let same = (out.is_identifier(callee) || runtime)
         && parameters.len() == arguments.len()
         && parameters.iter().zip(arguments).all(|(&p, &a)| {
             out.is_identifier(p) && out.is_identifier(a) && out.name(p) == out.name(a)

@@ -1,4 +1,4 @@
-# svelte.compile/server: 2966 match
+# svelte.compile/server: 2967 match
 svelte/animotion/src/lib/components/action.svelte	refused
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -14898,7 +14898,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/readonly-state/main.sv
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/reassigned-store-not-state/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/rest-props-excludes-properties/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/rich-option-component/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/runes-from-func/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/runes-in-module-context/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/select-function-binding-derived/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/set-context-after-await/main.svelte	refused

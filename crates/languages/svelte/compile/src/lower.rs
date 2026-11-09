@@ -7,6 +7,7 @@
 mod client;
 mod coverage;
 mod custom_element;
+mod derived;
 mod javascript;
 mod names;
 mod prepare;

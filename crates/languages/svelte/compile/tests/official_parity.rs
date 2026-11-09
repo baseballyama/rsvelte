@@ -35,6 +35,24 @@ fn squashed(source: &str, target: Target) -> String {
 }
 
 #[test]
+fn a_derived_keeps_its_arrow_only_when_the_callee_may_change() {
+    let source = "<script>const g = () => 1; let f = () => 1; function swap() { f = () => 2; } let d = $derived(g()); let e = $derived(f()); let l = $derived(h()); const h = () => 3;</script>{d}{e}{l}<button onclick={swap}>s</button>";
+    for target in [Target::Client, Target::Server] {
+        let output = squashed(source, target);
+        for expected in [
+            "letd=$.derived(g);",
+            "lete=$.derived(()=>f());",
+            "letl=$.derived(()=>h());",
+        ] {
+            assert!(
+                output.contains(expected),
+                "{expected} on {target:?} in {output}"
+            );
+        }
+    }
+}
+
+#[test]
 fn an_await_while_rendering_needs_async_mode() {
     for (source, error) in [
         (

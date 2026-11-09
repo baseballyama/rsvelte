@@ -1,6 +1,8 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_typescript_syntax::operators::UnaryOperator;
 
+use super::super::derived::callback;
+
 use super::{
     Kind, NodeIdentifier, ScriptRewrite, SyntaxTree, Target, copy, rune_call, should_proxy,
     unsupported,
@@ -91,13 +93,10 @@ pub(super) fn lower_value_declarator(
         "$derived" | "$derived.by" => {
             let v = value(to, rw);
             let f = if rune == "$derived" {
-                to.arrow(
-                    &[],
-                    v,
-                    true,
-                    false,
-                    rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                )
+                let Some(at) = from.source_location(d).span() else {
+                    unreachable!("a declarator is parsed from source")
+                };
+                callback(from, rw.res, to, arg, v, at)
             } else {
                 v
             };
