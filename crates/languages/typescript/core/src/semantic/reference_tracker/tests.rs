@@ -1,9 +1,12 @@
 //! The expected uses are what eslint-utils 4.10.1's `ReferenceTracker` yields for the same code
-//! (`CALL` for each name, `globals.browser` and `globals.es2021` declared).
+//! (`READ` and `CALL` for each name, `globals.browser` and `globals.es2021` declared).
 
 use rsvelte_kernel::source::positions::Span;
 
-use super::{TrackedReference, global_references, import_references};
+use super::{
+    TrackedReference, global_references, global_references_matching, import_references,
+    property_references,
+};
 use crate::semantic::scope::Semantic;
 use crate::{NodeIdentifier, SyntaxTree, parser, scope};
 
@@ -87,7 +90,12 @@ fn aliases_are_followed_and_cycles_end() {
                   let x = y; let y = x;";
     assert_eq!(
         store(source, &["writable", "derived"]),
-        ["writable@writable", "writable@a()", "derived@d()"]
+        [
+            "writable@writable",
+            "writable@a()",
+            "derived@derived: d",
+            "derived@d()"
+        ]
     );
 }
 
@@ -159,7 +167,11 @@ fn globals_are_followed_through_global_objects() {
     );
     assert_eq!(
         globals("const w = window; w.setTimeout(f); const { setTimeout: s } = globalThis; s(f);"),
-        ["setTimeout@w.setTimeout(f)", "setTimeout@s(f)"]
+        [
+            "setTimeout@w.setTimeout(f)",
+            "setTimeout@setTimeout: s",
+            "setTimeout@s(f)"
+        ]
     );
 }
 
@@ -179,5 +191,120 @@ fn assigned_undeclared_and_shadowed_globals_are_not_followed() {
     assert_eq!(
         globals("function g(setTimeout) { setTimeout(f); } window.window.setTimeout(f);"),
         Vec::<String>::new()
+    );
+}
+
+#[test]
+fn an_alias_reports_what_is_done_with_it_not_itself() {
+    // eslint-utils reports `t()` but not the read `t`, while each read of the global counts.
+    assert_eq!(
+        globals("const t = setTimeout; t; t(); setTimeout;"),
+        [
+            "setTimeout@setTimeout",
+            "setTimeout@t()",
+            "setTimeout@setTimeout"
+        ]
+    );
+}
+
+#[test]
+fn globals_can_be_matched_by_a_predicate_with_other_global_objects() {
+    let source = "window.location; globalThis.location; location; window.window.location;";
+    let found = uses(source, |tree, sem, parents, _| {
+        let found = global_references_matching(
+            tree,
+            sem,
+            parents,
+            source,
+            |name| matches!(name, "location" | "window"),
+            &["globalThis"],
+        );
+        // The names borrow from the tree; the test's signature asks for static ones.
+        found
+            .into_iter()
+            .map(|r| TrackedReference {
+                name: if r.name == "window" {
+                    "window"
+                } else {
+                    "location"
+                },
+                ..r
+            })
+            .collect()
+    });
+    assert_eq!(
+        found,
+        [
+            "window@window",
+            "location@globalThis.location",
+            "location@location",
+            "window@window"
+        ]
+    );
+}
+
+#[test]
+fn members_of_a_value_are_followed_through_aliases_and_patterns() {
+    let source = "const m = new Map(); m.set(1); const { delete: d } = m; d(); const n = m; \
+                  n.clear(); m.get(1);";
+    let found = uses(source, |tree, sem, parents, program| {
+        let crate::Kind::Program(statements) = tree.kind(program) else {
+            unreachable!()
+        };
+        let crate::Kind::VariableDeclaration { declarations, .. } = tree.kind(statements[0]) else {
+            unreachable!()
+        };
+        let crate::Kind::Declarator {
+            initializer: Some(map),
+            ..
+        } = tree.kind(declarations[0])
+        else {
+            unreachable!()
+        };
+        property_references(
+            tree,
+            sem,
+            parents,
+            source,
+            map,
+            &[],
+            &["set", "delete", "clear", "get"],
+        )
+    });
+    assert_eq!(
+        found,
+        [
+            "set@m.set(1)",
+            "delete@delete: d",
+            "delete@d()",
+            "clear@n.clear()",
+            "get@m.get(1)"
+        ]
+    );
+}
+
+#[test]
+fn members_on_a_path_are_followed_through_each_step() {
+    let source = "const m = import.meta; m.env.SSR; const { env } = m; env.SSR; \
+                  const { SSR } = env; const e = m.env; e[\"SSR\"]; m.SSR; m.env.other;";
+    let found = uses(source, |tree, sem, parents, program| {
+        let crate::Kind::Program(statements) = tree.kind(program) else {
+            unreachable!()
+        };
+        let crate::Kind::VariableDeclaration { declarations, .. } = tree.kind(statements[0]) else {
+            unreachable!()
+        };
+        let crate::Kind::Declarator {
+            initializer: Some(meta),
+            ..
+        } = tree.kind(declarations[0])
+        else {
+            unreachable!()
+        };
+        property_references(tree, sem, parents, source, meta, &["env"], &["SSR"])
+    });
+    assert_eq!(
+        found,
+        ["SSR@m.env.SSR", "SSR@env.SSR", "SSR@SSR", "SSR@e[\"SSR\"]"]
     );
 }
