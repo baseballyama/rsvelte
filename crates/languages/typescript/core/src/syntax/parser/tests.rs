@@ -1,7 +1,7 @@
 use rsvelte_kernel::source::positions::Span;
 
 use super::parse_program;
-use crate::syntax_tree::{SyntaxTree, TypeScriptKind};
+use crate::syntax_tree::{Kind, SyntaxTree, TypeScriptKind};
 
 fn parses(source_text: &str) -> Result<(), String> {
     let mut syntax_tree = SyntaxTree::new();
@@ -62,5 +62,44 @@ fn a_class_records_its_type_parameters() {
             (TypeScriptKind::TypeParameters, "<T extends { a: 1 }>"),
             (TypeScriptKind::TypeParameters, "<U>"),
         ]
+    );
+}
+
+#[test]
+fn a_tagged_template_is_a_call_of_its_tag() {
+    let source_text = "a.b`x${c}y`;\nf<T>``;";
+    let mut syntax_tree = SyntaxTree::new();
+    let program = parse_program(
+        &mut syntax_tree,
+        source_text,
+        Span::new(0, source_text.len() as u32),
+        true,
+    )
+    .expect("parses");
+    let Kind::Program(statements) = syntax_tree.kind(program) else {
+        panic!("a program");
+    };
+    let text = |n| {
+        syntax_tree
+            .source_location(n)
+            .span()
+            .expect("located")
+            .text(source_text)
+    };
+    let tagged: Vec<(&str, &str, &str)> = statements
+        .iter()
+        .map(|&s| {
+            let Kind::ExpressionStatement(e) = syntax_tree.kind(s) else {
+                panic!("an expression statement");
+            };
+            let Kind::TaggedTemplate { tag, quasi } = syntax_tree.kind(e) else {
+                panic!("a tagged template");
+            };
+            (text(e), text(tag), text(quasi))
+        })
+        .collect();
+    assert_eq!(
+        tagged,
+        [("a.b`x${c}y`", "a.b", "`x${c}y`"), ("f<T>``", "f", "``")]
     );
 }

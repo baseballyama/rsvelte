@@ -323,6 +323,11 @@ impl Script<'_, '_> {
                     .offset_all(parts.iter().skip(1).copied(), 0, first);
                 self.layout.offset_all(expressions, 1, first);
             }
+            Kind::TaggedTemplate { tag, quasi } => {
+                let tag = self.outer(tag).map(|(f, _)| f);
+                let quasi = self.first(quasi);
+                self.layout.offset(quasi, 1, tag);
+            }
             Kind::VariableDeclaration { declarations, .. } => {
                 if let Some(f) = first {
                     self.layout

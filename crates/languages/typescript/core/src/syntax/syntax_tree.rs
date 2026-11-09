@@ -89,6 +89,8 @@ pub enum Tag {
     This,
     Template,
     TemplateElement,
+    /// ``tag`…` ``: a call of `tag` with the template's parts.
+    TaggedTemplate,
     Array,
     Object,
     Property,
@@ -235,6 +237,11 @@ pub enum Kind<'a> {
     },
     TemplateElement {
         tail: bool,
+    },
+    TaggedTemplate {
+        tag: NodeIdentifier,
+        /// A [`Kind::Template`].
+        quasi: NodeIdentifier,
     },
     Array(&'a [NodeIdentifier]),
     Object(&'a [NodeIdentifier]),

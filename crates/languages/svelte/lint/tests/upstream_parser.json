@@ -1,5 +1,4 @@
 {
-	"indent/invalid/script-expr01-input.svelte": "the parser to read tagged templates",
 	"indent/invalid/ts-v5/ts-abstract-accessor-property-input.svelte": "the TypeScript parser to read it (unsupported statement `abstract class`)",
 	"indent/invalid/ts-v5/ts-accessor-property03-input.svelte": "a tree for type syntax, so types are laid out",
 	"indent/invalid/ts-v5/ts-import-attributes03-input.svelte": "the TypeScript parser to read it (expected `;`)",
@@ -36,7 +35,5 @@
 	"indent/invalid/ts/ts-union02-input.svelte": "a tree for type syntax, so types are laid out",
 	"no-conflicting-module-names/invalid/jsx/Foo.svelte.jsx": "a JSX parser: the lint task takes no `.jsx` or `.tsx` module",
 	"no-conflicting-module-names/invalid/tsx/Foo.svelte.tsx": "a JSX parser: the lint task takes no `.jsx` or `.tsx` module",
-	"require-store-reactive-access/invalid/tagged01-input.svelte": "tagged templates (tag`...`)",
-	"require-store-reactive-access/valid/tagged01-input.svelte": "tagged templates (tag`...`)",
 	"valid-compile/valid/ts/class01-input.svelte": "the TypeScript parser refuses `abstract class`"
 }

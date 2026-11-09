@@ -225,6 +225,11 @@ pub fn copy_node<R: Rewrite + ?Sized>(
         Kind::Boolean(b) => to.write_boolean(b, span),
         Kind::Null => to.null(span),
         Kind::This => to.this(span),
+        Kind::TaggedTemplate { tag, quasi } => {
+            let t = copy(f, to, rw, tag);
+            let q = copy(f, to, rw, quasi);
+            to.tagged_template(t, q, span)
+        }
         Kind::Template {
             quasis,
             expressions,

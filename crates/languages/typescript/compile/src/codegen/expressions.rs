@@ -8,7 +8,7 @@ impl Gen<'_> {
         loop {
             e = match self.syntax_tree.kind(e) {
                 Kind::Member { object, .. } => object,
-                Kind::Call { callee, .. } => callee,
+                Kind::Call { callee, .. } | Kind::TaggedTemplate { tag: callee, .. } => callee,
                 Kind::Binary(_, l, _) | Kind::Logical(_, l, _) | Kind::Assign(_, l, _) => l,
                 Kind::Conditional { test, .. } => test,
                 Kind::Sequence(items) => items[0],
@@ -36,7 +36,10 @@ impl Gen<'_> {
             Kind::Binary(op, ..) => prec::BIN + op.precedence(),
             Kind::Unary(..) | Kind::Await(_) | Kind::Update { prefix: true, .. } => prec::UNARY,
             Kind::Update { prefix: false, .. } => prec::POSTFIX,
-            Kind::Call { .. } | Kind::Member { .. } | Kind::New { .. } => prec::CALL,
+            Kind::Call { .. }
+            | Kind::TaggedTemplate { .. }
+            | Kind::Member { .. }
+            | Kind::New { .. } => prec::CALL,
             _ => prec::PRIMARY,
         }
     }
@@ -180,6 +183,10 @@ impl Gen<'_> {
                     }
                 }
                 self.e.push("`");
+            }
+            Kind::TaggedTemplate { tag, quasi } => {
+                self.expression(tag, prec::CALL);
+                self.expression_inner(quasi);
             }
             Kind::TemplateElement { .. } => {
                 let raw = self

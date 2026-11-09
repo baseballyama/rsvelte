@@ -1,6 +1,7 @@
 use super::{
-    Kind, NodeIdentifier, Parser, R, Span, SyntaxTree, T, TypeDeclaration, TypeDeclarationKind,
-    TypeScriptFeature, TypeScriptKind, TypeScriptRuntime, TypeScriptSyntax, parse_program,
+    Kind, LexedToken, NodeIdentifier, Parser, R, Span, SyntaxTree, T, TypeDeclaration,
+    TypeDeclarationKind, TypeScriptFeature, TypeScriptKind, TypeScriptRuntime, TypeScriptSyntax,
+    parse_program,
 };
 
 impl Parser<'_, '_> {
@@ -350,9 +351,10 @@ impl Parser<'_, '_> {
         Ok(true)
     }
 
-    /// Whether the `<` here opens a type argument list that a `(` follows. TypeScript reads
+    /// Whether the `<` here opens a type argument list after an expression. TypeScript reads
     /// `f<T>(x)` as a call with type arguments where JavaScript reads two comparisons; outside
-    /// brackets, a token no type can contain means a comparison.
+    /// brackets, a token no type can contain means a comparison, and so does a `>` that an operand
+    /// follows on the same line (`a < b > c`).
     pub(super) fn type_arguments_before_call(&self) -> bool {
         let mut l = self.lex;
         let mut scratch = Vec::new();
@@ -384,7 +386,9 @@ impl Parser<'_, '_> {
                         return false;
                     }
                     if angle == 0 {
-                        return l.next(&mut scratch).is_ok_and(|n| n.t == T::LParen);
+                        return l
+                            .next(&mut scratch)
+                            .is_ok_and(|next| self.follows_type_arguments(next));
                     }
                 }
                 T::Identifier
@@ -399,6 +403,30 @@ impl Parser<'_, '_> {
                 _ if nest > 0 => {}
                 _ => return false,
             }
+        }
+    }
+
+    /// TypeScript's `canFollowTypeArgumentsInExpression`: whether `next`, the token after a
+    /// closing `>`, leaves the list type arguments.
+    fn follows_type_arguments(&self, next: LexedToken) -> bool {
+        match next.t {
+            T::LParen | T::Template { .. } => true,
+            T::Op if matches!(self.text(next), "<" | ">" | "+" | "-") => false,
+            _ if next.newline_before => true,
+            T::Op => !matches!(self.text(next), "!" | "~" | "++" | "--"),
+            T::Identifier => matches!(self.text(next), "as" | "satisfies" | "in" | "instanceof"),
+            T::RParen
+            | T::RBracket
+            | T::RBrace
+            | T::Semi
+            | T::Comma
+            | T::Colon
+            | T::Question
+            | T::QuestionDot
+            | T::Dot
+            | T::Arrow
+            | T::Eof => true,
+            _ => false,
         }
     }
 

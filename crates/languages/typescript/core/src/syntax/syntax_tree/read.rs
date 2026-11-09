@@ -165,6 +165,10 @@ impl SyntaxTree {
             Tag::TemplateElement => Kind::TemplateElement {
                 tail: f & flag::TAIL != 0,
             },
+            Tag::TaggedTemplate => Kind::TaggedTemplate {
+                tag: Self::nid(a),
+                quasi: Self::nid(b),
+            },
             Tag::Array => Kind::Array(self.list_at(a)),
             Tag::Object => Kind::Object(self.list_at(a)),
             Tag::Property => Kind::Property {

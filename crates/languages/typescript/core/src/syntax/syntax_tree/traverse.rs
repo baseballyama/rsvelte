@@ -136,7 +136,8 @@ impl SyntaxTree {
                 each(parameters);
                 each(&[body]);
             }
-            Kind::Binary(_, l, r)
+            Kind::TaggedTemplate { tag: l, quasi: r }
+            | Kind::Binary(_, l, r)
             | Kind::Logical(_, l, r)
             | Kind::Assign(_, l, r)
             | Kind::AssignPattern(l, r) => each(&[l, r]),

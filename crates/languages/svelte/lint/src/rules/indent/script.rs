@@ -259,6 +259,7 @@ impl Script<'_, '_> {
             | Kind::BigInt
             | Kind::This
             | Kind::Template { .. }
+            | Kind::TaggedTemplate { .. }
             | Kind::Array(_)
             | Kind::Object(_)
             | Kind::Member { .. }

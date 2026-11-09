@@ -92,7 +92,12 @@ impl Parser<'_, '_> {
                         syntax_tree.call(e, arguments, false, span)
                     });
                 }
-                T::Template { .. } => return self.fail("tagged templates are not supported"),
+                T::Template { .. } if calls => {
+                    let quasi = self.template()?;
+                    e = self
+                        .syntax_tree
+                        .tagged_template(e, quasi, self.span_from(start_offset));
+                }
                 T::Op
                     if self.typescript
                         && self.text(self.token) == "!"
