@@ -31,8 +31,8 @@ const DEVIATIONS: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/tests/upstream_deviations.json"
 );
-/// Rules whose verdicts are counted but do not fail: type-aware rules do not follow
-/// `svelte-eslint-parser`'s virtual code.
+/// Rules whose upstream verdicts are counted but do not fail: the built-in type provider does not
+/// follow `svelte-eslint-parser`'s virtual code. This crate's own cases of them must pass.
 const TYPED: &[&str] = &["@typescript-eslint/no-unnecessary-condition"];
 
 #[derive(Deserialize)]
@@ -138,11 +138,13 @@ fn main() -> ExitCode {
         Path::new(UPSTREAM),
         &upstream.versions,
         &mut deviations,
+        TYPED,
     ) + suite(
         "this crate's cases",
         Path::new(OWN),
         &upstream.versions,
         &mut BTreeMap::new(),
+        &[],
     );
     for (document, deviation) in &deviations {
         failed += 1;
@@ -158,12 +160,14 @@ fn main() -> ExitCode {
     }
 }
 
-/// Runs one fixture tree and returns how many cases of implemented rules did not pass.
+/// Runs one fixture tree and returns how many cases of implemented rules not in `typed` did not
+/// pass.
 fn suite(
     label: &str,
     root: &Path,
     versions: &BTreeMap<String, String>,
     deviations: &mut BTreeMap<String, Deviation>,
+    typed: &[&str],
 ) -> usize {
     let cases = cases(root);
     let mut by_rule: BTreeMap<&str, Counts> = BTreeMap::new();
@@ -180,7 +184,7 @@ fn suite(
         }
         let document = case.document();
         let deviation = deviations.remove(&document);
-        let typed = TYPED.contains(&case.rule.as_str());
+        let lenient = typed.contains(&case.rule.as_str());
         let counts = by_rule.entry(&case.rule).or_default();
         counts.total += 1;
         match (verdict, deviation) {
@@ -207,14 +211,14 @@ fn suite(
             }
             (Verdict::Fail(detail), None) => {
                 counts.fail += 1;
-                if !typed {
+                if !lenient {
                     failed += 1;
                 }
                 eprintln!("FAIL {document}: {detail}");
             }
             (Verdict::Unmeasured(reason), None) => {
                 counts.unmeasured += 1;
-                if !typed {
+                if !lenient {
                     failed += 1;
                 }
                 eprintln!("UNMEASURED {document}: {reason}");
@@ -229,13 +233,13 @@ fn suite(
         rules.len(),
     );
     for (rule, c) in &by_rule {
-        let typed = if TYPED.contains(rule) {
+        let note = if typed.contains(rule) {
             " (typed: not required)"
         } else {
             ""
         };
         eprintln!(
-            "  {rule}: {} of {} pass, {} fail, {} unmeasured, {} deviate{typed}",
+            "  {rule}: {} of {} pass, {} fail, {} unmeasured, {} deviate{note}",
             c.pass, c.total, c.fail, c.unmeasured, c.deviation
         );
     }

@@ -206,7 +206,7 @@ test('cores reject tools and hosts whatever their names end with', () => {
 	assert.ok(core);
 	for (const name of [
 		'rsvelte_svue',
-		'rsvelte_svelte_lint_typed',
+		'rsvelte_svelte_lint',
 		'rsvelte_svelte_typecheck',
 		'rsvelte_svelte_typescript_projection',
 		'rsvelte_svelte_compile_vapor',

@@ -14,4 +14,7 @@ mod rules;
 mod settings;
 pub use settings::{CompileOptions, Kit, KitFiles, LintSettings, Postcss, SvelteConfig};
 mod task;
-pub use task::{Lint, PLUGIN, register, register_artifacts, register_with_configuration};
+pub use task::{
+    Lint, PLUGIN, register, register_artifacts, register_type_provider, register_with_configuration,
+};
+pub mod types;
