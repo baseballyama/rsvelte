@@ -12,7 +12,6 @@ const ESCAPE: char = '~';
 const REGISTRY: &str = "_registry";
 /// Marks a directory of `tests/fixtures/` as a copy of a project's own files and their official
 /// output.
-const SOURCE_FILE: &str = "source.json";
 /// A corpus unit's hand-written part.
 const FIXTURE_FILE: &str = "fixture.toml";
 
@@ -22,9 +21,6 @@ pub(crate) enum Kind {
     /// A crate's hand-written case: `expected/<name>.<file>` is rsvelte's own output, accepted
     /// with `UPDATE_EXPECT=1`.
     HandWritten,
-    /// A case in a copied source under `tests/fixtures/` (a directory with `source.json`):
-    /// `expected/<name>.<file>` is the official tool's output, and the harness never writes it.
-    Copied,
     /// A corpus unit: `expected/<task>/<variant>.<file>` is the official tool's output, and the
     /// harness never writes it. `actual/` is shared with `rsvelte corpus`.
     Corpus,
@@ -81,26 +77,16 @@ impl Case {
     }
 }
 
-/// Every case under a crate's `root`, sorted by name: hand-written, or copied when a directory
-/// above it holds `source.json`.
+/// Every hand-written case under a crate's `root`, sorted by name.
 pub(crate) fn in_crate(root: &Path) -> Result<Vec<Case>, String> {
     let mut cases = Vec::new();
     walk(root, &mut |dir, input, extension, _| {
         let name = relative_name(root, dir)?;
-        let source = dir
-            .ancestors()
-            .skip(1)
-            .take_while(|a| *a != root)
-            .find(|a| a.join(SOURCE_FILE).is_file());
-        let (kind, path) = match source {
-            Some(s) => (Kind::Copied, original_path(&relative_name(s, dir)?)),
-            None => (Kind::HandWritten, format!("{name}.{extension}")),
-        };
         cases.push(Case {
-            path,
+            path: format!("{name}.{extension}"),
             name,
             dir: dir.to_path_buf(),
-            kind,
+            kind: Kind::HandWritten,
             input,
             skip: Vec::new(),
         });

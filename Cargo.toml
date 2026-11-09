@@ -38,7 +38,6 @@ rsvelte_typescript_content_mapper = { path = "crates/languages/typescript/conten
 rsvelte_typescript_check = { path = "crates/languages/typescript/check" }
 rsvelte_svelte_format = { path = "crates/languages/svelte/format" }
 rsvelte_svelte_lint = { path = "crates/languages/svelte/lint" }
-rsvelte_svelte_lint_typed = { path = "crates/languages/svelte/lint_typed" }
 rsvelte_svelte_typescript_projection = { path = "crates/languages/svelte/typescript_projection" }
 rsvelte_svelte_typecheck = { path = "crates/languages/svelte/typecheck" }
 rsvelte_vue_format = { path = "crates/languages/vue/format" }

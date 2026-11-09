@@ -192,7 +192,13 @@ pub fn copy_node<R: Rewrite + ?Sized>(
             let d = copy(f, to, rw, d);
             to.export_default(d, span)
         }
-        Kind::TypeScriptDeclaration => to.typescript_declaration(span),
+        Kind::TypeScriptDeclaration => match f.exported_types(identifier) {
+            Some(export) => {
+                let export = copy(f, to, rw, export);
+                to.type_only_export(export, span)
+            }
+            None => to.typescript_declaration(span),
+        },
         Kind::TypeScriptInterface { name, members } => {
             let n = copy_node(f, to, rw, name);
             let m = members

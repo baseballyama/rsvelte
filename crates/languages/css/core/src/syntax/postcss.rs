@@ -10,8 +10,8 @@
 //! An inline style is tokenized as eslint-plugin-svelte's template tokenizer does: `PostCSS`'s
 //! tokens, with each `{…}` (a mustache or a template's `${…}`) merged into one word.
 
+use rsvelte_kernel::source::characters::trim_ecmascript;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_kernel::source::whitespace::trim_javascript;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Dialect {
@@ -834,7 +834,7 @@ impl<'a> Parser<'a> {
         let mut first = None;
         for text in value.by_ref() {
             first = first.or_else(|| text.bytes().next());
-            if !trim_javascript(text).is_empty() {
+            if !trim_ecmascript(text).is_empty() {
                 blank = false;
                 break;
             }
@@ -894,13 +894,13 @@ impl<'a> Parser<'a> {
                 let mut cut = tokens.len();
                 let mut text = String::new();
                 for j in (1..=i).rev() {
-                    if trim_javascript(&text).starts_with('!') && tokens[j].kind != Kind::Space {
+                    if trim_ecmascript(&text).starts_with('!') && tokens[j].kind != Kind::Space {
                         break;
                     }
                     cut -= 1;
                     text.insert_str(0, self.text(tokens[cut]));
                 }
-                if trim_javascript(&text).starts_with('!') {
+                if trim_ecmascript(&text).starts_with('!') {
                     return cut;
                 }
             }

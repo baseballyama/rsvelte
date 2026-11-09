@@ -14,14 +14,14 @@ rsvelte_plugin_interface.workspace = true
 rsvelte_lint_runner.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+rustc-hash.workspace = true
 rsvelte_typescript.workspace = true
 rsvelte_svelte.workspace = true
 rsvelte_markup.workspace = true
-regress.workspace = true
+regress = { workspace = true, features = ["utf16"] }
 rsvelte_kernel.workspace = true
 rsvelte_typescript_lint.workspace = true
 rsvelte_stylesheet.workspace = true
-rustc-hash.workspace = true
 
 [dev-dependencies]
 rsvelte_test_harness.workspace = true

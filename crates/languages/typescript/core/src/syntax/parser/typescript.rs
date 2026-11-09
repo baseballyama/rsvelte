@@ -1,6 +1,6 @@
 use super::{
-    Kind, NodeIdentifier, Parser, R, Span, SyntaxTree, T, TypeScriptFeature, TypeScriptKind,
-    TypeScriptRuntime, TypeScriptSyntax, parse_program,
+    Kind, NodeIdentifier, Parser, R, Span, SyntaxTree, T, TypeDeclaration, TypeDeclarationKind,
+    TypeScriptFeature, TypeScriptKind, TypeScriptRuntime, TypeScriptSyntax, parse_program,
 };
 
 impl Parser<'_, '_> {
@@ -15,6 +15,10 @@ impl Parser<'_, '_> {
         let is_interface = kw == "interface";
         let is_namespace = matches!(kw, "namespace" | "module");
         self.bump()?;
+        self.type_declaration(kw, start_offset);
+        let declares_namespace = is_namespace
+            || (kw == "declare"
+                && matches!(self.text(self.token), "namespace" | "module" | "global"));
         let is_enum = kw == "enum" || (kw == "declare" && self.is_kw("enum"));
         let mut body: Option<(u32, u32)> = None;
         if is_interface {
@@ -94,21 +98,72 @@ impl Parser<'_, '_> {
                 feature: TypeScriptFeature::Enum,
                 span,
             });
-        } else if let (true, Some((open, close))) = (is_namespace, body) {
-            self.namespace_runtime(Span::new(open, close), span)?;
+        } else if let (true, Some((open, close))) = (declares_namespace, body) {
+            self.namespace_body(Span::new(open, close), span, is_namespace)?;
         }
         Ok(self.syntax_tree.typescript_declaration(span))
     }
 
+    /// Records the name that the statement starting with keyword `kw` declares, the current token
+    /// or, after `declare`, the one after the next keyword.
+    fn type_declaration(&mut self, kw: &str, start_offset: u32) {
+        let (keyword, name) = if kw == "declare" {
+            (self.text(self.token), self.peek())
+        } else {
+            (kw, self.token)
+        };
+        let kind = match keyword {
+            "type" => TypeDeclarationKind::Alias,
+            "interface" => TypeDeclarationKind::Interface,
+            "enum" => TypeDeclarationKind::Enum,
+            "namespace" | "module" => TypeDeclarationKind::Namespace,
+            _ => return,
+        };
+        if name.t == T::Identifier {
+            let name = self.syntax_tree.atoms.intern(self.text(name));
+            self.syntax_tree.type_declarations.push(TypeDeclaration {
+                name,
+                kind,
+                start_offset,
+                nested: false,
+            });
+        }
+    }
+
+    /// Records the type declarations of a namespace body as nested ones, parsing it into a
+    /// scratch tree so that none of its nodes join this one. A `namespace` that is not `declare`d
+    /// (`runtime`) must parse, and its runtime constructs are recorded too; a `declare`d body this
+    /// parser cannot read records nothing.
+    fn namespace_body(&mut self, body: Span, span: Span, runtime: bool) -> R<()> {
+        let mut scratch = SyntaxTree::new();
+        let root = match parse_program(&mut scratch, self.source_text, body, true) {
+            Ok(root) => root,
+            Err(error) if runtime => return Err(error),
+            Err(_) => return Ok(()),
+        };
+        for declaration in &scratch.type_declarations {
+            let name = self
+                .syntax_tree
+                .atoms
+                .intern(scratch.atoms.get(declaration.name));
+            self.syntax_tree.type_declarations.push(TypeDeclaration {
+                name,
+                nested: true,
+                ..*declaration
+            });
+        }
+        if runtime {
+            self.namespace_runtime(&scratch, root, span);
+        }
+        Ok(())
+    }
+
     /// Records the first construct in a namespace body that erasing types cannot remove: an enum
     /// anywhere inside it, else the namespace itself when any statement is not a type declaration.
-    /// The body is parsed into a scratch tree, so none of its nodes join this one.
-    pub(super) fn namespace_runtime(&mut self, body: Span, span: Span) -> R<()> {
-        let mut scratch = SyntaxTree::new();
-        let root = parse_program(&mut scratch, self.source_text, body, true)?;
+    fn namespace_runtime(&mut self, scratch: &SyntaxTree, root: NodeIdentifier, span: Span) {
         if let Some(&inner) = scratch.typescript_runtime.first() {
             self.syntax_tree.typescript_runtime.push(inner);
-            return Ok(());
+            return;
         }
         let Kind::Program(statements) = scratch.kind(root) else {
             unreachable!("parse_program returns a program")
@@ -129,7 +184,6 @@ impl Parser<'_, '_> {
                 span,
             });
         }
-        Ok(())
     }
 
     /// `interface Name { key?: T; … }` with only property members, positioned after `interface`.

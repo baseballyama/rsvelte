@@ -60,3 +60,12 @@ fn an_entry_list_keeps_every_option() {
     ));
     assert!(empty.is_err(), "an entry needs a level");
 }
+
+#[test]
+fn rules_keep_the_configuration_order_and_a_repeated_key_keeps_its_place() {
+    use serde::de::value::MapDeserializer;
+    let entries = [("b", 1u64), ("a", 2), ("b", 3)].into_iter();
+    let rules = Rules::<u64>::deserialize(MapDeserializer::<_, Error>::new(entries))
+        .expect("an object of rules");
+    assert_eq!(rules.0, [("b".to_owned(), 3), ("a".to_owned(), 2)]);
+}

@@ -1,0 +1,8 @@
+- message: "'b' is never reassigned. Use 'const' instead."
+  line: 7
+  column: 4
+  suggestions: null
+- message: "'c' is never reassigned. Use 'const' instead."
+  line: 7
+  column: 7
+  suggestions: null

@@ -65,6 +65,9 @@ pub enum TemplateNode {
         start_tag: Span,
         /// Written `<name … />`.
         self_closing: bool,
+        /// Closed by its own `</name>`, the last tokens of `span`; not when self-closing, void or
+        /// closed by a following tag or its parent's end tag.
+        end_tag: bool,
         span: Span,
     },
     If {
@@ -332,6 +335,7 @@ pub struct Component {
 /// [`TokenType::MustacheClose`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TokenType {
+    /// A word of text; the whitespace between words is [`TokenType::Whitespace`].
     Text,
     MarkupComment,
     /// `<`
@@ -346,8 +350,11 @@ pub enum TokenType {
     AttributeName,
     /// `=`
     Eq,
-    Quote,
-    /// The text chunks of an attribute value.
+    /// `"`
+    DoubleQuote,
+    /// `'`
+    SingleQuote,
+    /// A word of an attribute value's text.
     AttributeText,
     /// `{`
     MustacheOpen,

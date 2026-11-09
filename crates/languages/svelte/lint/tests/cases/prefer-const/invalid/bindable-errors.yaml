@@ -1,0 +1,4 @@
+- message: "'y' is never reassigned. Use 'const' instead."
+  line: 2
+  column: 25
+  suggestions: null

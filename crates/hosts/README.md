@@ -56,15 +56,6 @@ cargo run -p rsvelte_command_line -- run App.svelte --task svelte.check/default 
   --options svelte.typecheck '{"svelte": "node_modules/svelte"}'
 ```
 
-The optional `lint-typed` Cargo feature, off by default, adds Svelte type-aware lint to the CLI:
-
-```sh
-cargo run -p rsvelte_command_line --features lint-typed -- run App.svelte --task svelte.lint.typed/default
-```
-
-Its type provider is a limited Rust prototype; it does not connect to tsgo. See
-[typed lint](../languages/svelte/lint_typed/README.md).
-
 [`command_line/src/main.rs`](command_line/src/main.rs) handles the arguments and registers the
 tools. See [the corpus guide](../../corpus/README.md) for oracle comparisons.
 

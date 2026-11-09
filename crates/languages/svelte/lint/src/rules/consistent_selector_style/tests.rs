@@ -6,7 +6,11 @@ fn messages(options: &str, source: &str) -> Vec<String> {
     lint(RULE, options, source)
         .0
         .into_iter()
-        .map(|(message, _, _)| message)
+        .map(|report| {
+            report
+                .split_once(' ')
+                .map_or_else(|| report.clone(), |(_, message)| message.to_owned())
+        })
         .collect()
 }
 

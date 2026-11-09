@@ -768,7 +768,6 @@ dependencies = [
  "rsvelte_svelte_compile_vapor",
  "rsvelte_svelte_format",
  "rsvelte_svelte_lint",
- "rsvelte_svelte_lint_typed",
  "rsvelte_svelte_parser",
  "rsvelte_svelte_typecheck",
  "rsvelte_svelte_typescript_projection",
@@ -898,11 +897,13 @@ name = "rsvelte_svelte"
 version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
+ "rsvelte_stylesheet",
  "rsvelte_svelte_compiler_syntax_tree",
  "rsvelte_svelte_parser",
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
  "rsvelte_typescript",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -979,22 +980,6 @@ dependencies = [
  "serde",
  "serde-saphyr",
  "serde_json",
-]
-
-[[package]]
-name = "rsvelte_svelte_lint_typed"
-version = "0.0.0"
-dependencies = [
- "rsvelte_kernel",
- "rsvelte_lint_runner",
- "rsvelte_markup",
- "rsvelte_plugin_interface",
- "rsvelte_svelte",
- "rsvelte_svelte_lint",
- "rsvelte_test_harness",
- "rsvelte_typescript",
- "rsvelte_typescript_check",
- "serde",
 ]
 
 [[package]]
@@ -1149,6 +1134,7 @@ dependencies = [
  "rsvelte_lint_runner",
  "rsvelte_plugin_interface",
  "rsvelte_typescript",
+ "rustc-hash",
 ]
 
 [[package]]

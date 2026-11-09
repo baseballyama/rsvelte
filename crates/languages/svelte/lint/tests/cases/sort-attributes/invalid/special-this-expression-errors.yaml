@@ -1,0 +1,12 @@
+- message: Attribute 'this' should go before 'b'.
+  line: 1
+  column: 26
+  suggestions: null
+- message: Attribute 'this' should go before 'b'.
+  line: 2
+  column: 26
+  suggestions: null
+- message: Attribute 'this' should go before 'b'.
+  line: 3
+  column: 28
+  suggestions: null

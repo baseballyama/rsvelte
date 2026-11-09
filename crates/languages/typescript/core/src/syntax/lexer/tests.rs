@@ -80,3 +80,30 @@ fn a_template_cooks_escapes_and_reads_a_carriage_return_as_a_line_feed() {
     assert_eq!(cook_template("a\r\nb"), "a\nb");
     assert_eq!(cook_template("a\\\r\nb"), "ab");
 }
+
+#[test]
+fn every_ecmascript_line_terminator_ends_a_line_comment_and_counts_as_a_newline() {
+    for terminator in ["\n", "\r", "\r\n", "\u{2028}", "\u{2029}"] {
+        for comment in ["// c", "/* \u{0} */"] {
+            let comment = comment.replace('\u{0}', terminator);
+            let source_text = format!("a {comment}{terminator}b");
+            let mut lexer = Lexer::new(&source_text, 0, source_text.len());
+            let mut comments = Vec::new();
+            let a = lexer.next(&mut comments).expect("lexes");
+            let b = lexer.next(&mut comments).expect("lexes");
+            assert_eq!(lexer.text(b.span), "b", "{source_text:?}");
+            assert!(b.newline_before, "{source_text:?}");
+            assert!(!a.newline_before);
+            assert_eq!(comments.len(), 1, "{source_text:?}");
+        }
+    }
+}
+
+#[test]
+fn a_carriage_return_ends_a_string_unterminated() {
+    let source_text = "'a\rb'";
+    let mut lexer = Lexer::new(source_text, 0, source_text.len());
+    lexer
+        .next(&mut Vec::new())
+        .expect_err("a string cannot cross a line break");
+}

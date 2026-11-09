@@ -55,8 +55,12 @@ fn slices_by_offset() {
     };
     assert_eq!(texts(t.from_offset(3)), ["cd", " ", "e"]);
     assert_eq!(texts(t.until_offset(5)), ["ab", "  "]);
-    assert_eq!(texts(t.within(Span::new(2, 7))), ["  ", "cd", " "]);
-    assert_eq!(texts(t.within(Span::new(3, 3))), Vec::<&str>::new());
+    assert_eq!(texts(t.within(Span::new(2, 6))), ["  ", "cd"]);
+    assert_eq!(texts(t.within(Span::new(4, 6))), ["cd"]);
+    assert_eq!(texts(t.within(Span::new(5, 5))), Vec::<&str>::new());
+    // A token that starts in the span belongs to it, even when it ends after.
+    assert_eq!(texts(t.within(Span::new(1, 8))), ["  ", "cd", " ", "e"]);
+    assert_eq!(texts(t.within(Span::new(5, 8))), [" ", "e"]);
 }
 
 #[test]

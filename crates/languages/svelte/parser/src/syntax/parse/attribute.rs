@@ -214,13 +214,14 @@ impl Parser<'_> {
             match self.peek() {
                 Some(q @ (b'"' | b'\'')) => {
                     attribute.quoted = true;
-                    self.eat_token(TokenType::Quote, 1);
+                    let quote = quote_token(q);
+                    self.eat_token(quote, 1);
                     self.sequence(Some(q))?;
                     if self.component.parts.len() == start {
                         let at = self.position as u32;
                         self.component.parts.push(Part::Text(Span::new(at, at)));
                     }
-                    self.eat_token(TokenType::Quote, 1);
+                    self.eat_token(quote, 1);
                 }
                 Some(_) => {
                     self.sequence(None)?;
@@ -243,4 +244,13 @@ pub(super) fn attribute_name_len(bytes: &[u8]) -> usize {
             byte.is_ascii_whitespace() || matches!(byte, b'=' | b'>' | b'/' | b'"' | b'\'')
         })
         .unwrap_or(bytes.len())
+}
+
+/// The token of the quote `q`, `"` or `'`.
+pub(super) const fn quote_token(q: u8) -> TokenType {
+    if q == b'"' {
+        TokenType::DoubleQuote
+    } else {
+        TokenType::SingleQuote
+    }
 }

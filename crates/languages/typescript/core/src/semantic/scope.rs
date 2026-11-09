@@ -11,7 +11,7 @@ use rsvelte_kernel::index::{IndexVector, TypedIndex};
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::interning::Atom;
 use rsvelte_kernel::source::positions::Span;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::operators::AssignmentOperator;
 use crate::syntax_tree::{Kind, NodeIdentifier, SyntaxTree, flag};
@@ -137,9 +137,19 @@ pub struct Semantic {
     /// typescript-eslint's scope analysis counts such a name as a read; the compiler's read
     /// counts do not.
     type_referenced: Vec<bool>,
+    /// The names that type declarations declare, by the scope they are declared in.
+    type_names: FxHashSet<(ScopeIdentifier, Atom)>,
 }
 
 impl Semantic {
+    /// Whether a `type`, `interface`, `enum` or `namespace` of `b`'s scope has `b`'s name.
+    /// typescript-eslint then has one variable with two definitions.
+    #[must_use]
+    pub fn shares_name_with_type(&self, b: BindingIdentifier) -> bool {
+        let binding = &self.bindings[b];
+        self.type_names.contains(&(binding.scope, binding.name))
+    }
+
     #[must_use]
     pub fn binding_of(&self, ident: NodeIdentifier) -> Option<BindingIdentifier> {
         self.node_binding
@@ -266,6 +276,7 @@ pub fn analyze_enclosed(
             by_binding: Vec::new(),
             by_binding_start: Vec::new(),
             type_referenced: Vec::new(),
+            type_names: FxHashSet::default(),
         },
         stack: vec![ScopeIdentifier::ROOT],
         current_declaration: None,

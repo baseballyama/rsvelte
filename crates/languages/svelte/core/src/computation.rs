@@ -61,6 +61,34 @@ impl Artifact for Analyzed {
     }
 }
 
+/// The compiler's warnings and analysis errors, without generating code.
+#[derive(Debug)]
+pub struct Warned;
+
+impl Artifact for Warned {
+    /// `None` when the document did not parse.
+    type Output = Option<crate::warnings::CompileWarnings>;
+
+    const NAME: &'static str = "svelte.warnings";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        let c = context.get::<Parsed>().as_ref().ok()?;
+        let res = context.get::<Resolved>().as_ref()?;
+        // Only the style sheet's selectors need the analysis.
+        let analysis = if c.style.is_some() {
+            context.get::<Analyzed>().as_ref()
+        } else {
+            None
+        };
+        Some(crate::warnings::warnings(
+            c,
+            res,
+            analysis,
+            context.source_text(),
+        ))
+    }
+}
+
 /// What the compiler reads of a Svelte component: its script from [`Parsed`], its template from
 /// [`Normalized`]. `None` when the document did not fully parse, its style sheet included.
 #[must_use]
@@ -109,5 +137,6 @@ pub fn register(reg: &mut Registry) {
     rsvelte_svelte_parser::register(reg);
     reg.artifact::<Resolved>()
         .artifact::<Normalized>()
-        .artifact::<Analyzed>();
+        .artifact::<Analyzed>()
+        .artifact::<Warned>();
 }

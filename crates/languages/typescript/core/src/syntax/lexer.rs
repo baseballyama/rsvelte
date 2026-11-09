@@ -113,19 +113,37 @@ impl<'a> Lexer<'a> {
         if i < self.end { self.source_text[i] } else { 0 }
     }
 
+    /// The length of the ECMAScript line terminator at `at` (LF, CR, U+2028, U+2029), or 0.
+    #[inline]
+    const fn line_terminator(&self, at: usize) -> usize {
+        if at >= self.end {
+            return 0;
+        }
+        match self.source_text[at] {
+            b'\n' | b'\r' => 1,
+            0xE2 if at + 2 < self.end
+                && self.source_text[at + 1] == 0x80
+                && matches!(self.source_text[at + 2], 0xA8 | 0xA9) =>
+            {
+                3
+            }
+            _ => 0,
+        }
+    }
+
     /// Skips whitespace and comments; returns whether a line terminator was crossed.
     fn skip_trivia(&mut self, comments: &mut Vec<Span>) -> R<bool> {
         let mut newline = false;
         while self.position < self.end {
             match self.source_text[self.position] {
-                b'\n' => {
+                b'\n' | b'\r' => {
                     newline = true;
                     self.position += 1;
                 }
-                b' ' | b'\t' | b'\r' | 0x0B | 0x0C => self.position += 1,
+                b' ' | b'\t' | 0x0B | 0x0C => self.position += 1,
                 b'/' if self.peek(1) == b'/' => {
                     let start_offset = self.position;
-                    while self.position < self.end && self.source_text[self.position] != b'\n' {
+                    while self.position < self.end && self.line_terminator(self.position) == 0 {
                         self.position += 1;
                     }
                     comments.push(Span::new(start_offset as u32, self.position as u32));
@@ -143,14 +161,14 @@ impl<'a> Lexer<'a> {
                             self.position += 2;
                             break;
                         }
-                        if self.source_text[self.position] == b'\n' {
+                        if self.line_terminator(self.position) > 0 {
                             newline = true;
                         }
                         self.position += 1;
                     }
                     comments.push(Span::new(start_offset as u32, self.position as u32));
                 }
-                0xE2 if self.peek(1) == 0x80 && matches!(self.peek(2), 0xA8 | 0xA9) => {
+                0xE2 if self.line_terminator(self.position) == 3 => {
                     newline = true;
                     self.position += 3;
                 }
@@ -349,7 +367,7 @@ impl<'a> Lexer<'a> {
         while self.position < self.end {
             match self.source_text[self.position] {
                 b'\\' => self.position += 2,
-                b'\n' => return self.err("unterminated string", start_offset),
+                b'\n' | b'\r' => return self.err("unterminated string", start_offset),
                 c if c == q => {
                     self.position += 1;
                     return Ok(());

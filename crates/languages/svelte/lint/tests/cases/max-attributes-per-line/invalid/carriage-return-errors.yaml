@@ -1,0 +1,4 @@
+- message: "'c' should be on a new line."
+  line: 2
+  column: 7
+  suggestions: null

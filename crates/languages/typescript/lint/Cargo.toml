@@ -14,6 +14,7 @@ rsvelte_plugin_interface.workspace = true
 rsvelte_lint_runner.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript.workspace = true
+rustc-hash.workspace = true
 
 [lints]
 workspace = true
