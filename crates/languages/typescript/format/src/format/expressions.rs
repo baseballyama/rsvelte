@@ -1,7 +1,7 @@
 use super::calls::{ChainHead, ChainLink};
 use super::{
     Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, PatternContext, R, Slot,
-    TypeScriptKind, TypeScriptSyntax, Unsupported, op_of, should_flatten,
+    SyntaxTree, TypeScriptKind, TypeScriptSyntax, Unsupported, op_of, should_flatten,
 };
 
 /// Prettier's `printNumber`.
@@ -358,30 +358,38 @@ impl Formatter<'_> {
     }
 
     /// Prettier's `printBinaryishExpressions`, flat: same-precedence chains flatten into one list.
+    /// The chain is walked down by a loop; it runs thousands long in real input.
     pub(super) fn binaryish(
         &mut self,
         identifier: NodeIdentifier,
     ) -> R<Vec<LayoutInstructionIdentifier>> {
-        let (op, l, r) = match self.syntax_tree.kind(identifier) {
+        let operands = |tree: &SyntaxTree, at| match tree.kind(at) {
             Kind::Binary(op, l, r) => (op.as_str(), l, r),
             Kind::Logical(op, l, r) => (op.as_str(), l, r),
             _ => unreachable!("binaryish"),
         };
-        let flatten = match (
-            op_of(self.syntax_tree, identifier),
-            op_of(self.syntax_tree, l),
-        ) {
-            (Some(p), Some(c)) => should_flatten(p, c) && !self.has_typescript(l),
-            _ => false,
-        };
-        let mut parts = if flatten {
-            self.binaryish(l)?
-        } else {
-            vec![self.expression(l, Some(identifier), Slot::Left)?]
-        };
-        let op = format!(" {op} ");
-        parts.push(self.docs.text(&op));
-        parts.push(self.expression(r, Some(identifier), Slot::Right)?);
+        let mut links = vec![identifier];
+        let mut at = identifier;
+        loop {
+            let (_, l, _) = operands(self.syntax_tree, at);
+            let flatten = match (op_of(self.syntax_tree, at), op_of(self.syntax_tree, l)) {
+                (Some(p), Some(c)) => should_flatten(p, c) && !self.has_typescript(l),
+                _ => false,
+            };
+            if !flatten {
+                break;
+            }
+            links.push(l);
+            at = l;
+        }
+        let (_, l, _) = operands(self.syntax_tree, at);
+        let mut parts = vec![self.expression(l, Some(at), Slot::Left)?];
+        for &link in links.iter().rev() {
+            let (op, _, r) = operands(self.syntax_tree, link);
+            let op = format!(" {op} ");
+            parts.push(self.docs.text(&op));
+            parts.push(self.expression(r, Some(link), Slot::Right)?);
+        }
         Ok(parts)
     }
 

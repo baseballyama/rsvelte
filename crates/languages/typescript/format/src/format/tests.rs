@@ -54,6 +54,14 @@ fn long_chains_and_deep_blocks_format_without_recursing_per_level() {
             format!("f{};\n", "()".repeat(LINKS)),
         ),
         (
+            format!("x{};", " + x".repeat(LINKS)),
+            format!("x{};\n", " + x".repeat(LINKS)),
+        ),
+        (
+            format!("x{};", " || x".repeat(LINKS)),
+            format!("x{};\n", " || x".repeat(LINKS)),
+        ),
+        (
             format!("if (a) {{}}{}", " else if (a) {}".repeat(LINKS)),
             format!("if (a) {{\n}}{}\n", " else if (a) {\n}".repeat(LINKS)),
         ),
