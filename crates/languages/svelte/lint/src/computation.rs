@@ -5,6 +5,7 @@ use rsvelte_svelte::semantic::legacy::Legacy;
 use rsvelte_svelte::{Parsed, Resolved};
 use rsvelte_typescript::NodeIdentifier;
 
+use crate::project::SvelteKitProject;
 use crate::types::TypeFacts;
 use crate::{Configuration, SvelteConfig};
 
@@ -126,6 +127,18 @@ impl Facet for SvelteConfiguration {
     type Output = Result<SvelteConfig, String>;
 
     const NAME: &'static str = "svelte.lint.svelte_config";
+}
+
+/// Where the document is in its `SvelteKit` project, as `eslint-plugin-svelte` finds it from the
+/// `package.json` files above it. The host answers it
+/// ([`crate::project::register_file_system`] from the files).
+#[derive(Debug)]
+pub struct SvelteKit;
+
+impl Facet for SvelteKit {
+    type Output = SvelteKitProject;
+
+    const NAME: &'static str = "svelte.lint.svelte_kit";
 }
 
 /// The on-disk name of the file a component or a runes module shares its name with.

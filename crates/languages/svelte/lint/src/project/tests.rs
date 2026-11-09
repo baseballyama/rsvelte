@@ -71,3 +71,21 @@ fn a_config_that_does_not_parse_is_an_error() {
     let error = svelte_config_near(&directory.path("a.svelte")).expect_err("does not parse");
     assert!(error.contains("svelte.config.js"), "{error}");
 }
+
+#[test]
+fn a_document_is_located_from_the_nearest_package_json() {
+    use super::{Location, svelte_kit_project};
+
+    let directory = Directory::new(&[
+        ("package.json", "{}"),
+        ("apps/web/package.json", "{}"),
+        // Not an object, so not a package.
+        ("apps/web/src/package.json", "[]"),
+        ("apps/web/src/routes/+page.svelte", ""),
+    ]);
+    let document = directory.path("apps/web/src/./x/../routes/+page.svelte");
+    assert_eq!(
+        svelte_kit_project(&document).location,
+        Location::InProject("src/routes/+page.svelte".to_owned())
+    );
+}

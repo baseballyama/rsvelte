@@ -17,8 +17,9 @@ use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 
 use crate::computation::{
-    ConditionTypes, ModuleParents, NativeConditionTypes, Parents, SvelteConfiguration,
+    ConditionTypes, ModuleParents, NativeConditionTypes, Parents, SvelteConfiguration, SvelteKit,
 };
+use crate::project::SvelteKitProject;
 use crate::types::TypeFacts;
 use crate::{LintSettings, SvelteConfig};
 
@@ -244,6 +245,13 @@ impl<'a> File<'a> {
         self.context
             .facet::<SvelteConfiguration>()
             .map(|config| config.as_ref().map_err(String::as_str))
+    }
+
+    /// Where the document is in its `SvelteKit` project as the host provides it; `None` when no
+    /// host provides it.
+    #[must_use]
+    pub fn svelte_kit(&self) -> Option<&'a SvelteKitProject> {
+        self.context.facet::<SvelteKit>()
     }
 
     /// The parent of each node of [`File::javascript`].

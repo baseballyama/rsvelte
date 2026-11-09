@@ -8,7 +8,11 @@ fn a_route_file_is_named_and_under_the_routes() {
     assert_eq!(route_file_name("a/page.svelte"), None);
     assert_eq!(route_file_name("a/+page@.svelte"), None);
     assert!(under("src/routes", "src/routes/a/+page.svelte"));
-    assert!(under("src/routes/", "./src/routes/+page.svelte"));
+    assert!(under("src/routes/", "src/routes/+page.svelte"));
+    assert!(!under("src/routes/", "src/routes2/+page.svelte"));
+    assert!(under("src/routes", "src/routes2/+page.svelte"));
+    assert!(under("//src/routes", "src/routes/+page.svelte"));
+    assert!(!under("../x", "x/+page.svelte"));
     assert!(under("./src/x/../routes", "src/routes/+page.svelte"));
     assert!(!under("src/routes", "src/lib/+page.svelte"));
     assert!(under("", "anything"));

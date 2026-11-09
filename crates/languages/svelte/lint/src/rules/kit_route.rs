@@ -3,6 +3,7 @@
 use rsvelte_lint_runner::rule::Reporter;
 
 use crate::LintSettings;
+use crate::project::Location;
 use crate::rule::File;
 
 #[cfg(test)]
@@ -35,8 +36,16 @@ pub(super) fn route_file(
             return None;
         }
     };
+    let Some(project) = file.svelte_kit() else {
+        reporter.fail("no host provides the document's SvelteKit project");
+        return None;
+    };
     let routes = settings.routes(Some(svelte_config));
-    under(routes, file.path()).then_some(kind)
+    match &project.location {
+        Location::InProject(path) => under(routes, path).then_some(kind),
+        Location::NoProject => None,
+        Location::NameOnly => Some(kind),
+    }
 }
 
 fn route_file_name(path: &str) -> Option<RouteFile> {
@@ -48,12 +57,13 @@ fn route_file_name(path: &str) -> Option<RouteFile> {
     })
 }
 
-/// Whether `path` is under `routes`; both are paths from the project's root, as the host names
-/// documents.
+/// Whether `path` is under `routes`, both from the project's root: upstream's
+/// `filePath.startsWith(path.join(root, routes))`.
 fn under(routes: &str, path: &str) -> bool {
-    let routes = normalize(routes);
-    // `eslint-plugin-svelte` compares text, so `src/routes2` is under `src/routes` too.
-    routes.is_empty() || normalize(path).starts_with(&routes)
+    let routes = normalize(routes.trim_start_matches('/'));
+    // `eslint-plugin-svelte` compares text, so `src/routes2` is under `src/routes` too; routes
+    // above the root hold no file of the project.
+    !routes.starts_with("..") && path.starts_with(&routes)
 }
 
 /// `path.join`'s normalization: no `.` or empty segments, `..` resolved where it can be.

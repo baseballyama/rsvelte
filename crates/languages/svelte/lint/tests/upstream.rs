@@ -17,7 +17,8 @@ use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::{Finding, apply_fix, apply_fixes};
-use rsvelte_svelte_lint::computation::SvelteConfiguration;
+use rsvelte_svelte_lint::computation::{SvelteConfiguration, SvelteKit};
+use rsvelte_svelte_lint::project::{self, Location, SvelteKitProject};
 use rsvelte_svelte_lint::{
     Configuration, Kit, KitFiles, LintSettings, SvelteConfig, Warning, WarningHandler,
 };
@@ -522,13 +523,23 @@ fn run(case: &Case<'_>, deviation: Option<&Deviation>) -> Verdict {
         return Verdict::Fail(format!("the options do not configure the rule: {error}"));
     }
     let source = read(&case.input);
-    // The path from the upstream package's root, which is where upstream's tests run.
+    let project = if case.root == Path::new(UPSTREAM) {
+        Project {
+            svelte_config: Ok(svelte_config.unwrap_or_default()),
+            // Upstream's tests run from its package, whose `package.json` is the nearest.
+            kit: SvelteKitProject {
+                location: Location::InProject(format!("tests/fixtures/rules/{}", case.document())),
+            },
+        }
+    } else {
+        Project::on_disk(&case.input, svelte_config)
+    };
     let document = Document::new(
-        format!("tests/fixtures/rules/{}", case.document()),
+        case.input.to_str().expect("UTF-8 path").to_owned(),
         source.clone(),
     )
     .expect("a fixture is small");
-    let findings = match lint(&document, &configuration, svelte_config) {
+    let findings = match lint(&document, &configuration, project) {
         Ok(findings) => findings,
         Err(error) => return Verdict::Fail(format!("the input does not lint: {}", error.message)),
     };
@@ -733,7 +744,8 @@ fn conflicting_module_names() -> usize {
         let source = code.map_or_else(|| read(&path), str::to_owned);
         let document = Document::new(path.to_str().expect("UTF-8 path").to_owned(), source)
             .expect("a case is small");
-        let actual: Vec<(String, u32)> = match lint(&document, &configuration, None) {
+        let project = Project::on_disk(&path, None);
+        let actual: Vec<(String, u32)> = match lint(&document, &configuration, project) {
             Ok(findings) => findings
                 .iter()
                 .map(|f| (f.diagnostic.message.clone(), f.diagnostic.span.start_offset))
@@ -867,17 +879,33 @@ fn property(
     Ok(found)
 }
 
+/// What a host knows of the document's project, as upstream's run of the case sees it.
+struct Project {
+    svelte_config: Result<SvelteConfig, String>,
+    kit: SvelteKitProject,
+}
+
+impl Project {
+    /// What `ESLint` finds around the file on disk, after a `svelte.config.js` the case gives.
+    fn on_disk(input: &Path, svelte_config: Option<SvelteConfig>) -> Self {
+        Self {
+            svelte_config: svelte_config.map_or_else(|| project::svelte_config_near(input), Ok),
+            kit: project::svelte_kit_project(input),
+        }
+    }
+}
+
 /// The findings, or the parse error.
 fn lint(
     document: &Document,
     configuration: &Configuration,
-    svelte_config: Option<SvelteConfig>,
+    project: Project,
 ) -> Result<Vec<Finding>, rsvelte_kernel::diagnostics::Diagnostic> {
     let mut registry = Registry::new();
     rsvelte_svelte_lint::register_artifacts(&mut registry);
-    // Upstream's parser finds no `svelte.config.js` above its fixtures.
-    let svelte_config = svelte_config.unwrap_or_default();
-    registry.provide::<SvelteConfiguration>("test", |_| true, move |_| Ok(svelte_config.clone()));
+    let Project { svelte_config, kit } = project;
+    registry.provide::<SvelteConfiguration>("test", |_| true, move |_| svelte_config.clone());
+    registry.provide::<SvelteKit>("test", |_| true, move |_| kit.clone());
     let context = DocumentContext::new(document, registry.artifacts());
     rsvelte_svelte_lint::lint(&context, configuration)
 }

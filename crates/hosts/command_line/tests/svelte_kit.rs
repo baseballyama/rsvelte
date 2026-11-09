@@ -107,3 +107,44 @@ fn files_with_code_in_them_leave_the_default_routes() {
         [format!("svelte/{VALID_PROPS}")]
     );
 }
+
+/// `ESLint` names a document by its absolute path, so an absolute argument is the same document.
+#[test]
+fn an_absolute_path_is_the_same_document() {
+    let project = Project::new(&[("package.json", KIT_2), ("src/routes/+page.svelte", PROP)]);
+    let absolute = project.0.join("src/routes/+page.svelte");
+    let absolute = absolute.to_str().expect("UTF-8 path");
+    assert_eq!(
+        project.rules(".", absolute, &[VALID_PROPS]),
+        [format!("svelte/{VALID_PROPS}")]
+    );
+    assert_eq!(
+        project.rules("src", "routes/+page.svelte", &[VALID_PROPS]),
+        [format!("svelte/{VALID_PROPS}")]
+    );
+}
+
+/// The routes are under the nearest `package.json`'s directory, wherever the command runs.
+#[test]
+fn routes_start_at_the_nearest_package_json() {
+    let project = Project::new(&[
+        ("package.json", KIT_2),
+        ("apps/web/package.json", KIT_2),
+        ("apps/web/src/routes/+page.svelte", PROP),
+        ("apps/web/src/lib/+page.svelte", PROP),
+        // Upstream compares text, so `src/routes2` is under `src/routes`.
+        ("src/routes2/+page.svelte", PROP),
+    ]);
+    assert_eq!(
+        project.rules(".", "apps/web/src/routes/+page.svelte", &[VALID_PROPS]),
+        [format!("svelte/{VALID_PROPS}")]
+    );
+    assert_eq!(
+        project.rules(".", "apps/web/src/lib/+page.svelte", &[VALID_PROPS]),
+        [""; 0]
+    );
+    assert_eq!(
+        project.rules("apps", "../src/routes2/+page.svelte", &[VALID_PROPS]),
+        [format!("svelte/{VALID_PROPS}")]
+    );
+}
