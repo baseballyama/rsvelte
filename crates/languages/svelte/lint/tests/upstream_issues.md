@@ -11,3 +11,14 @@ Bugs in eslint-plugin-svelte that this crate does not reproduce. Each is a candi
   attribute does not count.
 - Correct: report `m`, as for `<script context="module">`. A module script's exports are not
   props, so nothing writes `m` after its declaration.
+
+## svelte/prefer-svelte-reactivity: a reassigned variable hides its later constructions
+
+- Case: `tests/cases/prefer-svelte-reactivity/invalid/reassigned-input.svelte.js`,
+  `let q = new Set(); q = new Set(); q.add(1);`.
+- Upstream reports only the first `new Set()`. The mutation check takes one result of
+  `ReferenceTracker.iteratePropertyReferences` with `.next()` and never closes the generator,
+  so `q` stays on the tracker's `variableStack` and the second construction is skipped as a cycle.
+- Correct: report the second `Set` too. It is the one `q.add(1)` mutates, so upstream misses
+  exactly the construction the rule exists to catch. rsvelte follows every reference of `q`
+  from each construction and reports both.
