@@ -418,6 +418,22 @@ pub(super) fn should_proxy(syntax_tree: &SyntaxTree, res: &Resolution, e: NodeId
     proxyable(syntax_tree, Some(res), e)
 }
 
+/// Upstream `should_proxy` on a value it has already visited, where a prop's name has become a
+/// call or a member read and so proxies whatever its default.
+#[must_use]
+pub(super) fn should_proxy_read(
+    syntax_tree: &SyntaxTree,
+    res: &Resolution,
+    e: NodeIdentifier,
+) -> bool {
+    res.binding(e).is_some_and(|(_, information)| {
+        matches!(
+            information.kind,
+            BindingKind::Property | BindingKind::BindableProperty
+        )
+    }) || should_proxy(syntax_tree, res, e)
+}
+
 /// `res` is `None` for a binding's initial value, which upstream checks without a scope.
 fn proxyable(syntax_tree: &SyntaxTree, res: Option<&Resolution>, e: NodeIdentifier) -> bool {
     match syntax_tree.kind(e) {

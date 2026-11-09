@@ -1,6 +1,6 @@
 use super::{
     BindingKind, Kind, Names, NodeIdentifier, Rewrite, ScriptRewrite, SyntaxTree, copy, flag,
-    rune_call, should_proxy,
+    rune_call, should_proxy_read,
 };
 use crate::lower::javascript::is_simple_expression;
 
@@ -165,7 +165,7 @@ pub(super) fn lower_client_props(
         let mut arguments = vec![to.identifier("$$props"), to.write_string(&key_name)];
         let initial = info.initial.map(|i| {
             let initializer = copy(from, to, rw, i);
-            if info.kind == BindingKind::BindableProperty && should_proxy(from, rw.res, i) {
+            if info.kind == BindingKind::BindableProperty && should_proxy_read(from, rw.res, i) {
                 to.runtime("$", "proxy", &[initializer])
             } else {
                 initializer

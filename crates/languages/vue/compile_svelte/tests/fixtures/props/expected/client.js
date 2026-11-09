@@ -26,7 +26,7 @@ export default function Props_vue($$anchor, $$props) {
 		delete fallthrough['onVnodeUnmounted'];
 		return fallthrough;
 	});
-	let count = $.state(start());
+	let count = $.state($.proxy(start()));
 	var button = root();
 	var event_handler = (event) => $.set(count, $.get(count) + step());
 	$.attribute_effect(button, ($0) => ({ onclick: event_handler, ...$.get(attrs), class: $0 }), [() => 'class' in $.get(attrs) ? normalizeClass(['bump', $.get(attrs).class]) : 'bump']);

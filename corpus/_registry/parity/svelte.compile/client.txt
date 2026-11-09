@@ -1,4 +1,4 @@
-# svelte.compile/client: 8510 match
+# svelte.compile/client: 8511 match
 svelte/animotion/src/lib/components/action.svelte	refused
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -5402,7 +5402,6 @@ svelte/shadcn-svelte-extras/src/lib/components/ui/password/password-strength.sve
 svelte/shadcn-svelte-extras/src/lib/components/ui/password/password.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/ui/phone-input/country-selector.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/ui/phone-input/flag.svelte	refused
-svelte/shadcn-svelte-extras/src/lib/components/ui/phone-input/phone-input.svelte	mismatch
 svelte/shadcn-svelte-extras/src/lib/components/ui/pm-command/pm-command.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/ui/popover/popover-description.svelte	refused
 svelte/shadcn-svelte-extras/src/lib/components/ui/popover/popover-header.svelte	refused
@@ -9531,7 +9530,7 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/effect-untrack-teardow
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/effect/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/effects-order/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/element-is-attribute/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/error-boundary-17/Child.svelte	mismatch
+svelte/svelte/packages/svelte/tests/runtime-runes/samples/error-boundary-17/Child.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/error-boundary-21/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/error-boundary-4/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/event-arguments-2/main.svelte	refused

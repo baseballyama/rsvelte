@@ -340,6 +340,28 @@ fn a_bindable_prop_member_is_written_through_the_prop() {
 }
 
 #[test]
+fn a_prop_proxies_where_upstream_reads_it_and_not_where_it_follows_the_default() {
+    for (script, expected) in [
+        (
+            "let { d = null, c = $bindable(d) } = $props();",
+            "c=$.prop($$props,'c',27,()=>$.proxy(d()));",
+        ),
+        (
+            "let { d = null } = $props(); let s = $state(d);",
+            "lets=$.proxy(d());",
+        ),
+        (
+            "let { d = null } = $props(); let s = $state(0); function f() { s = d; }",
+            "$.set(s,d());",
+        ),
+    ] {
+        let source = format!("<script>{script}</script>{{s}}{{c}}");
+        let client = squashed(&source, Target::Client);
+        assert!(client.contains(expected), "{expected} in {client}");
+    }
+}
+
+#[test]
 fn only_the_instance_splits_a_declaration_into_one_per_declarator() {
     let source = "<script module>let m = 1, n = 2;</script><script>let p = 1, q = 2; function f() { let r = 1, s = 2; return r + s; }</script>{m}{n}{p}{q}{f()}";
     for target in [Target::Client, Target::Server] {

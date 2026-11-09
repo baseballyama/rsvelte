@@ -4,7 +4,7 @@ use rsvelte_typescript_syntax::operators::UnaryOperator;
 use super::super::derived::{Created, callback};
 
 use super::{
-    Kind, NodeIdentifier, ScriptRewrite, SyntaxTree, Target, copy, rune_call, should_proxy,
+    Kind, NodeIdentifier, ScriptRewrite, SyntaxTree, Target, copy, rune_call, should_proxy_read,
     unsupported,
 };
 
@@ -80,7 +80,7 @@ pub(super) fn lower_value_declarator(
             let mut v = value(to, rw);
             if rw.target == Target::Client {
                 let b = rw.res.sem.binding_of(identifier);
-                if rune == "$state" && arg.is_some_and(|a| should_proxy(from, rw.res, a)) {
+                if rune == "$state" && arg.is_some_and(|a| should_proxy_read(from, rw.res, a)) {
                     v = to.runtime("$", "proxy", &[v]);
                 }
                 if b.is_some_and(|b| rw.res.is_state_source(b)) {
