@@ -146,10 +146,7 @@ impl Builder<'_, '_> {
             return Ok(());
         }
         let (javascript, resolution) = (self.i.javascript, self.i.resolution);
-        let mut root = target;
-        while let Kind::Member { object, .. } = javascript.kind(root) {
-            root = object;
-        }
+        let root = javascript.member_root(target);
         let kind = matches!(javascript.kind(root), Kind::Identifier(_))
             .then(|| resolution.binding(root).map(|(_, info)| info.kind))
             .flatten();

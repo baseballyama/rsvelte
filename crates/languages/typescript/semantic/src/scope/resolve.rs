@@ -331,10 +331,7 @@ impl Analyzer<'_> {
                     self.resolve(property, ReferenceContext::Expression);
                 }
                 if let ReferenceContext::Target { .. } = context {
-                    let mut root = object;
-                    while let Kind::Member { object, .. } = self.syntax_tree.kind(root) {
-                        root = object;
-                    }
+                    let root = self.syntax_tree.member_root(object);
                     if let Some(b) = self.s.binding_of(root) {
                         self.s.bindings[b].mutations += 1;
                     }

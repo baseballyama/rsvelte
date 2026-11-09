@@ -4,6 +4,15 @@ use super::{
 };
 
 impl SyntaxTree {
+    /// The object a member chain starts from (`a` in `a.b[c].d`), or `e` when it is no member.
+    #[must_use]
+    pub fn member_root(&self, mut e: NodeIdentifier) -> NodeIdentifier {
+        while let Kind::Member { object, .. } = self.kind(e) {
+            e = object;
+        }
+        e
+    }
+
     #[inline]
     #[must_use]
     pub fn is_identifier(&self, identifier: NodeIdentifier) -> bool {

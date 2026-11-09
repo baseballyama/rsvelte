@@ -128,10 +128,7 @@ pub(super) fn check_binding(
             a.span,
         );
     }
-    let mut root = e;
-    while let Kind::Member { object, .. } = javascript.kind(root) {
-        root = object;
-    }
+    let root = javascript.member_root(e);
     let kind = javascript
         .is_identifier(root)
         .then(|| res.binding(root).map(|(_, info)| info.kind))
