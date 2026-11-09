@@ -2889,7 +2889,7 @@ impl VisitMut<'_> for ShiftBy {
 /// SECOND destructured-declaration array pattern in the same component is named
 /// `$$array_1`, not a colliding `$$array` (写経 the per-component
 /// `scope.generate('$$array')`).
-fn create_state_declarators<'a>(
+pub(in crate::compiler::phases::phase3_transform::server::ast) fn create_state_declarators<'a>(
     pat: oxc_ast::ast::BindingPattern<'a>,
     value: Option<OxcExpression<'a>>,
     state: &mut ServerTransformState<'a>,
@@ -3161,7 +3161,7 @@ fn build_destructure_fallback<'a>(
 /// Each extracted leaf becomes `name = $.derived(() => <access>)`; each
 /// `ArrayPattern` becomes `$$derived_array = $.derived(() => $.to_array(...))`,
 /// indexed via the temp CALL `$$derived_array()[i]`.
-fn create_derived_declarators<'a>(
+pub(in crate::compiler::phases::phase3_transform::server::ast) fn create_derived_declarators<'a>(
     rune: &DeclRune,
     init_expr: Option<&OxcExpression>,
     src: &str,

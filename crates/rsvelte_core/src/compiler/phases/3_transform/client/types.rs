@@ -3108,6 +3108,10 @@ impl Memoizer {
         self.conflicts.borrow_mut().insert(name.to_string());
     }
 
+    pub fn has_conflict(&self, name: &str) -> bool {
+        self.conflicts.borrow().contains(name)
+    }
+
     pub fn generate_id(&mut self, base: &str) -> String {
         let sanitized = if is_valid_identifier(base) {
             base

@@ -112,12 +112,37 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
     }
     script_input.push('\n');
 
+    // Upstream draws these temps from the component's one `scope.generate`;
+    // here the template memoizer holds every name generated so far (each-block
+    // and snippet `$$array`s included), so start past it and record ours in it.
+    let counters =
+        crate::compiler::phases::phase3_transform::client::declaration_tag_temp_counters();
+    let starts = counters.map(|(counter, base)| {
+        let mut index = counter.with(std::cell::Cell::get);
+        while context
+            .state
+            .memoizer
+            .has_conflict(&numbered_temp(base, index))
+        {
+            index += 1;
+        }
+        counter.with(|c| c.set(index));
+        index
+    });
     let transformed = crate::compiler::phases::phase3_transform::client::transform_instance_script_for_visitors_pub(
         &script_input,
         context.state.analysis,
         context.state.options.dev,
         &[],
     );
+    for ((counter, base), start) in counters.into_iter().zip(starts) {
+        for index in start..counter.with(std::cell::Cell::get) {
+            context
+                .state
+                .memoizer
+                .add_conflict(&numbered_temp(base, index));
+        }
+    }
 
     // The instance-script pipeline wraps instance-state reads but is unaware of
     // reactive bindings introduced by the surrounding template scope. Inside
@@ -205,7 +230,7 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
     let raw = if body_has_top_level_comma(body) {
         rejoin_declarators(trimmed)
     } else {
-        trimmed.to_string()
+        layout_expanded_declarators(trimmed).unwrap_or_else(|| trimmed.to_string())
     };
 
     context.state.consts.push(JsStatement::Raw(raw.into()));
@@ -586,6 +611,52 @@ fn body_has_top_level_comma(body: &str) -> bool {
         i += 1;
     }
     false
+}
+
+fn numbered_temp(base: &str, index: usize) -> String {
+    if index == 0 {
+        base.to_string()
+    } else {
+        format!("{base}_{index}")
+    }
+}
+
+/// One source declarator the pipeline expanded into several (a destructured
+/// `$state` / `$derived` becomes its temps plus one leaf per path), laid out
+/// the way esrap prints a multi-declarator declaration: on one line unless it
+/// is longer than 50 columns, otherwise one continuation declarator per line.
+fn layout_expanded_declarators(s: &str) -> Option<String> {
+    use oxc_ast::ast::Statement;
+    let allocator = oxc_allocator::Allocator::default();
+    let parsed = oxc_parser::Parser::new(&allocator, s, oxc_span::SourceType::mjs()).parse();
+    if !parsed.diagnostics.is_empty() {
+        return None;
+    }
+    let [Statement::VariableDeclaration(decl)] = parsed.program.body.as_slice() else {
+        return None;
+    };
+    if decl.declarations.len() < 2 {
+        return None;
+    }
+    let keyword = match decl.kind {
+        oxc_ast::ast::VariableDeclarationKind::Let => "let ",
+        oxc_ast::ast::VariableDeclarationKind::Const => "const ",
+        oxc_ast::ast::VariableDeclarationKind::Var => "var ",
+        _ => return None,
+    };
+    let mut parts = Vec::with_capacity(decl.declarations.len());
+    for declarator in &decl.declarations {
+        let text = s.get(declarator.span.start as usize..declarator.span.end as usize)?;
+        if text.contains('\n') {
+            return None;
+        }
+        parts.push(text);
+    }
+    let length = keyword.len()
+        + parts.iter().map(|p| p.chars().count()).sum::<usize>()
+        + 2 * (parts.len() - 1);
+    let separator = if length > 50 { ",\n\t" } else { ", " };
+    Some(format!("{keyword}{};", parts.join(separator)))
 }
 
 /// Rejoin instance-script-split `let` / `const` statements

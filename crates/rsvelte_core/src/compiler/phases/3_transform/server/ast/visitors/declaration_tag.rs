@@ -40,7 +40,9 @@ use super::const_tag::{extract_declared_names, extract_identifiers_from_expr, fi
 use super::shared::TemplateEntry;
 use crate::ast::template::DeclarationTag;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-use crate::compiler::phases::phase3_transform::server::ast::script::{DeclRune, detect_decl_rune};
+use crate::compiler::phases::phase3_transform::server::ast::script::{
+    DeclRune, create_derived_declarators, create_state_declarators, detect_decl_rune,
+};
 use crate::compiler::phases::phase3_transform::server::ast::{
     AsyncConstsGroup, ServerTransformState,
 };
@@ -177,22 +179,25 @@ pub fn visit_declaration_tag<'a>(node: &DeclarationTag, state: &mut ServerTransf
     };
 
     let b = state.b;
+    if vd.declarations.iter().any(|d| {
+        !matches!(&d.id, oxc_ast::ast::BindingPattern::BindingIdentifier(_))
+            && matches!(
+                d.init.as_ref().and_then(detect_decl_rune),
+                Some(DeclRune::State | DeclRune::Derived | DeclRune::DerivedBy)
+            )
+    }) {
+        stmt = expand_destructured_runes(vd, &decl_src, state);
+        register_constant_folds(node, state);
+        state.template.push(TemplateEntry::HoistableDecl(stmt));
+        return;
+    }
     // Lower each declarator's rune in place, mirroring the identifier-pattern
-    // branch of upstream `VariableDeclaration.js` (runes mode). Destructured
-    // `$state` / `$derived` patterns are an orthogonal axis (the `$$d` /
-    // `$$derived_array` expansion) not exercised by the `declaration-tags*`
-    // fixtures, so an identifier pattern is handled here and any other shape
-    // falls through to a plain (read-wrapped) declarator.
+    // branch of upstream `VariableDeclaration.js` (runes mode).
     for d in vd.declarations.iter_mut() {
         let Some(rune) = d.init.as_ref().and_then(detect_decl_rune) else {
             // Plain (non-rune) declarator — leave the init for read-wrapping.
             continue;
         };
-        let is_ident = matches!(&d.id, oxc_ast::ast::BindingPattern::BindingIdentifier(_));
-        if !is_ident {
-            // Non-identifier rune pattern: leave as-is (out of scope here).
-            continue;
-        }
         // Pull the first call argument out of the rune call.
         let arg: Option<OxcExpression<'a>> = match d.init.take() {
             Some(OxcExpression::CallExpression(call)) => {
@@ -246,6 +251,80 @@ pub fn visit_declaration_tag<'a>(node: &DeclarationTag, state: &mut ServerTransf
     register_constant_folds(node, state);
 
     state.template.push(TemplateEntry::HoistableDecl(stmt));
+}
+
+/// A declaration with a destructured `$state` / `$derived` declarator: every
+/// declarator is rebuilt, the destructured ones expanded into their temps and
+/// one leaf per path (`VariableDeclaration.js`'s `create_state_declarators` and
+/// derived branch), each initializer read-wrapped once before expansion.
+fn expand_destructured_runes<'a>(
+    vd: &mut oxc_ast::ast::VariableDeclaration<'a>,
+    decl_src: &str,
+    state: &mut ServerTransformState<'a>,
+) -> Statement<'a> {
+    let b = state.b;
+    let mut decls: Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)> = Vec::new();
+    for d in vd.declarations.drain(..) {
+        let is_ident = matches!(&d.id, oxc_ast::ast::BindingPattern::BindingIdentifier(_));
+        let rune = d.init.as_ref().and_then(detect_decl_rune);
+        let mut arg: Option<OxcExpression<'a>> = match d.init.as_ref() {
+            Some(OxcExpression::CallExpression(call)) if rune.is_some() => call
+                .arguments
+                .first()
+                .and_then(|a| a.as_expression())
+                .map(|e| oxc_allocator::CloneIn::clone_in(e, state.allocator)),
+            _ => None,
+        };
+        if let Some(arg) = arg.as_mut() {
+            state.wrap_reads_in_place(arg);
+        }
+        match rune {
+            Some(DeclRune::State) if is_ident => {
+                decls.push((d.id, Some(arg.unwrap_or_else(|| b.void0()))));
+            }
+            Some(DeclRune::State) => {
+                let mut array_counter = state.array_counter;
+                create_state_declarators(
+                    d.id,
+                    Some(arg.unwrap_or_else(|| b.void0())),
+                    state,
+                    &mut array_counter,
+                    &mut decls,
+                );
+                state.array_counter = array_counter;
+            }
+            Some(rune @ (DeclRune::Derived | DeclRune::DerivedBy)) => {
+                let new_init = arg.map(|e| {
+                    if matches!(rune, DeclRune::Derived) {
+                        b.call("$.derived", vec![b.thunk(e, false)])
+                    } else {
+                        b.call("$.derived", vec![e])
+                    }
+                });
+                if is_ident {
+                    decls.push((d.id, new_init));
+                } else {
+                    create_derived_declarators(
+                        &rune,
+                        d.init.as_ref(),
+                        decl_src,
+                        d.id,
+                        new_init,
+                        state,
+                        &mut decls,
+                    );
+                }
+            }
+            _ => {
+                let mut init = d.init;
+                if let Some(init) = init.as_mut() {
+                    state.wrap_reads_in_place(init);
+                }
+                decls.push((d.id, init));
+            }
+        }
+    }
+    b.var_decl_from_pairs(vd.kind, decls)
 }
 
 /// Register every foldable LITERAL identifier declarator of `node` into
