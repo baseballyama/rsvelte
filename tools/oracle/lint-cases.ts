@@ -3,7 +3,9 @@
 // `<rule>/{valid,invalid}/…/<name>-input.svelte`, options in `<name>-config.json` or
 // `_config.json`, the reports in `<name>-errors.yaml` and a fixable rule's fixed code in
 // `<name>-output.svelte`. As upstream's runner does, a missing file is written and an existing one
-// is kept unless --update; a valid case must report nothing and an invalid one something.
+// is kept unless --update; a valid case must report nothing and an invalid one something. A case in
+// tests/cases_deviations.json keeps the crate's answer where ESLint's is an upstream bug: it is never
+// written, and it fails once ESLint agrees.
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
@@ -12,6 +14,7 @@ import { parseArgs } from 'node:util';
 import type { Linter as LinterType } from 'eslint';
 
 const ROOT = path.resolve(import.meta.dirname, '../../crates/languages/svelte/lint/tests/cases');
+const DEVIATIONS = path.resolve(ROOT, '../cases_deviations.json');
 
 const sibling = (input: string, name: string) => input.replace(/(input|\+.+)(?:\.[a-z]+)+$/u, name);
 
@@ -68,6 +71,23 @@ function rules(directory: string): string[] {
 // A type-aware rule reads a TypeScript project.
 const typedRule = (rule: string) => rule.startsWith('@typescript-eslint/');
 
+// The reports as errors.yaml holds them: upstream's `loadTestCases` keeps a suggestion's `desc`,
+// its `messageId` and the code its fix gives.
+function reports(messages: LinterType.LintMessage[], text: string) {
+	return messages.map((m) => ({
+		message: m.message,
+		line: m.line,
+		column: m.column,
+		suggestions: m.suggestions
+			? m.suggestions.map((s) => ({
+					desc: s.desc,
+					messageId: s.messageId,
+					output: applySuggestion(text, s.fix),
+				}))
+			: null,
+	}));
+}
+
 export async function main(args: string[]): Promise<void> {
 	const { values } = parseArgs({ args, options: { update: { type: 'boolean', default: false } } });
 	const require = createRequire(path.join(import.meta.dirname, 'package.json'));
@@ -78,6 +98,9 @@ export async function main(args: string[]): Promise<void> {
 	const globals = require('globals');
 	const yaml = require('yaml');
 	const linter = new Linter();
+	const deviations = new Map<string, string>(
+		Object.entries(JSON.parse(fs.readFileSync(DEVIATIONS, 'utf8'))),
+	);
 	// Type-aware rules read a strict TypeScript project that holds the input as its only file.
 	const project = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-lint-cases-'));
 	fs.symlinkSync(
@@ -151,6 +174,14 @@ export async function main(args: string[]): Promise<void> {
 				const fatal = messages.find((m) => m.fatal);
 				if (fatal) throw new Error(`${input}: ${fatal.message}`);
 				const relative = path.relative(ROOT, input);
+				if (deviations.delete(relative)) {
+					const actual = yaml.stringify(reports(messages, text));
+					const errors = sibling(input, 'errors.yaml');
+					const kept = fs.existsSync(errors) ? fs.readFileSync(errors, 'utf8') : yaml.stringify([]);
+					if (yaml.stringify(yaml.parse(kept)) === actual)
+						throw new Error(`${relative} is listed as a deviation, but ESLint agrees`);
+					continue;
+				}
 				if (kind === 'valid') {
 					if (messages.length)
 						throw new Error(`${relative} is valid but reports ${messages.length}`);
@@ -159,18 +190,7 @@ export async function main(args: string[]): Promise<void> {
 				if (!messages.length) throw new Error(`${relative} is invalid but reports nothing`);
 				const errors = sibling(input, 'errors.yaml');
 				if (!fs.existsSync(errors) || values.update) {
-					const report = messages.map((m) => ({
-						message: m.message,
-						line: m.line,
-						column: m.column,
-						suggestions: m.suggestions
-							? m.suggestions.map((s) => ({
-									desc: s.desc,
-									messageId: s.messageId,
-									output: applySuggestion(text, s.fix),
-								}))
-							: null,
-					}));
+					const report = reports(messages, text);
 					fs.writeFileSync(errors, yaml.stringify(report));
 					written++;
 				}
@@ -190,5 +210,7 @@ export async function main(args: string[]): Promise<void> {
 		}
 	}
 	if (!cases) throw new Error(`no cases under ${ROOT}`);
+	for (const relative of deviations.keys())
+		throw new Error(`${relative} is listed as a deviation, but is not a case`);
 	console.log(`${cases} cases, ${written} files written`);
 }

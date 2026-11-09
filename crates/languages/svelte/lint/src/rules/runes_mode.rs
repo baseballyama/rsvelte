@@ -1,14 +1,15 @@
 //! Whether a document is in runes mode, as `svelte-eslint-parser` decides before compiling.
 
-use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte::syntax::syntax_tree::{AttributeValue, Component, Part, TemplateNode};
-use rsvelte_typescript::lexer::T;
-use rsvelte_typescript::{Kind, SyntaxTree};
+use rsvelte_svelte::syntax::syntax_tree::{
+    AttributeKind, AttributeValue, Component, Part, TemplateNode,
+};
+use rsvelte_typescript::Kind;
 
+use super::reactive_statements::programs;
 use crate::rule::File;
 
-/// The identifiers whose presence turns runes mode on.
-const RUNES: &[&str] = &[
+/// svelte-eslint-parser's `runeSymbols`.
+pub(super) const RUNE_SYMBOLS: &[&str] = &[
     "$state",
     "$derived",
     "$effect",
@@ -18,65 +19,57 @@ const RUNES: &[&str] = &[
     "$host",
 ];
 
-/// `<svelte:options runes>` when it says, else whether an identifier names a rune. A `.svelte.js`
-/// or `.svelte.ts` module is always in runes mode; any other module has no mode (`None`).
+/// svelte-eslint-parser's runes mode: `<svelte:options runes>` decides, or else whether a
+/// script names a rune anywhere outside type syntax (`hasRunesSymbol`).
+pub(super) fn runes_mode(component: &Component, source: &str) -> bool {
+    for node in &component.nodes {
+        let TemplateNode::Element {
+            name, attributes, ..
+        } = node
+        else {
+            continue;
+        };
+        if name.text(source) != "svelte:options" {
+            continue;
+        }
+        for attribute in component.attributes(*attributes) {
+            if attribute.kind != AttributeKind::Attribute || attribute.name.text(source) != "runes"
+            {
+                continue;
+            }
+            return match attribute.value {
+                AttributeValue::True => true,
+                AttributeValue::Parts(parts) => match component.parts(parts) {
+                    [Part::Expression { expression, .. }] => {
+                        !matches!(component.javascript.kind(*expression), Kind::Boolean(false))
+                    }
+                    _ => true,
+                },
+            };
+        }
+    }
+    let javascript = &component.javascript;
+    let mut pending: Vec<_> = programs(component).collect();
+    while let Some(node) = pending.pop() {
+        if javascript
+            .atom(node)
+            .is_some_and(|atom| RUNE_SYMBOLS.contains(&javascript.atoms.get(atom)))
+        {
+            return true;
+        }
+        javascript.for_each_child(node, |child| pending.push(child));
+    }
+    false
+}
+
+/// [`runes_mode`] of a component; a `.svelte.js` or `.svelte.ts` module is always in runes mode,
+/// and any other module has no mode (`None`).
 pub(super) fn runes(file: &File<'_>) -> Option<bool> {
     let Some(component) = file.component() else {
         let path = file.path();
         return (path.ends_with(".svelte.js") || path.ends_with(".svelte.ts")).then_some(true);
     };
-    let source = file.source();
-    Some(option(component, source).unwrap_or_else(|| {
-        let javascript = &component.javascript;
-        javascript.tokens.iter().any(|token| {
-            token.kind == T::Identifier
-                && RUNES.contains(&token.span.text(source))
-                && !in_type(javascript, token.span)
-        })
-    }))
-}
-
-/// Whether the identifier at `span` is a name in type syntax (`let o: $state`), which names no
-/// rune.
-fn in_type(javascript: &SyntaxTree, span: Span) -> bool {
-    let references = &javascript.type_references;
-    references
-        .binary_search_by_key(&span.start_offset, |reference| reference.span.start_offset)
-        .is_ok()
-}
-
-/// The `runes` option of `<svelte:options>`, a root element.
-fn option(component: &Component, source: &str) -> Option<bool> {
-    component
-        .children(component.root)
-        .iter()
-        .find_map(|&child| {
-            let TemplateNode::Element {
-                name, attributes, ..
-            } = component.node(child)
-            else {
-                return None;
-            };
-            if name.text(source) != "svelte:options" {
-                return None;
-            }
-            let attribute = component
-                .attributes(*attributes)
-                .iter()
-                .find(|attribute| attribute.name.text(source) == "runes")?;
-            match attribute.value {
-                AttributeValue::True => Some(true),
-                AttributeValue::Parts(parts) => match component.parts(parts) {
-                    [Part::Expression { expression, .. }] => {
-                        match component.javascript.kind(*expression) {
-                            Kind::Boolean(value) => Some(value),
-                            _ => None,
-                        }
-                    }
-                    _ => None,
-                },
-            }
-        })
+    Some(runes_mode(component, file.source()))
 }
 
 #[cfg(test)]

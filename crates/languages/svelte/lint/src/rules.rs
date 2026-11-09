@@ -7,6 +7,7 @@ mod button_has_type;
 pub(crate) mod comment_directive;
 mod compile_warnings;
 mod constant_string;
+mod derived_has_same_inputs_outputs;
 mod duplicate_directives;
 mod expressions;
 mod first_attribute_linebreak;
@@ -14,24 +15,36 @@ mod html_closing_bracket_new_line;
 mod html_closing_bracket_spacing;
 mod html_quotes;
 mod html_self_closing;
+mod infinite_reactive_loop;
+mod javascript;
+mod legacy_reactivity;
 mod markup;
 mod max_attributes_per_line;
 mod mustache_spacing;
+mod no_add_event_listener;
 mod no_at_const_tags;
 mod no_at_debug_tags;
 mod no_at_html_tags;
 mod no_bind_value_on_checkable_inputs;
+mod no_dom_manipulating;
 mod no_dupe_else_if_blocks;
 mod no_dupe_on_directives;
 mod no_dupe_use_directives;
 mod no_dynamic_slot_name;
+mod no_extra_reactive_curlies;
+mod no_ignored_unsubscribe;
+mod no_immutable_reactive_statements;
 mod no_inspect;
 mod no_nested_style_tag;
 mod no_not_function_handler;
 mod no_object_in_text_mustaches;
 mod no_raw_special_elements;
+mod no_reactive_functions;
+mod no_reactive_literals;
+mod no_reactive_reassign;
 mod no_restricted_html_elements;
 mod no_spaces_around_equal_signs_in_attribute;
+mod no_store_async;
 mod no_target_blank;
 mod no_trailing_spaces;
 mod no_unnecessary_condition;
@@ -40,13 +53,19 @@ mod no_unused_variables;
 mod no_useless_children_snippet;
 mod no_useless_mustaches;
 mod prefer_attribute_interpolation;
+mod prefer_destructured_store_props;
+mod reactive_statements;
 mod require_each_key;
+mod require_store_callbacks_use_set_param;
+mod require_store_reactive_access;
+mod require_stores_init;
 mod runes_mode;
 mod shorthand_attribute;
 mod shorthand_directive;
 mod sort_attributes;
 mod spaced_html_comment;
 mod string_escape;
+mod svelte_store;
 pub(crate) mod system;
 mod tags;
 #[cfg(test)]
@@ -95,6 +114,21 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_unused_svelte_ignore::RULE,
     &system::RULE,
     &valid_compile::RULE,
+    &derived_has_same_inputs_outputs::RULE,
+    &infinite_reactive_loop::RULE,
+    &no_add_event_listener::RULE,
+    &no_dom_manipulating::RULE,
+    &no_extra_reactive_curlies::RULE,
+    &no_ignored_unsubscribe::RULE,
+    &no_immutable_reactive_statements::RULE,
+    &no_reactive_functions::RULE,
+    &no_reactive_literals::RULE,
+    &no_reactive_reassign::RULE,
+    &no_store_async::RULE,
+    &prefer_destructured_store_props::RULE,
+    &require_store_callbacks_use_set_param::RULE,
+    &require_store_reactive_access::RULE,
+    &require_stores_init::RULE,
     &valid_each_key::RULE,
 ];
 

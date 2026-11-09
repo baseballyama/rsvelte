@@ -8,6 +8,7 @@
 //   upstream <name> <checkout>                                copy an upstream project's test fixtures into its crate's tests
 //   lint-cases [--update]                                     write ESLint's reports for the lint crate's own rule cases
 //   entities                                                  vendor the Svelte compiler's entity table
+//   globals                                                   vendor the global variables the lint oracle declares
 //   semantic --report <file> [--inputs <dir>] [--projector <binary>] [--filter <text>] [--limit <n>]
 //                                                             compare the TypeScript projection's semantics
 const commands: Record<string, () => Promise<{ main(args: string[]): Promise<void> }>> = {
@@ -19,6 +20,7 @@ const commands: Record<string, () => Promise<{ main(args: string[]): Promise<voi
 	upstream: () => import('./upstream.ts'),
 	'lint-cases': () => import('./lint-cases.ts'),
 	entities: () => import('./entities.ts'),
+	globals: () => import('./globals.ts'),
 	semantic: () => import('./semantic.ts'),
 };
 

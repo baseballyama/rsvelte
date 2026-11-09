@@ -1,3 +1,5 @@
 {
+	"require-store-reactive-access/invalid/tagged01-input.svelte": "tagged templates (tag`...`)",
+	"require-store-reactive-access/valid/tagged01-input.svelte": "tagged templates (tag`...`)",
 	"valid-compile/valid/ts/class01-input.svelte": "the TypeScript parser refuses `abstract class`"
 }

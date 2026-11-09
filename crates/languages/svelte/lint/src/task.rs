@@ -8,7 +8,8 @@ use rsvelte_kernel::source::document::Document;
 
 use crate::Configuration;
 use crate::computation::{
-    ConditionTypes, LintConfiguration, ModuleParents, NativeConditionTypes, Parents,
+    ConditionTypes, LegacyReactivity, LintConfiguration, ModuleParents, NativeConditionTypes,
+    Parents,
 };
 use crate::types::TypeFacts;
 
@@ -40,7 +41,8 @@ pub fn register_artifacts(registry: &mut Registry) {
     registry
         .artifact::<Parents>()
         .artifact::<ModuleParents>()
-        .artifact::<NativeConditionTypes>();
+        .artifact::<NativeConditionTypes>()
+        .artifact::<LegacyReactivity>();
 }
 
 /// Replaces the built-in prototype's condition types with `provider`'s.
