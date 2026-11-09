@@ -8,6 +8,7 @@ mod no_extra_reactive_curlies;
 mod no_ignored_unsubscribe;
 mod no_reactive_functions;
 mod no_reactive_literals;
+mod no_store_async;
 mod no_unused_variables;
 mod reactive_statements;
 mod require_store_callbacks_use_set_param;
@@ -25,6 +26,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_ignored_unsubscribe::RULE,
     &no_reactive_functions::RULE,
     &no_reactive_literals::RULE,
+    &no_store_async::RULE,
     &require_store_callbacks_use_set_param::RULE,
     &require_stores_init::RULE,
     &valid_each_key::RULE,
