@@ -65,86 +65,75 @@ pub(super) fn check_runes(
     target: Target,
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
-    fn walk(
-        javascript: &SyntaxTree,
-        res: &Resolution,
-        target: Target,
-        custom_element: bool,
-        e: NodeIdentifier,
-        statement: bool,
-        in_class: bool,
-    ) -> Result<(), Diagnostic> {
-        if let Some((rune, _)) = res.rune(javascript, e) {
-            let supported = match rune {
-                "$state" | "$state.raw" | "$derived" | "$derived.by" => !in_class,
-                "$props" | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
-                "$host" => custom_element,
-                "$effect" | "$effect.pre" => statement || target == Target::Client,
-                _ => false,
-            };
-            if !supported {
-                let Some(span) = javascript.source_location(e).span() else {
-                    unreachable!("a rune call is parsed from source")
-                };
-                return if in_class {
-                    unsupported(&format!("`{rune}` in a class body"), span)
-                } else {
-                    unsupported(&format!("`{rune}`"), span)
-                };
-            }
-        }
-        if matches!(javascript.kind(e), Kind::Declarator { .. }) {
-            super::script::check_destructured_rune(javascript, res, target, e)?;
-        }
-        let mut children = Vec::new();
-        javascript.for_each_child(e, |c| children.push(c));
-        let statement = matches!(javascript.kind(e), Kind::ExpressionStatement(_));
-        let in_class = in_class
-            || matches!(
-                javascript.kind(e),
-                Kind::Class(rsvelte_typescript::syntax_tree::Class::Definition { .. })
-            );
-        for c in children {
-            walk(
-                javascript,
-                res,
-                target,
-                custom_element,
-                c,
-                statement,
-                in_class,
-            )?;
-        }
-        Ok(())
-    }
-    for program in input
+    let javascript = input.component.javascript;
+    // Pre-order from a stack of `(node, parent is a statement, in a class body)`: expressions nest
+    // thousands deep in real input.
+    let mut pending: Vec<(NodeIdentifier, bool, bool)> = Vec::new();
+    let roots = input
         .component
         .module
         .into_iter()
-        .chain([input.component.program])
-    {
-        walk(
-            input.component.javascript,
-            res,
-            target,
-            custom_element,
-            program,
-            false,
-            false,
-        )?;
-    }
-    for &e in input.component.template_expressions {
-        walk(
-            input.component.javascript,
-            res,
-            target,
-            custom_element,
-            e,
-            false,
-            false,
-        )?;
+        .chain([input.component.program]);
+    for root in roots.chain(input.component.template_expressions.iter().copied()) {
+        pending.push((root, false, false));
+        while let Some((e, statement, in_class)) = pending.pop() {
+            if let Some((rune, _)) = res.rune(javascript, e) {
+                check_rune(
+                    javascript,
+                    e,
+                    rune,
+                    statement,
+                    in_class,
+                    target,
+                    custom_element,
+                )?;
+            }
+            let kind = javascript.kind(e);
+            if matches!(kind, Kind::Declarator { .. }) {
+                super::script::check_destructured_rune(javascript, res, target, e)?;
+            }
+            let statement = matches!(kind, Kind::ExpressionStatement(_));
+            let in_class = in_class
+                || matches!(
+                    kind,
+                    Kind::Class(rsvelte_typescript::syntax_tree::Class::Definition { .. })
+                );
+            let base = pending.len();
+            javascript.for_each_child(e, |c| pending.push((c, statement, in_class)));
+            pending[base..].reverse();
+        }
     }
     Ok(())
+}
+
+/// Refuses the rune call `e` where this port does not lower it.
+fn check_rune(
+    javascript: &SyntaxTree,
+    e: NodeIdentifier,
+    rune: &str,
+    statement: bool,
+    in_class: bool,
+    target: Target,
+    custom_element: bool,
+) -> Result<(), Diagnostic> {
+    let supported = match rune {
+        "$state" | "$state.raw" | "$derived" | "$derived.by" => !in_class,
+        "$props" | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
+        "$host" => custom_element,
+        "$effect" | "$effect.pre" => statement || target == Target::Client,
+        _ => false,
+    };
+    if supported {
+        return Ok(());
+    }
+    let Some(span) = javascript.source_location(e).span() else {
+        unreachable!("a rune call is parsed from source")
+    };
+    if in_class {
+        unsupported(&format!("`{rune}` in a class body"), span)
+    } else {
+        unsupported(&format!("`{rune}`"), span)
+    }
 }
 
 pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
