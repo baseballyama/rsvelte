@@ -1,6 +1,7 @@
 use crate::rule::RuleDefinition;
 
 mod button_has_type;
+mod consistent_selector_style;
 mod element_kind;
 mod no_dupe_style_properties;
 mod no_inline_styles;
@@ -20,6 +21,7 @@ mod valid_style_parse;
 pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_unused_variables::RULE,
     &button_has_type::RULE,
+    &consistent_selector_style::RULE,
     &no_dupe_style_properties::RULE,
     &no_inline_styles::RULE,
     &no_shorthand_style_property_overrides::RULE,
