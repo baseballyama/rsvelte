@@ -34,6 +34,10 @@ use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
 
 type ParseResult<T> = Result<T, Diagnostic>;
 
+/// How deeply elements and blocks may nest. The official parser stops below 1,000 under Node's
+/// default stack.
+pub const MAX_NESTING: u32 = 1 << 16;
+
 const ESTIMATED_BYTES_PER_TOKEN: usize = 4;
 const INITIAL_TOKEN_CAPACITY_LIMIT: usize = 8192;
 
@@ -68,6 +72,7 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
         },
         typescript: false,
         pending_children: buffer_pool::take_keyed::<Parser<'static>, _>(),
+        depth: 0,
     };
     // The script's language decides how template expressions parse, so read it first.
     parser.typescript = script::script_is_typescript(source_text);
@@ -102,6 +107,8 @@ struct Parser<'a> {
     component: Component,
     typescript: bool,
     pending_children: Vec<TemplateNodeIdentifier>,
+    /// How many fragments are open.
+    depth: u32,
 }
 
 impl<'a> Parser<'a> {
