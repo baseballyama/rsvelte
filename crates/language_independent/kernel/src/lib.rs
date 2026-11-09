@@ -33,8 +33,9 @@ pub mod performance {
     pub mod buffer_pool;
     pub mod measurement;
 }
-/// Documents, source positions, names, and tokens.
+/// Documents, character classes, source positions, names, and tokens.
 pub mod source {
+    pub mod characters;
     pub mod document;
     pub mod interning;
     pub mod positions;

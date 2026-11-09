@@ -92,7 +92,8 @@ impl Parser<'_> {
                             value = Some(Span::new(value_start as u32, (value_start + len) as u32));
                             let quote = super::attribute::quote_token(quote);
                             self.eat_token(quote, 1);
-                            self.eat_token(TokenType::AttributeText, len);
+                            self.position += len;
+                            self.words(TokenType::AttributeText, value_start);
                             self.eat_token(quote, 1);
                         } else {
                             let value_start = self.position;
@@ -104,7 +105,8 @@ impl Parser<'_> {
                                 return self.err("expected an attribute value");
                             }
                             value = Some(Span::new(value_start as u32, (value_start + len) as u32));
-                            self.eat_token(TokenType::AttributeText, len);
+                            self.position += len;
+                            self.words(TokenType::AttributeText, value_start);
                         }
                     }
                     attributes.push((name, value));

@@ -3,6 +3,7 @@ use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
 
 use crate::rule::RuleDefinition;
 
+mod block_lang;
 mod button_has_type;
 pub(crate) mod comment_directive;
 mod compile_warnings;
@@ -17,11 +18,13 @@ mod html_closing_bracket_spacing;
 mod html_quotes;
 mod html_self_closing;
 mod inactive;
+mod indent;
 mod infinite_reactive_loop;
 mod javascript;
 mod legacy_reactivity;
 mod markup;
 mod max_attributes_per_line;
+mod max_lines_per_block;
 mod mustache_spacing;
 mod no_add_event_listener;
 mod no_at_const_tags;
@@ -154,6 +157,9 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &prefer_writable_derived::RULE,
     &inactive::REQUIRE_EVENT_DISPATCHER_TYPES,
     &inactive::REQUIRE_EVENT_PREFIX,
+    &block_lang::RULE,
+    &indent::RULE,
+    &max_lines_per_block::RULE,
     &valid_each_key::RULE,
 ];
 

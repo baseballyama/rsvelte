@@ -18,7 +18,7 @@ impl Parser<'_> {
                     start_offset as u32,
                     self.position as u32,
                 )));
-                self.token(TokenType::AttributeText, start_offset);
+                self.words(TokenType::AttributeText, start_offset);
             }
             match self.peek() {
                 None => return self.err("unexpected end of input"),
