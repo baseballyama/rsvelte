@@ -14,6 +14,7 @@ mod no_reactive_literals;
 mod no_reactive_reassign;
 mod no_store_async;
 mod no_unused_variables;
+mod prefer_destructured_store_props;
 mod reactive_statements;
 mod require_store_callbacks_use_set_param;
 mod require_stores_init;
@@ -34,6 +35,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_reactive_literals::RULE,
     &no_reactive_reassign::RULE,
     &no_store_async::RULE,
+    &prefer_destructured_store_props::RULE,
     &require_store_callbacks_use_set_param::RULE,
     &require_stores_init::RULE,
     &valid_each_key::RULE,
