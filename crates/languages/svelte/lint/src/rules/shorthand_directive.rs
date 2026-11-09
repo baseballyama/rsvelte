@@ -97,6 +97,3 @@ fn remove_value(component: &Component, attribute: &Attribute) -> Fix {
     }
     fix
 }
-
-#[cfg(test)]
-mod tests;

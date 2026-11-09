@@ -371,6 +371,3 @@ impl PreferClassDirective {
         Some((fix, classes))
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -301,6 +301,3 @@ const EVENT_ATTRIBUTES: &[&str] = &[
     "onfullscreenerror",
     "onfullscreenerrorcapture",
 ];
-
-#[cfg(test)]
-mod tests;

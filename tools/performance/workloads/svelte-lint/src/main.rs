@@ -1,111 +1,143 @@
+//! `lint-workload rules <candidates.txt>` prints the candidate rules this crate implements.
+//! `lint-workload lint <rules.txt> <inputs.txt> <rounds>` lints every input with every rule, with
+//! default options, for `rounds` rounds and prints a JSON summary.
+
 use rsvelte_kernel::computation::database::DocumentContext;
-use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::computation::registry::Registry;
-use rsvelte_kernel::computation::task::{Task, TaskOutput};
+use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::performance::measurement;
-use rsvelte_svelte::{Normalized, Parsed, Resolved};
-#[allow(dead_code)]
-mod baseline;
+use rsvelte_kernel::source::document::Document;
+use rsvelte_svelte_lint::{Configuration, LintSettings};
+
 #[cfg(feature = "allocations")]
 #[global_allocator]
 static ALLOCATOR: measurement::CountingAllocator = measurement::CountingAllocator;
-fn baseline(mode: &str, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-    let c = context
-        .get::<Parsed>()
-        .as_ref()
-        .expect("benchmark input parses");
-    let tree = context.get::<Normalized>().as_ref().expect("lowered");
-    let res = context.get::<Resolved>().as_ref().expect("resolved");
-    let parents = c.javascript.parents();
-    let early = baseline::SyntaxTreeContext {
-        c,
-        source_text: context.source_text(),
-        javascript: rsvelte_typescript_lint::JavaScriptFacts {
-            syntax_tree: &c.javascript,
-            sem: &res.sem,
-            parents: &parents,
-        },
-    };
-    let late = baseline::CompilerSyntaxTreeContext {
-        compiler_syntax_tree: tree,
-        res,
-        source_text: context.source_text(),
-    };
-    let (rules, findings) = if mode == "before-button" {
-        let mut findings = rsvelte_lint_runner::findings::Findings::new();
-        findings.run([&baseline::ButtonHasType], &late);
-        (vec!["svelte/button-has-type"], findings.finish())
-    } else {
-        (
-            baseline::rule_identifiers().collect(),
-            baseline::lint(&early, &late),
-        )
-    };
-    out.file(
-        "lint.json",
-        rsvelte_lint_runner::output::render_json(
-            context.line_index(),
-            rules.iter().copied(),
-            &findings,
-        ),
-    );
-}
-fn main() {
-    let args: Vec<_> = std::env::args().collect();
-    let mode = &args[1];
-    assert!(
-        matches!(
-            mode.as_str(),
-            "before" | "after" | "before-button" | "after-button"
-        ),
-        "expected before, after, before-button, or after-button"
-    );
-    let rounds: usize = args[3].parse().expect("rounds");
-    let documents: Vec<_> = std::fs::read_to_string(&args[2])
-        .expect("inputs")
+
+fn lines(path: &str) -> Vec<String> {
+    std::fs::read_to_string(path)
+        .unwrap_or_else(|error| panic!("{path}: {error}"))
         .lines()
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    match args.get(1).map(String::as_str) {
+        Some("rules") => {
+            for name in lines(&args[2]) {
+                if rsvelte_svelte_lint::definition(&name, &[]).is_some() {
+                    println!("{name}");
+                }
+            }
+        }
+        Some("lint") => lint(&args[2], &args[3], args[4].parse().expect("rounds")),
+        Some("profile") => profile(&args[2], &args[3], args[4].parse().expect("rounds")),
+        _ => panic!(
+            "expected `rules <candidates.txt>`, or `lint` or `profile` with `<rules.txt> \
+             <inputs.txt> <rounds>`"
+        ),
+    }
+}
+
+fn documents(inputs: &str) -> Vec<Document> {
+    lines(inputs)
+        .into_iter()
         .map(|path| {
-            Document::new(
-                path.to_owned(),
-                std::fs::read_to_string(path).expect("source"),
-            )
-            .expect("valid source")
+            let source = std::fs::read_to_string(&path).expect("source");
+            Document::new(path, source).expect("a small input")
+        })
+        .collect()
+}
+
+/// Prints each rule's fastest round alone, less that of `svelte/button-has-type`, which only
+/// needs the parse, in nanoseconds, slowest first.
+fn profile(rules: &str, inputs: &str, rounds: usize) {
+    let documents = documents(inputs);
+    let mut registry = Registry::new();
+    rsvelte_svelte_lint::register_artifacts(&mut registry);
+    // The project facts from the files, as ESLint reads them.
+    rsvelte_svelte_lint::project::register_file_system(&mut registry);
+    let time = |name: &str| {
+        let mut configuration = Configuration::new(LintSettings::default());
+        configuration
+            .rule(name, Severity::Error, &[], &[])
+            .unwrap_or_else(|error| panic!("{error}"));
+        (0..rounds)
+            .map(|_| {
+                let start = std::time::Instant::now();
+                for document in &documents {
+                    let context = DocumentContext::new(document, registry.artifacts());
+                    std::hint::black_box(rsvelte_svelte_lint::lint(&context, &configuration))
+                        .expect("lints");
+                }
+                start.elapsed().as_nanos()
+            })
+            .min()
+            .expect("one round")
+    };
+    let baseline = time("svelte/button-has-type");
+    let mut times: Vec<(String, u128)> = lines(rules)
+        .into_iter()
+        .map(|name| {
+            let t = time(&name);
+            (name, t)
         })
         .collect();
-    let mut registry = Registry::new();
-    if mode.ends_with("-button") {
-        let rules = rsvelte_svelte_lint::Configuration::new(vec![
-            rsvelte_svelte_lint::RuleConfiguration::ButtonHasType {
-                severity: rsvelte_kernel::diagnostics::Severity::Error,
-                allowed: rsvelte_markup::button_type::Allowed::default(),
-            },
-        ])
-        .expect("config");
-        rsvelte_svelte_lint::register_with_configuration(&mut registry, rules);
-    } else {
-        rsvelte_svelte_lint::register(&mut registry);
+    times.sort_by_key(|(_, t)| std::cmp::Reverse(*t));
+    println!("baseline\tsvelte/button-has-type\t{baseline}");
+    for (name, t) in times {
+        println!("{}\t{name}\t{t}", t.saturating_sub(baseline));
     }
-    let mut digest = 0xCBF29CE484222325u64;
-    let mut output_bytes = 0usize;
-    let mut allocated = (0, 0);
+}
+
+fn lint(rules: &str, inputs: &str, rounds: usize) {
+    let rules = lines(rules);
+    let mut configuration = Configuration::new(LintSettings::default());
+    for name in &rules {
+        configuration
+            .rule(name, Severity::Error, &[], &[])
+            .unwrap_or_else(|error| panic!("{error}"));
+    }
+    let documents = documents(inputs);
+    let mut registry = Registry::new();
+    rsvelte_svelte_lint::register_artifacts(&mut registry);
+    // The project facts from the files, as ESLint reads them.
+    rsvelte_svelte_lint::project::register_file_system(&mut registry);
+    // A positive control: the configured rules report a button without a type.
+    let control = Document::new("control.svelte".to_owned(), "<button></button>".to_owned())
+        .expect("a small input");
+    let found = rsvelte_svelte_lint::lint(
+        &DocumentContext::new(&control, registry.artifacts()),
+        &configuration,
+    )
+    .expect("the control lints");
+    assert!(
+        found
+            .iter()
+            .any(|f| f.diagnostic.code == "svelte/button-has-type"),
+        "the missing type positive control did not report"
+    );
+    let names = configuration.rules().iter().map(|rule| rule.name());
+    let (mut findings, mut output_bytes, mut allocated) = (0usize, 0usize, (0, 0));
+    let mut digest = 0xCBF2_9CE4_8422_2325_u64;
     for round in 0..rounds {
         let before = measurement::thread_allocations();
         for document in &documents {
             let context = DocumentContext::new(document, registry.artifacts());
-            let mut output = TaskOutput::default();
-            if mode.starts_with("before") {
-                baseline(mode, &context, &mut output);
-            } else {
-                rsvelte_svelte_lint::Lint.run(&context, &mut output);
+            let found = rsvelte_svelte_lint::lint(&context, &configuration)
+                .unwrap_or_else(|error| panic!("{}: {}", document.path, error.message));
+            let text = rsvelte_lint_runner::output::render_json(
+                context.ecmascript_line_index(),
+                names.clone(),
+                &found,
+            );
+            for byte in text.bytes() {
+                digest = (digest ^ u64::from(byte)).wrapping_mul(0x0100_0000_01B3);
             }
-            assert!(output.diagnostics.is_empty(), "benchmark input parsed");
-            assert_eq!(output.files.len(), 1);
-            for file in output.files {
-                for byte in file.text.bytes() {
-                    digest = (digest ^ u64::from(byte)).wrapping_mul(0x100000001B3);
-                }
-                output_bytes += file.text.len();
-            }
+            findings += found.len();
+            output_bytes += text.len();
         }
         let after = measurement::thread_allocations();
         if round + 1 == rounds {
@@ -117,8 +149,12 @@ fn main() {
         .begin_object()
         .key("documents")
         .write_number(documents.len())
+        .key("rules")
+        .write_number(rules.len())
         .key("rounds")
         .write_number(rounds)
+        .key("findings")
+        .write_number(findings)
         .key("output_bytes")
         .write_number(output_bytes)
         .key("digest")
@@ -134,13 +170,6 @@ fn main() {
             report.null();
         }
     }
-    report
-        .key("condition_type_bytes")
-        .null()
-        .key("rule_configuration_bytes")
-        .write_number(size_of::<rsvelte_svelte_lint::RuleConfiguration>())
-        .key("type_facts_bytes")
-        .null()
-        .end_object();
+    report.end_object();
     println!("{}", report.finish());
 }

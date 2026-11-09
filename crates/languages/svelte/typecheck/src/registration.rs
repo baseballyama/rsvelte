@@ -64,7 +64,11 @@ fn typescript_view(
     context: &DocumentContext<'_>,
     env: Option<&Arc<TypeScriptEnv>>,
 ) -> Result<TypeScriptDocument, Diagnostic> {
-    let component = rsvelte_svelte_parser::fully_parsed(context).map_err(Clone::clone)?;
+    // svelte-check type-checks a component whose style sheet does not parse.
+    let component = context
+        .get::<rsvelte_svelte_parser::Parsed>()
+        .as_ref()
+        .map_err(Clone::clone)?;
     if !component
         .instance
         .as_ref()

@@ -17,7 +17,12 @@ impl Artifact for Projected {
     const NAME: &'static str = "svelte.typescript_projection.ast";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let component = rsvelte_svelte_parser::fully_parsed(context).map_err(Clone::clone)?;
+        // The projection never reads the style sheet, so its error does not stop it, as in
+        // svelte2tsx.
+        let component = context
+            .get::<rsvelte_svelte_parser::Parsed>()
+            .as_ref()
+            .map_err(Clone::clone)?;
         crate::lower(component, context.source_text()).map_err(|unsupported| {
             Diagnostic::error(
                 "check_unsupported",

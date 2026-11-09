@@ -5,8 +5,8 @@ use rsvelte_svelte::syntax::names::is_component_name;
 use rsvelte_svelte::syntax::syntax_tree::{TemplateNode, TokenType, decode_text};
 use serde::Deserialize;
 
-use super::tags::is_javascript_whitespace;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_javascript_whitespace;
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/html-self-closing",

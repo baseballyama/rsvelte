@@ -44,6 +44,9 @@ const DEVIATIONS: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/tests/upstream_deviations.json"
 );
+/// This crate's cases whose files hold its answer where `ESLint`'s is an upstream bug, by document:
+/// why. `oracle lint-cases` never writes them and fails once `ESLint` agrees.
+const OWN_DEVIATIONS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/cases_deviations.json");
 /// Rules whose upstream verdicts are counted but do not fail: the built-in type provider does not
 /// follow `svelte-eslint-parser`'s virtual code. This crate's own cases of them must pass.
 const TYPED: &[&str] = &["@typescript-eslint/no-unnecessary-condition"];
@@ -165,6 +168,8 @@ fn main() -> ExitCode {
     );
     let mut deviations: BTreeMap<String, Deviation> =
         serde_json::from_str(&read(Path::new(DEVIATIONS))).expect("deviations are an object");
+    let mut own_deviations: BTreeMap<String, String> =
+        serde_json::from_str(&read(Path::new(OWN_DEVIATIONS))).expect("deviations are an object");
     let mut counted: BTreeMap<String, (&'static str, String)> = BTreeMap::new();
     for (file, label) in COUNTED {
         let list: BTreeMap<String, String> =
@@ -183,6 +188,7 @@ fn main() -> ExitCode {
         Path::new(UPSTREAM),
         &upstream.versions,
         &mut deviations,
+        &mut BTreeMap::new(),
         &mut counted,
         TYPED,
     ) + suite(
@@ -190,9 +196,14 @@ fn main() -> ExitCode {
         Path::new(OWN),
         &upstream.versions,
         &mut BTreeMap::new(),
+        &mut own_deviations,
         &mut BTreeMap::new(),
         &[],
     );
+    for (document, reason) in &own_deviations {
+        failed += 1;
+        eprintln!("UNKNOWN DEVIATION {document}: no case of an implemented rule ({reason})");
+    }
     for (document, deviation) in &deviations {
         failed += 1;
         eprintln!(
@@ -213,12 +224,13 @@ fn main() -> ExitCode {
 }
 
 /// Runs one fixture tree and returns how many cases of implemented rules not in `typed` did not
-/// pass.
+/// pass. A case in `kept` holds this crate's answer in its own files and counts as a deviation.
 fn suite(
     label: &str,
     root: &Path,
     versions: &BTreeMap<String, String>,
     deviations: &mut BTreeMap<String, Deviation>,
+    kept: &mut BTreeMap<String, String>,
     counted: &mut BTreeMap<String, (&'static str, String)>,
     typed: &[&str],
 ) -> usize {
@@ -237,6 +249,7 @@ fn suite(
         }
         let document = case.document();
         let deviation = deviations.remove(&document);
+        let own = kept.remove(&document).is_some();
         let lenient = typed.contains(&case.rule.as_str());
         let counts = by_rule.entry(&case.rule).or_default();
         counts.total += 1;
@@ -253,6 +266,7 @@ fn suite(
         }
         match (verdict, deviation) {
             (Verdict::NotImplemented, _) => unreachable!("counted above"),
+            (Verdict::Pass, None) if own => counts.deviation += 1,
             (Verdict::Pass, None) => counts.pass += 1,
             (Verdict::Pass, Some(deviation)) => {
                 counts.fail += 1;
