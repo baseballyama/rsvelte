@@ -110,3 +110,11 @@ fn checks_attributes_as_the_compiler_does() {
         .collect();
     assert_eq!(codes(code), expected);
 }
+
+#[test]
+fn codes_separated_by_wide_spaces() {
+    let found = codes(
+        "<!-- svelte-ignore a11y_autofocus\u{3000}a11y_accesskey\u{a0}x -->\n<div accesskey=\"x\"></div>\n",
+    );
+    assert_eq!(found, []);
+}

@@ -541,3 +541,10 @@ fn system_rejects_an_invalid_pattern() {
         .expect_err("rejects");
     assert!(error.contains("invalid regular expression"), "{error}");
 }
+
+#[test]
+fn rule_names_separated_by_wide_spaces() {
+    let found =
+        lint("<!-- eslint-disable no-undef\u{3000}space-infix-ops\u{a0}x -->\n{@html a+b}\n");
+    assert_eq!(rules(&found), [HTML]);
+}

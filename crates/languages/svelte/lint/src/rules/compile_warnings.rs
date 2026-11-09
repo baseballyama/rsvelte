@@ -9,6 +9,7 @@ use rsvelte_svelte::warnings::CompileWarnings;
 use rsvelte_typescript::Kind;
 
 use crate::rule::File;
+use crate::words::{is_js_space, words};
 
 /// One code of a `svelte-ignore` comment.
 #[derive(Debug)]
@@ -80,19 +81,15 @@ fn block_end(comment: Span, source: &str) -> u32 {
     }
 }
 
-const fn is_space(c: char) -> bool {
-    c.is_whitespace() || c == '\u{feff}'
-}
-
 /// `/^\s*svelte-ignore\s+/` and the codes after it, separated by spaces or commas; a
 /// parenthesized note is not a code.
 fn read(value: Span, comment: Span, source: &str, out: &mut Ignores) {
     let text = value.text(source);
-    let trimmed = text.trim_start_matches(is_space);
+    let trimmed = text.trim_start_matches(is_js_space);
     let Some(rest) = trimmed.strip_prefix("svelte-ignore") else {
         return;
     };
-    let codes = rest.trim_start_matches(is_space);
+    let codes = rest.trim_start_matches(is_js_space);
     if codes.len() == rest.len() {
         return;
     }
@@ -113,25 +110,21 @@ fn read(value: Span, comment: Span, source: &str, out: &mut Ignores) {
             masked.push(c);
         }
     }
-    let mut found = false;
-    let mut offset = 0;
-    for code in masked.split(|c: char| c == ',' || is_space(c)) {
-        if !code.is_empty() {
-            found = true;
-            let start = base + offset;
-            out.items.push(IgnoreItem {
-                code: Span::new(start, start + code.len() as u32),
-                code_for_v5: V5_REPLACEMENTS
-                    .iter()
-                    .find(|(old, _)| *old == code)
-                    .map_or_else(|| code.replace('-', "_"), |(_, new)| (*new).to_owned()),
-                comment,
-            });
-        }
-        offset += code.len() as u32 + 1;
-    }
-    if !found {
+    // A note becomes spaces of its own byte length, so `masked` keeps the offsets of `codes`.
+    let spans = words(&masked, base);
+    if spans.is_empty() {
         out.missing_code.push(comment);
+    }
+    for span in spans {
+        let code = span.text(source);
+        out.items.push(IgnoreItem {
+            code: span,
+            code_for_v5: V5_REPLACEMENTS
+                .iter()
+                .find(|(old, _)| *old == code)
+                .map_or_else(|| code.replace('-', "_"), |(_, new)| (*new).to_owned()),
+            comment,
+        });
     }
 }
 

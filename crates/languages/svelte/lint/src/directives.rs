@@ -7,6 +7,7 @@ use rsvelte_lint_runner::finding::Finding;
 use rsvelte_svelte::syntax::syntax_tree::{Component, Script, TemplateNode};
 
 use crate::Pattern;
+use crate::words::{is_js_space, words};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Kind {
@@ -70,15 +71,7 @@ pub(crate) fn html_directives(component: &Component, source: &str) -> Vec<HtmlDi
         }
         let names = &text[at + keyword.len()..];
         let base = data.start_offset + (at + keyword.len()) as u32;
-        let mut rules = Vec::new();
-        let mut offset = 0;
-        for name in names.split(|c: char| c == ',' || is_js_space(c)) {
-            if !name.is_empty() {
-                let start = base + offset;
-                rules.push(Span::new(start, start + name.len() as u32));
-            }
-            offset += name.len() as u32 + 1;
-        }
+        let rules = words(names, base);
         out.push(HtmlDirective {
             kind,
             comment: span,
@@ -102,11 +95,6 @@ fn justification_start(value: &str) -> Option<usize> {
         let after = &value[i + c.len_utf8() + dashes..];
         (dashes >= 2 && after.starts_with(is_js_space)).then_some(i)
     })
-}
-
-/// JavaScript's `\s`.
-const fn is_js_space(c: char) -> bool {
-    c.is_whitespace() || c == '\u{feff}'
 }
 
 /// Removes findings that `ESLint`'s own directive comments, in JavaScript comments, turn off.
