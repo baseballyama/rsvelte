@@ -206,12 +206,13 @@ fn template_nodes(tree: &SyntaxTree) -> &[NodeIdentifier] {
 }
 
 #[test]
-fn a_style_sheet_error_stops_the_content_mapper() {
+fn a_style_sheet_error_does_not_stop_the_content_mapper() {
     let mut output = rsvelte_kernel::output::structured_data::StructuredDataWriter::new(false);
     rsvelte_svelte_typescript_projection::content_mapper::write_transform(
         "<script>let a = 1;</script><style>a { b: c; </style>",
         &mut output,
     );
     let output = output.finish();
-    assert!(output.contains("\"diagnostics\""), "{output}");
+    assert!(!output.contains("\"diagnostics\""), "{output}");
+    assert!(output.contains("let a = 1;"), "{output}");
 }
