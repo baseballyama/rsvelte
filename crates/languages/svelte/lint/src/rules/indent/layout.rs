@@ -238,6 +238,10 @@ pub(super) enum Item {
 pub(super) struct Layout<'a> {
     pub tokens: Tokens<'a>,
     entries: Vec<Option<Entry>>,
+    /// Expected indents computed since the last [`Layout::save`], stamped with `generation`.
+    memo: Vec<(u32, Option<u32>)>,
+    generation: u32,
+    chain: Vec<(Token, u32)>,
     ignored: Vec<Span>,
     pub options: Options,
 }
@@ -255,6 +259,9 @@ impl<'a> Layout<'a> {
     pub(super) fn new(tokens: Tokens<'a>, options: Options) -> Self {
         Self {
             entries: vec![None; tokens.len()],
+            memo: vec![(0, None); tokens.len()],
+            generation: 1,
+            chain: Vec::new(),
             tokens,
             ignored: Vec::new(),
             options,
@@ -390,21 +397,49 @@ impl<'a> Layout<'a> {
         }
     }
 
-    fn expected(&self, token: Token) -> Option<u32> {
-        let entry = self.entries[token as usize]?;
-        if let Some(expected) = entry.expected {
-            return Some(expected);
-        }
-        match entry.rule {
-            Rule::Start { offset } => Some(offset * self.options.size),
-            Rule::Normal { base, offset } => {
-                Some(self.expected(base)? + offset * self.options.size)
+    /// `getExpectedIndent`: a base chain is walked once per line, since only a save changes it.
+    fn expected(&mut self, token: Token) -> Option<u32> {
+        let mut t = token;
+        let mut chain = std::mem::take(&mut self.chain);
+        let mut value = loop {
+            let (stamp, memo) = self.memo[t as usize];
+            if stamp == self.generation {
+                break memo;
             }
-            Rule::Align { base, indent } => Some(self.expected(base)? + indent),
+            let Some(entry) = self.entries[t as usize] else {
+                break None;
+            };
+            if entry.expected.is_some() {
+                break entry.expected;
+            }
+            // A cycle of bases has no indent.
+            if chain.len() > self.entries.len() {
+                break None;
+            }
+            match entry.rule {
+                Rule::Start { offset } => break Some(offset * self.options.size),
+                Rule::Normal { base, offset } => {
+                    chain.push((t, offset * self.options.size));
+                    t = base;
+                }
+                Rule::Align { base, indent } => {
+                    chain.push((t, indent));
+                    t = base;
+                }
+            }
+        };
+        self.memo[t as usize] = (self.generation, value);
+        for &(t, add) in chain.iter().rev() {
+            value = value.map(|v| v + add);
+            self.memo[t as usize] = (self.generation, value);
         }
+        chain.clear();
+        self.chain = chain;
+        value
     }
 
     fn save(&mut self, line: &[Token], expected: u32) {
+        self.generation += 1;
         for &t in line {
             if let Some(entry) = &mut self.entries[t as usize] {
                 entry.expected.get_or_insert(expected);
@@ -469,8 +504,13 @@ impl<'a> Layout<'a> {
             self.save(line, actual);
             return;
         };
-        let least = line.iter().filter_map(|&t| self.expected(t)).min();
-        self.save(line, least.unwrap_or(expected));
+        let mut least = expected;
+        for &t in line {
+            if let Some(e) = self.expected(t) {
+                least = least.min(e);
+            }
+        }
+        self.save(line, least);
         let end_line = |t: Token| self.tokens.line(self.tokens.span(t).end_offset);
         let start_line = |t: Token| self.tokens.line(self.tokens.span(t).start_offset);
         let mut prev = prev;

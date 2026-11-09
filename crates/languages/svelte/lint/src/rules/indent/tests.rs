@@ -37,3 +37,23 @@ fn a_shorthand_property_with_a_default_is_a_pattern() {
     let source = "<script>\n  ({\n  a = 1\n  } = v);\n</script>\n";
     assert_eq!(reported_lines(source), [3]);
 }
+
+#[test]
+fn deep_nesting_on_one_line_is_linear() {
+    let depth = 8000;
+    let source = format!(
+        "<script>\n  let x = {}1{};\n</script>\n",
+        "f(".repeat(depth),
+        ")".repeat(depth)
+    );
+    let started = std::time::Instant::now();
+    let lines = std::thread::Builder::new()
+        .stack_size(256 << 20)
+        .spawn(move || reported_lines(&source))
+        .expect("a thread")
+        .join()
+        .expect("no panic");
+    assert_eq!(lines, [0u32; 0]);
+    // A walk of every base chain per token takes tens of seconds here.
+    assert!(started.elapsed().as_secs() < 3, "{:?}", started.elapsed());
+}
