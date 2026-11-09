@@ -2,6 +2,8 @@ use super::{
     Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, PatternContext, R, Slot,
     TypeScriptKind, Unsupported, flag,
 };
+use rsvelte_typescript::SyntaxTree;
+use rsvelte_typescript::syntax_tree::Type;
 
 impl Formatter<'_> {
     /// Prettier's `printFunction`.
@@ -306,12 +308,18 @@ impl Formatter<'_> {
     }
 
     /// `interface Name { key?: T; }` as Prettier prints a `TSInterfaceDeclaration` whose body has
-    /// only property signatures: one member per line, each ending in `;`.
+    /// only property signatures: one member per line, each ending in `;`. Any other TypeScript
+    /// declaration is unsupported.
     pub(super) fn interface(
         &mut self,
-        name: NodeIdentifier,
-        members: &[NodeIdentifier],
+        statement: NodeIdentifier,
     ) -> R<LayoutInstructionIdentifier> {
+        let Some((name, members)) = plain_interface(self.syntax_tree, statement) else {
+            return Err(Unsupported::at(
+                "TypeScript declaration",
+                self.syntax_tree.source_location(statement),
+            ));
+        };
         let head = format!("interface {} ", self.syntax_tree.name(name));
         let head = self.docs.text(&head);
         if members.is_empty() {
@@ -320,9 +328,14 @@ impl Formatter<'_> {
         }
         let mut inner = Vec::new();
         for (i, &m) in members.iter().enumerate() {
-            let Kind::TypeScriptPropertySignature { key, optional } = self.syntax_tree.kind(m)
+            let Kind::Type(Type::Property {
+                key,
+                value: Some(value),
+                optional,
+                ..
+            }) = self.syntax_tree.kind(m)
             else {
-                unreachable!("interface member")
+                unreachable!("a plain interface member")
             };
             inner.push(self.docs.hardline());
             if i > 0 && self.blank_line_between(members[i - 1], m) {
@@ -332,7 +345,7 @@ impl Formatter<'_> {
             if optional {
                 inner.push(self.lit("?"));
             }
-            let ty = self.type_suffix(self.typescript_of(m, TypeScriptKind::Annotation), ": ")?;
+            let ty = self.type_text(self.span(value), ": ")?;
             inner.push(ty);
             inner.push(self.lit(";"));
         }
@@ -343,4 +356,32 @@ impl Formatter<'_> {
         let close = self.lit("}");
         Ok(self.cat(&[head, open, inner, h, close]))
     }
+}
+
+/// The name and members of an interface without type parameters or `extends` whose members are
+/// all `key?: T` with a plain key and no modifier.
+fn plain_interface(
+    tree: &SyntaxTree,
+    statement: NodeIdentifier,
+) -> Option<(NodeIdentifier, &[NodeIdentifier])> {
+    let Kind::Type(Type::Interface {
+        name,
+        parameters: None,
+        heritage: None,
+        body,
+    }) = tree.kind(tree.declaration(statement)?)
+    else {
+        return None;
+    };
+    let start = |n: NodeIdentifier| tree.source_location(n).span().map(|s| s.start_offset);
+    let plain = body.iter().all(|&m| match tree.kind(m) {
+        Kind::Type(Type::Property {
+            key,
+            value: Some(_),
+            computed: false,
+            ..
+        }) => tree.is_identifier(key) && tree.name(key) != "readonly" && start(key) == start(m),
+        _ => false,
+    });
+    plain.then_some((name, body))
 }

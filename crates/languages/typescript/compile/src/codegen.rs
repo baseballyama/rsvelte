@@ -86,7 +86,7 @@ impl Gen<'_> {
     /// Whether a statement produces output (TypeScript-only statements do not).
     fn emits(&self, s: NodeIdentifier) -> bool {
         match self.syntax_tree.kind(s) {
-            Kind::TypeScriptDeclaration | Kind::TypeScriptInterface { .. } => false,
+            Kind::TypeScriptDeclaration => false,
             Kind::Import {
                 specifiers,
                 type_only,

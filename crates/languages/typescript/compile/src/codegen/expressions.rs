@@ -452,8 +452,7 @@ impl Gen<'_> {
             | Kind::ExportNamed(_)
             | Kind::ExportDefault(_)
             | Kind::TypeScriptDeclaration
-            | Kind::TypeScriptInterface { .. }
-            | Kind::TypeScriptPropertySignature { .. }) => {
+            | Kind::Type(_)) => {
                 unreachable!("statement in expression position: {k:?}")
             }
         }

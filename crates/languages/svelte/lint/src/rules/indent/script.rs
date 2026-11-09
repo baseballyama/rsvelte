@@ -172,9 +172,7 @@ impl Script<'_, '_> {
         }
         if matches!(
             self.javascript.kind(node),
-            Kind::TypeScriptDeclaration
-                | Kind::TypeScriptInterface { .. }
-                | Kind::TypeScriptPropertySignature { .. }
+            Kind::TypeScriptDeclaration | Kind::Type(_)
         ) {
             if let Some(span) = self.span(node) {
                 self.layout.ignore(span);

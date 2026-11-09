@@ -151,8 +151,7 @@ impl SyntaxTree {
             | Kind::BigInt
             | Kind::Super
             | Kind::TypeScriptDeclaration
-            | Kind::TypeScriptInterface { .. }
-            | Kind::TypeScriptPropertySignature { .. }
+            | Kind::Type(_)
             | Kind::Identifier(_)
             | Kind::Number(_)
             | Kind::String

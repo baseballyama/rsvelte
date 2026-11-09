@@ -134,14 +134,7 @@ impl SyntaxTree {
             Tag::ExportNamed => Kind::ExportNamed(Self::nid(a)),
             Tag::ExportDefault => Kind::ExportDefault(Self::nid(a)),
             Tag::TypeScriptDeclaration => Kind::TypeScriptDeclaration,
-            Tag::TypeScriptInterface => Kind::TypeScriptInterface {
-                name: Self::nid(a),
-                members: self.list_at(b),
-            },
-            Tag::TypeScriptPropertySignature => Kind::TypeScriptPropertySignature {
-                key: Self::nid(a),
-                optional: f & flag::OPTIONAL != 0,
-            },
+            Tag::Type => Kind::Type(self.type_kind(identifier)),
             Tag::Identifier => Kind::Identifier(Atom(a)),
             Tag::Number => Kind::Number(f64::from_bits(u64::from(a) | (u64::from(b) << 32))),
             Tag::String => Kind::String,

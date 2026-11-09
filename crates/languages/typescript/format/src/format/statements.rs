@@ -64,16 +64,12 @@ impl Formatter<'_> {
                     Ok(self.import(specifiers, source, type_only))
                 }
             }
-            Kind::TypeScriptInterface { name, members } => self.interface(name, members),
             Kind::ExportNamed(d) => {
                 let d = self.statement(d)?;
                 let e = self.lit("export ");
                 Ok(self.cat(&[e, d]))
             }
-            Kind::TypeScriptDeclaration => Err(Unsupported::at(
-                "TypeScript declaration",
-                self.syntax_tree.source_location(identifier),
-            )),
+            Kind::TypeScriptDeclaration => self.interface(identifier),
             _ => Err(Unsupported::at(
                 "statement kind",
                 self.syntax_tree.source_location(identifier),

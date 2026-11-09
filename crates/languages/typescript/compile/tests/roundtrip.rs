@@ -96,7 +96,7 @@ fn templates_strings_and_members() {
 
 #[test]
 fn unsupported_syntax_is_an_error_not_a_panic() {
-    for source_text in ["for () {}", "class {}", "a`t`"] {
+    for source_text in ["for () {}", "class {}", "with (a) {}"] {
         let mut syntax_tree = SyntaxTree::new();
         assert!(
             parse_program(

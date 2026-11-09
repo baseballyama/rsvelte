@@ -1,11 +1,11 @@
 //! A recursive-descent / precedence-climbing parser for the JavaScript subset the pipeline
 //! supports, writing into an [`SyntaxTree`] through its builder methods.
 //!
-//! TypeScript is accepted where Svelte components use it: type annotations on bindings, parameters
-//! and return types, `as` / `satisfies` / `!`, `import type`, and `type` / `interface` / `declare`
-//! statements. Types are not parsed into nodes; their spans are recorded
-//! ([`SyntaxTree::typescript`], [`crate::syntax_tree::Tag::TypeScriptDeclaration`]) so compilation
-//! drops them and source-preserving consumers (the type-check projection) copy them verbatim.
+//! TypeScript is read in full. Types are [`crate::syntax_tree::Type`] nodes that no value node has
+//! as a child: each is attached to the value node it belongs to through [`SyntaxTree::typescript`],
+//! with its span, or held by a [`crate::syntax_tree::Tag::TypeScriptDeclaration`] statement, so
+//! compilation drops them and source-preserving consumers (the type-check projection) copy them
+//! verbatim.
 //!
 //! Anything outside the subset is a [`ParseError`], never a panic.
 
@@ -39,6 +39,10 @@ impl From<LexicalError> for ParseError {
 type R<T> = Result<T, ParseError>;
 
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "one flag per grammar context"
+)]
 pub struct Parser<'a, 'b> {
     source_text: &'a str,
     lex: Lexer<'a>,
@@ -49,6 +53,11 @@ pub struct Parser<'a, 'b> {
     /// Inside type syntax: identifiers the parser consumes are noted in
     /// [`SyntaxTree::type_references`].
     in_type: u32,
+    /// In the `extends` clause of a conditional type, where another conditional type needs
+    /// parentheses.
+    in_extends: bool,
+    /// Inside a `declare` statement, whose namespaces hold no runtime code.
+    declared: bool,
     syntax_tree: &'b mut SyntaxTree,
     typescript: bool,
     allow_in: bool,
@@ -64,6 +73,18 @@ impl Drop for Parser<'_, '_> {
     fn drop(&mut self) {
         self.syntax_tree.scratch.truncate(self.base);
     }
+}
+
+/// Where a parse stood, to read a stretch again another way ([`Parser::checkpoint`]).
+#[derive(Clone, Copy)]
+struct Checkpoint<'a> {
+    lex: Lexer<'a>,
+    token: LexedToken,
+    prev: LexedToken,
+    prev_end: u32,
+    in_type: u32,
+    mark: crate::syntax_tree::Mark,
+    scratch: usize,
 }
 
 /// A list being gathered on [`SyntaxTree::scratch`]. Lists nest, so the one opened last is on top,
@@ -262,6 +283,8 @@ impl<'a, 'b> Parser<'a, 'b> {
                 newline_before: false,
             },
             in_type: 0,
+            in_extends: false,
+            declared: false,
             base: syntax_tree.scratch.len(),
             syntax_tree,
             typescript,
@@ -427,6 +450,42 @@ impl<'a, 'b> Parser<'a, 'b> {
         Span::new(start_offset, self.prev_end)
     }
 
+    const fn checkpoint(&self) -> Checkpoint<'a> {
+        Checkpoint {
+            lex: self.lex,
+            token: self.token,
+            prev: self.prev,
+            prev_end: self.prev_end,
+            in_type: self.in_type,
+            mark: self.syntax_tree.mark(),
+            scratch: self.syntax_tree.scratch.len(),
+        }
+    }
+
+    /// Goes back to `checkpoint`; nodes built since stay in the tree, unreachable.
+    fn restore(&mut self, checkpoint: Checkpoint<'a>) {
+        self.lex = checkpoint.lex;
+        self.token = checkpoint.token;
+        self.prev = checkpoint.prev;
+        self.prev_end = checkpoint.prev_end;
+        self.in_type = checkpoint.in_type;
+        self.syntax_tree.rewind(checkpoint.mark);
+        self.syntax_tree.scratch.truncate(checkpoint.scratch);
+    }
+
+    /// The token two after the current one.
+    fn peek2(&self) -> LexedToken {
+        let mut l = self.lex;
+        let mut scratch = Vec::new();
+        l.next(&mut scratch)
+            .and_then(|_| l.next(&mut scratch))
+            .unwrap_or_else(|_| LexedToken {
+                t: T::Eof,
+                span: Span::new(self.end, self.end),
+                newline_before: false,
+            })
+    }
+
     /// A peek at the token after the current one.
     fn peek(&self) -> LexedToken {
         let mut l = self.lex;
@@ -458,6 +517,7 @@ mod lookahead;
 mod members;
 mod patterns;
 mod statements;
+mod types;
 mod typescript;
 
 #[cfg(test)]

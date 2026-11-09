@@ -72,14 +72,10 @@ pub enum Tag {
     ExportNamed,
     ExportDefault,
     /// A TypeScript-only statement (`type`, `interface`, `declare …`): erased by compilation, kept
-    /// verbatim by source-preserving consumers.
+    /// verbatim by source-preserving consumers. [`SyntaxTree::declaration`] is what it declares.
     TypeScriptDeclaration,
-    /// `interface Name { key?: T; … }` with property members only; any other interface is a
-    /// `TypeScriptDeclaration`.
-    TypeScriptInterface,
-    /// A property member of a [`Tag::TypeScriptInterface`]; its type is a
-    /// [`TypeScriptKind::Annotation`].
-    TypeScriptPropertySignature,
+    /// Type syntax; see [`Type`].
+    Type,
     Identifier,
     Number,
     String,
@@ -213,14 +209,7 @@ pub enum Kind<'a> {
     ExportNamed(NodeIdentifier),
     ExportDefault(NodeIdentifier),
     TypeScriptDeclaration,
-    TypeScriptInterface {
-        name: NodeIdentifier,
-        members: &'a [NodeIdentifier],
-    },
-    TypeScriptPropertySignature {
-        key: NodeIdentifier,
-        optional: bool,
-    },
+    Type(Type<'a>),
     Identifier(Atom),
     Number(f64),
     String,
@@ -463,16 +452,28 @@ impl SyntaxTree {
         })
     }
 
-    /// Per node, its parent (`NodeIdentifier::NONE` for roots). A side table built on demand: the
-    /// tree itself stores no back edges, so it stays immutable and compact for the tasks that
-    /// never ask.
+    /// Per node, its parent (`NodeIdentifier::NONE` for roots), type syntax included: the parent
+    /// of a type in [`SyntaxTree::typescript`] is the node it is attached to. A side table built on
+    /// demand: the tree itself stores no back edges, so it stays immutable and compact for the
+    /// tasks that never ask.
     #[must_use]
     pub fn parents(&self) -> Vec<NodeIdentifier> {
         let mut parents = vec![NodeIdentifier::NONE; self.len()];
         for i in 0..self.len() as u32 {
-            self.for_each_child(NodeIdentifier(i), |c| {
-                parents[c.index()] = NodeIdentifier(i);
-            });
+            let node = NodeIdentifier(i);
+            let mut parent = |c: NodeIdentifier| parents[c.index()] = node;
+            match self.tag(node) {
+                Tag::Type => self.for_each_type_child(node, &mut parent),
+                _ => self.for_each_child(node, &mut parent),
+            }
+            if let Some(declaration) = self.declaration(node) {
+                parent(declaration);
+            }
+        }
+        for t in &self.typescript {
+            if let Some(syntax) = t.syntax.opt() {
+                parents[syntax.index()] = t.node;
+            }
         }
         parents
     }
@@ -571,6 +572,8 @@ mod statements;
 pub use classes::Class;
 pub use control::Control;
 mod traverse;
+mod types;
+pub use types::{Signature, SignatureKind, Type};
 
 mod typescript;
 pub use typescript::{

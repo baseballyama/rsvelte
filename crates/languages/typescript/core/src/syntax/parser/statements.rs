@@ -13,6 +13,7 @@ impl Parser<'_, '_> {
                 return Ok(self.syntax_tree.empty(self.span_from(start_offset)));
             }
             T::Identifier => {}
+            T::At if self.typescript => return self.decorated_statement(),
             _ => return self.expression_statement(),
         }
         let kw = self.text(self.token);
@@ -31,7 +32,23 @@ impl Parser<'_, '_> {
                 self.control_statement(kw)
             }
             "for" => self.for_statement(),
-            "class" => self.class_definition(true),
+            "class" => self.class_definition(true, start_offset),
+            "abstract"
+                if self.typescript
+                    && self.peek().t == T::Identifier
+                    && self.text(self.peek()) == "class"
+                    && !self.peek().newline_before =>
+            {
+                self.bump()?;
+                self.class_definition(true, start_offset)
+            }
+            "const"
+                if self.typescript
+                    && self.peek().t == T::Identifier
+                    && self.text(self.peek()) == "enum" =>
+            {
+                self.typescript_declaration(start_offset)
+            }
             "import" => {
                 if matches!(self.peek().t, T::LParen | T::Dot) {
                     self.expression_statement()
@@ -55,37 +72,13 @@ impl Parser<'_, '_> {
                 self.bump()?;
                 self.function(true, start_offset, true)
             }
-            "return" => {
-                self.bump()?;
-                let arg = if matches!(self.token.t, T::Semi | T::RBrace | T::Eof)
-                    || self.token.newline_before
-                {
-                    None
-                } else {
-                    Some(self.expression()?)
-                };
-                self.semicolon()?;
-                Ok(self.syntax_tree.return_(arg, self.span_from(start_offset)))
-            }
-            "if" => {
-                self.bump()?;
-                self.expect(T::LParen, "(")?;
-                let test = self.expression()?;
-                self.expect(T::RParen, ")")?;
-                let consequent = self.statement()?;
-                let alternate = if self.is_kw("else") {
-                    self.bump()?;
-                    Some(self.statement()?)
-                } else {
-                    None
-                };
-                Ok(self
-                    .syntax_tree
-                    .if_(test, consequent, alternate, self.span_from(start_offset)))
-            }
-            "type" | "interface" | "declare" | "abstract" | "enum" | "namespace" | "module"
+            "return" => self.return_statement(start_offset),
+            "if" => self.if_statement(start_offset),
+            // A reserved word, `enum` starts a declaration even before a line break.
+            "enum" if self.typescript => self.typescript_declaration(start_offset),
+            "type" | "interface" | "declare" | "namespace" | "module"
                 if self.typescript
-                    && self.peek().t == T::Identifier
+                    && matches!(self.peek().t, T::Identifier | T::String)
                     && !self.peek().newline_before =>
             {
                 self.typescript_declaration(start_offset)
@@ -93,6 +86,35 @@ impl Parser<'_, '_> {
             _ if RESERVED.contains(&kw) => self.fail(format!("unsupported statement `{kw}`")),
             _ => self.expression_statement(),
         }
+    }
+
+    fn return_statement(&mut self, start_offset: u32) -> R<NodeIdentifier> {
+        self.bump()?;
+        let arg =
+            if matches!(self.token.t, T::Semi | T::RBrace | T::Eof) || self.token.newline_before {
+                None
+            } else {
+                Some(self.expression()?)
+            };
+        self.semicolon()?;
+        Ok(self.syntax_tree.return_(arg, self.span_from(start_offset)))
+    }
+
+    fn if_statement(&mut self, start_offset: u32) -> R<NodeIdentifier> {
+        self.bump()?;
+        self.expect(T::LParen, "(")?;
+        let test = self.expression()?;
+        self.expect(T::RParen, ")")?;
+        let consequent = self.statement()?;
+        let alternate = if self.is_kw("else") {
+            self.bump()?;
+            Some(self.statement()?)
+        } else {
+            None
+        };
+        Ok(self
+            .syntax_tree
+            .if_(test, consequent, alternate, self.span_from(start_offset)))
     }
 
     pub(super) fn expression_statement(&mut self) -> R<NodeIdentifier> {
@@ -135,6 +157,15 @@ impl Parser<'_, '_> {
         loop {
             let dlo = self.token.span.start_offset;
             let identifier = self.binding_target()?;
+            if self.typescript && self.is_op("!") {
+                let bang = self.bump()?;
+                self.typescript(
+                    identifier,
+                    TypeScriptKind::Definite,
+                    bang.span,
+                    NodeIdentifier::NONE,
+                );
+            }
             self.maybe_type_annotation(identifier)?;
             let initializer = if self.eat_op("=")? {
                 Some(self.assignment()?)
@@ -173,14 +204,24 @@ impl Parser<'_, '_> {
         };
         let type_parameters = self.maybe_type_parameters()?;
         let parameters = self.parameters()?;
-        let ret = self.maybe_return_type(false)?;
-        let body = self.block()?;
+        let ret = self.maybe_return_type()?;
+        // An overload, or a function a `declare` statement declares, has no body.
+        let bodiless = declaration && self.typescript && self.token.t != T::LBrace;
+        let body = if bodiless {
+            self.semicolon()?;
+            NodeIdentifier::NONE
+        } else {
+            self.block()?
+        };
         let span = self.span_from(start_offset);
         let f = self.close(parameters, |syntax_tree, parameters| {
             syntax_tree.function(declaration, name, parameters, body, is_async, span)
         });
         self.syntax_tree.mark_generator(f, generator);
         self.signature_typescript(f, type_parameters, ret);
+        if bodiless && !self.declared {
+            return Ok(self.syntax_tree.typescript_declaration(Some(f), span));
+        }
         Ok(f)
     }
 
@@ -200,6 +241,38 @@ impl Parser<'_, '_> {
 
     pub(super) fn param(&mut self) -> R<NodeIdentifier> {
         let start_offset = self.token.span.start_offset;
+        let decorators = self.decorators()?;
+        let modifiers_start = self.token.span.start_offset;
+        let mut modified = false;
+        while self.typescript
+            && matches!(
+                self.text(self.token),
+                "public" | "private" | "protected" | "readonly" | "override"
+            )
+            && matches!(self.peek().t, T::Identifier | T::LBrace | T::LBracket)
+        {
+            self.bump()?;
+            modified = true;
+        }
+        let modifiers = modified.then(|| super::Span::new(modifiers_start, self.prev_end));
+        let p = self.plain_param(start_offset)?;
+        if let Some(span) = modifiers {
+            self.typescript(
+                p,
+                TypeScriptKind::ParameterProperty,
+                span,
+                NodeIdentifier::NONE,
+            );
+            self.runtime(
+                crate::syntax_tree::TypeScriptFeature::ParameterProperty,
+                self.span_from(modifiers_start),
+            );
+        }
+        self.record_decorators(p, &decorators);
+        Ok(p)
+    }
+
+    fn plain_param(&mut self, start_offset: u32) -> R<NodeIdentifier> {
         if self.eat(T::Ellipsis)? {
             let arg = self.binding_target()?;
             self.maybe_type_annotation(arg)?;
@@ -208,7 +281,12 @@ impl Parser<'_, '_> {
         let target = self.binding_target()?;
         if self.typescript && self.token.t == T::Question {
             let q = self.bump()?;
-            self.typescript(target, TypeScriptKind::Optional, q.span);
+            self.typescript(
+                target,
+                TypeScriptKind::Optional,
+                q.span,
+                NodeIdentifier::NONE,
+            );
         }
         self.maybe_type_annotation(target)?;
         if self.eat_op("=")? {
@@ -233,6 +311,13 @@ impl Parser<'_, '_> {
         } else {
             false
         };
+        if self.typescript
+            && self.token.t == T::Identifier
+            && self.peek().t == T::Op
+            && self.text(self.peek()) == "="
+        {
+            return self.import_equals(start_offset);
+        }
         let specs = self.open();
         if self.token.t != T::String {
             if self.token.t == T::Identifier {
@@ -256,46 +341,7 @@ impl Parser<'_, '_> {
                     .import_namespace(local, self.span_from(slo));
                 self.item(spec);
             } else if self.token.t == T::LBrace {
-                self.bump()?;
-                while self.token.t != T::RBrace {
-                    let slo = self.token.span.start_offset;
-                    let spec_type = if self.typescript
-                        && self.is_kw("type")
-                        && self.peek().t == T::Identifier
-                        && self.text(self.peek()) != "as"
-                    {
-                        self.bump()?;
-                        true
-                    } else {
-                        false
-                    };
-                    let t = self.bump()?;
-                    let imported = match t.t {
-                        T::Identifier => self.syntax_tree.ident(self.text(t), t.span),
-                        T::String => self.string_node(t),
-                        _ => return self.fail("expected import name"),
-                    };
-                    let local = if self.is_kw("as") {
-                        self.bump()?;
-                        let l = self.expect(T::Identifier, "identifier")?;
-                        self.syntax_tree.ident(self.text(l), l.span)
-                    } else if t.t == T::Identifier {
-                        self.syntax_tree.ident(self.text(t), t.span)
-                    } else {
-                        return self.fail("string import names need `as`");
-                    };
-                    let spec = self.syntax_tree.import_named(
-                        imported,
-                        local,
-                        spec_type,
-                        self.span_from(slo),
-                    );
-                    self.item(spec);
-                    if !self.eat(T::Comma)? {
-                        break;
-                    }
-                }
-                self.expect(T::RBrace, "}")?;
+                self.named_imports()?;
             }
             if !self.is_kw("from") {
                 return self.fail("expected `from`");
@@ -317,6 +363,92 @@ impl Parser<'_, '_> {
         }))
     }
 
+    /// `{ a, type b as c, "d" as e }`, each an item of the open list.
+    fn named_imports(&mut self) -> R<()> {
+        self.bump()?;
+        while self.token.t != T::RBrace {
+            let slo = self.token.span.start_offset;
+            let spec_type = if self.typescript
+                && self.is_kw("type")
+                && self.peek().t == T::Identifier
+                && self.text(self.peek()) != "as"
+            {
+                self.bump()?;
+                true
+            } else {
+                false
+            };
+            let t = self.bump()?;
+            let imported = match t.t {
+                T::Identifier => self.syntax_tree.ident(self.text(t), t.span),
+                T::String => self.string_node(t),
+                _ => return self.fail("expected import name"),
+            };
+            let local = if self.is_kw("as") {
+                self.bump()?;
+                let l = self.expect(T::Identifier, "identifier")?;
+                self.syntax_tree.ident(self.text(l), l.span)
+            } else if t.t == T::Identifier {
+                self.syntax_tree.ident(self.text(t), t.span)
+            } else {
+                return self.fail("string import names need `as`");
+            };
+            let spec =
+                self.syntax_tree
+                    .import_named(imported, local, spec_type, self.span_from(slo));
+            self.item(spec);
+            if !self.eat(T::Comma)? {
+                break;
+            }
+        }
+        self.expect(T::RBrace, "}")?;
+        Ok(())
+    }
+
+    /// The export forms only TypeScript has, after `export`: `export =`, `export as namespace`,
+    /// `export import a = b`, an exported TypeScript declaration or abstract class, and
+    /// `export type { … }`.
+    fn typescript_export(&mut self, start_offset: u32) -> R<Option<NodeIdentifier>> {
+        if self.is_op("=") || self.is_kw("as") {
+            return self.export_assignment(start_offset).map(Some);
+        }
+        let declaration = if self.is_kw("import") && self.peek().t == T::Identifier {
+            let inner = self.token.span.start_offset;
+            self.bump()?;
+            self.import_equals(inner)?
+        } else if self.token.t == T::Identifier
+            && (matches!(
+                self.text(self.token),
+                "type" | "interface" | "enum" | "declare" | "namespace" | "module"
+            ) || (self.is_kw("const")
+                && self.peek().t == T::Identifier
+                && self.text(self.peek()) == "enum"))
+            && matches!(self.peek().t, T::Identifier | T::String)
+        {
+            self.typescript_declaration(self.token.span.start_offset)?
+        } else if self.is_kw("abstract")
+            && self.peek().t == T::Identifier
+            && self.text(self.peek()) == "class"
+        {
+            let class_start = self.token.span.start_offset;
+            self.bump()?;
+            self.class_definition(true, class_start)?
+        } else if self.is_kw("type") && matches!(self.peek().t, T::LBrace | T::Op) {
+            self.bump()?;
+            let export = self.export_list(start_offset)?;
+            return Ok(Some(self.syntax_tree.type_only_export(
+                export,
+                self.syntax_tree.source_location(export),
+            )));
+        } else {
+            return Ok(None);
+        };
+        Ok(Some(
+            self.syntax_tree
+                .export_named(declaration, self.span_from(start_offset)),
+        ))
+    }
+
     pub(super) fn export(&mut self) -> R<NodeIdentifier> {
         let start_offset = self.token.span.start_offset;
         self.bump()?;
@@ -325,6 +457,16 @@ impl Parser<'_, '_> {
             let e = if self.is_kw("function") {
                 let flo = self.token.span.start_offset;
                 self.function(false, flo, false)?
+            } else if self.typescript
+                && self.is_kw("abstract")
+                && self.peek().t == T::Identifier
+                && self.text(self.peek()) == "class"
+            {
+                let class_start = self.token.span.start_offset;
+                self.bump()?;
+                self.class_definition(false, class_start)?
+            } else if self.typescript && self.is_kw("interface") && self.peek().t == T::Identifier {
+                self.typescript_declaration(self.token.span.start_offset)?
             } else {
                 let e = self.assignment()?;
                 self.semicolon()?;
@@ -335,20 +477,9 @@ impl Parser<'_, '_> {
                 .export_default(e, self.span_from(start_offset)));
         }
         if self.typescript
-            && (self.is_kw("type") || self.is_kw("interface") || self.is_kw("enum"))
-            && self.peek().t == T::Identifier
+            && let Some(export) = self.typescript_export(start_offset)?
         {
-            let d = self.typescript_declaration(self.token.span.start_offset)?;
-            return Ok(self
-                .syntax_tree
-                .export_named(d, self.span_from(start_offset)));
-        }
-        if self.typescript && self.is_kw("type") && matches!(self.peek().t, T::LBrace | T::Op) {
-            self.bump()?;
-            let export = self.export_list(start_offset)?;
-            return Ok(self
-                .syntax_tree
-                .type_only_export(export, self.syntax_tree.source_location(export)));
+            return Ok(export);
         }
         if self.token.t == T::LBrace || self.is_op("*") {
             return self.export_list(start_offset);
@@ -374,7 +505,9 @@ impl Parser<'_, '_> {
                 let flo = self.token.span.start_offset;
                 self.function(true, flo, false)?
             }
-            T::Identifier if self.is_kw("class") => self.class_definition(true)?,
+            T::Identifier if self.is_kw("class") => {
+                self.class_definition(true, self.token.span.start_offset)?
+            }
             _ => return self.fail("unsupported export form"),
         };
         Ok(self

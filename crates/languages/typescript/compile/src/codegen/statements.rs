@@ -175,7 +175,7 @@ impl Gen<'_> {
                     self.e.push(";");
                 }
             }
-            Kind::TypeScriptDeclaration | Kind::TypeScriptInterface { .. } => {}
+            Kind::TypeScriptDeclaration => {}
             _ => {
                 self.expression(identifier, prec::SEQ);
                 self.e.push(";");

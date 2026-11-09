@@ -104,7 +104,7 @@ impl Parser<'_, '_> {
                         && !self.token.newline_before =>
                 {
                     let bang = self.bump()?;
-                    self.typescript(e, TypeScriptKind::NonNull, bang.span);
+                    self.typescript(e, TypeScriptKind::NonNull, bang.span, NodeIdentifier::NONE);
                 }
                 T::Op
                     if calls

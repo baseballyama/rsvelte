@@ -119,7 +119,7 @@ impl Builder<'_> {
                     self.export_pattern(identifier, exports)?;
                 }
             }
-            Kind::TypeScriptDeclaration | Kind::TypeScriptInterface { .. } => {
+            Kind::TypeScriptDeclaration => {
                 return Ok(declaration);
             }
             _ => {

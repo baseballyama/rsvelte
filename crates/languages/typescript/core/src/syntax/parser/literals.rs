@@ -30,7 +30,7 @@ impl Parser<'_, '_> {
                         self.function(false, start_offset, true)
                     }
                     "import" => self.import_primary(),
-                    "class" => self.class_definition(false),
+                    "class" => self.class_definition(false, start_offset),
                     "super" => {
                         self.bump()?;
                         Ok(self.syntax_tree.super_(t.span))
@@ -119,13 +119,18 @@ impl Parser<'_, '_> {
             }
             T::Op if self.typescript && self.text(t) == "<" => {
                 let start = self.token.span.start_offset;
-                self.skip_type_parameters()?;
+                self.in_type += 1;
+                self.bump()?;
+                let ty = self.ty()?;
+                self.expect_greater()?;
+                self.in_type -= 1;
                 let end = self.prev_end;
                 let value = self.unary()?;
                 self.typescript(
                     value,
                     super::TypeScriptKind::Assertion,
                     Span::new(start, end),
+                    ty,
                 );
                 Ok(value)
             }
@@ -210,7 +215,7 @@ impl Parser<'_, '_> {
                         }
                         self.accessor_parameters(parameters, accessor == flag::GETTER)?;
                     }
-                    let ret = self.maybe_return_type(false)?;
+                    let ret = self.maybe_return_type()?;
                     let body = self.block()?;
                     let span = Span::new(key_token.start_offset, self.prev_end);
                     let f = self.close(parameters, |syntax_tree, parameters| {

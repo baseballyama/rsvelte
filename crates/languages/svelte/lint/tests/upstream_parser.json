@@ -34,6 +34,5 @@
 	"indent/invalid/ts/ts-union01-input.svelte": "a tree for type syntax, so types are laid out",
 	"indent/invalid/ts/ts-union02-input.svelte": "a tree for type syntax, so types are laid out",
 	"no-conflicting-module-names/invalid/jsx/Foo.svelte.jsx": "a JSX parser: the lint task takes no `.jsx` or `.tsx` module",
-	"no-conflicting-module-names/invalid/tsx/Foo.svelte.tsx": "a JSX parser: the lint task takes no `.jsx` or `.tsx` module",
-	"valid-compile/valid/ts/class01-input.svelte": "the TypeScript parser refuses `abstract class`"
+	"no-conflicting-module-names/invalid/tsx/Foo.svelte.tsx": "a JSX parser: the lint task takes no `.jsx` or `.tsx` module"
 }
