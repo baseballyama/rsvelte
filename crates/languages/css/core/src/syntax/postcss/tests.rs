@@ -84,6 +84,17 @@ fn a_stray_brace_in_an_inline_style_runs_to_the_end_as_one_word() {
     assert_eq!(nodes.len(), 1);
 }
 
+// postcss gives `a: }b  ` the end offset 5: the merged word's spaces have no position.
+#[test]
+fn a_merged_word_ends_at_its_last_token_that_is_not_a_space() {
+    let source = "a: }b  ";
+    let nodes = inline(source, whole(source), &[]).expect("a declaration list");
+    let [InlineNode::Declaration(declaration)] = nodes.as_slice() else {
+        panic!("one declaration");
+    };
+    assert_eq!(declaration.span.end_offset, 5);
+}
+
 #[test]
 fn an_inline_style_with_an_at_rule_is_not_converted() {
     let source = "@media x; a: b";

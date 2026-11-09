@@ -171,6 +171,9 @@ struct Token {
     kind: Kind,
     start: u32,
     end: u32,
+    /// Where the tokenizer records the end, which positions read: past a scss comma, and before
+    /// a merged word's last spaces.
+    recorded_end: u32,
 }
 
 struct Thrown {
@@ -291,6 +294,7 @@ impl<'a> Parser<'a> {
             kind,
             start: start as u32,
             end: end as u32,
+            recorded_end: end as u32,
         }
     }
 
@@ -319,16 +323,22 @@ impl<'a> Parser<'a> {
         // A stray `}` takes the depth below zero, so the word runs on as upstream's does.
         let mut open = depth(first);
         let mut end = first.end;
+        let mut recorded_end = first.recorded_end;
         while open != 0
             && let Some(next) = self.raw_token()?
         {
             open += depth(next);
             end = next.end;
+            // A space has no position, so the word's recorded end stays at the token before it.
+            if next.kind != Kind::Space {
+                recorded_end = next.recorded_end;
+            }
         }
         Ok(Some(Token {
             kind: Kind::Word,
             start: first.start,
             end,
+            recorded_end,
         }))
     }
 
@@ -358,7 +368,11 @@ impl<'a> Parser<'a> {
             b']' | b'}' | b')' => self.token(Kind::Close(c), pos, pos + 1),
             b':' => self.token(Kind::Colon, pos, pos + 1),
             b';' => self.token(Kind::Semicolon, pos, pos + 1),
-            b',' if scss => self.token(Kind::Word, pos, pos + 1),
+            b',' if scss => {
+                let mut comma = self.token(Kind::Word, pos, pos + 1);
+                comma.recorded_end += 1;
+                comma
+            }
             b'(' => {
                 let url = self.words.pop().is_some_and(|w| self.text(w) == "url");
                 if url && scss && !matches!(next, Some(b'\'' | b'"')) {
@@ -679,14 +693,14 @@ impl<'a> Parser<'a> {
             return thrown("", token.start);
         }
         if self.scss() {
-            let mut last = self.last_offset(token);
+            let mut last = Self::last_offset(token);
             while !self.end_of_file() {
                 let Some(next) = self.next_token()? else {
                     break;
                 };
                 if next.kind == Kind::Word && next.start == last + 1 {
                     token.end = next.end;
-                    last = self.last_offset(next);
+                    last = Self::last_offset(next);
                 } else {
                     self.back(next);
                     break;
@@ -947,9 +961,9 @@ impl<'a> Parser<'a> {
                 .iter()
                 .rev()
                 .find(|t| t.kind != Kind::Space)
-                .map_or(last.end, |t| t.end)
+                .map_or(last.end, |t| t.recorded_end)
         } else {
-            last.end
+            last.recorded_end
         };
         let mut rest = tokens;
         while rest[0].kind != Kind::Word {
@@ -1177,21 +1191,16 @@ impl<'a> Parser<'a> {
             }
         }
         let offset = if token.kind == Kind::Word {
-            self.last_offset(token) + 1
+            Self::last_offset(token) + 1
         } else {
             token.start
         };
         thrown("Missed semicolon", offset)
     }
 
-    /// Where a token's last character is, as the tokenizer records it: `postcss-scss` records
-    /// one past a comma.
-    fn last_offset(&self, token: Token) -> u32 {
-        if self.scss() && token.kind == Kind::Word && self.text(token) == "," {
-            token.end
-        } else {
-            token.end - 1
-        }
+    /// Where a token's last character is, as the tokenizer records it.
+    const fn last_offset(token: Token) -> u32 {
+        token.recorded_end - 1
     }
 }
 
