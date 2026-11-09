@@ -94,10 +94,12 @@ pub fn find_state_var_symbols(semantic: &Semantic, names: &[String]) -> FxHashSe
         }
         let scope = scoping.symbol_scope_id(symbol_id);
         // Rule 1: root-scope bindings (top-level `let`/`const`/
-        // `var`/`function`/`class`/import). Legacy bare `let foo;`
-        // declarations are caught here.
+        // `var`/`function`/`class`). Legacy bare `let foo;`
+        // declarations are caught here. An import is never a signal.
         if scope == root_scope {
-            out.insert(symbol_id);
+            if !scoping.symbol_flags(symbol_id).is_import() {
+                out.insert(symbol_id);
+            }
             continue;
         }
         // Rule 2: state-var-shaped initializer. Catches function-
@@ -114,9 +116,9 @@ pub fn find_state_var_symbols(semantic: &Semantic, names: &[String]) -> FxHashSe
 /// Returns `true` if the declaration node identified by `decl_id`
 /// (a `BindingIdentifier` inside a `VariableDeclarator`) is
 /// initialized with a call to one of the state-creating runtime/
-/// runes functions: `$state`/`$derived`/`$state.*`/`$derived.*`/
-/// `$.state`/`$.derived`/`$.mutable_source`/`$.proxy`/
-/// `$.source`/`$.snapshot`.
+/// runes functions: `$state`/`$derived`/`$state.raw`/`$derived.by`/
+/// `$.state`/`$.derived`/`$.mutable_source`/`$.source`. `$.proxy` and
+/// `$.snapshot` (and `$state.snapshot` / `$state.eager`) produce plain values.
 fn declaration_has_state_var_init(semantic: &Semantic, decl_id: oxc_syntax::node::NodeId) -> bool {
     use oxc_ast::AstKind;
     let nodes = semantic.nodes();
@@ -176,10 +178,13 @@ fn is_state_var_init_expression(expr: &oxc_ast::ast::Expression) -> bool {
             if obj.name == "$" {
                 return matches!(
                     member.property.name.as_str(),
-                    "state" | "derived" | "mutable_source" | "proxy" | "source" | "snapshot"
+                    "state" | "derived" | "mutable_source" | "source"
                 );
             }
-            matches!(obj.name.as_str(), "$state" | "$derived")
+            matches!(
+                (obj.name.as_str(), member.property.name.as_str()),
+                ("$state", "raw") | ("$derived", "by")
+            )
         }
         _ => false,
     }

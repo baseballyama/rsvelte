@@ -4,3 +4,5 @@
 ---
 
 Client `compileModule`: wrap reads and writes of a name bound by a destructured `$state` / `$state.raw` declaration in `$.get` / `$.set`, as upstream does. They used to be left bare while the declaration itself was lowered.
+
+A same-named import, `$state.snapshot` local or non-reassigned `$state` local is no longer wrapped as if it were that signal.
