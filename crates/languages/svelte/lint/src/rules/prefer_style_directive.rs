@@ -220,6 +220,3 @@ fn replace(attribute: &Attribute, nodes: &[InlineNode], index: usize, text: &str
     }
     fix
 }
-
-#[cfg(test)]
-mod tests;

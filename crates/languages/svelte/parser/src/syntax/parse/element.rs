@@ -1,3 +1,4 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::names::{META_TAGS, is_component_name, is_valid_element_name};
 use rsvelte_svelte_syntax::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType};
@@ -7,9 +8,7 @@ use super::{End, ParseResult, Parser, is_void};
 /// Upstream `read_tag_name`: up to whitespace, `/` or `>`.
 pub(super) fn peek_tag_name(s: &str) -> &str {
     let end = s
-        .as_bytes()
-        .iter()
-        .position(|&byte| byte.is_ascii_whitespace() || matches!(byte, b'/' | b'>'))
+        .find(|c| is_ecmascript_whitespace(c) || matches!(c, '/' | '>'))
         .unwrap_or(s.len());
     &s[..end]
 }
@@ -224,5 +223,5 @@ fn is_textarea_end(s: &str) -> bool {
     const END: &str = "</textarea";
     s.get(..END.len())
         .is_some_and(|h| h.eq_ignore_ascii_case(END))
-        && super::whitespace::trim_ascii_start(&s[END.len()..]).starts_with('>')
+        && super::whitespace::trim_whitespace_start(&s[END.len()..]).starts_with('>')
 }

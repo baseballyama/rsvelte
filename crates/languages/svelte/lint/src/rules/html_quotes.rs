@@ -1,4 +1,6 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_javascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_kernel::source::tokens::Token;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte::syntax::syntax_tree::{
@@ -6,7 +8,7 @@ use rsvelte_svelte::syntax::syntax_tree::{
 };
 use serde::Deserialize;
 
-use super::tags::{Attributes, is_javascript_whitespace, quote_before, start_tags};
+use super::markup::{Attributes, part_span, quote_before, start_tags};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -119,9 +121,12 @@ struct Value {
 
 impl Value {
     /// The value whose text is `inner`, after the quote token `quote` if it has one.
-    const fn new(quote: Option<TokenType>, inner: Span) -> Self {
+    const fn new(quote: Option<&Token<TokenType>>, inner: Span) -> Self {
         let quote = match quote {
-            Some(TokenType::DoubleQuote) => Quote::Double,
+            Some(Token {
+                kind: TokenType::DoubleQuote,
+                ..
+            }) => Quote::Double,
             Some(_) => Quote::Single,
             None => {
                 return Self {
@@ -234,12 +239,6 @@ impl HtmlQuotes {
             fix.push(Span::new(end - 1, end), quote);
         }
         reporter.report(Report::range(message, value.range).fix(fix));
-    }
-}
-
-const fn part_span(part: &Part) -> Span {
-    match *part {
-        Part::Text(span) | Part::Expression { span, .. } => span,
     }
 }
 

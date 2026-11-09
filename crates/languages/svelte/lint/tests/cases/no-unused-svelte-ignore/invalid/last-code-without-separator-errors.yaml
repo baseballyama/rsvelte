@@ -1,5 +1,9 @@
 - message: svelte-ignore comment is used, but not warned
   line: 2
+  column: 20
+  suggestions: null
+- message: svelte-ignore comment is used, but not warned
+  line: 2
   column: 45
   suggestions: null
 - message: svelte-ignore comment is used, but not warned

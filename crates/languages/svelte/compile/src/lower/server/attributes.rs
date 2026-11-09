@@ -4,7 +4,7 @@ mod without_spread;
 
 use super::{
     Attribute, AttributeValue, NodeIdentifier, Part, ServerCompilationContext, SourceLocation,
-    decode_text, escape_markup, known_string, needs_clsx, sanitize_template_string,
+    decode_attribute, escape_markup, known_string, needs_clsx, sanitize_template_string,
 };
 
 impl ServerCompilationContext<'_> {
@@ -51,7 +51,7 @@ impl ServerCompilationContext<'_> {
         for p in parts {
             match p {
                 Part::Text(s) => {
-                    let data = decode_text(s.text(self.source_text));
+                    let data = decode_attribute(s.text(self.source_text));
                     let data = if trim {
                         collapse_ws(&data)
                     } else {

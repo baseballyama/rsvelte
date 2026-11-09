@@ -12,6 +12,7 @@ mod extension;
 mod identity;
 mod markup;
 mod task;
+mod warnings;
 
 pub use computation::{Identified, Planned, ScopedStylesheet};
 pub use configuration::{Configuration, CssHash, CssHashInput};
@@ -24,3 +25,4 @@ pub use task::{
     Compile, PLUGIN, compile, compile_with_configuration, lower_document, register,
     register_with_configuration,
 };
+pub use warnings::Warn;

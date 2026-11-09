@@ -1,7 +1,7 @@
-use std::borrow::Cow;
-
 use rsvelte_svelte::compilation::compiler_syntax_tree::{ElementKind, MetadataTag};
 use rsvelte_svelte::semantic::input::ComponentInput;
+use rsvelte_svelte::syntax::names::component_name;
+pub(crate) use rsvelte_svelte::syntax::names::sanitize_identifier;
 
 #[derive(Debug)]
 pub struct OutputIdentity {
@@ -67,60 +67,6 @@ fn is_valid_class_name(value: &str) -> bool {
     bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
 }
 
-/// Upstream `get_component_name` followed by `scope.generate`'s sanitising.
-#[must_use]
-fn component_name(filename: &str) -> String {
-    let mut parts = filename.rsplit(['/', '\\']);
-    let basename = parts.next().unwrap_or("");
-    let last_dir = parts.next();
-    let mut name = basename
-        .strip_suffix(".svelte")
-        .filter(|stem| !stem.contains(".svelte"))
-        .map_or_else(
-            || {
-                if basename.contains(".svelte") {
-                    Cow::Owned(basename.replacen(".svelte", "", 1))
-                } else {
-                    Cow::Borrowed(basename)
-                }
-            },
-            Cow::Borrowed,
-        );
-    if name == "index"
-        && let Some(dir) = last_dir
-        && !dir.is_empty()
-        && dir != "src"
-    {
-        name = Cow::Borrowed(dir);
-    }
-    let mut chars = name.chars();
-    let Some(first) = chars.next() else {
-        return String::new();
-    };
-    sanitize_chars(first.to_uppercase().chain(chars), name.len())
-}
-
-/// `[^a-zA-Z0-9_$]` → `_`, and a leading digit → `_` (upstream `scope.generate`).
-#[must_use]
-pub(crate) fn sanitize_identifier(name: &str) -> String {
-    sanitize_chars(name.chars(), name.len())
-}
-
-fn sanitize_chars(chars: impl Iterator<Item = char>, capacity: usize) -> String {
-    let mut out = String::with_capacity(capacity);
-    out.extend(chars.map(|c| {
-        if c.is_ascii_alphanumeric() || c == '_' || c == '$' {
-            c
-        } else {
-            '_'
-        }
-    }));
-    if out.starts_with(|c: char| c.is_ascii_digit()) {
-        out.replace_range(0..1, "_");
-    }
-    out
-}
-
 /// Upstream `hash` (utils.js): djb2 over UTF-16 code units, right to left, base 36.
 #[must_use]
 fn hash(s: &str) -> String {
@@ -151,6 +97,3 @@ fn to_base36(mut v: u32) -> String {
         .expect("ASCII digits")
         .to_owned()
 }
-
-#[cfg(test)]
-mod tests;

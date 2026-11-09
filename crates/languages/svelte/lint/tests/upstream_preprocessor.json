@@ -1,7 +1,7 @@
 {
-	"no-unused-svelte-ignore/invalid/style-lang03-input.svelte": "upstream compiles <style lang=\"scss\"> with sass first",
-	"no-unused-svelte-ignore/invalid/style-lang04-input.svelte": "upstream compiles <style lang=\"sass\"> with sass first",
-	"no-unused-svelte-ignore/invalid/style-lang05-input.svelte": "upstream compiles <style lang=\"less\"> with less first",
-	"no-unused-svelte-ignore/invalid/style-lang06-input.svelte": "upstream compiles <style lang=\"stylus\"> with stylus first",
-	"valid-compile/valid/babel/babel-function-bind01-input.svelte": "Babel's function-bind proposal, which rsvelte does not parse"
+	"no-unused-svelte-ignore/invalid/style-lang03-input.svelte": "the report needs the CSS that the sass package makes of <style lang=\"scss\">; without sass, upstream also reports nothing",
+	"no-unused-svelte-ignore/invalid/style-lang04-input.svelte": "the report needs the CSS that the sass package makes of <style lang=\"sass\">; without sass, upstream also reports nothing",
+	"no-unused-svelte-ignore/invalid/style-lang05-input.svelte": "the report needs the CSS that the less package makes of <style lang=\"less\">; without less, upstream also reports nothing",
+	"no-unused-svelte-ignore/invalid/style-lang06-input.svelte": "the report needs the CSS that the stylus package makes of <style lang=\"stylus\">; without stylus, upstream also reports nothing",
+	"valid-compile/valid/babel/babel-function-bind01-input.svelte": "`obj::func` compiles only after Babel with the user's function-bind plugin; the compiler alone fails with js_parse_error"
 }

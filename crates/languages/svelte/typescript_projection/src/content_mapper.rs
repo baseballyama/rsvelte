@@ -5,10 +5,6 @@ pub fn write_transform(source: &str, output: &mut StructuredDataWriter) {
     let result = rsvelte_svelte_parser::parse::parse(source)
         .map_err(|error| (1, error.message, error.span))
         .and_then(|component| {
-            // A style sheet's error stops the projection, as `fully_parsed` makes it elsewhere.
-            if let Some(error) = component.style_error() {
-                return Err((1, error.message.clone(), error.span));
-            }
             crate::lower(&component, source)
                 .map(|tree| crate::emit(&tree, source))
                 .map_err(|error| {

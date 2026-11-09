@@ -172,3 +172,20 @@ fn no_add_event_listener_is_near_baseline() {
         out
     });
 }
+
+#[test]
+fn consistent_selector_style_is_near_baseline() {
+    near_baseline(
+        "svelte/consistent-selector-style",
+        "a.svelte",
+        4000,
+        1,
+        |n| {
+            let mut out = "<div class=\"b\"></div>\n".repeat(n);
+            out.push_str("<style>\n");
+            out.push_str(&".b { color: red; }\n".repeat(n));
+            out.push_str("</style>\n");
+            out
+        },
+    );
+}

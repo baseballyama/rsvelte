@@ -9,6 +9,7 @@ use rsvelte_typescript::syntax_tree::{Kind, TypeScriptFeature, flag};
 use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashSet;
 
+use super::found::{Found, Stage};
 use super::{Phase, Raised, Section, error, warning};
 
 /// Svelte's runes mode: `<svelte:options runes>`, or else a top-level `await` or a reference to
@@ -18,6 +19,7 @@ pub(super) fn runes(
     resolution: &Resolution,
     source: &str,
     awaits: &[Span],
+    forced: Option<bool>,
 ) -> bool {
     if let Some(value) = svelte_option(component, source, "runes") {
         return match value {
@@ -28,6 +30,9 @@ pub(super) fn runes(
                     if matches!(component.javascript.kind(*expression), Kind::Boolean(false))
             ),
         };
+    }
+    if let Some(forced) = forced {
+        return forced;
     }
     if !awaits.is_empty() {
         return true;
@@ -73,7 +78,7 @@ pub(super) fn stores<'a>(component: &'a Component, resolution: &Resolution) -> F
 }
 
 /// The value of attribute `name` of `<svelte:options>`.
-pub(super) fn svelte_option(
+pub(crate) fn svelte_option(
     component: &Component,
     source: &str,
     name: &str,
@@ -338,7 +343,7 @@ pub(super) fn custom_element(
     component: &Component,
     resolution: &Resolution,
     source: &str,
-    out: &mut Vec<Diagnostic>,
+    out: &mut Found,
 ) {
     let Some(custom) = svelte_option(component, source, "customElement") else {
         return;
@@ -410,7 +415,11 @@ pub(super) fn custom_element(
                 _ => None,
             };
             if let Some(span) = at.and_then(|at| javascript.source_location(at).span()) {
-                out.push(warning(
+                let at = javascript
+                    .source_location(declarator)
+                    .span()
+                    .map_or(span.start_offset, |s| s.start_offset);
+                out.push(Stage::Walk(Section::Instance), at, warning(
                     "custom_element_props_identifier",
                     "Using a rest element or a non-destructured declaration with `$props()` means that Svelte can't infer what properties to expose when creating a custom element. Consider destructuring all the props or explicitly specifying the `customElement.props` option.",
                     span,

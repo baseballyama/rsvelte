@@ -12,6 +12,7 @@ use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
 use rsvelte_kernel::computation::database::{Artifact, DocumentContext};
 use rsvelte_svelte::Parsed;
 
+use super::markup::part_span;
 use crate::rule::File;
 
 /// The inline style of every `style` attribute, by index in [`Component::attributes`]; `None` for
@@ -78,12 +79,6 @@ fn inline_styles(component: &Component, source: &str) -> Vec<(u32, Option<Box<[I
             (index as u32, style)
         })
         .collect()
-}
-
-const fn part_span(part: &Part) -> Span {
-    match *part {
-        Part::Text(span) | Part::Expression { span, .. } => span,
-    }
 }
 
 /// The expression of hole `index` of a `style` attribute: its `index`th expression part.

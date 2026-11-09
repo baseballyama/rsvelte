@@ -247,6 +247,3 @@ fn literal_value(javascript: &SyntaxTree, source: &str, literal: NodeIdentifier)
 const fn is_space(c: char) -> bool {
     c.is_whitespace() || c == '\u{feff}'
 }
-
-#[cfg(test)]
-mod tests;

@@ -1,6 +1,6 @@
 use super::{
     AttributeKind, Children, CompilerNodeIdentifier, CompilerSyntaxTree, CompilerSyntaxTreeBuilder,
-    Directive, DirectiveExpression, Element, Name, NodeKind, Property, PropertyKind,
+    Directive, DirectiveExpression, Element, Name, NodeKind, Place, Property, PropertyKind,
     SingleFileComponent, TemplateNode, TemplateNodeIdentifier, Text, syntax_tree,
 };
 
@@ -54,7 +54,9 @@ impl SurfaceBuilder<'_> {
             .iter()
             .map(|&t| {
                 let text = match c.node(t) {
-                    TemplateNode::Text { span } => Some(Text::decoded(*span, source_text)),
+                    TemplateNode::Text { span } => {
+                        Some(Text::decoded(*span, source_text, Place::Text))
+                    }
                     _ => None,
                 };
                 Some((t, text))
@@ -190,7 +192,9 @@ pub(super) fn prop(source_text: &str, a: &syntax_tree::Attribute, origin: u32) -
     let kind = match &a.kind {
         AttributeKind::Static => PropertyKind::Attribute {
             name: Name::Source(a.name),
-            value: a.value.map(|v| Text::decoded(v, source_text)),
+            value: a
+                .value
+                .map(|v| Text::decoded(v, source_text, Place::Attribute)),
         },
         AttributeKind::Directive(d) => PropertyKind::Directive(Directive {
             name: d.name,

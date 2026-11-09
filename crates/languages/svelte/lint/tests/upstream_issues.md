@@ -19,15 +19,15 @@ Each entry names the test that holds this crate's behavior.
 The fix writes the literal's text into markup, and markup decodes character references. A fix
 should not change the value. This crate withholds such a fix and keeps the report. For a reference
 split across two mustaches, it fixes only the second one.
-Tests: `no_useless_mustaches::tests::a_fix_that_would_decode_differently_is_withheld` and
-`a_reference_split_between_mustaches_keeps_its_first_half`.
+Cases: `tests/cases/no-useless-mustaches/invalid/entity-*`, `null-escape` and
+`entity-split-between-mustaches`.
 
 ## An option that misses `\0` (`svelte/no-useless-mustaches`)
 
 With `[{ "ignoreStringEscape": true }]`, upstream reports `<p>{'\0'}</p>` and fixes it to `0`.
 The escape list (`nrvtbfux`) leaves out `\0`, the one digit escape that strict code allows. This
 crate counts `\0` as an escape and does not report it.
-Test: `no_useless_mustaches::tests::a_digit_escape_is_a_string_escape`.
+Case: `tests/cases/no-useless-mustaches/valid/null-escape-ignored-input.svelte`.
 
 ## A shorthand that does not compile (`svelte/shorthand-attribute`)
 
@@ -38,7 +38,7 @@ Test: `no_useless_mustaches::tests::a_digit_escape_is_a_string_escape`.
 
 A shorthand holds a name and nothing else, apart from whitespace. This crate reports these
 attributes and writes no fix.
-Test: `shorthand_attribute::tests::a_shorthand_that_would_not_compile_is_not_written`.
+Cases: `tests/cases/shorthand-attribute/invalid/parenthesized` and `commented`.
 
 ## Runes mode from a rune named in some types (svelte-eslint-parser)
 
@@ -52,7 +52,8 @@ So `let o: $state;` leaves runes mode off, while each of these turns it on:
 
 A name in a type names no rune. This crate leaves runes mode off for these three and for the three
 that upstream already skips.
-Test: `runes_mode::tests::a_rune_named_in_a_type_does_not`. The own cases
+Cases: `tests/cases/no-at-const-tags/valid/rune-in-as-type`, `rune-in-type-alias` and
+`rune-in-interface`. The own cases
 `no-at-const-tags/valid/rune-names-in-types` and `no-inspect/valid/rune-name-in-a-type` hold the
 half that agrees with upstream.
 
@@ -61,14 +62,15 @@ half that agrees with upstream.
 `findRootExpression` follows `const { h } = { h: 1 }` to `{ h: 1 }` and reports "Unexpected
 object in event handler." for `onclick={h}`. `const [h] = [1]` gets "array". Here `h` is 1. This
 crate does not follow a destructured name, and reports nothing.
-Test: `no_not_function_handler::tests::a_destructured_name_is_not_its_initializer`.
+Cases: `tests/cases/no-not-function-handler/valid/destructured-object` and
+`destructured-array`.
 
 ## A `{@const}` that the rule does not follow (`svelte/no-not-function-handler`)
 
 `{#if 1}{@const h = 1}<button onclick={h}></button>{/if}` gets no report, because the variable's
 definition is not a script `const`. A `{@const}` is as constant as a script `const`, so this crate
 follows it and reports "Unexpected number value in event handler.".
-Test: `no_not_function_handler::tests::a_const_tag_is_followed`.
+Case: `tests/cases/no-not-function-handler/invalid/const-tag-input.svelte`.
 
 ## A value written before the modifiers (`svelte/shorthand-directive`)
 
@@ -76,7 +78,7 @@ With `prefer: never`, upstream fixes `<div style:color|important>` to
 `<div style:color={color}|important>`. The compiler accepts that, but it reads the value as the
 text `{color}|important`, so the directive loses `|important`. This crate writes
 `style:color|important={color}`.
-Test: `shorthand_directive::tests::the_value_goes_after_the_modifiers`.
+Case: `tests/cases/shorthand-directive/invalid/value-after-modifiers-input.svelte`.
 
 ## A slot name fix that breaks the attribute (`svelte/no-dynamic-slot-name`)
 
@@ -87,7 +89,8 @@ Test: `shorthand_directive::tests::the_value_goes_after_the_modifiers`.
 | `<slot name=x{"a b"}y />`  | `<slot name=xa by />`  | the space makes `by` a second attribute |
 
 This crate reports these and writes no fix.
-Test: `no_dynamic_slot_name::tests::a_name_that_the_markup_cannot_hold_as_written_is_not_fixed`.
+Cases: `tests/cases/no-dynamic-slot-name/invalid/quote-in-expression`,
+`quote-in-quoted-value` and `space-in-unquoted-value`.
 
 ## U+2028 and U+2029 do not end a line in node locations
 
@@ -281,8 +284,7 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 ## The style directive fix cuts a value after a comment
 
 - Rule: `prefer-style-directive`.
-- Case: `src/rules/prefer_style_directive/tests.rs`,
-  `a_declaration_writes_the_whole_cleaned_value`.
+- Case: `tests/cases/prefer-style-directive/invalid/declaration-with-comment-input.svelte`.
 - Upstream: the fix turns `<div style="color: a /* c */ b;">` into `<div style:color="a /*">`.
 - Correct: `<div style:color="a  b">`, the value that `PostCSS` gives.
 - Why: the fix slices the source from the value's start by the length of the cleaned value
@@ -291,7 +293,7 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 ## A shorthand ID attribute does not count
 
 - Rule: `consistent-selector-style`.
-- Case: `src/rules/consistent_selector_style/tests.rs`, `a_shorthand_id_is_read_as_its_attribute`.
+- Case: `tests/cases/consistent-selector-style/valid/shorthand-id-input.svelte`.
 - Upstream: with `let { id } = $props()`, `<div {id}>` reports `#a` as "Selector should select by
   element type instead of ID", while `<div id={id}>` reports nothing.
 - Correct: both report nothing, because the element may carry any ID.
@@ -300,7 +302,7 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 ## A selector inside `@keyframes` counts as an element type
 
 - Rule: `consistent-selector-style`.
-- Case: `src/rules/consistent_selector_style/tests.rs`, `a_keyframe_selector_selects_no_element`.
+- Case: `tests/cases/consistent-selector-style/valid/keyframe-selectors-input.svelte`.
 - Upstream: with `style: ["class"]`, `@keyframes a { from {} 50% {} }` reports `from` and `50%` as
   "Selector should select by class instead of element type".
 - Correct: no report, because these selectors select no element.
@@ -309,7 +311,7 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 ## An each block's else branch counts as repeated
 
 - Rule: `consistent-selector-style`.
-- Case: `src/rules/consistent_selector_style/tests.rs`, `an_each_else_branch_renders_at_most_once`.
+- Case: `tests/cases/consistent-selector-style/invalid/each-else-branch-input.svelte`.
 - Upstream: with `style: ["id", "class"]`, the rule says nothing about `.a` on the only element in
   `{#each xs as x}…{:else}…`. For the same element in `{#if c}…{:else}…`, it reports "Selector
   should select by ID instead of class".
@@ -320,7 +322,8 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 ## A space beside an expression names an empty class
 
 - Rule: `no-unused-class-name`.
-- Case: `src/rules/no_unused_class_name/tests.rs`, `a_space_beside_an_expression_names_no_class`.
+- Cases: `tests/cases/no-unused-class-name/valid/space-after-expression` and
+  `space-before-expression`.
 - Upstream: `<div class="{b} ">` and `<div class=" {b}">` report `Unused class "".`.
 - Correct: no report.
 - Why: `findClassesInAttribute` trims a literal part and splits it on spaces, so a part that
@@ -329,8 +332,7 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 ## The style directive fix breaks a value with a double quote
 
 - Rule: `prefer-style-directive`.
-- Case: `src/rules/prefer_style_directive/tests.rs`,
-  `a_value_with_a_double_quote_is_reported_without_a_fix`.
+- Case: `tests/cases/prefer-style-directive/invalid/value-with-double-quote-input.svelte`.
 - Upstream: the fix turns `<div style='font-family: "Arial"'>` into
   `<div style:font-family=""Arial"">`.
 - Correct: no fix, and the report stays.
@@ -339,7 +341,7 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 ## The style directive fix drops `!important` from a conditional
 
 - Rule: `prefer-style-directive`.
-- Case: `src/rules/prefer_style_directive/tests.rs`, `a_conditional_keeps_important`.
+- Case: `tests/cases/prefer-style-directive/invalid/conditional-important-input.svelte`.
 - Upstream: the fix turns `style={c ? "color: red !important" : ""}` into
   `style:color={c ? "red" : null}`.
 - Correct: `style:color|important={c ? "red" : null}`.
@@ -348,8 +350,8 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 ## The style directive fix changes a property that the style sets twice
 
 - Rule: `prefer-style-directive`.
-- Case: `src/rules/prefer_style_directive/tests.rs`,
-  `a_property_set_twice_is_reported_without_a_fix`.
+- Cases: `tests/cases/prefer-style-directive/invalid/property-set-twice` and
+  `conditional-property-set-twice`.
 - Upstream: the fix turns `<div style="color: red; color: blue">` into
   `<div style:color="red" style="color: blue">`. A directive wins over the attribute, so the text
   turns red.
@@ -360,8 +362,7 @@ the whole file as one line. This crate ends a line at every ECMAScript line term
 ## The class directive fix duplicates a directive
 
 - Rule: `prefer-class-directive`.
-- Case: `src/rules/prefer_class_directive/tests.rs`,
-  `a_class_with_a_directive_is_reported_without_a_fix`.
+- Case: `tests/cases/prefer-class-directive/invalid/class-with-its-directive-input.svelte`.
 - Upstream: the fix turns `<div class={a ? "" : "x"} class:x={b}>` into
   `<div class:x={!a} class:x={b}>`, and Svelte rejects the duplicate attribute.
 - Correct: no fix, and the report stays.
@@ -460,3 +461,50 @@ The rule takes an identifier key as the prop's name even in brackets, so it repo
 `k`. A computed key names the value of its expression, here `data`, which a page takes. This crate
 does not check a computed key.
 Test in `svelte_kit.rs`: `a_computed_prop_name_is_not_reported`.
+
+## A legacy reference inside a longer name in an attribute (`@vue/compiler-core`)
+
+This one is not eslint-plugin-svelte's. `@vue/compiler-sfc` 3.5.44 parses templates with
+`entities` 7.0.1, which decodes these attribute values:
+
+| Input               | Upstream reads | The HTML spec reads |
+| ------------------- | -------------- | ------------------- |
+| `title="&notinvb"`  | `¬invb`        | `&notinvb`          |
+| `title="&timesb"`   | `×b`           | `&timesb`           |
+| `title="&gtques9"`  | `>ques9`       | `&gtques9`          |
+
+In an attribute, a name without its semicolon is not a reference when a letter or digit or `=`
+follows it. Each input above stops partway through a longer name (`notinvb;` and `timesb;` and
+`gtquest;`). There the decoder skips that check. Guess from reading `entities`: the check is
+missing from the branch that matches a run of letters. Of 199924 generated attribute values,
+1356 differ from the spec. Of those, 1324 are what the spec gives for text. This crate follows
+the spec.
+Test in `rsvelte_markup`: `character_references::tests::html_follows_the_spec_where_compiler_core_does_not`.
+
+## Svelte's compiler: what `svelte.compile` warns, which `svelte/valid-compile` reports
+
+These are behaviors of `svelte` 5.57.3 (`tools/oracle`) that `rsvelte_svelte`'s warnings do not
+reproduce. Each is a candidate issue for `sveltejs/svelte`. `svelte.compile` gave the upstream
+output (`corpus/**/expected/svelte.compile/client.warnings.json`).
+
+### A `svelte-ignore` code warning before `<style>` points four bytes early
+
+- Case: `<!-- svelte-ignore css-unused-selector -->` before `<style>`, as in
+  `eslint-plugin-svelte/.../no-unused-svelte-ignore/invalid/style-lang01-input.svelte`.
+- Upstream reports `legacy_code` four bytes before `css-unused-selector`. The analysis reads the
+  style's comment with `extract_svelte_ignore(comment.start, comment.data, …)`, while the template
+  walk passes `prev.start + 4`, the offset of `comment.data`.
+- Correct: the code itself. This crate reports it there.
+  Test: `warnings::tests::a_legacy_code_before_the_style_is_reported_at_the_code`.
+
+### A comment in a component's default slot is read again before every later child
+
+- Case: `svelte-ux/.../docs/components/Switch/+page.svelte`, where
+  `<!-- svelte-ignore a11y-label-has-associated-control -->` stands inside `<Preview>`.
+- Upstream reports its `legacy_code` twice, and the comment ignores the codes it names on every
+  later element child of the component, not only the next one. `visit_component` collects the
+  default slot's nodes with `nodes[slot_name].push(...comments, child)` and clears `comments` only
+  for a named slot, so the comment comes again before each later child of the default slot.
+- Correct: the comment leads the next node only, and warns once, as in any other fragment. This
+  crate reads the fragment as written.
+  Test: `warnings::tests::a_comment_in_a_default_slot_warns_once`.

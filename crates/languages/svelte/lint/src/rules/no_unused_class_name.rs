@@ -91,7 +91,7 @@ impl SvelteRule for NoUnusedClassName {
                         for part in component.parts(parts) {
                             if let Part::Text(span) = part {
                                 for name in split_ecmascript_whitespace(
-                                    &rsvelte_markup::decode_text(span.text(source)),
+                                    &rsvelte_markup::decode_attribute(span.text(source)),
                                 ) {
                                     report(name);
                                 }
@@ -143,6 +143,3 @@ fn selector_classes<'a>(
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

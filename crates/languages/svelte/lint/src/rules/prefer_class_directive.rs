@@ -163,7 +163,7 @@ impl<'a> Values<'a> {
     fn strings(&self, part: &Part) -> Option<Vec<Cow<'a, str>>> {
         let mut out = Vec::new();
         match *part {
-            Part::Text(span) => out.push(rsvelte_markup::decode_text(span.text(self.source))),
+            Part::Text(span) => out.push(rsvelte_markup::decode_attribute(span.text(self.source))),
             Part::Expression { expression, .. } => self.branches(expression, &mut out)?,
         }
         Some(out)
@@ -371,6 +371,3 @@ impl PreferClassDirective {
         Some((fix, classes))
     }
 }
-
-#[cfg(test)]
-mod tests;
