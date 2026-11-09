@@ -14,7 +14,9 @@ impl LayoutInstructions {
             n @ (Node::Static(_) | Node::Text { .. }) => self.str_of(n).is_empty(),
             Node::Line(_) => true,
             Node::Concat { len, .. } | Node::Group { len, .. } => len == 0,
-            Node::Indent(x) | Node::Dedent(x) | Node::FlatOnly(x) => self.is_empty(x),
+            Node::Indent(x) | Node::Dedent(x) | Node::FlatOnly { content: x, .. } => {
+                self.is_empty(x)
+            }
             Node::IndentIfBreak { document, .. } => self.is_empty(document),
             Node::Fill { start, len } => {
                 self.children(start, len).iter().all(|&k| self.is_empty(k))

@@ -794,7 +794,6 @@ name = "rsvelte_document_printer"
 version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
- "unicode-width",
 ]
 
 [[package]]

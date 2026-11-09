@@ -35,15 +35,19 @@ impl LayoutInstructions {
         let list = |children: &[LayoutInstructionIdentifier]| {
             children
                 .iter()
-                .fold(Measure::flat(0), |m, &k| m.then(self.measure(k)))
+                .fold(Measure::EMPTY, |m, &k| m.then(self.measure(k)))
         };
         match n {
             Node::Line(LineKind::Hard | LineKind::Literal) | Node::BreakParent => Measure::BREAKING,
-            Node::Static(s) => Measure::flat(s.len() as u32),
-            Node::Text { width, .. } => Measure::flat(width),
-            Node::Line(LineKind::Normal) => Measure::flat(1),
-            Node::Line(LineKind::Soft) => Measure::flat(0),
-            Node::Indent(d) | Node::Dedent(d) | Node::FlatOnly(d) => self.measure(d),
+            Node::Static("") | Node::Text { len: 0, .. } | Node::Line(LineKind::Soft) => {
+                Measure::EMPTY
+            }
+            Node::Static(s) => Measure::text(s.len() as u32),
+            Node::Text { width, .. } => Measure::text(width),
+            Node::Line(LineKind::Normal) => Measure::LINE,
+            Node::Indent(d) | Node::Dedent(d) | Node::FlatOnly { content: d, .. } => {
+                self.measure(d)
+            }
             Node::IndentIfBreak { document, .. } => self.measure(document),
             Node::IfBreak {
                 broken,
@@ -238,7 +242,50 @@ impl LayoutInstructions {
 
     /// Refuses a layout that does not fit flat. Hard lines still break.
     pub fn flat_only(&mut self, d: LayoutInstructionIdentifier) -> LayoutInstructionIdentifier {
-        self.push(Node::FlatOnly(d))
+        self.push(Node::FlatOnly {
+            content: d,
+            every_line: false,
+            choice: false,
+        })
+    }
+
+    /// [`Self::flat_only`] for the first of several layouts Prettier chooses between, the others
+    /// not built.
+    pub fn flat_only_choice(
+        &mut self,
+        d: LayoutInstructionIdentifier,
+    ) -> LayoutInstructionIdentifier {
+        self.push(Node::FlatOnly {
+            content: d,
+            every_line: false,
+            choice: true,
+        })
+    }
+
+    /// [`Self::flat_only`] with both flags of [`Node::FlatOnly`] chosen.
+    pub fn flat_only_with(
+        &mut self,
+        d: LayoutInstructionIdentifier,
+        every_line: bool,
+        choice: bool,
+    ) -> LayoutInstructionIdentifier {
+        self.push(Node::FlatOnly {
+            content: d,
+            every_line,
+            choice,
+        })
+    }
+
+    /// [`Self::flat_only`], refused also when a line after a forced break inside does not fit.
+    pub fn flat_only_every_line(
+        &mut self,
+        d: LayoutInstructionIdentifier,
+    ) -> LayoutInstructionIdentifier {
+        self.push(Node::FlatOnly {
+            content: d,
+            every_line: true,
+            choice: false,
+        })
     }
 
     /// Prettier's `join(sep, docs)`.

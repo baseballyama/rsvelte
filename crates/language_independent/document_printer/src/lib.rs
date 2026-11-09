@@ -23,7 +23,7 @@ mod width;
 
 use rsvelte_kernel::performance::buffer_pool;
 pub use trace::{GroupDecision, TraceEvent, TraceMode};
-pub use width::string_width;
+pub use width::{has_emoji_sequence, string_width};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct LayoutInstructionIdentifier(u32);
@@ -89,46 +89,126 @@ enum Node {
         group: GroupIdentifier,
     },
     BreakParent,
-    FlatOnly(LayoutInstructionIdentifier),
+    /// Printed flat; with `every_line`, each line it prints flat after a forced break must fit
+    /// too, where Prettier would decide that line's groups afresh.
+    FlatOnly {
+        content: LayoutInstructionIdentifier,
+        every_line: bool,
+        /// It stands for a choice between layouts, like Prettier's `conditionalGroup`, that
+        /// keeps its states when the lines are removed.
+        choice: bool,
+    },
 }
 
 /// What a node's parents need to know about it, in one word so that making a list reads each
 /// child once: whether it forces a break (Prettier's `willBreak`), and its width printed flat.
+/// Prettier's `fits` charges a line's space only when a string follows it, so the width counts
+/// the spaces between the node's strings, and two flags say whether a line comes before its first
+/// string or after its last one (for a node without strings, whether it holds a line at all).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 struct Measure(u32);
+
+/// A [`Measure`] whose width is known.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct Flat {
+    width: u32,
+    text: bool,
+    lead: bool,
+    trail: bool,
+}
+
+impl Flat {
+    /// A string that is not empty.
+    const fn string(width: u32) -> Self {
+        Self {
+            width,
+            text: true,
+            lead: false,
+            trail: false,
+        }
+    }
+
+    /// Prettier's `fits` printing this: a pending space is charged only before a string.
+    #[expect(
+        clippy::cast_possible_wrap,
+        reason = "a width is far below `isize::MAX`"
+    )]
+    fn charge(self, remaining: &mut isize, pending: &mut bool) {
+        if self.text {
+            *remaining -= self.width as isize + isize::from(*pending || self.lead);
+            *pending = self.trail;
+        } else {
+            *pending |= self.lead;
+        }
+    }
+}
 
 impl Measure {
     const BREAKING: Self = Self(Self::BREAKS | Self::UNKNOWN);
     const BREAKS: u32 = 1 << 31;
+    const EMPTY: Self = Self(0);
+    const LEAD: u32 = 1 << 29;
+    const LINE: Self = Self(Self::LEAD | Self::TRAIL);
+    const TEXT: u32 = 1 << 30;
+    const TRAIL: u32 = 1 << 28;
     /// The width of a node that forces a break or follows a named group: the printer walks it.
-    const UNKNOWN: u32 = Self::BREAKS - 1;
+    const UNKNOWN: u32 = Self::TRAIL - 1;
     const WALKED: Self = Self(Self::UNKNOWN);
 
-    const fn flat(width: u32) -> Self {
-        Self(if width < Self::UNKNOWN {
-            width
-        } else {
-            Self::UNKNOWN
-        })
+    /// A string that is not empty.
+    const fn text(width: u32) -> Self {
+        Self(
+            Self::TEXT
+                | if width < Self::UNKNOWN {
+                    width
+                } else {
+                    Self::UNKNOWN
+                },
+        )
     }
 
     const fn breaks(self) -> bool {
         self.0 & Self::BREAKS != 0
     }
 
-    const fn width(self) -> Option<u32> {
-        let width = self.0 & !Self::BREAKS;
+    const fn flat(self) -> Option<Flat> {
+        let width = self.0 & Self::UNKNOWN;
         if width == Self::UNKNOWN {
-            None
-        } else {
-            Some(width)
+            return None;
         }
+        Some(Flat {
+            width,
+            text: self.0 & Self::TEXT != 0,
+            lead: self.0 & Self::LEAD != 0,
+            trail: self.0 & Self::TRAIL != 0,
+        })
     }
 
     /// Of `self` followed by `next`. A break makes the width unknown, so the sum saturates there.
     fn then(self, next: Self) -> Self {
-        let width = ((self.0 & !Self::BREAKS) + (next.0 & !Self::BREAKS)).min(Self::UNKNOWN);
-        Self(((self.0 | next.0) & Self::BREAKS) | width)
+        let breaks = (self.0 | next.0) & Self::BREAKS;
+        let (Some(a), Some(b)) = (self.flat(), next.flat()) else {
+            return Self(breaks | Self::UNKNOWN);
+        };
+        let (text, lead, trail, width) = match (a.text, b.text) {
+            (false, _) => (
+                b.text,
+                a.lead || b.lead,
+                if b.text { b.trail } else { a.lead || b.lead },
+                b.width,
+            ),
+            (true, false) => (true, a.lead, a.trail || b.lead, a.width),
+            (true, true) => (
+                true,
+                a.lead,
+                b.trail,
+                a.width + b.width + u32::from(a.trail || b.lead),
+            ),
+        };
+        let flags = if text { Self::TEXT } else { 0 }
+            | if lead { Self::LEAD } else { 0 }
+            | if trail { Self::TRAIL } else { 0 };
+        Self(breaks | flags | width.min(Self::UNKNOWN))
     }
 }
 

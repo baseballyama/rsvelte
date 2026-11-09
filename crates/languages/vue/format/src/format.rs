@@ -43,6 +43,11 @@ const VOID_TAGS: &[&str] = &[
 /// [`Unsupported`] if the component holds a construct this formatter does not print.
 /// `lines` is `source_text`'s, which the pipeline builds once per document.
 pub(crate) fn format(c: &SingleFileComponent, source_text: &str, lines: &LineIndex) -> R<String> {
+    if rsvelte_document_printer::has_emoji_sequence(source_text) {
+        return Err(Unsupported::nowhere(
+            "an emoji sequence, which Prettier measures as one character",
+        ));
+    }
     let tree = Tree::build(c, source_text, lines)?;
     let mut docs = LayoutInstructions::new();
     let javascript = Formatter::new(

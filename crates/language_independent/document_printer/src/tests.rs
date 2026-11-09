@@ -203,3 +203,68 @@ fn trim_descends_into_the_last_part() {
     let root = d.concat(&docs);
     assert_eq!(print(&d, root, &PrintOptions::default()), "a");
 }
+
+/// Prettier's `fits` charges a line's space only when a string follows it. A fill whose words sit
+/// in the separator slots (`[line, "aa", line, "bb", …]`) therefore lets one word run past the
+/// width, and two lines in a row cost one space. Expected outputs from Prettier 3.9.10's
+/// `printDocToString` at `printWidth: 10`.
+#[test]
+fn a_line_costs_its_space_only_when_text_follows() {
+    let options = PrintOptions {
+        width: 10,
+        indent_spaces: Some(2),
+        tab_width: 2,
+    };
+    let mut docs = LayoutInstructions::new();
+    let lead = docs.lit("xxxxxxx");
+    let mut parts = Vec::new();
+    for word in ["aa", "bb", "cc"] {
+        parts.push(docs.line());
+        parts.push(docs.text(word));
+    }
+    let fill = docs.fill(&parts);
+    let root = docs.concat(&[lead, fill]);
+    assert_eq!(print(&docs, root, &options), "xxxxxxx aa bb\ncc");
+
+    let mut docs = LayoutInstructions::new();
+    let (lead, tail) = (docs.lit("xxxxxxx"), docs.lit("a"));
+    let (first, second) = (docs.line(), docs.line());
+    let root = docs.group(&[lead, first, second, tail]);
+    assert_eq!(print(&docs, root, &options), "xxxxxxx  a");
+
+    let mut docs = LayoutInstructions::new();
+    let (lead, tail) = (docs.lit("xxxxxxxxx"), docs.lit("z"));
+    let line = docs.line();
+    let group = docs.group(&[lead, line]);
+    let root = docs.concat(&[group, tail]);
+    assert_eq!(print(&docs, root, &options), "xxxxxxxxx\nz");
+}
+
+/// A flat-only layout promises to print flat up to its first forced break; a group inside it
+/// that would have to break there is refused, not broken.
+#[test]
+fn a_flat_only_layout_refuses_a_group_that_does_not_fit() {
+    let options = PrintOptions {
+        width: 8,
+        indent_spaces: Some(2),
+        tab_width: 2,
+    };
+    let build = |flat_only: bool| {
+        let mut docs = LayoutInstructions::new();
+        let (open, word, close) = (docs.lit("("), docs.text("aaaaaaaaaa"), docs.lit(")"));
+        let soft = docs.softline();
+        let inner = docs.group(&[open, soft, word, close]);
+        let hard = docs.hardline();
+        let body = docs.concat(&[hard, inner]);
+        let root = if flat_only {
+            docs.flat_only(body)
+        } else {
+            body
+        };
+        (docs, root)
+    };
+    let (docs, root) = build(true);
+    docs.print(root, &options).unwrap_err();
+    let (docs, root) = build(false);
+    assert_eq!(print(&docs, root, &options), "\n(\naaaaaaaaaa)");
+}
