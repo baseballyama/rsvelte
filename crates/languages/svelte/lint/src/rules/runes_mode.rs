@@ -1,8 +1,9 @@
 //! Whether a document is in runes mode, as `svelte-eslint-parser` decides before compiling.
 
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte::syntax::syntax_tree::{AttributeValue, Component, Part, TemplateNode};
-use rsvelte_typescript::Kind;
 use rsvelte_typescript::lexer::T;
+use rsvelte_typescript::{Kind, SyntaxTree};
 
 use crate::rule::File;
 
@@ -26,12 +27,22 @@ pub(super) fn runes(file: &File<'_>) -> Option<bool> {
     };
     let source = file.source();
     Some(option(component, source).unwrap_or_else(|| {
-        component
-            .javascript
-            .tokens
-            .iter()
-            .any(|token| token.kind == T::Identifier && RUNES.contains(&token.span.text(source)))
+        let javascript = &component.javascript;
+        javascript.tokens.iter().any(|token| {
+            token.kind == T::Identifier
+                && RUNES.contains(&token.span.text(source))
+                && !in_type(javascript, token.span)
+        })
     }))
+}
+
+/// Whether the identifier at `span` is a name in type syntax (`let o: $state`), which names no
+/// rune.
+fn in_type(javascript: &SyntaxTree, span: Span) -> bool {
+    let references = &javascript.type_references;
+    references
+        .binary_search_by_key(&span.start_offset, |reference| reference.span.start_offset)
+        .is_ok()
 }
 
 /// The `runes` option of `<svelte:options>`, a root element.
@@ -67,3 +78,6 @@ fn option(component: &Component, source: &str) -> Option<bool> {
             }
         })
 }
+
+#[cfg(test)]
+mod tests;

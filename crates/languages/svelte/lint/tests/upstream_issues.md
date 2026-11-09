@@ -39,3 +39,17 @@ Test: `no_useless_mustaches::tests::a_digit_escape_is_a_string_escape`.
 A shorthand holds a name and nothing else, apart from whitespace. This crate reports these
 attributes and writes no fix.
 Test: `shorthand_attribute::tests::a_shorthand_that_would_not_compile_is_not_written`.
+
+## svelte-eslint-parser: a rune named in some types turns runes mode on
+
+`hasRunesSymbol` walks the script with ESLint's visitor keys. Those keys skip an identifier's
+annotation, a return type and type arguments, but they fall back to every key of a TypeScript node.
+So `let o: $state;` leaves runes mode off, while each of these turns it on:
+
+- `let o = 1 as $state;`
+- `type T = $state;`
+- `interface I { a: $state }`
+
+A name in a type names no rune. This crate leaves runes mode off for all six.
+Test: `runes_mode::tests::a_rune_named_in_a_type_does_not`. The agreeing half is the own cases
+`no-at-const-tags/valid/rune-names-in-types` and `no-inspect/valid/rune-name-in-a-type`.
