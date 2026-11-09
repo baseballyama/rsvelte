@@ -56,7 +56,7 @@ impl<'a> StartTag<'a> {
             span: Span::new(
                 name.start_offset,
                 value.map_or(name.end_offset, |value| {
-                    value.end_offset + u32::from(raw_value_is_quoted(tokens, value))
+                    value.end_offset + u32::from(quote_before(tokens, value.start_offset).is_some())
                 }),
             ),
             key: name,
@@ -66,14 +66,16 @@ impl<'a> StartTag<'a> {
     }
 }
 
-/// Whether a `<script>` or `<style>` attribute's value has quotes around it.
-pub(super) fn raw_value_is_quoted(tokens: &Tokens<TokenType>, value: Span) -> bool {
+/// The quote token that ends at `offset`: the opening quote of a value that starts there.
+pub(super) fn quote_before(tokens: &Tokens<TokenType>, offset: u32) -> Option<TokenType> {
     tokens
-        .until_offset(value.start_offset)
+        .until_offset(offset)
         .last()
-        .is_some_and(|token| {
-            token.kind == TokenType::Quote && token.span.end_offset == value.start_offset
+        .filter(|token| {
+            matches!(token.kind, TokenType::DoubleQuote | TokenType::SingleQuote)
+                && token.span.end_offset == offset
         })
+        .map(|token| token.kind)
 }
 
 /// Every start tag, in no particular order.

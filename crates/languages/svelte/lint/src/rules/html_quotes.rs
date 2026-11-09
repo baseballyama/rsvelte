@@ -2,11 +2,11 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte::syntax::syntax_tree::{
-    Attribute, AttributeKind, AttributeValue, Component, Part,
+    Attribute, AttributeKind, AttributeValue, Component, Part, TokenType,
 };
 use serde::Deserialize;
 
-use super::tags::{Attributes, is_javascript_whitespace, raw_value_is_quoted, start_tags};
+use super::tags::{Attributes, is_javascript_whitespace, quote_before, start_tags};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -101,17 +101,7 @@ impl SvelteRule for HtmlQuotes {
                     // `lang=""` has no value to check.
                     let values = attributes.iter().filter_map(|(_, value)| *value);
                     for value in values.filter(|value| !value.is_empty()) {
-                        let value = if raw_value_is_quoted(tokens, value) {
-                            quoted(
-                                source,
-                                Span::new(value.start_offset - 1, value.end_offset + 1),
-                            )
-                        } else {
-                            Value {
-                                range: value,
-                                quote: Quote::Unquoted,
-                            }
-                        };
+                        let value = Value::new(quote_before(tokens, value.start_offset), value);
                         Self::verify(source, self.prefer, value, reporter);
                     }
                 }
@@ -127,13 +117,24 @@ struct Value {
     quote: Quote,
 }
 
-const fn quoted(source: &str, range: Span) -> Value {
-    let quote = if source.as_bytes()[range.start_offset as usize] == b'"' {
-        Quote::Double
-    } else {
-        Quote::Single
-    };
-    Value { range, quote }
+impl Value {
+    /// The value whose text is `inner`, after the quote token `quote` if it has one.
+    const fn new(quote: Option<TokenType>, inner: Span) -> Self {
+        let quote = match quote {
+            Some(TokenType::DoubleQuote) => Quote::Double,
+            Some(_) => Quote::Single,
+            None => {
+                return Self {
+                    range: inner,
+                    quote: Quote::Unquoted,
+                };
+            }
+        };
+        Self {
+            range: Span::new(inner.start_offset - 1, inner.end_offset + 1),
+            quote,
+        }
+    }
 }
 
 impl HtmlQuotes {
@@ -173,14 +174,10 @@ impl HtmlQuotes {
         if start == end {
             return None;
         }
-        let value = if attribute.quoted {
-            quoted(source, Span::new(start - 1, end + 1))
-        } else {
-            Value {
-                range: Span::new(start, end),
-                quote: Quote::Unquoted,
-            }
-        };
+        let value = Value::new(
+            quote_before(&component.tokens, start),
+            Span::new(start, end),
+        );
         if !dynamic {
             return Some((self.prefer, value));
         }
