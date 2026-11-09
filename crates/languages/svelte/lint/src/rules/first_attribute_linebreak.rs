@@ -43,8 +43,8 @@ impl SvelteRule for FirstAttributeLinebreak {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let tokens = &component.tokens;
-        let lines = file.context.line_index();
-        let line = |offset: u32| lines.line_column(offset).line;
+        let lines = file.context.ecmascript_line_index();
+        let line = |offset: u32| lines.line(offset);
         for tag in start_tags(component) {
             let mut attributes = tag.attributes(tokens);
             let Some(first) = attributes.next() else {

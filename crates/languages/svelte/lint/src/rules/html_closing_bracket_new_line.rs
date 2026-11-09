@@ -64,8 +64,8 @@ impl SvelteRule for HtmlClosingBracketNewLine {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let tokens = &component.tokens;
-        let lines = file.context.line_index();
-        let line = |offset: u32| lines.line_column(offset).line;
+        let lines = file.context.ecmascript_line_index();
+        let line = |offset: u32| lines.line(offset);
         let start = start_tags(component).map(|tag| {
             let values = if tag.self_closing {
                 self.self_closing

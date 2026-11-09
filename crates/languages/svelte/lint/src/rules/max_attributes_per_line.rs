@@ -52,8 +52,8 @@ impl SvelteRule for MaxAttributesPerLine {
         let component = file.component().expect("a component rule");
         let tokens = &component.tokens;
         let source = file.source();
-        let lines = file.context.line_index();
-        let line = |offset: u32| lines.line_column(offset).line;
+        let lines = file.context.ecmascript_line_index();
+        let line = |offset: u32| lines.line(offset);
         let mut report = |attribute: TagAttribute<'_>| {
             let gap = whitespace_before(tokens, attribute.span.start_offset);
             reporter.report(
