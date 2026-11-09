@@ -142,7 +142,6 @@ impl ClientCompilationContext<'_> {
         frag: &mut Frag,
         update: &[NodeIdentifier],
     ) -> NodeIdentifier {
-        let identifiers = frag.memo.names(&mut self.out);
         let single = match update {
             [s] => match self.out.kind(*s) {
                 Kind::ExpressionStatement(e) => Some(e),
@@ -150,27 +149,12 @@ impl ClientCompilationContext<'_> {
             },
             _ => None,
         };
-        let body = if let Some(e) = single {
-            self.out
-                .arrow(&identifiers, e, true, false, SourceLocation::SYNTHETIC)
-        } else {
-            let b = self.out.block(update, SourceLocation::SYNTHETIC);
-            self.out
-                .arrow(&identifiers, b, false, false, SourceLocation::SYNTHETIC)
+        let (body, expression_body) = match single {
+            Some(e) => (e, true),
+            None => (self.out.block(update, SourceLocation::SYNTHETIC), false),
         };
-        let values = if frag.memo.values.is_empty() {
-            None
-        } else {
-            let memo = std::mem::take(&mut frag.memo.values);
-            let thunks: Vec<NodeIdentifier> = memo
-                .into_iter()
-                .map(|m| {
-                    self.out
-                        .arrow(&[], m, true, false, SourceLocation::SYNTHETIC)
-                })
-                .collect();
-            Some(self.out.array(&thunks, SourceLocation::SYNTHETIC))
-        };
+        let (body, values) =
+            std::mem::take(&mut frag.memo).into_effect(&mut self.out, body, expression_body);
         let call = self.call("template_effect", vec![Some(body), values]);
         self.statement(call)
     }

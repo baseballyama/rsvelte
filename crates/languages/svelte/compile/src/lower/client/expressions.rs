@@ -1,5 +1,5 @@
 use super::{
-    ClientCompilationContext, Memo, MemoReads, NodeIdentifier, ScriptRewrite, SourceLocation,
+    ClientCompilationContext, Memo, Memoized, NodeIdentifier, ScriptRewrite, SourceLocation,
     Target, copy, flag, runtime_call, unthunk,
 };
 
@@ -59,23 +59,30 @@ impl ClientCompilationContext<'_> {
         self.out.write_boolean(true, SourceLocation::SYNTHETIC)
     }
 
+    /// Upstream `Memoizer.add`: `value` stays inline unless `source` calls a function, or holds
+    /// state when `if_state`.
     pub(super) fn memoize(
         &mut self,
         memo: &mut Memo,
         source: NodeIdentifier,
         value: NodeIdentifier,
+        if_state: bool,
     ) -> NodeIdentifier {
         let meta = self.an.meta(source);
-        let if_state = matches!(memo.reads, MemoReads::Derived { if_state: true });
         if !(meta.has_call || if_state && meta.has_state) {
             return value;
         }
-        let identifier = Memo::name(&mut self.out, memo.values.len());
-        memo.values.push(value);
-        memo.sources.push(source);
-        match memo.reads {
-            MemoReads::Effect => identifier,
-            MemoReads::Derived { .. } => self.out.runtime("$", "get", &[identifier]),
+        let name = self.out.atoms.intern(&format!("${}", memo.entries.len()));
+        memo.entries.push(Memoized {
+            value,
+            source,
+            name,
+        });
+        let read = self.out.ident_atom(name, SourceLocation::SYNTHETIC);
+        if memo.derived {
+            self.out.runtime("$", "get", &[read])
+        } else {
+            read
         }
     }
 }

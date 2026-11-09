@@ -29,13 +29,13 @@ impl ClientCompilationContext<'_> {
                 }
                 AttributeValue::Spread(e) => {
                     let built = self.expression(e);
-                    let v = self.memoize(&mut memo, e, built);
+                    let v = self.memoize(&mut memo, e, built, false);
                     values.push(self.out.spread(v, SourceLocation::SYNTHETIC));
                     continue;
                 }
                 _ => {}
             }
-            let (value, _) = self.attribute_value(a, &mut memo);
+            let (value, _) = self.attribute_value(a, &mut memo, false);
             let raw_name = a.name.text(self.source_text);
             if event_attribute(self.source_text, a).is_some()
                 && matches!(
@@ -65,7 +65,7 @@ impl ClientCompilationContext<'_> {
                         unreachable!("class directives")
                     };
                     let built = self.expression(e);
-                    let v = self.memoize(&mut memo, e, built);
+                    let v = self.memoize(&mut memo, e, built, false);
                     init_property(&mut self.out, d.name.text(self.source_text), v)
                 })
                 .collect();
@@ -77,21 +77,8 @@ impl ClientCompilationContext<'_> {
                     .property(key, object, flag::COMPUTED, SourceLocation::SYNTHETIC),
             );
         }
-        let identifiers = memo.names(&mut self.out);
         let object = self.out.object(&values, SourceLocation::SYNTHETIC);
-        let arrow = self
-            .out
-            .arrow(&identifiers, object, true, false, SourceLocation::SYNTHETIC);
-        let sync = (!memo.values.is_empty()).then(|| {
-            let thunks: Vec<NodeIdentifier> = std::mem::take(&mut memo.values)
-                .into_iter()
-                .map(|m| {
-                    self.out
-                        .arrow(&[], m, true, false, SourceLocation::SYNTHETIC)
-                })
-                .collect();
-            self.out.array(&thunks, SourceLocation::SYNTHETIC)
-        });
+        let (arrow, sync) = memo.into_effect(&mut self.out, object, true);
         let hash = if self.an.scoped[identifier] {
             self.identity.stylesheet_hash.clone()
         } else {

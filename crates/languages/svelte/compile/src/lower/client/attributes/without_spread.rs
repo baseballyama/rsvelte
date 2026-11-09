@@ -61,7 +61,7 @@ impl ClientCompilationContext<'_> {
             } else if attribute_name == "autofocus" || attribute_name == "style" {
                 return unsupported(&format!("a dynamic `{attribute_name}` attribute"), a.span);
             } else {
-                let (value, has_state) = self.attribute_value(a, &mut frag.memo);
+                let (value, has_state) = self.attribute_value(a, &mut frag.memo, false);
                 let update = self.attribute_update(node, &attribute_name, value);
                 let s = self.statement(update);
                 if has_state {

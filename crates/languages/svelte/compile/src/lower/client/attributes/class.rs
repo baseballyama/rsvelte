@@ -17,7 +17,7 @@ impl ClientCompilationContext<'_> {
         if unquoted && needs_clsx(self.javascript, expression) {
             built = self.call("clsx", vec![Some(built)]);
         }
-        (self.memoize(memo, expression, built), meta.has_state)
+        (self.memoize(memo, expression, built, false), meta.has_state)
     }
 
     /// Upstream `build_set_class`; `attribute` is `None` for the empty `class` upstream's analysis
@@ -39,7 +39,7 @@ impl ClientCompilationContext<'_> {
             Some(&AttributeValue::Shorthand(expression)) => {
                 self.class_expression(expression, true, memo)
             }
-            Some(_) => self.attribute_value(attribute.expect("matched above"), memo),
+            Some(_) => self.attribute_value(attribute.expect("matched above"), memo, false),
         };
         let mut prev = None;
         let mut next = None;
@@ -52,7 +52,7 @@ impl ClientCompilationContext<'_> {
                 };
                 let meta = self.an.meta(e);
                 let built = self.expression(e);
-                let v = self.memoize(memo, e, built);
+                let v = self.memoize(memo, e, built, false);
                 has_state |= meta.has_state;
                 props.push(init_property(
                     &mut self.out,

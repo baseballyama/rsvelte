@@ -10,6 +10,7 @@ impl ClientCompilationContext<'_> {
         &mut self,
         a: &Attribute,
         memo: &mut Memo,
+        if_state: bool,
     ) -> (NodeIdentifier, bool) {
         match &a.value {
             AttributeValue::Boolean => (self.tru(), false),
@@ -18,11 +19,11 @@ impl ClientCompilationContext<'_> {
             | AttributeValue::Shorthand(expression)) => {
                 let built = self.expression(expression);
                 let has_state = self.an.meta(expression).has_state;
-                (self.memoize(memo, expression, built), has_state)
+                (self.memoize(memo, expression, built, if_state), has_state)
             }
             AttributeValue::Interpolated(parts) => {
                 let items = self.chunk_items(parts);
-                self.template_chunk(&items, memo)
+                self.template_chunk(&items, memo, if_state)
             }
             _ => {
                 unreachable!("directives are lowered by `element`")

@@ -8,7 +8,7 @@ impl ClientCompilationContext<'_> {
     pub(super) fn title(&mut self, children: Children, lists: &mut Lists) {
         let mut memo = Memo::default();
         let items = &self.plan.fragment(children).items;
-        let (mut value, has_state) = self.template_chunk(items, &mut memo);
+        let (mut value, has_state) = self.template_chunk(items, &mut memo, false);
         let evaluated = self.res.evaluate_output(
             self.javascript,
             self.source_text,
@@ -36,23 +36,7 @@ impl ClientCompilationContext<'_> {
         );
         let statement = self.statement(assignment);
         let block = self.out.block(&[statement], SourceLocation::SYNTHETIC);
-        let parameters = memo.names(&mut self.out);
-        let callback = self
-            .out
-            .arrow(&parameters, block, false, false, SourceLocation::SYNTHETIC);
-        let sync = if memo.values.is_empty() {
-            None
-        } else {
-            let values: Vec<_> = memo
-                .values
-                .into_iter()
-                .map(|value| {
-                    self.out
-                        .arrow(&[], value, true, false, SourceLocation::SYNTHETIC)
-                })
-                .collect();
-            Some(self.out.array(&values, SourceLocation::SYNTHETIC))
-        };
+        let (callback, sync) = memo.into_effect(&mut self.out, block, false);
         let call = self.call(
             if has_state {
                 "deferred_template_effect"

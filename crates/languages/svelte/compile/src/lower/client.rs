@@ -20,6 +20,7 @@ mod template_chunk;
 mod title;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::interning::Atom;
 use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_markup_syntax::decode_text;
 use rsvelte_svelte_semantic::analyze::Analysis;
@@ -81,37 +82,55 @@ struct Frag {
     memo: Memo,
 }
 
-/// The memoized expressions of one render effect or one component's props, and how they are
-/// read.
+/// Upstream's `Memoizer`: the memoized expressions of one render effect or one component's props.
 #[derive(Default)]
 struct Memo {
-    values: Vec<NodeIdentifier>,
-    /// The source expression each value was built from, which a derived's callback reads.
-    sources: Vec<NodeIdentifier>,
-    reads: MemoReads,
+    entries: Vec<Memoized>,
+    /// A component reads each value from a derived (`$.get($0)`), a render effect as a parameter.
+    derived: bool,
+}
+
+struct Memoized {
+    value: NodeIdentifier,
+    /// The expression `value` was built from, which a derived's callback reads.
+    source: NodeIdentifier,
+    name: Atom,
 }
 
 impl Memo {
-    /// `$i`, the name the `i`th value is read by.
-    fn name(out: &mut SyntaxTree, i: usize) -> NodeIdentifier {
-        out.identifier(&format!("${i}"))
+    const fn derived() -> Self {
+        Self {
+            entries: Vec::new(),
+            derived: true,
+        }
     }
 
-    /// The names of all values.
-    fn names(&self, out: &mut SyntaxTree) -> Vec<NodeIdentifier> {
-        (0..self.values.len()).map(|i| Self::name(out, i)).collect()
+    /// Upstream `Memoizer.apply` for an effect: the callback over `body` that takes the values as
+    /// its parameters, and the array of thunks that compute them, which is absent when none is.
+    fn into_effect(
+        self,
+        out: &mut SyntaxTree,
+        body: NodeIdentifier,
+        expression_body: bool,
+    ) -> (NodeIdentifier, Option<NodeIdentifier>) {
+        let parameters: Vec<NodeIdentifier> = (self.entries.iter())
+            .map(|m| out.ident_atom(m.name, SourceLocation::SYNTHETIC))
+            .collect();
+        let callback = out.arrow(
+            &parameters,
+            body,
+            expression_body,
+            false,
+            SourceLocation::SYNTHETIC,
+        );
+        let thunks = (!self.entries.is_empty()).then(|| {
+            let thunks: Vec<NodeIdentifier> = (self.entries.iter())
+                .map(|m| out.arrow(&[], m.value, true, false, SourceLocation::SYNTHETIC))
+                .collect();
+            out.array(&thunks, SourceLocation::SYNTHETIC)
+        });
+        (callback, thunks)
     }
-}
-
-/// How memoized expressions are read: as the render effect's parameters, or, for a component's
-/// props, from deriveds that also hold a stateful value when `if_state`.
-#[derive(Clone, Copy, Default)]
-enum MemoReads {
-    #[default]
-    Effect,
-    Derived {
-        if_state: bool,
-    },
 }
 
 #[derive(Default)]

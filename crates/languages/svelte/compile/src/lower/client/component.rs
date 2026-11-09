@@ -5,7 +5,7 @@ use super::super::derived::{Created, callback};
 use super::super::javascript::getter;
 use super::{
     AttributeValue, ClientCompilationContext, CompilerNodeIdentifier, Frag, Kind, Lists, Memo,
-    MemoReads, NodeIdentifier, NodeKind, R, SourceLocation, Target, flag, init_property,
+    NodeIdentifier, NodeKind, R, SourceLocation, Target, flag, init_property,
 };
 
 impl ClientCompilationContext<'_> {
@@ -26,7 +26,7 @@ impl ClientCompilationContext<'_> {
         let reference = reference(tree, identifier);
         let intermediate = is_dynamic(self.javascript, self.res, reference)
             .then(|| self.names.generate(element.name.text(self.source_text)));
-        let mut memo = Memo::default();
+        let mut memo = Memo::derived();
         let mut parts = Vec::new();
         for prop in props(tree.attributes(element.attributes)) {
             self.push_prop(prop, &mut memo, &mut parts);
@@ -39,20 +39,18 @@ impl ClientCompilationContext<'_> {
             &["$$anchor", "$$slotProps"],
         );
         let props = props_expression(&mut self.out, parts, Target::Client);
-        let names = memo.names(&mut self.out);
-        let mut statements: Vec<NodeIdentifier> = (memo.values.into_iter())
-            .zip(memo.sources)
-            .zip(names)
-            .map(|((value, source), name)| {
+        let mut statements: Vec<NodeIdentifier> = (memo.entries.into_iter())
+            .map(|m| {
                 let thunk = callback(
                     self.javascript,
                     self.res,
                     &mut self.out,
-                    Some(source),
-                    value,
+                    Some(m.source),
+                    m.value,
                     Created::Template,
                 );
-                let derived = self.call("derived", vec![Some(thunk)]);
+                let derived = self.out.runtime("$", "derived", &[thunk]);
+                let name = self.out.ident_atom(m.name, SourceLocation::SYNTHETIC);
                 self.out.let_(flag::LET, name, Some(derived))
             })
             .collect();
@@ -72,7 +70,7 @@ impl ClientCompilationContext<'_> {
             let component = self.expression(reference);
             let get = self.thunk(component);
             let anchor = self.out.identifier(node);
-            self.call("component", vec![Some(anchor), Some(get), Some(render)])
+            self.out.runtime("$", "component", &[anchor, get, render])
         } else {
             let callee = self.expression(reference);
             let anchor = self.out.identifier(node);
@@ -93,10 +91,8 @@ impl ClientCompilationContext<'_> {
     fn push_prop(&mut self, prop: Prop<'_>, memo: &mut Memo, parts: &mut Vec<Entry>) {
         match prop {
             Prop::Value(a) => {
-                memo.reads = MemoReads::Derived {
-                    if_state: self.wraps_in_derived(&a.value),
-                };
-                let (value, has_state) = self.attribute_value(a, memo);
+                let if_state = self.wraps_in_derived(&a.value);
+                let (value, has_state) = self.attribute_value(a, memo, if_state);
                 let name = a.name.text(self.source_text);
                 parts.push(Entry::Property(if has_state {
                     getter(&mut self.out, name, value)
@@ -106,8 +102,7 @@ impl ClientCompilationContext<'_> {
             }
             Prop::Spread(e) => {
                 let built = self.expression(e);
-                memo.reads = MemoReads::Derived { if_state: false };
-                let value = self.memoize(memo, e, built);
+                let value = self.memoize(memo, e, built, false);
                 parts.push(Entry::Spread(if self.an.meta(e).has_state {
                     self.thunk(value)
                 } else {

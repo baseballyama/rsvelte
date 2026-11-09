@@ -9,6 +9,7 @@ impl<'a> ClientCompilationContext<'a> {
         &mut self,
         values: &[Item<'_>],
         memo: &mut Memo,
+        if_state: bool,
     ) -> (NodeIdentifier, bool) {
         let mut quasis: Vec<String> = vec![String::new()];
         let mut expressions: Vec<NodeIdentifier> = Vec::new();
@@ -45,7 +46,7 @@ impl<'a> ClientCompilationContext<'a> {
             }
             let meta = self.an.meta(expression);
             let built = self.expression(expression);
-            let mut value = self.memoize(memo, expression, built);
+            let mut value = self.memoize(memo, expression, built, if_state);
             let evaluated = self.res.evaluate_output(
                 javascript,
                 self.source_text,
