@@ -1041,6 +1041,8 @@
 	"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/card-air.svelte|textDocument/hover|phase=edit",
 	"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/card-sound.svelte|textDocument/completion",
 	"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/card-sound.svelte|textDocument/completion|phase=edit",
+	"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/card-sound.svelte|textDocument/definition",
+	"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/card-sound.svelte|textDocument/definition|phase=edit",
 	"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/card-sound.svelte|textDocument/hover",
 	"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/card-sound.svelte|textDocument/hover|phase=edit",
 	"aggregate:corpus/bits-ui/docs/src/lib/components/homepage/card-timer.svelte|textDocument/completion",
