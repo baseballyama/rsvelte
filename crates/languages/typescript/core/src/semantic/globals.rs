@@ -6,7 +6,10 @@ pub enum Global {
     /// An ECMAScript builtin (`Math`, `Promise`), present in every environment.
     Builtin,
     /// A browser global that is not a builtin (`window`, `console`, `setTimeout`).
-    Browser,
+    Browser {
+        /// Node.js declares it too (`globals.node`): `console`, `fetch`, but not `window`.
+        node: bool,
+    },
 }
 
 static GLOBALS: &[(&str, Global)] = &include!("vendor/globals.rs");
