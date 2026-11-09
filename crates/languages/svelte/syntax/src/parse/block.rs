@@ -1,5 +1,6 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_syntax::lexer::T;
+use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 use rsvelte_typescript_syntax::syntax_tree::TypeScriptKind;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
 
@@ -13,7 +14,7 @@ impl Parser<'_> {
         let Some(after) = rest.strip_prefix('{') else {
             return false;
         };
-        let inner = super::whitespace::trim_ascii_start(after);
+        let inner = super::whitespace::trim_start(after);
         let Some(after_word) = inner.strip_prefix(sigil).and_then(|s| s.strip_prefix(word)) else {
             return false;
         };
@@ -328,7 +329,7 @@ impl Parser<'_> {
 fn last_as(s: &str) -> Option<usize> {
     s.rmatch_indices("as").map(|(i, _)| i).find(|&i| {
         i > 0
-            && s.as_bytes()[i - 1].is_ascii_whitespace()
+            && s[..i].ends_with(is_javascript_whitespace)
             && !s[i + 2..]
                 .chars()
                 .next()

@@ -1,10 +1,11 @@
-pub(super) fn whitespace_len(bytes: &[u8]) -> usize {
-    bytes
-        .iter()
-        .position(|byte| !byte.is_ascii_whitespace())
-        .unwrap_or(bytes.len())
+use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
+
+/// The length of the whitespace `text` starts with: upstream's `/\s/`, JavaScript's whitespace and
+/// line terminators.
+pub(super) fn whitespace_len(text: &str) -> usize {
+    text.len() - trim_start(text).len()
 }
 
-pub(super) fn trim_ascii_start(text: &str) -> &str {
-    &text[whitespace_len(text.as_bytes())..]
+pub(super) fn trim_start(text: &str) -> &str {
+    text.trim_start_matches(is_javascript_whitespace)
 }

@@ -26,10 +26,9 @@ fn quoted_values_keep_unicode_and_expression_boundaries() {
 }
 
 #[test]
-fn unquoted_values_keep_slashes_and_vertical_tabs() {
+fn unquoted_values_keep_slashes() {
     for (source, expected) in [
         ("<div title=日本語🙂/path/>", "日本語🙂/path"),
-        ("<div title=a\u{b}b/>", "a\u{b}b"),
         ("<div title=/></div>", "/"),
     ] {
         let component = parse(source).expect("unquoted value");
@@ -182,5 +181,40 @@ fn a_template_name_is_no_reserved_word() {
     }
     for source in ["{#each [1] as statics}{/each}", "<div {lets}></div>"] {
         parse(source).expect(source);
+    }
+}
+
+/// Upstream's parser skips `/\s/`, JavaScript's whitespace, in tags and blocks alike.
+#[test]
+fn tags_and_blocks_skip_javascript_whitespace() {
+    for source in [
+        "<div\u{a0}class=\"a\">x</div>",
+        "{#if\u{a0}x}y{/if}",
+        "{#each\u{a0}xs\u{a0}as\u{a0}x}{x}{/each}",
+        "<p>{@html\u{3000}x}</p>",
+        "<div\u{2028}a\u{feff}=1></div>",
+    ] {
+        let component = parse(source).unwrap_or_else(|error| panic!("{source}: {error:?}"));
+        component.tokens.check_lossless(source).expect("all bytes");
+    }
+}
+
+/// Upstream ends an unquoted value, and the text after an expression value, at `/\s/`.
+#[test]
+fn attribute_values_end_at_javascript_whitespace() {
+    for source in [
+        "<div a=x\u{a0}b></div>",
+        "<div a=x\u{b}b></div>",
+        "<div a=x\u{3000}b></div>",
+        "<div a={1}\u{a0}b=2></div>",
+        "<Foo a={n}\u{2029}b={1} />",
+    ] {
+        let component = parse(source).unwrap_or_else(|error| panic!("{source}: {error:?}"));
+        component.tokens.check_lossless(source).expect("all bytes");
+        assert_eq!(component.attributes.len(), 2, "{source}");
+        let AttributeValue::Parts(parts) = component.attributes[0].value else {
+            panic!("{source}: the first attribute has a value");
+        };
+        assert_eq!(component.parts(parts).len(), 1, "{source}");
     }
 }

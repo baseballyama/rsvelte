@@ -1,4 +1,5 @@
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 use super::{ParseResult, Parser};
 use crate::syntax_tree::{Part, TokenType};
@@ -8,7 +9,7 @@ impl Parser<'_> {
         loop {
             let rest = self.rest();
             let len = quote.map_or_else(
-                || unquoted_text_len(rest.as_bytes()),
+                || unquoted_text_len(rest),
                 |quote| memchr::memchr2(quote, b'{', rest.as_bytes()).unwrap_or(rest.len()),
             );
             if len > 0 {
@@ -29,7 +30,7 @@ impl Parser<'_> {
     }
 
     fn attribute_expression(&mut self) -> ParseResult<()> {
-        let after = super::whitespace::trim_ascii_start(&self.rest()[1..]);
+        let after = super::whitespace::trim_start(&self.rest()[1..]);
         if after.starts_with('#') || after.starts_with('@') {
             return self.err("blocks and tags are not allowed in an attribute value");
         }
@@ -45,26 +46,14 @@ impl Parser<'_> {
     }
 }
 
-fn unquoted_text_len(bytes: &[u8]) -> usize {
-    bytes
-        .iter()
-        .enumerate()
-        .find_map(|(index, &byte)| {
-            (matches!(
-                byte,
-                b'{' | b' '
-                    | b'\t'
-                    | b'\n'
-                    | b'\r'
-                    | 0x0C
-                    | b'"'
-                    | b'\''
-                    | b'='
-                    | b'<'
-                    | b'>'
-                    | b'`'
-            ) || (byte == b'/' && bytes.get(index + 1) == Some(&b'>')))
-            .then_some(index)
+/// Upstream ends an unquoted value at `/>`, at JavaScript's whitespace or at one of ``"'=<>` ``,
+/// and at `{` where an expression starts.
+fn unquoted_text_len(text: &str) -> usize {
+    text.char_indices()
+        .find(|&(index, c)| {
+            matches!(c, '{' | '"' | '\'' | '=' | '<' | '>' | '`')
+                || is_javascript_whitespace(c)
+                || text[index..].starts_with("/>")
         })
-        .unwrap_or(bytes.len())
+        .map_or(text.len(), |(index, _)| index)
 }

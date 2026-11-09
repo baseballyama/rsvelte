@@ -1,4 +1,5 @@
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 use super::{End, ParseResult, Parser, is_void};
 use crate::names::{META_TAGS, is_component_name, is_valid_element_name};
@@ -7,9 +8,7 @@ use crate::syntax_tree::{Range, TemplateNode, TemplateNodeIdentifier, TokenType}
 /// Upstream `read_tag_name`: up to whitespace, `/` or `>`.
 pub(super) fn peek_tag_name(s: &str) -> &str {
     let end = s
-        .as_bytes()
-        .iter()
-        .position(|&byte| byte.is_ascii_whitespace() || matches!(byte, b'/' | b'>'))
+        .find(|c: char| is_javascript_whitespace(c) || matches!(c, '/' | '>'))
         .unwrap_or(s.len());
     &s[..end]
 }
@@ -227,5 +226,5 @@ fn is_textarea_end(s: &str) -> bool {
     const END: &str = "</textarea";
     s.get(..END.len())
         .is_some_and(|h| h.eq_ignore_ascii_case(END))
-        && super::whitespace::trim_ascii_start(&s[END.len()..]).starts_with('>')
+        && super::whitespace::trim_start(&s[END.len()..]).starts_with('>')
 }

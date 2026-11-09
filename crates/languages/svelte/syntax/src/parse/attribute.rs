@@ -1,6 +1,7 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_syntax::NodeIdentifier;
 use rsvelte_typescript_syntax::lexer::T;
+use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 use super::{ParseResult, Parser};
 use crate::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range, TokenType};
@@ -138,7 +139,7 @@ impl Parser<'_> {
 
     fn attribute(&mut self) -> ParseResult<Attribute> {
         let start_offset = self.position;
-        self.position += attribute_name_len(self.rest().as_bytes());
+        self.position += attribute_name_len(self.rest());
         let name = Span::new(start_offset as u32, self.position as u32);
         if name.is_empty() {
             return self.err("expected an attribute name");
@@ -234,11 +235,7 @@ impl Parser<'_> {
     }
 }
 
-pub(super) fn attribute_name_len(bytes: &[u8]) -> usize {
-    bytes
-        .iter()
-        .position(|&byte| {
-            byte.is_ascii_whitespace() || matches!(byte, b'=' | b'>' | b'/' | b'"' | b'\'')
-        })
-        .unwrap_or(bytes.len())
+pub(super) fn attribute_name_len(text: &str) -> usize {
+    text.find(|c: char| is_javascript_whitespace(c) || matches!(c, '=' | '>' | '/' | '"' | '\''))
+        .unwrap_or(text.len())
 }

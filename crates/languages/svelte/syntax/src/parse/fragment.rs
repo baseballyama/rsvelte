@@ -55,7 +55,7 @@ impl Parser<'_> {
         let Some(after) = self.rest().strip_prefix('{') else {
             return false;
         };
-        let after = super::whitespace::trim_ascii_start(after);
+        let after = super::whitespace::trim_start(after);
         after.starts_with(':')
             || (after.starts_with('/') && !after.starts_with("/*") && !after.starts_with("//"))
     }

@@ -126,12 +126,12 @@ impl<'a> Parser<'a> {
 
     fn skip_ws(&mut self) {
         let start_offset = self.position;
-        self.position += whitespace::whitespace_len(self.rest().as_bytes());
+        self.position += whitespace::whitespace_len(self.rest());
         self.token(TokenType::Whitespace, start_offset);
     }
 
     fn require_ws(&mut self) -> ParseResult<()> {
-        if !self.peek().is_some_and(|c| c.is_ascii_whitespace()) {
+        if whitespace::whitespace_len(self.rest()) == 0 {
             return self.err("expected whitespace");
         }
         self.skip_ws();
