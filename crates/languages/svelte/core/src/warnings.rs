@@ -44,6 +44,7 @@ pub struct Raised {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Phase {
+    Parse,
     Scopes,
     Walk,
 }
@@ -287,6 +288,7 @@ pub fn warnings(
     for &expression in &component.template_expressions {
         top_level_awaits(javascript, expression, false, &mut out.awaits);
     }
+    deprecated_tag(component, source, &mut out.errors);
     let runes = runes(component, resolution, source, &out.awaits);
     dollar_names(component, resolution, source, runes, &mut out.errors);
     if runes {
@@ -367,6 +369,36 @@ fn stores<'a>(component: &'a Component, resolution: &Resolution) -> FxHashSet<&'
             store.then_some(name)
         })
         .collect()
+}
+
+/// `<svelte:options tag>`, which Svelte 5's parser rejects.
+fn deprecated_tag(component: &Component, source: &str, out: &mut Vec<(Raised, Diagnostic)>) {
+    for &child in component.children(component.root) {
+        let TemplateNode::Element {
+            name, attributes, ..
+        } = *component.node(child)
+        else {
+            continue;
+        };
+        if name.text(source) != "svelte:options" {
+            continue;
+        }
+        for attribute in component.attributes(attributes) {
+            if attribute.kind == AttributeKind::Attribute && attribute.name.text(source) == "tag" {
+                let raised = Raised {
+                    phase: Phase::Parse,
+                    section: Section::Template,
+                    at: attribute.span.start_offset,
+                };
+                let found = error(
+                    "svelte_options_deprecated_tag",
+                    "\"tag\" option is deprecated — use \"customElement\" instead",
+                    attribute.span,
+                );
+                out.push((raised, found));
+            }
+        }
+    }
 }
 
 /// The value of attribute `name` of `<svelte:options>`.
@@ -652,9 +684,7 @@ fn custom_element(
     source: &str,
     out: &mut Vec<Diagnostic>,
 ) {
-    let custom = svelte_option(component, source, "customElement")
-        .or_else(|| svelte_option(component, source, "tag"));
-    let Some(custom) = custom else {
+    let Some(custom) = svelte_option(component, source, "customElement") else {
         return;
     };
     let javascript = &component.javascript;
