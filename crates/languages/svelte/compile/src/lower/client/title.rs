@@ -1,12 +1,12 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::Children;
 
 use super::{
-    AssignmentOperator, ClientCompilationContext, Frag, Lists, LogicalOperator, SourceLocation,
+    AssignmentOperator, ClientCompilationContext, Lists, LogicalOperator, Memo, SourceLocation,
 };
 
 impl ClientCompilationContext<'_> {
     pub(super) fn title(&mut self, children: Children, lists: &mut Lists) {
-        let mut memo = Frag::default();
+        let mut memo = Memo::default();
         let items = &self.plan.fragment(children).items;
         let (mut value, has_state) = self.template_chunk(items, &mut memo);
         let evaluated = self.res.evaluate_output(
@@ -36,17 +36,15 @@ impl ClientCompilationContext<'_> {
         );
         let statement = self.statement(assignment);
         let block = self.out.block(&[statement], SourceLocation::SYNTHETIC);
-        let parameters: Vec<_> = (0..memo.memo.len())
-            .map(|i| self.out.identifier(&format!("${i}")))
-            .collect();
+        let parameters = memo.names(&mut self.out);
         let callback = self
             .out
             .arrow(&parameters, block, false, false, SourceLocation::SYNTHETIC);
-        let sync = if memo.memo.is_empty() {
+        let sync = if memo.values.is_empty() {
             None
         } else {
             let values: Vec<_> = memo
-                .memo
+                .values
                 .into_iter()
                 .map(|value| {
                     self.out

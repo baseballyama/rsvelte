@@ -21,7 +21,7 @@ mod title;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_markup_syntax::decode_text;
-use rsvelte_svelte_semantic::analyze::{Analysis, ExpressionMetadata};
+use rsvelte_svelte_semantic::analyze::Analysis;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, CompilerSyntaxTree, Element, ElementKind,
     NodeKind, Part,
@@ -77,7 +77,25 @@ use template::Template;
 #[derive(Default)]
 struct Frag {
     tpl: Template,
-    memo: Vec<NodeIdentifier>,
+    memo: Memo,
+}
+
+/// The memoized expressions of one render effect.
+#[derive(Default)]
+struct Memo {
+    values: Vec<NodeIdentifier>,
+}
+
+impl Memo {
+    /// `$i`, the name the `i`th value is read by.
+    fn name(out: &mut SyntaxTree, i: usize) -> NodeIdentifier {
+        out.identifier(&format!("${i}"))
+    }
+
+    /// The names of all values.
+    fn names(&self, out: &mut SyntaxTree) -> Vec<NodeIdentifier> {
+        (0..self.values.len()).map(|i| Self::name(out, i)).collect()
+    }
 }
 
 #[derive(Default)]

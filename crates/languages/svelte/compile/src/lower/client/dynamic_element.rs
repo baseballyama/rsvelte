@@ -56,7 +56,7 @@ impl ClientCompilationContext<'_> {
                     &name,
                     Some(attribute),
                     &classes,
-                    &mut element_frag,
+                    &mut element_frag.memo,
                     &mut inner,
                 );
             } else {
@@ -76,7 +76,7 @@ impl ClientCompilationContext<'_> {
                 &name,
                 None,
                 &classes,
-                &mut element_frag,
+                &mut element_frag.memo,
                 &mut inner,
             );
         }

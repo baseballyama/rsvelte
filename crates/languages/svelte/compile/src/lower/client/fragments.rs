@@ -152,9 +152,7 @@ impl ClientCompilationContext<'_> {
         frag: &mut Frag,
         update: &[NodeIdentifier],
     ) -> NodeIdentifier {
-        let identifiers: Vec<NodeIdentifier> = (0..frag.memo.len())
-            .map(|i| self.out.identifier(&format!("${i}")))
-            .collect();
+        let identifiers = frag.memo.names(&mut self.out);
         let single = match update {
             [s] => match self.out.kind(*s) {
                 Kind::ExpressionStatement(e) => Some(e),
@@ -170,10 +168,10 @@ impl ClientCompilationContext<'_> {
             self.out
                 .arrow(&identifiers, b, false, false, SourceLocation::SYNTHETIC)
         };
-        let values = if frag.memo.is_empty() {
+        let values = if frag.memo.values.is_empty() {
             None
         } else {
-            let memo = std::mem::take(&mut frag.memo);
+            let memo = std::mem::take(&mut frag.memo.values);
             let thunks: Vec<NodeIdentifier> = memo
                 .into_iter()
                 .map(|m| {

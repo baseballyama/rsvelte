@@ -1,6 +1,6 @@
 use super::{
-    ClientCompilationContext, ExpressionMetadata, Frag, NodeIdentifier, ScriptRewrite,
-    SourceLocation, Target, copy, flag, runtime_call, unthunk,
+    ClientCompilationContext, Memo, NodeIdentifier, ScriptRewrite, SourceLocation, Target, copy,
+    flag, runtime_call, unthunk,
 };
 
 impl ClientCompilationContext<'_> {
@@ -61,15 +61,15 @@ impl ClientCompilationContext<'_> {
 
     pub(super) fn memoize(
         &mut self,
-        frag: &mut Frag,
+        memo: &mut Memo,
+        source: NodeIdentifier,
         value: NodeIdentifier,
-        meta: ExpressionMetadata,
     ) -> NodeIdentifier {
-        if !meta.has_call {
+        if !self.an.meta(source).has_call {
             return value;
         }
-        let identifier = self.out.identifier(&format!("${}", frag.memo.len()));
-        frag.memo.push(value);
+        let identifier = Memo::name(&mut self.out, memo.values.len());
+        memo.values.push(value);
         identifier
     }
 }
