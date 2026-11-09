@@ -58,6 +58,8 @@ oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "b00a287830
 oxc_ast = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
 oxc_ast_visit = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
 oxc_diagnostics = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_formatter = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_formatter_core = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
 oxc_parser = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
 oxc_span = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
 oxc_syntax = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
