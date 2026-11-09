@@ -277,3 +277,76 @@ terminators it reports lines 2 and 5.
 ESLint's `sourceCode.lines` splits at all five ECMAScript line terminators. The node locations
 from svelte-eslint-parser count `\r\n`, `\r` and `\n` but not U+2028 or U+2029, so the rules see
 the whole file as one line. This crate ends a line at every ECMAScript line terminator.
+
+## The SvelteKit navigation rules: `$app/paths` through a namespace, a constant or a pattern
+
+eslint-plugin-svelte 3.23.1, each input in a Kit 2 project (`<script>` holds
+`import { goto } from '$app/navigation';` and the import shown):
+
+| Rule                            | Input                                                                 | Upstream       |
+| ------------------------------- | --------------------------------------------------------------------- | -------------- |
+| `no-navigation-without-resolve` | `import * as p` and `goto(p.asset('/x'))`, `<a href={p.asset('/y')}>` | reports both   |
+| `no-navigation-without-resolve` | `import { resolve }` and `const r = resolve; goto(r('/x'))`           | reports `goto` |
+| `no-navigation-without-resolve` | `import * as p` and `const { resolve } = p; goto(resolve('/y'))`      | reports `goto` |
+| `no-navigation-without-base`    | `import * as p` and `const { base } = p; goto(base + '/x')`           | reports `goto` |
+
+Upstream allows `asset()` imported by name, `resolve as alias` and `base` imported by name. Each
+input above calls the same function or reads the same value, so it is allowed too. The rules take
+the references of an import specifier's local name; of the other uses that eslint-utils'
+`ReferenceTracker` finds, they keep only a `p.resolve` or `p.base` member. This crate follows the
+value through the namespace, the constant and the pattern, and reports none of them.
+Tests in `crates/hosts/command_line/tests/svelte_kit.rs`: `asset_through_the_namespace_is_resolved`,
+`resolve_through_a_constant_is_resolved` and `a_path_destructured_from_the_namespace_is_followed`.
+
+## The SvelteKit navigation rules throw
+
+eslint-plugin-svelte 3.23.1, in a Kit 2 project:
+
+| Rule                            | Input                                                                          | Upstream throws                                         |
+| ------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| `no-goto-without-base`          | `import * as p from '$app/paths'` and `goto(p.base + '/x')`                    | `Cannot read properties of undefined (reading 'range')` |
+| `no-goto-without-base`          | `import * as p from '$app/paths'; const { base } = p;` and `goto(base + '/x')` | the same                                                |
+| `no-navigation-without-base`    | `<a href="">`, `<a href=''>` or `<a href>`                                     | `Cannot read properties of undefined (reading 'type')`  |
+| `no-navigation-without-resolve` | `<a href="/x" rel>`                                                            | the same                                                |
+
+The first two take the `local` name of each use of `base`, which only an import specifier has. The
+others read `value[0]` of an attribute without a value, which `svelte-eslint-parser` gives
+`href=""` too. This crate takes `p.base + '/x'` as prefixed
+with the base path and checks no link whose `href` is empty, as upstream's
+`no-navigation-without-resolve` does not. A `rel` without a value names no external link, so
+`<a href="/x" rel>` is reported.
+Tests in `svelte_kit.rs`: `base_through_the_namespace_prefixes_a_url`,
+`an_empty_link_is_not_checked` and `rel_without_a_value_is_not_external`.
+
+## `svelte/no-export-load-in-svelte-module-in-kit-pages` misses `<script module>`
+
+eslint-plugin-svelte 3.23.1 reports nothing for this `+error.svelte` or `+layout.svelte` in a
+Kit 2 project:
+
+```svelte
+<script module>
+	export function load() {}
+</script>
+```
+
+The rule looks only for a script whose `context` attribute is `"module"`, and Svelte 5's `module`
+attribute does not count. The export is the same mistake under either attribute. This crate reports
+`load`, as upstream does for `<script context="module">`.
+Test in `svelte_kit.rs`: `load_in_a_module_script_of_an_error_page_is_reported`.
+
+## `svelte/valid-prop-names-in-kit-pages` reports a computed key
+
+eslint-plugin-svelte 3.23.1 reports `[k]` in this `+page.svelte` of a Kit 2 project:
+
+```svelte
+<script>
+	const k = 'data';
+	let { [k]: c } = $props();
+</script>
+```
+
+The rule takes an identifier key as the prop's name even when it is computed, so it reports a prop
+called `k`. A computed key names whatever the expression evaluates to, here `data`, which is
+valid. This crate does not check
+a computed key.
+Test in `svelte_kit.rs`: `a_computed_prop_name_is_not_reported`.

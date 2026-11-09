@@ -262,3 +262,78 @@ fn a_path_destructured_from_the_namespace_is_followed() {
         ]
     );
 }
+
+/// The rules of `file` in a Kit 2 project, with `rules` on.
+fn kit_2(file: &str, source: &str, rules: &[&str]) -> Vec<String> {
+    Project::new(&[("package.json", KIT_2), (file, source)]).rules(".", file, rules)
+}
+
+const RESOLVE: &[&str] = &["no-navigation-without-resolve"];
+
+/// Upstream allows `asset()` imported by name but reports it through a namespace.
+#[test]
+fn asset_through_the_namespace_is_resolved() {
+    let source = concat!(
+        "<script>import * as p from '$app/paths'; import { goto } from '$app/navigation';",
+        " goto(p.asset('/x'));</script><a href={p.asset('/y')}>y</a>"
+    );
+    assert_eq!(kit_2("src/lib/A.svelte", source, RESOLVE), [""; 0]);
+}
+
+/// Upstream allows `resolve as alias` but reports `const r = resolve; r(...)`.
+#[test]
+fn resolve_through_a_constant_is_resolved() {
+    let source = concat!(
+        "<script>import { resolve } from '$app/paths'; import { goto } from '$app/navigation';",
+        " const r = resolve; goto(r('/x'));</script>"
+    );
+    assert_eq!(kit_2("src/lib/A.svelte", source, RESOLVE), [""; 0]);
+}
+
+/// Upstream reads only `context="module"`, so it misses `load` in `<script module>` of
+/// `+error.svelte`.
+#[test]
+fn load_in_a_module_script_of_an_error_page_is_reported() {
+    let source = "<script module>export const load = () => 1;</script>";
+    assert_eq!(
+        kit_2(
+            "src/routes/+error.svelte",
+            source,
+            &["no-export-load-in-svelte-module-in-kit-pages"]
+        ),
+        ["svelte/no-export-load-in-svelte-module-in-kit-pages"]
+    );
+}
+
+/// A computed key names no prop that the rule can check; upstream reports it.
+#[test]
+fn a_computed_prop_name_is_not_reported() {
+    let source = "<script>const k = 'data'; let { [k]: c } = $props();</script>";
+    assert_eq!(
+        kit_2("src/routes/+page.svelte", source, &[VALID_PROPS]),
+        [""; 0]
+    );
+}
+
+/// Upstream's `no-goto-without-base` throws on a namespace's `base`.
+#[test]
+fn base_through_the_namespace_prefixes_a_url() {
+    let source = concat!(
+        "<script>import * as p from '$app/paths'; import { goto } from '$app/navigation';",
+        " goto(p.base + '/x');</script>"
+    );
+    assert_eq!(
+        kit_2("src/lib/A.svelte", source, &["no-goto-without-base"]),
+        [""; 0]
+    );
+}
+
+/// Upstream's `no-navigation-without-resolve` throws on `rel` without a value; it names no
+/// external link.
+#[test]
+fn rel_without_a_value_is_not_external() {
+    assert_eq!(
+        kit_2("src/lib/A.svelte", "<a href=\"/x\" rel>a</a>", RESOLVE),
+        ["svelte/no-navigation-without-resolve"]
+    );
+}
