@@ -2,6 +2,7 @@ use crate::rule::RuleDefinition;
 
 mod button_has_type;
 mod no_reactive_functions;
+mod no_reactive_literals;
 mod no_unused_variables;
 mod reactive_statements;
 mod valid_each_key;
@@ -11,5 +12,6 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_unused_variables::RULE,
     &button_has_type::RULE,
     &no_reactive_functions::RULE,
+    &no_reactive_literals::RULE,
     &valid_each_key::RULE,
 ];
