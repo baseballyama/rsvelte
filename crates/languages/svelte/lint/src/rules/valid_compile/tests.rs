@@ -259,3 +259,34 @@ fn a_store_subscription_is_no_rune() {
     let code = "<script>\n  let { state } = $props();\n  $state;\n</script>\n";
     assert_eq!(codes(code), []);
 }
+
+#[test]
+fn unused_exports_named_by_an_export_list() {
+    let unused = |line, column| vec![("export_let_unused".to_owned(), line, column)];
+    assert_eq!(
+        codes("<script>\n  let a;\n  export { a };\n</script>\n"),
+        unused(2, 6)
+    );
+    assert_eq!(
+        codes("<script>\n  export let a;\n  export { a as b };\n</script>\n"),
+        unused(2, 13)
+    );
+    assert_eq!(
+        codes(
+            "<script>\n  const c = 1;\n  function f() {}\n  export { c, f };\n  var v;\n  export { v as w };\n</script>\n"
+        ),
+        unused(5, 6)
+    );
+}
+
+#[test]
+fn a_let_directive_shadows_an_export() {
+    assert_eq!(
+        codes("<script>\n  export let a;\n</script>\n<Foo let:a>{a}</Foo>\n"),
+        [("export_let_unused".to_owned(), 2, 13)]
+    );
+    assert_eq!(
+        codes("<script>\n  export let a;\n</script>\n<Foo let:b>{a}</Foo>\n"),
+        []
+    );
+}
