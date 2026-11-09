@@ -6,7 +6,9 @@
 //! because the upstream plugins differ: svelte-eslint-parser puts `{#each}` names in the scope core
 //! rules read, while Vue's `v-for` names are reported by `vue/no-unused-variables` instead.
 
+mod no_inner_declarations;
 mod prefer_const;
+pub use no_inner_declarations::{NoInnerDeclarationsOptions, no_inner_declarations};
 pub use prefer_const::{PreferConstOptions, ProgramStatements, prefer_const};
 
 use rsvelte_kernel::index::TypedIndex;
