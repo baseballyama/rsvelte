@@ -1618,8 +1618,23 @@ fn expression_is_simple(expr: &Expression<'_>) -> bool {
         Expression::LogicalExpression(e) => {
             expression_is_simple(&e.left) && expression_is_simple(&e.right)
         }
+        // Upstream tests the default before visiting it, where `$.get(x)` was
+        // the identifier `x`; a declaration tag's default arrives already read.
+        Expression::CallExpression(call) => is_signal_read(call),
         _ => false,
     }
+}
+
+fn is_signal_read(call: &oxc_ast::ast::CallExpression<'_>) -> bool {
+    let Expression::StaticMemberExpression(callee) = &call.callee else {
+        return false;
+    };
+    matches!(&callee.object, Expression::Identifier(object) if object.name == "$")
+        && callee.property.name == "get"
+        && matches!(
+            call.arguments.as_slice(),
+            [arg] if matches!(arg.as_expression(), Some(Expression::Identifier(_)))
+        )
 }
 
 /// Build a `$.fallback(expression, default)` string, applying async thunk wrapping

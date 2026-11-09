@@ -221,6 +221,37 @@ thread_local! {
     // Set while a declaration tag runs the instance-script pipeline: its temps
     // continue the component's numbering, as upstream's `scope.generate` does.
     static CONTINUE_SCRIPT_COUNTERS: Cell<bool> = const { Cell::new(false) };
+    // A declaration tag emitted a multi-line statement, which only the esrap
+    // printer re-indents.
+    static MULTILINE_DECLARATION_TAG: Cell<bool> = const { Cell::new(false) };
+}
+
+fn reset_script_temp_counters() {
+    SCRIPT_ARRAY_COUNTER.with(|c| c.set(0));
+    ARRAY_LOOKUP_COUNTER.with(|c| c.set(0));
+    STATE_TMP_COUNTER.with(|c| c.set(0));
+    DERIVED_TMP_COUNTER.with(|c| c.set(0));
+}
+
+pub(crate) fn note_multiline_declaration_tag() {
+    MULTILINE_DECLARATION_TAG.with(|c| c.set(true));
+}
+
+/// Clears `CONTINUE_SCRIPT_COUNTERS` on drop, so a panic inside a tag's
+/// pipeline run cannot leave the next compile on this thread without its reset.
+struct ContinueScriptCounters;
+
+impl ContinueScriptCounters {
+    fn set() -> Self {
+        CONTINUE_SCRIPT_COUNTERS.with(|c| c.set(true));
+        Self
+    }
+}
+
+impl Drop for ContinueScriptCounters {
+    fn drop(&mut self) {
+        CONTINUE_SCRIPT_COUNTERS.with(|c| c.set(false));
+    }
 }
 
 struct AstStateCounterSnapshot {
@@ -563,6 +594,11 @@ pub(crate) fn transform_client(
 ) -> Result<CodegenResult, TransformError> {
     use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment;
     let _gap5 = super::profile::timer_start();
+    // Declaration tags continue these thread-local counters, and a component
+    // without an instance script never reaches the reset inside the script
+    // pipeline, so a tag would otherwise number from the previous compile.
+    reset_script_temp_counters();
+    MULTILINE_DECLARATION_TAG.with(|c| c.set(false));
 
     // Set where the instance pass SAW a prop member write, which is a different
     // question from whether it could wrap one.
@@ -2817,7 +2853,11 @@ pub(crate) fn transform_client(
 
     // Scriptless components use the faster handwritten printer. Scripts need
     // OXC/esrap for official formatting and coordinate-aware comment placement.
-    if *CLIENT_USE_OXC || ast.instance.is_some() || ast.module.is_some() {
+    if *CLIENT_USE_OXC
+        || ast.instance.is_some()
+        || ast.module.is_some()
+        || MULTILINE_DECLARATION_TAG.with(Cell::get)
+    {
         let converted = CLIENT_TO_OXC_ALLOCATOR.with(|cell| {
             let mut alloc = cell.borrow_mut();
             alloc.reset();
@@ -6346,7 +6386,7 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
     // of its five stage timers rather than missing this entry point's share.
     let _script_start = super::profile::timer_start();
     let _parent_scope = super::profile::ParentScope::new();
-    CONTINUE_SCRIPT_COUNTERS.with(|c| c.set(true));
+    let continue_counters = ContinueScriptCounters::set();
     let out = transform_instance_script_for_visitors(
         script,
         analysis,
@@ -6357,7 +6397,7 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
         None,
         &mut false,
     );
-    CONTINUE_SCRIPT_COUNTERS.with(|c| c.set(false));
+    drop(continue_counters);
     super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
     super::profile::record_parent_site(true);
     out
@@ -7430,12 +7470,7 @@ fn transform_instance_script_for_visitors(
     // Reset the $$array counters for this component
     // This ensures unique names across multiple $derived destructuring patterns
     if !CONTINUE_SCRIPT_COUNTERS.with(Cell::get) {
-        SCRIPT_ARRAY_COUNTER.with(|c| c.set(0));
-        ARRAY_LOOKUP_COUNTER.with(|c| c.set(0));
-        // Reset the tmp counter for $state destructuring
-        STATE_TMP_COUNTER.with(|c| c.set(0));
-        // Reset the $$d counter for $derived destructuring
-        DERIVED_TMP_COUNTER.with(|c| c.set(0));
+        reset_script_temp_counters();
     } else {
         // Helpers are numbered from the script counter, so their lookups start there too.
         ARRAY_LOOKUP_COUNTER.with(|c| c.set(SCRIPT_ARRAY_COUNTER.with(Cell::get)));
