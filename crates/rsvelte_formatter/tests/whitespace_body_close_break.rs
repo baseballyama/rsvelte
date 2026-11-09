@@ -9,7 +9,10 @@ use rsvelte_formatter::{FormatOptions, format};
 fn fmt(src: &str) -> String {
     let mut options = FormatOptions::default();
     options.js.line_width = oxc_formatter_core::LineWidth::try_from(80).unwrap();
-    format(src, &options).expect("format ok")
+    let once = format(src, &options).expect("format ok");
+    let twice = format(&once, &options).expect("format ok");
+    assert_eq!(twice, once, "second format moved the output of {src:?}");
+    once
 }
 
 #[test]
@@ -118,6 +121,75 @@ fn a_source_empty_element_still_dangles_its_bracket() {
         fmt(&format!("<i class=\"wx-icon-{a60}\"></i>\n")),
         format!("<i class=\"wx-icon-{a60}\"\n></i>\n"),
     );
+}
+
+// A component, `<slot>` or `svelte:*` element drops a whitespace body, so it is
+// the empty hug (`"`\n`></X>`) on both the first and the second format.
+#[test]
+fn a_component_with_a_whitespace_body_is_the_empty_hug() {
+    let a52 = "a".repeat(52);
+    let expected = format!(
+        "<div>\n  <Typography.Text\n    variant=\"m-500\"\n    color=\"{a52}\"\n  ></Typography.Text>\n</div>\n"
+    );
+    for body in [" ", "\n  "] {
+        let src = format!(
+            "<div>\n  <Typography.Text variant=\"m-500\" color=\"{a52}\">{body}</Typography.Text>\n</div>\n"
+        );
+        assert_eq!(fmt(&src), expected, "{body:?}");
+    }
+    assert_eq!(fmt(&expected), expected);
+}
+
+#[test]
+fn a_fitting_component_with_a_whitespace_body_prints_empty_on_one_line() {
+    let a40 = "a".repeat(40);
+    assert_eq!(
+        fmt(&format!(
+            "<div>\n  <Comp variant=\"m-500\" color=\"{a40}\">\n  </Comp>\n</div>\n"
+        )),
+        format!("<div>\n  <Comp variant=\"m-500\" color=\"{a40}\"></Comp>\n</div>\n"),
+    );
+}
+
+#[test]
+fn a_slot_with_a_whitespace_body_is_the_empty_hug() {
+    let a52 = "a".repeat(52);
+    assert_eq!(
+        fmt(&format!(
+            "<div>\n  <slot variant=\"m-500\" color=\"{a52}\"> </slot>\n</div>\n"
+        )),
+        format!("<div>\n  <slot\n    variant=\"m-500\"\n    color=\"{a52}\"\n  ></slot>\n</div>\n"),
+    );
+}
+
+// The oracle is not idempotent here, and these are its two applications: a
+// component whose open tag fits but whose `></Comp>` does not wraps every
+// attribute when the body is whitespace, and dangles only `>` once the body is
+// source-empty (the second application). appwrite-console `planSummary.svelte`.
+#[test]
+fn a_component_whose_close_overflows_wraps_then_dangles_like_the_oracle() {
+    let a64 = "a".repeat(64);
+    let mut options = FormatOptions::default();
+    options.js.line_width = oxc_formatter_core::LineWidth::try_from(80).unwrap();
+    let once = format(&format!("<Comp class=\"{a64}\"> </Comp>\n"), &options).unwrap();
+    assert_eq!(once, format!("<Comp\n  class=\"{a64}\"\n></Comp>\n"));
+    let twice = format(&once, &options).unwrap();
+    assert_eq!(twice, format!("<Comp class=\"{a64}\"\n></Comp>\n"));
+}
+
+// A lowercase custom element keeps its edge whitespace like `<span>`.
+#[test]
+fn a_custom_element_with_a_whitespace_body_breaks_before_its_close_tag() {
+    let a40 = "a".repeat(40);
+    let expected =
+        format!("<div>\n  <my-el variant=\"m-500\" color=\"{a40}\">\n  </my-el>\n</div>\n");
+    assert_eq!(
+        fmt(&format!(
+            "<div>\n  <my-el variant=\"m-500\" color=\"{a40}\"> </my-el>\n</div>\n"
+        )),
+        expected,
+    );
+    assert_eq!(fmt(&expected), expected);
 }
 
 // An open tag that does not fit wraps its attributes, as before.

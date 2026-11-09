@@ -3366,7 +3366,7 @@ format(x)` was invisible to it at any corpus size (#4301, GATES.md 9e). The
 population is the parity set minus `fmt-oracle-excluded.json`. The ratchet may only
 shrink.
 
-**Current baseline: `fmt-idempotency-known-failures.json`, 87 entries.**
+**Current baseline: `fmt-idempotency-known-failures.json`, 88 entries.**
 
 Measured on the tree that introduced the gate (33,644 components, 23 excluded):
 33,531 converge and 90 do not — 82 whose second application writes different
@@ -3417,6 +3417,16 @@ instrument was checked by injection on the introducing tree: a listed id removed
 (red, 1 NEW), a converging id added (red, 1 stale), a first application with
 three trailing newlines appended (red, 1 NEW, `-3 lines`), and a listed refused id
 removed (red, 1 NEW `[error]`); restored, green.
+
+**One entry is added on purpose, and the oracle shares it byte for byte.**
+`appwrite-console/…/billing/planSummary.svelte` (#4912) holds a component whose body is
+only whitespace and whose open tag fits while `></Typography.Text>` does not. The oracle
+drops the body and wraps every attribute; on its own output the body is source-empty, so
+its second application dangles only `>` (`<Typography.Text variant="m-500" color="…"` /
+`></Typography.Text>`, −2 lines). rsvelte now writes the oracle's first application and,
+on that, the oracle's second, so converging here would mean diverging from the oracle on
+the first. `a_component_whose_close_overflows_wraps_then_dangles_like_the_oracle` in
+`crates/rsvelte_formatter/tests/whitespace_body_close_break.rs` pins both applications.
 
 Attribution is pending (`attribution-pending.json`): none of the 90 has a target
 yet, and the 19 the oracle shares are not thereby the oracle's fault — rsvelte's
