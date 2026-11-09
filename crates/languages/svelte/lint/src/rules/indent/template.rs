@@ -478,9 +478,9 @@ impl<'a> Template<'_, 'a> {
                     Some(&p) => self
                         .js_span(p)
                         .and_then(|s| tokens.before_matching(s.start_offset, is_left)),
-                    None => tokens
-                        .last(span)
-                        .and_then(|l| tokens.before_matching(tokens.span(l).start_offset, is_left)),
+                    // Upstream searches back from the block's end and can take a `(` in the body.
+                    None => snippet_name
+                        .and_then(|n| tokens.after_matching(tokens.span(n).end_offset, is_left)),
                 };
                 let from = parameters
                     .last()

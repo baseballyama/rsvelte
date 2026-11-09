@@ -65,3 +65,15 @@ fn an_implicitly_closed_element_does_not_take_a_child_end_tag() {
     let li = "<ul>\n<li>one <i>a\n    </i>\n  <li>two\n</ul>\n";
     assert_eq!(reported_lines(li), [2]);
 }
+
+#[test]
+fn a_snippet_without_parameters_takes_its_own_parentheses() {
+    // Upstream takes `baz(` for the parameter list and reports line 5; see upstream_issues.md.
+    let source = "<div>\n  {#snippet foo()}\n    <p>\n      {@render baz()\n          }\n    </p>\n  {/snippet}\n</div>\n";
+    assert_eq!(reported_lines(source), [0u32; 0]);
+    // With a parameter, upstream finds the right parentheses and reports nothing either.
+    assert_eq!(
+        reported_lines(&source.replace("foo()", "foo(a)")),
+        [0u32; 0]
+    );
+}
