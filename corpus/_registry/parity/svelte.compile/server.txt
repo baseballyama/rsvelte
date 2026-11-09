@@ -6167,7 +6167,6 @@ svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/share.sv
 svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/theme-picker.svelte	refused
 svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/components/welcome-dialog.svelte	refused
 svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(create)/create/+layout.svelte	refused
-svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte	mismatch
 svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/cards-demo.svelte	refused
 svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/contribution-history.svelte	refused
 svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/dividend-income.svelte	refused
@@ -6580,7 +6579,6 @@ svelte/skeleton/sites/plus.skeleton.dev/src/routes/auth/+layout.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/examples/design/spacing/default.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/examples/design/typography/typescale.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/accordion/svelte/default.svelte	refused
-svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/avatar/svelte/filter.svelte	mismatch
 svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/carousel/svelte/default.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/carousel/svelte/orientation.svelte	refused
 svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/carousel/svelte/overlap.svelte	refused
