@@ -116,3 +116,31 @@ export function f(o) { [b] = o; }
         "counter leaked from a prior compile:\n{out}"
     );
 }
+
+// Expected lines are upstream's `compileModule` output for the same input.
+#[test]
+fn destructured_state_declarator_uses_are_signals() {
+    let out = compile_mod_client(
+        "let { a, b } = $state({ a: 1, b: 2 });\nb = 5;\nexport const sum = () => a + b;\n",
+    );
+    assert!(out.contains("$.set(b, 5);"), "{out}");
+    assert!(
+        out.contains("export const sum = () => a + $.get(b);"),
+        "{out}"
+    );
+
+    let out = compile_mod_client(
+        "let [x, y] = $state.raw([1, 2]);\nexport function f() { y = [9]; return y; }\n",
+    );
+    assert!(out.contains("$.set(y, [9]);"), "{out}");
+    assert!(out.contains("return $.get(y);"), "{out}");
+
+    let out = compile_mod_client(
+        "let [x, y] = $state([1, 2]);\nexport function f(y) { y = 2; return y; }\nexport function g() { y += 1; }\n",
+    );
+    assert!(
+        out.contains("\ty = 2;"),
+        "a parameter shadows the state name:\n{out}"
+    );
+    assert!(out.contains("$.set(y, $.get(y) + 1);"), "{out}");
+}
