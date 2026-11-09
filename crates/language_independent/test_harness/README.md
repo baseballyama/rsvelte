@@ -9,7 +9,6 @@ case gets `actual/` on every run; a corpus unit gets it only with `FIXTURE_ACTUA
 | ------------ | -------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------- |
 | hand-written | the crate's `tests/fixtures/` (`rsvelte/` and others in `compile`)         | rsvelte's own output, accepted with `UPDATE_EXPECT=1` | fails the test               |
 | corpus unit  | [`corpus/<family>/`](../../corpus/README.md), with `Fixtures::corpus_only` | the official tool's output                            | fails when its verdict moved |
-| copied       | a directory of `tests/fixtures/` with `source.json`                        | the official tool's output                            | is counted, not failed       |
 
 Snapshots show what changed, not what is correct; the official output shows that. Each task and
 variant (such as `client`) of a corpus unit gets one verdict, the worst of its files:
