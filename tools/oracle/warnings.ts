@@ -47,6 +47,11 @@ const pairs = (name: string, entries: [string, string][]): string =>
 		.map(([key, value]) => `    (${string(key)}, ${string(value)}),\n`)
 		.join('')}];\n`;
 
+const record = (value: unknown): [string, string[]][] =>
+	Object.entries(value as Record<string, string[]>);
+
+const map = (value: unknown): [string, string][] => [...(value as Map<string, string>)];
+
 // `oracle warnings`: vendor the warning codes `svelte-ignore` accepts and the a11y tables that
 // Svelte derives from aria-query and axobject-query, from the svelte this package installs.
 export async function main(): Promise<void> {
@@ -77,14 +82,13 @@ export async function main(): Promise<void> {
 		AXObjectRoles: Lookup<string, Set<{ name: string }>>;
 		elementAXObjects: Lookup<Schema, Set<string>>;
 	};
-	const record = (value: unknown): [string, string[]][] =>
-		Object.entries(value as Record<string, string[]>);
-	const map = (value: unknown): [string, string][] => [...(value as Map<string, string>)];
 	// `is_semantic_role_element`: each element schema with every role its AX objects map to.
-	const semantic: [Schema, string[]][] = elementAXObjects.entries().map(([schema, objects]) => [
-		schema,
-		[...objects].flatMap((object) => [...(AXObjectRoles.get(object) ?? [])].map((r) => r.name)),
-	]);
+	const semantic: [Schema, string[]][] = elementAXObjects
+		.entries()
+		.map(([schema, objects]) => [
+			schema,
+			[...objects].flatMap((object) => [...(AXObjectRoles.get(object) ?? [])].map((r) => r.name)),
+		]);
 
 	mkdirSync(directory, { recursive: true });
 	writeFileSync(
@@ -158,7 +162,7 @@ export async function main(): Promise<void> {
 							`    (${string(name)}, ${string(property.type)}, ${list((property.values ?? []).map(String))}),\n`,
 					)
 					.join('')}];\n`,
-			'/// axobject-query `elementAXObjects` with the roles of each schema\'s AX objects.\n' +
+			"/// axobject-query `elementAXObjects` with the roles of each schema's AX objects.\n" +
 				`pub(super) static SEMANTIC_ROLE_ELEMENTS: &[(Schema, &[&str])] = &[\n${semantic
 					.map(
 						([schema, names]) =>

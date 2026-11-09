@@ -484,7 +484,7 @@ output (`corpus/**/expected/svelte.compile/client.warnings.json`).
 - Upstream reports its `legacy_code` twice, and the comment ignores the codes it names on every
   later element child of the component, not only the next one. `visit_component` collects the
   default slot's nodes with `nodes[slot_name].push(...comments, child)` and clears `comments` only
-  for a named slot, so each later child of the default slot is preceded by the comment again.
+  for a named slot, so the comment comes again before each later child of the default slot.
 - Correct: the comment leads the next node only, and warns once, as in any other fragment. This
   crate reads the fragment as written.
   Test: `warnings::tests::a_comment_in_a_default_slot_warns_once`.
