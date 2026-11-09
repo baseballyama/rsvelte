@@ -2,7 +2,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte::syntax::names::is_component_name;
-use rsvelte_svelte::syntax::syntax_tree::{TemplateNode, TokenType};
+use rsvelte_svelte::syntax::syntax_tree::{TemplateNode, TokenType, decode_text};
 use serde::Deserialize;
 
 use super::tags::is_javascript_whitespace;
@@ -106,7 +106,7 @@ impl SvelteRule for HtmlSelfClosing {
             let children = component.children(children);
             let empty = children.iter().all(|&child| match component.node(child) {
                 // The decoded text, as `svelte-eslint-parser`'s `value` is.
-                TemplateNode::Text { span } => rsvelte_markup::decode_text(span.text(source))
+                TemplateNode::Text { span } => decode_text(span.text(source))
                     .chars()
                     .all(is_javascript_whitespace),
                 _ => false,
