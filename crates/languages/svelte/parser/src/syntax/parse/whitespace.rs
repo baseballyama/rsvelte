@@ -1,10 +1,10 @@
-pub(super) fn whitespace_len(bytes: &[u8]) -> usize {
-    bytes
-        .iter()
-        .position(|byte| !byte.is_ascii_whitespace())
-        .unwrap_or(bytes.len())
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
+
+/// The length of the whitespace that starts `text`, as upstream's `is_whitespace` (`/\s/`) reads it.
+pub(super) fn whitespace_len(text: &str) -> usize {
+    text.len() - trim_whitespace_start(text).len()
 }
 
-pub(super) fn trim_ascii_start(text: &str) -> &str {
-    &text[whitespace_len(text.as_bytes())..]
+pub(super) fn trim_whitespace_start(text: &str) -> &str {
+    text.trim_start_matches(is_ecmascript_whitespace)
 }

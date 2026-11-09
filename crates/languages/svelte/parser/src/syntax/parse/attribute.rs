@@ -1,3 +1,4 @@
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Part, Range, TokenType,
@@ -140,7 +141,7 @@ impl Parser<'_> {
 
     fn attribute(&mut self) -> ParseResult<Attribute> {
         let start_offset = self.position;
-        self.position += attribute_name_len(self.rest().as_bytes());
+        self.position += attribute_name_len(self.rest());
         let name = Span::new(start_offset as u32, self.position as u32);
         if name.is_empty() {
             return self.err("expected an attribute name");
@@ -237,13 +238,10 @@ impl Parser<'_> {
     }
 }
 
-pub(super) fn attribute_name_len(bytes: &[u8]) -> usize {
-    bytes
-        .iter()
-        .position(|&byte| {
-            byte.is_ascii_whitespace() || matches!(byte, b'=' | b'>' | b'/' | b'"' | b'\'')
-        })
-        .unwrap_or(bytes.len())
+/// Upstream `regex_token_ending_character`, `/[\s=/>"']/`.
+pub(super) fn attribute_name_len(text: &str) -> usize {
+    text.find(|c| is_ecmascript_whitespace(c) || matches!(c, '=' | '>' | '/' | '"' | '\''))
+        .unwrap_or(text.len())
 }
 
 /// The token of the quote `q`, `"` or `'`.
