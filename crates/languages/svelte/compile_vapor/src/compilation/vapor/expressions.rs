@@ -226,6 +226,7 @@ impl Rewrite for ExpressionRewrite<'_> {
                 {
                     return Some(to.identifier(from.name(arguments[0])));
                 }
+                // `script::plan` refused every `$` call that is no rune; syntax suffices here.
                 let (name, argument) =
                     rsvelte_svelte::semantic::resolve::rune_call(from, identifier)?;
                 if !crate::script::runes::value(name) {

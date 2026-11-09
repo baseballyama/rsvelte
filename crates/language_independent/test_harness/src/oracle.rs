@@ -15,7 +15,7 @@ use serde::Deserialize;
 
 use crate::javascript::{self, Unparsed};
 
-const ERROR: &str = "error.json";
+pub(crate) const ERROR: &str = "error.json";
 const LINT: &str = "lint.json";
 
 /// A unit's verdict for one task and variant, from best to worst.

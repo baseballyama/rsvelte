@@ -70,3 +70,17 @@ fn other_rules_do_not_look_for_a_same_named_file() {
     let (_, computed) = lint_with("svelte/button-has-type", &document, |_| {});
     assert_eq!(computed, ["svelte.lint.configuration", "svelte.parse"]);
 }
+
+#[test]
+fn a_jsx_module_is_linted() {
+    let document = Document::new(
+        "/nowhere/Foo.svelte.tsx".to_owned(),
+        "export const a = <div class=\"b\">{c as number}</div>;".to_owned(),
+    )
+    .expect("a small document");
+    assert!(Lint { modules: true }.applies(&document));
+    let (json, _) = lint_with("svelte/no-conflicting-module-names", &document, |r| {
+        r.provide::<SameNamedFile>("host", |_| true, |_| Some("Foo.svelte".to_owned()));
+    });
+    assert_eq!(json["findings"].as_array().map(Vec::len), Some(1), "{json}");
+}

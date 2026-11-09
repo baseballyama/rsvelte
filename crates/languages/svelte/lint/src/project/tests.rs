@@ -1,30 +1,37 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::svelte_config_near;
+use rsvelte_kernel::computation::file_facts::FileFacts;
+
+use super::{Location, svelte_config_near, svelte_kit_project};
 
 /// A directory of files that is removed when dropped.
-pub(super) struct Directory(pub(super) PathBuf);
+struct Directory(PathBuf);
 
 impl Directory {
-    pub(super) fn new(files: &[(&str, &str)]) -> Self {
+    fn new(files: &[(&str, &str)]) -> Self {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         let root = std::env::temp_dir().join(format!(
             "rsvelte-lint-project-{}-{}",
             std::process::id(),
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));
+        let directory = Self(root);
         for (name, text) in files {
-            let path = root.join(name);
-            std::fs::create_dir_all(path.parent().expect("a file has a directory"))
-                .expect("a test directory");
-            std::fs::write(path, text).expect("a test file");
+            directory.write(name, text);
         }
-        Self(root)
+        directory
     }
 
-    pub(super) fn path(&self, name: &str) -> PathBuf {
+    fn path(&self, name: &str) -> PathBuf {
         self.0.join(name)
+    }
+
+    fn write(&self, name: &str, text: &str) {
+        let path = self.path(name);
+        std::fs::create_dir_all(path.parent().expect("a file has a directory"))
+            .expect("a test directory");
+        std::fs::write(path, text).expect("a test file");
     }
 }
 
@@ -34,8 +41,8 @@ impl Drop for Directory {
     }
 }
 
-fn routes(directory: &Directory, document: &str) -> Option<String> {
-    svelte_config_near(&directory.path(document))
+fn routes(files: &FileFacts, directory: &Directory, document: &str) -> Option<String> {
+    svelte_config_near(files, &directory.path(document))
         .expect("the configuration reads")
         .kit
         .and_then(|kit| kit.files.routes)
@@ -55,12 +62,13 @@ fn the_nearest_svelte_config_is_read() {
         ("src/pages/+page.svelte", ""),
         ("inner/src/+page.svelte", ""),
     ]);
+    let files = FileFacts::default();
     assert_eq!(
-        routes(&directory, "src/pages/+page.svelte").as_deref(),
+        routes(&files, &directory, "src/pages/+page.svelte").as_deref(),
         Some("src/pages")
     );
     assert_eq!(
-        routes(&directory, "inner/src/+page.svelte").as_deref(),
+        routes(&files, &directory, "inner/src/+page.svelte").as_deref(),
         Some("inner/pages")
     );
 }
@@ -68,14 +76,66 @@ fn the_nearest_svelte_config_is_read() {
 #[test]
 fn a_config_that_does_not_parse_is_an_error() {
     let directory = Directory::new(&[("svelte.config.js", "export default {"), ("a.svelte", "")]);
-    let error = svelte_config_near(&directory.path("a.svelte")).expect_err("does not parse");
+    let error = svelte_config_near(&FileFacts::default(), &directory.path("a.svelte"))
+        .expect_err("does not parse");
     assert!(error.contains("svelte.config.js"), "{error}");
 }
 
 #[test]
-fn a_document_is_located_from_the_nearest_package_json() {
-    use super::{Location, svelte_kit_project};
+fn a_svelte_config_is_read_once_until_it_changes() {
+    const PAGES: &str = "export default { kit: { files: { routes: 'pages' } } };";
+    let directory = Directory::new(&[
+        ("svelte.config.js", PAGES),
+        ("a.svelte", ""),
+        ("b.svelte", ""),
+    ]);
+    let files = FileFacts::default();
+    assert_eq!(
+        routes(&files, &directory, "a.svelte").as_deref(),
+        Some("pages")
+    );
+    directory.write(
+        "svelte.config.js",
+        "export default { kit: { files: { routes: 'views' } } };",
+    );
+    // Another document of the run shares the answer.
+    assert_eq!(
+        routes(&files, &directory, "b.svelte").as_deref(),
+        Some("pages")
+    );
+    files.invalidate(&directory.path("a.svelte"));
+    assert_eq!(
+        routes(&files, &directory, "b.svelte").as_deref(),
+        Some("pages")
+    );
+    files.invalidate(&directory.path("svelte.config.js"));
+    assert_eq!(
+        routes(&files, &directory, "b.svelte").as_deref(),
+        Some("views")
+    );
+}
 
+#[test]
+fn a_new_svelte_config_is_found_once_its_path_is_invalidated() {
+    let directory = Directory::new(&[
+        ("svelte.config.js", "export default {};"),
+        ("src/a.svelte", ""),
+    ]);
+    let files = FileFacts::default();
+    assert_eq!(routes(&files, &directory, "src/a.svelte"), None);
+    directory.write(
+        "src/svelte.config.js",
+        "export default { kit: { files: { routes: 'near' } } };",
+    );
+    files.invalidate(&directory.path("src/svelte.config.js"));
+    assert_eq!(
+        routes(&files, &directory, "src/a.svelte").as_deref(),
+        Some("near")
+    );
+}
+
+#[test]
+fn a_document_is_located_from_the_nearest_package_json() {
     let directory = Directory::new(&[
         ("package.json", "{}"),
         ("apps/web/package.json", "{}"),
@@ -85,15 +145,13 @@ fn a_document_is_located_from_the_nearest_package_json() {
     ]);
     let document = directory.path("apps/web/src/./x/../routes/+page.svelte");
     assert_eq!(
-        svelte_kit_project(&document).location,
+        svelte_kit_project(&FileFacts::default(), &document).location,
         Location::InProject("src/routes/+page.svelte".to_owned())
     );
 }
 
 #[test]
 fn the_kit_version_is_the_installed_one_then_the_declared_one() {
-    use super::svelte_kit_project;
-
     let directory = Directory::new(&[
         (
             "package.json",
@@ -116,19 +174,38 @@ fn the_kit_version_is_the_installed_one_then_the_declared_one() {
         ("c/package.json", r#"{"name":"eslint-plugin-svelte"}"#),
         ("c/x.svelte", ""),
     ]);
-    let version = |name: &str| svelte_kit_project(&directory.path(name)).version;
+    let files = FileFacts::default();
+    let version = |name: &str| svelte_kit_project(&files, &directory.path(name)).version;
     assert_eq!(version("a/x.svelte").as_deref(), Some("1.0.0-next"));
     assert_eq!(version("b/x.svelte").as_deref(), Some("2"));
     assert_eq!(version("c/x.svelte").as_deref(), Some("2"));
 }
 
 #[test]
-fn a_kit_version_is_a_major_version() {
-    use super::kit_version;
-
-    assert_eq!(kit_version("^2.5.0").as_deref(), Some("2"));
-    assert_eq!(kit_version("2.0.0-next.3").as_deref(), Some("2"));
-    assert_eq!(kit_version("1.0.0-next.1").as_deref(), Some("1.0.0-next"));
-    assert_eq!(kit_version("3"), None);
-    assert_eq!(kit_version(">=2.0.0"), None);
+fn a_package_json_is_read_once_until_it_changes() {
+    let directory = Directory::new(&[
+        (
+            "package.json",
+            r#"{"devDependencies":{"@sveltejs/kit":"^2.0.0"}}"#,
+        ),
+        ("src/a.svelte", ""),
+        ("src/b.svelte", ""),
+    ]);
+    let files = FileFacts::default();
+    let version = |name: &str| svelte_kit_project(&files, &directory.path(name)).version;
+    assert_eq!(version("src/a.svelte").as_deref(), Some("2"));
+    directory.write(
+        "package.json",
+        r#"{"devDependencies":{"@sveltejs/kit":"^3.0.0"}}"#,
+    );
+    assert_eq!(version("src/b.svelte").as_deref(), Some("2"));
+    files.invalidate(&directory.path("package.json"));
+    assert_eq!(version("src/b.svelte").as_deref(), Some("3"));
+    // Installing Kit changes a directory below the project's, which drops what was read there.
+    directory.write(
+        "node_modules/@sveltejs/kit/package.json",
+        r#"{"version":"2.9.0"}"#,
+    );
+    files.invalidate(&directory.path("node_modules"));
+    assert_eq!(version("src/b.svelte").as_deref(), Some("2"));
 }

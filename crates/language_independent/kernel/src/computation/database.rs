@@ -9,6 +9,10 @@
 //! which documents it handles. `context.facet::<F>()` runs the matching provider once and caches
 //! the answer. A task written against a facet does not need to name a plugin's artifacts.
 //!
+//! Facts about files outside the document, such as its project's `package.json`, are not the
+//! document's: [`DocumentContext::files`] reads them from the registry's [`FileFacts`], which every
+//! document of a run shares.
+//!
 //! A `DocumentContext` belongs to one worker thread for the lifetime of one document (it is
 //! deliberately `!Sync`); parallelism is across documents. Asking for an artifact while it is being
 //! computed (a dependency cycle) panics.
@@ -20,6 +24,7 @@ use std::cell::RefCell;
 
 use rustc_hash::FxHashMap;
 
+use crate::computation::file_facts::FileFacts;
 use crate::performance::{buffer_pool, measurement};
 use crate::source::document::Document;
 use crate::source::positions::{LineBreaks, LineIndex};
@@ -63,6 +68,7 @@ pub struct ArtifactRegistry {
     index: FxHashMap<TypeIdentifier, usize>,
     names: Vec<&'static str>,
     facets: FxHashMap<TypeIdentifier, FacetEntry>,
+    files: FileFacts,
 }
 
 impl std::fmt::Debug for ArtifactRegistry {
@@ -140,6 +146,13 @@ impl ArtifactRegistry {
         self.facets
             .get(&TypeIdentifier::of::<F>())
             .is_some_and(|e| e.providers.iter().any(|p| (p.applies)(document)))
+    }
+
+    /// The facts about files that the registry's documents share. A long-running host invalidates
+    /// a path here when it changes.
+    #[must_use]
+    pub const fn files(&self) -> &FileFacts {
+        &self.files
     }
 
     #[must_use]
@@ -252,6 +265,12 @@ impl<'a> DocumentContext<'a> {
             })
             .downcast_ref()
             .expect("facet slot holds its own output type")
+    }
+
+    /// The facts about files outside the document, shared with the run's other documents.
+    #[must_use]
+    pub const fn files(&self) -> &'a FileFacts {
+        &self.registry.files
     }
 
     /// Lines as the Svelte compiler counts them: they end at `\n`.

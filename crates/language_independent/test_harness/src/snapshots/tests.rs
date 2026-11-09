@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use super::write_actual;
+use super::{file_rows, write_actual};
+use crate::oracle::Verdict;
 
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
@@ -71,4 +72,38 @@ fn removes_the_directory_when_nothing_is_produced() {
     assert!(!dir.exists());
     write_actual(&dir, &[]).unwrap();
     assert!(!dir.exists());
+}
+
+#[test]
+fn compares_one_file_of_another_tasks_output() {
+    let dir = scratch("official-file");
+    let compile = dir.join("svelte.compile");
+    std::fs::create_dir_all(&compile).unwrap();
+    std::fs::write(compile.join("client.warnings.json"), "[1]").unwrap();
+    let official = "svelte.compile/client.";
+    let existing = vec![format!("{official}js"), format!("{official}warnings.json")];
+    let rows = |text: &str| {
+        let ours = produced(&[
+            ("svelte.compile/client.js", "other task"),
+            ("svelte.warnings/default.warnings.json", text),
+        ]);
+        let ours_prefix = "svelte.warnings/default.";
+        file_rows(
+            &dir,
+            official,
+            ours_prefix,
+            "warnings.json",
+            &existing,
+            &ours,
+        )
+        .unwrap()
+        .unwrap()
+    };
+    let row = |verdict| vec![("warnings.json".to_owned(), verdict)];
+    assert_eq!(rows("[1]"), row(Verdict::Match));
+    assert_eq!(rows("[2]"), row(Verdict::Mismatch));
+    let errored = vec![format!("{official}error.json")];
+    let ours = "svelte.warnings/default.";
+    assert!(file_rows(&dir, official, ours, "warnings.json", &errored, &[]).is_none());
+    std::fs::remove_dir_all(&dir).unwrap();
 }

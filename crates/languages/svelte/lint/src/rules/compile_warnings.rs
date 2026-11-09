@@ -5,7 +5,7 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte::syntax::syntax_tree::{Component, Range, TemplateNode};
-use rsvelte_svelte::warnings::CompileWarnings;
+use rsvelte_svelte::warnings::{CompileWarnings, code_for_v5};
 use rsvelte_typescript::Kind;
 
 use crate::rule::File;
@@ -28,25 +28,6 @@ pub(super) struct Ignores {
     pub(super) items: Vec<IgnoreItem>,
     pub(super) missing_code: Vec<Span>,
 }
-
-/// Svelte 4's codes that are not Svelte 5's with `-` read as `_`.
-const V5_REPLACEMENTS: &[(&str, &str)] = &[
-    (
-        "non-top-level-reactive-declaration",
-        "reactive_declaration_invalid_placement",
-    ),
-    (
-        "module-script-reactive-declaration",
-        "reactive_declaration_module_script",
-    ),
-    ("empty-block", "block_empty"),
-    ("avoid-is", "attribute_avoid_is"),
-    ("invalid-html-attribute", "attribute_invalid_property_name"),
-    ("a11y-structure", "a11y_figcaption_parent"),
-    ("illegal-attribute-character", "attribute_illegal_colon"),
-    ("invalid-rest-eachblock-binding", "bind_invalid_each_rest"),
-    ("unused-export-let", "export_let_unused"),
-];
 
 const CSS_CODES: &[&str] = &[
     "css-unused-selector",
@@ -119,10 +100,7 @@ fn read(value: Span, comment: Span, source: &str, out: &mut Ignores) {
         let code = span.text(source);
         out.items.push(IgnoreItem {
             code: span,
-            code_for_v5: V5_REPLACEMENTS
-                .iter()
-                .find(|(old, _)| *old == code)
-                .map_or_else(|| code.replace('-', "_"), |(_, new)| (*new).to_owned()),
+            code_for_v5: code_for_v5(code),
             comment,
         });
     }

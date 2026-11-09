@@ -1,19 +1,30 @@
 //! `css_unused_selector`: the selectors that no element matched.
 
-use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_stylesheet::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple};
 use rsvelte_svelte_semantic::semantic::analyze::Analysis;
+use rsvelte_svelte_syntax::syntax_tree::Component;
 
+use super::found::{Found, Stage};
+use super::ignore::{extract, preceding_comment};
 use super::warning;
+
+/// Whether the comment before `<style>` ignores `css_unused_selector`, the one `svelte-ignore`
+/// the style sheet reads. Its code warnings come just before the selectors'.
+pub(super) fn ignored(component: &Component, source: &str, runes: bool, found: &mut Found) -> bool {
+    component.style.as_ref().is_some_and(|style| {
+        preceding_comment(component, source, style.span.start_offset).is_some_and(|data| {
+            extract(data.start_offset, data.text(source), runes, |w| {
+                found.before(Stage::Css, 0, w);
+            })
+            .iter()
+            .any(|code| code == "css_unused_selector")
+        })
+    })
+}
 
 /// `css_unused_selector` (`css-warn.js`): every selector no element matched, outside
 /// `@keyframes` and `:global { … }` blocks.
-pub(super) fn unused_selectors(
-    rules: &[Rule],
-    analysis: &Analysis,
-    source: &str,
-    out: &mut Vec<Diagnostic>,
-) {
+pub(super) fn unused_selectors(rules: &[Rule], analysis: &Analysis, source: &str, out: &mut Found) {
     for rule in rules {
         match &rule.kind {
             RuleKind::Keyframe { .. } => {}
@@ -50,7 +61,7 @@ pub(super) fn unused_selector(
     outer_used: Option<bool>,
     analysis: &Analysis,
     source: &str,
-    out: &mut Vec<Diagnostic>,
+    out: &mut Found,
 ) {
     let used = analysis
         .stylesheet_used
@@ -59,11 +70,15 @@ pub(super) fn unused_selector(
         .unwrap_or(true);
     // An unused selector inside `:is()` of an unused one is reported once, at the outer one.
     if !used && outer_used != Some(false) {
-        out.push(warning(
-            "css_unused_selector",
-            &format!("Unused CSS selector \"{}\"", selector.span.text(source)),
-            selector.span,
-        ));
+        out.push(
+            Stage::Css,
+            0,
+            warning(
+                "css_unused_selector",
+                &format!("Unused CSS selector \"{}\"", selector.span.text(source)),
+                selector.span,
+            ),
+        );
     }
     for part in &selector.parts {
         for simple in &part.simple {

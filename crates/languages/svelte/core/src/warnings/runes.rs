@@ -2,13 +2,14 @@
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_semantic::semantic::resolve::{RUNES, Resolution, rune_call};
+use rsvelte_svelte_semantic::semantic::resolve::{RUNES, Resolution};
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Component, Part, Script, TemplateNode};
 use rsvelte_typescript::scope::DeclarationKind;
 use rsvelte_typescript::syntax_tree::{Kind, TypeScriptFeature, flag};
 use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashSet;
 
+use super::found::{Found, Stage};
 use super::{Phase, Raised, Section, error, warning};
 
 /// Svelte's runes mode: `<svelte:options runes>`, or else a top-level `await` or a reference to
@@ -18,6 +19,7 @@ pub(super) fn runes(
     resolution: &Resolution,
     source: &str,
     awaits: &[Span],
+    forced: Option<bool>,
 ) -> bool {
     if let Some(value) = svelte_option(component, source, "runes") {
         return match value {
@@ -29,51 +31,22 @@ pub(super) fn runes(
             ),
         };
     }
+    if let Some(forced) = forced {
+        return forced;
+    }
     if !awaits.is_empty() {
         return true;
     }
-    let stores = stores(component, resolution);
     resolution.sem.references.iter().any(|reference| {
         reference.binding.is_none() && {
             let name = component.javascript.name(reference.node);
-            RUNES
-                .iter()
-                .any(|rune| rune.split('.').next() == Some(name))
-                && !stores.contains(&name[1..])
+            RUNES.contains(&name) && !resolution.is_store_subscription(name)
         }
     })
 }
 
-/// The top-level names whose `$name` is a store subscription rather than a rune: a declaration
-/// not initialized by a rune, or a prop other than `props`.
-pub(super) fn stores<'a>(component: &'a Component, resolution: &Resolution) -> FxHashSet<&'a str> {
-    let javascript = &component.javascript;
-    let sem = &resolution.sem;
-    let programs: Vec<NodeIdentifier> = scripts(component).map(|s| s.program).collect();
-    sem.bindings
-        .iter()
-        .filter(|binding| programs.contains(&sem.scopes[binding.scope].node))
-        .filter_map(|binding| {
-            let name = javascript.name(binding.node);
-            let rune = binding
-                .initializer(javascript)
-                .and_then(|init| rune_call(javascript, init))
-                .map(|(rune, _)| rune);
-            let store = match rune {
-                None => {
-                    // `import { derived } from 'svelte/store'` beside `$derived(…)` is no subscription.
-                    !(binding.kind == DeclarationKind::Import && name == "derived")
-                }
-                Some("$props") => name != "props",
-                Some(_) => false,
-            };
-            store.then_some(name)
-        })
-        .collect()
-}
-
 /// The value of attribute `name` of `<svelte:options>`.
-pub(super) fn svelte_option(
+pub(crate) fn svelte_option(
     component: &Component,
     source: &str,
     name: &str,
@@ -242,7 +215,11 @@ pub(super) fn enum_names(component: &Component, source: &str, found: &mut Vec<(R
 }
 
 /// Runes mode's `legacy_export_invalid`, `props_duplicate` and `props_invalid_placement`.
-pub(super) fn rune_placement(component: &Component, out: &mut Vec<(Raised, Diagnostic)>) {
+pub(super) fn rune_placement(
+    component: &Component,
+    resolution: &Resolution,
+    out: &mut Vec<(Raised, Diagnostic)>,
+) {
     let javascript = &component.javascript;
     let walk = |section, at| Raised {
         phase: Phase::Walk,
@@ -295,7 +272,7 @@ pub(super) fn rune_placement(component: &Component, out: &mut Vec<(Raised, Diagn
             }
         }
         let mut calls = Vec::new();
-        props_calls(javascript, script.program, &mut calls);
+        props_calls(javascript, resolution, script.program, &mut calls);
         for (i, call) in calls.into_iter().enumerate() {
             let Some(span) = javascript.source_location(call).span() else {
                 continue;
@@ -323,13 +300,19 @@ pub(super) fn rune_placement(component: &Component, out: &mut Vec<(Raised, Diagn
 /// The `$props()` calls under `node`, in source order.
 pub(super) fn props_calls(
     javascript: &SyntaxTree,
+    resolution: &Resolution,
     node: NodeIdentifier,
     out: &mut Vec<NodeIdentifier>,
 ) {
-    if rune_call(javascript, node).is_some_and(|(rune, _)| rune == "$props") {
+    if resolution
+        .rune(javascript, node)
+        .is_some_and(|(rune, _)| rune == "$props")
+    {
         out.push(node);
     }
-    javascript.for_each_child(node, |child| props_calls(javascript, child, out));
+    javascript.for_each_child(node, |child| {
+        props_calls(javascript, resolution, child, out);
+    });
 }
 
 /// `custom_element_props_identifier`: a custom element whose `$props()` the compiler cannot
@@ -338,7 +321,7 @@ pub(super) fn custom_element(
     component: &Component,
     resolution: &Resolution,
     source: &str,
-    out: &mut Vec<Diagnostic>,
+    out: &mut Found,
 ) {
     let Some(custom) = svelte_option(component, source, "customElement") else {
         return;
@@ -393,11 +376,9 @@ pub(super) fn custom_element(
             else {
                 continue;
             };
-            let Kind::Call { callee, .. } = javascript.kind(initializer) else {
-                continue;
-            };
-            let is_props =
-                javascript.name(callee) == "$props" && resolution.sem.binding_of(callee).is_none();
+            let is_props = resolution
+                .rune(javascript, initializer)
+                .is_some_and(|(rune, _)| rune == "$props");
             if !is_props {
                 continue;
             }
@@ -410,7 +391,11 @@ pub(super) fn custom_element(
                 _ => None,
             };
             if let Some(span) = at.and_then(|at| javascript.source_location(at).span()) {
-                out.push(warning(
+                let at = javascript
+                    .source_location(declarator)
+                    .span()
+                    .map_or(span.start_offset, |s| s.start_offset);
+                out.push(Stage::Walk(Section::Instance), at, warning(
                     "custom_element_props_identifier",
                     "Using a rest element or a non-destructured declaration with `$props()` means that Svelte can't infer what properties to expose when creating a custom element. Consider destructuring all the props or explicitly specifying the `customElement.props` option.",
                     span,

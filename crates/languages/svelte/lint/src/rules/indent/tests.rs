@@ -33,13 +33,43 @@ fn fixed(source_text: &str) -> String {
 }
 
 #[test]
-fn type_syntax_the_tree_does_not_hold_is_not_checked() {
-    // Line 4 is a type, which the parameter list would otherwise place; line 6 is JavaScript.
+fn type_syntax_is_checked() {
+    // Line 4 is a type, one indent from its parameter as the value in JavaScript is.
     let typescript = "<script lang=\"ts\">\n  function f(\n    b:\n        number\n  ) {}\nlet c = 1;\n</script>\n";
-    assert_eq!(reported_lines(typescript), [6]);
-    // The same shape in JavaScript is checked.
+    assert_eq!(reported_lines(typescript), [4, 6]);
     let javascript = typescript.replace(" lang=\"ts\"", "").replace("b:", "b =");
     assert_eq!(reported_lines(&javascript), [4, 6]);
+}
+
+#[test]
+fn an_overload_semicolon_is_not_placed() {
+    // `TSDeclareFunction` is not a statement to upstream, so its `;` may go anywhere.
+    let source = "<script lang=\"ts\">\n  function f(): void\n;\n</script>\n";
+    assert_eq!(reported_lines(source), [0u32; 0]);
+}
+
+#[test]
+fn a_field_value_is_indented_from_its_key_not_its_type() {
+    let source = "<script lang=\"ts\">\n  class A {\n    b:\n      number\n      =\n      1;\n  }\n</script>\n";
+    assert_eq!(reported_lines(source), [0u32; 0]);
+}
+
+#[test]
+fn new_with_type_arguments_indents_its_parentheses_from_the_callee() {
+    let source = "<script lang=\"ts\">\n  new\n    Foo\n      <\n        T\n      >\n      (\n        a\n      );\n</script>\n";
+    assert_eq!(reported_lines(source), [0u32; 0]);
+}
+
+#[test]
+fn a_decorator_expression_is_checked() {
+    let source = "<script lang=\"ts\">\n  @(\n  d\n  )\n  class A {}\n</script>\n";
+    assert_eq!(reported_lines(source), [3]);
+}
+
+#[test]
+fn a_construct_signature_semicolon_stays_with_it() {
+    let source = "<script lang=\"ts\">\n  interface D {\n    new (): void\n  ;\n  }\n</script>\n";
+    assert_eq!(reported_lines(source), [4]);
 }
 
 #[test]

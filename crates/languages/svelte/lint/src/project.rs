@@ -1,15 +1,24 @@
 //! The facts about a document's project that a host with a file system finds next to it, as
 //! `svelte-eslint-parser` and `eslint-plugin-svelte` find them.
+//!
+//! Each `package.json` and `svelte.config.js` is a [`FileFact`] of its own path, so a run reads
+//! and parses it once for all the documents below it, and a host that invalidates the path drops
+//! it alone.
 
 use std::path::{Component, Path, PathBuf};
 
+use rsvelte_kernel::computation::file_facts::{FileFact, FileFacts};
 use rsvelte_kernel::computation::registry::Registry;
 
 use crate::SvelteConfig;
 use crate::computation::{SvelteConfiguration, SvelteKit};
 
+mod package;
+
 #[cfg(test)]
 mod tests;
+
+use package::Package;
 
 /// What `eslint-plugin-svelte` knows of the `SvelteKit` project a document is in.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -38,13 +47,66 @@ pub fn register_file_system(registry: &mut Registry) {
     registry.provide::<SvelteConfiguration>(
         "svelte.lint.file_system",
         |_| true,
-        |context| svelte_config_near(Path::new(&context.document.path)),
+        |context| svelte_config_near(context.files(), Path::new(&context.document.path)),
     );
     registry.provide::<SvelteKit>(
         "svelte.lint.file_system",
         |_| true,
-        |context| svelte_kit_project(Path::new(&context.document.path)),
+        |context| svelte_kit_project(context.files(), Path::new(&context.document.path)),
     );
+}
+
+/// A `package.json`, when it holds a JSON object (`readPackageJson`).
+struct PackageJson;
+
+impl FileFact for PackageJson {
+    type Output = Option<Package>;
+
+    const NAME: &'static str = "svelte.lint.package_json";
+
+    fn read(path: &Path) -> Option<Package> {
+        Package::read(path)
+    }
+}
+
+/// The version of the `@sveltejs/kit` installed in a directory: `None` when it is no directory,
+/// and `Some(None)` when its version is not one upstream knows.
+struct InstalledKit;
+
+impl FileFact for InstalledKit {
+    type Output = Option<Option<String>>;
+
+    const NAME: &'static str = "svelte.lint.installed_kit";
+
+    fn read(path: &Path) -> Option<Option<String>> {
+        path.is_dir().then(|| {
+            Package::read(&path.join("package.json"))?
+                .version
+                .as_deref()
+                .and_then(package::kit_version)
+        })
+    }
+}
+
+/// A `svelte.config.js`, statically evaluated; `None` when it is no file.
+struct SvelteConfigFile;
+
+impl FileFact for SvelteConfigFile {
+    type Output = Option<Result<SvelteConfig, String>>;
+
+    const NAME: &'static str = "svelte.lint.svelte_config_file";
+
+    fn read(path: &Path) -> Self::Output {
+        if !path.is_file() {
+            return None;
+        }
+        Some(
+            std::fs::read_to_string(path)
+                .map_err(|e| e.to_string())
+                .and_then(|source| crate::svelte_config::parse(&source))
+                .map_err(|e| format!("{}: {e}", path.display())),
+        )
+    }
 }
 
 /// The project of the nearest `package.json` above the document (`getProjectRootDir`), with the
@@ -54,15 +116,15 @@ pub fn register_file_system(registry: &mut Registry) {
 ///
 /// Never: the project's directory is an ancestor of the document.
 #[must_use]
-pub fn svelte_kit_project(document: &Path) -> SvelteKitProject {
+pub fn svelte_kit_project(files: &FileFacts, document: &Path) -> SvelteKitProject {
     let file = absolute(document);
-    let packages: Vec<(&Path, serde_json::Map<String, serde_json::Value>)> = file
-        .ancestors()
-        .skip(1)
-        .filter_map(|directory| Some((directory, package_json(directory)?)))
-        .collect();
-    let version = installed_kit(&file).or_else(|| declared_kit(&packages));
-    let location = packages.first().map_or(Location::NoProject, |&(root, _)| {
+    let package = |directory: &Path| files.get::<PackageJson>(&directory.join("package.json"));
+    let mut directories = file.ancestors().skip(1);
+    let nearest = directories.by_ref().find_map(|directory| {
+        let package = package(directory);
+        package.is_some().then_some((directory, package))
+    });
+    let location = nearest.as_ref().map_or(Location::NoProject, |&(root, _)| {
         let relative = file.strip_prefix(root).expect("an ancestor of the file");
         Location::InProject(
             relative
@@ -72,60 +134,52 @@ pub fn svelte_kit_project(document: &Path) -> SvelteKitProject {
                 .join("/"),
         )
     });
-    SvelteKitProject { version, location }
+    let installed = || {
+        file.ancestors()
+            .skip(1)
+            .find_map(|directory| {
+                (*files.get::<InstalledKit>(&directory.join("node_modules/@sveltejs/kit"))).clone()
+            })
+            .flatten()
+    };
+    let declared = || {
+        let nearest = nearest.as_ref()?.1.as_ref().as_ref()?;
+        // Upstream's own tests run without SvelteKit installed, so its package counts as Kit 2.
+        if nearest.is_eslint_plugin_svelte {
+            return Some("2".to_owned());
+        }
+        nearest.kit.clone().or_else(|| {
+            directories.find_map(|directory| package(directory).as_ref().as_ref()?.kit.clone())
+        })
+    };
+    SvelteKitProject {
+        version: installed().or_else(declared),
+        location,
+    }
 }
 
-/// The version of the nearest installed `@sveltejs/kit`.
-fn installed_kit(file: &Path) -> Option<String> {
-    let package = file
+/// The nearest `svelte.config.js` above the document, statically evaluated
+/// (`resolveSvelteConfig`); the default without one.
+///
+/// A document that is not a file is looked up from the current directory, as upstream does.
+///
+/// # Errors
+///
+/// The file cannot be read or does not parse.
+pub fn svelte_config_near(files: &FileFacts, document: &Path) -> Result<SvelteConfig, String> {
+    let file = absolute(document);
+    let start = match file.parent() {
+        Some(directory) if file.is_file() => directory.to_owned(),
+        _ => std::env::current_dir().map_err(|e| format!("the current directory: {e}"))?,
+    };
+    // Upstream stops before the file system's root.
+    start
         .ancestors()
-        .skip(1)
-        .map(|directory| directory.join("node_modules/@sveltejs/kit"))
-        .find(|package| package.is_dir())?;
-    let version = package_json(&package)?.get("version")?.as_str()?.to_owned();
-    kit_version(&version)
-}
-
-/// The version of `@sveltejs/kit` that the nearest `package.json` declaring one declares.
-fn declared_kit(
-    packages: &[(&Path, serde_json::Map<String, serde_json::Value>)],
-) -> Option<String> {
-    // Upstream's own tests run without SvelteKit installed, so its package counts as Kit 2.
-    if packages.first().is_some_and(|(_, package)| {
-        package.get("name").and_then(|n| n.as_str()) == Some("eslint-plugin-svelte")
-    }) {
-        return Some("2".to_owned());
-    }
-    packages.iter().find_map(|(_, package)| {
-        let declared = ["dependencies", "devDependencies"]
-            .iter()
-            .find_map(|field| package.get(*field)?.get("@sveltejs/kit"))?;
-        kit_version(declared.as_str()?)
-    })
-}
-
-/// `checkAndSetSvelteKitVersion`: `1.0.0-next` for Kit 1's prereleases, else the major version
-/// of a version or a `^` or `~` range.
-fn kit_version(version: &str) -> Option<String> {
-    let version = version.strip_prefix(['^', '~']).unwrap_or(version);
-    let digits = version.len()
-        - version
-            .trim_start_matches(|c: char| c.is_ascii_digit())
-            .len();
-    if digits == 0 {
-        return None;
-    }
-    let (major, rest) = version.split_at(digits);
-    if major == "1" && rest.starts_with(".0.0-next") {
-        return Some("1.0.0-next".to_owned());
-    }
-    rest.starts_with('.').then(|| major.to_owned())
-}
-
-/// The `package.json` of `directory`, when it holds a JSON object (`readPackageJson`).
-fn package_json(directory: &Path) -> Option<serde_json::Map<String, serde_json::Value>> {
-    let text = std::fs::read_to_string(directory.join("package.json")).ok()?;
-    serde_json::from_str(&text).ok()
+        .filter(|directory| directory.parent().is_some())
+        .find_map(|directory| {
+            (*files.get::<SvelteConfigFile>(&directory.join("svelte.config.js"))).clone()
+        })
+        .unwrap_or_else(|| Ok(SvelteConfig::default()))
 }
 
 /// The document's path as `ESLint` names it (`path.resolve`): absolute, from the current
@@ -143,32 +197,4 @@ fn absolute(path: &Path) -> PathBuf {
         }
     }
     out
-}
-
-/// The nearest `svelte.config.js` above the document, statically evaluated
-/// (`resolveSvelteConfig`); the default without one.
-///
-/// A document that is not a file is looked up from the current directory, as upstream does.
-///
-/// # Errors
-///
-/// The file cannot be read or does not parse.
-pub fn svelte_config_near(document: &Path) -> Result<SvelteConfig, String> {
-    let file = absolute(document);
-    let start = match file.parent() {
-        Some(directory) if file.is_file() => directory.to_owned(),
-        _ => std::env::current_dir().map_err(|e| format!("the current directory: {e}"))?,
-    };
-    // Upstream stops before the file system's root.
-    let Some(config) = start
-        .ancestors()
-        .filter(|directory| directory.parent().is_some())
-        .map(|directory| directory.join("svelte.config.js"))
-        .find(|candidate| candidate.is_file())
-    else {
-        return Ok(SvelteConfig::default());
-    };
-    let source =
-        std::fs::read_to_string(&config).map_err(|e| format!("{}: {e}", config.display()))?;
-    crate::svelte_config::parse(&source).map_err(|e| format!("{}: {e}", config.display()))
 }

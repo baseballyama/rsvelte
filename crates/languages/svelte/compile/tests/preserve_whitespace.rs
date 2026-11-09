@@ -19,6 +19,7 @@ fn compile(target: Target, preserve_whitespace: bool) -> String {
     input.preserve_whitespace = preserve_whitespace;
     let resolution = rsvelte_svelte::semantic::resolve::resolve(
         &component.javascript,
+        SOURCE,
         component.program,
         &compiler_syntax_tree,
     );

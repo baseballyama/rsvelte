@@ -215,6 +215,13 @@ impl<'a> Formatter<'a> {
         let Some(span) = span else {
             return Ok(self.docs.nil());
         };
+        let doc = self.type_text(span, sep)?;
+        self.typescript_printed += 1;
+        Ok(doc)
+    }
+
+    /// `sep` + the text of the type at `span`.
+    fn type_text(&mut self, span: Span, sep: &'static str) -> R<LayoutInstructionIdentifier> {
         let text = span.text(self.source_text);
         let Some(t) = self.type_doc(text) else {
             return Err(Unsupported::at(
@@ -222,7 +229,6 @@ impl<'a> Formatter<'a> {
                 span,
             ));
         };
-        self.typescript_printed += 1;
         let s = self.docs.lit(sep);
         Ok(self.docs.concat(&[s, t]))
     }

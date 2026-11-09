@@ -317,6 +317,5 @@ const fn is_statement(k: Kind<'_>) -> bool {
             | Kind::ExportNamed(_)
             | Kind::ExportDefault(_)
             | Kind::TypeScriptDeclaration
-            | Kind::TypeScriptInterface { .. }
     )
 }

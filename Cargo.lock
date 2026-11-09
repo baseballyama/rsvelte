@@ -1040,6 +1040,7 @@ dependencies = [
  "oxc_span",
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
+ "rsvelte_svelte",
  "rsvelte_svelte_parser",
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",

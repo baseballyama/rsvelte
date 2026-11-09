@@ -1,7 +1,65 @@
 use rsvelte_kernel::source::positions::Span;
 
 use super::parse_program;
-use crate::syntax_tree::{SyntaxTree, TypeScriptKind};
+use crate::NodeIdentifier;
+use crate::syntax_tree::{Kind, SyntaxTree, TypeScriptKind};
+
+/// The tree of a TypeScript program, and its statements.
+pub(super) fn typescript(source_text: &str) -> (SyntaxTree, Vec<NodeIdentifier>) {
+    let mut syntax_tree = SyntaxTree::new();
+    let program = parse_program(
+        &mut syntax_tree,
+        source_text,
+        Span::new(0, source_text.len() as u32),
+        true,
+    )
+    .unwrap_or_else(|e| panic!("{source_text}: {}", e.message));
+    let Kind::Program(statements) = syntax_tree.kind(program) else {
+        panic!("a program");
+    };
+    let statements = statements.to_vec();
+    (syntax_tree, statements)
+}
+
+/// A type node as `Variant"text"(children)`; a value node inside it is its quoted text.
+pub(super) fn outline(tree: &SyntaxTree, source_text: &str, node: NodeIdentifier) -> String {
+    let text = tree
+        .source_location(node)
+        .span()
+        .expect("located")
+        .text(source_text);
+    let Kind::Type(ty) = tree.kind(node) else {
+        return format!("{text:?}");
+    };
+    let debug = format!("{ty:?}");
+    let variant: String = debug
+        .chars()
+        .take_while(char::is_ascii_alphanumeric)
+        .collect();
+    let mut children = Vec::new();
+    tree.for_each_type_child(node, |c| children.push(outline(tree, source_text, c)));
+    if children.is_empty() {
+        format!("{variant}{text:?}")
+    } else {
+        format!("{variant}{text:?}({})", children.join(" "))
+    }
+}
+
+/// Each entry of the `typescript` table as its kind and its span's text, followed by its syntax
+/// outlined when it has one.
+pub(super) fn entries(tree: &SyntaxTree, source_text: &str) -> Vec<(TypeScriptKind, String)> {
+    tree.typescript
+        .iter()
+        .map(|t| {
+            let text = t.span.text(source_text);
+            let entry = t.syntax.opt().map_or_else(
+                || text.to_owned(),
+                |s| format!("{text} = {}", outline(tree, source_text, s)),
+            );
+            (t.kind, entry)
+        })
+        .collect()
+}
 
 fn parses(source_text: &str) -> Result<(), String> {
     let mut syntax_tree = SyntaxTree::new();
@@ -63,4 +121,55 @@ fn a_class_records_its_type_parameters() {
             (TypeScriptKind::TypeParameters, "<U>"),
         ]
     );
+}
+
+#[test]
+fn a_tagged_template_is_a_call_of_its_tag() {
+    let source_text = "a.b`x${c}y`;\nf<T>``;";
+    let mut syntax_tree = SyntaxTree::new();
+    let program = parse_program(
+        &mut syntax_tree,
+        source_text,
+        Span::new(0, source_text.len() as u32),
+        true,
+    )
+    .expect("parses");
+    let Kind::Program(statements) = syntax_tree.kind(program) else {
+        panic!("a program");
+    };
+    let text = |n| {
+        syntax_tree
+            .source_location(n)
+            .span()
+            .expect("located")
+            .text(source_text)
+    };
+    let tagged: Vec<(&str, &str, &str)> = statements
+        .iter()
+        .map(|&s| {
+            let Kind::ExpressionStatement(e) = syntax_tree.kind(s) else {
+                panic!("an expression statement");
+            };
+            let Kind::TaggedTemplate { tag, quasi } = syntax_tree.kind(e) else {
+                panic!("a tagged template");
+            };
+            (text(e), text(tag), text(quasi))
+        })
+        .collect();
+    assert_eq!(
+        tagged,
+        [("a.b`x${c}y`", "a.b", "`x${c}y`"), ("f<T>``", "f", "``")]
+    );
+}
+
+#[test]
+fn an_escaped_identifier_names_what_it_decodes_to() {
+    let source_text = concat!("let \\", "u0061b = 1; \\", "u{61}b;");
+    let (tree, statements) = typescript(source_text);
+    let Kind::ExpressionStatement(reference) = tree.kind(statements[1]) else {
+        panic!("an expression statement");
+    };
+    assert_eq!(tree.name(reference), "ab");
+    let span = tree.source_location(reference).span().expect("located");
+    assert_eq!(span, Span::new(17, 24));
 }

@@ -16,8 +16,12 @@ fn allocations(script: &str) -> u64 {
         &source,
         "App.svelte",
     ));
-    let resolution =
-        rsvelte_svelte::semantic::resolve::resolve(&component.javascript, component.program, &tree);
+    let resolution = rsvelte_svelte::semantic::resolve::resolve(
+        &component.javascript,
+        &source,
+        component.program,
+        &tree,
+    );
     let analysis = rsvelte_svelte::semantic::analyze::analyze(&input.component, &resolution);
     rsvelte_svelte_compile::compile(&input, &resolution, &analysis, Target::Client)
         .expect("compiles");
@@ -36,6 +40,7 @@ fn a_member_chain_in_markup_analyzes_on_a_small_stack() {
             .spawn_scoped(scope, || {
                 rsvelte_svelte::semantic::resolve::resolve(
                     &component.javascript,
+                    &source,
                     component.program,
                     &tree,
                 )

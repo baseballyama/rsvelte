@@ -41,6 +41,7 @@ fn visit(
                 let input = rsvelte_svelte::svelte_input(&component, &tree, &source, &filename);
                 let resolution = resolve::resolve_with_module(
                     &component.javascript,
+                    &source,
                     component.program,
                     component.module.as_ref().map(|s| s.program),
                     &tree,

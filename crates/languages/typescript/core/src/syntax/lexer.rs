@@ -4,6 +4,7 @@
 //! detection) is a struct copy, not a token buffer. Regex literals and template continuations are
 //! context-dependent and are lexed on the parser's request.
 
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -37,6 +38,8 @@ pub enum T {
     At,
     /// Any operator; the text is the token's span.
     Op,
+    /// Text between JSX tags, which the parser asks for.
+    JsxText,
 }
 
 impl rsvelte_kernel::source::tokens::TokenKind for T {
@@ -131,6 +134,20 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    /// The character starting at byte `at`, which is in the source and starts a character.
+    fn char_at(&self, at: usize) -> char {
+        let width = match self.source_text[at] {
+            0..0x80 => 1,
+            0xC0..0xE0 => 2,
+            0xE0..0xF0 => 3,
+            _ => 4,
+        };
+        std::str::from_utf8(&self.source_text[at..(at + width).min(self.end)])
+            .ok()
+            .and_then(|s| s.chars().next())
+            .unwrap_or(char::REPLACEMENT_CHARACTER)
+    }
+
     /// Skips whitespace and comments; returns whether a line terminator was crossed.
     fn skip_trivia(&mut self, comments: &mut Vec<Span>) -> R<bool> {
         let mut newline = false;
@@ -168,12 +185,14 @@ impl<'a> Lexer<'a> {
                     }
                     comments.push(Span::new(start_offset as u32, self.position as u32));
                 }
-                0xE2 if self.line_terminator(self.position) == 3 => {
-                    newline = true;
-                    self.position += 3;
+                0x80.. => {
+                    let c = self.char_at(self.position);
+                    if !is_ecmascript_whitespace(c) {
+                        break;
+                    }
+                    newline |= matches!(c, '\u{2028}' | '\u{2029}');
+                    self.position += c.len_utf8();
                 }
-                0xC2 if self.peek(1) == 0xA0 => self.position += 2,
-                0xEF if self.peek(1) == 0xBB && self.peek(2) == 0xBF => self.position += 3,
                 _ => break,
             }
         }
@@ -290,20 +309,14 @@ impl<'a> Lexer<'a> {
                     0xE0..=0xEF => 3,
                     _ => 4,
                 };
-                if b == 0xE2 && self.peek(1) == 0x80 && matches!(self.peek(2), 0xA8 | 0xA9) {
-                    break;
-                }
-                if b == 0xC2 && self.peek(1) == 0xA0 {
+                if is_ecmascript_whitespace(self.char_at(self.position)) {
                     break;
                 }
                 self.position += ch_len;
             } else if is_identifier_continue(b) {
                 self.position += 1;
             } else if b == b'\\' {
-                return self.err(
-                    "unicode escapes in identifiers are not supported",
-                    self.position,
-                );
+                self.identifier_escape()?;
             } else {
                 break;
             }
@@ -494,69 +507,11 @@ impl<'a> Lexer<'a> {
     }
 }
 
-/// Decodes a quoted JS string literal's escapes; `None` when the body contains no backslash
-/// (the value is then the source bytes between the quotes).
-pub fn decode_string(raw_body: &str) -> Option<String> {
-    if !raw_body.contains('\\') {
-        return None;
-    }
-    let mut out = String::with_capacity(raw_body.len());
-    let mut chars = raw_body.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c != '\\' {
-            out.push(c);
-            continue;
-        }
-        match chars.next() {
-            Some('n') => out.push('\n'),
-            Some('t') => out.push('\t'),
-            Some('r') => out.push('\r'),
-            Some('b') => out.push('\u{8}'),
-            Some('f') => out.push('\u{c}'),
-            Some('v') => out.push('\u{b}'),
-            Some('0') if !chars.peek().is_some_and(char::is_ascii_digit) => out.push('\0'),
-            Some('x') => {
-                let h: String = chars.by_ref().take(2).collect();
-                out.push(
-                    u32::from_str_radix(&h, 16)
-                        .ok()
-                        .and_then(char::from_u32)
-                        .unwrap_or('\u{fffd}'),
-                );
-            }
-            Some('u') => {
-                let code = if chars.peek() == Some(&'{') {
-                    chars.next();
-                    let h: String = chars.by_ref().take_while(|&c| c != '}').collect();
-                    u32::from_str_radix(&h, 16).ok()
-                } else {
-                    let h: String = chars.by_ref().take(4).collect();
-                    u32::from_str_radix(&h, 16).ok()
-                };
-                out.push(code.and_then(char::from_u32).unwrap_or('\u{fffd}'));
-            }
-            Some('\r') => {
-                if chars.peek() == Some(&'\n') {
-                    chars.next();
-                }
-            }
-            Some('\n' | '\u{2028}' | '\u{2029}') | None => {}
-            Some(other) => out.push(other),
-        }
-    }
-    Some(out)
-}
-
-/// A template element's cooked value from its raw text.
-#[must_use]
-pub fn cook_template(raw: &str) -> std::borrow::Cow<'_, str> {
-    if !raw.contains(['\\', '\r']) {
-        return std::borrow::Cow::Borrowed(raw);
-    }
-    // A template reads a CRLF as LF, escaped or not.
-    let raw = raw.replace("\r\n", "\n").replace('\r', "\n");
-    std::borrow::Cow::Owned(decode_string(&raw).unwrap_or(raw))
-}
+mod identifiers;
+mod jsx;
+mod strings;
+pub use identifiers::identifier_name;
+pub use strings::{cook_template, decode_string};
 
 #[cfg(test)]
 mod tests;

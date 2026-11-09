@@ -11,6 +11,7 @@ impl SyntaxTree {
                 each(&[source, options.unwrap_or(NodeIdentifier::NONE)]);
             }
             Kind::Yield { argument, .. } => each(&[argument.unwrap_or(NodeIdentifier::NONE)]),
+            Kind::Jsx(jsx) => self.for_each_jsx_child(jsx, &mut f),
             Kind::Class(class) => match class {
                 super::Class::Definition {
                     name,
@@ -136,7 +137,8 @@ impl SyntaxTree {
                 each(parameters);
                 each(&[body]);
             }
-            Kind::Binary(_, l, r)
+            Kind::TaggedTemplate { tag: l, quasi: r }
+            | Kind::Binary(_, l, r)
             | Kind::Logical(_, l, r)
             | Kind::Assign(_, l, r)
             | Kind::AssignPattern(l, r) => each(&[l, r]),
@@ -150,8 +152,7 @@ impl SyntaxTree {
             | Kind::BigInt
             | Kind::Super
             | Kind::TypeScriptDeclaration
-            | Kind::TypeScriptInterface { .. }
-            | Kind::TypeScriptPropertySignature { .. }
+            | Kind::Type(_)
             | Kind::Identifier(_)
             | Kind::Number(_)
             | Kind::String

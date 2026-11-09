@@ -4,7 +4,7 @@ use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use super::ExpressionMetadata;
 use super::evaluation::BindingValues;
 use crate::semantic::input::ComponentInput;
-use crate::semantic::resolve::{BindingKind, Resolution, rune_call};
+use crate::semantic::resolve::{BindingKind, Resolution};
 
 /// Computes [`ExpressionMetadata`] the way upstream's analysis visitors do, and `needs_context`.
 pub(super) struct MetadataWalker<'a, 'walk, const COLLECT_METADATA: bool> {
@@ -59,44 +59,11 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
                     self.reference(identifier);
                 }
             }
-            Kind::Member { .. } => {
-                // A chain `a.b.c…` is walked down by a loop: it nests thousands deep in real
-                // input. Every link shares the innermost one's root, so only that one is judged.
-                let (mut innermost, mut at) = (identifier, identifier);
-                let mut computed = Vec::new();
-                while let Kind::Member {
-                    object,
-                    property,
-                    computed: is_computed,
-                    ..
-                } = self.syntax_tree.kind(at)
-                {
-                    if is_computed {
-                        computed.push((at, property));
-                    }
-                    innermost = at;
-                    at = object;
-                }
-                self.visit(at);
-                let mut properties = computed.iter().rev().peekable();
-                if let Some(&(_, property)) = properties.next_if(|&&(m, _)| m == innermost) {
-                    self.visit(property);
-                }
-                self.meta.has_member = true;
-                if COLLECT_METADATA && !self.is_pure(innermost) {
-                    self.meta.has_state = true;
-                }
-                if !self.is_safe(innermost) {
-                    self.needs_context = true;
-                }
-                for &(_, property) in properties {
-                    self.visit(property);
-                }
-            }
+            Kind::Member { .. } => self.member_chain(identifier),
             Kind::Call {
                 callee, arguments, ..
             } => {
-                let rune = rune_call(self.syntax_tree, identifier).map(|(r, _)| r);
+                let rune = self.res.rune(self.syntax_tree, identifier).map(|(r, _)| r);
                 self.visit(callee);
                 for &a in arguments {
                     self.visit(a);
@@ -126,6 +93,15 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
                 }
                 self.visit(value);
             }
+            // Upstream `TaggedTemplateExpression`: a tag is a call.
+            Kind::TaggedTemplate { tag, quasi } => {
+                if COLLECT_METADATA && !self.is_pure(tag) {
+                    self.meta.has_call = true;
+                    self.meta.has_state = true;
+                }
+                self.visit(tag);
+                self.visit(quasi);
+            }
             // Upstream `SpreadElement`: `[...x]` reads like `[...x.values()]`. Its expression state
             // is cleared inside functions.
             Kind::Spread(arg) => {
@@ -149,6 +125,41 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
                 let tree = self.syntax_tree;
                 tree.for_each_child(identifier, |child| self.visit(child));
             }
+        }
+    }
+
+    /// A chain `a.b.c…`, walked down by a loop: it nests thousands deep in real input. Every link
+    /// shares the innermost one's root, so only that one is judged.
+    fn member_chain(&mut self, identifier: NodeIdentifier) {
+        let (mut innermost, mut at) = (identifier, identifier);
+        let mut computed = Vec::new();
+        while let Kind::Member {
+            object,
+            property,
+            computed: is_computed,
+            ..
+        } = self.syntax_tree.kind(at)
+        {
+            if is_computed {
+                computed.push((at, property));
+            }
+            innermost = at;
+            at = object;
+        }
+        self.visit(at);
+        let mut properties = computed.iter().rev().peekable();
+        if let Some(&(_, property)) = properties.next_if(|&&(m, _)| m == innermost) {
+            self.visit(property);
+        }
+        self.meta.has_member = true;
+        if COLLECT_METADATA && !self.is_pure(innermost) {
+            self.meta.has_state = true;
+        }
+        if !self.is_safe(innermost) {
+            self.needs_context = true;
+        }
+        for &(_, property) in properties {
+            self.visit(property);
         }
     }
 

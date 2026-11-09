@@ -480,3 +480,31 @@ missing from the branch that matches a run of letters. Of 199924 generated attri
 1356 differ from the spec. Of those, 1324 are what the spec gives for text. This crate follows
 the spec.
 Test in `rsvelte_markup`: `character_references::tests::html_follows_the_spec_where_compiler_core_does_not`.
+
+## Svelte's compiler: what `svelte.compile` warns, which `svelte/valid-compile` reports
+
+These are behaviors of `svelte` 5.57.3 (`tools/oracle`) that `rsvelte_svelte`'s warnings do not
+reproduce. Each is a candidate issue for `sveltejs/svelte`. `svelte.compile` gave the upstream
+output (`corpus/**/expected/svelte.compile/client.warnings.json`).
+
+### A `svelte-ignore` code warning before `<style>` points four bytes early
+
+- Case: `<!-- svelte-ignore css-unused-selector -->` before `<style>`, as in
+  `eslint-plugin-svelte/.../no-unused-svelte-ignore/invalid/style-lang01-input.svelte`.
+- Upstream reports `legacy_code` four bytes before `css-unused-selector`. The analysis reads the
+  style's comment with `extract_svelte_ignore(comment.start, comment.data, …)`, while the template
+  walk passes `prev.start + 4`, the offset of `comment.data`.
+- Correct: the code itself. This crate reports it there.
+  Test: `warnings::tests::a_legacy_code_before_the_style_is_reported_at_the_code`.
+
+### A comment in a component's default slot is read again before every later child
+
+- Case: `svelte-ux/.../docs/components/Switch/+page.svelte`, where
+  `<!-- svelte-ignore a11y-label-has-associated-control -->` stands inside `<Preview>`.
+- Upstream reports its `legacy_code` twice, and the comment ignores the codes it names on every
+  later element child of the component, not only the next one. `visit_component` collects the
+  default slot's nodes with `nodes[slot_name].push(...comments, child)` and clears `comments` only
+  for a named slot, so the comment comes again before each later child of the default slot.
+- Correct: the comment leads the next node only, and warns once, as in any other fragment. This
+  crate reads the fragment as written.
+  Test: `warnings::tests::a_comment_in_a_default_slot_warns_once`.

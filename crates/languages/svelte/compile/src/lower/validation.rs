@@ -1,5 +1,4 @@
-use rsvelte_svelte::semantic::resolve::RUNES;
-use rsvelte_typescript::scope::{DeclarationKind, ScopeIdentifier};
+use rsvelte_svelte::syntax::names::{is_mathml, is_svg};
 use rsvelte_typescript::syntax_tree::{TypeScriptFeature, TypeScriptRuntime};
 
 use super::{
@@ -15,128 +14,9 @@ use super::{
 /// # Errors
 ///
 /// An `unsupported` [`Diagnostic`] at the element's name.
-#[expect(clippy::too_many_lines, reason = "one case per foreign element name")]
 pub fn check_foreign_element(source_text: &str, name: Span) -> Result<(), Diagnostic> {
     let text = name.text(source_text);
-    if matches!(
-        text,
-        "altGlyph"
-            | "altGlyphDef"
-            | "altGlyphItem"
-            | "animate"
-            | "animateColor"
-            | "animateMotion"
-            | "animateTransform"
-            | "circle"
-            | "clipPath"
-            | "color-profile"
-            | "cursor"
-            | "defs"
-            | "desc"
-            | "discard"
-            | "ellipse"
-            | "feBlend"
-            | "feColorMatrix"
-            | "feComponentTransfer"
-            | "feComposite"
-            | "feConvolveMatrix"
-            | "feDiffuseLighting"
-            | "feDisplacementMap"
-            | "feDistantLight"
-            | "feDropShadow"
-            | "feFlood"
-            | "feFuncA"
-            | "feFuncB"
-            | "feFuncG"
-            | "feFuncR"
-            | "feGaussianBlur"
-            | "feImage"
-            | "feMerge"
-            | "feMergeNode"
-            | "feMorphology"
-            | "feOffset"
-            | "fePointLight"
-            | "feSpecularLighting"
-            | "feSpotLight"
-            | "feTile"
-            | "feTurbulence"
-            | "filter"
-            | "font"
-            | "font-face"
-            | "font-face-format"
-            | "font-face-name"
-            | "font-face-src"
-            | "font-face-uri"
-            | "foreignObject"
-            | "g"
-            | "glyph"
-            | "glyphRef"
-            | "hatch"
-            | "hatchpath"
-            | "hkern"
-            | "image"
-            | "line"
-            | "linearGradient"
-            | "marker"
-            | "mask"
-            | "mesh"
-            | "meshgradient"
-            | "meshpatch"
-            | "meshrow"
-            | "metadata"
-            | "missing-glyph"
-            | "mpath"
-            | "path"
-            | "pattern"
-            | "polygon"
-            | "polyline"
-            | "radialGradient"
-            | "rect"
-            | "set"
-            | "solidcolor"
-            | "stop"
-            | "svg"
-            | "switch"
-            | "symbol"
-            | "text"
-            | "textPath"
-            | "tref"
-            | "tspan"
-            | "unknown"
-            | "use"
-            | "view"
-            | "vkern"
-            | "annotation"
-            | "annotation-xml"
-            | "maction"
-            | "math"
-            | "merror"
-            | "mfrac"
-            | "mi"
-            | "mmultiscripts"
-            | "mn"
-            | "mo"
-            | "mover"
-            | "mpadded"
-            | "mphantom"
-            | "mprescripts"
-            | "mroot"
-            | "mrow"
-            | "ms"
-            | "mspace"
-            | "msqrt"
-            | "mstyle"
-            | "msub"
-            | "msubsup"
-            | "msup"
-            | "mtable"
-            | "mtd"
-            | "mtext"
-            | "mtr"
-            | "munder"
-            | "munderover"
-            | "semantics"
-    ) {
+    if is_svg(text) || is_mathml(text) {
         return unsupported(&format!("`<{text}>` outside `<svg>` or `<math>`"), name);
     }
     Ok(())
@@ -150,13 +30,7 @@ pub fn check_foreign_element(source_text: &str, name: Span) -> Result<(), Diagno
 /// # Errors
 ///
 /// An `unsupported` [`Diagnostic`] at the first such reference.
-pub(super) fn check_stores(
-    javascript: &SyntaxTree,
-    res: &Resolution,
-    source_text: &str,
-    program: NodeIdentifier,
-) -> Result<(), Diagnostic> {
-    let mut verdicts = rustc_hash::FxHashMap::default();
+pub(super) fn check_stores(javascript: &SyntaxTree, res: &Resolution) -> Result<(), Diagnostic> {
     for r in &res.sem.references {
         if r.binding.is_some() {
             continue;
@@ -168,30 +42,7 @@ pub(super) fn check_stores(
             };
             return unsupported("`$$slots`", span);
         }
-        let Some(store) = name.strip_prefix('$') else {
-            continue;
-        };
-        if store.is_empty() || store.starts_with('$') {
-            continue;
-        }
-        // The verdict depends only on the name, and every `$state(…)` call is such a reference.
-        let store_sub = *verdicts.entry(name).or_insert_with(|| {
-            let declaration = res.sem.bindings.iter().find(|b| {
-                b.scope == ScopeIdentifier::ROOT && javascript.atoms.get(b.name) == store
-            });
-            !RUNES.contains(&name)
-                || declaration.is_some_and(|b| {
-                    let rune = b
-                        .initializer(javascript)
-                        .and_then(|initializer| get_rune(javascript, res, initializer));
-                    (rune.is_none() || (store != "props" && rune.as_deref() == Some("$props")))
-                        && !(name == "$derived"
-                            && b.kind == DeclarationKind::Import
-                            && import_source(javascript, source_text, program, b.declaration)
-                                == Some("svelte/store"))
-                })
-        });
-        if store_sub {
+        if res.is_store_subscription(name) {
             let Some(span) = javascript.source_location(r.node).span() else {
                 unreachable!("a reference is parsed from source")
             };
@@ -223,8 +74,8 @@ pub(super) fn check_runes(
         statement: bool,
         in_class: bool,
     ) -> Result<(), Diagnostic> {
-        if let Some(rune) = get_rune(javascript, res, e) {
-            let supported = match rune.as_str() {
+        if let Some((rune, _)) = res.rune(javascript, e) {
+            let supported = match rune {
                 "$state" | "$state.raw" | "$derived" | "$derived.by" => !in_class,
                 "$props" | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
                 "$host" => custom_element,
@@ -243,7 +94,7 @@ pub(super) fn check_runes(
             }
         }
         if matches!(javascript.kind(e), Kind::Declarator { .. }) {
-            super::script::check_destructured_rune(javascript, target, e)?;
+            super::script::check_destructured_rune(javascript, res, target, e)?;
         }
         let mut children = Vec::new();
         javascript.for_each_child(e, |c| children.push(c));
@@ -296,63 +147,6 @@ pub(super) fn check_runes(
     Ok(())
 }
 
-/// Upstream `get_rune`: the rune a call's callee names through unbound globals.
-fn get_rune(javascript: &SyntaxTree, res: &Resolution, e: NodeIdentifier) -> Option<String> {
-    let Kind::Call { callee, .. } = javascript.kind(e) else {
-        return None;
-    };
-    // Every rune's keypath is `$name`, `$name.member` or `$name().member`, so deeper callees
-    // cannot name one and are not walked.
-    let (root, called, member) = match javascript.kind(callee) {
-        Kind::Identifier(_) => (callee, false, None),
-        Kind::Member {
-            object,
-            property,
-            computed: false,
-            ..
-        } => match javascript.kind(object) {
-            Kind::Identifier(_) => (object, false, Some(property)),
-            Kind::Call { callee: inner, .. } if javascript.is_identifier(inner) => {
-                (inner, true, Some(property))
-            }
-            _ => return None,
-        },
-        _ => return None,
-    };
-    if res.sem.binding_of(root).is_some() {
-        return None;
-    }
-    let mut keypath = javascript.name(root).to_owned();
-    if called {
-        keypath.push_str("()");
-    }
-    if let Some(property) = member {
-        keypath.push('.');
-        keypath.push_str(javascript.name(property));
-    }
-    RUNES.contains(&keypath.as_str()).then_some(keypath)
-}
-
-/// The module an import specifier of the instance script imports from.
-fn import_source<'a>(
-    javascript: &'a SyntaxTree,
-    source_text: &'a str,
-    program: NodeIdentifier,
-    spec: Option<NodeIdentifier>,
-) -> Option<&'a str> {
-    let spec = spec?;
-    let Kind::Program(body) = javascript.kind(program) else {
-        return None;
-    };
-    body.iter()
-        .find_map(|&statement| match javascript.kind(statement) {
-            Kind::Import {
-                specifiers, source, ..
-            } if specifiers.contains(&spec) => Some(javascript.str_value(source, source_text)),
-            _ => None,
-        })
-}
-
 pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
     if let Some(runtime) = input.component.javascript.typescript_runtime.first() {
         return Err(typescript_invalid_feature(runtime));
@@ -360,11 +154,25 @@ pub(super) fn check_typescript(input: &CompileInput<'_>) -> Result<(), Diagnosti
     Ok(())
 }
 
-/// Upstream `remove_typescript_nodes` erases types and refuses what has a runtime value.
+/// Upstream `remove_typescript_nodes` erases types and refuses what has a runtime value; what it
+/// keeps for esrap to print, this compiler does not lower.
 fn typescript_invalid_feature(t: &TypeScriptRuntime) -> Diagnostic {
     let feature = match t.feature {
         TypeScriptFeature::Enum => "enums",
         TypeScriptFeature::NamespaceWithValues => "namespaces with non-type nodes",
+        TypeScriptFeature::Decorator => "decorators (related TSC proposal is not stage 4 yet)",
+        TypeScriptFeature::Accessor => "accessor fields (related TSC proposal is not stage 4 yet)",
+        TypeScriptFeature::ParameterProperty => "accessibility modifiers on constructor parameters",
+        TypeScriptFeature::ImportEquals => {
+            return Diagnostic::error(
+                "unsupported",
+                "`import name = …` is not supported yet",
+                t.span,
+            );
+        }
+        TypeScriptFeature::ExportAssignment => {
+            return Diagnostic::error("unsupported", "`export = …` is not supported yet", t.span);
+        }
     };
     Diagnostic::error(
         "typescript_invalid_feature",

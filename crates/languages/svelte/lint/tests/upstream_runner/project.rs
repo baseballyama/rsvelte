@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use rsvelte_kernel::computation::file_facts::FileFacts;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_svelte_lint::project;
@@ -171,9 +172,12 @@ pub(super) struct Project {
 impl Project {
     /// What `ESLint` finds around the file on disk, after a `svelte.config.js` the case gives.
     pub(super) fn on_disk(input: &Path, svelte_config: Option<SvelteConfig>) -> Self {
+        // A case is a run of its own, so it reads its files afresh.
+        let files = FileFacts::default();
         Self {
-            svelte_config: svelte_config.map_or_else(|| project::svelte_config_near(input), Ok),
-            kit: project::svelte_kit_project(input),
+            svelte_config: svelte_config
+                .map_or_else(|| project::svelte_config_near(&files, input), Ok),
+            kit: project::svelte_kit_project(&files, input),
         }
     }
 }

@@ -50,22 +50,32 @@ pub struct Resolution {
     pub bindings: IndexVector<BindingIdentifier, BindingInformation>,
     /// The instance calls `$props()` (upstream `needs_props`).
     pub uses_props: bool,
+    /// The rune names that subscribe to a store instead, such as `$state` beside a `state`.
+    subscribed: Vec<&'static str>,
 }
 
 /// Resolves the script and the template of `compiler_syntax_tree`, which any frontend may have
-/// built over `syntax_tree`.
+/// built over `syntax_tree`, whose string values `source_text` holds.
 #[must_use]
 pub fn resolve(
     syntax_tree: &SyntaxTree,
+    source_text: &str,
     program: NodeIdentifier,
     compiler_syntax_tree: &CompilerSyntaxTree,
 ) -> Resolution {
-    resolve_with_module(syntax_tree, program, None, compiler_syntax_tree)
+    resolve_with_module(
+        syntax_tree,
+        source_text,
+        program,
+        None,
+        compiler_syntax_tree,
+    )
 }
 
 #[must_use]
 pub fn resolve_with_module(
     syntax_tree: &SyntaxTree,
+    source_text: &str,
     program: NodeIdentifier,
     module: Option<NodeIdentifier>,
     compiler_syntax_tree: &CompilerSyntaxTree,
@@ -73,11 +83,20 @@ pub fn resolve_with_module(
     let mut host = Vec::new();
     roots::template_roots(compiler_syntax_tree, compiler_syntax_tree.root, &mut host);
     let sem = scope::analyze_enclosed(syntax_tree, module, program, &host);
-    let bindings = classify::classify(syntax_tree, &sem, program, module, compiler_syntax_tree);
+    let subscribed = runes::subscribed(syntax_tree, source_text, &sem, program, module);
+    let bindings = classify::classify(
+        syntax_tree,
+        &sem,
+        &subscribed,
+        program,
+        module,
+        compiler_syntax_tree,
+    );
     Resolution {
-        uses_props: has_props_rune(syntax_tree, program),
+        uses_props: has_props_rune(syntax_tree, &sem, &subscribed, program),
         sem,
         bindings,
+        subscribed,
     }
 }
 
@@ -111,6 +130,26 @@ pub fn for_each_pattern_identifier(
 }
 
 impl Resolution {
+    /// Upstream `get_rune`: the rune the call `e` makes, with its first argument. A callee whose
+    /// root is a binding, or a store subscription such as `$state` beside a `state`, makes none.
+    #[must_use]
+    pub fn rune(
+        &self,
+        syntax_tree: &SyntaxTree,
+        e: NodeIdentifier,
+    ) -> Option<(&'static str, Option<NodeIdentifier>)> {
+        runes::rune(syntax_tree, &self.sem, &self.subscribed, e)
+    }
+
+    /// Whether the unbound reference `name` subscribes to a store (upstream analysis's synthetic
+    /// `store_sub` binding): any `$name` but `$` and `$$name`, unless it names a rune.
+    #[must_use]
+    pub fn is_store_subscription(&self, name: &str) -> bool {
+        name.strip_prefix('$')
+            .is_some_and(|store| !store.is_empty() && !store.starts_with('$'))
+            && (!RUNES.contains(&name) || self.subscribed.contains(&name))
+    }
+
     #[must_use]
     pub fn binding(
         &self,
@@ -140,6 +179,12 @@ impl Resolution {
         ) && (s.writes > 0 || info.initial.is_some() || s.mutations > 0)
     }
 
+    /// Upstream `should_proxy`: whether `$state(e)` makes a deep proxy of `e`'s value.
+    #[must_use]
+    pub fn should_proxy(&self, syntax_tree: &SyntaxTree, e: NodeIdentifier) -> bool {
+        proxyable(syntax_tree, Some(self), e)
+    }
+
     /// Evaluates `e` of the component's own tree.
     #[must_use]
     pub fn evaluate(
@@ -167,7 +212,53 @@ impl Resolution {
     }
 }
 
-fn has_props_rune(syntax_tree: &SyntaxTree, program: NodeIdentifier) -> bool {
+/// `res` is `None` for a binding's initial value, which upstream checks without a scope.
+fn proxyable(syntax_tree: &SyntaxTree, res: Option<&Resolution>, e: NodeIdentifier) -> bool {
+    match syntax_tree.kind(e) {
+        Kind::String
+        | Kind::Regex { .. }
+        | Kind::BigInt
+        | Kind::Number(_)
+        | Kind::Boolean(_)
+        | Kind::Null
+        | Kind::Template { .. }
+        | Kind::Arrow { .. }
+        | Kind::Unary(..)
+        | Kind::Binary(..)
+        | Kind::Function {
+            declaration: false, ..
+        } => false,
+        Kind::Identifier(_) if syntax_tree.name(e) == "undefined" => false,
+        Kind::Identifier(_) => {
+            let Some(res) = res else {
+                return true;
+            };
+            let Some((b, info)) = res.binding(e) else {
+                return true;
+            };
+            let s = &res.sem.bindings[b];
+            if s.writes > 0 {
+                return true;
+            }
+            // Analysis rewires a prop's initial from `$props()` to its default.
+            let initial = match info.kind {
+                BindingKind::Property
+                | BindingKind::BindableProperty
+                | BindingKind::RestProperty => info.initial,
+                _ => s.initializer(syntax_tree),
+            };
+            initial.is_none_or(|initializer| proxyable(syntax_tree, None, initializer))
+        }
+        _ => true,
+    }
+}
+
+fn has_props_rune(
+    syntax_tree: &SyntaxTree,
+    sem: &Semantic,
+    subscribed: &[&str],
+    program: NodeIdentifier,
+) -> bool {
     let Kind::Program(body) = syntax_tree.kind(program) else {
         unreachable!("a script parses to a program")
     };
@@ -181,7 +272,7 @@ fn has_props_rune(syntax_tree: &SyntaxTree, program: NodeIdentifier) -> bool {
                 else {
                     return false;
                 };
-                rune_call(syntax_tree, i).is_some_and(|(r, _)| r == "$props")
+                runes::rune(syntax_tree, sem, subscribed, i).is_some_and(|(r, _)| r == "$props")
             }),
             _ => false,
         })

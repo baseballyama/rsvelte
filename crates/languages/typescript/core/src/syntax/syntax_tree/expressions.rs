@@ -109,6 +109,15 @@ impl SyntaxTree {
         self.push(Tag::Template, 0, [q, e], source_location)
     }
 
+    pub fn tagged_template(
+        &mut self,
+        tag: NodeIdentifier,
+        quasi: NodeIdentifier,
+        source_location: impl Into<SourceLocation>,
+    ) -> NodeIdentifier {
+        self.push(Tag::TaggedTemplate, 0, [tag.0, quasi.0], source_location)
+    }
+
     /// A template element whose raw text is the source bytes `raw`.
     pub fn template_element_in_source(
         &mut self,

@@ -18,6 +18,17 @@ impl SyntaxTree {
         )
     }
 
+    /// What a [`Tag::TypeScriptDeclaration`] declares: a [`super::Type`] declaration, or the
+    /// value node (a variable declaration, a class, a function without a body) that `declare` or
+    /// an overload erases. `None` for any other node, and in a tree built by compilation.
+    #[must_use]
+    pub fn declaration(&self, statement: NodeIdentifier) -> Option<NodeIdentifier> {
+        let i = statement.index();
+        (self.tags[i] == Tag::TypeScriptDeclaration && self.flags[i] != TYPE_ONLY_EXPORT)
+            .then(|| NodeIdentifier(self.data[i][0]).opt())
+            .flatten()
+    }
+
     /// The export a [`Self::type_only_export`] declaration drops.
     #[must_use]
     pub fn exported_types(&self, declaration: NodeIdentifier) -> Option<NodeIdentifier> {
@@ -37,6 +48,9 @@ pub struct TypeScriptSyntax {
     pub kind: TypeScriptKind,
     /// The type (after `:` / `as` / `satisfies`), the `<…>` list, or the `!` / `?` token.
     pub span: Span,
+    /// The node that holds the syntax: the [`super::Type`], or for a
+    /// [`TypeScriptKind::Decorator`] its expression; `NONE` for a token.
+    pub syntax: NodeIdentifier,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -57,8 +71,20 @@ pub enum TypeScriptKind {
     NonNull,
     /// `p?` on a parameter.
     Optional,
-    /// `<T>` after a callee (`f<T>(…)`, `new C<T>(…)`), on the callee.
+    /// `<T>` after an expression (`f<T>(…)`, `new C<T>(…)`, `f<T>`, `extends C<T>`), on it.
     TypeArgs,
+    /// `x!: T` on a binding or a class field.
+    Definite,
+    /// `implements A, B` on a class.
+    Implements,
+    /// A class member that erasing types removes (a member without a body, an `abstract` or
+    /// `declare` field, an index signature), on its class: the member's own node.
+    Member,
+    /// `@expression` before a class, a member or a parameter, on it.
+    Decorator,
+    /// `public`, `private`, `protected`, `readonly` or `override` before a constructor
+    /// parameter, on it.
+    ParameterProperty,
 }
 
 /// An identifier in type syntax: a candidate reference whose binding scope analysis looks up.
@@ -73,9 +99,7 @@ pub struct TypeRef {
 pub struct TypeDeclaration {
     pub name: Atom,
     pub kind: TypeDeclarationKind,
-    /// Where the statement starts: the start of its [`super::Tag::TypeScriptDeclaration`] or
-    /// [`super::Tag::TypeScriptInterface`] node, or for a nested one, of its statement in the
-    /// namespace body, which no node of this tree starts at.
+    /// Where the statement starts: the start of its [`super::Tag::TypeScriptDeclaration`] node.
     pub start_offset: u32,
     /// Declared in the body of a namespace, `declare module` or `declare global`, which keeps
     /// it in a scope of its own.
@@ -105,4 +129,14 @@ pub enum TypeScriptFeature {
     Enum,
     /// `namespace N { … }` whose body holds a statement other than type declarations.
     NamespaceWithValues,
+    /// `@decorator`.
+    Decorator,
+    /// `accessor field`.
+    Accessor,
+    /// `constructor(private a)`: a parameter that also declares a field.
+    ParameterProperty,
+    /// `import a = require("m")` or `import a = N.b`.
+    ImportEquals,
+    /// `export = value`.
+    ExportAssignment,
 }

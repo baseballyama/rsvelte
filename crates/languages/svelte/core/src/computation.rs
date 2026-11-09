@@ -23,6 +23,7 @@ impl Artifact for Resolved {
         let compiler_syntax_tree = context.get::<Normalized>().as_ref()?;
         Some(resolve::resolve_with_module(
             &c.javascript,
+            context.source_text(),
             c.program,
             c.module.as_ref().map(|s| s.program),
             compiler_syntax_tree,
@@ -85,6 +86,8 @@ impl Artifact for Warned {
             res,
             analysis,
             context.source_text(),
+            &context.document.path,
+            crate::warnings::Options::linting(c, context.source_text()),
         ))
     }
 }
