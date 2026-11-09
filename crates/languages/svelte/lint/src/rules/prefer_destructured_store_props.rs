@@ -75,11 +75,16 @@ impl SvelteRule for PreferDestructuredStoreProps {
 }
 
 /// The `$name.property` members under `node`, outermost first.
-fn find(javascript: &SyntaxTree, node: NodeIdentifier, runes: bool, out: &mut Vec<NodeIdentifier>) {
-    if store_object(javascript, node, runes).is_some() {
-        out.push(node);
+fn find(javascript: &SyntaxTree, root: NodeIdentifier, runes: bool, out: &mut Vec<NodeIdentifier>) {
+    let mut pending = vec![root];
+    while let Some(node) = pending.pop() {
+        if store_object(javascript, node, runes).is_some() {
+            out.push(node);
+        }
+        let first = pending.len();
+        javascript.for_each_child(node, |child| pending.push(child));
+        pending[first..].reverse();
     }
-    javascript.for_each_child(node, |child| find(javascript, child, runes, out));
 }
 
 /// The `$name` of a `$name.property` member.

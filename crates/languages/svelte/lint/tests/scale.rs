@@ -142,3 +142,21 @@ fn derived_has_same_inputs_outputs_is_near_baseline() {
         },
     );
 }
+
+/// `a + a + … + a`, nested `terms` deep.
+fn deep(terms: usize) -> String {
+    let mut out = String::from("a");
+    for _ in 1..terms {
+        out.push_str(" + a");
+    }
+    out
+}
+
+#[test]
+fn deep_expressions_do_not_exhaust_the_stack() {
+    let module = format!("const a = 1;\nexport const b = {};\n", deep(100_000));
+    assert_eq!(
+        lint("svelte/prefer-destructured-store-props", "a.js", &module).0,
+        0
+    );
+}
