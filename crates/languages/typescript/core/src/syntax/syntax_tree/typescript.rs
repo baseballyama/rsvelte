@@ -74,8 +74,12 @@ pub struct TypeDeclaration {
     pub name: Atom,
     pub kind: TypeDeclarationKind,
     /// Where the statement starts: the start of its [`super::Tag::TypeScriptDeclaration`] or
-    /// [`super::Tag::TypeScriptInterface`] node.
+    /// [`super::Tag::TypeScriptInterface`] node, or for a nested one, of its statement in the
+    /// namespace body, which no node of this tree starts at.
     pub start_offset: u32,
+    /// Declared in the body of a namespace, `declare module` or `declare global`, which keeps
+    /// it in a scope of its own.
+    pub nested: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

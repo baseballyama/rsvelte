@@ -59,3 +59,28 @@ fn a_type_only_export_keeps_the_export_it_drops() {
         .collect();
     assert_eq!(sources, [Some("a"), Some("b"), None]);
 }
+
+#[test]
+fn a_namespace_body_records_its_type_declarations_as_nested() {
+    let (tree, _) = parse(
+        "namespace N { interface A {} namespace M { type B = 1; } }\n\
+         declare global { interface C {} }\ndeclare module 'm' { enum D {} }\ntype E = 1;",
+    );
+    let names: Vec<(&str, bool)> = tree
+        .type_declarations
+        .iter()
+        .map(|d| (tree.atoms.get(d.name), d.nested))
+        .collect();
+    assert_eq!(
+        names,
+        [
+            ("N", false),
+            ("A", true),
+            ("M", true),
+            ("B", true),
+            ("C", true),
+            ("D", true),
+            ("E", false),
+        ]
+    );
+}
