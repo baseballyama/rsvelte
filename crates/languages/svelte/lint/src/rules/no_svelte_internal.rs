@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript::Kind;
-use rsvelte_typescript::syntax_tree::Control;
+use rsvelte_typescript::syntax_tree::{Control, TypeScriptDeclared};
 
 use super::nodes::{span, walk};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
@@ -23,7 +23,12 @@ impl SvelteRule for NoSvelteInternal {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let tree = file.javascript();
         let source = file.source();
-        walk(file, |node| {
+        walk(file, |statement| {
+            // Erasing types drops `export type { … } from …`, but upstream still sees it.
+            let node = match tree.typescript_declared(statement) {
+                Some(TypeScriptDeclared::TypeExport(export)) => export,
+                _ => statement,
+            };
             let module = match tree.kind(node) {
                 Kind::Import { source, .. }
                 | Kind::Control(
@@ -45,7 +50,7 @@ impl SvelteRule for NoSvelteInternal {
                 reporter.report(
                     Report::range(
                         "Using svelte/internal is prohibited. This will be removed in Svelte 6.",
-                        span(tree, node),
+                        span(tree, statement),
                     )
                     .message_id("unexpected"),
                 );
