@@ -391,6 +391,7 @@ impl Check<'_, '_, '_> {
                         self.type_selector(*span, name.text(source));
                     }
                     Simple::PseudoClass { selectors, .. }
+                    | Simple::PseudoElement { selectors, .. }
                         if self.rule.check_global || !simple.is_pseudo(source, &["global"]) =>
                     {
                         for selector in selectors {
