@@ -429,9 +429,8 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "oxc_allocator"
-version = "0.157.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10ec74ff7b9107ea8cfee79737b7eff78cc38aa8ba9866ba68ccec5fa1aff703"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=b00a2878308c53afb816015f27dff215d54aa234#b00a2878308c53afb816015f27dff215d54aa234"
 dependencies = [
  "allocator-api2",
  "hashbrown",
@@ -441,9 +440,8 @@ dependencies = [
 
 [[package]]
 name = "oxc_ast"
-version = "0.157.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62cf69f854ebef3d2f8130e0882bd0970405a584cdf2f0325a936dbdad476106"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=b00a2878308c53afb816015f27dff215d54aa234#b00a2878308c53afb816015f27dff215d54aa234"
 dependencies = [
  "bitflags",
  "oxc_allocator",
@@ -459,9 +457,8 @@ dependencies = [
 
 [[package]]
 name = "oxc_ast_macros"
-version = "0.157.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddbddb57f889d6da3d4efb70e67249b2fd9e6767484d7b4d888adad0d48dfc04"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=b00a2878308c53afb816015f27dff215d54aa234#b00a2878308c53afb816015f27dff215d54aa234"
 dependencies = [
  "phf",
  "proc-macro2",
@@ -471,9 +468,8 @@ dependencies = [
 
 [[package]]
 name = "oxc_ast_visit"
-version = "0.157.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71da5e2d92800077740b83de1fe6e8b8971bc0b491a025a0f0bf1d673b9ae1d8"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=b00a2878308c53afb816015f27dff215d54aa234#b00a2878308c53afb816015f27dff215d54aa234"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -483,15 +479,13 @@ dependencies = [
 
 [[package]]
 name = "oxc_data_structures"
-version = "0.157.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f5a93745ef56da781d571d2f1b73204b6cf798f43576371e025983eeb9a671c"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=b00a2878308c53afb816015f27dff215d54aa234#b00a2878308c53afb816015f27dff215d54aa234"
 
 [[package]]
 name = "oxc_diagnostics"
-version = "0.157.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58c6b5b618484b442fc5de6dc678f4897b3d7e72b38cb07525f7c9981d17e418"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=b00a2878308c53afb816015f27dff215d54aa234#b00a2878308c53afb816015f27dff215d54aa234"
 dependencies = [
  "bytecount",
  "cow-utils",
@@ -507,9 +501,8 @@ dependencies = [
 
 [[package]]
 name = "oxc_ecmascript"
-version = "0.157.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5db30ae962dfe1bf909976e4eecdc6912e95d033ee2f4a23d130277935d81cb8"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=b00a2878308c53afb816015f27dff215d54aa234#b00a2878308c53afb816015f27dff215d54aa234"
 dependencies = [
  "itoa",
  "memchr",
@@ -525,9 +518,8 @@ dependencies = [
 
 [[package]]
 name = "oxc_estree"
-version = "0.157.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c00eabcc7d5192186f18430cf9b715d308bd677d2c759555f340f54da63cab4d"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=b00a2878308c53afb816015f27dff215d54aa234#b00a2878308c53afb816015f27dff215d54aa234"
 
 [[package]]
 name = "oxc_index"
@@ -541,9 +533,8 @@ dependencies = [
 
 [[package]]
 name = "oxc_parser"
-version = "0.157.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d575332e9df032cc25e781b2aa2d1c10fed2b592f46c8f159e4ae8798f5451b5"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=b00a2878308c53afb816015f27dff215d54aa234#b00a2878308c53afb816015f27dff215d54aa234"
 dependencies = [
  "bitflags",
  "cow-utils",
@@ -565,9 +556,8 @@ dependencies = [
 
 [[package]]
 name = "oxc_regular_expression"
-version = "0.157.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f27d21be07f700bbcb2a5ed58ae19bf04e4ffe0a165e883eb87190756c7e4652"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=b00a2878308c53afb816015f27dff215d54aa234#b00a2878308c53afb816015f27dff215d54aa234"
 dependencies = [
  "bitflags",
  "oxc_allocator",
@@ -582,9 +572,8 @@ dependencies = [
 
 [[package]]
 name = "oxc_span"
-version = "0.157.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f95c05b5dffdef9921037eee90b4b79762cf5dab1fb2daa380253cbf3f053a49"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=b00a2878308c53afb816015f27dff215d54aa234#b00a2878308c53afb816015f27dff215d54aa234"
 dependencies = [
  "compact_str",
  "oxc_allocator",
@@ -595,9 +584,8 @@ dependencies = [
 
 [[package]]
 name = "oxc_str"
-version = "0.157.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b840f3ac441b53e08f49c8f63349fa24ae4b943886a54f28a885ba36cf125af4"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=b00a2878308c53afb816015f27dff215d54aa234#b00a2878308c53afb816015f27dff215d54aa234"
 dependencies = [
  "compact_str",
  "hashbrown",
@@ -608,9 +596,8 @@ dependencies = [
 
 [[package]]
 name = "oxc_syntax"
-version = "0.157.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f5c900d06effaaca788faba9558bc5520d9de9c6b2bcdc708875751b04db59c"
+version = "0.158.0"
+source = "git+https://github.com/baseballyama/oxc?rev=b00a2878308c53afb816015f27dff215d54aa234#b00a2878308c53afb816015f27dff215d54aa234"
 dependencies = [
  "bitflags",
  "cow-utils",
@@ -1129,6 +1116,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_typescript_tree"
+version = "0.0.0"
+dependencies = [
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_diagnostics",
+ "oxc_parser",
+ "oxc_span",
+ "rsvelte_kernel",
+ "self_cell",
+]
+
+[[package]]
 name = "rsvelte_vue_check"
 version = "0.0.0"
 dependencies = [
@@ -1247,6 +1247,12 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "self_cell"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ab42ca02749e120097e328d91d415325bdf43b1c72c4c8badf37375fe40a813"
 
 [[package]]
 name = "semver"

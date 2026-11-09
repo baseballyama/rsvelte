@@ -22,6 +22,7 @@ rsvelte_corpus = { path = "crates/language_independent/corpus" }
 rsvelte_test_harness = { path = "crates/language_independent/test_harness" }
 rsvelte_document_printer = { path = "crates/language_independent/document_printer" }
 rsvelte_typescript_syntax = { path = "crates/languages/typescript/syntax" }
+rsvelte_typescript_tree = { path = "crates/languages/typescript/tree" }
 rsvelte_typescript_semantic = { path = "crates/languages/typescript/semantic" }
 rsvelte_stylesheet_syntax = { path = "crates/languages/css/syntax" }
 rsvelte_stylesheet_semantic = { path = "crates/languages/css/semantic" }
@@ -50,12 +51,17 @@ rsvelte_stylesheet_format = { path = "crates/languages/css/format" }
 rsvelte_typescript_compile = { path = "crates/languages/typescript/compile" }
 rsvelte_svelte_compile = { path = "crates/languages/svelte/compile" }
 rsvelte_vue_compile = { path = "crates/languages/vue/compile" }
-oxc_allocator = "0.157.0"
-oxc_ast = "0.157.0"
-oxc_ast_visit = "0.157.0"
-oxc_parser = "0.157.0"
-oxc_span = "0.157.0"
-oxc_syntax = "0.157.0"
+# TODO(oxc-project/oxc#29124): back to an upstream revision once `parse_expression_at` and
+# `with_start` merge.
+# Every oxc crate stays on one revision; `oxc_formatter` is not on crates.io.
+oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_ast = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_ast_visit = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_diagnostics = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_parser = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_span = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+oxc_syntax = { git = "https://github.com/baseballyama/oxc", rev = "b00a2878308c53afb816015f27dff215d54aa234" }
+self_cell = "1.2.0"
 rayon = "1.12.0"
 semver = "1.0.28"
 rustc-hash = "2.1.3"
