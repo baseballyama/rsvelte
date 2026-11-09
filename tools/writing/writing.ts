@@ -21,8 +21,14 @@ export function markdownFiles(): string[] {
 			.filter((file) => file && !thirdParty.some((pattern) => pattern.test(file)))
 			// Below the root, a directory with its own license holds text copied from another project.
 			.filter((file) => {
-				const directory = path.dirname(file);
-				return directory === '.' || !existsSync(path.join(root, directory, 'LICENSE'));
+				for (
+					let directory = path.dirname(file);
+					directory !== '.';
+					directory = path.dirname(directory)
+				) {
+					if (existsSync(path.join(root, directory, 'LICENSE'))) return false;
+				}
+				return true;
 			})
 	);
 }

@@ -30,5 +30,6 @@ test('the files are first-party Markdown, the root ones included', () => {
 	assert.ok(files.includes('README.md'));
 	assert.ok(files.includes('.claude/skills/docs/SKILL.md'));
 	assert.ok(!files.some((file) => file.startsWith('.claude/skills/humanizer/')));
+	assert.ok(!files.some((file) => file.includes('/tests/upstream/prettier-plugin-svelte/')));
 	assert.ok(!files.some((file) => file.startsWith('corpus/') || file.includes('/vendor/')));
 });
