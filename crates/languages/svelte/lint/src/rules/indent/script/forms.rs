@@ -21,6 +21,16 @@ impl Script<'_, '_> {
         let is_paren = |t: Token| tokens.is(t, T::LParen);
         let left = match parameters.first() {
             Some(&p) => self.before_node_matching(p, is_paren),
+            None if body.is_none() => first.and_then(|f| {
+                if is_paren(f) {
+                    Some(f)
+                } else {
+                    let from = name
+                        .and_then(|n| self.span(n))
+                        .map_or_else(|| tokens.span(f).end_offset, |s| s.end_offset);
+                    tokens.after_matching(from, is_paren)
+                }
+            }),
             None => self
                 .before_node(body)
                 .and_then(|b| tokens.before_matching(tokens.span(b).start_offset, is_paren)),

@@ -143,14 +143,6 @@ impl<'a> Template<'_, 'a> {
         for &statement in statements {
             self.script.visit(statement);
         }
-        // TypeScript syntax the script's tree does not hold is not checked.
-        for typescript in &self.script.javascript.typescript {
-            if typescript.span.start_offset >= script.content.start_offset
-                && typescript.span.end_offset <= script.content.end_offset
-            {
-                self.script.layout.ignore(typescript.span);
-            }
-        }
         self.end_tag(end_tag);
     }
 

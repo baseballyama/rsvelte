@@ -1,6 +1,5 @@
 //! What each kind of JavaScript node offsets.
 
-use rsvelte_svelte::syntax::syntax_tree::TokenType;
 use rsvelte_typescript::lexer::T;
 use rsvelte_typescript::syntax_tree::Class;
 use rsvelte_typescript::{Kind, NodeIdentifier};
@@ -124,7 +123,8 @@ impl Script<'_, '_> {
                 let open = from.and_then(|f| tokens.after_matching(f, |t| tokens.is(t, T::LBrace)));
                 self.layout.offset(open, 0, first);
                 let close = self.last(node);
-                self.list_from(open, &self.items(members), close, 1);
+                let body = self.class_body(node, members);
+                self.list_from(open, &self.items(&body), close, 1);
             }
             Kind::Class(Class::Method {
                 key,
@@ -283,11 +283,12 @@ impl Script<'_, '_> {
                 let node_end = self.span(node).map(|s| s.end_offset);
                 if let Some((_, callee_last)) = callee_tokens {
                     let tokens = &self.layout.tokens;
-                    if !arguments.is_empty()
-                        || node_end.is_some_and(|end| tokens.span(callee_last).end_offset < end)
-                    {
+                    let before = self
+                        .type_arguments_end(callee)
+                        .unwrap_or_else(|| tokens.span(callee_last).end_offset);
+                    if !arguments.is_empty() || node_end.is_some_and(|end| before < end) {
                         let right = self.last(node);
-                        let left = tokens.after(callee_last);
+                        let left = tokens.after_offset(before);
                         self.layout.offset(left, 1, callee_first);
                         self.list_from(left, &self.items(arguments), right, 1);
                     }
@@ -303,26 +304,7 @@ impl Script<'_, '_> {
                         .list(&self.items(expressions), Item::Token(f), None, 0, false);
                 }
             }
-            Kind::Template { .. } => {
-                let Some(span) = self.span(node) else {
-                    return;
-                };
-                let tokens = &self.layout.tokens;
-                let parts: Vec<Token> = tokens
-                    .within(span)
-                    .filter(|&t| {
-                        matches!(tokens.kind(t), TokenType::JavaScript(T::Template { .. }))
-                    })
-                    .collect();
-                // The expression after each part but the last.
-                let expressions: Vec<Token> = parts[..parts.len().saturating_sub(1)]
-                    .iter()
-                    .filter_map(|&p| tokens.after(p))
-                    .collect();
-                self.layout
-                    .offset_all(parts.iter().skip(1).copied(), 0, first);
-                self.layout.offset_all(expressions, 1, first);
-            }
+            Kind::Template { .. } => self.template(node),
             Kind::TaggedTemplate { tag, quasi } => {
                 let tag = self.outer(tag).map(|(f, _)| f);
                 let quasi = self.first(quasi);
@@ -447,7 +429,10 @@ impl Script<'_, '_> {
         computed: bool,
     ) {
         let first = self.first(node);
-        let Some((key_first, key_last)) = self.outer(key) else {
+        // The key's own range: a field's annotation is not part of it.
+        let key_span = self.javascript.source_location(key).span();
+        let Some((key_first, key_last)) = key_span.and_then(|s| self.layout.tokens.outer(s, 0))
+        else {
             return;
         };
         let Some(f) = first else {

@@ -85,6 +85,7 @@ impl SvelteRule for Indent {
                 javascript: &component.javascript,
                 parents: file.parents(),
                 annotations: script::annotations(&component.javascript),
+                typescript: script::typescript(&component.javascript),
             },
             component,
         }

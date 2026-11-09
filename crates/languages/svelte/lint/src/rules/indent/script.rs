@@ -14,6 +14,8 @@ pub(super) struct Script<'s, 'a> {
     pub parents: &'a [NodeIdentifier],
     /// By node, where its type annotation (or `?`) ends, which `ESTree` puts inside the binding.
     pub annotations: Vec<(NodeIdentifier, u32)>,
+    /// By node, the indexes of its entries in [`SyntaxTree::typescript`].
+    pub typescript: Vec<(NodeIdentifier, u32)>,
 }
 
 /// [`Script::annotations`] of a tree.
@@ -45,9 +47,20 @@ impl Script<'_, '_> {
     /// The node's range as `ESTree` has it.
     pub(super) fn span(&self, node: NodeIdentifier) -> Option<Span> {
         let js = self.javascript;
-        let span = js.source_location(node).span()?;
+        // An optional child, such as an overload's body, is absent.
+        if node.is_none() {
+            return None;
+        }
+        let mut span = js.source_location(node).span()?;
         if matches!(js.kind(node), Kind::Hole) {
             return None;
+        }
+        // `ESTree` starts a declaration at the `declare` or `const` before it.
+        if let Some(p) = self.parent(node)
+            && matches!(js.kind(p), Kind::TypeScriptDeclaration)
+            && let Some(outer) = js.source_location(p).span()
+        {
+            span = Span::new(outer.start_offset, span.end_offset);
         }
         let tokens = &self.layout.tokens;
         match js.kind(node) {
@@ -57,7 +70,9 @@ impl Script<'_, '_> {
             } if self.is_method_value(node) => {
                 let key = self.method_key(node)?;
                 let key_end = js.source_location(key).span()?.end_offset;
-                let paren = tokens.after_matching(key_end, |t| tokens.is(t, T::LParen))?;
+                let paren = tokens.after_matching(key_end, |t| {
+                    tokens.is(t, T::LParen) || tokens.text(t) == "<"
+                })?;
                 Some(Span::new(tokens.span(paren).start_offset, span.end_offset))
             }
             // A declaration statement ends with its semicolon.
@@ -75,6 +90,7 @@ impl Script<'_, '_> {
                     .map_or(span.end_offset, |t| tokens.span(t).end_offset);
                 Some(Span::new(span.start_offset, end))
             }
+            Kind::Type(_) => Some(self.member_span(node, span)),
             _ => {
                 let i = self.annotations.partition_point(|&(n, _)| n <= node);
                 let end = match i.checked_sub(1).map(|i| self.annotations[i]) {
@@ -167,17 +183,19 @@ impl Script<'_, '_> {
 
     /// Lays out `node` and everything below it, parents before children as `ESLint` visits them.
     pub(super) fn visit(&mut self, node: NodeIdentifier) {
+        self.visit_from(node, None);
+    }
+
+    /// Visits a node whose annotation is laid out from `base`, as a field's key's is from the
+    /// field.
+    fn visit_from(&mut self, node: NodeIdentifier, base: Option<Token>) {
         if node.is_none() || self.span(node).is_none() {
             return;
         }
-        if matches!(
-            self.javascript.kind(node),
-            Kind::TypeScriptDeclaration | Kind::Type(_)
-        ) {
-            if let Some(span) = self.span(node) {
-                self.layout.ignore(span);
-            }
-            return;
+        match self.javascript.kind(node) {
+            Kind::TypeScriptDeclaration => return self.typescript_statement(node),
+            Kind::Type(ty) => return self.visit_type(node, ty),
+            _ => {}
         }
         if self.is_statement(node) {
             self.semicolon(node);
@@ -186,10 +204,18 @@ impl Script<'_, '_> {
             self.parentheses(node);
         }
         self.lay_out(node);
+        self.visit_typescript(node, base);
         let mut children = Vec::new();
         self.children(node, &mut children);
+        let field_key = match self.javascript.kind(node) {
+            Kind::Class(Class::Field { key, .. }) => Some((key, self.first(node))),
+            _ => None,
+        };
         for child in children {
-            self.visit(child);
+            match field_key {
+                Some((key, base)) if key == child => self.visit_from(child, base),
+                _ => self.visit(child),
+            }
         }
     }
 
@@ -222,8 +248,11 @@ impl Script<'_, '_> {
                     Kind::For { .. } | Kind::Control(Control::ForEach { .. })
                 )
             }),
-            Kind::Function { declaration, .. }
-            | Kind::Class(Class::Definition { declaration, .. }) => declaration,
+            // An overload is `TSDeclareFunction`, which `:statement` does not match.
+            Kind::Function {
+                declaration, body, ..
+            } => declaration && !body.is_none(),
+            Kind::Class(Class::Definition { declaration, .. }) => declaration,
             Kind::Control(control) => !matches!(
                 control,
                 Control::Catch { .. } | Control::Case { .. } | Control::ExportSpecifier { .. }
@@ -298,10 +327,18 @@ impl Script<'_, '_> {
 
     /// `:expression`: parentheses around an expression.
     fn parentheses(&mut self, node: NodeIdentifier) {
+        if let Some(span) = self.span(node) {
+            self.parentheses_of(span);
+        }
+    }
+
+    /// Parentheses around the syntax at `span`.
+    fn parentheses_of(&mut self, span: Span) {
+        let tokens = &self.layout.tokens;
         let (Some(mut first), Some(mut left), Some(mut right)) = (
-            self.first(node),
-            self.before_node(node),
-            self.after_node(node),
+            tokens.first(span),
+            tokens.before_offset(span.start_offset),
+            tokens.after_offset(span.end_offset),
         ) else {
             return;
         };
@@ -329,5 +366,9 @@ impl Script<'_, '_> {
     }
 }
 
+mod declarations;
 mod forms;
 mod kinds;
+mod types;
+mod typescript;
+pub(super) use typescript::by_node as typescript;
