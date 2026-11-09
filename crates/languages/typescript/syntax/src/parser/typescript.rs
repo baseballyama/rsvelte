@@ -352,6 +352,43 @@ impl Parser<'_, '_> {
         }
     }
 
+    /// Whether the current `<` has a matching `>` before the statement ends; without one, the type
+    /// ended before it and `<` compares.
+    fn angle_closes(&self) -> bool {
+        let mut l = self.lex;
+        let mut scratch = Vec::new();
+        let (mut angle, mut nest) = (1i32, 0i32);
+        loop {
+            let Ok(t) = l.next(&mut scratch) else {
+                return false;
+            };
+            match t.t {
+                T::Eof => return false,
+                T::Semi if nest == 0 => return false,
+                T::LParen | T::LBracket | T::LBrace => nest += 1,
+                T::RParen | T::RBracket | T::RBrace => {
+                    nest -= 1;
+                    if nest < 0 {
+                        return false;
+                    }
+                }
+                T::Op => {
+                    angle += match self.text(t) {
+                        "<" => 1,
+                        ">" => -1,
+                        ">>" => -2,
+                        ">>>" => -3,
+                        _ => 0,
+                    };
+                    if angle <= 0 {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
     pub(super) fn skip_type_parameters(&mut self) -> R<()> {
         let mut depth = 0i32;
         self.in_type += 1;
@@ -393,7 +430,11 @@ impl Parser<'_, '_> {
                     | T::Eof
                     | T::Question => true,
                     T::Arrow => stop_at_arrow && self.prev.t != T::RParen,
-                    T::Op => matches!(self.text(t), "=" | "+=" | "-="),
+                    T::Op => match self.text(t) {
+                        "=" | "+=" | "-=" => true,
+                        "<" => !self.angle_closes(),
+                        _ => false,
+                    },
                     T::LBrace if t.span.start_offset != start && !self.after_type_operator() => {
                         true
                     }
@@ -405,18 +446,26 @@ impl Parser<'_, '_> {
                     return Ok(());
                 }
             }
-            match t.t {
-                T::LParen | T::LBrace | T::LBracket => depth += 1,
-                T::RParen | T::RBrace | T::RBracket => depth -= 1,
-                T::Op => match self.text(t) {
-                    "<" => depth += 1,
-                    ">" => depth -= 1,
-                    ">>" => depth -= 2,
-                    ">>>" => depth -= 3,
-                    _ => {}
-                },
-                _ => {}
+            let next = depth
+                + match t.t {
+                    T::LParen | T::LBrace | T::LBracket => 1,
+                    T::RParen | T::RBrace | T::RBracket => -1,
+                    T::Op => match self.text(t) {
+                        "<" => 1,
+                        ">" => -1,
+                        ">>" => -2,
+                        ">>>" => -3,
+                        _ => 0,
+                    },
+                    T::Eof => return self.fail("unterminated type"),
+                    _ => 0,
+                };
+            // A `>` that closes nothing opened in the type is a comparison after it.
+            if next < 0 {
+                self.in_type -= 1;
+                return Ok(());
             }
+            depth = next;
             self.bump()?;
         }
     }

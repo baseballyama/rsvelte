@@ -3,6 +3,9 @@
 pub(crate) mod format;
 pub use format::*;
 
+mod strict;
+pub use strict::refuse_strict_errors;
+
 mod task;
 pub use task::{Format, PLUGIN, register};
 

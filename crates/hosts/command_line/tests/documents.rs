@@ -120,13 +120,16 @@ fn formatting_preserves_type_annotations() {
 }
 
 #[test]
-fn unsupported_formatting_produces_no_file() {
-    let output = task("type Value = string | number;", "ts.format/default");
-    assert!(
-        output.files.is_empty(),
-        "unsupported types must not be removed"
+fn formatting_keeps_types_and_breaks_at_eighty_columns() {
+    let output = task(
+        "type Value = 'aaaaaaaaaaaa' | 'bbbbbbbbbbbb' | 'cccccccccccc' | 'dddddddddddd' | 'eeeeeeee';",
+        "ts.format/default",
     );
-    assert_eq!(output.diagnostics[0].code, "format_unsupported");
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert_eq!(
+        output.files[0].text,
+        "type Value =\n  | \"aaaaaaaaaaaa\"\n  | \"bbbbbbbbbbbb\"\n  | \"cccccccccccc\"\n  | \"dddddddddddd\"\n  | \"eeeeeeee\";\n"
+    );
 }
 
 #[test]

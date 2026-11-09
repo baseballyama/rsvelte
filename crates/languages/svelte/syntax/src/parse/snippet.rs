@@ -13,10 +13,15 @@ impl Parser<'_> {
     ) -> ParseResult<TemplateNodeIdentifier> {
         let name = self.identifier()?;
         self.skip_ws();
+        let mut type_parameters = None;
         if self.typescript && self.peek() == Some(b'<') {
             let Some(len) = match_bracket(self.rest(), b'<', b'>') else {
                 return self.err("expected `>`");
             };
+            type_parameters = Some(Span::new(
+                self.position as u32,
+                (self.position + len) as u32,
+            ));
             self.eat_token(TokenType::Text, len);
             self.skip_ws();
         }
@@ -66,6 +71,7 @@ impl Parser<'_> {
         let span = Span::new(start_offset as u32, self.position as u32);
         Ok(self.push_node(TemplateNode::Snippet {
             name,
+            type_parameters,
             parameters,
             body,
             span,

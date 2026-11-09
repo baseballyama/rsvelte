@@ -1,13 +1,7 @@
 use super::{
     BinaryOperator, Formatter, Kind, LogicalOperator, NodeIdentifier, Op, Slot, UnaryOperator,
-    op_of, should_flatten,
+    mixes_nullish, op_of, should_flatten,
 };
-
-fn mixes_nullish(a: Op, b: Op) -> bool {
-    let nullish = |o: Op| o == Op::Log(LogicalOperator::Nullish);
-    let and_or = |o: Op| matches!(o, Op::Log(LogicalOperator::And | LogicalOperator::Or));
-    (nullish(a) && and_or(b)) || (and_or(a) && nullish(b))
-}
 
 impl Formatter<'_> {
     /// The node an expression statement (or arrow body) starts with, when it must be wrapped in
@@ -41,6 +35,17 @@ impl Formatter<'_> {
         }
     }
 
+    /// Whether a call ends the chain `new` would take as its callee: `new (a().b)()`.
+    fn has_call_on_left(&self, mut e: NodeIdentifier) -> bool {
+        loop {
+            match self.syntax_tree.kind(e) {
+                Kind::Call { .. } => return true,
+                Kind::Member { object, .. } => e = object,
+                _ => return false,
+            }
+        }
+    }
+
     /// Prettier's `needsParens` for the node kinds this printer handles.
     pub(super) fn needs_parens(
         &self,
@@ -53,17 +58,15 @@ impl Formatter<'_> {
         let is_object = slot == Slot::Object;
         let callee_or_object = matches!(pk, Kind::Call { .. } | Kind::New { .. }) && is_callee
             || matches!(pk, Kind::Member { .. }) && is_object;
+        if matches!(pk, Kind::New { .. }) && is_callee && self.has_call_on_left(identifier) {
+            return true;
+        }
         match self.syntax_tree.kind(identifier) {
-            Kind::Sequence(_) => !matches!(pk, Kind::ExpressionStatement(_) | Kind::Sequence(_)),
+            // Measured: a statement `a, b;` prints `(a, b);`; only a `for` head keeps it bare.
+            Kind::Sequence(_) => !matches!(pk, Kind::For { .. }),
             Kind::Assign(..) => match pk {
-                Kind::ExpressionStatement(_)
-                | Kind::Assign(..)
-                | Kind::Sequence(_)
-                | Kind::Declarator { .. }
-                | Kind::Property { .. }
-                | Kind::Array(_) => false,
-                Kind::Arrow { .. } => slot == Slot::ArrowBody,
-                Kind::Call { .. } | Kind::New { .. } => is_callee,
+                Kind::ExpressionStatement(_) | Kind::For { .. } => false,
+                Kind::Assign(..) => slot != Slot::Right,
                 _ => true,
             },
             Kind::Conditional { .. } => match pk {
@@ -73,7 +76,10 @@ impl Formatter<'_> {
                 | Kind::Logical(..)
                 | Kind::ExportDefault(_)
                 | Kind::Await(_) => true,
-                Kind::Conditional { .. } => slot == Slot::Test,
+                // `a ? (b ? c : d) : e`; the alternate chains bare.
+                Kind::Conditional { consequent, .. } => {
+                    slot == Slot::Test || consequent == identifier
+                }
                 _ => callee_or_object,
             },
             Kind::Arrow { .. } => match pk {
@@ -81,12 +87,31 @@ impl Formatter<'_> {
                 Kind::Conditional { .. } => slot == Slot::Test,
                 _ => callee_or_object,
             },
-            Kind::Function { .. } => callee_or_object,
+            // Only a callee; a statement that starts with one is handled by
+            // `leftmost_needing_parens`.
+            Kind::Function { .. } => {
+                matches!(pk, Kind::Call { .. } | Kind::New { .. }) && is_callee
+            }
+            // A statement that is a string and not a directive keeps its parentheses.
+            Kind::String => matches!(pk, Kind::ExpressionStatement(_)),
+            // `(1).x`: a BigInt literal has its own type upstream and stays bare.
+            Kind::Number(_) => {
+                matches!(pk, Kind::Member { .. })
+                    && is_object
+                    && !self
+                        .span(identifier)
+                        .text(self.source_text)
+                        .ends_with(['n', 'N'])
+            }
             Kind::Unary(op, _) => match pk {
                 Kind::Unary(pop, _) => {
                     op == pop && matches!(op, UnaryOperator::Plus | UnaryOperator::Neg)
                 }
-                Kind::Binary(BinaryOperator::Exp, ..) => slot == Slot::Left,
+                // Measured: `(!a) in b`, `(typeof a) instanceof b`.
+                Kind::Binary(
+                    BinaryOperator::Exp | BinaryOperator::In | BinaryOperator::InstanceOf,
+                    ..,
+                ) => slot == Slot::Left,
                 _ => callee_or_object,
             },
             Kind::Update { prefix, op, .. } => match pk {
@@ -99,37 +124,52 @@ impl Formatter<'_> {
                 _ => callee_or_object,
             },
             Kind::Await(_) => match pk {
-                Kind::Binary(BinaryOperator::Exp, ..) => slot == Slot::Left,
+                Kind::Unary(..) | Kind::Logical(..) | Kind::Spread(_) | Kind::Binary(..) => true,
+                Kind::Conditional { .. } => slot == Slot::Test,
                 _ => callee_or_object,
             },
             Kind::Binary(..) | Kind::Logical(..) => {
-                let no = op_of(self.syntax_tree, identifier).expect("binaryish");
-                match pk {
-                    Kind::Unary(..) | Kind::Spread(_) | Kind::Await(_) => true,
-                    Kind::Binary(..) | Kind::Logical(..) => {
-                        let po = op_of(self.syntax_tree, parent).expect("binaryish");
-                        if mixes_nullish(po, no) {
-                            return true;
-                        }
-                        let (pp, np) = (po.precedence(), no.precedence());
-                        if pp > np || (slot == Slot::Right && pp == np) {
-                            return true;
-                        }
-                        if pp == np && !should_flatten(po, no) {
-                            return true;
-                        }
-                        if pp < np && no == Op::Bin(BinaryOperator::Remainder) {
-                            return matches!(
-                                po,
-                                Op::Bin(BinaryOperator::Add | BinaryOperator::Sub)
-                            );
-                        }
-                        po.is_bitwise()
-                    }
-                    _ => callee_or_object,
-                }
+                self.binaryish_needs_parens(identifier, parent, slot, callee_or_object)
             }
             _ => false,
+        }
+    }
+
+    /// [`Self::needs_parens`] for a binary or logical expression.
+    fn binaryish_needs_parens(
+        &self,
+        identifier: NodeIdentifier,
+        parent: NodeIdentifier,
+        slot: Slot,
+        callee_or_object: bool,
+    ) -> bool {
+        let pk = self.syntax_tree.kind(parent);
+        let no = op_of(self.syntax_tree, identifier).expect("binaryish");
+        match pk {
+            Kind::Unary(..) | Kind::Spread(_) | Kind::Await(_) => true,
+            // `(a ?? b) ? c : d`, in any of the three places.
+            Kind::Conditional { .. } => no == Op::Log(LogicalOperator::Nullish),
+            Kind::Binary(..) | Kind::Logical(..) => {
+                let po = op_of(self.syntax_tree, parent).expect("binaryish");
+                // `a && b || c` prints `(a && b) || c`.
+                if mixes_nullish(po, no) || matches!((po, no), (Op::Log(p), Op::Log(c)) if p != c) {
+                    return true;
+                }
+                let (pp, np) = (po.precedence(), no.precedence());
+                if pp > np || (slot == Slot::Right && pp == np) {
+                    return true;
+                }
+                if pp == np && !should_flatten(po, no) {
+                    return true;
+                }
+                // Measured: a bitwise parent wraps `%` too.
+                if pp < np && no == Op::Bin(BinaryOperator::Remainder) {
+                    return po.is_bitwise()
+                        || matches!(po, Op::Bin(BinaryOperator::Add | BinaryOperator::Sub));
+                }
+                po.is_bitwise()
+            }
+            _ => callee_or_object,
         }
     }
 }

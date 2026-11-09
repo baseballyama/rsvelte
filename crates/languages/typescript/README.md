@@ -11,7 +11,7 @@ syntax in the same parser.
 | Task                 | Output                   | Current scope                                                                           |
 | -------------------- | ------------------------ | --------------------------------------------------------------------------------------- |
 | `ts.compile/default` | JavaScript               | Erases types in the parser's supported subset; refuses enums and namespaces with values |
-| `ts.format/default`  | JavaScript or TypeScript | The shared formatter's supported subset; refuses unsupported types and layouts          |
+| `ts.format/default`  | JavaScript or TypeScript | Every file oxc parses, by `oxc_formatter` with Prettier's default options               |
 | `ts.lint/default`    | JSON                     | The shared unused-variable rule on supported syntax                                     |
 | `ts.check/default`   | JSON                     | Every document with a TypeScript view, by the type checker `typescript.check` names     |
 
@@ -23,9 +23,10 @@ cargo run -p rsvelte_command_line -- run input.ts --task ts.check/default \
   --options typescript.check '{"command": ["/path/to/tsc"]}'
 ```
 
-This is partial TypeScript support. The parser does not yet support full JavaScript
-or TypeScript syntax, such as classes. JSX and TSX are not selected. Parse failures
-and unsupported compilation or formatting produce diagnostics and no output file.
+This is partial TypeScript support. Compile and lint use our own parser, which does not
+yet support full JavaScript or TypeScript syntax, such as classes; format uses oxc. JSX and
+TSX are not selected. Parse failures and unsupported compilation produce diagnostics and no
+output file.
 
 The type-check view copies the original source with byte mappings. It does not need
 our subset parser. The current checker uses temporary `.ts` files: relative imports,

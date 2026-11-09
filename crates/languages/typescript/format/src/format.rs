@@ -74,11 +74,15 @@ pub struct Formatter<'a> {
     options: Options,
     /// `syntax_tree.ts` sorted by node, for lookups while printing.
     typescript: Vec<TypeScriptSyntax>,
+    /// The same spans sorted by start, to count those inside a range.
+    typescript_spans: Vec<Span>,
     typescript_printed: usize,
     /// The leftmost node of an expression statement or arrow body that must be parenthesized.
     paren_leftmost: Option<NodeIdentifier>,
     /// The parent and slot of the expression being printed.
     at: Option<(NodeIdentifier, Slot)>,
+    /// Whether the innermost function is `async`; `None` outside any function.
+    in_async: Option<bool>,
 }
 
 impl<'a> Formatter<'a> {
@@ -91,6 +95,8 @@ impl<'a> Formatter<'a> {
     ) -> Self {
         let mut typescript = syntax_tree.typescript.clone();
         typescript.sort_by_key(|t| (t.node, t.span.start_offset));
+        let mut typescript_spans: Vec<Span> = typescript.iter().map(|t| t.span).collect();
+        typescript_spans.sort_by_key(|s| (s.start_offset, s.end_offset));
         Formatter {
             syntax_tree,
             source_text,
@@ -98,9 +104,11 @@ impl<'a> Formatter<'a> {
             docs,
             options,
             typescript,
+            typescript_spans,
             typescript_printed: 0,
             paren_leftmost: None,
             at: None,
+            in_async: None,
         }
     }
 
@@ -120,7 +128,7 @@ impl<'a> Formatter<'a> {
         let range = self.span(identifier);
         self.check_comments(range)?;
         let before = self.typescript_printed;
-        let statements = self.statements(body)?;
+        let statements = self.statements(body, true)?;
         self.check_typescript(range, before)?;
         if statements.is_empty() {
             return Ok(self.docs.nil());
@@ -163,6 +171,127 @@ impl<'a> Formatter<'a> {
         Ok(d)
     }
 
+    /// A snippet's `name(parameters)`: how Prettier prints the head of `function name(…) {}`,
+    /// which is what the Svelte plugin has it parse. `range` is the head's source.
+    ///
+    /// # Errors
+    ///
+    /// [`Unsupported`] if the head holds a comment or a construct this printer does not handle.
+    pub fn signature(
+        &mut self,
+        name: NodeIdentifier,
+        parameters: &[NodeIdentifier],
+        range: Span,
+    ) -> R<LayoutInstructionIdentifier> {
+        self.check_comments(range)?;
+        let before = self.typescript_printed;
+        let n = self.docs.text(self.syntax_tree.name(name));
+        let ps = self.parameters(parameters)?;
+        let ps = self.docs.group(&[ps]);
+        self.check_typescript(range, before)?;
+        Ok(self.cat(&[n, ps]))
+    }
+
+    /// `{@const a = b}`'s declarator, printed as the assignment expression `a = b`, which is what
+    /// the Svelte plugin has Prettier parse.
+    ///
+    /// # Errors
+    ///
+    /// [`Unsupported`] if it holds a comment or a construct this printer does not handle.
+    pub fn const_tag(&mut self, declaration: NodeIdentifier) -> R<LayoutInstructionIdentifier> {
+        let Kind::VariableDeclaration {
+            declarations: &[declarator],
+            ..
+        } = self.syntax_tree.kind(declaration)
+        else {
+            return Err(Unsupported::at(
+                "a {@const} with other than one declarator",
+                self.span(declaration),
+            ));
+        };
+        let Kind::Declarator {
+            identifier: target,
+            initializer: Some(initializer),
+        } = self.syntax_tree.kind(declarator)
+        else {
+            unreachable!("a {{@const}} declarator has an initializer")
+        };
+        let range = self.span(declarator);
+        self.check_comments(range)?;
+        // The plugin's parse of a typed declarator fails, and it prints the source instead.
+        if self.typescript_within(range) > 0 {
+            let text = range.text(self.source_text);
+            if text.contains('\n') {
+                return Err(Unsupported::at(
+                    "a typed {@const} over several lines",
+                    range,
+                ));
+            }
+            // Prettier still breaks it after the `=` when it does not fit; that is not ported.
+            let text = self.docs.text(text);
+            return Ok(self.docs.flat_only(text));
+        }
+        // As an assignment's right side, `a = b` makes a chain, whose layouts are not ported.
+        if matches!(self.syntax_tree.kind(initializer), Kind::Assign(..)) {
+            return Err(Unsupported::at(
+                "an assignment chain in {@const}",
+                self.syntax_tree.source_location(initializer),
+            ));
+        }
+        let before = self.typescript_printed;
+        let left = self.pattern(target, PatternContext::AssignLeft)?;
+        let right = self.expression(initializer, Some(declarator), Slot::Right)?;
+        let op = self.lit(" =");
+        // The plugin prints the declarator as an assignment expression.
+        let d = self.assignment(left, op, right, target, initializer, false)?;
+        self.check_typescript(range, before)?;
+        Ok(d)
+    }
+
+    /// A statement in the template (`{let a = 1}`), without the `;` it ends with, as the Svelte
+    /// plugin trims it. The trim misses a `;` that Prettier's doc cleanup has merged into the
+    /// text before it, which happens when the statement prints as plain text (`let a;`).
+    ///
+    /// # Errors
+    ///
+    /// [`Unsupported`] if it holds a comment or a construct this printer does not handle.
+    pub fn template_statement(
+        &mut self,
+        statement: NodeIdentifier,
+    ) -> R<LayoutInstructionIdentifier> {
+        let range = self.span(statement);
+        self.check_comments(range)?;
+        let before = self.typescript_printed;
+        let plain = match self.syntax_tree.kind(statement) {
+            Kind::VariableDeclaration {
+                declarations: &[only],
+                ..
+            } => matches!(
+                self.syntax_tree.kind(only),
+                Kind::Declarator {
+                    initializer: None,
+                    ..
+                }
+            ),
+            _ => false,
+        };
+        if plain && self.typescript_within(range) > 0 {
+            return Err(Unsupported::at(
+                "a typed declaration without a value in the template",
+                range,
+            ));
+        }
+        let d = self.statement(statement)?;
+        self.check_typescript(range, before)?;
+        if plain {
+            return Ok(d);
+        }
+        let mut v = vec![d];
+        self.docs
+            .trim_right(&mut v, |docs, d| docs.as_str(d) == Some(";"));
+        Ok(self.cat(&v))
+    }
+
     fn span(&self, identifier: NodeIdentifier) -> Span {
         self.syntax_tree
             .source_location(identifier)
@@ -181,17 +310,29 @@ impl<'a> Formatter<'a> {
 
     /// Every piece of TypeScript syntax inside `range` must have been printed.
     fn check_typescript(&self, range: Span, before: usize) -> R<()> {
-        let expected = self
-            .typescript
-            .iter()
-            .filter(|t| {
-                t.span.start_offset >= range.start_offset && t.span.end_offset <= range.end_offset
-            })
-            .count();
+        let expected = self.typescript_within(range);
         if self.typescript_printed - before != expected {
             return Err(Unsupported::at("TypeScript syntax", range));
         }
         Ok(())
+    }
+
+    /// How many pieces of TypeScript syntax lie inside `range`.
+    #[must_use]
+    pub fn typescript_within(&self, range: Span) -> usize {
+        let s = &self.typescript_spans;
+        let i = s.partition_point(|t| t.start_offset < range.start_offset);
+        s[i..]
+            .iter()
+            .take_while(|t| t.start_offset < range.end_offset)
+            .filter(|t| t.end_offset <= range.end_offset)
+            .count()
+    }
+
+    /// The `: T` written after a binding or parameter.
+    #[must_use]
+    pub fn annotation(&self, node: NodeIdentifier) -> Option<Span> {
+        self.typescript_of(node, TypeScriptKind::Annotation)
     }
 
     fn typescript_of(&self, node: NodeIdentifier, kind: TypeScriptKind) -> Option<Span> {
@@ -229,7 +370,14 @@ impl<'a> Formatter<'a> {
     fn type_doc(&mut self, text: &str) -> Option<LayoutInstructionIdentifier> {
         let text = text.trim();
         if let Some(u) = union_of_plain_types(text) {
-            return Some(self.docs.text(&u));
+            let t = self.docs.text(&u);
+            // Prettier puts each member of a union that does not fit on its own line; that
+            // layout is not built.
+            return Some(if u.contains('|') {
+                self.docs.flat_only_choice(t)
+            } else {
+                t
+            });
         }
         let body = text.strip_prefix('{')?.strip_suffix('}')?;
         if body.contains(['{', '}', '(', '<', '[', '\'', '"']) {
@@ -251,7 +399,13 @@ impl<'a> Formatter<'a> {
             }
             let ty = union_of_plain_types(ty.trim())?;
             let q = if optional { "?" } else { "" };
-            members.push(self.docs.text(&format!("{name}{q}: {ty}")));
+            let member = self.docs.text(&format!("{name}{q}: {ty}"));
+            // A union that does not fit moves after the colon (not built).
+            members.push(if ty.contains('|') {
+                self.docs.flat_only_choice(member)
+            } else {
+                member
+            });
         }
         if members.is_empty() {
             return Some(self.docs.lit("{}"));
@@ -363,6 +517,13 @@ fn op_of(syntax_tree: &SyntaxTree, identifier: NodeIdentifier) -> Option<Op> {
         Kind::Logical(op, ..) => Some(Op::Log(op)),
         _ => None,
     }
+}
+
+/// `??` beside `||` or `&&`, which JavaScript requires parentheses around.
+fn mixes_nullish(a: Op, b: Op) -> bool {
+    let nullish = |o: Op| o == Op::Log(LogicalOperator::Nullish);
+    let and_or = |o: Op| matches!(o, Op::Log(LogicalOperator::And | LogicalOperator::Or));
+    (nullish(a) && and_or(b)) || (and_or(a) && nullish(b))
 }
 
 /// Prettier's `shouldFlatten`.

@@ -32,6 +32,15 @@ const UPSTREAMS: Record<string, Upstream> = {
 		license: { file: 'LICENSE', spdx: 'MIT' },
 		versions: ['svelte', 'eslint', 'typescript', '@typescript-eslint/parser'],
 	},
+	'prettier-plugin-svelte': {
+		repository: 'https://github.com/sveltejs/prettier-plugin-svelte',
+		target: 'crates/languages/svelte/format/tests/upstream/prettier-plugin-svelte',
+		// Both suites and their runners, which say how each case is read.
+		fixtures: 'test',
+		package: { name: 'prettier-plugin-svelte', manifest: 'package.json' },
+		license: { file: 'LICENSE', spdx: 'MIT' },
+		versions: ['prettier', 'svelte'],
+	},
 };
 
 export async function main(args: string[]): Promise<void> {

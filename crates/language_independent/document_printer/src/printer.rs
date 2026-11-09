@@ -3,8 +3,8 @@
 use rsvelte_kernel::performance::buffer_pool;
 
 use crate::{
-    GroupDecision, GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions, LineKind,
-    Node, PrintOptions, Refused, TraceEvent, TraceMode,
+    Flat, GroupDecision, GroupIdentifier, LayoutInstructionIdentifier, LayoutInstructions,
+    LineKind, Node, PrintOptions, Refused, TraceEvent, TraceMode,
 };
 
 impl LayoutInstructions {
@@ -54,11 +54,15 @@ impl LayoutInstructions {
             group_modes,
             scratch: buffer_pool::take(),
             remeasure: false,
+            flat_only: 0,
+            every_line: 0,
+            forced_line: false,
             refused: false,
             trace,
         };
         let mut stack = buffer_pool::take();
         p.run(root, &mut stack);
+        p.line_overflows();
         buffer_pool::give(stack);
         buffer_pool::give(p.scratch);
         buffer_pool::give(p.group_modes);
@@ -82,6 +86,10 @@ enum Item {
     },
     /// A fill's `[content, whitespace, secondContent]`, measured as one.
     Triple([LayoutInstructionIdentifier; 3]),
+    /// The end of a flat-only layout's contents.
+    EndFlatOnly {
+        every_line: bool,
+    },
 }
 
 type Command = (u32, Mode, Item);
@@ -96,6 +104,13 @@ struct Printer<'a, const TRACE: bool> {
     scratch: Vec<Command>,
     /// Prettier's `shouldRemeasure`: a hard line was printed in flat mode.
     remeasure: bool,
+    /// How many flat-only layouts are being printed: inside one, a group that does not fit is
+    /// refused, since the layout Prettier picks there is not built.
+    flat_only: u32,
+    /// How many of those check every line they print flat ([`Node::FlatOnly`]).
+    every_line: u32,
+    /// The current line holds text printed flat under such a layout.
+    forced_line: bool,
     refused: bool,
     trace: &'a mut Vec<TraceEvent>,
 }
@@ -139,6 +154,17 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
         if m == Mode::Break { broken } else { flat }
     }
 
+    /// Ends the current line: refused when text printed flat under an every-line layout ran
+    /// past the width.
+    const fn line_overflows(&mut self) -> bool {
+        let overflows = self.forced_line && self.position > self.options.width;
+        self.forced_line = false;
+        if overflows {
+            self.refused = true;
+        }
+        overflows
+    }
+
     #[expect(
         clippy::cast_possible_wrap,
         reason = "widths and columns are far below `isize::MAX`"
@@ -158,6 +184,9 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                 Item::LayoutInstruction(identifier) => identifier,
                 Item::Fill { start, len } => {
                     self.fill(indentation, mode, start, len, stack);
+                    if self.refused {
+                        return;
+                    }
                     continue;
                 }
                 Item::Triple(ds) => {
@@ -168,13 +197,20 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                     );
                     continue;
                 }
+                Item::EndFlatOnly { every_line } => {
+                    self.flat_only -= 1;
+                    self.every_line -= u32::from(every_line);
+                    continue;
+                }
             };
             match self.docs.nodes[identifier.0 as usize] {
                 Node::Static(s) => {
+                    self.forced_line |= mode == Mode::Flat && self.every_line > 0;
                     self.position += s.len();
                     self.out.push_str(s);
                 }
                 n @ Node::Text { width, .. } => {
+                    self.forced_line |= mode == Mode::Flat && self.every_line > 0;
                     self.position += width as usize;
                     self.out.push_str(self.docs.str_of(n));
                 }
@@ -194,6 +230,9 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                                 });
                             }
                         }
+                    }
+                    if self.line_overflows() {
+                        return;
                     }
                     if kind == LineKind::Literal {
                         self.out.push('\n');
@@ -230,7 +269,11 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                     let extra = u32::from(self.group_mode(group) == Some(Mode::Break));
                     stack.push((indentation + extra, mode, Item::LayoutInstruction(document)));
                 }
-                Node::FlatOnly(d) => {
+                Node::FlatOnly {
+                    content: d,
+                    every_line,
+                    ..
+                } => {
                     if mode == Mode::Break
                         && !self.fits(
                             &[(indentation, Mode::Flat, Item::LayoutInstruction(d))],
@@ -247,6 +290,9 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                         });
                         return;
                     }
+                    self.flat_only += 1;
+                    self.every_line += u32::from(every_line);
+                    stack.push((indentation, mode, Item::EndFlatOnly { every_line }));
                     stack.push((indentation, Mode::Flat, Item::LayoutInstruction(d)));
                 }
                 Node::Group {
@@ -256,6 +302,14 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                     ..
                 } => {
                     let (next, decision) = self.choose_group(identifier, indentation, mode, stack);
+                    if decision == GroupDecision::DoesNotFit && self.flat_only > 0 {
+                        self.refused = true;
+                        self.trace(TraceEvent::Refused {
+                            document: identifier,
+                            position: self.position,
+                        });
+                        return;
+                    }
                     self.trace(TraceEvent::Group {
                         document: identifier,
                         position: self.position,
@@ -330,6 +384,10 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
             self.remaining(),
             true,
         );
+        if !content_fits && self.flat_only > 0 {
+            self.refused = true;
+            return;
+        }
         let content_mode = if content_fits {
             Mode::Flat
         } else {
@@ -363,6 +421,10 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
             Item::Triple([content, ws, children[2]]),
         )];
         let separator_fits = self.fits(&pair, &[], self.remaining(), true);
+        if !separator_fits && self.flat_only > 0 {
+            self.refused = true;
+            return;
+        }
         let ws_mode = if separator_fits {
             Mode::Flat
         } else {
@@ -397,25 +459,37 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
         work.extend(next.iter().rev().copied());
         let fits = self.fits_in(&mut work, rest, remaining, must_be_flat);
         self.scratch = work;
-        fits
+        match fits {
+            Ok(fits) => fits,
+            // The answer would come from a broken layout that is not built: refuse.
+            Err(document) => {
+                self.refused = true;
+                self.trace(TraceEvent::Refused {
+                    document,
+                    position: self.position,
+                });
+                false
+            }
+        }
     }
 
-    #[expect(
-        clippy::cast_possible_wrap,
-        reason = "a string's width is far below `isize::MAX`"
-    )]
     fn fits_in(
         &self,
         work: &mut Vec<Command>,
         rest: &[Command],
         mut remaining: isize,
         must_be_flat: bool,
-    ) -> bool {
+    ) -> Result<bool, LayoutInstructionIdentifier> {
         let mut rest_i = rest.len();
+        // A flat-only layout measured where its broken form would be: the first line break
+        // there is unknown, so a "does not fit" past it is not Prettier's answer.
+        let mut unknown = None;
+        // Prettier's `hasPendingSpace`: a line's space counts once a string follows it.
+        let mut pending = false;
         while remaining >= 0 {
             let Some((indentation, mode, item)) = work.pop() else {
                 if rest_i == 0 {
-                    return true;
+                    return Ok(true);
                 }
                 rest_i -= 1;
                 work.push(rest[rest_i]);
@@ -441,25 +515,30 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                     );
                     continue;
                 }
+                Item::EndFlatOnly { .. } => continue,
             };
             if mode == Mode::Flat
-                && let Some(width) = self.docs.measure(identifier).width()
+                && let Some(flat) = self.docs.measure(identifier).flat()
             {
-                remaining -= width as isize;
+                flat.charge(&mut remaining, &mut pending);
                 continue;
             }
             match self.docs.nodes[identifier.0 as usize] {
-                Node::Static(s) => remaining -= s.len() as isize,
-                Node::Text { width, .. } => remaining -= width as isize,
+                Node::Static("") | Node::Text { len: 0, .. } | Node::BreakParent => {}
+                Node::Static(s) => {
+                    Flat::string(s.len() as u32).charge(&mut remaining, &mut pending);
+                }
+                Node::Text { width, .. } => {
+                    Flat::string(width).charge(&mut remaining, &mut pending);
+                }
                 Node::Line(kind) => {
                     if mode == Mode::Break || matches!(kind, LineKind::Hard | LineKind::Literal) {
-                        return true;
+                        return Ok(true);
                     }
                     if kind == LineKind::Normal {
-                        remaining -= 1;
+                        pending = true;
                     }
                 }
-                Node::BreakParent => {}
                 Node::Concat { start, len } | Node::Fill { start, len } => {
                     let children = self.docs.children(start, len);
                     work.extend(
@@ -472,7 +551,7 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                 Node::Group { start, len, .. } => {
                     let breaks_line = self.docs.will_break(identifier);
                     if must_be_flat && breaks_line {
-                        return false;
+                        return Ok(false);
                     }
                     let m = if breaks_line { Mode::Break } else { mode };
                     let children = self.docs.children(start, len);
@@ -486,7 +565,10 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                 Node::Indent(d) | Node::Dedent(d) | Node::IndentIfBreak { document: d, .. } => {
                     work.push((indentation, mode, Item::LayoutInstruction(d)));
                 }
-                Node::FlatOnly(d) => {
+                Node::FlatOnly { content: d, .. } => {
+                    if mode == Mode::Break {
+                        unknown.get_or_insert(identifier);
+                    }
                     work.push((indentation, Mode::Flat, Item::LayoutInstruction(d)));
                 }
                 Node::IfBreak {
@@ -499,7 +581,7 @@ impl<const TRACE: bool> Printer<'_, TRACE> {
                 }
             }
         }
-        false
+        unknown.map_or(Ok(false), Err)
     }
 }
 

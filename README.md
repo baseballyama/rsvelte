@@ -1,6 +1,6 @@
 # rsvelte (experimental)
 
-A native toolchain for Svelte 5 (and Vue), written from scratch in Rust: compile, lint, format
+A native toolchain for Svelte 5 (and Vue), written in Rust: compile, lint, format
 and type check. It reads each file once and keeps immutable trees and a database of facts derived
 from them. A task computes only what it needs, one file per thread. The old port on `main` is
 only a diff oracle and a performance baseline.

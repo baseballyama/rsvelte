@@ -1,7 +1,9 @@
+use super::embed::is_javascript_whitespace;
 use super::{
-    ElementKind, LayoutInstructionIdentifier, Printer, R, TemplateNode, TemplateNodeIdentifier,
-    Unsupported,
+    Attribute, AttributeKind, AttributeValue, ElementKind, LayoutInstructionIdentifier, Part,
+    Printer, R, TemplateNode, TemplateNodeIdentifier, Unsupported, is_collapse_ws,
 };
+use crate::options::WhitespaceSensitivity;
 
 /// prettier-plugin-svelte `selfClosingTags`.
 const SELF_CLOSING: &[&str] = &[
@@ -29,8 +31,15 @@ impl Printer<'_, '_> {
             unreachable!("an element")
         };
         let name = name.text(self.source_text);
-        if name.contains(':') {
-            return Err(Unsupported::at("svelte: elements", span));
+        // Only `svelteSortOrder: "none"` leaves it among the root's children.
+        if name == "svelte:options" {
+            return self.options_tag(identifier);
+        }
+        if matches!(name, "script" | "style") {
+            return Err(Unsupported::at(
+                "<script> or <style> inside an element",
+                span,
+            ));
         }
         if name == "template"
             && attributes
@@ -42,8 +51,13 @@ impl Printer<'_, '_> {
         }
         let children = self.children(identifier);
         let is_empty = children.iter().all(|&c| self.is_empty_text(c));
-        let kind = Self::element_kind(name);
-        let self_closing = is_empty && (did_self_close || SELF_CLOSING.contains(&name));
+        let kind = self.element_kind(name);
+        let is_doctype = name.eq_ignore_ascii_case("!DOCTYPE");
+        let self_closing = is_empty
+            && (did_self_close
+                || SELF_CLOSING.contains(&name)
+                || is_doctype
+                || name == "svelte:window");
         let was_pre = self.in_pre;
         let is_pre_el = kind == ElementKind::Regular
             && matches!(name.to_ascii_lowercase().as_str(), "pre" | "textarea");
@@ -51,21 +65,80 @@ impl Printer<'_, '_> {
 
         let mut attribute_docs = Vec::new();
         let c = self.c;
-        for a in attributes.get(&c.attributes) {
-            let line = self.d().line();
-            let document = self.attribute(a, kind)?;
+        let attributes = attributes.get(&c.attributes);
+        // Svelte takes `this` out of the attributes, and the plugin prints it first.
+        let this = matches!(name, "svelte:component" | "svelte:element")
+            .then(|| {
+                attributes.iter().position(|a| {
+                    a.kind == AttributeKind::Attribute && a.name.text(self.source_text) == "this"
+                })
+            })
+            .flatten();
+        let many = attributes.len() - usize::from(this.is_some()) > 1
+            || (this.is_some() && attributes.len() > 1);
+        if let Some(i) = this {
+            let line = self.attribute_line(many);
+            let document = self.this_binding(&attributes[i], name == "svelte:element")?;
             attribute_docs.push(self.cat(&[line, document]));
         }
+        // The plugin's `isPreTagContent` counts the `<pre>` itself, attributes included.
+        self.in_pre = in_pre;
+        for (i, a) in attributes.iter().enumerate() {
+            if Some(i) == this {
+                continue;
+            }
+            let line = self.attribute_line(many);
+            let document = self.attribute(a, kind);
+            let document = match document {
+                Ok(d) => d,
+                Err(e) => {
+                    self.in_pre = was_pre;
+                    return Err(e);
+                }
+            };
+            attribute_docs.push(self.cat(&[line, document]));
+        }
+        self.in_pre = was_pre;
+        // What the children see: Svelte's `parent_is_head` and `parent_is_shadowroot_template`.
+        let context = (
+            match (name, kind) {
+                ("svelte:head", _) => true,
+                (_, ElementKind::Regular) => false,
+                _ if rsvelte_svelte_syntax::names::is_component_name(name) => false,
+                _ => self.in_head,
+            },
+            self.in_shadow_root
+                || (kind == ElementKind::Regular
+                    && attributes.iter().any(|a| {
+                        a.kind == AttributeKind::Attribute
+                            && a.name.text(self.source_text) == "shadowrootmode"
+                    })),
+            self.is_block(identifier)
+                .then(|| {
+                    children
+                        .iter()
+                        .rev()
+                        .copied()
+                        .find(|&c| !self.is_empty_text(c))
+                })
+                .flatten(),
+        );
+        let same_line = self.options.bracket_same_line;
         let lt = self.lit("<");
         let name_doc = self.d().text(name);
         if self_closing {
-            let line = self.d().line();
-            let dl = self.d().dedent(line);
             let mut inner = attribute_docs;
-            inner.push(dl);
+            if !same_line && !is_doctype {
+                let line = self.d().line();
+                inner.push(self.d().dedent(line));
+            }
             let g = self.group(&inner);
             let indentation = self.d().indent(g);
-            let close = self.lit("/>");
+            let close = self.lit(match (is_doctype, same_line) {
+                (true, _) => ">",
+                (false, true) => " />",
+                (false, false) => "/>",
+            });
             return Ok(self.group(&[lt, name_doc, indentation, close]));
         }
 
@@ -74,9 +147,14 @@ impl Printer<'_, '_> {
         let is_inline = kind == ElementKind::Regular && !self.is_block(identifier) && !in_pre;
         let hug_start = self.should_hug(identifier, children, true);
         let hug_end = self.should_hug(identifier, children, false);
+        // Decided before the separators below trim the first text.
+        let empty_line = is_empty
+            && is_inline
+            && children.first().is_some_and(|&f| self.text_starts_ws(f))
+            && !in_pre;
 
         let mut open_inner = attribute_docs;
-        if (is_empty || !hug_start) && !in_pre {
+        if (is_empty || !hug_start) && !same_line && !in_pre {
             let soft = self.d().softline();
             open_inner.push(self.d().dedent(soft));
         }
@@ -86,7 +164,7 @@ impl Printer<'_, '_> {
         let close_full = self.d().text_parts(&["</", name, ">"]);
 
         if hug_start && hug_end {
-            let body = self.element_body(children, is_empty, is_inline, in_pre)?;
+            let body = self.element_body(children, is_empty, empty_line, in_pre, context)?;
             let soft = self.d().softline();
             let gt = self.lit(">");
             let close_open = self.d().text_parts(&["</", name]);
@@ -98,7 +176,8 @@ impl Printer<'_, '_> {
                 let indentation = self.d().indent(hugged);
                 self.group(&[indentation])
             };
-            let omit = is_empty;
+            let omit =
+                (is_empty && !same_line) || self.can_omit_softline_before_closing_tag(identifier);
             let mut parts = opening.to_vec();
             parts.push(hugged);
             if !omit {
@@ -135,7 +214,7 @@ impl Printer<'_, '_> {
         };
 
         if hug_start {
-            let body = self.element_body(children, is_empty, is_inline, in_pre)?;
+            let body = self.element_body(children, is_empty, empty_line, in_pre, context)?;
             let gt = self.lit(">");
             let inner = self.group(&[gt, body]);
             let soft = self.d().softline();
@@ -146,19 +225,21 @@ impl Printer<'_, '_> {
             return Ok(self.group(&parts));
         }
         if hug_end {
-            let body = self.element_body(children, is_empty, is_inline, in_pre)?;
+            let body = self.element_body(children, is_empty, empty_line, in_pre, context)?;
             let close_open = self.d().text_parts(&["</", name]);
             let inner = self.group(&[body, close_open]);
             let indentation = self.cat(&[sep_start, inner]);
             let indentation = self.d().indent(indentation);
             let gt = self.lit(">");
-            let soft = self.d().softline();
-            let gt2 = self.lit(">");
             let mut parts = opening.to_vec();
-            parts.extend([gt, indentation, soft, gt2]);
+            parts.extend([gt, indentation]);
+            if !self.can_omit_softline_before_closing_tag(identifier) {
+                parts.push(self.d().softline());
+            }
+            parts.push(self.lit(">"));
             return Ok(self.group(&parts));
         }
-        let body = self.element_body(children, is_empty, is_inline, in_pre)?;
+        let body = self.element_body(children, is_empty, empty_line, in_pre, context)?;
         let gt = self.lit(">");
         let mut parts = opening.to_vec();
         if is_empty {
@@ -176,26 +257,39 @@ impl Printer<'_, '_> {
         &mut self,
         children: &[TemplateNodeIdentifier],
         is_empty: bool,
-        is_inline: bool,
+        empty_line: bool,
         in_pre: bool,
+        (in_head, in_shadow_root, last_in_block): (bool, bool, Option<TemplateNodeIdentifier>),
     ) -> R<LayoutInstructionIdentifier> {
         if is_empty {
-            return Ok(
-                if is_inline && !children.is_empty() && self.text_starts_ws(children[0]) && !in_pre
-                {
-                    self.d().line()
-                } else {
-                    self.d().nil()
-                },
-            );
+            return Ok(if empty_line {
+                self.d().line()
+            } else if self.options.bracket_same_line {
+                self.d().softline()
+            } else {
+                self.d().nil()
+            });
         }
-        if in_pre {
-            return self.pre(children);
-        }
-        let saved = self.in_pre;
-        self.in_pre = false;
-        let docs = self.print_children(children);
-        self.in_pre = saved;
+        let saved = (
+            self.in_pre,
+            self.in_head,
+            self.in_shadow_root,
+            self.last_in_block,
+        );
+        (self.in_head, self.in_shadow_root, self.last_in_block) =
+            (in_head, in_shadow_root, last_in_block);
+        let docs = if in_pre {
+            self.pre(children).map(|d| vec![d])
+        } else {
+            self.in_pre = false;
+            self.print_children(children)
+        };
+        (
+            self.in_pre,
+            self.in_head,
+            self.in_shadow_root,
+            self.last_in_block,
+        ) = saved;
         let docs = docs?;
         let d = self.cat(&docs);
         self.give_buffer(docs);
@@ -240,7 +334,7 @@ impl Printer<'_, '_> {
         children: &[TemplateNodeIdentifier],
         start: bool,
     ) -> bool {
-        if self.is_block(identifier) {
+        if self.is_block(identifier) || self.element_name(identifier) == Some("svelte:boundary") {
             return false;
         }
         let Some(&edge) = (if start {
@@ -250,10 +344,83 @@ impl Printer<'_, '_> {
         }) else {
             return true;
         };
+        if self.options.markup_whitespace_sensitivity == WhitespaceSensitivity::Ignore {
+            return false;
+        }
         if start {
             !self.text_starts_ws(edge)
         } else {
             !self.text_ends_ws(edge)
         }
+    }
+}
+
+impl Printer<'_, '_> {
+    /// `this=` of `<svelte:component>` or `<svelte:element>`. Svelte reads a string `this` of
+    /// `<svelte:element>` into a literal, which the plugin prints in double quotes, in braces if
+    /// it was written in braces.
+    fn this_binding(&mut self, a: &Attribute, element: bool) -> R<LayoutInstructionIdentifier> {
+        let (c, source_text) = (self.c, self.source_text);
+        let parts = match a.value {
+            AttributeValue::Parts(r) => r.get(&c.parts),
+            AttributeValue::True => &[][..],
+        };
+        let quoted = |value: &str| {
+            if value.contains(['"', '&', '\\']) {
+                Err(Unsupported::at(
+                    "a `this` the plugin would print unescaped",
+                    a.span,
+                ))
+            } else {
+                Ok(value.to_owned())
+            }
+        };
+        let text = match *parts {
+            [Part::Text(span)] if element => {
+                format!("this=\"{}\"", quoted(span.text(source_text))?)
+            }
+            [Part::Expression { expression, span }] => {
+                let literal = element
+                    && matches!(
+                        c.javascript.kind(expression),
+                        rsvelte_typescript_syntax::Kind::String
+                    );
+                if !literal {
+                    let open = self.lit("this={");
+                    let e = self.expression(expression, false, false)?;
+                    let close = self.lit("}");
+                    return Ok(self.cat(&[open, e, close]));
+                }
+                let raw = c
+                    .javascript
+                    .source_location(expression)
+                    .span()
+                    .expect("a parsed expression has a source span");
+                let value = quoted(&raw.text(source_text)[1..raw.len() as usize - 1])?;
+                // `originalText[tag.start - 1] === '{'`.
+                if raw.start_offset == span.start_offset + 1 {
+                    format!("this={{\"{value}\"}}")
+                } else {
+                    format!("this=\"{value}\"")
+                }
+            }
+            _ => return Err(Unsupported::at("this `this`", a.span)),
+        };
+        Ok(self.d().text(&text))
+    }
+}
+
+impl Printer<'_, '_> {
+    /// `canOmitSoftlineBeforeClosingTag`: under `bracketSameLine`, when the element does not hug
+    /// what follows it, or is the last child of a block element.
+    fn can_omit_softline_before_closing_tag(&self, identifier: TemplateNodeIdentifier) -> bool {
+        if !self.options.bracket_same_line {
+            return false;
+        }
+        // `hugsStartOfNextNode`, on the trimmed source the plugin sees.
+        let end = self.c.node(identifier).span().end_offset as usize;
+        let rest = self.source_text[end..].trim_end_matches(is_javascript_whitespace);
+        let hugs_next = !rest.is_empty() && !rest.starts_with(is_collapse_ws);
+        !hugs_next || self.last_in_block == Some(identifier)
     }
 }

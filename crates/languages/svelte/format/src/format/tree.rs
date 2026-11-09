@@ -2,6 +2,7 @@ use super::{
     Cow, ElementKind, LayoutInstructionIdentifier, LayoutInstructions, Printer, TemplateNode,
     TemplateNodeIdentifier, ends_with_linebreak, is_collapse_ws, only_ws, starts_with_linebreak,
 };
+use crate::options::WhitespaceSensitivity;
 
 /// prettier-plugin-svelte `blockElements`.
 const BLOCK_ELEMENTS: &[&str] = &[
@@ -151,9 +152,14 @@ impl<'a> Printer<'a, '_> {
         }
     }
 
-    pub(super) fn element_kind(name: &str) -> ElementKind {
-        if name.starts_with(|c: char| c.is_ascii_uppercase()) || name.contains('.') {
-            ElementKind::Component
+    /// Svelte's element type, in the context of the element being printed.
+    pub(super) fn element_kind(&self, name: &str) -> ElementKind {
+        if rsvelte_svelte_syntax::names::is_component_name(name)
+            || name.starts_with("svelte:")
+            || (name == "title" && self.in_head)
+            || (name == "slot" && !self.in_shadow_root)
+        {
+            ElementKind::Other
         } else {
             ElementKind::Regular
         }
@@ -161,13 +167,20 @@ impl<'a> Printer<'a, '_> {
 
     pub(super) fn is_regular(&self, identifier: TemplateNodeIdentifier) -> bool {
         self.element_name(identifier)
-            .is_some_and(|n| Self::element_kind(n) == ElementKind::Regular)
+            .is_some_and(|n| self.element_kind(n) == ElementKind::Regular)
     }
 
-    /// `isBlockElement` (with `htmlWhitespaceSensitivity: "css"`).
+    /// `isBlockElement`: by name, every element when whitespace is ignored, none when it is
+    /// strict.
     pub(super) fn is_block(&self, identifier: TemplateNodeIdentifier) -> bool {
         self.is_regular(identifier)
-            && BLOCK_ELEMENTS.contains(&self.element_name(identifier).expect("element"))
+            && match self.options.markup_whitespace_sensitivity {
+                WhitespaceSensitivity::Display => {
+                    BLOCK_ELEMENTS.contains(&self.element_name(identifier).expect("element"))
+                }
+                WhitespaceSensitivity::Ignore => true,
+                WhitespaceSensitivity::Strict => false,
+            }
     }
 
     /// `isInlineElement`; `in_pre` is the path's `isPreTagContent`.

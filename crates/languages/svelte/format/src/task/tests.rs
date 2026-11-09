@@ -25,14 +25,17 @@ fn format_gives_what_the_task_writes() {
     let source_text = "<script>let a=1</script>\n<p   class='x'>{a}</p>\n";
     let output = task_output(source_text);
     assert_eq!(output.files.len(), 1);
-    assert_eq!(format(source_text).expect("formats"), output.files[0].text);
+    assert_eq!(
+        format(source_text, &Options::default()).expect("formats"),
+        output.files[0].text
+    );
 }
 
 #[test]
 fn format_reports_what_the_task_reports() {
     let source_text = "<p>{</p>";
     let output = task_output(source_text);
-    let error = format(source_text).expect_err("does not parse");
+    let error = format(source_text, &Options::default()).expect_err("does not parse");
     let reported = output.diagnostics.first().expect("the task reports it");
     assert_eq!(
         (&error.code, &error.message, error.span),
