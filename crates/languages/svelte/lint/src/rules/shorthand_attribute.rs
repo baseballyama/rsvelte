@@ -1,7 +1,9 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
-use rsvelte_svelte::syntax::syntax_tree::{AttributeKind, Part, TemplateNode};
+use rsvelte_svelte::syntax::syntax_tree::{
+    AttributeKind, Component, Part, TemplateNode, TokenType,
+};
 use serde::Deserialize;
 
 use super::expressions::Expressions;
@@ -84,16 +86,42 @@ impl SvelteRule for ShorthandAttribute {
                 {
                     continue;
                 }
+                let report = Report::range("Expected shorthand attribute.", attribute.span)
+                    .message_id("expectedShorthand");
+                // The shorthand holds a name alone: `{(a)}` and `{/* c */ a}` do not compile.
+                if !is_bare_name(component, span) {
+                    reporter.report(report);
+                    continue;
+                }
                 // Keep the `{name}` and drop `name=` with any quotes around it.
                 let mut fix =
                     Fix::remove(Span::new(attribute.span.start_offset, span.start_offset));
                 fix.push(Span::new(span.end_offset, attribute.span.end_offset), "");
-                reporter.report(
-                    Report::range("Expected shorthand attribute.", attribute.span)
-                        .message_id("expectedShorthand")
-                        .fix(fix),
-                );
+                reporter.report(report.fix(fix));
             }
         }
     }
 }
+
+/// Whether the mustache at `span` holds one token between its braces, apart from whitespace.
+fn is_bare_name(component: &Component, span: Span) -> bool {
+    let mut tokens = component
+        .tokens
+        .within(span)
+        .iter()
+        .filter(|token| token.kind != TokenType::Whitespace);
+    matches!(
+        (tokens.next(), tokens.next(), tokens.next(), tokens.next()),
+        (
+            Some(open),
+            Some(name),
+            Some(close),
+            None
+        ) if open.kind == TokenType::MustacheOpen
+            && matches!(name.kind, TokenType::JavaScript(_))
+            && close.kind == TokenType::MustacheClose
+    )
+}
+
+#[cfg(test)]
+mod tests;

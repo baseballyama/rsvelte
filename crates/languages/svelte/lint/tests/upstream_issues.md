@@ -28,3 +28,14 @@ With `[{ "ignoreStringEscape": true }]`, upstream reports `<p>{'\0'}</p>` and fi
 The escape list (`nrvtbfux`) leaves out `\0`, the one digit escape that strict code allows. This
 crate counts `\0` as an escape and does not report it.
 Test: `no_useless_mustaches::tests::a_digit_escape_is_a_string_escape`.
+
+## svelte/shorthand-attribute: the fix writes a shorthand that does not compile
+
+| Input                 | Upstream fix       | `svelte/compiler` on the fix |
+| --------------------- | ------------------ | ---------------------------- |
+| `<div a={(a)}></div>` | `<div {(a)}></div>` | `attribute_empty_shorthand`  |
+| `<div a={/*x*/a}>`    | `<div {/*x*/a}>`   | `attribute_empty_shorthand`  |
+
+A shorthand holds a name and nothing else, apart from whitespace. This crate reports these
+attributes and writes no fix.
+Test: `shorthand_attribute::tests::a_shorthand_that_would_not_compile_is_not_written`.
