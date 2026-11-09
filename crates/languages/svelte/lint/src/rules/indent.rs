@@ -6,8 +6,10 @@ use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 mod layout;
 mod script;
 mod template;
+mod tokens;
 
-use layout::{Layout, Options, Tokens};
+use layout::{Layout, Options};
+use tokens::Tokens;
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/indent",
