@@ -24,6 +24,7 @@ pub use element_rules::is_void;
 use identifier::is_identifier_continue;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
 use rsvelte_svelte_syntax::syntax_tree::{
@@ -127,12 +128,12 @@ impl<'a> Parser<'a> {
 
     fn skip_ws(&mut self) {
         let start_offset = self.position;
-        self.position += whitespace::whitespace_len(self.rest().as_bytes());
+        self.position += whitespace::whitespace_len(self.rest());
         self.token(TokenType::Whitespace, start_offset);
     }
 
     fn require_ws(&mut self) -> ParseResult<()> {
-        if !self.peek().is_some_and(|c| c.is_ascii_whitespace()) {
+        if !self.rest().starts_with(is_ecmascript_whitespace) {
             return self.err("expected whitespace");
         }
         self.skip_ws();

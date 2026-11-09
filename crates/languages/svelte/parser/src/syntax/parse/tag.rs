@@ -10,7 +10,7 @@ use super::{ParseResult, Parser, javascript_error};
 impl Parser<'_> {
     pub(super) fn tag(&mut self) -> ParseResult<TemplateNodeIdentifier> {
         let start_offset = self.position;
-        let inner = super::whitespace::trim_ascii_start(&self.rest()[1..]);
+        let inner = super::whitespace::trim_whitespace_start(&self.rest()[1..]);
         if inner.starts_with('#') {
             return self.block();
         }

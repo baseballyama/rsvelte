@@ -26,10 +26,10 @@ fn quoted_values_keep_unicode_and_expression_boundaries() {
 }
 
 #[test]
-fn unquoted_values_keep_slashes_and_vertical_tabs() {
+fn unquoted_values_keep_slashes_and_end_at_a_vertical_tab() {
     for (source, expected) in [
         ("<div title=日本語🙂/path/>", "日本語🙂/path"),
-        ("<div title=a\u{b}b/>", "a\u{b}b"),
+        ("<div title=a\u{b}b/>", "a"),
         ("<div title=/></div>", "/"),
     ] {
         let component = parse(source).expect("unquoted value");

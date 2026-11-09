@@ -1,4 +1,5 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{Script, Style, TagAttributes, TokenType};
 use rsvelte_typescript::parser::parse_program;
@@ -26,7 +27,7 @@ pub(super) fn script_is_typescript(source_text: &str) -> bool {
         let Some(after) = at.strip_prefix("<script") else {
             continue;
         };
-        if !after.starts_with(|c: char| c.is_ascii_whitespace()) {
+        if !after.starts_with(is_ecmascript_whitespace) {
             continue;
         }
         let tag = &after[..after.find('>').unwrap_or(after.len())];
@@ -74,7 +75,7 @@ impl Parser<'_> {
                 }
                 Some(_) => {
                     let name_start = self.position;
-                    self.position += super::attribute::attribute_name_len(self.rest().as_bytes());
+                    self.position += super::attribute::attribute_name_len(self.rest());
                     if self.position == name_start {
                         return self.err("expected an attribute name");
                     }
@@ -99,7 +100,7 @@ impl Parser<'_> {
                             let value_start = self.position;
                             let len = self
                                 .rest()
-                                .find(|c: char| c.is_ascii_whitespace() || c == '>')
+                                .find(|c| is_ecmascript_whitespace(c) || c == '>')
                                 .unwrap_or_else(|| self.rest().len());
                             if len == 0 {
                                 return self.err("expected an attribute value");
@@ -131,7 +132,7 @@ impl Parser<'_> {
             };
             let at = from + next;
             let suffix = &self.rest()[at + close.len()..];
-            let whitespace = super::whitespace::whitespace_len(suffix.as_bytes());
+            let whitespace = super::whitespace::whitespace_len(suffix);
             if suffix.as_bytes().get(whitespace) == Some(&b'>') {
                 break at;
             }
