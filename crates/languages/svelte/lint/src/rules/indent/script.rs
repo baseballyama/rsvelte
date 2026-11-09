@@ -3,7 +3,7 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte::syntax::syntax_tree::TokenType;
 use rsvelte_typescript::lexer::T;
-use rsvelte_typescript::syntax_tree::{Class, Control};
+use rsvelte_typescript::syntax_tree::{Class, Control, TypeScriptKind};
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 
 use super::layout::{Item, Layout, Token};
@@ -12,6 +12,25 @@ pub(super) struct Script<'s, 'a> {
     pub layout: &'s mut Layout<'a>,
     pub javascript: &'a SyntaxTree,
     pub parents: &'a [NodeIdentifier],
+    /// By node, where its type annotation (or `?`) ends, which `ESTree` puts inside the binding.
+    pub annotations: Vec<(NodeIdentifier, u32)>,
+}
+
+/// [`Script::annotations`] of a tree.
+pub(super) fn annotations(javascript: &SyntaxTree) -> Vec<(NodeIdentifier, u32)> {
+    let mut out: Vec<(NodeIdentifier, u32)> = javascript
+        .typescript
+        .iter()
+        .filter(|t| {
+            matches!(
+                t.kind,
+                TypeScriptKind::Annotation | TypeScriptKind::Optional
+            )
+        })
+        .map(|t| (t.node, t.span.end_offset))
+        .collect();
+    out.sort_unstable();
+    out
 }
 
 fn opt(node: NodeIdentifier) -> Option<NodeIdentifier> {
@@ -56,7 +75,14 @@ impl Script<'_, '_> {
                     .map_or(span.end_offset, |t| tokens.span(t).end_offset);
                 Some(Span::new(span.start_offset, end))
             }
-            _ => Some(span),
+            _ => {
+                let i = self.annotations.partition_point(|&(n, _)| n <= node);
+                let end = match i.checked_sub(1).map(|i| self.annotations[i]) {
+                    Some((n, end)) if n == node => end.max(span.end_offset),
+                    _ => span.end_offset,
+                };
+                Some(Span::new(span.start_offset, end))
+            }
         }
     }
 

@@ -118,3 +118,13 @@ fn raw_text_and_script_attribute_values_are_words() {
         "<script\n  data-x=\"a\nb\"\n>\n  let a;\n</script>\n<div\n  data-x=\"a\nb\"\n></div>\n";
     assert_eq!(reported_lines(attribute), [3, 9]);
 }
+
+#[test]
+fn only_lines_that_start_inside_a_type_are_not_checked() {
+    // Line 4 starts inside the type, so the array after it is checked from there.
+    let array =
+        "<script lang=\"ts\">\n  let v: Array<{\n    k: string;\n  }> = [\n  1,\n  ];\n</script>\n";
+    assert_eq!(reported_lines(array), [5]);
+    let class = "<script lang=\"ts\">\n  class K<T extends {\n    a: 1;\n  }> {\n    x = 1;\n  }\n</script>\n";
+    assert_eq!(reported_lines(class), [0u32; 0]);
+}

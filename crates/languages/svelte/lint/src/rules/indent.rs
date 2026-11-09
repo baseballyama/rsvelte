@@ -80,6 +80,7 @@ impl SvelteRule for Indent {
                 layout: &mut layout,
                 javascript: &component.javascript,
                 parents: file.parents(),
+                annotations: script::annotations(&component.javascript),
             },
             component,
         }
