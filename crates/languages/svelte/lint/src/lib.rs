@@ -15,6 +15,6 @@ pub use pattern::Pattern;
 pub mod rule;
 mod rules;
 mod settings;
-pub use settings::{Kit, KitFiles, LintSettings, SvelteConfig};
+pub use settings::{Kit, KitFiles, LintSettings, SvelteConfig, Warning, WarningHandler};
 mod task;
 pub use task::{Lint, PLUGIN, register, register_artifacts, register_with_configuration};

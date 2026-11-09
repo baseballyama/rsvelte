@@ -1,0 +1,7 @@
+{
+	"no-unused-svelte-ignore/invalid/style-lang03-input.svelte": "upstream compiles <style lang=\"scss\"> with sass first",
+	"no-unused-svelte-ignore/invalid/style-lang04-input.svelte": "upstream compiles <style lang=\"sass\"> with sass first",
+	"no-unused-svelte-ignore/invalid/style-lang05-input.svelte": "upstream compiles <style lang=\"less\"> with less first",
+	"no-unused-svelte-ignore/invalid/style-lang06-input.svelte": "upstream compiles <style lang=\"stylus\"> with stylus first",
+	"valid-compile/valid/babel/babel-function-bind01-input.svelte": "Babel's function-bind proposal, which rsvelte does not parse"
+}

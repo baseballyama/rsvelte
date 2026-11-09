@@ -1,1 +1,3 @@
-{}
+{
+	"valid-compile/invalid/invalid-svelte-ignore03-input.svelte": "upstream blanks svelte-ignore comments before compiling, so a block holding only one reports block_empty, which the compiler does not"
+}

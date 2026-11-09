@@ -9,7 +9,8 @@ use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte::compilation::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_svelte::semantic::resolve::Resolution;
 use rsvelte_svelte::syntax::syntax_tree::Component;
-use rsvelte_svelte::{Normalized, Parsed, Resolved};
+use rsvelte_svelte::warnings::CompileWarnings;
+use rsvelte_svelte::{Normalized, Parsed, Resolved, Warned};
 use rsvelte_typescript::NodeIdentifier;
 use rsvelte_typescript::scope::Semantic;
 use serde::de::DeserializeOwned;
@@ -170,6 +171,13 @@ impl<'a> File<'a> {
     pub fn normalized(&self) -> Option<&'a CompilerSyntaxTree> {
         self.component()?;
         self.context.get::<Normalized>().as_ref()
+    }
+
+    /// The compiler's warnings and analysis errors of the component; `None` for a module.
+    #[must_use]
+    pub fn compile_warnings(&self) -> Option<&'a CompileWarnings> {
+        self.component()?;
+        self.context.get::<Warned>().as_ref()
     }
 
     /// The component's resolution: scopes with the template's bindings; `None` for a module.

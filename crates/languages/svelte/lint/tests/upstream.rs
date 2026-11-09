@@ -6,15 +6,17 @@
 #![expect(clippy::print_stderr, reason = "a test harness reports on stderr")]
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_lint_runner::finding::{Finding, apply_fix, apply_fixes};
-use rsvelte_svelte_lint::{Configuration, LintSettings, SvelteConfig};
+use rsvelte_svelte_lint::{Configuration, LintSettings, SvelteConfig, Warning, WarningHandler};
 use serde::Deserialize;
 use serde::de::IgnoredAny;
 use serde_json::value::RawValue;
@@ -33,6 +35,25 @@ const DEVIATIONS: &str = concat!(
 /// Rules whose verdicts are counted but do not fail: type-aware rules do not follow
 /// `svelte-eslint-parser`'s virtual code.
 const TYPED: &[&str] = &["@typescript-eslint/no-unnecessary-condition"];
+/// Cases that run and are counted but do not fail, by document, with why, under a label: a list
+/// file per reason. A listed case that passes fails, so a list shrinks when its reason goes.
+const COUNTED: &[(&str, &str)] = &[
+    (
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/upstream_typed.json"),
+        "typed",
+    ),
+    (
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/upstream_preprocessor.json"
+        ),
+        "need a preprocessor",
+    ),
+    (
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/upstream_parser.json"),
+        "need syntax the parser lacks",
+    ),
+];
 
 #[derive(Deserialize)]
 struct Upstream {
@@ -121,20 +142,32 @@ fn main() -> ExitCode {
     );
     let mut deviations: BTreeMap<String, String> =
         serde_json::from_str(&read(Path::new(DEVIATIONS))).expect("deviations are an object");
+    let mut counted: BTreeMap<String, (&'static str, String)> = BTreeMap::new();
+    for (file, label) in COUNTED {
+        let list: BTreeMap<String, String> =
+            serde_json::from_str(&read(Path::new(file))).expect("a counted list is an object");
+        counted.extend(list.into_iter().map(|(d, reason)| (d, (*label, reason))));
+    }
     let mut failed = suite(
         &label,
         Path::new(UPSTREAM),
         &upstream.versions,
         &mut deviations,
+        &mut counted,
     ) + suite(
         "this crate's cases",
         Path::new(OWN),
         &upstream.versions,
         &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
     );
     for (document, reason) in &deviations {
         failed += 1;
         eprintln!("UNKNOWN DEVIATION {document}: no case of an implemented rule ({reason})");
+    }
+    for (document, (label, reason)) in &counted {
+        failed += 1;
+        eprintln!("UNKNOWN {label} {document}: no case of an implemented rule ({reason})");
     }
     if failed == 0 {
         ExitCode::SUCCESS
@@ -149,6 +182,7 @@ fn suite(
     root: &Path,
     versions: &BTreeMap<String, String>,
     deviations: &mut BTreeMap<String, String>,
+    counted: &mut BTreeMap<String, (&'static str, String)>,
 ) -> usize {
     let cases = cases(root);
     let mut by_rule: BTreeMap<&str, Counts> = BTreeMap::new();
@@ -168,6 +202,17 @@ fn suite(
         let typed = TYPED.contains(&case.rule.as_str());
         let counts = by_rule.entry(&case.rule).or_default();
         counts.total += 1;
+        if let Some((label, reason)) = counted.remove(&document) {
+            if matches!(verdict, Verdict::Pass) {
+                counts.fail += 1;
+                failed += 1;
+                eprintln!("STALE {label} {document}: passes, but is listed ({reason})");
+            } else {
+                *counts.counted.entry(label).or_default() += 1;
+                eprintln!("COUNTED {document}: {label} ({reason})");
+            }
+            continue;
+        }
         match (verdict, deviation) {
             (Verdict::NotImplemented, _) => unreachable!("counted above"),
             (Verdict::Pass, None) => counts.pass += 1,
@@ -206,8 +251,12 @@ fn suite(
         } else {
             ""
         };
+        let counted = c.counted.iter().fold(String::new(), |mut out, (label, n)| {
+            write!(out, ", {n} {label}").expect("a String takes any text");
+            out
+        });
         eprintln!(
-            "  {rule}: {} of {} pass, {} fail, {} unmeasured, {} deviate{typed}",
+            "  {rule}: {} of {} pass, {} fail, {} unmeasured, {} deviate{counted}{typed}",
             c.pass, c.total, c.fail, c.unmeasured, c.deviation
         );
     }
@@ -224,6 +273,8 @@ struct Counts {
     fail: usize,
     unmeasured: usize,
     deviation: usize,
+    /// Cases of a counted list that do not pass, by its label.
+    counted: BTreeMap<&'static str, usize>,
     total: usize,
 }
 
@@ -388,11 +439,22 @@ fn run(case: &Case<'_>) -> Verdict {
         return Verdict::NotImplemented;
     }
     let directory = case.input.parent().expect("a parent");
+    let mut javascript = None;
     let config = match config(&case.input, directory) {
         Some(path) if path.extension().is_some_and(|e| e == "json") => {
             serde_json::from_str::<CaseConfig>(&read(&path)).expect("a case configuration")
         }
-        Some(_) => return Verdict::Unmeasured("a JavaScript configuration".to_owned()),
+        Some(path) => match javascript_config(&path, case.root) {
+            Some(config) => {
+                javascript = Some(config);
+                CaseConfig {
+                    options: Vec::new(),
+                    language_options: None,
+                    settings: None,
+                }
+            }
+            None => return Verdict::Unmeasured("a JavaScript configuration".to_owned()),
+        },
         None => CaseConfig {
             options: Vec::new(),
             language_options: None,
@@ -411,7 +473,11 @@ fn run(case: &Case<'_>) -> Verdict {
         .language_options
         .and_then(|l| l.parser_options)
         .and_then(|p| p.svelte_config)
-        .map(|c| SvelteConfig { kit: c.kit });
+        .map(|c| SvelteConfig {
+            kit: c.kit,
+            ..SvelteConfig::default()
+        })
+        .or(javascript);
     let mut configuration = Configuration::new(settings);
     if let Err(error) = configuration.rule(&name, Severity::Error, &config.options, &[]) {
         return Verdict::Fail(format!("the options do not configure the rule: {error}"));
@@ -427,6 +493,11 @@ fn run(case: &Case<'_>) -> Verdict {
         Ok(findings) => findings,
         Err(error) => return Verdict::Fail(format!("the input does not lint: {}", error.message)),
     };
+    compare(case, source, &findings)
+}
+
+/// The findings against the case's `errors.yaml` and `output` file.
+fn compare(case: &Case<'_>, source: String, findings: &[Finding]) -> Verdict {
     let expected: Vec<ExpectedError> = if case.invalid {
         serde_saphyr::from_str(&read(&sibling(&case.input, "errors.yaml")))
             .expect("errors.yaml is valid")
@@ -472,7 +543,7 @@ fn run(case: &Case<'_>) -> Verdict {
         .and_then(|n| n.to_str())
         .expect("UTF-8 name");
     let output = sibling(&case.input, &format!("output.{}", &suffix(name)[1..]));
-    let fixed = apply_fixes(&source, &findings);
+    let fixed = apply_fixes(&source, findings);
     let wanted = if case.invalid && output.exists() {
         read(&output)
     } else {
@@ -483,6 +554,52 @@ fn run(case: &Case<'_>) -> Verdict {
     } else {
         Verdict::Fail(format!("expected the fixed code\n{wanted}\nfound\n{fixed}"))
     }
+}
+
+/// The `svelte.config.js` of a case's `_config.cjs` (`languageOptions.parserOptions.svelteConfig`),
+/// as the Rust its JavaScript amounts to; the host builds the same from a project's
+/// `svelte.config.js`. `None` for a configuration not written here.
+fn javascript_config(path: &Path, root: &Path) -> Option<SvelteConfig> {
+    let relative = path.strip_prefix(root).ok()?.to_str()?;
+    let drop_missing_attribute = || {
+        Some(WarningHandler(Arc::new(|warning: Warning| {
+            (warning.code != "a11y_missing_attribute" && warning.code != "a11y-missing-attribute")
+                .then_some(warning)
+        })))
+    };
+    let on_warning = match relative {
+        // `onwarn(warning, handler) { if (warning.code === 'a11y_missing_attribute' ||
+        // warning.code === 'a11y-missing-attribute') return; handler(warning); }`, and
+        // `warningFilter: (warning) => warning.code !== 'a11y_missing_attribute' && warning.code
+        // !== 'a11y-missing-attribute'`.
+        "valid-compile/valid/svelte-config-onwarn/_config.cjs"
+        | "valid-compile/invalid/svelte-config-onwarn/_config.cjs"
+        | "valid-compile/valid/svelte-config-warning-filter/_config.cjs"
+        | "valid-compile/invalid/svelte-config-warning-filter/_config.cjs" => {
+            drop_missing_attribute()
+        }
+        // `onwarn(warning, handler) { handler({ ...warning, message: warning.message, code: 'foo' }); }`
+        "valid-compile/invalid/svelte-config-custom-warn/_config.cjs" => {
+            Some(WarningHandler(Arc::new(|warning: Warning| {
+                Some(Warning {
+                    code: "foo".to_owned(),
+                    ..warning
+                })
+            })))
+        }
+        // `compilerOptions: { experimental: { async: true } }`
+        "valid-compile/valid/svelte-config-experimental-async/_config.cjs" => {
+            return Some(SvelteConfig {
+                experimental_async: true,
+                ..SvelteConfig::default()
+            });
+        }
+        _ => return None,
+    };
+    Some(SvelteConfig {
+        on_warning,
+        ..SvelteConfig::default()
+    })
 }
 
 /// A `svelte.config.js` that `svelte-eslint-parser` would load for the input: in its directory or

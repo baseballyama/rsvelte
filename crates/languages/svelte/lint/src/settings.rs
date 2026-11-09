@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use serde::Deserialize;
 
@@ -36,6 +36,27 @@ pub struct KitFiles {
 #[derive(Clone, Debug, Default)]
 pub struct SvelteConfig {
     pub kit: Option<Kit>,
+    /// `compilerOptions.experimental.async`.
+    pub experimental_async: bool,
+    /// `warningFilter`, or else `onwarn`, as one function: the warning to report, or `None`.
+    pub on_warning: Option<WarningHandler>,
+}
+
+/// A compiler warning as `svelte.config.js`'s `onwarn` and `warningFilter` see it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Warning {
+    pub code: String,
+    pub message: String,
+}
+
+/// The function the host builds from `svelte.config.js`.
+#[derive(Clone)]
+pub struct WarningHandler(pub Arc<dyn Fn(Warning) -> Option<Warning> + Send + Sync>);
+
+impl std::fmt::Debug for WarningHandler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("WarningHandler")
+    }
 }
 
 impl LintSettings {
