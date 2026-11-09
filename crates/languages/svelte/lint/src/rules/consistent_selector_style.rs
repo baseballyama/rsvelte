@@ -79,11 +79,27 @@ type Element = TemplateNodeIdentifier;
 #[derive(Default)]
 struct Selections<'a> {
     exact: FxHashMap<&'a str, Vec<Element>>,
-    affixes: Vec<(Option<String>, Option<String>, Element)>,
+    /// By the text a value starts with, with the text it ends with when known; looked up by each
+    /// prefix of a name, so that a name does not scan every element.
+    by_prefix: FxHashMap<String, Vec<(Option<String>, Element)>>,
+    /// By the text a value ends with, when its start is unknown.
+    by_suffix: FxHashMap<String, Vec<Element>>,
     any: bool,
 }
 
 impl Selections<'_> {
+    fn affix(&mut self, prefix: Option<String>, suffix: Option<String>, element: Element) {
+        match (prefix, suffix) {
+            (Some(prefix), suffix) => self
+                .by_prefix
+                .entry(prefix)
+                .or_default()
+                .push((suffix, element)),
+            (None, Some(suffix)) => self.by_suffix.entry(suffix).or_default().push(element),
+            (None, None) => self.any = true,
+        }
+    }
+
     /// The elements `name` may select, and whether each by its exact value.
     fn matching(&self, name: &str) -> Vec<(Element, bool)> {
         let mut out: Vec<(Element, bool)> = self
@@ -93,15 +109,19 @@ impl Selections<'_> {
             .iter()
             .map(|&e| (e, true))
             .collect();
-        out.extend(
-            self.affixes
-                .iter()
-                .filter(|(prefix, suffix, _)| {
-                    prefix.as_deref().is_none_or(|p| name.starts_with(p))
-                        && suffix.as_deref().is_none_or(|s| name.ends_with(s))
-                })
-                .map(|&(_, _, e)| (e, false)),
-        );
+        for at in (0..=name.len()).filter(|&at| name.is_char_boundary(at)) {
+            if let Some(elements) = self.by_prefix.get(&name[..at]) {
+                out.extend(
+                    elements
+                        .iter()
+                        .filter(|(suffix, _)| suffix.as_deref().is_none_or(|s| name.ends_with(s)))
+                        .map(|&(_, e)| (e, false)),
+                );
+            }
+            if let Some(elements) = self.by_suffix.get(&name[at..]) {
+                out.extend(elements.iter().map(|&e| (e, false)));
+            }
+        }
         out
     }
 }
@@ -142,6 +162,7 @@ impl SvelteRule for ConsistentSelectorStyle {
             template: &template,
             sheet,
             reporter,
+            verdicts: FxHashMap::default(),
         };
         for rule in &sheet.rules {
             check.rule_selectors(rule);
@@ -261,11 +282,7 @@ impl Template<'_> {
                     Part::Expression { expression, .. } => {
                         let prefix = affix(self.file, expression, End::Prefix, &mut Vec::new());
                         let suffix = affix(self.file, expression, End::Suffix, &mut Vec::new());
-                        if prefix.is_none() && suffix.is_none() {
-                            selections.any = true;
-                        } else {
-                            selections.affixes.push((prefix, suffix, element));
-                        }
+                        selections.affix(prefix, suffix, element);
                     }
                 }
             }
@@ -352,9 +369,22 @@ struct Check<'r, 'a, 'b> {
     template: &'r Template<'a>,
     sheet: &'r StyleSheet,
     reporter: &'r mut Reporter<'b>,
+    /// A verdict depends on the selector's kind and name alone, so a name repeated across the
+    /// sheet looks its elements up once.
+    verdicts: FxHashMap<(Selected, &'r str), Verdict>,
 }
 
-impl Check<'_, '_, '_> {
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum Selected {
+    Class,
+    Id,
+    Type,
+}
+
+/// The message id and message to report, if any.
+type Verdict = Option<(&'static str, &'static str)>;
+
+impl<'r> Check<'r, '_, '_> {
     fn rule_selectors(&mut self, rule: &Rule) {
         let source = self.template.source;
         let mut nested = true;
@@ -390,14 +420,14 @@ impl Check<'_, '_, '_> {
             for simple in &part.simple {
                 match simple {
                     Simple::Class { span, name } => {
-                        self.class(*span, self.sheet.text(*name, source));
+                        self.check(Selected::Class, *span, self.sheet.text(*name, source));
                     }
                     Simple::Identifier { span, name } => {
-                        self.id(*span, self.sheet.text(*name, source));
+                        self.check(Selected::Id, *span, self.sheet.text(*name, source));
                     }
-                    Simple::Type(span) => self.type_selector(*span, span.text(source)),
+                    Simple::Type(span) => self.check(Selected::Type, *span, span.text(source)),
                     Simple::NamespacedType { span, name } if name.text(source) != "*" => {
-                        self.type_selector(*span, name.text(source));
+                        self.check(Selected::Type, *span, name.text(source));
                     }
                     Simple::PseudoClass { selectors, .. }
                     | Simple::PseudoElement { selectors, .. }
@@ -413,95 +443,105 @@ impl Check<'_, '_, '_> {
         }
     }
 
-    fn report(
+    fn check(
         &mut self,
-        id: &'static str,
-        message: &str,
+        selected: Selected,
         span: rsvelte_kernel::source::positions::Span,
+        name: &'r str,
     ) {
-        self.reporter
-            .report(Report::range(message, span).message_id(id));
+        let verdict = if let Some(&verdict) = self.verdicts.get(&(selected, name)) {
+            verdict
+        } else {
+            let verdict = match selected {
+                Selected::Class => self.class(name),
+                Selected::Id => self.id(name),
+                Selected::Type => self.type_selector(name),
+            };
+            self.verdicts.insert((selected, name), verdict);
+            verdict
+        };
+        if let Some((id, message)) = verdict {
+            self.reporter
+                .report(Report::range(message, span).message_id(id));
+        }
     }
 
-    fn class(&mut self, span: rsvelte_kernel::source::positions::Span, name: &str) {
+    fn class(&self, name: &str) -> Verdict {
         let template = self.template;
         if template.classes.any || template.directives.contains(name) {
-            return;
+            return None;
         }
         let selection = template.classes.matching(name);
         for &style in &self.rule.style {
             match style {
-                Style::Class => return,
+                Style::Class => return None,
                 Style::Id if template.can_use_id(selection.iter().map(|&(e, _)| e)) => {
-                    return self.report(
+                    return Some((
                         "classShouldBeId",
                         "Selector should select by ID instead of class",
-                        span,
-                    );
+                    ));
                 }
                 Style::Type if template.can_use_type(&selection) => {
-                    return self.report(
+                    return Some((
                         "classShouldBeType",
                         "Selector should select by element type instead of class",
-                        span,
-                    );
+                    ));
                 }
                 _ => {}
             }
         }
+        None
     }
 
-    fn id(&mut self, span: rsvelte_kernel::source::positions::Span, name: &str) {
+    fn id(&self, name: &str) -> Verdict {
         let template = self.template;
         if template.ids.any {
-            return;
+            return None;
         }
         let selection = template.ids.matching(name);
         for &style in &self.rule.style {
             match style {
                 Style::Class => {
-                    return self.report(
+                    return Some((
                         "idShouldBeClass",
                         "Selector should select by class instead of ID",
-                        span,
-                    );
+                    ));
                 }
-                Style::Id => return,
+                Style::Id => return None,
                 Style::Type if template.can_use_type(&selection) => {
-                    return self.report(
+                    return Some((
                         "idShouldBeType",
                         "Selector should select by element type instead of ID",
-                        span,
-                    );
+                    ));
                 }
                 Style::Type => {}
             }
         }
+        None
     }
 
-    fn type_selector(&mut self, span: rsvelte_kernel::source::positions::Span, name: &str) {
+    fn type_selector(&self, name: &str) -> Verdict {
         let template = self.template;
         let selection = template.types.get(name).map_or(&[][..], Vec::as_slice);
         for &style in &self.rule.style {
             match style {
                 Style::Class => {
-                    return self.report(
+                    return Some((
                         "typeShouldBeClass",
                         "Selector should select by class instead of element type",
-                        span,
-                    );
+                    ));
                 }
                 Style::Id if template.can_use_id(selection.iter().copied()) => {
-                    return self.report(
+                    return Some((
                         "typeShouldBeId",
                         "Selector should select by ID instead of element type",
-                        span,
-                    );
+                    ));
                 }
-                Style::Type => return,
+                Style::Type => return None,
                 Style::Id => {}
             }
         }
+        None
     }
 }
 
