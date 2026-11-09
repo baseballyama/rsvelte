@@ -321,6 +321,9 @@ pub struct SyntaxTree {
     /// Identifiers in type syntax that may name a binding (`A` in `x: A`, `Map<K, A>`, `typeof
     /// a`), in source order. The tree has no nodes for types, so scope analysis reads them here.
     pub type_references: Vec<TypeRef>,
+    /// The names that `type`, `interface`, `enum` and `namespace` statements declare, in source
+    /// order. Such a name and a variable of the same scope are one name to TypeScript.
+    pub type_declarations: Vec<TypeDeclaration>,
     /// The parser's stack of lists being gathered; empty between parses.
     pub(crate) scratch: Vec<NodeIdentifier>,
 }
@@ -333,6 +336,7 @@ pub struct Mark {
     typescript: usize,
     typescript_runtime: usize,
     type_references: usize,
+    type_declarations: usize,
 }
 
 impl Default for SyntaxTree {
@@ -347,6 +351,7 @@ impl Default for SyntaxTree {
 impl Drop for SyntaxTree {
     fn drop(&mut self) {
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.scratch));
+        buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.type_declarations));
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.type_references));
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.typescript_runtime));
         buffer_pool::give_keyed::<Self, _>(std::mem::take(&mut self.typescript));
@@ -376,6 +381,7 @@ impl SyntaxTree {
             typescript: buffer_pool::take_keyed::<Self, _>(),
             typescript_runtime: buffer_pool::take_keyed::<Self, _>(),
             type_references: buffer_pool::take_keyed::<Self, _>(),
+            type_declarations: buffer_pool::take_keyed::<Self, _>(),
             scratch: buffer_pool::take_keyed::<Self, _>(),
         }
     }
@@ -411,6 +417,7 @@ impl SyntaxTree {
             typescript: self.typescript.len(),
             typescript_runtime: self.typescript_runtime.len(),
             type_references: self.type_references.len(),
+            type_declarations: self.type_declarations.len(),
         }
     }
 
@@ -422,6 +429,7 @@ impl SyntaxTree {
         self.typescript.truncate(mark.typescript);
         self.typescript_runtime.truncate(mark.typescript_runtime);
         self.type_references.truncate(mark.type_references);
+        self.type_declarations.truncate(mark.type_declarations);
     }
 
     /// What the parser recorded since `tokens_from` tokens and `comments_from` comments, merged in
@@ -559,5 +567,6 @@ mod traverse;
 
 mod typescript;
 pub use typescript::{
-    TypeRef, TypeScriptFeature, TypeScriptKind, TypeScriptRuntime, TypeScriptSyntax,
+    TypeDeclaration, TypeRef, TypeScriptFeature, TypeScriptKind, TypeScriptRuntime,
+    TypeScriptSyntax,
 };

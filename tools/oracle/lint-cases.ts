@@ -1,10 +1,9 @@
 // `oracle lint-cases [--update]`: write ESLint's verdict for the lint crate's own rule cases
 // (crates/languages/svelte/lint/tests/cases), which follow eslint-plugin-svelte's fixture layout:
 // `<rule>/{valid,invalid}/…/<name>-input.svelte`, options in `<name>-config.json` or
-// `_config.json`, the reports in `<name>-errors.yaml` and the code after one pass of fixes in
-// `<name>-output.svelte`. As upstream's runner does, a missing errors.yaml or output is written and
-// an existing one is kept unless --update; a valid case must report nothing and an invalid one
-// something.
+// `_config.json`, the reports in `<name>-errors.yaml` and a fixable rule's fixed code in
+// `<name>-output.svelte`. As upstream's runner does, a missing file is written and an existing one
+// is kept unless --update; a valid case must report nothing and an invalid one something.
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
@@ -15,6 +14,26 @@ import type { Linter as LinterType } from 'eslint';
 const ROOT = path.resolve(import.meta.dirname, '../../crates/languages/svelte/lint/tests/cases');
 
 const sibling = (input: string, name: string) => input.replace(/(input|\+.+)(?:\.[a-z]+)+$/u, name);
+
+type Fix = { range: [number, number]; text: string };
+
+// upstream's applySuggestion: the code with one suggestion applied.
+const applySuggestion = (code: string, { range, text }: Fix) =>
+	`${code.slice(0, range[0])}${text}${code.slice(range[1])}`;
+
+// upstream's applyFixes (tests/utils/source-code-fixer.ts): one pass in range order that skips a
+// fix overlapping the one before it.
+function applyFixes(code: string, fixes: Fix[]): string {
+	let output = '';
+	let last = Number.NEGATIVE_INFINITY;
+	const sorted = fixes.toSorted((a, b) => a.range[0] - b.range[0] || a.range[1] - b.range[1]);
+	for (const { range, text } of sorted) {
+		if (last >= range[0] || range[0] > range[1]) continue;
+		output += code.slice(Math.max(0, last), Math.max(0, range[0])) + text;
+		last = range[1];
+	}
+	return output + code.slice(Math.max(0, last));
+}
 
 function inputs(directory: string): string[] {
 	return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -58,16 +77,6 @@ export async function main(args: string[]): Promise<void> {
 	const typescriptParser = require('@typescript-eslint/parser');
 	const globals = require('globals');
 	const yaml = require('yaml');
-	// RuleTester's output is one pass of fixes; the fixer is not exported.
-	const fixer = require(
-		path.join(path.dirname(require.resolve('eslint')), 'linter/source-code-fixer.js'),
-	) as {
-		applyFixes(
-			text: string,
-			messages: LinterType.LintMessage[],
-			fix: boolean,
-		): { fixed: boolean; output: string };
-	};
 	const linter = new Linter();
 	// Type-aware rules read a strict TypeScript project that holds the input as its only file.
 	const project = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-lint-cases-'));
@@ -148,24 +157,35 @@ export async function main(args: string[]): Promise<void> {
 					continue;
 				}
 				if (!messages.length) throw new Error(`${relative} is invalid but reports nothing`);
-				const fixed = fixer.applyFixes(text, messages, true);
-				const output = sibling(input, 'output.svelte');
-				if (fixed.fixed && (!fs.existsSync(output) || values.update)) {
-					fs.writeFileSync(output, fixed.output);
+				const errors = sibling(input, 'errors.yaml');
+				if (!fs.existsSync(errors) || values.update) {
+					const report = messages.map((m) => ({
+						message: m.message,
+						line: m.line,
+						column: m.column,
+						suggestions: m.suggestions
+							? m.suggestions.map((s) => ({
+									desc: s.desc,
+									messageId: s.messageId,
+									output: applySuggestion(text, s.fix),
+								}))
+							: null,
+					}));
+					fs.writeFileSync(errors, yaml.stringify(report));
 					written++;
 				}
-				const errors = sibling(input, 'errors.yaml');
-				if (fs.existsSync(errors) && !values.update) continue;
-				const report = messages.map((m) => ({
-					message: m.message,
-					line: m.line,
-					column: m.column,
-					suggestions: m.suggestions?.length ? m.suggestions : null,
-				}));
-				if (report.some((r) => r.suggestions))
-					throw new Error(`${relative}: suggestions are not written yet`);
-				fs.writeFileSync(errors, yaml.stringify(report));
-				written++;
+				const output = sibling(input, `output${path.extname(input)}`);
+				const fixable = plugin.rules[rule].meta?.fixable != null;
+				if (fixable && (!fs.existsSync(output) || values.update)) {
+					fs.writeFileSync(
+						output,
+						applyFixes(
+							text,
+							messages.flatMap((m) => (m.fix ? [m.fix] : [])),
+						),
+					);
+					written++;
+				}
 			}
 		}
 	}

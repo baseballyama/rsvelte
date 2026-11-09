@@ -17,6 +17,7 @@ pub use syntax::{lexer, operators, parser, syntax_tree};
 pub mod semantic {
     pub mod number;
     pub mod scope;
+    pub mod static_value;
 }
 pub use semantic::scope;
 

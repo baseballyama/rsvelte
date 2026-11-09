@@ -126,6 +126,16 @@ impl<K: TokenKind> Tokens<K> {
         (i < raw.len() && raw[i].span.start_offset <= offset).then(|| TokenIdentifier::new(i))
     }
 
+    /// The tokens that start inside `span`, trivia included: a node's tokens when `span` is the
+    /// node's.
+    #[must_use]
+    pub fn within(&self, span: Span) -> &[Token<K>] {
+        let raw = self.tokens.raw();
+        let start = raw.partition_point(|t| t.span.start_offset < span.start_offset);
+        let end = raw.partition_point(|t| t.span.start_offset < span.end_offset);
+        &raw[start..end.max(start)]
+    }
+
     /// The last non-trivia token that ends at or before `offset`.
     pub fn before(&self, offset: u32) -> Option<TokenIdentifier> {
         let raw = self.tokens.raw();
@@ -159,15 +169,6 @@ impl<K: TokenKind> Tokens<K> {
     pub fn until_offset(&self, offset: u32) -> &[Token<K>] {
         let raw = self.tokens.raw();
         &raw[..raw.partition_point(|t| t.span.end_offset <= offset)]
-    }
-
-    /// The tokens inside `span`, in order.
-    #[must_use]
-    pub fn within(&self, span: Span) -> &[Token<K>] {
-        let raw = self.tokens.raw();
-        let start = raw.partition_point(|t| t.span.start_offset < span.start_offset);
-        let end = raw.partition_point(|t| t.span.end_offset <= span.end_offset);
-        &raw[start..end.max(start)]
     }
 
     /// The tokens are the source: contiguous from 0 to `source_text.len()`.
