@@ -10,6 +10,16 @@ fn an_empty_object_is_the_defaults() {
 }
 
 #[test]
+fn whitespace_sensitivity_by_display_is_prettiers_default() {
+    let o = parse(r#"{"htmlWhitespaceSensitivity": "css"}"#).expect("valid");
+    assert_eq!(
+        o.markup_whitespace_sensitivity,
+        WhitespaceSensitivity::Display
+    );
+    assert_eq!(o, Options::default());
+}
+
+#[test]
 fn names_and_values_are_prettiers() {
     let o = parse(
         r#"{"printWidth": 100, "tabWidth": 4, "useTabs": true, "quoteProps": "as-needed",
@@ -19,7 +29,10 @@ fn names_and_values_are_prettiers() {
     .expect("valid");
     assert_eq!((o.print_width, o.tab_width, o.use_tabs), (100, 4, true));
     assert_eq!(o.trailing_comma, TrailingComma::Es5);
-    assert_eq!(o.html_whitespace_sensitivity, WhitespaceSensitivity::Ignore);
+    assert_eq!(
+        o.markup_whitespace_sensitivity,
+        WhitespaceSensitivity::Ignore
+    );
     assert_eq!(o.end_of_line, EndOfLine::Crlf);
     assert_eq!(
         o.svelte_sort_order,

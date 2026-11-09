@@ -261,7 +261,7 @@ pub(crate) fn unported(o: &Options) -> Option<&'static str> {
         object_wrap,
         bracket_same_line: _,
         arrow_parens,
-        html_whitespace_sensitivity: _,
+        markup_whitespace_sensitivity: _,
         end_of_line: _,
         embedded_language_formatting: _,
         single_attribute_per_line: _,

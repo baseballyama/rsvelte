@@ -174,8 +174,8 @@ impl<'a> Printer<'a, '_> {
     /// strict.
     pub(super) fn is_block(&self, identifier: TemplateNodeIdentifier) -> bool {
         self.is_regular(identifier)
-            && match self.options.html_whitespace_sensitivity {
-                WhitespaceSensitivity::Css => {
+            && match self.options.markup_whitespace_sensitivity {
+                WhitespaceSensitivity::Display => {
                     BLOCK_ELEMENTS.contains(&self.element_name(identifier).expect("element"))
                 }
                 WhitespaceSensitivity::Ignore => true,
