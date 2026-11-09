@@ -200,3 +200,62 @@ fn the_module_script_comes_before_the_instance_script() {
         [("dollar_prefix_invalid".to_owned(), 5, 6)]
     );
 }
+
+#[test]
+fn dollar_names_where_the_compiler_rejects_them() {
+    let at = |code: &str| first_error(code);
+    let dollar = |line, column| vec![("dollar_prefix_invalid".to_owned(), line, column)];
+    // A function in the instance is deeper than the scopes check, and legacy mode does not walk it.
+    assert_eq!(
+        at("<script>\n  function f() { let $z = 1; }\n</script>\n"),
+        []
+    );
+    assert_eq!(
+        at("<script>\n  const f = () => { let $z = 1; };\n</script>\n"),
+        []
+    );
+    // Runes mode, from a rune or from a store-free `$state`, walks it.
+    assert_eq!(
+        at("<script>\n  function f() { let $z = 1; }\n  $state;\n</script>\n"),
+        dollar(2, 21)
+    );
+    assert_eq!(
+        at("<script>\n  let x = $state(0);\n  function f() { let $z = 1; }\n</script>\n"),
+        dollar(3, 21)
+    );
+    assert_eq!(at("<script>\n  { let $z = 1; }\n</script>\n"), dollar(2, 8));
+    assert_eq!(
+        at("<script module>\n  function f() { let $z = 1; }\n</script>\n"),
+        dollar(2, 21)
+    );
+    assert_eq!(
+        at("<script>\n  import $i from \"x\";\n</script>\n"),
+        dollar(2, 9)
+    );
+    assert_eq!(
+        at("<script>\n  class $C {}\n  function $f() {}\n</script>\n"),
+        dollar(2, 8)
+    );
+    assert_eq!(
+        at("<script>\n  let x = $state(0);\n  class $C {}\n</script>\n"),
+        dollar(3, 8)
+    );
+    assert_eq!(
+        at(
+            "<script lang=\"ts\">\n  import type { $T } from \"x\";\n  try {} catch ($e) {}\n</script>\n"
+        ),
+        dollar(3, 16)
+    );
+    assert_eq!(
+        at("{#each [] as $e}{$e}{/each}\n{#snippet $s()}{/snippet}\n"),
+        []
+    );
+}
+
+#[test]
+fn a_store_subscription_is_no_rune() {
+    let code = "<script>\n  import { writable } from \"svelte/store\";\n  const state = writable(0);\n  $state;\n  export let a;\n</script>\n";
+    assert_eq!(codes(code), [("export_let_unused".to_owned(), 5, 13)]);
+    let code = "<script>\n  let { state } = $props();\n  $state;\n</script>\n";
+    assert_eq!(codes(code), []);
+}

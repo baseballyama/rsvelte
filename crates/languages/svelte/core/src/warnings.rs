@@ -7,7 +7,9 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_stylesheet::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple};
 use rsvelte_svelte_semantic::semantic::analyze::Analysis;
-use rsvelte_svelte_semantic::semantic::resolve::{RUNES, Resolution, for_each_pattern_identifier};
+use rsvelte_svelte_semantic::semantic::resolve::{
+    RUNES, Resolution, for_each_pattern_identifier, rune_call,
+};
 use rsvelte_svelte_syntax::names::is_component_name;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, Range, Script, TemplateNode, decode_attribute,
@@ -15,6 +17,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
 use rsvelte_typescript::scope::DeclarationKind;
 use rsvelte_typescript::syntax_tree::{Class, Kind, TypeScriptFeature};
 use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
+use rustc_hash::FxHashSet;
 
 mod a11y;
 
@@ -244,14 +247,14 @@ pub fn warnings(
 ) -> CompileWarnings {
     let mut out = CompileWarnings::default();
     let javascript = &component.javascript;
-    let runes = runes(component, resolution, source);
     if let Some(instance) = &component.instance {
         top_level_awaits(javascript, instance.program, false, &mut out.awaits);
     }
     for &expression in &component.template_expressions {
         top_level_awaits(javascript, expression, false, &mut out.awaits);
     }
-    dollar_names(component, resolution, source, &mut out.errors);
+    let runes = runes(component, resolution, source, &out.awaits);
+    dollar_names(component, resolution, source, runes, &mut out.errors);
     custom_element(component, resolution, source, &mut out.warnings);
     Template {
         component,
@@ -271,8 +274,9 @@ pub fn warnings(
     out
 }
 
-/// Svelte's runes mode: `<svelte:options runes>`, or else a reference to a rune.
-fn runes(component: &Component, resolution: &Resolution, source: &str) -> bool {
+/// Svelte's runes mode: `<svelte:options runes>`, or else a top-level `await` or a reference to
+/// a rune that is not a store subscription.
+fn runes(component: &Component, resolution: &Resolution, source: &str, awaits: &[Span]) -> bool {
     if let Some(value) = svelte_option(component, source, "runes") {
         return match value {
             AttributeValue::True => true,
@@ -283,14 +287,47 @@ fn runes(component: &Component, resolution: &Resolution, source: &str) -> bool {
             ),
         };
     }
+    if !awaits.is_empty() {
+        return true;
+    }
+    let stores = stores(component, resolution);
     resolution.sem.references.iter().any(|reference| {
         reference.binding.is_none() && {
             let name = component.javascript.name(reference.node);
             RUNES
                 .iter()
                 .any(|rune| rune.split('.').next() == Some(name))
+                && !stores.contains(&name[1..])
         }
     })
+}
+
+/// The top-level names whose `$name` is a store subscription rather than a rune: a declaration
+/// not initialized by a rune, or a prop other than `props`.
+fn stores<'a>(component: &'a Component, resolution: &Resolution) -> FxHashSet<&'a str> {
+    let javascript = &component.javascript;
+    let sem = &resolution.sem;
+    let programs: Vec<NodeIdentifier> = scripts(component).map(|s| s.program).collect();
+    sem.bindings
+        .iter()
+        .filter(|binding| programs.contains(&sem.scopes[binding.scope].node))
+        .filter_map(|binding| {
+            let name = javascript.name(binding.node);
+            let rune = binding
+                .initializer(javascript)
+                .and_then(|init| rune_call(javascript, init))
+                .map(|(rune, _)| rune);
+            let store = match rune {
+                None => {
+                    // `import { derived } from 'svelte/store'` beside `$derived(…)` is no subscription.
+                    !(binding.kind == DeclarationKind::Import && name == "derived")
+                }
+                Some("$props") => name != "props",
+                Some(_) => false,
+            };
+            store.then_some(name)
+        })
+        .collect()
 }
 
 /// The value of attribute `name` of `<svelte:options>`.
@@ -345,36 +382,118 @@ fn scripts(component: &Component) -> impl Iterator<Item = &Script> {
     component.module.iter().chain(&component.instance)
 }
 
-/// `dollar_prefix_invalid` and `dollar_binding_invalid`: a `$` name declared outside functions
-/// of a script.
+/// `dollar_prefix_invalid` and `dollar_binding_invalid`: a `$` name a script declares. Creating
+/// the scopes rejects one outside functions of the instance or nested at most one function deep
+/// in the module; in runes mode, the walk rejects a variable or function at any depth.
 fn dollar_names(
     component: &Component,
     resolution: &Resolution,
     source: &str,
+    runes: bool,
     out: &mut Vec<(Raised, Diagnostic)>,
 ) {
     let sem = &resolution.sem;
     let javascript = &component.javascript;
-    let roots: Vec<NodeIdentifier> = scripts(component).map(|s| s.program).collect();
-    let mut found: Vec<Span> = Vec::new();
+    let type_only = type_only_imports(component);
+    let mut found: Vec<(Raised, Span)> = Vec::new();
     for binding in &sem.bindings {
-        let declared = matches!(
-            binding.kind,
-            DeclarationKind::Variable
-                | DeclarationKind::Let
-                | DeclarationKind::Const
-                | DeclarationKind::Function
-        );
-        let top = roots.contains(&sem.scopes[sem.variable_scope(binding.scope)].node);
-        if declared
-            && top
-            && javascript.name(binding.node).starts_with('$')
-            && let Some(span) = javascript.source_location(binding.node).span()
+        if matches!(binding.kind, DeclarationKind::Param | DeclarationKind::Host)
+            || !javascript.name(binding.node).starts_with('$')
+            || binding.declaration.is_some_and(|d| type_only.contains(&d))
         {
-            found.push(span);
+            continue;
+        }
+        let Some(span) = javascript.source_location(binding.node).span() else {
+            continue;
+        };
+        let section = Section::of(component, span.start_offset);
+        let program = match section {
+            Section::Module => component.module.as_ref(),
+            Section::Instance => component.instance.as_ref(),
+            Section::Template => None,
+        };
+        let Some(program) = program.map(|s| s.program) else {
+            continue;
+        };
+        // A class expression's own name is not in the compiler's scopes.
+        if matches!(
+            javascript.kind(sem.scopes[binding.scope].node),
+            Kind::Class(_)
+        ) {
+            continue;
+        }
+        let mut depth = u32::from(section == Section::Instance);
+        let mut scope = binding.scope;
+        while sem.scopes[scope].node != program {
+            depth += u32::from(sem.scopes[scope].function);
+            let Some(parent) = sem.scopes[scope].parent else {
+                break;
+            };
+            scope = parent;
+        }
+        let declared = binding.kind == DeclarationKind::Function
+            || binding
+                .declaration
+                .is_some_and(|d| matches!(javascript.kind(d), Kind::Declarator { .. }));
+        let phase = if depth <= 1 {
+            Phase::Scopes
+        } else if runes && declared {
+            Phase::Walk
+        } else {
+            continue;
+        };
+        let raised = Raised {
+            phase,
+            section,
+            at: span.start_offset,
+        };
+        found.push((raised, span));
+    }
+    enum_names(component, source, &mut found);
+    for (raised, span) in found {
+        let error = if span.text(source) == "$" {
+            error(
+                "dollar_binding_invalid",
+                "The $ name is reserved, and cannot be used for variables and imports",
+                span,
+            )
+        } else {
+            error(
+                "dollar_prefix_invalid",
+                "The $ prefix is reserved, and cannot be used for variables and imports",
+                span,
+            )
+        };
+        out.push((raised, error));
+    }
+}
+
+/// The specifiers of `import type`, which TypeScript erases.
+fn type_only_imports(component: &Component) -> FxHashSet<NodeIdentifier> {
+    let javascript = &component.javascript;
+    let mut type_only: FxHashSet<NodeIdentifier> = FxHashSet::default();
+    for script in scripts(component) {
+        let Kind::Program(statements) = javascript.kind(script.program) else {
+            continue;
+        };
+        for &statement in statements {
+            if let Kind::Import {
+                specifiers,
+                type_only: true,
+                ..
+            } = javascript.kind(statement)
+            {
+                type_only.extend(specifiers);
+            }
         }
     }
-    // An enum is a variable once TypeScript is erased; the tree keeps it as a runtime feature.
+    type_only
+}
+
+/// `$` names of enums, which are variables once TypeScript is erased; the tree keeps an enum as
+/// a runtime feature.
+fn enum_names(component: &Component, source: &str, found: &mut Vec<(Raised, Span)>) {
+    let javascript = &component.javascript;
     for feature in &javascript.typescript_runtime {
         if feature.feature != TypeScriptFeature::Enum {
             continue;
@@ -389,32 +508,13 @@ fn dollar_names(
         if let Some(name) = name
             && name.span.text(source).starts_with('$')
         {
-            found.push(name.span);
+            let raised = Raised {
+                phase: Phase::Scopes,
+                section: Section::of(component, name.span.start_offset),
+                at: name.span.start_offset,
+            };
+            found.push((raised, name.span));
         }
-    }
-    found.sort_by_key(|s| s.start_offset);
-    for span in found {
-        let raised = Raised {
-            phase: Phase::Scopes,
-            section: Section::of(component, span.start_offset),
-            at: span.start_offset,
-        };
-        out.push((
-            raised,
-            if span.text(source) == "$" {
-                error(
-                    "dollar_binding_invalid",
-                    "The $ name is reserved, and cannot be used for variables and imports",
-                    span,
-                )
-            } else {
-                error(
-                    "dollar_prefix_invalid",
-                    "The $ prefix is reserved, and cannot be used for variables and imports",
-                    span,
-                )
-            },
-        ));
     }
 }
 
