@@ -1,4 +1,6 @@
-use super::{AssignmentOperator, ClientCompilationContext, Kind, NodeIdentifier, SourceLocation};
+use super::{
+    AssignmentOperator, ClientCompilationContext, Kind, NodeIdentifier, SourceLocation, unthunk,
+};
 use crate::lower::BindingKind;
 
 impl ClientCompilationContext<'_> {
@@ -62,6 +64,6 @@ impl ClientCompilationContext<'_> {
             false,
             SourceLocation::SYNTHETIC,
         );
-        self.unthunk(set)
+        unthunk(&self.out, set)
     }
 }

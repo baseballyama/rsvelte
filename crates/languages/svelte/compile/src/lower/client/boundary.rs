@@ -2,6 +2,8 @@ mod parameters;
 
 use rsvelte_svelte_semantic::compiler_syntax_tree::Snippet;
 
+use super::super::javascript::getter;
+
 use super::{
     ClientCompilationContext, CompilerNodeIdentifier, Frag, Lists, NodeIdentifier, NodeKind, R,
     SourceLocation, flag, init_property,
@@ -24,17 +26,11 @@ impl ClientCompilationContext<'_> {
             let expression = super::super::template::single_expression(&attribute.value)
                 .expect("boundary attributes are validated");
             let value = self.expression(expression);
+            let name = attribute.name.text(self.source_text);
             let property = if self.an.meta(expression).has_state {
-                let ret = self.out.return_(Some(value), SourceLocation::SYNTHETIC);
-                let body = self.out.block(&[ret], SourceLocation::SYNTHETIC);
-                let function =
-                    self.out
-                        .function(false, None, &[], body, false, SourceLocation::SYNTHETIC);
-                let key = self.out.identifier(attribute.name.text(self.source_text));
-                self.out
-                    .property(key, function, flag::GETTER, SourceLocation::SYNTHETIC)
+                getter(&mut self.out, name, value)
             } else {
-                init_property(&mut self.out, attribute.name.text(self.source_text), value)
+                init_property(&mut self.out, name, value)
             };
             properties.push(property);
         }

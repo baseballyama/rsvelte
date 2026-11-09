@@ -7,6 +7,7 @@ use super::{
 };
 use crate::lower::BindingKind;
 use crate::lower::custom_element::{Shadow, Tag, option_property};
+use crate::lower::javascript::accessor;
 
 impl ClientCompilationContext<'_> {
     pub(super) fn custom_element_stylesheet(
@@ -54,7 +55,7 @@ impl ClientCompilationContext<'_> {
             let target = self.out.identifier(name);
             let read = self.out.call0(target, &[]);
             let read = self.out.return_(Some(read), SourceLocation::SYNTHETIC);
-            properties.push(self.accessor(&key, &[], &[read], flag::GETTER));
+            properties.push(accessor(&mut self.out, &key, &[], &[read], flag::GETTER));
             let value = self.out.identifier("$$value");
             let parameter = if let Some(initial) = binding.initial {
                 let initial = copy(self.javascript, &mut self.out, &mut Verbatim, initial);
@@ -67,43 +68,15 @@ impl ClientCompilationContext<'_> {
             let call = self.out.expression_statement(call);
             let flush = self.out.runtime("$", "flush", &[]);
             let flush = self.out.expression_statement(flush);
-            properties.push(self.accessor(&key, &[parameter], &[call, flush], flag::SETTER));
+            properties.push(accessor(
+                &mut self.out,
+                &key,
+                &[parameter],
+                &[call, flush],
+                flag::SETTER,
+            ));
         }
         properties
-    }
-
-    fn accessor(
-        &mut self,
-        key: &str,
-        parameters: &[NodeIdentifier],
-        body: &[NodeIdentifier],
-        flags: u8,
-    ) -> NodeIdentifier {
-        let body = self.out.block(body, SourceLocation::SYNTHETIC);
-        let function = self.out.function(
-            false,
-            None,
-            parameters,
-            body,
-            false,
-            SourceLocation::SYNTHETIC,
-        );
-        let property = init_property(&mut self.out, key, function);
-        let Kind::Property {
-            key,
-            value,
-            computed,
-            ..
-        } = self.out.kind(property)
-        else {
-            unreachable!("a property")
-        };
-        self.out.property(
-            key,
-            value,
-            flags | if computed { flag::COMPUTED } else { 0 },
-            SourceLocation::SYNTHETIC,
-        )
     }
 
     fn property_key(&self, key: NodeIdentifier) -> String {

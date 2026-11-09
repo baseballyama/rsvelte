@@ -33,25 +33,86 @@ pub(crate) fn call_arguments(
         .collect()
 }
 
-/// `b.init(name, value)` as esrap prints it: an identifier key when `name` is one, a string
-/// key otherwise, and the shorthand `{ name }` when the value is that identifier.
+/// `b.unthunk`: `(a, b) => f(a, b)` is `f`.
+pub(crate) fn unthunk(out: &SyntaxTree, arrow: NodeIdentifier) -> NodeIdentifier {
+    let Kind::Arrow {
+        parameters,
+        body,
+        expression_body: true,
+        is_async: false,
+        ..
+    } = out.kind(arrow)
+    else {
+        return arrow;
+    };
+    let Kind::Call {
+        callee,
+        arguments,
+        optional: false,
+        ..
+    } = out.kind(body)
+    else {
+        return arrow;
+    };
+    let same = out.is_identifier(callee)
+        && parameters.len() == arguments.len()
+        && parameters.iter().zip(arguments).all(|(&p, &a)| {
+            out.is_identifier(p) && out.is_identifier(a) && out.name(p) == out.name(a)
+        });
+    if same { callee } else { arrow }
+}
+
+/// `b.init(name, value)` as esrap prints it: the shorthand `{ name }` when the value is that
+/// identifier.
 pub(crate) fn init_property(
     out: &mut SyntaxTree,
     name: &str,
     value: NodeIdentifier,
 ) -> NodeIdentifier {
-    if !is_valid_identifier(name) {
-        let key = out.write_string(name);
-        return out.property(key, value, 0, SourceLocation::SYNTHETIC);
-    }
-    let key = out.identifier(name);
-    let shorthand = out.is_identifier(value) && out.name(value) == name;
+    let key = property_key(out, name);
+    let shorthand = out.is_identifier(key) && out.is_identifier(value) && out.name(value) == name;
     out.property(
         key,
         value,
         if shorthand { flag::SHORTHAND } else { 0 },
         SourceLocation::SYNTHETIC,
     )
+}
+
+/// `b.key(name)`: an identifier key when `name` is one, a string key otherwise.
+fn property_key(out: &mut SyntaxTree, name: &str) -> NodeIdentifier {
+    if is_valid_identifier(name) {
+        out.identifier(name)
+    } else {
+        out.write_string(name)
+    }
+}
+
+/// `b.get` / `b.set`: `get name() { … }` or `set name(parameter) { … }`, as `flags` says.
+pub(crate) fn accessor(
+    out: &mut SyntaxTree,
+    name: &str,
+    parameters: &[NodeIdentifier],
+    body: &[NodeIdentifier],
+    flags: u8,
+) -> NodeIdentifier {
+    let key = property_key(out, name);
+    let block = out.block(body, SourceLocation::SYNTHETIC);
+    let function = out.function(
+        false,
+        None,
+        parameters,
+        block,
+        false,
+        SourceLocation::SYNTHETIC,
+    );
+    out.property(key, function, flags, SourceLocation::SYNTHETIC)
+}
+
+/// `get name() { return value; }`
+pub(crate) fn getter(out: &mut SyntaxTree, name: &str, value: NodeIdentifier) -> NodeIdentifier {
+    let ret = out.return_(Some(value), SourceLocation::SYNTHETIC);
+    accessor(out, name, &[], &[ret], flag::GETTER)
 }
 
 /// Upstream `regex_is_valid_identifier`: `/^[a-zA-Z_$][a-zA-Z_$0-9]*$/`.

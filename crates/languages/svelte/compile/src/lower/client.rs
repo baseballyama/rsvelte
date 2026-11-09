@@ -35,7 +35,7 @@ use rsvelte_typescript_syntax::syntax_tree::flag;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
-use super::javascript::{init_property, runtime_call};
+use super::javascript::{init_property, runtime_call, unthunk};
 use super::names::Names;
 use super::script::{Read, ScriptRewrite};
 use super::{
