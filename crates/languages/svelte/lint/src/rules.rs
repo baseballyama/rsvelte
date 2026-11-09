@@ -10,6 +10,7 @@ mod no_unused_variables;
 mod nodes;
 mod prefer_derived_over_derived_by;
 mod prefer_svelte_reactivity;
+mod prefer_writable_derived;
 mod reference_tracker;
 mod runes;
 mod valid_each_key;
@@ -26,6 +27,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &inactive::NO_UNUSED_PROPS,
     &prefer_derived_over_derived_by::RULE,
     &prefer_svelte_reactivity::RULE,
+    &prefer_writable_derived::RULE,
     &inactive::REQUIRE_EVENT_DISPATCHER_TYPES,
     &inactive::REQUIRE_EVENT_PREFIX,
     &valid_each_key::RULE,

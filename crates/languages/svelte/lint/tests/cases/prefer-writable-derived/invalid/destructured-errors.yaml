@@ -1,0 +1,13 @@
+- message: Prefer using writable $derived instead of $state and $effect
+  line: 3
+  column: 6
+  suggestions:
+    - desc: Rewrite $state and $effect to $derived
+      messageId: suggestRewrite
+      output: |-
+        <script>
+        	const { a } = $props();
+        	let { b } = $derived(a);
+        	;
+        </script>
+        {b}
