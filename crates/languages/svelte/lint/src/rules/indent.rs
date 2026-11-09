@@ -69,7 +69,11 @@ impl SvelteRule for Indent {
             return;
         }
         let component = file.component().expect("a component rule");
-        let tokens = Tokens::new(component, file.source(), file.context.line_index());
+        let tokens = Tokens::new(
+            component,
+            file.source(),
+            file.context.ecmascript_line_index(),
+        );
         let mut layout = Layout::new(tokens, self.0);
         template::Template {
             script: script::Script {

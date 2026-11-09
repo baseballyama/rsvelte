@@ -39,13 +39,13 @@ impl SvelteRule for MaxLinesPerBlock {
         let component = file.component().expect("a component rule");
         let lines = Lines {
             source: file.source(),
-            index: file.context.line_index(),
+            index: file.context.ecmascript_line_index(),
         };
         check(component, &lines, &self.0, reporter);
     }
 }
 
-/// `ESLint`'s `sourceCode.lines`, 1-based.
+/// `ESLint`'s `sourceCode.lines`, 1-based, split at ECMAScript line terminators.
 struct Lines<'a> {
     source: &'a str,
     index: &'a LineIndex,
@@ -57,22 +57,20 @@ impl Lines<'_> {
     }
 
     fn line(&self, offset: u32) -> u32 {
-        self.index.line_column(offset).line
+        self.index.line(offset)
+    }
+
+    fn span(&self, line: u32) -> Span {
+        self.index.line_span(line).expect("an existing line")
     }
 
     fn start(&self, line: u32) -> u32 {
-        self.index.offset(line, 0).expect("an existing line")
+        self.span(line).start_offset
     }
 
     /// The line's text without its terminator.
     fn text(&self, line: u32) -> &str {
-        let end = if line < self.count() {
-            self.start(line + 1) as usize - 1
-        } else {
-            self.source.len()
-        };
-        let text = &self.source[self.start(line) as usize..end];
-        text.strip_suffix('\r').unwrap_or(text)
+        self.span(line).text(self.source)
     }
 
     /// Whether `line` counts when blank lines are skipped or not.
@@ -251,3 +249,6 @@ fn check_template(
         report(reporter, "template", count, max, first.span());
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -91,7 +91,7 @@ impl<'a> Tokens<'a> {
     }
 
     pub(super) fn line(&self, offset: u32) -> u32 {
-        self.lines.line_column(offset).line
+        self.lines.line(offset)
     }
 
     pub(super) fn column(&self, offset: u32) -> u32 {
@@ -342,7 +342,11 @@ impl<'a> Layout<'a> {
             };
             if !tokens.begins_line(start) {
                 let line = tokens.line(start);
-                let line_start = tokens.lines.offset(line, 0).expect("an existing line");
+                let line_start = tokens
+                    .lines
+                    .line_span(line)
+                    .expect("an existing line")
+                    .start_offset;
                 let leading = tokens.source[line_start as usize..]
                     .chars()
                     .take_while(|c| c.is_whitespace())
@@ -529,7 +533,11 @@ impl<'a> Layout<'a> {
         let tokens = &self.tokens;
         let start = tokens.span(token).start_offset;
         let line = tokens.line(start);
-        let line_start = tokens.lines.offset(line, 0).expect("an existing line");
+        let line_start = tokens
+            .lines
+            .line_span(line)
+            .expect("an existing line")
+            .start_offset;
         let indent = &tokens.source[line_start as usize..start as usize];
         if !indent.trim().is_empty() {
             return;

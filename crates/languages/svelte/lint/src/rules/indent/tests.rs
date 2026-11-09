@@ -14,7 +14,7 @@ fn reported_lines(source_text: &str) -> Vec<u32> {
     configuration
         .rule("svelte/indent", Severity::Error, &[], &[])
         .expect("a known rule");
-    let lines = context.line_index();
+    let lines = context.ecmascript_line_index();
     crate::lint(&context, &configuration)
         .expect("source parses")
         .iter()
@@ -76,4 +76,13 @@ fn a_snippet_without_parameters_takes_its_own_parentheses() {
         reported_lines(&source.replace("foo()", "foo(a)")),
         [0u32; 0]
     );
+}
+
+#[test]
+fn lines_end_at_every_ecmascript_line_terminator() {
+    let source = "<div>\n<p>x</p>\n</div>\n<script>\nlet a;\n  let b;\n</script>\n";
+    for terminator in ["\n", "\r\n", "\r", "\u{2028}", "\u{2029}"] {
+        let source = source.replace('\n', terminator);
+        assert_eq!(reported_lines(&source), [2, 5], "{terminator:?}");
+    }
 }
