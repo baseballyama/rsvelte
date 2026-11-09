@@ -3433,7 +3433,20 @@ entirely (neither matched nor failed). Each entry carries a `"class"`
 (`oracle-bug` | `invalid-input` | `migrate` | `engine-divergence`) and a
 `"reason"`; this file records the class-level rationale.
 
-**Current baseline: `fmt-oracle-excluded.json`, 29 entries.**
+**Current baseline: `fmt-oracle-excluded.json`, 24 entries.**
+
+**5 entries left on 2026-11-08, retired by the oxc 0.157.0 upgrade and its paired `oxfmt`
+0.76.0 oracle bump** — each verified byte-identical locally on macOS and on the Linux CI
+`main` run of the same day (all five printed `[fmt-verify] NOTICE: excluded id now matches
+oracle`). `block-expression-assign` and the svelte.dev `+layout` already matched under the
+0.67.0 oracle, so their mover is rsvelte's side: oxc now prints `{@const x = (h = 0)}`
+without the redundant parens, and oxc-project/oxc#27326 opens an over-wide `calc()`
+parenthesized operand the way the oracle's Svelte path does. The three
+`3515-props-*-line-comment` entries converged from both directions: rsvelte's oxc 0.157
+formatter keeps the comment in the separator slot (it previously attached it after the
+initializer) and `oxfmt` 0.76.0 no longer inserts the extra blank line — the two agree in
+the slot the #3515 compiler repros depend on, so their deliberate-divergence section in
+GATES.md is removed rather than re-worded.
 
 `fmt-verify.mjs` warns if an excluded id is no longer in the parity set (can be
 deleted) and notices if an excluded id now matches byte-for-byte (the oracle bug
@@ -3447,17 +3460,16 @@ Attribution of `fmt-oracle-excluded.json`:
 
 | n | target | cluster |
 |---|---|---|
-| 3 | [`deliberate-divergences`](#deliberate-divergences) | the `$props()` comment slot the #3515 repros depend on |
 | 3 | [`deliberate-divergences`](#deliberate-divergences) | `engine-divergence` — oxc's line-breaking, not prettier's |
 | 7 | [`deliberate-divergences`](#deliberate-divergences) | `invalid-input` and `migrate` — inputs no compiler accepts, and Svelte 4 migrator output |
-| 5 | [`deliberate-divergences`](#deliberate-divergences) | both texts compile to byte-identical client and server `js` **and** `css` |
-| 3 | [`deliberate-divergences`](#deliberate-divergences) | rsvelte reproduces `oxfmt <file>.css` byte-for-byte; the oracle's Svelte path disagrees with oxfmt itself |
+| 4 | [`deliberate-divergences`](#deliberate-divergences) | both texts compile to byte-identical client and server `js` **and** `css` |
+| 2 | [`deliberate-divergences`](#deliberate-divergences) | rsvelte reproduces `oxfmt <file>.css` byte-for-byte; the oracle's Svelte path disagrees with oxfmt itself |
 | 2 | [`upstream_issues/3035-prettier-plugin-svelte-drops-a-nested-pattern-key-in-each.md`](../upstream_issues/3035-prettier-plugin-svelte-drops-a-nested-pattern-key-in-each.md) | `oracle-bug` — the `{#each}` head drops a nested pattern's property key |
 | 1 | [`upstream_issues/oxfmt-svelte-css-eats-a-css-escape-terminator-space.md`](../upstream_issues/oxfmt-svelte-css-eats-a-css-escape-terminator-space.md) | `oracle-bug` — a CSS escape's terminator space is eaten, and a live rule becomes dead |
 | 3 | [`upstream_issues/oxfmt-svelte-css-keeps-source-tabs-around-a-selector-comment.md`](../upstream_issues/oxfmt-svelte-css-keeps-source-tabs-around-a-selector-comment.md) | `oracle-bug` — source tabs survive on a comment-bearing selector under `useTabs: false` |
 | 2 | [`upstream_issues/4717-prettier-plugin-svelte-drops-svelte-element-this-interpolation.md`](../upstream_issues/4717-prettier-plugin-svelte-drops-svelte-element-this-interpolation.md) | `oracle-bug` — a quoted `<svelte:element this="h{n}">` keeps only its first chunk and `{n}` is deleted |
 
-**Every one of the 29 entries now carries a target.** The last one that did not —
+**Every one of the 24 entries now carries a target.** The last one that did not —
 `shadcn-svelte/.../theme-customizer-code.svelte` — was not an oracle bug at all, and it left
 this file for `fmt-known-failures.json`; the measurement is under *A second stated reason was
 falsified* below. The control that decides it is one character wide: replace the `<pre>` with a
@@ -3532,9 +3544,9 @@ sixteen and feeding each result back to `svelte@5.56.10`'s `parse({modern: true}
   `runtime-legacy/samples/block-expression-assign/main.svelte` is recorded as "oxfmt drops
   the closing paren in `{@const x = (h = 0)}`, producing `{@const x = (h = 0}` — invalid".
   Under 0.64.0 the output is `{@const x = h = 0}`, which parses and is semantically
-  identical (`=` is right-associative). Whether the entry would now *match* rsvelte-fmt
-  byte-for-byte — and so should be deleted rather than re-worded — is unmeasured; it needs
-  a built `rsvelte-fmt`.
+  identical (`=` is right-associative). The question is answered by the oxc 0.157.0
+  upgrade: both sides now print the paren-free `{@const x = h = 0}` byte-identically, so the
+  entry is deleted rather than re-worded (see the 2026-11-08 note at the top of this section).
 
 **A second stated reason was falsified on 2026-08-31, and that entry left this file.**
 `shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte` was excluded as
@@ -3574,8 +3586,6 @@ correct; file upstream at `oxformatter/oxfmt` or `prettier/prettier-plugin-svelt
   is mangled to `[x, y, ...undefined]`, silently erasing `z`/`n`/`length` (source
   corruption). — `each-block-destructured-array-nested-rest`,
   `await-then-destruct-array-nested-rest`.
-- **`{@const x = (h = 0)}` closing paren dropped** → `{@const x = (h = 0}`, invalid
-  Svelte. — `block-expression-assign`.
 - **Nested object destructure with a default loses its key.** In an `{#each}`
   context, `{ id, meta: { tags: […] } = {} }` is emitted as
   `{ id, { tags: … } = { } }` — the `meta:` key vanishes and the output is not
@@ -3593,8 +3603,7 @@ correct; file upstream at `oxformatter/oxfmt` or `prettier/prettier-plugin-svelt
   content. — `whitespace-after-script-tag`, `whitespace-after-style-tag`.
 - **`--svelte` CSS path defects.** Double-spaces an empty custom-property value
   (`css-vars`); emits a single space before `{` after an escaped-unicode selector
-  (`unicode-identifier`); wraps a deeply-nested `calc(...)` differently
-  (`svelte.dev .../docs/[topic]/[...path=documentation]/+layout.svelte`).
+  (`unicode-identifier`).
 - **oxfmt formats embedded CSS differently from standalone CSS.** For
   `--arr: [1, 2]` / `--sel: a > b ~ c`, `oxfmt x.css` prints `[1 , 2]` /
   `a > b ~ c` while `oxfmt --svelte` prints `[1, 2]` / `a > b ~c` — the same tool
@@ -3648,11 +3657,6 @@ aligning `oxc_formatter`'s break heuristics with prettier upstream.
 - IIFE arrow parameter-list vs call-argument break point (`flowbite GitHubSourceList`).
 - Member-chain-only vs `&&`/call-args break priority in an `{#if}` header
   (`flowbite forms/tags/Tags`).
-- Line-comment attachment between a destructuring assignment and its initializer:
-  prettier keeps `= // comment\n $props()` in that separator slot (and inserts a
-  blank line), while oxc emits `= $props(); // comment`. Both are valid, but the
-  original slot is deliberately retained in the three `3515-props-*-line-comment`
-  pattern fixtures because it distinguishes the compiler comment-cursor defect.
 
 <a id="known-failures"></a>
 
