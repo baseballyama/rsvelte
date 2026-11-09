@@ -2,6 +2,7 @@
 //! components.
 
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
+use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashSet;
 
 use super::super::special::invalid;
@@ -29,7 +30,7 @@ enum Owner {
 
 /// # Errors
 ///
-/// `attribute_duplicate`, `svelte_fragment_invalid_placement` or
+/// `attribute_duplicate`, `bind_invalid_expression`, `svelte_fragment_invalid_placement` or
 /// `slot_attribute_invalid_placement`, at the first node in document order that has one.
 pub(in crate::lower) fn check(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
     walk(
@@ -72,6 +73,17 @@ fn element<'a>(
     let node = tree.node(identifier);
     let attributes = tree.attributes(el.attributes);
     check_unique(source, attributes, names)?;
+    for a in attributes {
+        if let AttributeValue::Bind(target) = a.value
+            && !binds_a_name(input.component.javascript, target)
+        {
+            return invalid(
+                "bind_invalid_expression",
+                "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair",
+                a.span,
+            );
+        }
+    }
     let parent = node.parent.map(|parent| &tree.node(parent).kind);
     // Upstream's `SvelteFragment` takes a component or `<svelte:component>`, not `<svelte:self>`.
     if el.kind == ElementKind::Metadata(Some(MetadataTag::Fragment))
@@ -142,4 +154,20 @@ fn check_unique<'a>(
         }
     }
     Ok(())
+}
+
+/// Upstream's `bind_invalid_expression` test: a `{get, set}` pair, or a member chain that starts
+/// from a name, with no optional chain in it, which cannot be assigned to.
+fn binds_a_name(javascript: &SyntaxTree, target: NodeIdentifier) -> bool {
+    if let Kind::Sequence(expressions) = javascript.kind(target) {
+        return expressions.len() == 2;
+    }
+    let mut link = target;
+    while let Kind::Member { object, .. } = javascript.kind(link) {
+        if javascript.is_chain(link) {
+            return false;
+        }
+        link = object;
+    }
+    javascript.is_identifier(link)
 }

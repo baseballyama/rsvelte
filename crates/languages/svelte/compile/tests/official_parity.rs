@@ -272,7 +272,6 @@ fn each_component_attribute_not_lowered_yet_is_refused_on_both_targets() {
     for attribute in [
         "bind:this={c}",
         "bind:group={c}",
-        "bind:v={1}",
         "{@attach f}",
         "class:x",
         "on:click={f}",
@@ -431,4 +430,30 @@ fn a_grouped_optional_chain_in_a_prop_is_a_member() {
         assert!(client.contains(expected), "{expected} in {client}");
     }
     assert!(squashed(source, Target::Server).contains("x:(a?.b).c,y:a?.b"));
+}
+
+#[test]
+fn a_binding_needs_a_name_or_a_member_chain_on_both_targets() {
+    let script = "<script>import C from './C.svelte'; let o = $state({}); function f() { return o; }</script>";
+    for (markup, expected) in [
+        (
+            "<input bind:value={o?.a} />",
+            Some("bind_invalid_expression"),
+        ),
+        (
+            "<input bind:value={(o?.a).b} />",
+            Some("bind_invalid_expression"),
+        ),
+        ("<C bind:value={o?.a} />", Some("bind_invalid_expression")),
+        ("<C bind:value={f()} />", Some("bind_invalid_expression")),
+        ("<C bind:value={1} />", Some("bind_invalid_expression")),
+        ("<input bind:value={o.a} />", None),
+        ("<C bind:value={o.a} />", None),
+    ] {
+        let source = format!("{script}{markup}");
+        for target in [Target::Client, Target::Server] {
+            let outcome = compile(&source, target).err();
+            assert_eq!(outcome.as_deref(), expected, "{markup} on {target:?}");
+        }
+    }
 }
