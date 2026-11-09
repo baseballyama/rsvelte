@@ -391,8 +391,8 @@ repository, and no lint case covers these quirks.
 
 ## The SvelteKit navigation rules: `$app/paths` through a namespace, a constant or a pattern
 
-eslint-plugin-svelte 3.23.1, each input in a Kit 2 project (`<script>` holds
-`import { goto } from '$app/navigation';` and the import shown):
+In eslint-plugin-svelte 3.23.1, each input below is in a Kit 2 project, and its `<script>` holds
+`import { goto } from '$app/navigation';` and the import shown:
 
 | Rule                            | Input                                                                 | Upstream       |
 | ------------------------------- | --------------------------------------------------------------------- | -------------- |
@@ -402,16 +402,17 @@ eslint-plugin-svelte 3.23.1, each input in a Kit 2 project (`<script>` holds
 | `no-navigation-without-base`    | `import * as p` and `const { base } = p; goto(base + '/x')`           | reports `goto` |
 
 Upstream allows `asset()` imported by name, `resolve as alias` and `base` imported by name. Each
-input above calls the same function or reads the same value, so it is allowed too. The rules take
-the references of an import specifier's local name; of the other uses that eslint-utils'
-`ReferenceTracker` finds, they keep only a `p.resolve` or `p.base` member. This crate follows the
-value through the namespace, the constant and the pattern, and reports none of them.
+input above calls the same function or reads the same value, so upstream should allow it too. The
+rules take the references of an import specifier's local name. Of the other uses that the
+`ReferenceTracker` of `@eslint-community/eslint-utils` finds, they keep only a `p.resolve` or
+`p.base` member. This crate follows the value through the namespace, the constant and the
+pattern, and reports none of them.
 Tests in `crates/hosts/command_line/tests/svelte_kit.rs`: `asset_through_the_namespace_is_resolved`,
 `resolve_through_a_constant_is_resolved` and `a_path_destructured_from_the_namespace_is_followed`.
 
 ## The SvelteKit navigation rules throw
 
-eslint-plugin-svelte 3.23.1, in a Kit 2 project:
+In eslint-plugin-svelte 3.23.1, these inputs in a Kit 2 project make a rule throw:
 
 | Rule                            | Input                                                                          | Upstream throws                                         |
 | ------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------- |
@@ -421,18 +422,17 @@ eslint-plugin-svelte 3.23.1, in a Kit 2 project:
 | `no-navigation-without-resolve` | `<a href="/x" rel>`                                                            | the same                                                |
 
 The first two take the `local` name of each use of `base`, which only an import specifier has. The
-others read `value[0]` of an attribute without a value, which `svelte-eslint-parser` gives
-`href=""` too. This crate takes `p.base + '/x'` as prefixed
-with the base path and checks no link whose `href` is empty, as upstream's
-`no-navigation-without-resolve` does not. A `rel` without a value names no external link, so
-`<a href="/x" rel>` is reported.
+others read `value[0]` of an attribute without a value, and `svelte-eslint-parser` gives `href=""`
+no value too. This crate takes `p.base + '/x'` as a path that starts with the base path. Like upstream's
+`no-navigation-without-resolve`, both rules here check no link whose `href` is empty. A `rel`
+without a value names no external link, so this crate reports `<a href="/x" rel>`.
 Tests in `svelte_kit.rs`: `base_through_the_namespace_prefixes_a_url`,
 `an_empty_link_is_not_checked` and `rel_without_a_value_is_not_external`.
 
 ## `svelte/no-export-load-in-svelte-module-in-kit-pages` misses `<script module>`
 
-eslint-plugin-svelte 3.23.1 reports nothing for this `+error.svelte` or `+layout.svelte` in a
-Kit 2 project:
+In eslint-plugin-svelte 3.23.1, the rule reports nothing for this `+error.svelte` or
+`+layout.svelte` in a Kit 2 project:
 
 ```svelte
 <script module>
@@ -447,7 +447,7 @@ Test in `svelte_kit.rs`: `load_in_a_module_script_of_an_error_page_is_reported`.
 
 ## `svelte/valid-prop-names-in-kit-pages` reports a computed key
 
-eslint-plugin-svelte 3.23.1 reports `[k]` in this `+page.svelte` of a Kit 2 project:
+In eslint-plugin-svelte 3.23.1, the rule reports `[k]` in this `+page.svelte` of a Kit 2 project:
 
 ```svelte
 <script>
@@ -456,8 +456,7 @@ eslint-plugin-svelte 3.23.1 reports `[k]` in this `+page.svelte` of a Kit 2 proj
 </script>
 ```
 
-The rule takes an identifier key as the prop's name even when it is computed, so it reports a prop
-called `k`. A computed key names whatever the expression evaluates to, here `data`, which is
-valid. This crate does not check
-a computed key.
+The rule takes an identifier key as the prop's name even in brackets, so it reports a prop called
+`k`. A computed key names the value of its expression, here `data`, which a page takes. This crate
+does not check a computed key.
 Test in `svelte_kit.rs`: `a_computed_prop_name_is_not_reported`.
