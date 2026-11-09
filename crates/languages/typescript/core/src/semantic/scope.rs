@@ -6,6 +6,9 @@
 //! scopes its own syntax opens, like Vue's `v-for`) is analyzed as if it were nested in the
 //! program's top-level scope, which is what makes script-and-template facts ("is this variable used
 //! anywhere?") one query instead of two analyses.
+//!
+//! Both passes walk with a stack of steps rather than by recursion, so nesting depth costs heap,
+//! and each lookup and `var` takes constant time, so the cost stays linear in the tree.
 
 use rsvelte_kernel::index::{IndexVector, TypedIndex};
 use rsvelte_kernel::newtype_index;
@@ -241,10 +244,23 @@ struct Analyzer<'a> {
     syntax_tree: &'a SyntaxTree,
     s: Semantic,
     stack: Vec<ScopeIdentifier>,
+    /// Per scope: its nearest function scope, so a `var` finds it without walking the chain.
+    variable_scopes: Vec<ScopeIdentifier>,
     /// The declarator/specifier being declared in pass 1.
     current_declaration: Option<NodeIdentifier>,
     /// The next of [`Semantic::host_scopes`] pass 2 enters; it walks the roots in pass 1's order.
     next_host_scope: usize,
+    /// Pass 2: per name, the bindings of the current scope's chain that have it, innermost last,
+    /// so a lookup does not walk the chain.
+    visible: FxHashMap<Atom, Vec<BindingIdentifier>>,
+    /// Pass 2: the bindings grouped by scope (`scope_bindings[start[s]..start[s + 1]]`).
+    scope_bindings: Vec<BindingIdentifier>,
+    scope_bindings_start: Vec<u32>,
+    /// Pass 2: how each `Enter` step opened its scope, for the matching `Leave`.
+    opened: Vec<resolve::Opened>,
+    /// The step stacks, kept between the walks of the host roots.
+    declare_work: Vec<declare::Declare>,
+    resolve_work: Vec<resolve::Resolve>,
 }
 
 #[must_use]
@@ -279,8 +295,15 @@ pub fn analyze_enclosed(
             type_names: FxHashSet::default(),
         },
         stack: vec![ScopeIdentifier::ROOT],
+        variable_scopes: vec![ScopeIdentifier::ROOT],
         current_declaration: None,
         next_host_scope: 0,
+        visible: FxHashMap::default(),
+        scope_bindings: Vec::new(),
+        scope_bindings_start: Vec::new(),
+        opened: Vec::new(),
+        declare_work: Vec::new(),
+        resolve_work: Vec::new(),
     };
     a.s.node_scope.insert(program, ScopeIdentifier::ROOT);
     if let Some(module) = enclosing {
@@ -290,6 +313,7 @@ pub fn analyze_enclosed(
             node: module,
         });
         a.s.scopes[ScopeIdentifier::ROOT].parent = Some(scope);
+        a.variable_scopes.push(scope);
         a.s.node_scope.insert(module, scope);
         a.stack.push(scope);
         a.declare_children(module);
@@ -297,12 +321,14 @@ pub fn analyze_enclosed(
     }
     a.declare_children(program);
     a.declare_host(host);
+    a.index_scope_bindings();
     if let Some(module) = enclosing {
-        a.stack.push(a.s.node_scope[&module]);
-        a.resolve_children(module);
-        a.stack.pop();
+        a.open(a.s.node_scope[&module]);
+        a.resolve(resolve::Resolve::Children(module));
+        a.close();
     }
-    a.resolve_children(program);
+    a.rebuild_visible();
+    a.resolve(resolve::Resolve::Children(program));
     a.resolve_host(host);
     a.resolve_type_references();
     a.s.index_references();
