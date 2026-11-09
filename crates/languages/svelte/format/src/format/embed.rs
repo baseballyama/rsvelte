@@ -1,4 +1,5 @@
 use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 use super::children::Child;
 use super::{
@@ -7,21 +8,6 @@ use super::{
     TemplateNodeIdentifier, Unsupported, only_ws,
 };
 use crate::options::Part as SortPart;
-
-/// What JavaScript's `String.prototype.trim` removes: `WhiteSpace` and `LineTerminator`.
-pub(super) const fn is_javascript_whitespace(c: char) -> bool {
-    matches!(
-        c,
-        '\t' | '\n' | '\u{B}' | '\u{C}' | '\r' | ' ' | '\u{A0}' | '\u{1680}' | '\u{2000}'
-            ..='\u{200A}'
-                | '\u{2028}'
-                | '\u{2029}'
-                | '\u{202F}'
-                | '\u{205F}'
-                | '\u{3000}'
-                | '\u{FEFF}'
-    )
-}
 
 impl Printer<'_, '_> {
     /// `printTopLevelParts`: options, scripts, markup and styles in `svelteSortOrder`, or in the
@@ -264,7 +250,9 @@ impl Printer<'_, '_> {
             let TemplateNode::Comment { span, data } = *self.c.node(identifier) else {
                 continue;
             };
-            let data = data.text(self.source_text).trim();
+            let data = data
+                .text(self.source_text)
+                .trim_matches(is_javascript_whitespace);
             if data.starts_with("prettier-ignore") {
                 return Err(Unsupported::at("prettier-ignore comments", span));
             }

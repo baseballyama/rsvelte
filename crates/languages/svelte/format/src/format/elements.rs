@@ -1,9 +1,9 @@
-use super::embed::is_javascript_whitespace;
 use super::{
     Attribute, AttributeKind, AttributeValue, ElementKind, LayoutInstructionIdentifier, Part,
     Printer, R, TemplateNode, TemplateNodeIdentifier, Unsupported, is_collapse_ws,
 };
 use crate::options::WhitespaceSensitivity;
+use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 /// prettier-plugin-svelte `selfClosingTags`.
 const SELF_CLOSING: &[&str] = &[

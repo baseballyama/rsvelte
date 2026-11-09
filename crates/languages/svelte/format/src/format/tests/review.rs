@@ -222,6 +222,11 @@ fn review_f_shapes_print_as_prettier_does() {
             "<script>\n  (a?.b).c;\n</script>\n",
             "<script>\n  (a?.b).c;\n</script>\n",
         ),
+        // JavaScript's trim keeps U+0085, so this is no prettier-ignore comment.
+        (
+            "<!--\u{85}prettier-ignore -->\n<p>a</p>\n",
+            "<!--\u{85}prettier-ignore -->\n<p>a</p>\n",
+        ),
         (
             "<script>\n  new (a?.b)();\n</script>\n",
             "<script>\n  new (a?.b)();\n</script>\n",
