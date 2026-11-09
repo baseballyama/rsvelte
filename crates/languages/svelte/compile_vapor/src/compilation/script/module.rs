@@ -1,6 +1,6 @@
 use super::{
-    BindingIdentifier, FxHashMap, Kind, NodeIdentifier, R, Resolution, SyntaxTree, copy, rune_call,
-    runes, span, unsupported,
+    BindingIdentifier, FxHashMap, Kind, NodeIdentifier, R, Resolution, SyntaxTree, copy, runes,
+    span, unsupported,
 };
 
 pub(super) fn check(
@@ -34,9 +34,10 @@ pub(super) fn check(
                             initializer: Some(value),
                             ..
                         } = tree.kind(declaration)
-                            && rune_call(tree, value).is_some_and(|(name, _)| runes::value(name))
+                            && let Some((rune, _)) = resolution
+                                .rune(tree, value)
+                                .filter(|(name, _)| runes::value(name))
                         {
-                            let (rune, _) = rune_call(tree, value).expect("a rune initializer");
                             if matches!(rune, "$derived" | "$derived.by") {
                                 return Err(rsvelte_kernel::diagnostics::Diagnostic::error(
                                     "derived_invalid_export",

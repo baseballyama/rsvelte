@@ -336,6 +336,11 @@ fn refusals_where_svelte_reads_the_source_differently() {
             "<script>\n\tvar t = 1;\n\tvar t = 2;\n</script>\n{t}",
             "a name declared twice",
         ),
+        // A binding called `state` makes `$state` a store subscription.
+        (
+            "<script>\n\timport { state } from './s.js';\n\tlet a = $state(0);\n</script>\n{a}",
+            "the rune or store subscription `$state`",
+        ),
     ];
     for (source_text, want) in cases {
         let got = run(source_text, false).expect_err(source_text);

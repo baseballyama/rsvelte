@@ -8,7 +8,7 @@ pub(crate) use rune_values::{rune_value, tracked};
 use super::declarations::declarator;
 use super::{
     BindingKind, Component, Helper, Kind, NodeIdentifier, Plan, Resolution, Rewrite,
-    SourceLocation, SyntaxTree, Verbatim, copy, flag, helpers, rune_call,
+    SourceLocation, SyntaxTree, Verbatim, copy, flag, helpers,
 };
 
 /// The `<script setup>` program: Vue imports, the options and props macros, the helpers, then
@@ -327,7 +327,7 @@ pub fn emit(
 
 /// Script references: `x.value` for `$state` and `$derived`, `$$props.<key>` for props.
 pub(super) struct ScriptRewrite<'a> {
-    resolution: &'a Resolution,
+    pub(super) resolution: &'a Resolution,
     module_exports: &'a super::FxHashMap<super::BindingIdentifier, String>,
     pub(super) constructors: &'a super::constructors::Plan,
     pub(super) constructor_storage: super::FxHashMap<NodeIdentifier, String>,
@@ -466,13 +466,13 @@ impl Rewrite for ScriptRewrite<'_> {
                 Some(to.dot(field, "value"))
             }
             Kind::Call { arguments, .. } => {
-                if let Some(value) = super::runes::inline(from, to, self, identifier) {
+                let (name, argument) = self.resolution.rune(from, identifier)?;
+                if let Some(value) = super::runes::inline(from, to, self, name, argument) {
                     return Some(value);
                 }
-                if super::runes::inspect_call(from, identifier) {
+                if super::runes::inspect(name) {
                     return Some(to.identifier("undefined"));
                 }
-                let (name, argument) = rune_call(from, identifier)?;
                 if name == "$props.id" {
                     let callee = to.identifier("$$props_id");
                     return Some(to.call0(callee, &[]));

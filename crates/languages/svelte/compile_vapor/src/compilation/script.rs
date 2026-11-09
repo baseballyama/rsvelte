@@ -5,7 +5,7 @@
 //! same in both runtimes is refused in [`plan`], before anything is built.
 
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution, rune_call};
+use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution};
 use rsvelte_svelte::syntax::syntax_tree::Component;
 use rsvelte_typescript::copy::{Rewrite, Verbatim, copy};
 use rsvelte_typescript::scope::BindingIdentifier;
@@ -178,7 +178,7 @@ pub fn plan(c: &Component, resolution: &Resolution, source_text: &str) -> R<Plan
                     else {
                         continue;
                     };
-                    let Some((rune, _)) = rune_call(javascript, i) else {
+                    let Some((rune, _)) = resolution.rune(javascript, i) else {
                         continue;
                     };
                     if runes::value(rune)
@@ -214,7 +214,7 @@ pub fn plan(c: &Component, resolution: &Resolution, source_text: &str) -> R<Plan
                             true
                         }
                         "$props" if arguments.is_empty() && plan.props.is_none() => {
-                            let (keys, rest) = props(javascript, identifier)?;
+                            let (keys, rest) = props(javascript, resolution, identifier)?;
                             plan.props = Some(keys);
                             plan.rest = rest;
                             true
@@ -245,7 +245,7 @@ pub fn plan(c: &Component, resolution: &Resolution, source_text: &str) -> R<Plan
             _ => {}
         }
     }
-    runes::collect(javascript, c.program, &mut plan, &mut consumed)?;
+    runes::collect(javascript, resolution, c.program, &mut plan, &mut consumed)?;
     if let Some(module) = &c.module {
         module::check(
             javascript,
@@ -254,11 +254,17 @@ pub fn plan(c: &Component, resolution: &Resolution, source_text: &str) -> R<Plan
             source_text,
             &mut plan.module_exports,
         )?;
-        runes::collect(javascript, module.program, &mut plan, &mut consumed)?;
+        runes::collect(
+            javascript,
+            resolution,
+            module.program,
+            &mut plan,
+            &mut consumed,
+        )?;
         check_references(javascript, resolution, module.program, &consumed)?;
     }
     for &expression in &c.template_expressions {
-        runes::collect(javascript, expression, &mut plan, &mut consumed)?;
+        runes::collect(javascript, resolution, expression, &mut plan, &mut consumed)?;
         walk(javascript, expression, &mut |node| {
             if matches!(javascript.kind(node), Kind::Identifier(_))
                 && javascript.name(node).starts_with('$')
@@ -433,7 +439,7 @@ type Props = (
 );
 
 /// `let { a, b = 1, c: d, ...rest } = $props()`: plain keys with literal defaults, and the rest.
-fn props(javascript: &SyntaxTree, pattern: NodeIdentifier) -> R<Props> {
+fn props(javascript: &SyntaxTree, resolution: &Resolution, pattern: NodeIdentifier) -> R<Props> {
     let refuse = |n: NodeIdentifier| {
         Err(unsupported(
             "a `$props()` pattern other than plain keys with literal defaults",
@@ -475,7 +481,10 @@ fn props(javascript: &SyntaxTree, pattern: NodeIdentifier) -> R<Props> {
             {
                 if is_literal(javascript, d) {
                     Some(d)
-                } else if rune_call(javascript, d).is_some_and(|(name, _)| name == "$bindable") {
+                } else if resolution
+                    .rune(javascript, d)
+                    .is_some_and(|(name, _)| name == "$bindable")
+                {
                     let Kind::Call { arguments, .. } = javascript.kind(d) else {
                         unreachable!()
                     };
