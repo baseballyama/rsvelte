@@ -128,3 +128,19 @@ fn only_lines_that_start_inside_a_type_are_not_checked() {
     let class = "<script lang=\"ts\">\n  class K<T extends {\n    a: 1;\n  }> {\n    x = 1;\n  }\n</script>\n";
     assert_eq!(reported_lines(class), [0u32; 0]);
 }
+
+#[test]
+fn ignored_nodes_selectors_are_refused() {
+    let mut configuration = crate::Configuration::new(crate::LintSettings::default());
+    let options = serde_json::value::RawValue::from_string(
+        r#"{"ignoredNodes":["ConditionalExpression"]}"#.to_owned(),
+    )
+    .expect("JSON options");
+    let refused = configuration
+        .rule("svelte/indent", Severity::Error, &[options], &[])
+        .map(drop);
+    assert_eq!(
+        refused,
+        Err("rule `svelte/indent`: `ignoredNodes` selectors are not supported".to_owned())
+    );
+}

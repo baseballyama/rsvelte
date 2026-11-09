@@ -22,6 +22,8 @@ struct UserOptions {
     indent_script: Option<bool>,
     switch_case: Option<u32>,
     align_attributes_vertically: Option<bool>,
+    /// `ESLint` selectors over `ESTree` nodes, which this crate has no engine for: a known gap, so
+    /// a non-empty list is refused rather than ignored.
     #[serde(default)]
     ignored_nodes: Vec<String>,
 }
