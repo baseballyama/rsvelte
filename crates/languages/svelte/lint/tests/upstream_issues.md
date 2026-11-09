@@ -4,7 +4,7 @@ Bugs in eslint-plugin-svelte 3.23.1 (with ESLint 10.14.0 and svelte-eslint-parse
 this crate does not reproduce. Each is a candidate issue upstream. The cases that show the
 difference are in `cases_deviations.json`, with this crate's answer.
 
-## svelte/no-reactive-literals: a suggestion that does not parse
+## Suggestions of `svelte/no-reactive-literals` that do not parse
 
 Input:
 
@@ -22,7 +22,7 @@ Upstream suggests replacing the statements with `let a += 1` and `let obj.x = 1`
 error unless the assignment is `name = literal`. This crate reports both statements and suggests
 the move only for `=` with a name on the left.
 
-## svelte/no-reactive-reassign: a TypeScript cast or `!` hides the assignment
+## A cast or `!` hides an assignment from `svelte/no-reactive-reassign`
 
 Input:
 
@@ -42,7 +42,7 @@ Upstream reports nothing. Its walk from the reference to the assignment stops at
 `TSAsExpression` and `TSNonNullExpression`, which pass the value through unchanged, so both
 assignments to reactive values go unreported. This crate reports both.
 
-## svelte/prefer-destructured-store-props: `isExpressionIdentifier` inverts its member test
+## An inverted member test in `svelte/prefer-destructured-store-props`
 
 `isExpressionIdentifier` (`utils/ast-utils.ts`) returns `!parent.computed || parent.property !==
 node` for a member, and the same for a property key. That is true for the name in `x.name` and
@@ -59,10 +59,10 @@ the block can replace.
 {#each items as a}{$s.a}{/each}
 ```
 
-The property name `a` is taken for the `{#each}` item `a`, so upstream does not report `$s.a`.
+Upstream takes the property name `a` for the `{#each}` item `a`, so it does not report `$s.a`.
 This crate does the opposite in both cases.
 
-## svelte/no-reactive-functions: crashes on ESLint 10 when it reports
+## A crash in `svelte/no-reactive-functions` on ESLint 10
 
 Input:
 
