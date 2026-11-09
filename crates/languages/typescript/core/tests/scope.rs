@@ -314,3 +314,23 @@ fn deeply_nested_host_scopes_are_analyzed_on_a_small_stack() {
         .expect("analyzed and dropped without overflowing the stack");
     assert_eq!(references, (200_000, 1));
 }
+
+#[test]
+fn lookups_from_deep_scopes_take_linear_time() {
+    let depth = 20_000;
+    let source_text = format!("{}x;{}", "function f(){".repeat(depth), "}".repeat(depth));
+    let mut tree = SyntaxTree::new();
+    let range = Span::new(0, source_text.len() as u32);
+    let program = parse_program(&mut tree, &source_text, range, false).unwrap();
+    let sem = analyze(&tree, program, &[]);
+    let x = tree.atoms.lookup("x").unwrap();
+    let started = std::time::Instant::now();
+    let found = sem
+        .scopes
+        .iter_enumerated()
+        .filter(|&(scope, _)| sem.lookup(scope, x).is_some())
+        .count();
+    assert_eq!(found, 0);
+    // Walking each scope's chain to the root takes over ten seconds here.
+    assert!(started.elapsed().as_secs() < 2, "{:?}", started.elapsed());
+}
