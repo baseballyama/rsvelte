@@ -38,8 +38,10 @@ const INITIAL_TOKEN_CAPACITY_LIMIT: usize = 8192;
 
 /// # Errors
 ///
-/// A `parse_error` [`Diagnostic`] at the first syntax error in the markup, the scripts or the
-/// style sheet, or at syntax this parser does not support.
+/// A `parse_error` [`Diagnostic`] at the first syntax error in the markup or the scripts, or at
+/// syntax this parser does not support. A style sheet's error alone is kept on
+/// [`Style::sheet`](rsvelte_svelte_syntax::syntax_tree::Style::sheet); [`crate::component`]
+/// reports it.
 pub fn parse(source_text: &str) -> ParseResult<Component> {
     let mut parser = Parser {
         source_text,
@@ -70,7 +72,9 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
     parser.typescript = script::script_is_typescript(source_text);
     let root = parser.fragment(End::Eof);
     buffer_pool::give_keyed::<Parser<'static>, _>(std::mem::take(&mut parser.pending_children));
-    parser.component.root = root?;
+    // The style sheet's error came first in the document, so it is the one upstream reports.
+    parser.component.root =
+        root.map_err(|e| parser.component.style_error().cloned().unwrap_or(e))?;
     parser.component.program = match &parser.component.instance {
         Some(s) => s.program,
         None => parser.component.javascript.program(&[], Span::new(0, 0)),
