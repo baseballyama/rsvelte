@@ -6,6 +6,7 @@
 #![expect(clippy::print_stderr, reason = "a test harness reports on stderr")]
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -37,9 +38,27 @@ const DEVIATIONS: &str = concat!(
 /// Rules whose verdicts are counted but do not fail: type-aware rules do not follow
 /// `svelte-eslint-parser`'s virtual code.
 const TYPED: &[&str] = &["@typescript-eslint/no-unnecessary-condition"];
-/// Cases whose verdict depends on a type fact no provider gives this crate yet, by document,
-/// with the fact. They run and are counted, but do not fail.
-const TYPED_CASES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/upstream_typed.json");
+/// Cases that wait for something this crate does not have yet (a type provider, a preprocessor, a
+/// parser feature), one list per kind, by document with what the case needs. A listed case that
+/// does not pass is counted in its kind's column; one that passes fails as stale, so a list
+/// shrinks when what it waits for lands.
+const WAITING: [(&str, &str); 3] = [
+    (
+        "typed",
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/upstream_typed.json"),
+    ),
+    (
+        "preprocessor",
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/upstream_preprocessor.json"
+        ),
+    ),
+    (
+        "parser",
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/upstream_parser.json"),
+    ),
+];
 
 #[derive(Deserialize)]
 struct Upstream {
@@ -128,14 +147,21 @@ fn main() -> ExitCode {
     );
     let mut deviations: BTreeMap<String, String> =
         serde_json::from_str(&read(Path::new(DEVIATIONS))).expect("deviations are an object");
-    let mut typed: BTreeMap<String, String> =
-        serde_json::from_str(&read(Path::new(TYPED_CASES))).expect("typed cases are an object");
+    let mut waiting: BTreeMap<String, (usize, String)> = BTreeMap::new();
+    for (kind, (_, file)) in WAITING.iter().enumerate() {
+        let list: BTreeMap<String, String> =
+            serde_json::from_str(&read(Path::new(file))).expect("a waiting list is an object");
+        for (document, need) in list {
+            let previous = waiting.insert(document.clone(), (kind, need));
+            assert!(previous.is_none(), "{document} is in two waiting lists");
+        }
+    }
     let mut failed = suite(
         &label,
         Path::new(UPSTREAM),
         &upstream.versions,
         &mut deviations,
-        &mut typed,
+        &mut waiting,
     ) + suite(
         "this crate's cases",
         Path::new(OWN),
@@ -148,9 +174,12 @@ fn main() -> ExitCode {
         eprintln!("UNKNOWN DEVIATION {document}: no case of an implemented rule ({reason})");
     }
     failed += conflicting_module_names();
-    for (document, reason) in &typed {
+    for (document, (kind, need)) in &waiting {
         failed += 1;
-        eprintln!("UNKNOWN TYPED CASE {document}: no case of an implemented rule ({reason})");
+        eprintln!(
+            "UNKNOWN WAITING CASE {document}: no case of an implemented rule ({} list: {need})",
+            WAITING[*kind].0
+        );
     }
     if failed == 0 {
         ExitCode::SUCCESS
@@ -165,7 +194,7 @@ fn suite(
     root: &Path,
     versions: &BTreeMap<String, String>,
     deviations: &mut BTreeMap<String, String>,
-    typed_cases: &mut BTreeMap<String, String>,
+    waiting: &mut BTreeMap<String, (usize, String)>,
 ) -> usize {
     let cases = cases(root);
     let mut by_rule: BTreeMap<&str, Counts> = BTreeMap::new();
@@ -185,18 +214,17 @@ fn suite(
         let typed = TYPED.contains(&case.rule.as_str());
         let counts = by_rule.entry(&case.rule).or_default();
         counts.total += 1;
-        if let Some(fact) = typed_cases.remove(&document) {
-            counts.typed += 1;
+        if let Some((kind, need)) = waiting.remove(&document) {
+            let label = WAITING[kind].0;
             match verdict {
                 Verdict::Pass => {
-                    counts.typed_pass += 1;
-                    eprintln!("TYPED PASS {document} (needs {fact})");
+                    counts.fail += 1;
+                    failed += 1;
+                    eprintln!("STALE WAITING {document}: passes, but is in the {label} list");
                 }
-                Verdict::Fail(detail) => {
-                    eprintln!("TYPED FAIL {document} (needs {fact}): {detail}");
-                }
-                Verdict::Unmeasured(reason) => {
-                    eprintln!("TYPED UNMEASURED {document} (needs {fact}): {reason}");
+                Verdict::Fail(detail) | Verdict::Unmeasured(detail) => {
+                    counts.waiting[kind] += 1;
+                    eprintln!("WAITING ({label}: {need}) {document}: {detail}");
                 }
                 Verdict::NotImplemented => unreachable!("counted above"),
             }
@@ -240,10 +268,14 @@ fn suite(
         } else {
             ""
         };
+        let mut waiting = String::new();
+        for ((label, _), n) in WAITING.iter().zip(c.waiting) {
+            write!(waiting, ", {n} {label}").expect("a string takes text");
+        }
         eprintln!(
-            "  {rule}: {} of {} pass, {} fail, {} unmeasured, {} deviate, \
-             {} typed (not required, {} pass){typed}",
-            c.pass, c.total, c.fail, c.unmeasured, c.deviation, c.typed, c.typed_pass
+            "  {rule}: {} of {} pass, {} fail, {} unmeasured, {} deviate{waiting} (waiting, not \
+             required){typed}",
+            c.pass, c.total, c.fail, c.unmeasured, c.deviation
         );
     }
     assert!(
@@ -259,9 +291,8 @@ struct Counts {
     fail: usize,
     unmeasured: usize,
     deviation: usize,
-    /// Cases in [`TYPED_CASES`], and how many of them pass.
-    typed: usize,
-    typed_pass: usize,
+    /// Listed cases that do not pass yet, by [`WAITING`] list.
+    waiting: [usize; 3],
     total: usize,
 }
 
