@@ -472,8 +472,12 @@ impl<'a> StaticValues<'a> {
     }
 }
 
-/// A `const`, or a `let` or `var` written only by its initializer (`canBeConsideredConst`).
+/// A `const`, or a `let` or `var` written only by its initializer (`canBeConsideredConst`), that
+/// no type shares a name with.
 fn considered_const(semantic: &Semantic, binding: BindingIdentifier) -> bool {
+    if semantic.shares_name_with_type(binding) {
+        return false;
+    }
     match semantic.bindings[binding].kind {
         DeclarationKind::Const => true,
         DeclarationKind::Let | DeclarationKind::Variable => {
