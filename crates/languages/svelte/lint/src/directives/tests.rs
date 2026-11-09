@@ -512,15 +512,32 @@ fn javascript_line_comments_hold_only_line_directives() {
 
 #[test]
 fn system_turns_ignored_rules_off_outside_script() {
-    let settings = LintSettings {
-        ignore_warnings: vec![UNDEF.to_owned()],
-        ..LintSettings::default()
-    };
-    let mut configuration = configuration("", settings);
-    configuration
+    for (ignored, kept) in [
+        (UNDEF, &[(HTML, 1), (INFIX, 1), (UNDEF, 3)][..]),
+        ("/^(no|space)-/u", &[(HTML, 1), (UNDEF, 3)]),
+    ] {
+        let mut settings = LintSettings::default();
+        settings.ignore_warnings = vec![ignored.to_owned()];
+        let mut configuration = configuration("", settings);
+        configuration
+            .rule("svelte/system", Severity::Error, &[], &[])
+            .expect("configures");
+        let found = lint_with(
+            "{@html a+b}\n<script>\n  a;\n</script>\n<script module>\n  a;\n</script>\n",
+            &configuration,
+        );
+        let found: Vec<(&str, u32)> = found.iter().map(|f| (f.0.as_str(), f.1)).collect();
+        assert_eq!(found, kept, "{ignored}");
+    }
+}
+
+#[test]
+fn system_rejects_an_invalid_pattern() {
+    let mut settings = LintSettings::default();
+    settings.ignore_warnings = vec!["/(/".to_owned()];
+    let mut configuration = Configuration::new(settings);
+    let error = configuration
         .rule("svelte/system", Severity::Error, &[], &[])
-        .expect("configures");
-    let found = lint_with("{@html a+b}\n<script>\n  a;\n</script>\n", &configuration);
-    let found: Vec<(&str, u32)> = found.iter().map(|f| (f.0.as_str(), f.1)).collect();
-    assert_eq!(found, [(HTML, 1), (INFIX, 1), (UNDEF, 3)]);
+        .expect_err("rejects");
+    assert!(error.contains("invalid regular expression"), "{error}");
 }

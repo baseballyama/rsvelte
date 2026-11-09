@@ -6,6 +6,8 @@ use rsvelte_kernel::source::positions::{LineColumn, LineIndex, Span};
 use rsvelte_lint_runner::finding::Finding;
 use rsvelte_svelte::syntax::syntax_tree::{Component, Script, TemplateNode};
 
+use crate::Pattern;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Kind {
     Disable,
@@ -105,21 +107,6 @@ fn justification_start(value: &str) -> Option<usize> {
 /// JavaScript's `\s`.
 const fn is_js_space(c: char) -> bool {
     c.is_whitespace() || c == '\u{feff}'
-}
-
-/// A rule name as `settings.svelte.ignoreWarnings` writes it.
-// A stand-in until the shared pattern helper lands: `/…/` patterns match nothing yet.
-#[derive(Debug)]
-pub(crate) struct RulePattern(String);
-
-impl RulePattern {
-    pub(crate) fn new(text: &str) -> Self {
-        Self(text.to_owned())
-    }
-
-    pub(crate) fn matches(&self, text: &str) -> bool {
-        self.0 == text
-    }
 }
 
 /// Removes findings that `ESLint`'s own directive comments, in JavaScript comments, turn off.
@@ -228,7 +215,7 @@ pub(crate) fn apply_javascript(
 pub(crate) enum Target<'a> {
     All,
     Rule(&'a str),
-    Ignored(&'a [RulePattern]),
+    Ignored(&'a [Pattern]),
 }
 
 impl Target<'_> {
@@ -416,7 +403,7 @@ pub(crate) fn template<'a>(
 /// `<script>`.
 pub(crate) fn ignored_in_template<'a>(
     component: &Component,
-    patterns: &'a [RulePattern],
+    patterns: &'a [Pattern],
     lines: &LineIndex,
 ) -> ProcessorDirectives<'a> {
     let mut out = ProcessorDirectives::default();

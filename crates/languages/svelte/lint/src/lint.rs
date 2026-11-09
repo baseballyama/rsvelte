@@ -4,7 +4,7 @@ use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 
 use crate::Configuration;
-use crate::directives::{self, RulePattern};
+use crate::directives;
 use crate::rule::File;
 use crate::rules::{comment_directive, system};
 
@@ -44,14 +44,9 @@ pub fn lint(
         );
     }
     if on(system::RULE.name) {
-        let patterns: Vec<RulePattern> = configuration
-            .settings()
-            .ignore_warnings
-            .iter()
-            .map(|p| RulePattern::new(p))
-            .collect();
+        let patterns = configuration.settings().ignored_rules();
         if !patterns.is_empty() {
-            directives::ignored_in_template(component, &patterns, lines).apply(
+            directives::ignored_in_template(component, patterns, lines).apply(
                 &mut findings,
                 lines,
                 None,
