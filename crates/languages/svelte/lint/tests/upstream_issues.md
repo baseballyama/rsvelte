@@ -46,3 +46,29 @@ case of this crate (`tests/cases`, or a rule's unit test). Nobody has filed them
 - Correct: no report.
 - Why: `findClassesInAttribute` trims a literal part and splits it on spaces, so a part that
   is only spaces gives one empty string.
+
+## prefer-style-directive: a value with a double quote breaks the fix
+
+- Case: `src/rules/prefer_style_directive/tests.rs`,
+  `a_value_with_a_double_quote_is_reported_without_a_fix`.
+- Upstream: `<div style='font-family: "Arial"'>` is fixed to `<div style:font-family=""Arial"">`.
+- Correct: no fix; the report stays.
+- Why: the fix always quotes the value with `"`.
+
+## prefer-style-directive: a conditional's fix drops `!important`
+
+- Case: `src/rules/prefer_style_directive/tests.rs`, `a_conditional_keeps_important`.
+- Upstream: `style={c ? "color: red !important" : ""}` is fixed to `style:color={c ? "red" : null}`.
+- Correct: `style:color|important={c ? "red" : null}`.
+- Why: the fix writes the declaration's value, which PostCSS keeps apart from `!important`.
+
+## prefer-style-directive: a fix changes a property the style sets twice
+
+- Case: `src/rules/prefer_style_directive/tests.rs`,
+  `a_property_set_twice_is_reported_without_a_fix`.
+- Upstream: `<div style="color: red; color: blue">` is fixed to
+  `<div style:color="red" style="color: blue">`, which is red, because a directive wins over the
+  attribute.
+- Correct: no fix while another declaration or conditional in the style sets the same property;
+  the reports stay.
+- Why: each declaration is fixed on its own.

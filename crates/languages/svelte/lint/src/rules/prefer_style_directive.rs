@@ -4,7 +4,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_stylesheet::postcss::InlineNode;
 use rsvelte_svelte::syntax::syntax_tree::{Attribute, AttributeKind, TemplateNode};
 use rsvelte_typescript::syntax_tree::{Kind, Tag};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::element_kind::is_html_like;
 use super::style_attribute::{expression_of_hole, inline_style, is_style, literal_style};
@@ -31,6 +31,7 @@ impl SvelteRule for PreferStyleDirective {
         let component = file.component().expect("a component rule");
         let source = file.source();
         let mut directives = FxHashSet::default();
+        let mut properties = FxHashMap::default();
         for node in &component.nodes {
             let TemplateNode::Element { attributes, .. } = node else {
                 continue;
@@ -58,35 +59,48 @@ impl SvelteRule for PreferStyleDirective {
                     continue;
                 };
                 let directive = |name: &str| directives.contains(name);
+                properties.clear();
+                let mut candidates = Vec::new();
                 for (index, node) in nodes.iter().enumerate() {
-                    let report = match node {
+                    match node {
                         InlineNode::Declaration(declaration) => {
+                            let property = declaration.property.text(source);
+                            *properties.entry(property.to_ascii_lowercase()).or_insert(0) += 1;
                             if declaration.important
                                 || declaration.property_holes > 0
                                 || declaration.other_holes > 0
-                                || directive(declaration.property.text(source))
+                                || directive(property)
                             {
                                 continue;
                             }
-                            let text = format!(
-                                "style:{}=\"{}\"",
-                                declaration.property.text(source),
-                                declaration.value_text(source)
-                            );
-                            Report::range(MESSAGE, declaration.span)
-                                .fix(replace(attribute, nodes, index, &text))
+                            let value = declaration.value_text(source);
+                            // A double quote would end the directive's value.
+                            let text = (!value.contains('"'))
+                                .then(|| format!("style:{property}=\"{value}\""));
+                            candidates.push((index, declaration.span, property, text));
                         }
                         InlineNode::Hole { index: hole, .. } => {
                             let expression = expression_of_hole(component, attribute, *hole);
-                            let Some((span, text)) = conditional(file, expression, &directive)
+                            let Some((span, property, text)) =
+                                conditional(file, expression, &directive)
                             else {
                                 continue;
                             };
-                            Report::range(MESSAGE, span)
-                                .fix(replace(attribute, nodes, index, &text))
+                            *properties.entry(property.to_ascii_lowercase()).or_insert(0) += 1;
+                            candidates.push((index, span, property, Some(text)));
                         }
-                        InlineNode::Comment(_) => continue,
-                    };
+                        InlineNode::Comment(_) => {}
+                    }
+                }
+                for (index, span, property, text) in candidates {
+                    let mut report = Report::range(MESSAGE, span);
+                    // A directive wins over the attribute, so a property the style sets twice
+                    // would take another value.
+                    if let Some(text) = text
+                        && properties[&property.to_ascii_lowercase()] == 1
+                    {
+                        report = report.fix(replace(attribute, nodes, index, &text));
+                    }
                     reporter.report(report.message_id("unexpected"));
                 }
             }
@@ -94,12 +108,13 @@ impl SvelteRule for PreferStyleDirective {
     }
 }
 
-/// `{test ? 'property: value' : ''}` as a directive: its span and `style:property={…}`.
-fn conditional(
-    file: &File<'_>,
+/// `{test ? 'property: value' : ''}` as a directive: its span, the property and
+/// `style:property={…}`.
+fn conditional<'s>(
+    file: &File<'s>,
     expression: rsvelte_typescript::NodeIdentifier,
     directive: &impl Fn(&str) -> bool,
-) -> Option<(Span, String)> {
+) -> Option<(Span, &'s str, String)> {
     let javascript = file.javascript();
     let source = file.source();
     let Kind::Conditional {
@@ -159,9 +174,15 @@ fn conditional(
             quoted(alternate)
         },
     );
+    let important = if declaration.important {
+        "|important"
+    } else {
+        ""
+    };
     Some((
         span_of(javascript, expression),
-        format!("style:{property}={{{value}}}"),
+        property,
+        format!("style:{property}{important}={{{value}}}"),
     ))
 }
 
