@@ -155,6 +155,9 @@ impl Parser<'_, '_> {
         let start = self.token.span.start_offset;
         self.bump()?;
         let is_await = if self.is_kw("await") {
+            if !self.in_async {
+                return self.fail("`for await` is only valid in an async function");
+            }
             self.bump()?;
             true
         } else {

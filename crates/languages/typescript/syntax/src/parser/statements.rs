@@ -155,6 +155,19 @@ impl Parser<'_, '_> {
         }))
     }
 
+    /// A function's body, a class field's value or a static block, where `await` is an expression
+    /// only when `is_async`.
+    pub(super) fn function_body(
+        &mut self,
+        is_async: bool,
+        body: fn(&mut Self) -> R<NodeIdentifier>,
+    ) -> R<NodeIdentifier> {
+        let outer = std::mem::replace(&mut self.in_async, is_async);
+        let body = body(self);
+        self.in_async = outer;
+        body
+    }
+
     pub(super) fn function(
         &mut self,
         declaration: bool,
@@ -174,7 +187,7 @@ impl Parser<'_, '_> {
         let type_parameters = self.maybe_type_parameters()?;
         let (parameters, this) = self.parameters()?;
         let ret = self.maybe_return_type(false)?;
-        let body = self.block()?;
+        let body = self.function_body(is_async, Self::block)?;
         let span = self.span_from(start_offset);
         let f = self.close(parameters, |syntax_tree, parameters| {
             syntax_tree.function(declaration, name, parameters, body, is_async, span)

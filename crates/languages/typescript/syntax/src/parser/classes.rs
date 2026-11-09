@@ -74,7 +74,7 @@ impl Parser<'_, '_> {
         if is_static {
             self.bump()?;
             if self.token.t == T::LBrace {
-                let body = self.block()?;
+                let body = self.function_body(false, Self::block)?;
                 return Ok(self
                     .syntax_tree
                     .class(Class::StaticBlock(body), self.span_from(start)));
@@ -109,7 +109,7 @@ impl Parser<'_, '_> {
                 self.accessor_parameters(parameters, getter)?;
             }
             let ret = self.maybe_return_type(false)?;
-            let body = self.block()?;
+            let body = self.function_body(is_async, Self::block)?;
             let span = self.span_from(start);
             let function = self.close(parameters, |tree, parameters| {
                 tree.function(false, None, parameters, body, is_async, span)
@@ -136,7 +136,7 @@ impl Parser<'_, '_> {
             }
             self.maybe_type_annotation(key)?;
             let value = if self.eat_op("=")? {
-                Some(self.assignment()?)
+                Some(self.function_body(false, Self::assignment)?)
             } else {
                 None
             };

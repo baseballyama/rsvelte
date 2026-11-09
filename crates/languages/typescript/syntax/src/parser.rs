@@ -51,6 +51,8 @@ pub(crate) struct Parser<'a, 'b> {
     syntax_tree: &'b mut SyntaxTree,
     typescript: bool,
     allow_in: bool,
+    /// `await` is an expression here: a module's top level or an async function's body.
+    in_async: bool,
     end: u32,
     /// [`SyntaxTree::scratch`]'s length when this parse began.
     base: usize,
@@ -263,6 +265,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             syntax_tree,
             typescript,
             allow_in: true,
+            in_async: true,
             end: range.end_offset,
         })
     }
