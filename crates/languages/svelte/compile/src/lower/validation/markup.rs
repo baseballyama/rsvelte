@@ -2,7 +2,7 @@
 //! components.
 
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
+use rsvelte_svelte_semantic::compiler_syntax_tree::{Each, ElementKind, MetadataTag};
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashSet;
 
@@ -86,6 +86,17 @@ fn walk<'a>(
         }
         let (inner, inner_placement) = match &node.kind {
             NodeKind::Element(el) => element(input, identifier, el, owner, placement, names)?,
+            NodeKind::Each(each) if let Some(rune) = each_rune(input, each) => {
+                return invalid(
+                    "state_invalid_placement",
+                    &format!(
+                        "`{rune}(...)` can only be used as a variable declaration initializer, a \
+                         class field declaration, or the first assignment to a class field at the \
+                         top level of the constructor."
+                    ),
+                    node.span,
+                );
+            }
             NodeKind::If { .. } | NodeKind::Each(_) | NodeKind::Await(_) | NodeKind::Key { .. } => {
                 (
                     owner,
@@ -104,6 +115,16 @@ fn walk<'a>(
         }
     }
     Ok(())
+}
+
+/// Upstream's `EachBlock` refuses a context named `$state` or `$derived`.
+fn each_rune<'a>(input: &CompileInput<'a>, each: &Each) -> Option<&'a str> {
+    let javascript = input.component.javascript;
+    let context = each.context()?;
+    let name = javascript
+        .is_identifier(context)
+        .then(|| javascript.name(context))?;
+    matches!(name, "$state" | "$derived").then_some(name)
 }
 
 /// Upstream's `node_invalid_placement` for a regular element, and the placement of its children.

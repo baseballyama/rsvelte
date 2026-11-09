@@ -235,3 +235,26 @@ fn a_tree_the_browser_would_repair_raises_node_invalid_placement() {
         compiled(source).unwrap_or_else(|error| panic!("{source}: {error:?}"));
     }
 }
+
+/// Official 5.57.3: the whole block is named, and other rune names pass.
+#[test]
+fn an_each_context_named_state_or_derived_raises_state_invalid_placement() {
+    for (source, end) in [
+        ("{#each a as $state}{/each}", 26),
+        ("{#each a as $derived, i}{/each}", 31),
+    ] {
+        let error = compiled(source).expect_err(source);
+        assert_eq!(error.code, "state_invalid_placement", "{source}");
+        assert_eq!(
+            (error.span.start_offset, error.span.end_offset),
+            (0, end),
+            "{source}"
+        );
+    }
+    for source in [
+        "{#each a as $effect}{/each}",
+        "{#each a as x, $state}{/each}",
+    ] {
+        compiled(source).unwrap_or_else(|error| panic!("{source}: {error:?}"));
+    }
+}
