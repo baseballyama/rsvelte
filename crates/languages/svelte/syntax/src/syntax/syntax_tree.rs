@@ -64,6 +64,9 @@ pub enum TemplateNode {
         start_tag: Span,
         /// Written `<name … />`.
         self_closing: bool,
+        /// Closed by its own `</name>`, the last tokens of `span`; not when self-closing, void or
+        /// closed by a following tag or its parent's end tag.
+        end_tag: bool,
         span: Span,
     },
     If {
