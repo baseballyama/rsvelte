@@ -1,3 +1,6 @@
+use std::ffi::OsStr;
+use std::path::Path;
+
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_typescript_lint::{JavaScriptFacts, NoInnerDeclarationsOptions};
 use serde::Deserialize;
@@ -56,6 +59,15 @@ impl SvelteRule for NoInnerDeclarations {
             sem: file.semantic(),
             parents: file.parents(),
         };
-        rsvelte_typescript_lint::no_inner_declarations(&facts, &roots(file), self.0, reporter);
+        // ESLint's `**/*.cjs` reads a file as CommonJS, a script; every other file is a module.
+        let module = Path::new(file.path()).extension() != Some(OsStr::new("cjs"));
+        rsvelte_typescript_lint::no_inner_declarations(
+            &facts,
+            &roots(file),
+            file.source(),
+            module,
+            self.0,
+            reporter,
+        );
     }
 }
