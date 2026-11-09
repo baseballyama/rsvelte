@@ -1,6 +1,4 @@
-use super::{
-    List, NodeIdentifier, Parser, R, RESERVED, T, TypeScriptDeclared, TypeScriptKind, flag,
-};
+use super::{List, NodeIdentifier, Parser, R, RESERVED, T, TypeScriptKind, flag};
 
 impl Parser<'_, '_> {
     // ---- statements
@@ -348,10 +346,9 @@ impl Parser<'_, '_> {
         if self.typescript && self.is_kw("type") && matches!(self.peek().t, T::LBrace | T::Op) {
             self.bump()?;
             let export = self.export_list(start_offset)?;
-            return Ok(self.syntax_tree.typescript_declaration_of(
-                TypeScriptDeclared::TypeExport(export),
-                self.syntax_tree.source_location(export),
-            ));
+            return Ok(self
+                .syntax_tree
+                .type_only_export(export, self.syntax_tree.source_location(export)));
         }
         if self.token.t == T::LBrace || self.is_op("*") {
             return self.export_list(start_offset);

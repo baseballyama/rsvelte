@@ -16,7 +16,7 @@ use crate::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
 };
 use crate::syntax_tree::{
-    Kind, NodeIdentifier, SyntaxTree, TypeDeclaration, TypeRef, TypeScriptDeclared,
+    Kind, NodeIdentifier, SyntaxTree, TypeDeclaration, TypeDeclarationKind, TypeRef,
     TypeScriptFeature, TypeScriptKind, TypeScriptRuntime, TypeScriptSyntax, flag,
 };
 

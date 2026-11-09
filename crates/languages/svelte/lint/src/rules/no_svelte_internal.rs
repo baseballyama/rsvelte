@@ -1,6 +1,6 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript::Kind;
-use rsvelte_typescript::syntax_tree::{Control, TypeScriptDeclared};
+use rsvelte_typescript::syntax_tree::Control;
 
 use super::nodes::{span, walk};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
@@ -25,10 +25,7 @@ impl SvelteRule for NoSvelteInternal {
         let source = file.source();
         walk(file, |statement| {
             // Erasing types drops `export type { … } from …`, but upstream still sees it.
-            let node = match tree.typescript_declared(statement) {
-                Some(TypeScriptDeclared::TypeExport(export)) => export,
-                _ => statement,
-            };
+            let node = tree.exported_types(statement).unwrap_or(statement);
             let module = match tree.kind(node) {
                 Kind::Import { source, .. }
                 | Kind::Control(

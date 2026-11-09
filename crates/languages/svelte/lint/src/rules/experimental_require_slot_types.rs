@@ -1,7 +1,8 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte::syntax::syntax_tree::{Component, TemplateNode};
 
-use super::nodes::walk;
+use rsvelte_typescript::syntax_tree::TypeDeclarationKind;
+
 use super::runes::runes;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -34,9 +35,11 @@ impl SvelteRule for ExperimentalRequireSlotTypes {
             return;
         }
         let tree = file.javascript();
-        let mut declared = false;
-        walk(file, |node| {
-            declared = declared || tree.declared_type_name(node) == Some("$$Slots");
+        let declared = tree.type_declarations.iter().any(|d| {
+            matches!(
+                d.kind,
+                TypeDeclarationKind::Alias | TypeDeclarationKind::Interface
+            ) && tree.atoms.get(d.name) == "$$Slots"
         });
         if !declared {
             // Upstream reports at `{ line: 1, column: 1 }`, the document's second character.

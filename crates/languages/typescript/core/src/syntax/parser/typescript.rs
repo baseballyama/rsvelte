@@ -1,7 +1,6 @@
 use super::{
-    Kind, LexedToken, NodeIdentifier, Parser, R, Span, SyntaxTree, T, TypeDeclaration,
-    TypeScriptDeclared, TypeScriptFeature, TypeScriptKind, TypeScriptRuntime, TypeScriptSyntax,
-    parse_program,
+    Kind, NodeIdentifier, Parser, R, Span, SyntaxTree, T, TypeDeclaration, TypeDeclarationKind,
+    TypeScriptFeature, TypeScriptKind, TypeScriptRuntime, TypeScriptSyntax, parse_program,
 };
 
 impl Parser<'_, '_> {
@@ -17,7 +16,6 @@ impl Parser<'_, '_> {
         let is_namespace = matches!(kw, "namespace" | "module");
         self.bump()?;
         self.type_declaration(kw, start_offset);
-        let name = self.declared_name(kw);
         let is_enum = kw == "enum" || (kw == "declare" && self.is_kw("enum"));
         let mut body: Option<(u32, u32)> = None;
         if is_interface {
@@ -100,45 +98,31 @@ impl Parser<'_, '_> {
         } else if let (true, Some((open, close))) = (is_namespace, body) {
             self.namespace_runtime(Span::new(open, close), span)?;
         }
-        let declared = name.map_or(TypeScriptDeclared::Other, |(alias, token)| {
-            let name = self.syntax_tree.ident(self.text(token), token.span);
-            if alias {
-                TypeScriptDeclared::TypeAlias(name)
-            } else {
-                TypeScriptDeclared::Interface(name)
-            }
-        });
-        Ok(self.syntax_tree.typescript_declaration_of(declared, span))
-    }
-
-    /// The name token of a `type` alias or an `interface`, read after its first keyword `kw`;
-    /// after `declare`, the next keyword says what is declared. `true` for an alias.
-    fn declared_name(&self, kw: &str) -> Option<(bool, LexedToken)> {
-        let (keyword, name) = if kw == "declare" {
-            (self.text(self.token), self.peek())
-        } else {
-            (kw, self.token)
-        };
-        (matches!(keyword, "type" | "interface") && name.t == T::Identifier)
-            .then_some((keyword == "type", name))
+        Ok(self.syntax_tree.typescript_declaration(span))
     }
 
     /// Records the name that the statement starting with keyword `kw` declares, the current token
     /// or, after `declare`, the one after the next keyword.
     fn type_declaration(&mut self, kw: &str, start_offset: u32) {
-        const DECLARING: [&str; 5] = ["type", "interface", "enum", "namespace", "module"];
-        let name = if DECLARING.contains(&kw) {
-            self.token
-        } else if kw == "declare" && DECLARING.contains(&self.text(self.token)) {
-            self.peek()
+        let (keyword, name) = if kw == "declare" {
+            (self.text(self.token), self.peek())
         } else {
-            return;
+            (kw, self.token)
+        };
+        let kind = match keyword {
+            "type" => TypeDeclarationKind::Alias,
+            "interface" => TypeDeclarationKind::Interface,
+            "enum" => TypeDeclarationKind::Enum,
+            "namespace" | "module" => TypeDeclarationKind::Namespace,
+            _ => return,
         };
         if name.t == T::Identifier {
             let name = self.syntax_tree.atoms.intern(self.text(name));
-            self.syntax_tree
-                .type_declarations
-                .push(TypeDeclaration { name, start_offset });
+            self.syntax_tree.type_declarations.push(TypeDeclaration {
+                name,
+                kind,
+                start_offset,
+            });
         }
     }
 

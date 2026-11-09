@@ -1,79 +1,34 @@
-use super::{Atom, Kind, NodeIdentifier, SourceLocation, Span, SyntaxTree, Tag};
+use super::{Atom, NodeIdentifier, SourceLocation, Span, SyntaxTree, Tag};
 
 #[cfg(test)]
 mod tests;
 
-/// What a [`Kind::TypeScriptDeclaration`] declares, as the parser recorded it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TypeScriptDeclared {
-    /// `type X = …` or `declare type X = …`, with the name `X`.
-    TypeAlias(NodeIdentifier),
-    /// `interface X …` that is not a [`Kind::TypeScriptInterface`], with the name `X`.
-    Interface(NodeIdentifier),
-    /// `export type { … }` or `export type * from …`, with the export that erasing types drops.
-    TypeExport(NodeIdentifier),
-    /// Anything else: `enum`, `namespace`, `declare const`, an overload signature, ….
-    Other,
-}
-
-impl TypeScriptDeclared {
-    const fn encode(self) -> (u8, u32) {
-        match self {
-            Self::TypeAlias(n) => (1, n.0),
-            Self::Interface(n) => (2, n.0),
-            Self::TypeExport(n) => (3, n.0),
-            Self::Other => (0, 0),
-        }
-    }
-}
-
 impl SyntaxTree {
-    pub fn typescript_declaration_of(
+    /// `export type { … }` or `export type * from …`: erased, but keeping the export it drops.
+    pub fn type_only_export(
         &mut self,
-        declared: TypeScriptDeclared,
+        export: NodeIdentifier,
         source_location: impl Into<SourceLocation>,
     ) -> NodeIdentifier {
-        let (flags, node) = declared.encode();
         self.push(
             Tag::TypeScriptDeclaration,
-            flags,
-            [node, 0],
+            TYPE_ONLY_EXPORT,
+            [export.0, 0],
             source_location,
         )
     }
 
-    /// What `declaration` declares; `None` when it is not a [`Kind::TypeScriptDeclaration`].
+    /// The export a [`Self::type_only_export`] declaration drops.
     #[must_use]
-    pub fn typescript_declared(&self, declaration: NodeIdentifier) -> Option<TypeScriptDeclared> {
+    pub fn exported_types(&self, declaration: NodeIdentifier) -> Option<NodeIdentifier> {
         let i = declaration.index();
-        if self.tags[i] != Tag::TypeScriptDeclaration {
-            return None;
-        }
-        let node = NodeIdentifier(self.data[i][0]);
-        Some(match self.flags[i] {
-            1 => TypeScriptDeclared::TypeAlias(node),
-            2 => TypeScriptDeclared::Interface(node),
-            3 => TypeScriptDeclared::TypeExport(node),
-            _ => TypeScriptDeclared::Other,
-        })
-    }
-
-    /// The name a `type` alias or an `interface` declares (`X` in `type X = …` or `declare
-    /// interface X {…}`); `None` for any other node, enums and namespaces among them.
-    #[must_use]
-    pub fn declared_type_name(&self, declaration: NodeIdentifier) -> Option<&str> {
-        match self.kind(declaration) {
-            Kind::TypeScriptInterface { name, .. } => Some(self.name(name)),
-            Kind::TypeScriptDeclaration => match self.typescript_declared(declaration)? {
-                TypeScriptDeclared::TypeAlias(name) | TypeScriptDeclared::Interface(name) => {
-                    Some(self.name(name))
-                }
-                TypeScriptDeclared::TypeExport(_) | TypeScriptDeclared::Other => None,
-            },
-            _ => None,
-        }
+        (self.tags[i] == Tag::TypeScriptDeclaration && self.flags[i] == TYPE_ONLY_EXPORT)
+            .then(|| NodeIdentifier(self.data[i][0]))
     }
 }
+
+/// The flag of a [`Tag::TypeScriptDeclaration`] that holds a type-only export.
+const TYPE_ONLY_EXPORT: u8 = 1;
 
 /// One piece of erased TypeScript syntax, attached to the node it belongs to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -117,9 +72,20 @@ pub struct TypeRef {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TypeDeclaration {
     pub name: Atom,
+    pub kind: TypeDeclarationKind,
     /// Where the statement starts: the start of its [`super::Tag::TypeScriptDeclaration`] or
     /// [`super::Tag::TypeScriptInterface`] node.
     pub start_offset: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TypeDeclarationKind {
+    /// `type X = …`.
+    Alias,
+    Interface,
+    Enum,
+    /// `namespace N { … }` or `module N { … }`.
+    Namespace,
 }
 
 /// A TypeScript construct that has a runtime value, so it is not type syntax to erase.
