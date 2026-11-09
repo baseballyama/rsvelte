@@ -282,15 +282,30 @@ enum Parent {
         top: bool,
         named: bool,
     },
-    Statement,
+    /// The function of a class's `constructor`.
+    Constructor,
+    /// A function's block body, a statement of it (`first` or not), and the expression of an
+    /// expression statement, which knows the body it stands in.
+    Body(Body),
+    BodyStatement(Body, bool),
+    Statement(Option<(Body, bool)>),
     /// The value of a class field that is neither static nor computed.
     ClassField,
+    /// The value of `this.x = …`, a statement of a constructor's body.
+    ConstructorAssignment,
     /// The pattern a `$props()` declarator binds, one of its properties, and a property's value.
     Props,
     PropsProperty,
     PropsValue,
     /// The default of a `$props()` property.
     PropsDefault,
+}
+
+/// The function whose block body a statement stands in.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Body {
+    constructor: bool,
+    generator: bool,
 }
 
 /// Where an expression sits.
@@ -307,6 +322,7 @@ struct Place {
 /// The rune checks of upstream's analysis, then the runes this port does not lower yet.
 struct RuneWalk<'a> {
     javascript: &'a SyntaxTree,
+    source_text: &'a str,
     res: &'a Resolution,
     target: Target,
     custom_element: bool,
@@ -331,6 +347,7 @@ pub(super) fn check_runes(
 ) -> Result<(), Diagnostic> {
     let mut walk = RuneWalk {
         javascript: input.component.javascript,
+        source_text: input.component.source_text,
         res,
         target,
         custom_element,
@@ -445,7 +462,45 @@ impl RuneWalk<'_> {
             (Kind::AssignPattern(_, default), Parent::PropsValue) if default == child => {
                 Parent::PropsDefault
             }
-            (Kind::ExpressionStatement(_), _) => Parent::Statement,
+            (
+                Kind::Class(Class::Method {
+                    key,
+                    computed: false,
+                    is_static: false,
+                    getter: false,
+                    setter: false,
+                    ..
+                }),
+                _,
+            ) if is_constructor_key(javascript, self.source_text, key) => Parent::Constructor,
+            (Kind::Function { body, .. } | Kind::Arrow { body, .. }, _) if body == child => {
+                Parent::Body(Body {
+                    constructor: parent == Parent::Constructor,
+                    generator: javascript.flags(e) & flag::GENERATOR != 0,
+                })
+            }
+            (Kind::Block(statements), Parent::Body(body)) => {
+                Parent::BodyStatement(body, statements.first() == Some(&child))
+            }
+            (Kind::ExpressionStatement(_), Parent::BodyStatement(body, first)) => {
+                Parent::Statement(Some((body, first)))
+            }
+            (Kind::ExpressionStatement(_), _) => Parent::Statement(None),
+            (
+                Kind::Assign(
+                    rsvelte_typescript_syntax::operators::AssignmentOperator::Assign,
+                    target,
+                    value,
+                ),
+                Parent::Statement(Some((
+                    Body {
+                        constructor: true, ..
+                    },
+                    _,
+                ))),
+            ) if value == child && assigns_this_property(javascript, target) => {
+                Parent::ConstructorAssignment
+            }
             (
                 Kind::Class(Class::Field {
                     value: Some(value),
@@ -484,8 +539,8 @@ impl RuneWalk<'_> {
         } else {
             place.parent
         };
-        // Upstream counts the arguments of these two before it asks where they are.
-        if matches!(rune, "$bindable" | "$host") {
+        // Upstream counts the arguments of these before it asks where they are.
+        if matches!(rune, "$bindable" | "$host" | "$inspect.trace") {
             check_rune_arguments(javascript, e, rune, arguments.len())?;
             self.check_rune_placement(e, rune, parent, place)?;
         } else {
@@ -544,10 +599,11 @@ impl RuneWalk<'_> {
                     return Ok(());
                 }
             }
-            // A class body is refused later, so a constructor's assignment is not told apart.
             "$state" | "$state.raw" | "$derived" | "$derived.by"
-                if !matches!(parent, Parent::Initializer { .. } | Parent::ClassField)
-                    && !place.in_class =>
+                if !matches!(
+                    parent,
+                    Parent::Initializer { .. } | Parent::ClassField | Parent::ConstructorAssignment
+                ) =>
             {
                 (
                     "state_invalid_placement",
@@ -556,10 +612,27 @@ impl RuneWalk<'_> {
                     ),
                 )
             }
-            "$effect" | "$effect.pre" if parent != Parent::Statement => (
+            "$effect" | "$effect.pre" if !matches!(parent, Parent::Statement(_)) => (
                 "effect_invalid_placement",
                 "`$effect()` can only be used as an expression statement".to_owned(),
             ),
+            "$inspect.trace" => match parent {
+                Parent::Statement(Some((
+                    Body {
+                        generator: true, ..
+                    },
+                    true,
+                ))) => (
+                    "inspect_trace_generator",
+                    "`$inspect.trace(...)` cannot be used inside a generator function".to_owned(),
+                ),
+                Parent::Statement(Some((_, true))) => return Ok(()),
+                _ => (
+                    "inspect_trace_invalid_placement",
+                    "`$inspect.trace(...)` must be the first statement of a function body"
+                        .to_owned(),
+                ),
+            },
             _ => return Ok(()),
         };
         super::special::invalid(code, &message, span_of(self.javascript, e))
@@ -574,7 +647,7 @@ impl RuneWalk<'_> {
                 "$props" | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
                 "$host" => self.custom_element,
                 "$effect" | "$effect.pre" => {
-                    place.parent == Parent::Statement || self.target == Target::Client
+                    matches!(place.parent, Parent::Statement(_)) || self.target == Target::Client
                 }
                 _ => false,
             };
@@ -624,6 +697,39 @@ fn check_rune_arguments(
         &format!("`{rune}` must be called with {expected}"),
         span_of(javascript, e),
     )
+}
+
+/// acorn's `kind === 'constructor'`: a plain method keyed `constructor` by a name or a string.
+fn is_constructor_key(javascript: &SyntaxTree, source_text: &str, key: NodeIdentifier) -> bool {
+    match javascript.kind(key) {
+        Kind::Identifier(_) => javascript.name(key) == "constructor",
+        Kind::String => javascript.str_value(key, source_text) == "constructor",
+        _ => false,
+    }
+}
+
+/// Upstream's `this.x`, `this.#x` or `this[<literal>]`.
+fn assigns_this_property(javascript: &SyntaxTree, target: NodeIdentifier) -> bool {
+    let Kind::Member {
+        object,
+        property,
+        computed,
+        ..
+    } = javascript.kind(target)
+    else {
+        return false;
+    };
+    matches!(javascript.kind(object), Kind::This)
+        && (!computed
+            || matches!(
+                javascript.kind(property),
+                Kind::String
+                    | Kind::Number(_)
+                    | Kind::Boolean(_)
+                    | Kind::Null
+                    | Kind::Regex { .. }
+                    | Kind::BigInt
+            ))
 }
 
 /// Upstream `VariableDeclarator`: `$props()` binds a name or flat object pattern, checked before

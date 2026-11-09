@@ -92,7 +92,16 @@ fn misplaced_runes_and_wrong_rune_arguments_raise_upstream_errors_on_both_target
         ("$inspect.trace(1, 2);", "rune_invalid_arguments_length"),
         ("let h = $host(1);", "rune_invalid_arguments"),
         ("let h = $host();", "host_invalid_placement"),
-        ("class K { [await 1] = 2; }", "experimental_async"),
+        ("$inspect.trace();", "inspect_trace_invalid_placement"),
+        (
+            "function f() { let a = 1; $inspect.trace(); }",
+            "inspect_trace_invalid_placement",
+        ),
+        (
+            "function* g() { $inspect.trace(); }",
+            "inspect_trace_generator",
+        ),
+        ("function f() { $inspect.trace(); }", "unsupported"),
         ("let { a: { b } } = $props();", "props_invalid_pattern"),
         ("let { [k]: a } = $props();", "props_invalid_pattern"),
         ("let { a: [b] = [] } = $props();", "props_invalid_pattern"),
@@ -104,18 +113,73 @@ fn misplaced_runes_and_wrong_rune_arguments_raise_upstream_errors_on_both_target
         ("export const id = $props.id();", "unsupported"),
         ("class K extends (await x) {}", "experimental_async"),
     ] {
-        let source = format!("<script>{script}</script>");
-        let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid syntax");
-        let tree = compiler_syntax_tree::lower(&component, &source);
-        let input =
-            rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
-        let resolution = resolve::resolve(&component.javascript, component.program, &tree);
-        let analysis = analyze::analyze(&input, &resolution);
-        for target in [Target::Client, Target::Server] {
-            let error = compile_input(&CompileInput::from(input), &resolution, &analysis, target)
-                .expect_err("a misplaced rune");
-            assert_eq!(error.code, code, "{script} on {target:?}");
-        }
+        raises_on_both_targets(script, code);
+    }
+}
+
+/// Upstream's class body checks: a state rune is a field or a constructor's first assignment.
+#[test]
+fn runes_in_a_class_body_raise_upstream_errors_on_both_targets() {
+    for (script, code) in [
+        ("class K { [await 1] = 2; }", "experimental_async"),
+        (
+            "class K { static x = $state(1); }",
+            "state_invalid_placement",
+        ),
+        ("class K { [k] = $state(1); }", "state_invalid_placement"),
+        (
+            "class K { m() { this.x = $state(1); } }",
+            "state_invalid_placement",
+        ),
+        (
+            "class K { constructor() { if (1) this.x = $state(1); } }",
+            "state_invalid_placement",
+        ),
+        (
+            "class K { constructor() { this.x.y = $state(1); } }",
+            "state_invalid_placement",
+        ),
+        (
+            "class K { constructor() { this.x += $state(1); } }",
+            "state_invalid_placement",
+        ),
+        (
+            "class K { m() { return { a: $state(1) }; } }",
+            "state_invalid_placement",
+        ),
+        (
+            "class K { constructor() { this.x = $state(1); } }",
+            "unsupported",
+        ),
+        (
+            "class K { 'constructor'() { this.x = $state(1); } }",
+            "unsupported",
+        ),
+        (
+            "class K { constructor() { this[true] = $state(1); this[null] = $state(2); this[1n] = $state(3); } }",
+            "unsupported",
+        ),
+        (
+            "class K { ['constructor']() { this.x = $state(1); } }",
+            "state_invalid_placement",
+        ),
+        ("class K { m() { let a = $state(1); } }", "unsupported"),
+    ] {
+        raises_on_both_targets(script, code);
+    }
+}
+
+fn raises_on_both_targets(script: &str, code: &str) {
+    let source = format!("<script>{script}</script>");
+    let component = rsvelte_svelte_syntax::parse::parse(&source).expect("valid syntax");
+    let tree = compiler_syntax_tree::lower(&component, &source);
+    let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, &source, "test.svelte");
+    let resolution = resolve::resolve(&component.javascript, component.program, &tree);
+    let analysis = analyze::analyze(&input, &resolution);
+    for target in [Target::Client, Target::Server] {
+        let error = compile_input(&CompileInput::from(input), &resolution, &analysis, target)
+            .expect_err("a misplaced rune");
+        assert_eq!(error.code, code, "{script} on {target:?}");
     }
 }
 
