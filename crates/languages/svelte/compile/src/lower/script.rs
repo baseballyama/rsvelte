@@ -7,7 +7,7 @@ pub(super) use declarators::check_destructured_rune;
 use declarators::lower_value_declarator;
 use props::{lower_client_props, server_props_pattern};
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution, rune_call};
+use rsvelte_svelte::semantic::resolve::{BindingKind, Resolution};
 use rsvelte_typescript::copy::{Rewrite, copy, copy_node};
 use rsvelte_typescript::operators::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
@@ -266,17 +266,18 @@ impl Rewrite for ScriptRewrite<'_> {
             Kind::Assign(op, target, value) => self.assign(from, to, identifier, op, target, value),
             Kind::Update { op, prefix, arg } => self.update(from, to, op, prefix, arg),
             Kind::Block(body)
-                if self.target == Target::Server && body.iter().any(|&s| is_effect(from, s)) =>
+                if self.target == Target::Server
+                    && body.iter().any(|&s| is_effect(from, self.res, s)) =>
             {
                 let kept: Vec<NodeIdentifier> = body
                     .iter()
-                    .filter(|&&s| !is_effect(from, s))
+                    .filter(|&&s| !is_effect(from, self.res, s))
                     .map(|&s| copy(from, to, self, s))
                     .collect();
                 Some(to.block(&kept, from.source_location(identifier)))
             }
             Kind::Call { arguments, .. } => {
-                let name = match (self.target, rune_call(from, identifier)?.0) {
+                let name = match (self.target, self.res.rune(from, identifier)?.0) {
                     (Target::Client, "$host") => {
                         let props = to.identifier("$$props");
                         return Some(to.dot(props, "$$host"));
@@ -339,9 +340,9 @@ impl Rewrite for ScriptRewrite<'_> {
 }
 
 /// Upstream server `ExpressionStatement`: an effect statement renders nothing.
-fn is_effect(from: &SyntaxTree, statement: NodeIdentifier) -> bool {
+fn is_effect(from: &SyntaxTree, res: &Resolution, statement: NodeIdentifier) -> bool {
     matches!(from.kind(statement), Kind::ExpressionStatement(e)
-        if rune_call(from, e).is_some_and(|(r, _)| matches!(r, "$effect" | "$effect.pre")))
+        if res.rune(from, e).is_some_and(|(r, _)| matches!(r, "$effect" | "$effect.pre")))
 }
 
 const fn logical_of(op: AssignmentOperator) -> Option<LogicalOperator> {
@@ -397,7 +398,7 @@ pub(super) fn lower_script(
     for &statement in body {
         match from.kind(statement) {
             Kind::TypeScriptDeclaration => {}
-            _ if rw.target == Target::Server && is_effect(from, statement) => {}
+            _ if rw.target == Target::Server && is_effect(from, rw.res, statement) => {}
             Kind::Import { .. } => hoisted.push(copy(from, to, rw, statement)),
             // Upstream turns these into the component's exports; copying them would put an
             // `export` inside the component function.
@@ -416,7 +417,7 @@ pub(super) fn lower_script(
             }
             Kind::VariableDeclaration { kind, declarations } => {
                 for &d in declarations {
-                    check_destructured_rune(from, rw.target, d)?;
+                    check_destructured_rune(from, rw.res, rw.target, d)?;
                 }
                 let mut lowered = Vec::with_capacity(declarations.len());
                 for &d in declarations {
@@ -456,7 +457,7 @@ fn lower_declarator(
     let source_location = from.source_location(d);
     match (
         rw.target,
-        rune_call(from, initializer).map(|(rune, _)| rune),
+        rw.res.rune(from, initializer).map(|(rune, _)| rune),
     ) {
         (Target::Server, Some("$props")) => {
             let target = server_props_pattern(from, to, rw, identifier);

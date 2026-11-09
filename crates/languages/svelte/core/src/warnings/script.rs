@@ -1,9 +1,10 @@
 //! The warnings the analysis walk emits at JavaScript nodes, in the scripts and in the
 //! template's expressions.
 
+use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::semantic::resolve::{
-    BindingKind, RUNES, Resolution, for_each_pattern_identifier, rune_call,
+    BindingKind, RUNES, Resolution, for_each_pattern_identifier,
 };
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rsvelte_typescript::scope::DeclarationKind;
@@ -11,7 +12,7 @@ use rsvelte_typescript::syntax_tree::{Class, Control, Kind};
 use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
 
 use rsvelte_typescript::scope::{BindingIdentifier, ScopeIdentifier};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use super::found::{Found, Stage};
 use super::template::{bidirectional, bidirectional_runs};
@@ -39,9 +40,13 @@ struct Walk<'a> {
     source: &'a str,
     resolution: &'a Resolution,
     runes: bool,
-    /// The names whose `$name` subscribes to a store, when a rune call by that name is the
-    /// `store_rune_conflict` warning; empty when the `runes` option is `false`.
-    stores: FxHashSet<&'a str>,
+    /// Whether a rune call that subscribes to a store is the `store_rune_conflict` warning: not
+    /// when the `runes` option is `false`.
+    store_conflicts: bool,
+    /// Each unbound `$name` in the order of its first reference, which upstream warns
+    /// `store_rune_conflict` in, name by name.
+    dollar_names: FxHashMap<&'a str, usize>,
+    conflicts: Vec<(usize, Diagnostic)>,
     /// The bindings `export { … }` marks reassigned, from the specifier's start on.
     exported: &'a FxHashMap<BindingIdentifier, u32>,
     section: Section,
@@ -64,18 +69,15 @@ pub(super) fn walk(
     exported: &FxHashMap<BindingIdentifier, u32>,
     found: &mut Found,
 ) {
-    let stores = if options.runes == Some(false) {
-        FxHashSet::default()
-    } else {
-        super::runes::stores(component, resolution)
-    };
     let mut walk = Walk {
         component,
         javascript: &component.javascript,
         source,
         resolution,
         runes,
-        stores,
+        store_conflicts: options.runes != Some(false),
+        dollar_names: FxHashMap::default(),
+        conflicts: Vec::new(),
         exported,
         section: Section::Module,
         program: None,
@@ -104,6 +106,11 @@ pub(super) fn walk(
         walk.declaration_scope = declaration_scope(component, resolution, expression);
         walk.node(expression, None, top);
     }
+    let mut conflicts = std::mem::take(&mut walk.conflicts);
+    conflicts.sort_by_key(|&(order, _)| order);
+    for (_, conflict) in conflicts {
+        walk.found.push(Stage::Setup, 0, conflict);
+    }
 }
 
 /// The scope of the bindings a template's `{let …}` tag declares.
@@ -130,7 +137,7 @@ fn declaration_scope(
 }
 
 impl Walk<'_> {
-    fn warn(&mut self, at: u32, warning: rsvelte_kernel::diagnostics::Diagnostic) {
+    fn warn(&mut self, at: u32, warning: Diagnostic) {
         self.found.push(Stage::Walk(self.section), at, warning);
     }
 
@@ -214,7 +221,7 @@ impl Walk<'_> {
             Kind::ExpressionStatement(expression) => self.component_creation(expression),
             _ => {}
         }
-        let rune = rune_call(javascript, node).map(|(rune, _)| rune);
+        let rune = self.resolution.rune(javascript, node).map(|(rune, _)| rune);
         let callee = match javascript.kind(node) {
             Kind::Call { callee, .. } => Some(callee),
             _ => None,
@@ -224,7 +231,11 @@ impl Walk<'_> {
             Kind::Declarator {
                 identifier,
                 initializer: Some(init),
-            } if rune_call(javascript, init).is_some_and(|(rune, _)| rune == "$props") => {
+            } if self
+                .resolution
+                .rune(javascript, init)
+                .is_some_and(|(rune, _)| rune == "$props") =>
+            {
                 Some(identifier)
             }
             _ => None,
@@ -335,20 +346,22 @@ impl Walk<'_> {
         let Some(store) = name.strip_prefix('$') else {
             return;
         };
+        if self.resolution.sem.binding_of(node).is_some() {
+            return;
+        }
+        let next = self.dollar_names.len();
+        let order = *self.dollar_names.entry(name).or_insert(next);
         let called = parent.is_some_and(|p| matches!(javascript.kind(p), Kind::Call { .. }));
         if called
+            && self.store_conflicts
             && RUNES.contains(&name)
-            && self.stores.contains(store)
-            && self.resolution.sem.binding_of(node).is_none()
+            && self.resolution.is_store_subscription(name)
         {
             let message = format!(
                 "It looks like you're using the `{name}` rune, but there is a local binding called `{store}`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `{store}` to avoid the ambiguity"
             );
-            self.found.push(
-                Stage::Setup,
-                0,
-                warning("store_rune_conflict", &message, span),
-            );
+            self.conflicts
+                .push((order, warning("store_rune_conflict", &message, span)));
         }
     }
 

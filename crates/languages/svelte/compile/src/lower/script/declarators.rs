@@ -1,15 +1,16 @@
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_svelte::semantic::resolve::Resolution;
 use rsvelte_typescript::operators::UnaryOperator;
 
 use super::{
-    Kind, NodeIdentifier, ScriptRewrite, SyntaxTree, Target, copy, rune_call, should_proxy,
-    unsupported,
+    Kind, NodeIdentifier, ScriptRewrite, SyntaxTree, Target, copy, should_proxy, unsupported,
 };
 
 /// Upstream splits a destructured `$derived` (both targets) and a destructured `$state` (client)
 /// into one declaration per path; this port has no `extract_paths` yet.
 pub(in crate::lower) fn check_destructured_rune(
     from: &SyntaxTree,
+    res: &Resolution,
     target: Target,
     d: NodeIdentifier,
 ) -> Result<(), Diagnostic> {
@@ -23,7 +24,7 @@ pub(in crate::lower) fn check_destructured_rune(
     if from.is_identifier(identifier) {
         return Ok(());
     }
-    let Some((rune, _)) = rune_call(from, initializer) else {
+    let Some((rune, _)) = res.rune(from, initializer) else {
         return Ok(());
     };
     let split = match rune {
@@ -56,7 +57,7 @@ pub(super) fn lower_value_declarator(
     else {
         return None;
     };
-    let (rune, arg) = rune_call(from, initializer)?;
+    let (rune, arg) = rw.res.rune(from, initializer)?;
     let source_location = from.source_location(d);
     let value = |to: &mut SyntaxTree, rw: &mut ScriptRewrite<'_>| {
         if let Some(a) = arg {

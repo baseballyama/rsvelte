@@ -4,7 +4,7 @@ use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use super::ExpressionMetadata;
 use super::evaluation::BindingValues;
 use crate::semantic::input::ComponentInput;
-use crate::semantic::resolve::{BindingKind, Resolution, rune_call};
+use crate::semantic::resolve::{BindingKind, Resolution};
 
 /// Computes [`ExpressionMetadata`] the way upstream's analysis visitors do, and `needs_context`.
 pub(super) struct MetadataWalker<'a, 'walk, const COLLECT_METADATA: bool> {
@@ -80,7 +80,7 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
             Kind::Call {
                 callee, arguments, ..
             } => {
-                let rune = rune_call(self.syntax_tree, identifier).map(|(r, _)| r);
+                let rune = self.res.rune(self.syntax_tree, identifier).map(|(r, _)| r);
                 self.visit(callee);
                 for &a in arguments {
                     self.visit(a);

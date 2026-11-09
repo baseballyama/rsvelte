@@ -4,7 +4,7 @@ use rsvelte_typescript::{Kind, NodeIdentifier};
 
 use super::globals::global_function;
 use super::{Evaluator, Tree, Value, Values, add};
-use crate::semantic::resolve::{BindingKind, rune_call};
+use crate::semantic::resolve::BindingKind;
 
 impl<'a> Evaluator<'a> {
     fn resolve(
@@ -77,10 +77,10 @@ impl<'a> Evaluator<'a> {
         values: &mut Values,
     ) {
         let syntax_tree = self.syntax_tree(tree);
-        if let Some((rune, arg)) =
-            rune_call(syntax_tree, e).filter(|_| matches!(tree, Tree::Source))
+        if let Some((rune, arg)) = matches!(tree, Tree::Source)
+            .then(|| self.res.rune(syntax_tree, e))
+            .flatten()
         {
-            // A rune only counts when its name is not shadowed (upstream `get_global_keypath`).
             match rune {
                 "$state" | "$state.raw" | "$derived" => match arg {
                     Some(a) => self.eval_into(tree, a, values),

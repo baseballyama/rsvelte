@@ -8,8 +8,12 @@ fn run(source_text: &str, server: bool) -> Result<String, String> {
     let c = rsvelte_svelte::syntax::parse::parse(source_text).map_err(|d| d.message)?;
     let compiler_syntax_tree =
         rsvelte_svelte::compilation::compiler_syntax_tree::lower(&c, source_text);
-    let resolution =
-        rsvelte_svelte::semantic::resolve::resolve(&c.javascript, c.program, &compiler_syntax_tree);
+    let resolution = rsvelte_svelte::semantic::resolve::resolve(
+        &c.javascript,
+        source_text,
+        c.program,
+        &compiler_syntax_tree,
+    );
     let analysis = rsvelte_svelte::semantic::analyze::analyze(
         &rsvelte_svelte::svelte_input(&c, &compiler_syntax_tree, source_text, "A.svelte"),
         &resolution,

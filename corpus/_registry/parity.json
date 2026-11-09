@@ -17064,7 +17064,7 @@
 	"svelte.compile.warnings/default svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-with-binding-7/Component2.svelte": "match",
 	"svelte.compile.warnings/default svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-with-binding-7/main.svelte": "match",
 	"svelte.compile.warnings/default svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-with-binding/main.svelte": "match",
-	"svelte.compile.warnings/default svelte/svelte/packages/svelte/tests/runtime-runes/samples/not-actual-runes/main.svelte": "mismatch",
+	"svelte.compile.warnings/default svelte/svelte/packages/svelte/tests/runtime-runes/samples/not-actual-runes/main.svelte": "match",
 	"svelte.compile.warnings/default svelte/svelte/packages/svelte/tests/runtime-runes/samples/nullish-actions/main.svelte": "match",
 	"svelte.compile.warnings/default svelte/svelte/packages/svelte/tests/runtime-runes/samples/nullish-empty-string/main.svelte": "match",
 	"svelte.compile.warnings/default svelte/svelte/packages/svelte/tests/runtime-runes/samples/nullish-operator/main.svelte": "match",
