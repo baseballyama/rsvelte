@@ -38,10 +38,10 @@ pub fn rune(
     let (rune, root) = match syntax_tree.kind(callee) {
         Kind::Identifier(_) => {
             let name = syntax_tree.name(callee);
-            let rune = RUNES
-                .iter()
-                .find(|rune| rune.split_once('.').is_none() && **rune == name)?;
-            (*rune, callee)
+            if !name.starts_with('$') {
+                return None;
+            }
+            (*RUNES.iter().find(|&&rune| rune == name)?, callee)
         }
         Kind::Member {
             object,
@@ -53,9 +53,13 @@ pub fn rune(
             match syntax_tree.kind(object) {
                 Kind::Identifier(_) => {
                     let root = syntax_tree.name(object);
-                    let rune = RUNES
-                        .iter()
-                        .find(|rune| rune.split_once('.') == Some((root, member)))?;
+                    if !root.starts_with('$') {
+                        return None;
+                    }
+                    let rune = RUNES.iter().find(|rune| {
+                        (rune.strip_prefix(root)).and_then(|rest| rest.strip_prefix('.'))
+                            == Some(member)
+                    })?;
                     (*rune, object)
                 }
                 Kind::Call {

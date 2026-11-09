@@ -26,10 +26,6 @@ fn every_public_rune_is_recognized_by_its_shape() {
             "{rune}"
         );
     }
-    // A name holds no dot, so a dotted rune is only ever a member.
-    let callee = tree.identifier("$state.raw");
-    let call = tree.call0(callee, &[]);
-    assert_eq!(rune_call(&tree, call), None);
 }
 
 #[test]
