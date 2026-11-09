@@ -7,6 +7,7 @@ mod html_closing_bracket_spacing;
 mod html_quotes;
 mod html_self_closing;
 mod max_attributes_per_line;
+mod mustache_spacing;
 mod no_spaces_around_equal_signs_in_attribute;
 mod no_trailing_spaces;
 mod no_unused_variables;
@@ -25,6 +26,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &html_quotes::RULE,
     &html_self_closing::RULE,
     &max_attributes_per_line::RULE,
+    &mustache_spacing::RULE,
     &no_spaces_around_equal_signs_in_attribute::RULE,
     &no_trailing_spaces::RULE,
     &sort_attributes::RULE,

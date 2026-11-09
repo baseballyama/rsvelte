@@ -159,3 +159,14 @@ pub(super) fn whitespace_before(tokens: &Tokens<TokenType>, offset: u32) -> Span
 pub(super) const fn is_javascript_whitespace(c: char) -> bool {
     (c.is_whitespace() && c != '\u{85}') || c == '\u{feff}'
 }
+
+/// The whitespace that starts at `offset`, empty at `offset` when there is none.
+pub(super) fn whitespace_after(tokens: &Tokens<TokenType>, offset: u32) -> Span {
+    let end = tokens
+        .from_offset(offset)
+        .iter()
+        .take_while(|token| token.kind == TokenType::Whitespace)
+        .last()
+        .map_or(offset, |token| token.span.end_offset);
+    Span::new(offset, end)
+}
