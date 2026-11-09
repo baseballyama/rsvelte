@@ -19,7 +19,7 @@ impl Parser<'_, '_> {
         let kw = self.text(self.token);
         if self.peek().t == T::Colon {
             let t = self.bump()?;
-            let label = self.syntax_tree.ident(self.text(t), t.span);
+            let label = self.ident_node(t);
             self.bump()?;
             let body = self.statement()?;
             return Ok(self.syntax_tree.control(
@@ -196,7 +196,7 @@ impl Parser<'_, '_> {
         let generator = self.eat_op("*")?;
         let name = if self.token.t == T::Identifier {
             let t = self.bump()?;
-            Some(self.syntax_tree.ident(self.text(t), t.span))
+            Some(self.ident_node(t))
         } else if declaration {
             return self.fail("expected function name");
         } else {
@@ -322,7 +322,7 @@ impl Parser<'_, '_> {
         if self.token.t != T::String {
             if self.token.t == T::Identifier {
                 let t = self.bump()?;
-                let local = self.syntax_tree.ident(self.text(t), t.span);
+                let local = self.ident_node(t);
                 let spec = self.syntax_tree.import_default(local, t.span);
                 self.item(spec);
                 self.eat(T::Comma)?;
@@ -335,7 +335,7 @@ impl Parser<'_, '_> {
                 }
                 self.bump()?;
                 let t = self.expect(T::Identifier, "identifier")?;
-                let local = self.syntax_tree.ident(self.text(t), t.span);
+                let local = self.ident_node(t);
                 let spec = self
                     .syntax_tree
                     .import_namespace(local, self.span_from(slo));
@@ -375,16 +375,16 @@ impl Parser<'_, '_> {
             };
             let t = self.bump()?;
             let imported = match t.t {
-                T::Identifier => self.syntax_tree.ident(self.text(t), t.span),
+                T::Identifier => self.ident_node(t),
                 T::String => self.string_node(t),
                 _ => return self.fail("expected import name"),
             };
             let local = if self.is_kw("as") {
                 self.bump()?;
                 let l = self.expect(T::Identifier, "identifier")?;
-                self.syntax_tree.ident(self.text(l), l.span)
+                self.ident_node(l)
             } else if t.t == T::Identifier {
-                self.syntax_tree.ident(self.text(t), t.span)
+                self.ident_node(t)
             } else {
                 return self.fail("string import names need `as`");
             };

@@ -77,7 +77,7 @@ impl Parser<'_, '_> {
         while self.token.t == T::Dot {
             self.bump()?;
             let t = self.expect(T::Identifier, "a name")?;
-            let property = self.syntax_tree.ident(self.text(t), t.span);
+            let property = self.ident_node(t);
             name = self
                 .syntax_tree
                 .member(name, property, false, false, self.span_from(start));
@@ -92,7 +92,7 @@ impl Parser<'_, '_> {
         }
         self.token = self.lex.jsx_identifier(self.token)?;
         let t = self.bump()?;
-        Ok(self.syntax_tree.ident(self.text(t), t.span))
+        Ok(self.ident_node(t))
     }
 
     fn jsx_namespaced(&mut self, namespace: NodeIdentifier, start: u32) -> R<NodeIdentifier> {

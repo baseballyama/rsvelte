@@ -95,7 +95,7 @@ impl Parser<'_, '_> {
         {
             let t = self.bump()?;
             let parameters = self.open();
-            let p = self.syntax_tree.ident(self.text(t), t.span);
+            let p = self.ident_node(t);
             self.item(p);
             parameters
         } else if self.token.t == T::LParen && Self::paren_arrow_ahead(self.lex, &mut Vec::new())? {

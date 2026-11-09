@@ -161,3 +161,15 @@ fn a_tagged_template_is_a_call_of_its_tag() {
         [("a.b`x${c}y`", "a.b", "`x${c}y`"), ("f<T>``", "f", "``")]
     );
 }
+
+#[test]
+fn an_escaped_identifier_names_what_it_decodes_to() {
+    let source_text = concat!("let \\", "u0061b = 1; \\", "u{61}b;");
+    let (tree, statements) = typescript(source_text);
+    let Kind::ExpressionStatement(reference) = tree.kind(statements[1]) else {
+        panic!("an expression statement");
+    };
+    assert_eq!(tree.name(reference), "ab");
+    let span = tree.source_location(reference).span().expect("located");
+    assert_eq!(span, Span::new(17, 24));
+}

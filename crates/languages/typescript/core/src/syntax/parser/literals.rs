@@ -59,7 +59,7 @@ impl Parser<'_, '_> {
                     }
                     _ => {
                         self.bump()?;
-                        Ok(self.syntax_tree.ident(text, t.span))
+                        Ok(self.ident_node(t))
                     }
                 }
             }
@@ -278,7 +278,7 @@ impl Parser<'_, '_> {
         match t.t {
             T::Identifier | T::PrivateName => {
                 self.bump()?;
-                Ok((self.syntax_tree.ident(self.text(t), t.span), false, t.span))
+                Ok((self.ident_node(t), false, t.span))
             }
             T::String => {
                 self.bump()?;

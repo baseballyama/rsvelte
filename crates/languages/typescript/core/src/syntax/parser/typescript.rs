@@ -91,7 +91,7 @@ impl Parser<'_, '_> {
 
     fn declared_name(&mut self) -> R<NodeIdentifier> {
         let t = self.expect(T::Identifier, "a name")?;
-        Ok(self.syntax_tree.ident(self.text(t), t.span))
+        Ok(self.ident_node(t))
     }
 
     pub(super) fn maybe_type_parameters_node(&mut self) -> R<Option<NodeIdentifier>> {
@@ -136,7 +136,7 @@ impl Parser<'_, '_> {
             let member_name = match t.t {
                 T::Identifier => {
                     self.bump()?;
-                    self.syntax_tree.ident(self.text(t), t.span)
+                    self.ident_node(t)
                 }
                 T::String => {
                     self.bump()?;
@@ -298,7 +298,8 @@ impl Parser<'_, '_> {
             _ => return,
         };
         if name.t == T::Identifier {
-            let name = self.syntax_tree.atoms.intern(self.text(name));
+            let name = crate::lexer::identifier_name(self.text(name));
+            let name = self.syntax_tree.atoms.intern(&name);
             self.syntax_tree.type_declarations.push(TypeDeclaration {
                 name,
                 kind,

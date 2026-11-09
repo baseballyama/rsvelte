@@ -132,3 +132,24 @@ fn every_ecmascript_whitespace_separates_tokens() {
     // U+00A0, U+1680, U+2000 to U+200A, U+202F, U+205F, U+3000 and U+FEFF.
     assert_eq!(checked, 17);
 }
+
+#[test]
+fn an_identifier_reads_unicode_escapes_and_its_name_decodes_them() {
+    let source_text = concat!("\\", "u0061b c\\u{62}\\u{1F} d");
+    let mut lexer = Lexer::new(source_text, 0, source_text.len());
+    let first = lexer.next(&mut Vec::new()).expect("lexes");
+    let second = lexer.next(&mut Vec::new()).expect("lexes");
+    assert_eq!((first.t, first.span), (T::Identifier, Span::new(0, 7)));
+    assert_eq!((second.t, second.span), (T::Identifier, Span::new(8, 21)));
+    assert_eq!(identifier_name(lexer.text(first.span)), "ab");
+    assert_eq!(identifier_name(lexer.text(second.span)), "cb\u{1F}");
+    assert_eq!(identifier_name("plain"), "plain");
+}
+
+#[test]
+fn a_malformed_identifier_escape_is_refused() {
+    for source_text in [r"a\x41", r"a\u41", r"a\u{}", r"a\u{110000}", r"a\u{41"] {
+        let mut lexer = Lexer::new(source_text, 0, source_text.len());
+        lexer.next(&mut Vec::new()).expect_err(source_text);
+    }
+}

@@ -331,6 +331,12 @@ impl<'a, 'b> Parser<'a, 'b> {
         t.span.text(self.source_text)
     }
 
+    /// The identifier node token `t` names.
+    fn ident_node(&mut self, t: LexedToken) -> NodeIdentifier {
+        let name = crate::lexer::identifier_name(self.text(t));
+        self.syntax_tree.ident(&name, t.span)
+    }
+
     /// Checks, where a parse succeeds, that it closed every list it opened.
     fn done(&self) -> R<()> {
         if let Some(&span) = self
@@ -397,7 +403,8 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.prev_end = t.span.end_offset;
         self.token = self.lex.next(&mut self.syntax_tree.comments)?;
         if self.in_type > 0 && t.t == T::Identifier && self.names_a_binding(t) {
-            let name = self.syntax_tree.atoms.intern(self.text(t));
+            let name = crate::lexer::identifier_name(self.text(t));
+            let name = self.syntax_tree.atoms.intern(&name);
             self.syntax_tree
                 .type_references
                 .push(TypeRef { name, span: t.span });

@@ -87,7 +87,7 @@ impl Parser<'_, '_> {
         let name = if self.text(t) == "this" {
             self.syntax_tree.type_node(Type::Leaf, t.span)
         } else {
-            self.syntax_tree.ident(self.text(t), t.span)
+            self.ident_node(t)
         };
         let annotation = if self.is_kw("is") && !self.token.newline_before {
             self.bump()?;
@@ -169,7 +169,7 @@ impl Parser<'_, '_> {
     fn infer(&mut self, start: u32) -> R<NodeIdentifier> {
         self.bump()?;
         let t = self.expect(T::Identifier, "a type parameter name")?;
-        let name = self.syntax_tree.ident(self.text(t), t.span);
+        let name = self.ident_node(t);
         let mut constraint = None;
         if self.is_kw("extends") && !self.token.newline_before {
             let checkpoint = self.checkpoint();
@@ -274,11 +274,11 @@ impl Parser<'_, '_> {
     fn entity_name(&mut self) -> R<NodeIdentifier> {
         let start = self.token.span.start_offset;
         let t = self.expect(T::Identifier, "a type name")?;
-        let mut name = self.syntax_tree.ident(self.text(t), t.span);
+        let mut name = self.ident_node(t);
         while self.token.t == T::Dot && matches!(self.peek().t, T::Identifier | T::PrivateName) {
             self.bump()?;
             let right = self.bump()?;
-            let right = self.syntax_tree.ident(self.text(right), right.span);
+            let right = self.ident_node(right);
             name = self
                 .syntax_tree
                 .type_node(Type::Qualified { left: name, right }, self.span_from(start));
@@ -344,7 +344,7 @@ impl Parser<'_, '_> {
             self.bump()?;
         }
         let t = self.expect(T::Identifier, "a type parameter name")?;
-        let name = self.syntax_tree.ident(self.text(t), t.span);
+        let name = self.ident_node(t);
         let constraint = if self.is_kw("extends") {
             self.bump()?;
             Some(self.ty()?)
@@ -484,7 +484,7 @@ impl Parser<'_, '_> {
             && (next.t == T::Colon || (next.t == T::Question && self.peek_nth(2).t == T::Colon));
         if named {
             let t = self.bump()?;
-            let label = self.syntax_tree.ident(self.text(t), t.span);
+            let label = self.ident_node(t);
             let optional = self.eat(T::Question)?;
             self.bump()?; // `:`
             let element = self.ty()?;

@@ -76,7 +76,7 @@ impl Parser<'_, '_> {
             "break" | "continue" => {
                 let label = if !self.token.newline_before && self.token.t == T::Identifier {
                     let t = self.bump()?;
-                    Some(self.syntax_tree.ident(self.text(t), t.span))
+                    Some(self.ident_node(t))
                 } else {
                     None
                 };
@@ -338,7 +338,7 @@ impl Parser<'_, '_> {
     fn export_name(&mut self) -> R<NodeIdentifier> {
         let token = self.bump()?;
         match token.t {
-            T::Identifier => Ok(self.syntax_tree.ident(self.text(token), token.span)),
+            T::Identifier => Ok(self.ident_node(token)),
             T::String => Ok(self.string_node(token)),
             _ => self.fail("expected export name"),
         }

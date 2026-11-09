@@ -123,7 +123,7 @@ impl Parser<'_, '_> {
         match self.token.t {
             T::Identifier | T::PrivateName => {
                 let t = self.bump()?;
-                Ok(self.syntax_tree.ident(self.text(t), t.span))
+                Ok(self.ident_node(t))
             }
             _ => self.fail("expected property name"),
         }

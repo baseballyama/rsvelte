@@ -316,10 +316,7 @@ impl<'a> Lexer<'a> {
             } else if is_identifier_continue(b) {
                 self.position += 1;
             } else if b == b'\\' {
-                return self.err(
-                    "unicode escapes in identifiers are not supported",
-                    self.position,
-                );
+                self.identifier_escape()?;
             } else {
                 break;
             }
@@ -510,8 +507,10 @@ impl<'a> Lexer<'a> {
     }
 }
 
+mod identifiers;
 mod jsx;
 mod strings;
+pub use identifiers::identifier_name;
 pub use strings::{cook_template, decode_string};
 
 #[cfg(test)]

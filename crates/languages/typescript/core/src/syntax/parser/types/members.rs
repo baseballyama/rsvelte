@@ -38,7 +38,7 @@ impl Parser<'_, '_> {
         }
         self.expect(T::LBracket, "[")?;
         let t = self.bump()?;
-        let name = self.syntax_tree.ident(self.text(t), t.span);
+        let name = self.ident_node(t);
         self.bump()?; // `in`
         let constraint = self.ty()?;
         let parameter = self.syntax_tree.type_node(
