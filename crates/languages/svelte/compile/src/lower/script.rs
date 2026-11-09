@@ -7,6 +7,7 @@ pub(super) use declarators::check_destructured_rune;
 use declarators::lower_value_declarator;
 use props::{lower_client_props, server_props_pattern};
 use rsvelte_kernel::diagnostics::Diagnostic;
+use rsvelte_kernel::source::positions::SourceLocation;
 use rsvelte_svelte_semantic::resolve::{BindingKind, Resolution, rune_call};
 use rsvelte_typescript_compile::copy::{Rewrite, copy, copy_node};
 use rsvelte_typescript_semantic::scope::BindingIdentifier;
@@ -97,13 +98,7 @@ impl ScriptRewrite<'_> {
                 } else {
                     to.ident(from.name(key), source_location)
                 };
-                Some(to.member(
-                    props,
-                    k,
-                    computed,
-                    false,
-                    rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                ))
+                Some(to.member(props, k, computed, false, SourceLocation::SYNTHETIC))
             }
             (
                 Target::Client,
@@ -124,13 +119,7 @@ impl ScriptRewrite<'_> {
                     Read::Member(object) => {
                         let o = to.identifier(object);
                         let get = to.runtime("$", "get", &[o]);
-                        Some(to.member(
-                            get,
-                            x,
-                            false,
-                            false,
-                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                        ))
+                        Some(to.member(get, x, false, false, SourceLocation::SYNTHETIC))
                     }
                 }
             }
@@ -200,10 +189,7 @@ impl ScriptRewrite<'_> {
             && should_proxy(from, self.res, value);
         let mut arguments = vec![x, new_value];
         if proxy {
-            arguments.push(to.write_boolean(
-                true,
-                rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-            ));
+            arguments.push(to.write_boolean(true, SourceLocation::SYNTHETIC));
         }
         Some(to.runtime("$", "set", &arguments))
     }
@@ -235,10 +221,7 @@ impl ScriptRewrite<'_> {
         let x = to.ident(from.name(arg), from.source_location(arg));
         let mut arguments = vec![x];
         if op == UpdateOperator::Dec {
-            arguments.push(to.write_number(
-                -1.0,
-                rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-            ));
+            arguments.push(to.write_number(-1.0, SourceLocation::SYNTHETIC));
         }
         let name = if self.target == Target::Server {
             if prefix {
@@ -289,14 +272,11 @@ impl Rewrite for ScriptRewrite<'_> {
                         return Some(to.dot(props, "$$host"));
                     }
                     (Target::Server, "$host") => {
-                        let zero = to.write_number(
-                            0.0,
-                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                        );
+                        let zero = to.write_number(0.0, SourceLocation::SYNTHETIC);
                         return Some(to.unary(
                             UnaryOperator::Void,
                             zero,
-                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
+                            SourceLocation::SYNTHETIC,
                         ));
                     }
                     (Target::Client, "$effect.pending") => {
@@ -305,19 +285,13 @@ impl Rewrite for ScriptRewrite<'_> {
                         return Some(to.runtime("$", "eager", &[pending]));
                     }
                     (Target::Server, "$effect.pending") => {
-                        return Some(to.write_number(
-                            0.0,
-                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                        ));
+                        return Some(to.write_number(0.0, SourceLocation::SYNTHETIC));
                     }
                     (Target::Client, "$effect.tracking") => {
                         return Some(to.runtime("$", "effect_tracking", &[]));
                     }
                     (Target::Server, "$effect.tracking") => {
-                        return Some(to.write_boolean(
-                            false,
-                            rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-                        ));
+                        return Some(to.write_boolean(false, SourceLocation::SYNTHETIC));
                     }
                     (Target::Client, "$effect") => "user_effect",
                     (Target::Client, "$effect.pre") => "user_pre_effect",
@@ -384,10 +358,7 @@ pub(super) fn mutate_bindable_prop(
     let prop = mutated_bindable_prop(res, accessors, from, target)?;
     let mutation = mutation(to);
     let callee = to.ident(from.name(prop), from.source_location(prop));
-    let mutated = to.write_boolean(
-        true,
-        rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
-    );
+    let mutated = to.write_boolean(true, SourceLocation::SYNTHETIC);
     Some(to.call0(callee, &[mutation, mutated]))
 }
 
