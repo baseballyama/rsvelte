@@ -15,6 +15,7 @@
   "no-reactive-reassign/invalid/typescript-wrappers-input.svelte": "upstream stops at a TypeScript cast or `!`, so `(v as any) = 2` and `obj!.a = 3` go unreported (upstream_issues.md)",
   "no-unused-class-name/valid/space-after-expression-input.svelte": "upstream reports `Unused class \"\"` for the space after the expression (upstream_issues.md)",
   "no-unused-class-name/valid/space-before-expression-input.svelte": "upstream reports `Unused class \"\"` for the space before the expression (upstream_issues.md)",
+  "no-unused-svelte-ignore/invalid/last-code-without-separator-input.svelte": "upstream never reads the last of two or more codes without a separator after it (upstream_issues.md)",
   "no-useless-mustaches/invalid/entity-completed-by-mustache-input.svelte": "upstream fixes `&am{'p;'}` to `&amp;`, which the compiler decodes to `&` (upstream_issues.md)",
   "no-useless-mustaches/invalid/entity-in-attribute-input.svelte": "upstream fixes `{'&amp;'}` to `\"&amp;\"`, which the compiler decodes to `&` (upstream_issues.md)",
   "no-useless-mustaches/invalid/entity-in-quoted-attribute-input.svelte": "upstream fixes `{'&lt;'}` to `&lt;`, which the compiler decodes to `<` (upstream_issues.md)",
@@ -31,6 +32,7 @@
   "prefer-style-directive/invalid/declaration-with-comment-input.svelte": "upstream slices the source by the cleaned value's length and writes `style:color=\"a /*\"` (upstream_issues.md)",
   "prefer-style-directive/invalid/property-set-twice-input.svelte": "upstream moves `color: red` to a directive, which then wins over the later `Color: blue` (upstream_issues.md)",
   "prefer-style-directive/invalid/value-with-double-quote-input.svelte": "upstream writes `style:font-family=\"\"Arial\"\"` (upstream_issues.md)",
+  "prefer-svelte-reactivity/invalid/reassigned-input.svelte.js": "upstream's reference tracker skips the second `new Set()` of a reassigned variable as a cycle (upstream_issues.md)",
   "shorthand-attribute/invalid/commented-input.svelte": "upstream fixes to `{/*x*/a}`, which `svelte/compiler` rejects (`attribute_empty_shorthand`) (upstream_issues.md)",
   "shorthand-attribute/invalid/parenthesized-input.svelte": "upstream fixes to `{(a)}`, which `svelte/compiler` rejects (`attribute_empty_shorthand`) (upstream_issues.md)",
   "shorthand-directive/invalid/value-after-modifiers-input.svelte": "upstream writes `style:color={color}|important`, which the compiler reads as the text `{color}|important` (upstream_issues.md)"
