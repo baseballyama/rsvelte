@@ -53,15 +53,6 @@ impl Read {
 }
 
 impl ScriptRewrite<'_> {
-    pub(super) fn is_prop_source(&self, binding: BindingIdentifier) -> bool {
-        self.res.is_prop_source(binding)
-            || (self.accessors
-                && matches!(
-                    self.res.bindings[binding].kind,
-                    BindingKind::Property | BindingKind::BindableProperty
-                ))
-    }
-
     /// Upstream `build_getter` / the `read` transforms, by binding kind and target.
     fn read(
         &mut self,
@@ -95,7 +86,7 @@ impl ScriptRewrite<'_> {
             }
             (Target::Client, BindingKind::Property | BindingKind::BindableProperty) => {
                 let x = to.ident(name, source_location);
-                if self.is_prop_source(b) {
+                if is_prop_source(self.res, self.accessors, b) {
                     return Some(to.call0(x, &[]));
                 }
                 let key = info.prop_key?;
@@ -160,13 +151,21 @@ impl ScriptRewrite<'_> {
         target: NodeIdentifier,
         value: NodeIdentifier,
     ) -> Option<NodeIdentifier> {
-        if self.target != Target::Client || !from.is_identifier(target) {
+        if self.target != Target::Client {
             return None;
+        }
+        if !from.is_identifier(target) {
+            let (res, accessors) = (self.res, self.accessors);
+            return mutate_bindable_prop(res, accessors, from, to, target, |to| {
+                let left = copy(from, to, self, target);
+                let right = copy(from, to, self, value);
+                to.assign(op, left, right, from.source_location(identifier))
+            });
         }
         let (b, info) = self.res.binding(target)?;
         let state = self.res.is_state_source(b)
             || matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
-        let prop = self.is_prop_source(b);
+        let prop = is_prop_source(self.res, self.accessors, b);
         if !state && !prop {
             return None;
         }
@@ -210,15 +209,23 @@ impl ScriptRewrite<'_> {
     }
 
     fn update(
-        &self,
+        &mut self,
         from: &SyntaxTree,
         to: &mut SyntaxTree,
+        identifier: NodeIdentifier,
         op: UpdateOperator,
         prefix: bool,
         arg: NodeIdentifier,
     ) -> Option<NodeIdentifier> {
         if !from.is_identifier(arg) {
-            return None;
+            if self.target != Target::Client {
+                return None;
+            }
+            let (res, accessors) = (self.res, self.accessors);
+            return mutate_bindable_prop(res, accessors, from, to, arg, |to| {
+                let argument = copy(from, to, self, arg);
+                to.update(op, prefix, argument, from.source_location(identifier))
+            });
         }
         let (b, info) = self.res.binding(arg)?;
         let derived = matches!(info.kind, BindingKind::Derived | BindingKind::DerivedBy);
@@ -241,7 +248,7 @@ impl ScriptRewrite<'_> {
             }
         } else if self.res.is_state_source(b) || derived {
             if prefix { "update_pre" } else { "update" }
-        } else if self.is_prop_source(b) {
+        } else if is_prop_source(self.res, self.accessors, b) {
             if prefix {
                 "update_pre_prop"
             } else {
@@ -264,7 +271,7 @@ impl Rewrite for ScriptRewrite<'_> {
         match from.kind(identifier) {
             Kind::Identifier(_) => self.read(from, to, identifier),
             Kind::Assign(op, target, value) => self.assign(from, to, identifier, op, target, value),
-            Kind::Update { op, prefix, arg } => self.update(from, to, op, prefix, arg),
+            Kind::Update { op, prefix, arg } => self.update(from, to, identifier, op, prefix, arg),
             Kind::Block(body)
                 if self.target == Target::Server && body.iter().any(|&s| is_effect(from, s)) =>
             {
@@ -336,6 +343,52 @@ impl Rewrite for ScriptRewrite<'_> {
             _ => None,
         }
     }
+}
+
+/// Upstream `is_prop_source`; a custom element's accessors read every prop through its signal.
+fn is_prop_source(res: &Resolution, accessors: bool, binding: BindingIdentifier) -> bool {
+    res.is_prop_source(binding)
+        || (accessors
+            && matches!(
+                res.bindings[binding].kind,
+                BindingKind::Property | BindingKind::BindableProperty
+            ))
+}
+
+/// The `$bindable` prop whose member `target` writes, when the prop has a signal: upstream's
+/// `mutate` transform then tells the parent, `prop((prop().x = value), true)`.
+pub(super) fn mutated_bindable_prop(
+    res: &Resolution,
+    accessors: bool,
+    from: &SyntaxTree,
+    target: NodeIdentifier,
+) -> Option<NodeIdentifier> {
+    let root = from.member_root(target);
+    let (b, info) = res.binding(root)?;
+    (root != target
+        && info.kind == BindingKind::BindableProperty
+        && is_prop_source(res, accessors, b))
+    .then_some(root)
+}
+
+/// Upstream's `mutate` transform: the write `mutation` builds through a member of a `$bindable`
+/// prop with a signal becomes `prop(mutation, true)`; `None` when `target` writes no such prop.
+pub(super) fn mutate_bindable_prop(
+    res: &Resolution,
+    accessors: bool,
+    from: &SyntaxTree,
+    to: &mut SyntaxTree,
+    target: NodeIdentifier,
+    mutation: impl FnOnce(&mut SyntaxTree) -> NodeIdentifier,
+) -> Option<NodeIdentifier> {
+    let prop = mutated_bindable_prop(res, accessors, from, target)?;
+    let mutation = mutation(to);
+    let callee = to.ident(from.name(prop), from.source_location(prop));
+    let mutated = to.write_boolean(
+        true,
+        rsvelte_kernel::source::positions::SourceLocation::SYNTHETIC,
+    );
+    Some(to.call0(callee, &[mutation, mutated]))
 }
 
 /// Upstream server `ExpressionStatement`: an effect statement renders nothing.

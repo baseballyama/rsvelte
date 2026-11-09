@@ -155,6 +155,29 @@ fn each_component_attribute_not_lowered_yet_is_refused_on_both_targets() {
 }
 
 #[test]
+fn a_bindable_prop_member_is_written_through_the_prop() {
+    let source = "<script>import C from './C.svelte'; let { a = $bindable({}) } = $props(); function f() { a.x = 1; a.x++; }</script><C bind:v={a.x} /><button onclick={f}>b</button>";
+    let client = squashed(source, Target::Client);
+    for expected in [
+        "a(a().x=1,true);",
+        "a(a().x++,true);",
+        "getv(){returna().x;}",
+        "setv($$value){a(a().x=$$value,true);}",
+    ] {
+        assert!(client.contains(expected), "{expected} in {client}");
+    }
+    let server = squashed(source, Target::Server);
+    for expected in [
+        "a.x=1;a.x++;",
+        "getv(){returna.x;}",
+        "setv($$value){a.x=$$value;$$settled=false;}",
+        "do{$$settled=true;$$inner_renderer=$$renderer.copy();$$render_inner($$inner_renderer);}while(!$$settled);",
+    ] {
+        assert!(server.contains(expected), "{expected} in {server}");
+    }
+}
+
+#[test]
 fn only_the_instance_splits_a_declaration_into_one_per_declarator() {
     let source = "<script module>let m = 1, n = 2;</script><script>let p = 1, q = 2; function f() { let r = 1, s = 2; return r + s; }</script>{m}{n}{p}{q}{f()}";
     for target in [Target::Client, Target::Server] {

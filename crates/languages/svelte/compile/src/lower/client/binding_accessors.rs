@@ -2,6 +2,7 @@ use super::{
     AssignmentOperator, ClientCompilationContext, Kind, NodeIdentifier, SourceLocation, unthunk,
 };
 use crate::lower::BindingKind;
+use crate::lower::script::mutate_bindable_prop;
 
 impl ClientCompilationContext<'_> {
     pub(super) fn binding_accessors(
@@ -67,12 +68,21 @@ impl ClientCompilationContext<'_> {
             }
         } else {
             let target = self.expression_with_rest_reads(expression, false);
-            self.out.assign(
+            let mutation = self.out.assign(
                 AssignmentOperator::Assign,
                 target,
                 value,
                 SourceLocation::SYNTHETIC,
+            );
+            mutate_bindable_prop(
+                self.res,
+                self.custom_element.is_some(),
+                self.javascript,
+                &mut self.out,
+                expression,
+                |_| mutation,
             )
+            .unwrap_or(mutation)
         }
     }
 }

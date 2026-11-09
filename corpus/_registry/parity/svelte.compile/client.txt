@@ -1,4 +1,4 @@
-# svelte.compile/client: 8461 match
+# svelte.compile/client: 8493 match
 svelte/animotion/src/lib/components/action.svelte	refused
 svelte/animotion/src/lib/components/code.svelte	refused
 svelte/animotion/src/lib/components/embed.svelte	refused
@@ -3081,22 +3081,9 @@ svelte/kener/src/routes/(manage)/manage/app/maintenances/+page.svelte	refused
 svelte/kener/src/routes/(manage)/manage/app/maintenances/[id]/+page.svelte	refused
 svelte/kener/src/routes/(manage)/manage/app/monitoring-data/+page.svelte	refused
 svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/+page.svelte	refused
-svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/components/GeneralSettingsCard.svelte	mismatch
-svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/components/MonitorSharingOptionsCard.svelte	mismatch
 svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/components/MonitorTypeCard.svelte	refused
-svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/components/StatusHistoryDaysCard.svelte	mismatch
-svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/components/UptimeSettingsCard.svelte	mismatch
-svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-api.svelte	mismatch
-svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-dns.svelte	mismatch
-svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-gamedig.svelte	mismatch
 svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-group.svelte	refused
-svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-grpc.svelte	mismatch
 svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-heartbeat.svelte	refused
-svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-none.svelte	mismatch
-svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-ping.svelte	mismatch
-svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-sql.svelte	mismatch
-svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-ssl.svelte	mismatch
-svelte/kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-tcp.svelte	mismatch
 svelte/kener/src/routes/(manage)/manage/app/pages/[page_id]/+page.svelte	refused
 svelte/kener/src/routes/(manage)/manage/app/roles/+page.svelte	refused
 svelte/kener/src/routes/(manage)/manage/app/subscriptions/+page.svelte	refused
@@ -4359,28 +4346,22 @@ svelte/layerchart/docs/src/lib/components/Stats.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/AnnotationRangePointLineControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/ArcPlaygroundControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/AreaPlaygroundControls.svelte	refused
-svelte/layerchart/docs/src/lib/components/controls/DagreControls.svelte	mismatch
 svelte/layerchart/docs/src/lib/components/controls/DagrePlaygroundControls.svelte	refused
-svelte/layerchart/docs/src/lib/components/controls/ForceGraphPlaygroundControls.svelte	mismatch
 svelte/layerchart/docs/src/lib/components/controls/ForceSimluationControls2.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/ForceTextControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/GeoCircleEarthquakeControls.svelte	refused
-svelte/layerchart/docs/src/lib/components/controls/GeoCirclePlaygroundControls.svelte	mismatch
 svelte/layerchart/docs/src/lib/components/controls/GeoContextPlaygroundControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/GeoPathGlobeControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/GeoPathGlobeControls2.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/GeoPathSubmarineControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/GeoPathTimezonesControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/GeoTileControls.svelte	refused
-svelte/layerchart/docs/src/lib/components/controls/GraticuleControls.svelte	mismatch
 svelte/layerchart/docs/src/lib/components/controls/HistogramControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/LineChartControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/LinkControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/MarkerControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/MarkerControls2.svelte	refused
-svelte/layerchart/docs/src/lib/components/controls/MotionPathControls.svelte	mismatch
 svelte/layerchart/docs/src/lib/components/controls/PartitionControls.svelte	refused
-svelte/layerchart/docs/src/lib/components/controls/PolygonPlaygroundControls.svelte	mismatch
 svelte/layerchart/docs/src/lib/components/controls/SankeyControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/SplineControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/SplineControls2.svelte	refused
@@ -4390,7 +4371,6 @@ svelte/layerchart/docs/src/lib/components/controls/TooltipContextControls2.svelt
 svelte/layerchart/docs/src/lib/components/controls/TrailControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/TransformContextControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/TransformContextPlaygroundControls.svelte	refused
-svelte/layerchart/docs/src/lib/components/controls/TreeControls.svelte	mismatch
 svelte/layerchart/docs/src/lib/components/controls/TreemapControls.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/fields/OscilloscopeField.svelte	refused
 svelte/layerchart/docs/src/lib/components/controls/fields/ShowField.svelte	refused
@@ -5129,7 +5109,6 @@ svelte/primo/src/lib/builder/views/modal/SiteEditor/SiteEditor.svelte	refused
 svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte	refused
 svelte/primo/src/lib/builder/views/modal/SitePages/PageForm.svelte	refused
 svelte/primo/src/lib/builder/views/modal/SitePages/SitePages.svelte	refused
-svelte/primo/src/lib/builder/views/modal/VideoModal.svelte	mismatch
 svelte/primo/src/lib/components/BlockPickerPanel.svelte	refused
 svelte/primo/src/lib/components/ConnectDomain.svelte	refused
 svelte/primo/src/lib/components/CreateSite.svelte	refused
@@ -8009,7 +7988,6 @@ svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TableHo
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Table/TablePlugin.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeView.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/bluesky/BlueskyPostComponent.svelte	refused
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsCollaboration.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsHistory.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditor.svelte	refused
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/twitter/TweetComponent.svelte	refused
@@ -9399,8 +9377,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/bindable-prop-and-expo
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/bindable-prop-and-export/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-interop-derived/Comp.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-interop-derived/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-interop/Component1.svelte	mismatch
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-interop/Component2.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-interop/Legacy.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-property-non-reactive-ignored-2/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/binding-property-non-reactive-ignored/main.svelte	refused
@@ -9692,14 +9668,8 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/muted-without-bind-wor
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/name-clash-hoisting/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/nested-destructure-assignment/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/nested-script-tag/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-discouraged/Counter.svelte	mismatch
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-inherited-owner-2/sub.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-ok/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-with-binding-2/Counter.svelte	mismatch
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-with-binding-3/Counter.svelte	mismatch
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-with-binding-4/Inner.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-with-binding-4/Outer.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-with-binding-6/Component3.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/non-local-mutation-with-binding-7/Component2.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/not-actual-runes/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/nullish-actions/main.svelte	refused
@@ -9708,10 +9678,10 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/optgroup-rich-content/
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/option-rich-content/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/ownership-function-bindings/Child.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/ownership-function-bindings/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-bindable-fallback/Parent.svelte	mismatch
+svelte/svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-bindable-fallback/Parent.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-binding-ignore/Item.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-ignored/Child.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-use-transform/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/runtime-runes/samples/ownership-invalid-mutation-use-transform/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/pre-effect-ordering/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/pre-effect/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/private-identifiers-not-this/main.svelte	refused
@@ -9723,7 +9693,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/props-bound-fallback/m
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/props-bound-to-normal/Inner.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/props-bound-to-normal/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/props-bound/Counter.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/props-default-reactivity/Counter.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/props-default-value-behavior/inner.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/props-default-value-behavior/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/props-derived-teardown/main.svelte	refused
@@ -9818,7 +9787,6 @@ svelte/svelte/packages/svelte/tests/runtime-runes/samples/spread-element-input-s
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/state-bind-group/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/state-each-bind-this/Paragraph.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/state-each-bind-this/main.svelte	refused
-svelte/svelte/packages/svelte/tests/runtime-runes/samples/state-raw-bindable/Child.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/state-readonly/main.svelte	missing
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/state-snapshot-array-holes/main.svelte	refused
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/state-snapshot-date/main.svelte	refused

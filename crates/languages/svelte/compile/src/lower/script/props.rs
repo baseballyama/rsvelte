@@ -151,7 +151,7 @@ pub(super) fn lower_client_props(
         let Some((b, info)) = rw.res.binding(local) else {
             continue;
         };
-        if !rw.is_prop_source(b) {
+        if !super::is_prop_source(rw.res, rw.accessors, b) {
             continue;
         }
         let s = &rw.res.sem.bindings[b];
