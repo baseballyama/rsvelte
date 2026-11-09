@@ -4,7 +4,7 @@ use serde::Deserialize;
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct LintSettings {
-    /// Compiler warning codes `svelte/valid-compile` does not report; `/…/` is a pattern.
+    /// Rules whose findings `svelte/system` drops outside `<script>`; `/…/` is a pattern.
     #[serde(default)]
     pub ignore_warnings: Vec<String>,
     pub kit: Option<Kit>,
