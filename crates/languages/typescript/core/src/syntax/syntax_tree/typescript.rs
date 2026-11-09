@@ -15,7 +15,7 @@ pub enum TypeScriptKind {
     Annotation,
     /// `(…): T` on a function or arrow.
     ReturnType,
-    /// `<T>` on a function or arrow.
+    /// `<T>` on a function, an arrow or a class.
     TypeParameters,
     /// `e as T`, on `e`.
     As,

@@ -13,7 +13,7 @@ impl Parser<'_, '_> {
         } else {
             None
         };
-        self.maybe_type_parameters()?;
+        let type_parameters = self.maybe_type_parameters()?;
         let superclass = if self.is_kw("extends") {
             self.bump()?;
             Some(self.lhs()?)
@@ -38,7 +38,7 @@ impl Parser<'_, '_> {
         }
         self.bump()?;
         let span = self.span_from(start);
-        Ok(self.close(members, |tree, members| {
+        let class = self.close(members, |tree, members| {
             tree.class(
                 Class::Definition {
                     name,
@@ -48,7 +48,9 @@ impl Parser<'_, '_> {
                 },
                 span,
             )
-        }))
+        });
+        self.signature_typescript(class, type_parameters, None);
+        Ok(class)
     }
 
     fn class_member(&mut self) -> R<NodeIdentifier> {
