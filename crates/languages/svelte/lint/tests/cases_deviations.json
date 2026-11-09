@@ -1,3 +1,6 @@
 {
-  "no-reactive-literals/invalid/compound-and-member-input.svelte": "upstream suggests `let a += 1` and `let obj.x = 1`, which do not parse (upstream_issues.md)"
+  "no-reactive-literals/invalid/compound-and-member-input.svelte": "upstream suggests `let a += 1` and `let obj.x = 1`, which do not parse (upstream_issues.md)",
+  "no-reactive-reassign/invalid/typescript-wrappers-input.svelte": "upstream stops at a TypeScript cast or `!`, so `(v as any) = 2` and `obj!.a = 3` go unreported (upstream_issues.md)",
+  "prefer-destructured-store-props/invalid/each-property-input.svelte": "upstream takes the property name `a` in `$s.a` for the `{#each}` item `a` (upstream_issues.md)",
+  "prefer-destructured-store-props/valid/each-computed-input.svelte": "upstream does not see the `{#each}` item `i` in `$s[i]` (upstream_issues.md)"
 }

@@ -22,6 +22,46 @@ Upstream suggests replacing the statements with `let a += 1` and `let obj.x = 1`
 error unless the assignment is `name = literal`. This crate reports both statements and suggests
 the move only for `=` with a name on the left.
 
+## svelte/no-reactive-reassign: a TypeScript cast or `!` hides the assignment
+
+Input:
+
+```svelte
+<script lang="ts">
+	let a = 0;
+	$: v = a;
+	$: obj = { a };
+	function f() {
+		(v as any) = 2;
+		obj!.a = 3;
+	}
+</script>
+```
+
+Upstream reports nothing. Its walk from the reference to the assignment stops at
+`TSAsExpression` and `TSNonNullExpression`, which pass the value through unchanged, so both
+assignments to reactive values go unreported. This crate reports both.
+
+## svelte/prefer-destructured-store-props: `isExpressionIdentifier` inverts its member test
+
+`isExpressionIdentifier` (`utils/ast-utils.ts`) returns `!parent.computed || parent.property !==
+node` for a member, and the same for a property key. That is true for the name in `x.name` and
+false for the index in `x[index]`, the opposite of what it means. Two inputs show it:
+
+```svelte
+{#each items as i}{$s[i]}{/each}
+```
+
+The `{#each}` item `i` is not seen, so upstream reports `$s[i]`, which no destructuring outside
+the block can replace.
+
+```svelte
+{#each items as a}{$s.a}{/each}
+```
+
+The property name `a` is taken for the `{#each}` item `a`, so upstream does not report `$s.a`.
+This crate does the opposite in both cases.
+
 ## svelte/no-reactive-functions: crashes on ESLint 10 when it reports
 
 Input:
