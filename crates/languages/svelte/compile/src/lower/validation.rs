@@ -244,12 +244,12 @@ pub(super) fn check_stores(
         if store.is_empty() || store.starts_with('$') {
             continue;
         }
-        let declaration =
-            res.sem.bindings.iter().find(|b| {
-                b.scope == ScopeIdentifier::ROOT && javascript.atoms.get(b.name) == store
-            });
+        let declaration = || {
+            let atom = javascript.atoms.lookup(store)?;
+            Some(&res.sem.bindings[res.sem.root_binding(atom)?])
+        };
         let store_sub = !RUNES.contains(&name)
-            || declaration.is_some_and(|b| {
+            || declaration().is_some_and(|b| {
                 let rune = b
                     .initializer(javascript)
                     .and_then(|initializer| rune(javascript, initializer, Some(&res.sem)));
