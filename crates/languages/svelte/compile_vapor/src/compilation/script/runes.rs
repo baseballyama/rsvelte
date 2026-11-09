@@ -1,18 +1,21 @@
 use rsvelte_typescript::copy::{Rewrite, copy};
 use rustc_hash::FxHashSet;
 
-use super::{Kind, NodeIdentifier, Plan, R, SyntaxTree, rune_call, span, unsupported, walk};
+use super::{Kind, NodeIdentifier, Plan, R, Resolution, SyntaxTree, span, unsupported, walk};
 
 pub(super) fn collect(
     tree: &SyntaxTree,
+    resolution: &Resolution,
     program: NodeIdentifier,
     plan: &mut Plan,
     consumed: &mut FxHashSet<NodeIdentifier>,
 ) -> R<()> {
-    super::constructors::collect(tree, program, &mut plan.constructors)?;
+    super::constructors::collect(tree, resolution, program, &mut plan.constructors)?;
     walk(tree, program, &mut |identifier| {
         if let Kind::AssignPattern(_, default) = tree.kind(identifier)
-            && rune_call(tree, default).is_some_and(|(name, _)| name == "$bindable")
+            && resolution
+                .rune(tree, default)
+                .is_some_and(|(name, _)| name == "$bindable")
         {
             let Kind::Call { callee, .. } = tree.kind(default) else {
                 unreachable!()
@@ -41,12 +44,12 @@ pub(super) fn collect(
             _ => None,
         };
         if let Some((pattern, initializer)) = value_initializer
-            && let Some((name, _)) = rune_call(tree, initializer)
+            && let Some((name, _)) = resolution.rune(tree, initializer)
             && value(name)
         {
             plan.core_values.insert(name);
             if name == "$derived"
-                && let Some((_, Some(argument))) = rune_call(tree, initializer)
+                && let Some((_, Some(argument))) = resolution.rune(tree, initializer)
             {
                 plan.async_values |= super::super::asynchronous::has_await(tree, argument);
             }
@@ -74,7 +77,7 @@ pub(super) fn collect(
             plan.core_patterns |= !matches!(tree.kind(pattern), Kind::Identifier(_));
             consumed.insert(root(tree, callee));
         }
-        let Some((name, _)) = rune_call(tree, identifier) else {
+        let Some((name, _)) = resolution.rune(tree, identifier) else {
             return Ok(());
         };
         let Kind::Call {
@@ -116,13 +119,14 @@ pub(crate) fn eager(name: &str) -> bool {
     name == "$state.eager"
 }
 
+/// The argument of the eager rune `name`, which needs no reactivity of its own.
 pub(crate) fn inline(
     from: &SyntaxTree,
     to: &mut SyntaxTree,
     rewriter: &mut impl Rewrite,
-    identifier: NodeIdentifier,
+    name: &str,
+    argument: Option<NodeIdentifier>,
 ) -> Option<NodeIdentifier> {
-    let (name, argument) = rune_call(from, identifier)?;
     eager(name).then(|| {
         copy(
             from,
@@ -146,17 +150,8 @@ pub(crate) fn local(name: &str) -> Option<&'static str> {
     })
 }
 
-pub(super) fn inspect_call(tree: &SyntaxTree, identifier: NodeIdentifier) -> bool {
-    let Kind::Call { callee, .. } = tree.kind(identifier) else {
-        return false;
-    };
-    if rune_call(tree, identifier)
-        .is_some_and(|(name, _)| matches!(name, "$inspect" | "$inspect.trace"))
-    {
-        return true;
-    }
-    matches!(tree.kind(callee), Kind::Member { object, property, computed: false, .. }
-        if tree.name(property) == "with" && rune_call(tree, object).is_some_and(|(name, _)| name == "$inspect"))
+pub(super) fn inspect(name: &str) -> bool {
+    matches!(name, "$inspect" | "$inspect.trace" | "$inspect().with")
 }
 
 pub(super) const SOURCE: &str = include_str!("runes.js");

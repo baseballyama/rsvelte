@@ -19,6 +19,7 @@ pub fn print_program(
         source_text,
         e: Emitter::new(),
         indent: 0,
+        chain_links: Vec::new(),
     };
     if let Kind::Program(body) = syntax_tree.kind(program) {
         let mut first = true;
@@ -45,6 +46,7 @@ pub fn print_expression(syntax_tree: &SyntaxTree, source_text: &str, e: NodeIden
         source_text,
         e: Emitter::new(),
         indent: 0,
+        chain_links: Vec::new(),
     };
     g.expression(e, 0);
     g.e.out
@@ -55,6 +57,9 @@ struct Gen<'a> {
     source_text: &'a str,
     e: Emitter,
     indent: u32,
+    /// Chain links whose tails are not printed yet, with whether each is parenthesized; one
+    /// buffer shared by nested chains.
+    chain_links: Vec<(NodeIdentifier, bool)>,
 }
 
 mod prec {

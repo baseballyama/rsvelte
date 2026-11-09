@@ -79,6 +79,8 @@ pub struct Formatter<'a> {
     paren_leftmost: Option<NodeIdentifier>,
     /// The parent and slot of the expression being printed.
     at: Option<(NodeIdentifier, Slot)>,
+    /// Members and calls waiting for their object or callee; one stack shared by nested chains.
+    chain_links: Vec<calls::ChainLink>,
 }
 
 impl<'a> Formatter<'a> {
@@ -101,6 +103,7 @@ impl<'a> Formatter<'a> {
             typescript_printed: 0,
             paren_leftmost: None,
             at: None,
+            chain_links: Vec::new(),
         }
     }
 

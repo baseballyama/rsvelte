@@ -125,14 +125,23 @@ impl Formatter<'_> {
             ));
         };
         let statements = self.statements(body)?;
+        Ok(self.braced(statements, fn_body))
+    }
+
+    /// A block's braces around its printed statements.
+    pub(super) fn braced(
+        &mut self,
+        statements: Vec<LayoutInstructionIdentifier>,
+        fn_body: bool,
+    ) -> LayoutInstructionIdentifier {
         let open = self.lit("{");
         let close = self.lit("}");
         if statements.is_empty() {
             if fn_body {
-                return Ok(self.cat(&[open, close]));
+                return self.cat(&[open, close]);
             }
             let h = self.docs.hardline();
-            return Ok(self.cat(&[open, h, close]));
+            return self.cat(&[open, h, close]);
         }
         let h = self.docs.hardline();
         let mut inner = vec![h];
@@ -140,7 +149,7 @@ impl Formatter<'_> {
         let inner = self.cat(&inner);
         let inner = self.docs.indent(inner);
         let h = self.docs.hardline();
-        Ok(self.cat(&[open, inner, h, close]))
+        self.cat(&[open, inner, h, close])
     }
 
     /// Prettier's `printReturnOrThrowArgument`.
@@ -185,18 +194,26 @@ impl Formatter<'_> {
         consequent: NodeIdentifier,
         alternate: Option<NodeIdentifier>,
     ) -> R<LayoutInstructionIdentifier> {
-        let t = self.expression(test, Some(identifier), Slot::Test)?;
-        let soft = self.docs.softline();
-        let inner = self.cat(&[soft, t]);
-        let inner = self.docs.indent(inner);
-        let soft = self.docs.softline();
-        let test_doc = self.docs.group(&[inner, soft]);
-        let open = self.lit("if (");
-        let close = self.lit(")");
-        let c = self.clause(consequent, false)?;
-        let opening = self.docs.group(&[open, test_doc, close, c]);
-        let mut parts = vec![opening];
-        if let Some(a) = alternate {
+        // `else if` chains nest thousands deep in real input, so each `if` whose `else` is another
+        // one waits on a stack instead of recursing.
+        let mut open = Vec::new();
+        let (mut identifier, mut test, mut consequent, mut alternate) =
+            (identifier, test, consequent, alternate);
+        let mut document = loop {
+            let t = self.expression(test, Some(identifier), Slot::Test)?;
+            let soft = self.docs.softline();
+            let inner = self.cat(&[soft, t]);
+            let inner = self.docs.indent(inner);
+            let soft = self.docs.softline();
+            let test_doc = self.docs.group(&[inner, soft]);
+            let open_paren = self.lit("if (");
+            let close = self.lit(")");
+            let c = self.clause(consequent, false)?;
+            let opening = self.docs.group(&[open_paren, test_doc, close, c]);
+            let mut parts = vec![opening];
+            let Some(a) = alternate else {
+                break self.docs.group(&parts);
+            };
             let same_line = matches!(self.syntax_tree.kind(consequent), Kind::Block(_));
             parts.push(if same_line {
                 self.lit(" ")
@@ -204,11 +221,28 @@ impl Formatter<'_> {
                 self.docs.hardline()
             });
             parts.push(self.lit("else"));
-            let is_if = matches!(self.syntax_tree.kind(a), Kind::If { .. });
-            let a = self.clause(a, is_if)?;
+            if let Kind::If {
+                test: t,
+                consequent: c,
+                alternate: e,
+            } = self.syntax_tree.kind(a)
+            {
+                open.push(parts);
+                (identifier, test, consequent, alternate) = (a, t, c, e);
+                continue;
+            }
+            let a = self.clause(a, false)?;
             parts.push(self.docs.group(&[a]));
+            break self.docs.group(&parts);
+        };
+        while let Some(mut parts) = open.pop() {
+            // `clause(else_if, true)`: a space, then the nested `if`.
+            let sp = self.lit(" ");
+            let a = self.cat(&[sp, document]);
+            parts.push(self.docs.group(&[a]));
+            document = self.docs.group(&parts);
         }
-        Ok(self.docs.group(&parts))
+        Ok(document)
     }
 
     /// Prettier's `adjustClause`.

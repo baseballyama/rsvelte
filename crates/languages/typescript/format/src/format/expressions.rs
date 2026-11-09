@@ -1,6 +1,7 @@
+use super::calls::{ChainHead, ChainLink};
 use super::{
     Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, PatternContext, R, Slot,
-    TypeScriptKind, TypeScriptSyntax, Unsupported, op_of, should_flatten,
+    SyntaxTree, TypeScriptKind, TypeScriptSyntax, Unsupported, op_of, should_flatten,
 };
 
 /// Prettier's `printNumber`.
@@ -42,19 +43,123 @@ pub(super) fn print_number(raw: &str) -> String {
 }
 
 impl Formatter<'_> {
+    /// Member objects and callees nest thousands deep in real input, so a chain of them is walked
+    /// down by a loop and its links are finished from a stack, in the order recursion would.
     pub(super) fn expression(
         &mut self,
         identifier: NodeIdentifier,
         parent: Option<NodeIdentifier>,
         slot: Slot,
     ) -> R<LayoutInstructionIdentifier> {
-        let saved = self.at;
-        self.at = parent.map(|p| (p, slot));
-        let document = self
-            .expression_inner(identifier)
-            .and_then(|d| self.typescript_expression_suffix(identifier, d));
-        self.at = saved;
-        let document = document?;
+        let base = self.chain_links.len();
+        let (mut node, mut parent, mut slot) = (identifier, parent, slot);
+        let mut document = loop {
+            let saved = self.at;
+            self.at = parent.map(|p| (p, slot));
+            let head = match self.syntax_tree.kind(node) {
+                Kind::Member { .. } => Ok(Some((
+                    ChainHead::Member(self.parent_is_member()),
+                    Slot::Object,
+                ))),
+                Kind::Call { callee, .. } => self
+                    .call_head(node, callee, false)
+                    .map(|head| Some((ChainHead::Call(head), Slot::Callee))),
+                _ => Ok(None),
+            };
+            match head {
+                Ok(Some((head, child_slot))) => {
+                    self.chain_links.push(ChainLink {
+                        node,
+                        parent,
+                        slot,
+                        saved,
+                        head,
+                    });
+                    let (Kind::Member { object: child, .. } | Kind::Call { callee: child, .. }) =
+                        self.syntax_tree.kind(node)
+                    else {
+                        unreachable!("only members and calls open a chain link")
+                    };
+                    (node, parent, slot) = (child, Some(node), child_slot);
+                }
+                Ok(None) => {
+                    let document = self
+                        .expression_inner(node)
+                        .and_then(|d| self.typescript_expression_suffix(node, d));
+                    self.at = saved;
+                    break document.map(|d| self.parenthesized(node, parent, slot, d));
+                }
+                Err(error) => {
+                    self.at = saved;
+                    break Err(error);
+                }
+            }
+        };
+        while self.chain_links.len() > base {
+            let link = self
+                .chain_links
+                .pop()
+                .expect("the loop pushed this chain's links above its base");
+            document = document.and_then(|inner| {
+                self.at = link.parent.map(|p| (p, link.slot));
+                let document = self
+                    .chain_tail(link.node, link.head, inner)
+                    .and_then(|d| self.typescript_expression_suffix(link.node, d));
+                self.at = link.saved;
+                document.map(|d| self.parenthesized(link.node, link.parent, link.slot, d))
+            });
+            if document.is_err() {
+                self.at = link.saved;
+            }
+        }
+        document
+    }
+
+    fn chain_tail(
+        &mut self,
+        identifier: NodeIdentifier,
+        head: ChainHead,
+        inner: LayoutInstructionIdentifier,
+    ) -> R<LayoutInstructionIdentifier> {
+        match (head, self.syntax_tree.kind(identifier)) {
+            (
+                ChainHead::Member(parent_is_member),
+                Kind::Member {
+                    object,
+                    property,
+                    computed,
+                    optional,
+                },
+            ) => self.member_tail(
+                identifier,
+                object,
+                property,
+                computed,
+                optional,
+                parent_is_member,
+                inner,
+            ),
+            (
+                ChainHead::Call(head),
+                Kind::Call {
+                    callee,
+                    arguments,
+                    optional,
+                    ..
+                },
+            ) => self.call_tail(identifier, callee, arguments, optional, false, head, inner),
+            _ => unreachable!("a chain link keeps the head of its own kind"),
+        }
+    }
+
+    /// The parentheses Prettier's `needsParens` puts around a printed expression.
+    fn parenthesized(
+        &mut self,
+        identifier: NodeIdentifier,
+        parent: Option<NodeIdentifier>,
+        slot: Slot,
+        document: LayoutInstructionIdentifier,
+    ) -> LayoutInstructionIdentifier {
         let leftmost = self.paren_leftmost == Some(identifier);
         if leftmost
             || self.syntax_tree.flags(identifier) & rsvelte_typescript::syntax_tree::flag::GROUPED
@@ -66,9 +171,9 @@ impl Formatter<'_> {
             }
             let lp = self.lit("(");
             let rp = self.lit(")");
-            return Ok(self.cat(&[lp, document, rp]));
+            return self.cat(&[lp, document, rp]);
         }
-        Ok(document)
+        document
     }
 
     /// `!`, `as T` and `satisfies T` erased from the tree, printed back after the expression in
@@ -162,18 +267,9 @@ impl Formatter<'_> {
                 let e = self.docs.nil();
                 self.object(identifier, props, None, e)
             }
-            Kind::Member {
-                object,
-                property,
-                computed,
-                optional,
-            } => self.member(identifier, object, property, computed, optional),
-            Kind::Call {
-                callee,
-                arguments,
-                optional,
-                ..
-            } => self.call(identifier, callee, arguments, optional, false),
+            Kind::Member { .. } | Kind::Call { .. } => {
+                unreachable!("`expression` prints members and calls as chain links")
+            }
             Kind::New { callee, arguments } => {
                 self.call(identifier, callee, arguments, false, true)
             }
@@ -262,30 +358,38 @@ impl Formatter<'_> {
     }
 
     /// Prettier's `printBinaryishExpressions`, flat: same-precedence chains flatten into one list.
+    /// The chain is walked down by a loop; it runs thousands long in real input.
     pub(super) fn binaryish(
         &mut self,
         identifier: NodeIdentifier,
     ) -> R<Vec<LayoutInstructionIdentifier>> {
-        let (op, l, r) = match self.syntax_tree.kind(identifier) {
+        let operands = |tree: &SyntaxTree, at| match tree.kind(at) {
             Kind::Binary(op, l, r) => (op.as_str(), l, r),
             Kind::Logical(op, l, r) => (op.as_str(), l, r),
             _ => unreachable!("binaryish"),
         };
-        let flatten = match (
-            op_of(self.syntax_tree, identifier),
-            op_of(self.syntax_tree, l),
-        ) {
-            (Some(p), Some(c)) => should_flatten(p, c) && !self.has_typescript(l),
-            _ => false,
-        };
-        let mut parts = if flatten {
-            self.binaryish(l)?
-        } else {
-            vec![self.expression(l, Some(identifier), Slot::Left)?]
-        };
-        let op = format!(" {op} ");
-        parts.push(self.docs.text(&op));
-        parts.push(self.expression(r, Some(identifier), Slot::Right)?);
+        let mut links = vec![identifier];
+        let mut at = identifier;
+        loop {
+            let (_, l, _) = operands(self.syntax_tree, at);
+            let flatten = match (op_of(self.syntax_tree, at), op_of(self.syntax_tree, l)) {
+                (Some(p), Some(c)) => should_flatten(p, c) && !self.has_typescript(l),
+                _ => false,
+            };
+            if !flatten {
+                break;
+            }
+            links.push(l);
+            at = l;
+        }
+        let (_, l, _) = operands(self.syntax_tree, at);
+        let mut parts = vec![self.expression(l, Some(at), Slot::Left)?];
+        for &link in links.iter().rev() {
+            let (op, _, r) = operands(self.syntax_tree, link);
+            let op = format!(" {op} ");
+            parts.push(self.docs.text(&op));
+            parts.push(self.expression(r, Some(link), Slot::Right)?);
+        }
         Ok(parts)
     }
 

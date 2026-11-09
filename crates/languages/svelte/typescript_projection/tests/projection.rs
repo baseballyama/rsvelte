@@ -148,6 +148,14 @@ fn unsupported_semantics_are_reported_at_the_original_construct() {
 }
 
 #[test]
+fn props_beside_a_binding_called_props_subscribes_to_a_store() {
+    let rune = "<script>let { a } = $props();</script>{a}";
+    assert!(project(rune).1.out.contains("__rsvelte_props"));
+    let store = "<script>import { props } from './p.js'; let { a } = $props();</script>{a}";
+    assert!(!project(store).1.out.contains("__rsvelte_props"));
+}
+
+#[test]
 fn projection_trees_are_send_and_sync() {
     fn check<T: Send + Sync>() {}
     check::<SyntaxTree>();

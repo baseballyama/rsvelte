@@ -3,6 +3,16 @@ use super::{
     prec, quote,
 };
 
+/// The precedence a binary operator's left and right operands need; `**` groups to the right.
+fn binary_minimums(op: BinaryOperator) -> (u8, u8) {
+    let p = prec::BIN + op.precedence();
+    if op == BinaryOperator::Exp {
+        (p + 1, p)
+    } else {
+        (p, p + 1)
+    }
+}
+
 impl Gen<'_> {
     pub(super) fn leftmost(&self, mut e: NodeIdentifier) -> NodeIdentifier {
         loop {
@@ -103,6 +113,121 @@ impl Gen<'_> {
             self.e.push(")");
         } else {
             self.expression(child, min);
+        }
+    }
+
+    /// A member, call, binary or logical expression. Objects, callees and left operands nest
+    /// thousands deep in real input, so they are walked by a loop and finished from a stack.
+    fn chain(&mut self, first: NodeIdentifier) {
+        let base = self.chain_links.len();
+        let (mut at, mut wrap) = (first, false);
+        loop {
+            self.chain_links.push((at, wrap));
+            let Some((child, min, mixes)) = self.chain_head(at) else {
+                break;
+            };
+            wrap = mixes
+                || self.prec_of(child) < min
+                || self.syntax_tree.flags(child) & flag::GROUPED != 0;
+            if wrap {
+                self.e.push("(");
+            }
+            if !matches!(
+                self.syntax_tree.kind(child),
+                Kind::Member { .. } | Kind::Call { .. } | Kind::Binary(..) | Kind::Logical(..)
+            ) {
+                self.expression_inner(child);
+                if wrap {
+                    self.e.push(")");
+                }
+                break;
+            }
+            self.mark(child);
+            at = child;
+        }
+        while self.chain_links.len() > base {
+            let (node, wrap) = self
+                .chain_links
+                .pop()
+                .expect("the loop pushed this chain's links above its base");
+            self.chain_tail(node);
+            if wrap {
+                self.e.push(")");
+            }
+        }
+    }
+
+    /// Prints what precedes the inner expression of a chain link, and returns that expression,
+    /// the precedence it needs and whether it is parenthesized regardless.
+    fn chain_head(&mut self, at: NodeIdentifier) -> Option<(NodeIdentifier, u8, bool)> {
+        match self.syntax_tree.kind(at) {
+            Kind::Member { object, .. } if self.syntax_tree.tag(object) == Tag::Number => {
+                self.e.push("(");
+                self.expression(object, 0);
+                self.e.push(")");
+                None
+            }
+            Kind::Member { object, .. } => Some((object, prec::CALL, false)),
+            Kind::Call { callee, pure, .. } => {
+                if pure {
+                    self.e.push("/* @__PURE__ */ ");
+                }
+                Some((callee, prec::CALL, false))
+            }
+            Kind::Binary(op, l, _) => Some((l, binary_minimums(op).0, false)),
+            Kind::Logical(op, l, _) => {
+                // `??` cannot be mixed with `||` / `&&` without parentheses.
+                let nullish = op == LogicalOperator::Nullish;
+                let mixes = matches!(
+                    self.syntax_tree.kind(l),
+                    Kind::Logical(inner, ..) if (inner == LogicalOperator::Nullish) != nullish
+                );
+                Some((l, prec::BIN + op.precedence(), mixes))
+            }
+            _ => unreachable!("a chain link is a member, call, binary or logical expression"),
+        }
+    }
+
+    /// Prints what follows the inner expression of a chain link.
+    fn chain_tail(&mut self, at: NodeIdentifier) {
+        match self.syntax_tree.kind(at) {
+            Kind::Member {
+                property,
+                computed,
+                optional,
+                ..
+            } => {
+                if computed {
+                    self.e.push(if optional { "?.[" } else { "[" });
+                    self.expression(property, prec::SEQ);
+                    self.e.push("]");
+                } else {
+                    self.e.push(if optional { "?." } else { "." });
+                    self.expression(property, prec::PRIMARY);
+                }
+            }
+            Kind::Call {
+                arguments,
+                optional,
+                ..
+            } => {
+                self.e.push(if optional { "?.(" } else { "(" });
+                self.list(arguments, ", ");
+                self.e.push(")");
+            }
+            Kind::Binary(op, _, r) => {
+                self.e.push(" ");
+                self.e.push(op.as_str());
+                self.e.push(" ");
+                self.expression(r, binary_minimums(op).1);
+            }
+            Kind::Logical(op, _, r) => {
+                self.e.push(" ");
+                self.e.push(op.as_str());
+                self.e.push(" ");
+                self.logical_operand(op, r, prec::BIN + op.precedence() + 1);
+            }
+            _ => unreachable!("a chain link is a member, call, binary or logical expression"),
         }
     }
 
@@ -282,48 +407,8 @@ impl Gen<'_> {
                 self.e.push("...");
                 self.expression(a, prec::ASSIGN);
             }
-            Kind::Member {
-                object,
-                property,
-                computed,
-                optional,
-            } => {
-                let wrap_num = self.syntax_tree.tag(object) == Tag::Number;
-                if wrap_num {
-                    self.e.push("(");
-                    self.expression(object, 0);
-                    self.e.push(")");
-                } else {
-                    self.expression(object, prec::CALL);
-                }
-                if computed {
-                    self.e.push(if optional { "?.[" } else { "[" });
-                    self.expression(property, prec::SEQ);
-                    self.e.push("]");
-                } else {
-                    self.e.push(if optional { "?." } else { "." });
-                    self.expression(property, prec::PRIMARY);
-                }
-            }
-            Kind::Call {
-                callee,
-                arguments,
-                optional,
-                pure,
-            } => {
-                if pure {
-                    self.e.push("/* @__PURE__ */ ");
-                }
-                self.expression(callee, prec::CALL);
-                if matches!(
-                    self.syntax_tree.tag(callee),
-                    Tag::Arrow | Tag::FunctionExpression
-                ) {
-                    // already parenthesized by precedence
-                }
-                self.e.push(if optional { "?.(" } else { "(" });
-                self.list(arguments, ", ");
-                self.e.push(")");
+            Kind::Member { .. } | Kind::Call { .. } | Kind::Binary(..) | Kind::Logical(..) => {
+                self.chain(identifier);
             }
             Kind::New { callee, arguments } => {
                 self.e.push("new ");
@@ -384,27 +469,6 @@ impl Gen<'_> {
                     self.expression(arg, prec::POSTFIX);
                     self.e.push(op.as_str());
                 }
-            }
-            Kind::Binary(op, l, r) => {
-                let p = prec::BIN + op.precedence();
-                let (lmin, rmin) = if op == BinaryOperator::Exp {
-                    (p + 1, p)
-                } else {
-                    (p, p + 1)
-                };
-                self.expression(l, lmin);
-                self.e.push(" ");
-                self.e.push(op.as_str());
-                self.e.push(" ");
-                self.expression(r, rmin);
-            }
-            Kind::Logical(op, l, r) => {
-                let p = prec::BIN + op.precedence();
-                self.logical_operand(op, l, p);
-                self.e.push(" ");
-                self.e.push(op.as_str());
-                self.e.push(" ");
-                self.logical_operand(op, r, p + 1);
             }
             Kind::Conditional {
                 test,

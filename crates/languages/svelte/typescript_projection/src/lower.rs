@@ -2,6 +2,7 @@ mod contract;
 
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte::semantic::resolve::{self, Resolution};
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Component, Part, Range, TemplateNode,
 };
@@ -17,8 +18,30 @@ type Result<T> = std::result::Result<T, Unsupported>;
 ///
 /// Returns the source range of a construct whose type semantics are not supported yet.
 pub fn lower(component: &Component, source: &str) -> Result<SyntaxTree> {
+    let tree = rsvelte_svelte::compilation::compiler_syntax_tree::lower(component, source);
+    let resolution = resolve::resolve_with_module(
+        &component.javascript,
+        source,
+        component.program,
+        component.module.as_ref().map(|module| module.program),
+        &tree,
+    );
+    lower_resolved(component, &resolution, source)
+}
+
+/// [`lower`] with the component's resolution, which decides what is a rune.
+///
+/// # Errors
+///
+/// Returns the source range of a construct whose type semantics are not supported yet.
+pub fn lower_resolved(
+    component: &Component,
+    resolution: &Resolution,
+    source: &str,
+) -> Result<SyntaxTree> {
     let mut builder = Builder {
         component,
+        resolution,
         source,
         suffixes: Buffer::new(0),
         type_arguments: Buffer::new(0),
@@ -42,6 +65,7 @@ pub fn lower(component: &Component, source: &str) -> Result<SyntaxTree> {
 
 struct Builder<'a> {
     component: &'a Component,
+    resolution: &'a Resolution,
     source: &'a str,
     suffixes: Buffer<Option<Span>>,
     type_arguments: Buffer<SourceNode>,
