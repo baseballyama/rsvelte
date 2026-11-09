@@ -10,3 +10,4 @@ On the client, a destructured `$state` / `$state.raw` declarator is lowered the 
 Also covered:
 - A default and a computed key that read state are visited, so they get `$.get`.
 - A reassigned `$state.raw` object rest keeps its `$.state` wrap.
+- An empty object pattern (`let {} = $state({})`) is lowered to its `tmp` alone instead of being left with the `$state` call.
