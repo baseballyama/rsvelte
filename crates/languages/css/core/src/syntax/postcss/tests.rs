@@ -118,6 +118,17 @@ fn every_parenthesis_up_to_a_bad_bracket_close_is_alone() {
 }
 
 #[test]
+fn a_scss_nested_property_reads_from_its_first_word() {
+    let found = error(":_0{", Dialect::Scss);
+    assert_eq!(
+        (found.reason.as_str(), found.line, found.column),
+        ("Unclosed block", 1, 2)
+    );
+    let source = ":\t:global(form .x) {\n}";
+    assert_eq!(check(source, whole(source), Dialect::Scss), Ok(()));
+}
+
+#[test]
 fn many_missed_semicolons_split_without_recursion() {
     let source = "a: b ".repeat(100_000);
     let nodes = inline(&source, whole(&source), &[]).expect("a declaration list");

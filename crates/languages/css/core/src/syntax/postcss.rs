@@ -193,6 +193,23 @@ struct Parser<'a> {
     last_bad_paren: Option<usize>,
 }
 
+/// `String.prototype.trim`: JavaScript's whitespace and line terminators.
+fn js_trim(text: &str) -> &str {
+    text.trim_matches(|c: char| {
+        matches!(
+            c,
+            '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'
+                ..='\u{200a}'
+                    | '\u{2028}'
+                    | '\u{2029}'
+                    | '\u{202f}'
+                    | '\u{205f}'
+                    | '\u{3000}'
+                    | '\u{feff}'
+        )
+    })
+}
+
 const fn is_space(c: u8) -> bool {
     matches!(c, b' ' | b'\n' | b'\t' | b'\r' | 0x0C)
 }
@@ -781,16 +798,19 @@ impl<'a> Parser<'a> {
 
     fn rule(&mut self, mut tokens: Vec<Token>) -> R<()> {
         let open = tokens.pop().expect("a rule ends with `{`");
-        if self.scss() && self.nested_declaration(&tokens)? {
-            return self.open(open.start);
+        if self.scss()
+            && let Some(start) = self.nested_declaration(&tokens)?
+        {
+            return self.open(start);
         }
         let start = tokens.first().map_or(open.start, |t| t.start);
         self.open(start)
     }
 
-    /// `postcss-scss`'s nested property (`font: 12px {`): only its missed-semicolon check throws.
-    fn nested_declaration(&self, tokens: &[Token]) -> R<bool> {
-        let mut with_colon = None;
+    /// `postcss-scss`'s nested property (`font: 12px {`): where its block starts, or `None` for a
+    /// rule. Only its missed-semicolon check throws.
+    fn nested_declaration(&self, tokens: &[Token]) -> R<Option<u32>> {
+        let mut colon = None;
         let mut depth = 0i32;
         for (i, token) in tokens.iter().enumerate() {
             match token.kind {
@@ -798,39 +818,101 @@ impl<'a> Parser<'a> {
                 Kind::Open(b'(') => depth += 1,
                 Kind::Close(b')') => depth -= 1,
                 Kind::Colon if depth == 0 => {
-                    with_colon = Some(i);
+                    colon = Some(i);
                     break;
                 }
                 _ => {}
             }
         }
-        let Some(colon) = with_colon else {
-            return Ok(false);
+        let Some(colon) = colon else {
+            return Ok(None);
         };
-        let value: String = tokens[colon + 1..]
+        let mut value = tokens[colon + 1..]
             .iter()
             .filter(|t| !matches!(t.kind, Kind::Comment | Kind::InlineComment))
-            .map(|t| self.text(*t))
-            .collect();
-        if value.trim().is_empty()
-            || value
-                .bytes()
-                .next()
-                .is_some_and(|c| c == b'#' || c == b':' || c == b'-' || c.is_ascii_alphabetic())
-        {
-            return Ok(false);
+            .map(|t| self.text(*t));
+        let mut blank = true;
+        let mut first = None;
+        for text in value.by_ref() {
+            first = first.or_else(|| text.bytes().next());
+            if !js_trim(text).is_empty() {
+                blank = false;
+                break;
+            }
         }
-        let rest = &tokens[colon + 1..];
-        let first = rest
+        if blank
+            || first.is_some_and(|c| c == b'#' || c == b':' || c == b'-' || c.is_ascii_alphabetic())
+        {
+            return Ok(None);
+        }
+        // Upstream reads the property from the first word, wherever the colon was.
+        let Some(word) = tokens.iter().position(|t| t.kind == Kind::Word) else {
+            // Upstream throws a `TypeError` here; read it as a rule.
+            return Ok(None);
+        };
+        let start = tokens[word].start;
+        let rest = &tokens[word..];
+        let property_end = rest
+            .iter()
+            .position(|t| {
+                matches!(
+                    t.kind,
+                    Kind::Colon | Kind::Space | Kind::Comment | Kind::InlineComment
+                )
+            })
+            .unwrap_or(rest.len());
+        let rest = &rest[property_end..];
+        let rest = rest
+            .iter()
+            .position(|t| t.kind == Kind::Colon)
+            .map_or(&[][..], |at| &rest[at + 1..]);
+        let first_value = rest
             .iter()
             .position(|t| !matches!(t.kind, Kind::Space | Kind::Comment | Kind::InlineComment))
             .unwrap_or(rest.len());
-        let rest = &rest[first..];
-        let rest = &rest[..self.important(rest).0];
+        let rest = &rest[first_value..];
+        let rest = &rest[..self.nested_important(rest)];
         if self.raw_value(rest, false).contains(':') {
             self.missed_semicolon(rest)?;
         }
-        Ok(true)
+        Ok(Some(start))
+    }
+
+    /// How many tokens stay once a nested property's `!important` is removed: `postcss-scss`
+    /// matches it case-sensitively and never at the first token.
+    fn nested_important(&self, tokens: &[Token]) -> usize {
+        for i in (1..tokens.len()).rev() {
+            let token = tokens[i];
+            let text = self.text(token);
+            if text == "!important" {
+                let mut cut = i;
+                while cut > 0 && tokens[cut - 1].kind == Kind::Space {
+                    cut -= 1;
+                }
+                return cut;
+            }
+            if text == "important" {
+                let mut cut = tokens.len();
+                let mut text = String::new();
+                for j in (1..=i).rev() {
+                    if js_trim(&text).starts_with('!') && tokens[j].kind != Kind::Space {
+                        break;
+                    }
+                    cut -= 1;
+                    text.insert_str(0, self.text(tokens[cut]));
+                }
+                if js_trim(&text).starts_with('!') {
+                    return cut;
+                }
+            }
+            if !matches!(
+                token.kind,
+                Kind::Space | Kind::Comment | Kind::InlineComment
+            ) {
+                break;
+            }
+        }
+        tokens.len()
     }
 
     /// `a: b c: d` in safe mode is two declarations, each read in turn, not one inside the other.
