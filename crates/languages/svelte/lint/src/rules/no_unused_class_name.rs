@@ -1,3 +1,4 @@
+use rsvelte_kernel::source::whitespace::split_javascript_whitespace;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_stylesheet::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 use rsvelte_svelte::syntax::syntax_tree::{AttributeKind, AttributeValue, Part, TemplateNode};
@@ -89,9 +90,9 @@ impl SvelteRule for NoUnusedClassName {
                         };
                         for part in component.parts(parts) {
                             if let Part::Text(span) = part {
-                                for name in rsvelte_markup::decode_text(span.text(source))
-                                    .split_whitespace()
-                                {
+                                for name in split_javascript_whitespace(
+                                    &rsvelte_markup::decode_text(span.text(source)),
+                                ) {
                                     report(name);
                                 }
                             }

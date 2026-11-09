@@ -11,6 +11,7 @@
 //! tokens, with each `{…}` (a mustache or a template's `${…}`) merged into one word.
 
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_kernel::source::whitespace::trim_javascript;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Dialect {
@@ -209,23 +210,6 @@ struct Parser<'a> {
     bad_search: Option<(usize, Option<usize>)>,
     /// `PostCSS` 8.5's `lastBadParen`: every `(` up to the `)` of a bad bracket is a lone `(`.
     last_bad_paren: Option<usize>,
-}
-
-/// `String.prototype.trim`: JavaScript's whitespace and line terminators.
-fn js_trim(text: &str) -> &str {
-    text.trim_matches(|c: char| {
-        matches!(
-            c,
-            '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'
-                ..='\u{200a}'
-                    | '\u{2028}'
-                    | '\u{2029}'
-                    | '\u{202f}'
-                    | '\u{205f}'
-                    | '\u{3000}'
-                    | '\u{feff}'
-        )
-    })
 }
 
 const fn is_space(c: u8) -> bool {
@@ -850,7 +834,7 @@ impl<'a> Parser<'a> {
         let mut first = None;
         for text in value.by_ref() {
             first = first.or_else(|| text.bytes().next());
-            if !js_trim(text).is_empty() {
+            if !trim_javascript(text).is_empty() {
                 blank = false;
                 break;
             }
@@ -910,13 +894,13 @@ impl<'a> Parser<'a> {
                 let mut cut = tokens.len();
                 let mut text = String::new();
                 for j in (1..=i).rev() {
-                    if js_trim(&text).starts_with('!') && tokens[j].kind != Kind::Space {
+                    if trim_javascript(&text).starts_with('!') && tokens[j].kind != Kind::Space {
                         break;
                     }
                     cut -= 1;
                     text.insert_str(0, self.text(tokens[cut]));
                 }
-                if js_trim(&text).starts_with('!') {
+                if trim_javascript(&text).starts_with('!') {
                     return cut;
                 }
             }

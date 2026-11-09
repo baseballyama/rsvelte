@@ -39,5 +39,6 @@ pub mod source {
     pub mod interning;
     pub mod positions;
     pub mod tokens;
+    pub mod whitespace;
 }
 pub mod task_files;

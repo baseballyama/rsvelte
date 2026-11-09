@@ -1,3 +1,4 @@
+use rsvelte_kernel::source::whitespace::split_javascript_whitespace;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_stylesheet::syntax_tree::{ComplexSelector, Rule, RuleKind, Simple, StyleSheet};
 use rsvelte_svelte::syntax::syntax_tree::{
@@ -250,7 +251,7 @@ impl Template<'_> {
                     Part::Text(span) => {
                         let text = span.text(source);
                         if split {
-                            for class in text.split_whitespace() {
+                            for class in split_javascript_whitespace(text) {
                                 selections.exact.entry(class).or_default().push(element);
                             }
                         } else {

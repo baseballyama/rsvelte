@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_kernel::source::whitespace::is_javascript_whitespace as is_space;
 use rsvelte_lint_runner::finding::Fix;
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte::syntax::syntax_tree::{
@@ -265,11 +266,6 @@ const fn needs_parentheses(tag: Tag) -> bool {
             | Tag::Unary
             | Tag::Update
     )
-}
-
-/// JavaScript's `String#trim` whitespace.
-const fn is_space(c: char) -> bool {
-    c.is_whitespace() || c == '\u{feff}'
 }
 
 fn is_class_name(name: &str) -> bool {
