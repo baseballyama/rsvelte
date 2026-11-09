@@ -33,7 +33,8 @@ pub fn register(registry: &mut Registry) {
         })
         .task(Compile {
             target: Target::Server,
-        });
+        })
+        .task(crate::Warn);
 }
 
 pub fn register_with_configuration(registry: &mut Registry, configuration: crate::Configuration) {

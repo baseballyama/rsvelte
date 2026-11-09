@@ -18,6 +18,7 @@ pub(super) fn runes(
     resolution: &Resolution,
     source: &str,
     awaits: &[Span],
+    forced: Option<bool>,
 ) -> bool {
     if let Some(value) = svelte_option(component, source, "runes") {
         return match value {
@@ -28,6 +29,9 @@ pub(super) fn runes(
                     if matches!(component.javascript.kind(*expression), Kind::Boolean(false))
             ),
         };
+    }
+    if let Some(forced) = forced {
+        return forced;
     }
     if !awaits.is_empty() {
         return true;
@@ -73,7 +77,7 @@ pub(super) fn stores<'a>(component: &'a Component, resolution: &Resolution) -> F
 }
 
 /// The value of attribute `name` of `<svelte:options>`.
-pub(super) fn svelte_option(
+pub(crate) fn svelte_option(
     component: &Component,
     source: &str,
     name: &str,

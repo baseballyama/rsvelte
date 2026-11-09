@@ -115,6 +115,11 @@ impl CompileWarnings {
 }
 
 impl CompileWarnings {
+    /// The warnings `compile` returns: those no `svelte-ignore` of the compiler's covers.
+    pub fn compiled(&self) -> impl Iterator<Item = &Diagnostic> {
+        self.warnings.iter()
+    }
+
     /// The warning codes this module checks.
     pub const CODES: &[&str] = &[
         "a11y_accesskey",
@@ -256,6 +261,29 @@ fn error(code: &'static str, message: &str, span: Span) -> Diagnostic {
     )
 }
 
+/// The compile options that change what the compiler warns about.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Options {
+    /// The `runes` option: `None` infers runes mode from the component. `<svelte:options runes>`
+    /// overrides it.
+    pub runes: Option<bool>,
+    /// The `customElement` option.
+    pub custom_element: bool,
+}
+
+impl Options {
+    /// What eslint-plugin-svelte compiles with: no `runes`, and `customElement` when
+    /// `<svelte:options>` names `tag` or `customElement`.
+    #[must_use]
+    pub fn linting(component: &Component, source: &str) -> Self {
+        let names = |name| runes::svelte_option(component, source, name).is_some();
+        Self {
+            runes: None,
+            custom_element: names("tag") || names("customElement"),
+        }
+    }
+}
+
 /// The warnings of `component`; `analysis` is needed only for its style sheet.
 #[must_use]
 pub fn warnings(
@@ -263,6 +291,7 @@ pub fn warnings(
     resolution: &Resolution,
     analysis: Option<&Analysis>,
     source: &str,
+    options: Options,
 ) -> CompileWarnings {
     let mut out = CompileWarnings::default();
     let javascript = &component.javascript;
@@ -273,7 +302,7 @@ pub fn warnings(
         top_level_awaits(javascript, expression, false, &mut out.awaits);
     }
     deprecated_tag(component, source, &mut out.errors);
-    let runes = runes(component, resolution, source, &out.awaits);
+    let runes = runes(component, resolution, source, &out.awaits, options.runes);
     dollar_names(component, resolution, source, runes, &mut out.errors);
     if runes {
         rune_placement(component, &mut out.errors);
