@@ -44,6 +44,22 @@ fn lookups_skip_trivia() {
 }
 
 #[test]
+fn within_keeps_the_tokens_that_start_in_the_span() {
+    let source_text = "ab  cd e";
+    let t = words(source_text);
+    let texts = |start, end| {
+        t.within(Span::new(start, end))
+            .iter()
+            .map(|token| token.span.text(source_text))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(texts(2, 6), ["  ", "cd"]);
+    assert_eq!(texts(4, 6), ["cd"]);
+    assert_eq!(texts(5, 5), Vec::<&str>::new());
+    assert_eq!(texts(1, 8), ["  ", "cd", " ", "e"]);
+}
+
+#[test]
 fn a_gap_or_a_short_table_is_reported() {
     let mut t = Tokens::new();
     t.push(K::Word, Span::new(0, 2));
