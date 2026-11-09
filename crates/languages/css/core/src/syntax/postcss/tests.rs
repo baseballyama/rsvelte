@@ -129,6 +129,18 @@ fn a_scss_nested_property_reads_from_its_first_word() {
 }
 
 #[test]
+fn postcss_scss_records_one_past_a_comma() {
+    let found = error("&.x:y_,x:y", Dialect::Scss);
+    assert_eq!(
+        (found.reason.as_str(), found.line, found.column),
+        ("Missed semicolon", 1, 9)
+    );
+    assert_eq!(error("&.x:y_,x:y", Dialect::Css).column, 9);
+    let found = error("&:!,😀a:not(x)", Dialect::Scss);
+    assert_eq!((found.line, found.column), (1, 6));
+}
+
+#[test]
 fn many_missed_semicolons_split_without_recursion() {
     let source = "a: b ".repeat(100_000);
     let nodes = inline(&source, whole(&source), &[]).expect("a declaration list");

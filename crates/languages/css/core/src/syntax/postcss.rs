@@ -37,12 +37,15 @@ pub struct SyntaxError {
 pub fn check(source: &str, content: Span, dialect: Dialect) -> Result<(), SyntaxError> {
     let mut parser = Parser::new(source, content, &[], Mode::Strict(dialect));
     parser.parse().map_err(|Thrown { reason, offset }| {
-        let text = &source[content.start_offset as usize..offset as usize];
+        // One past a comma can fall inside the next character, one UTF-16 unit into it.
+        let boundary = source.floor_char_boundary(offset as usize);
+        let inside = u32::from(boundary != offset as usize);
+        let text = &source[content.start_offset as usize..boundary];
         let line_start = text.rfind('\n').map_or(0, |at| at + 1);
         SyntaxError {
             reason,
             line: text.matches('\n').count() as u32 + 1,
-            column: text[line_start..].encode_utf16().count() as u32 + 1,
+            column: text[line_start..].encode_utf16().count() as u32 + 1 + inside,
         }
     })
 }
@@ -680,12 +683,14 @@ impl<'a> Parser<'a> {
             return thrown("", token.start);
         }
         if self.scss() {
+            let mut last = self.last_offset(token);
             while !self.end_of_file() {
                 let Some(next) = self.next_token()? else {
                     break;
                 };
-                if next.kind == Kind::Word && next.start == token.end {
+                if next.kind == Kind::Word && next.start == last + 1 {
                     token.end = next.end;
+                    last = self.last_offset(next);
                 } else {
                     self.back(next);
                     break;
@@ -1169,11 +1174,21 @@ impl<'a> Parser<'a> {
             }
         }
         let offset = if token.kind == Kind::Word {
-            token.end
+            self.last_offset(token) + 1
         } else {
             token.start
         };
         thrown("Missed semicolon", offset)
+    }
+
+    /// Where a token's last character is, as the tokenizer records it: `postcss-scss` records
+    /// one past a comma.
+    fn last_offset(&self, token: Token) -> u32 {
+        if self.scss() && token.kind == Kind::Word && self.text(token) == "," {
+            token.end
+        } else {
+            token.end - 1
+        }
     }
 }
 
