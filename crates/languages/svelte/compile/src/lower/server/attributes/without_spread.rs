@@ -1,4 +1,4 @@
-use super::escaped_text;
+use super::{escaped_text, scoped_class};
 use crate::lower::server::{
     Attribute, AttributeValue, CompilerNodeIdentifier, Kind, Piece, R, ServerCompilationContext,
     SourceLocation, capture_event, escape_markup, event_attribute, is_boolean_attribute,
@@ -86,7 +86,7 @@ impl<'a> ServerCompilationContext<'a> {
                 if name == "class"
                     && let Some(h) = &hash
                 {
-                    format!("{v} {h}").trim().clone_into(&mut v);
+                    v = scoped_class(&v, h);
                 }
                 let v = escape_markup(&v, true);
                 template.push(Piece::Text(format!(" {name}=\"{v}\"")));
@@ -131,7 +131,7 @@ impl<'a> ServerCompilationContext<'a> {
             let base = value
                 .as_deref()
                 .map_or_else(|| "true".to_owned(), str::to_owned);
-            value = Some(format!("{base} {h}").trim().to_owned());
+            value = Some(scoped_class(&base, h));
         }
         if name != "class" || value.as_deref() != Some("") {
             template.push(Piece::Text(format!(

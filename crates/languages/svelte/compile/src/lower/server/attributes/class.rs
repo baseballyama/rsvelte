@@ -1,3 +1,4 @@
+use super::scoped_class;
 use crate::lower::server::{
     Attribute, AttributeValue, Kind, NodeIdentifier, ServerCompilationContext, SourceLocation,
     runtime_call,
@@ -30,7 +31,7 @@ impl ServerCompilationContext<'_> {
         if let Some(h) = hash {
             if matches!(self.out.kind(value), Kind::String) {
                 let v = self.out.str_value(value, self.source_text);
-                value = self.out.write_string(format!("{v} {h}").trim());
+                value = self.out.write_string(&scoped_class(v, h));
             } else {
                 stylesheet_hash = Some(self.out.write_string(h));
             }

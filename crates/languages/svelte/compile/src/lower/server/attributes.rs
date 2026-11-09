@@ -2,6 +2,8 @@ mod class;
 mod with_spread;
 mod without_spread;
 
+use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
+
 use super::{
     Attribute, AttributeValue, NodeIdentifier, Part, ServerCompilationContext, SourceLocation,
     decode_text, escape_markup, known_string, needs_clsx, sanitize_template_string,
@@ -95,9 +97,18 @@ impl ServerCompilationContext<'_> {
     }
 }
 
+/// A class value with the stylesheet's hash, trimmed as upstream's `.trim()` does.
+fn scoped_class(value: &str, hash: &str) -> String {
+    format!("{value} {hash}")
+        .trim_matches(is_javascript_whitespace)
+        .to_owned()
+}
+
 fn attribute_text(data: &str, trim: bool) -> String {
     if trim {
-        collapse_ws(data).trim().to_owned()
+        collapse_ws(data)
+            .trim_matches(is_javascript_whitespace)
+            .to_owned()
     } else {
         data.to_owned()
     }

@@ -112,3 +112,22 @@ fn output_identifiers_use_the_source_scope() {
         );
     }
 }
+
+#[test]
+fn a_string_converts_to_a_number_or_a_bigint_after_javascript_trims_it() {
+    for (source, number) in [
+        (r#""﻿ 2 " * 1;"#, Some(2.0)),
+        (r#""　 2" * 1;"#, Some(2.0)),
+        (r#""\u0085" * 1;"#, None),
+        (r#""2\u0085" * 1;"#, None),
+    ] {
+        match (evaluate(source).value, number) {
+            (Value::Number(value), Some(number)) => assert_eq!(value, number, "{source}"),
+            (Value::Number(value), None) => assert!(value.is_nan(), "{source}"),
+            (value, _) => panic!("{source} is {value:?}"),
+        }
+    }
+    for (source, expected) in [(r#"1n < "\uFEFF2";"#, true), (r#"1n < "\u00852";"#, false)] {
+        assert_eq!(evaluate(source).value, Value::Boolean(expected), "{source}");
+    }
+}

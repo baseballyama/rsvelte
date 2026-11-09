@@ -5,6 +5,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 };
 use rsvelte_svelte_syntax::syntax_tree::decode_text;
 use rsvelte_typescript_syntax::NodeIdentifier;
+use rsvelte_typescript_syntax::lexer::is_javascript_whitespace;
 
 /// A node after whitespace cleaning; text may have been trimmed, so it carries its own strings.
 #[derive(Debug, Clone)]
@@ -63,9 +64,7 @@ pub fn clean_nodes<'a>(
     drops_foreign_whitespace: bool,
 ) -> Cleaned<'a> {
     // Upstream's parser reads `template.trimEnd()`; only `preserveWhitespace` can observe it.
-    let end = source_text
-        .trim_end_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
-        .len();
+    let end = source_text.trim_end_matches(is_javascript_whitespace).len();
     let mut regular: Vec<Item<'a>> = Vec::with_capacity(list.len());
     let mut hoisted = Vec::new();
     for &identifier in list {
