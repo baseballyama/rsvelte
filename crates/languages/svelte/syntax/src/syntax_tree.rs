@@ -112,6 +112,8 @@ pub enum TemplateNode {
     /// [`Component::javascript_lists`].
     Snippet {
         name: NodeIdentifier,
+        /// `<T>` after the name, as written; only in TypeScript.
+        type_parameters: Option<Span>,
         parameters: Range,
         body: Range,
         span: Span,

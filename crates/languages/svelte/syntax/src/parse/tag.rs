@@ -1,4 +1,5 @@
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_typescript_syntax::lexer::T;
 use rsvelte_typescript_syntax::parser::parse_declaration_prefix;
 use rsvelte_typescript_syntax::syntax_tree::flag;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier};
@@ -20,6 +21,11 @@ impl Parser<'_> {
         self.eat_token(TokenType::MustacheOpen, 1);
         self.skip_ws();
         if let Some(declaration) = self.declaration()? {
+            self.skip_ws();
+            // Svelte takes one `;` after the declaration.
+            if self.peek() == Some(b';') {
+                self.eat_token(TokenType::JavaScript(T::Semi), 1);
+            }
             self.close_mustache()?;
             let span = Span::new(start_offset as u32, self.position as u32);
             return Ok(self.push_node(TemplateNode::Declaration { declaration, span }));
@@ -143,10 +149,7 @@ impl Parser<'_> {
         if self.peek() != Some(b'=') {
             return self.err("expected `=`");
         }
-        self.eat_token(
-            TokenType::JavaScript(rsvelte_typescript_syntax::lexer::T::Op),
-            1,
-        );
+        self.eat_token(TokenType::JavaScript(T::Op), 1);
         let expression_start = self.position;
         let initializer = self.expression()?;
         self.component.template_expressions.pop();

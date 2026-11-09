@@ -136,3 +136,25 @@ fn component_names_keep_their_member_tree_and_source_positions() {
     };
     assert_eq!(component, NodeIdentifier::NONE);
 }
+
+#[test]
+fn a_declaration_tag_takes_one_semicolon_and_a_snippet_keeps_its_type_parameters() {
+    for source in ["{let a;}", "{let a = 1 ;  }", "{const a = 1;}"] {
+        let component = parse(source).expect("one `;` after the declaration");
+        component.tokens.check_lossless(source).expect("all bytes");
+    }
+    assert!(parse("{let a;;}").is_err(), "Svelte takes one `;` only");
+
+    let source = "<script lang=\"ts\"></script>{#snippet f<T, U>(a: T)}x{/snippet}";
+    let component = parse(source).expect("a typed snippet");
+    let type_parameters = component.nodes.iter().find_map(|n| match n {
+        TemplateNode::Snippet {
+            type_parameters, ..
+        } => Some(*type_parameters),
+        _ => None,
+    });
+    assert_eq!(
+        type_parameters.flatten().map(|s| s.text(source)),
+        Some("<T, U>")
+    );
+}
