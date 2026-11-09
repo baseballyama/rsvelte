@@ -1,5 +1,5 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
-use rsvelte_svelte_semantic::resolve::{BindingKind, RUNES, for_each_pattern_target};
+use rsvelte_svelte_semantic::resolve::{BindingKind, RUNES, for_each_pattern_target, rune};
 use rsvelte_typescript_semantic::scope::{Binding, DeclarationKind, ScopeIdentifier, Semantic};
 use rsvelte_typescript_syntax::syntax_tree::{Control, TypeScriptFeature, TypeScriptRuntime, flag};
 use rustc_hash::FxHashSet;
@@ -248,8 +248,8 @@ pub(super) fn check_stores(
             || declaration.is_some_and(|b| {
                 let rune = b
                     .initializer(javascript)
-                    .and_then(|initializer| get_rune(javascript, res, initializer));
-                (rune.is_none() || (store != "props" && rune.as_deref() == Some("$props")))
+                    .and_then(|initializer| rune(javascript, initializer, Some(&res.sem)));
+                (rune.is_none() || (store != "props" && rune == Some("$props")))
                     && !(name == "$derived"
                         && b.kind == DeclarationKind::Import
                         && import_source(javascript, source_text, program, b.declaration)
@@ -312,8 +312,8 @@ pub(super) fn check_runes(
                 span,
             );
         }
-        if let Some(rune) = get_rune(javascript, res, e) {
-            let supported = match rune.as_str() {
+        if let Some(rune) = rune(javascript, e, Some(&res.sem)) {
+            let supported = match rune {
                 "$state" | "$state.raw" | "$derived" | "$derived.by" => !place.in_class,
                 "$props" | "$bindable" | "$effect.pending" | "$effect.tracking" => true,
                 "$host" => custom_element,
@@ -432,40 +432,6 @@ fn check_pattern_assignment(
         "an assignment to state, a prop or a derived in a pattern",
         span,
     )
-}
-
-/// Upstream `get_rune`: the rune a call's callee names through unbound globals.
-fn get_rune(javascript: &SyntaxTree, res: &Resolution, e: NodeIdentifier) -> Option<String> {
-    let Kind::Call { callee, .. } = javascript.kind(e) else {
-        return None;
-    };
-    let keypath = global_keypath(javascript, res, callee)?;
-    RUNES.contains(&keypath.as_str()).then_some(keypath)
-}
-
-/// Upstream `get_global_keypath`.
-fn global_keypath(javascript: &SyntaxTree, res: &Resolution, e: NodeIdentifier) -> Option<String> {
-    match javascript.kind(e) {
-        Kind::Identifier(_) => res
-            .sem
-            .binding_of(e)
-            .is_none()
-            .then(|| javascript.name(e).to_owned()),
-        Kind::Member {
-            object,
-            property,
-            computed: false,
-            ..
-        } => Some(format!(
-            "{}.{}",
-            global_keypath(javascript, res, object)?,
-            javascript.name(property)
-        )),
-        Kind::Call { callee, .. } => {
-            Some(format!("{}()", global_keypath(javascript, res, callee)?))
-        }
-        _ => None,
-    }
 }
 
 /// The module an import specifier of the instance script imports from.

@@ -1,3 +1,4 @@
+use rsvelte_typescript_semantic::scope::Semantic;
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 
 pub const RUNES: &[&str] = &[
@@ -21,62 +22,82 @@ pub const RUNES: &[&str] = &[
     "$host",
 ];
 
-/// `$name(arg)` or `$name.member(arg)` → (`"$name.member"`, first argument).
+/// Upstream `get_rune`: the rune a call names by its callee's shape.
+///
+/// The callee is `$x`, `$x.y` or `$inspect(…).with`, with any optional links. When `scope` is
+/// given the root must be unbound there, so that a store subscription of the same name is no rune.
+#[must_use]
+pub fn rune(
+    syntax_tree: &SyntaxTree,
+    e: NodeIdentifier,
+    scope: Option<&Semantic>,
+) -> Option<&'static str> {
+    let Kind::Call { callee, .. } = syntax_tree.kind(e) else {
+        return None;
+    };
+    let (rune, root) = match syntax_tree.kind(callee) {
+        Kind::Identifier(_) => {
+            let name = syntax_tree.name(callee);
+            let rune = RUNES
+                .iter()
+                .find(|rune| rune.split_once('.').is_none() && **rune == name)?;
+            (*rune, callee)
+        }
+        Kind::Member {
+            object,
+            property,
+            computed: false,
+            ..
+        } => {
+            let member = syntax_tree.name(property);
+            match syntax_tree.kind(object) {
+                Kind::Identifier(_) => {
+                    let root = syntax_tree.name(object);
+                    let rune = RUNES
+                        .iter()
+                        .find(|rune| rune.split_once('.') == Some((root, member)))?;
+                    (*rune, object)
+                }
+                Kind::Call {
+                    callee: inspect, ..
+                } if member == "with"
+                    && matches!(syntax_tree.kind(inspect), Kind::Identifier(_))
+                    && syntax_tree.name(inspect) == "$inspect" =>
+                {
+                    ("$inspect().with", inspect)
+                }
+                _ => return None,
+            }
+        }
+        _ => return None,
+    };
+    scope
+        .is_none_or(|semantic| semantic.binding_of(root).is_none())
+        .then_some(rune)
+}
+
+/// A rune call that lowers as one, with its first argument: one inside an optional chain is not.
 #[must_use]
 pub fn rune_call(
     syntax_tree: &SyntaxTree,
     e: NodeIdentifier,
 ) -> Option<(&'static str, Option<NodeIdentifier>)> {
     let Kind::Call {
-        callee, arguments, ..
+        callee,
+        arguments,
+        optional,
+        ..
     } = syntax_tree.kind(e)
     else {
         return None;
     };
-    let rune = match syntax_tree.kind(callee) {
-        Kind::Identifier(_) => match syntax_tree.name(callee) {
-            "$state" => "$state",
-            "$state.raw" => "$state.raw",
-            "$derived" => "$derived",
-            "$derived.by" => "$derived.by",
-            "$state.eager" => "$state.eager",
-            "$state.snapshot" => "$state.snapshot",
-            "$props" => "$props",
-            "$props.id" => "$props.id",
-            "$bindable" => "$bindable",
-            "$effect" => "$effect",
-            "$effect.pre" => "$effect.pre",
-            "$effect.tracking" => "$effect.tracking",
-            "$effect.root" => "$effect.root",
-            "$effect.pending" => "$effect.pending",
-            "$inspect" => "$inspect",
-            "$inspect().with" => "$inspect().with",
-            "$inspect.trace" => "$inspect.trace",
-            "$host" => "$host",
-            _ => return None,
-        },
-        Kind::Member {
-            object,
-            property,
-            computed: false,
-            ..
-        } if matches!(syntax_tree.kind(object), Kind::Identifier(_)) => {
-            match (syntax_tree.name(object), syntax_tree.name(property)) {
-                ("$state", "raw") => "$state.raw",
-                ("$derived", "by") => "$derived.by",
-                ("$state", "eager") => "$state.eager",
-                ("$state", "snapshot") => "$state.snapshot",
-                ("$props", "id") => "$props.id",
-                ("$effect", "pre") => "$effect.pre",
-                ("$effect", "tracking") => "$effect.tracking",
-                ("$effect", "root") => "$effect.root",
-                ("$effect", "pending") => "$effect.pending",
-                ("$inspect()", "with") => "$inspect().with",
-                ("$inspect", "trace") => "$inspect.trace",
-                _ => return None,
-            }
-        }
-        _ => return None,
-    };
-    Some((rune, arguments.first().copied()))
+    if optional
+        || matches!(
+            syntax_tree.kind(callee),
+            Kind::Member { optional: true, .. }
+        )
+    {
+        return None;
+    }
+    Some((rune(syntax_tree, e, None)?, arguments.first().copied()))
 }
