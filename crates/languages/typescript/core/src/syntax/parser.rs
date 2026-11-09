@@ -52,6 +52,8 @@ pub struct Parser<'a, 'b> {
     typescript: bool,
     allow_in: bool,
     end: u32,
+    /// `{ a = 1 }` shorthand properties not yet read as patterns; any left at the end is an error.
+    cover_initializers: Vec<Span>,
     /// [`SyntaxTree::scratch`]'s length when this parse began.
     base: usize,
 }
@@ -88,7 +90,7 @@ pub fn parse_program(
         p.item(s);
     }
     let program = p.close(body, |syntax_tree, body| syntax_tree.program(body, range));
-    p.done();
+    p.done()?;
     Ok(program)
 }
 
@@ -108,7 +110,7 @@ pub fn parse_expression(
     if p.token.t != T::Eof {
         return p.fail("unexpected token after expression");
     }
-    p.done();
+    p.done()?;
     Ok(e)
 }
 
@@ -136,7 +138,7 @@ pub fn parse_parameters(
     if p.token.t != T::Eof {
         return p.fail("unexpected token after parameters");
     }
-    p.done();
+    p.done()?;
     Ok(parameters)
 }
 
@@ -168,7 +170,7 @@ pub fn parse_expression_prefix(
     } else {
         p.token.span.start_offset
     };
-    p.done();
+    p.done()?;
     Ok((e, next))
 }
 
@@ -199,7 +201,7 @@ pub fn parse_declaration_prefix(
     } else {
         p.token.span.start_offset
     };
-    p.done();
+    p.done()?;
     Ok((d, next))
 }
 
@@ -264,6 +266,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             typescript,
             allow_in: true,
             end: range.end_offset,
+            cover_initializers: Vec::new(),
         })
     }
 
@@ -280,12 +283,19 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     /// Checks, where a parse succeeds, that it closed every list it opened.
-    fn done(&self) {
+    fn done(&self) -> R<()> {
+        if let Some(&span) = self.cover_initializers.first() {
+            return Err(ParseError {
+                message: "a shorthand property cannot have an initializer here".into(),
+                span,
+            });
+        }
         debug_assert_eq!(
             self.syntax_tree.scratch.len(),
             self.base,
             "a list was left open"
         );
+        Ok(())
     }
 
     const fn open(&self) -> List {
@@ -444,3 +454,6 @@ mod members;
 mod patterns;
 mod statements;
 mod typescript;
+
+#[cfg(test)]
+mod tests;

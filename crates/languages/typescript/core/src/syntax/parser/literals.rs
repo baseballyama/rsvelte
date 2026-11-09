@@ -1,4 +1,4 @@
-use super::{NodeIdentifier, Parser, R, RESERVED, Span, T, flag};
+use super::{AssignmentOperator, NodeIdentifier, Parser, R, RESERVED, Span, T, flag};
 
 impl Parser<'_, '_> {
     #[expect(clippy::too_many_lines, reason = "one arm per primary expression kind")]
@@ -237,7 +237,19 @@ impl Parser<'_, '_> {
                         .property(key, v, flags, self.span_from(plo));
                     self.item(prop);
                 } else if let Some(name) = self.syntax_tree.atom(key).filter(|_| !computed) {
-                    let value = self.syntax_tree.ident_atom(name, key_token);
+                    let mut value = self.syntax_tree.ident_atom(name, key_token);
+                    // `{ a = 1 }` is only valid once read as a pattern.
+                    if self.is_op("=") {
+                        self.bump()?;
+                        let default = self.assignment()?;
+                        value = self.syntax_tree.assign(
+                            AssignmentOperator::Assign,
+                            value,
+                            default,
+                            self.span_from(plo),
+                        );
+                        self.cover_initializers.push(self.span_from(plo));
+                    }
                     let prop =
                         self.syntax_tree
                             .property(key, value, flag::SHORTHAND, self.span_from(plo));

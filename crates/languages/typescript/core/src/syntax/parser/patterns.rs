@@ -139,6 +139,9 @@ impl Parser<'_, '_> {
                 })
             }
             super::Kind::Property { key, value, .. } => {
+                if let Some(span) = span.span() {
+                    self.cover_initializers.retain(|&cover| cover != span);
+                }
                 let value = self.assignment_pattern(value)?;
                 Ok(self
                     .syntax_tree
