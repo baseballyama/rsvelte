@@ -10,6 +10,7 @@ mod max_attributes_per_line;
 mod no_spaces_around_equal_signs_in_attribute;
 mod no_unused_variables;
 mod sort_attributes;
+mod spaced_html_comment;
 mod tags;
 mod valid_each_key;
 
@@ -25,5 +26,6 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &max_attributes_per_line::RULE,
     &no_spaces_around_equal_signs_in_attribute::RULE,
     &sort_attributes::RULE,
+    &spaced_html_comment::RULE,
     &valid_each_key::RULE,
 ];
