@@ -8,7 +8,7 @@ use rsvelte_svelte::syntax::syntax_tree::{
 use rsvelte_typescript::NodeIdentifier;
 use serde::Deserialize;
 
-use super::tags::{whitespace_after, whitespace_before};
+use super::tags::{is_special_this, whitespace_after, whitespace_before};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -144,12 +144,7 @@ impl Checker<'_> {
             TemplateNode::Element {
                 name, attributes, ..
             } => {
-                // `svelte-eslint-parser` reads `this={…}` there as a special directive.
-                let special = matches!(
-                    name.text(self.source),
-                    "svelte:element" | "svelte:component"
-                );
-                self.attributes(attributes, special, out);
+                self.attributes(name.text(self.source), attributes, out);
             }
             TemplateNode::If {
                 consequent,
@@ -251,15 +246,13 @@ impl Checker<'_> {
         out.push(self.block_end(span));
     }
 
-    fn attributes(&self, attributes: Range, special: bool, out: &mut Vec<Braces>) {
+    fn attributes(&self, element: &str, attributes: Range, out: &mut Vec<Braces>) {
         let options = self.options;
         for attribute in self.component.attributes(attributes) {
             let spacing = match attribute.kind {
                 AttributeKind::Attach => continue,
                 AttributeKind::Attribute
-                    if special
-                        && !attribute.shorthand
-                        && attribute.name.text(self.source) == "this" =>
+                    if is_special_this(self.component, self.source, element, attribute) =>
                 {
                     options.directive_expressions
                 }

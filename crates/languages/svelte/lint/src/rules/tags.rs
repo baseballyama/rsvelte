@@ -4,7 +4,8 @@
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::{Token, Tokens};
 use rsvelte_svelte::syntax::syntax_tree::{
-    Attribute, AttributeKind, Component, TagAttributes, TemplateNode, TokenType,
+    Attribute, AttributeKind, AttributeValue, Component, Part, TagAttributes, TemplateNode,
+    TokenType,
 };
 
 /// `<name …>` or `<name … />`.
@@ -76,6 +77,23 @@ pub(super) fn quote_before(tokens: &Tokens<TokenType>, offset: u32) -> Option<To
                 && token.span.end_offset == offset
         })
         .map(|token| token.kind)
+}
+
+/// Whether `svelte-eslint-parser` reads `attribute` of the element named `element` as a special
+/// directive rather than an attribute: `this={…}`, quoted or not, on `<svelte:element>` or
+/// `<svelte:component>`.
+pub(super) fn is_special_this(
+    component: &Component,
+    source: &str,
+    element: &str,
+    attribute: &Attribute,
+) -> bool {
+    matches!(element, "svelte:element" | "svelte:component")
+        && attribute.kind == AttributeKind::Attribute
+        && !attribute.shorthand
+        && attribute.name.text(source) == "this"
+        && matches!(attribute.value, AttributeValue::Parts(parts)
+            if matches!(component.parts(parts), [Part::Expression { .. }]))
 }
 
 /// Every start tag, in no particular order.
