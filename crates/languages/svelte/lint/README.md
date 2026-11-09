@@ -4,11 +4,22 @@ This crate has the rules that need syntax and scopes. It does not register a typ
 it does not depend on `rsvelte_svelte_lint_typed` or `rsvelte_typescript_check`. TypeScript core
 supplies JS/TS parsing and scopes; it does not start tsgo.
 
-| Rule                     | Facts requested           |
-| ------------------------ | ------------------------- |
-| `svelte/button-has-type` | Surface tree              |
-| `svelte/valid-each-key`  | HIR and resolution        |
-| `no-unused-vars`         | Resolution and JS parents |
+| Rule                                               | Facts requested           |
+| -------------------------------------------------- | ------------------------- |
+| `svelte/button-has-type`                           | Surface tree              |
+| `svelte/first-attribute-linebreak`                 | Surface tree              |
+| `svelte/html-closing-bracket-new-line`             | Surface tree              |
+| `svelte/html-closing-bracket-spacing`              | Surface tree              |
+| `svelte/html-quotes`                               | Surface tree              |
+| `svelte/html-self-closing`                         | Surface tree              |
+| `svelte/max-attributes-per-line`                   | Surface tree              |
+| `svelte/mustache-spacing`                          | Surface tree              |
+| `svelte/no-spaces-around-equal-signs-in-attribute` | Surface tree              |
+| `svelte/no-trailing-spaces`                        | Surface tree              |
+| `svelte/sort-attributes`                           | Surface tree              |
+| `svelte/spaced-html-comment`                       | Surface tree              |
+| `svelte/valid-each-key`                            | HIR and resolution        |
+| `no-unused-vars`                                   | Resolution and JS parents |
 
 Rules live in `src/rules/<rule>.rs`. `lint.rs` is the library entry point. `configuration.rs`
 selects rules, severity and options, and `task.rs` adapts the library to the registry and JSON
@@ -36,6 +47,7 @@ crate's cases in `tests/cases`, which use the same layout:
 - `<rule>/{valid,invalid}/<name>-input.svelte` is the input.
 - `<name>-config.json` or `_config.json` holds the options.
 - `<name>-errors.yaml` holds the expected reports.
+- `<name>-output.svelte` holds the code after one pass of fixes, when a fix applies.
 
 It reads them as the upstream runner does. Every case of an implemented rule must pass; the
 test counts the others.
@@ -43,10 +55,10 @@ test counts the others.
 ```sh
 cargo test -p rsvelte_svelte_lint --test upstream
 mise exec -- node tools/oracle/oracle.ts upstream eslint-plugin-svelte <checkout at the oracle's tag>
-mise exec -- node tools/oracle/oracle.ts lint-cases   # write errors.yaml for a new case in tests/cases
+mise exec -- node tools/oracle/oracle.ts lint-cases   # write errors.yaml and output for a new case
 ```
 
-To add a rule, add it to `IMPLEMENTED` in `tests/upstream.rs`. ESLint writes `errors.yaml`;
-never write it by hand.
+To add a rule, add it to `IMPLEMENTED` in `tests/upstream.rs`. ESLint writes `errors.yaml` and
+the output; never write them by hand.
 
 See [the performance workload](../../../../tools/performance/workloads/svelte-lint/README.md).
