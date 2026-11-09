@@ -1,5 +1,6 @@
 use rsvelte_typescript::scope::DeclarationKind;
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
+use rustc_hash::{FxBuildHasher, FxHashMap};
 
 use super::ExpressionMetadata;
 use super::evaluation::BindingValues;
@@ -16,6 +17,9 @@ pub(super) struct MetadataWalker<'a, 'walk, const COLLECT_METADATA: bool> {
     deps: u32,
     needs_context: bool,
     function_depth: u32,
+    /// Each walked call's `is_pure`, so a chain `f()()…` is judged once per link, not once per
+    /// link per enclosing call.
+    pure_calls: FxHashMap<NodeIdentifier, bool>,
 }
 
 impl<'a, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'a, 'walk, COLLECT_METADATA> {
@@ -37,6 +41,7 @@ impl<'a, 'walk, const COLLECT_METADATA: bool> MetadataWalker<'a, 'walk, COLLECT_
             deps: 0,
             needs_context: false,
             function_depth: 0,
+            pure_calls: FxHashMap::with_hasher(FxBuildHasher),
         }
     }
 
@@ -55,6 +60,7 @@ enum Task {
     Visit(NodeIdentifier),
     /// A call's checks, which read what its callee and arguments referenced.
     CallEnd {
+        call: NodeIdentifier,
         callee: NodeIdentifier,
         rune: Option<&'static str>,
     },
@@ -71,7 +77,7 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
         while let Some(task) = pending.pop() {
             match task {
                 Task::Visit(identifier) => self.enter(identifier, &mut pending),
-                Task::CallEnd { callee, rune } => self.call_end(callee, rune),
+                Task::CallEnd { call, callee, rune } => self.call_end(call, callee, rune),
                 Task::FunctionEnd { meta, deps } => {
                     self.function_depth -= 1;
                     self.meta = meta;
@@ -97,7 +103,11 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
                 callee, arguments, ..
             } => {
                 let rune = self.res.rune(self.syntax_tree, identifier).map(|(r, _)| r);
-                pending.push(Task::CallEnd { callee, rune });
+                pending.push(Task::CallEnd {
+                    call: identifier,
+                    callee,
+                    rune,
+                });
                 base += 1;
                 pending.push(Task::Visit(callee));
                 pending.extend(arguments.iter().map(|&a| Task::Visit(a)));
@@ -149,7 +159,17 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
         }
     }
 
-    fn call_end(&mut self, callee: NodeIdentifier, rune: Option<&'static str>) {
+    fn call_end(
+        &mut self,
+        call: NodeIdentifier,
+        callee: NodeIdentifier,
+        rune: Option<&'static str>,
+    ) {
+        // Inner calls end first, so this reads their recorded purity instead of walking them.
+        if COLLECT_METADATA {
+            let pure = self.is_pure(call);
+            self.pure_calls.insert(call, pure);
+        }
         if rune.is_none() {
             if !self.is_safe(callee) {
                 self.needs_context = true;
@@ -234,6 +254,9 @@ impl<const COLLECT_METADATA: bool> MetadataWalker<'_, '_, COLLECT_METADATA> {
                 Kind::Call {
                     callee, arguments, ..
                 } => {
+                    if let Some(&pure) = self.pure_calls.get(&e) {
+                        return pure;
+                    }
                     if !arguments.iter().all(|&a| self.is_pure(a)) {
                         return false;
                     }
