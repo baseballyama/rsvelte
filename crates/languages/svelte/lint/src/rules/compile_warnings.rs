@@ -167,15 +167,6 @@ pub(super) fn apply<'a>(
     let component = file.component().expect("a component");
     let source = file.source();
     let mut used = vec![false; ignores.items.len()];
-    let awaits = (!experimental_async).then(|| {
-        compile.awaits.iter().map(|&span| {
-            Diagnostic::error(
-                "experimental_async",
-                "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async",
-                span,
-            )
-        })
-    });
     let stripped = component
         .style
         .as_ref()
@@ -187,14 +178,7 @@ pub(super) fn apply<'a>(
         .style_error()
         .filter(|_| stripped.is_none())
         .cloned();
-    let first_error = parse_error.or_else(|| {
-        compile
-            .errors
-            .iter()
-            .cloned()
-            .chain(awaits.into_iter().flatten())
-            .min_by_key(|e| e.span.start_offset)
-    });
+    let first_error = parse_error.or_else(|| compile.first_error(component, experimental_async));
     if let Some(error) = first_error {
         return Applied {
             warnings: Vec::new(),

@@ -169,3 +169,34 @@ fn many_ignored_script_warnings_take_linear_time() {
     let seconds = seconds(format!("<script>\n{lets}</script>\n"), false);
     assert!(seconds < 5.0, "{seconds}");
 }
+
+/// The error a file reports, as `svelte`'s `compile` prints it: code, line, 0-based column.
+fn first_error(code: &str) -> Vec<(String, u32, u32)> {
+    codes(code)
+}
+
+#[test]
+fn scope_errors_come_before_template_errors() {
+    assert_eq!(
+        first_error("<slot name={x}></slot><script>let $x=1</script>\n"),
+        [("dollar_prefix_invalid".to_owned(), 1, 34)]
+    );
+}
+
+#[test]
+fn scope_errors_come_before_an_earlier_await() {
+    assert_eq!(
+        first_error("<script>\n  let x = await f(); let $y = 1;\n</script>\n"),
+        [("dollar_prefix_invalid".to_owned(), 2, 25)]
+    );
+}
+
+#[test]
+fn the_module_script_comes_before_the_instance_script() {
+    assert_eq!(
+        first_error(
+            "<script>\n  let $x = 1;\n</script>\n<script module>\n  let $m = 1;\n</script>\n"
+        ),
+        [("dollar_prefix_invalid".to_owned(), 5, 6)]
+    );
+}

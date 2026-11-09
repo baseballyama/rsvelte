@@ -22,10 +22,91 @@ mod a11y;
 pub struct CompileWarnings {
     /// In the order the compiler emits them.
     pub warnings: Vec<Diagnostic>,
-    /// Analysis errors, in source order; the compiler stops at the first.
-    pub errors: Vec<Diagnostic>,
+    /// Analysis errors, with when the compiler raises each; it stops at the first.
+    pub errors: Vec<(Raised, Diagnostic)>,
     /// The `await`s that are `experimental_async` errors unless that option is on.
     pub awaits: Vec<Span>,
+}
+
+/// When the compiler raises an error: it creates every scope before it walks any tree, and it
+/// handles the module script, then the instance script, then the template.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Raised {
+    pub phase: Phase,
+    pub section: Section,
+    /// Where the compiler's walk is when it raises the error.
+    pub at: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Phase {
+    Scopes,
+    Walk,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Section {
+    Module,
+    Instance,
+    Template,
+}
+
+impl Section {
+    /// The part of `component` that holds `offset`.
+    #[must_use]
+    pub fn of(component: &Component, offset: u32) -> Self {
+        let holds = |script: &Option<Script>| {
+            script
+                .as_ref()
+                .is_some_and(|s| s.span.start_offset <= offset && offset < s.span.end_offset)
+        };
+        if holds(&component.module) {
+            Self::Module
+        } else if holds(&component.instance) {
+            Self::Instance
+        } else {
+            Self::Template
+        }
+    }
+}
+
+impl CompileWarnings {
+    /// The error the compiler stops at; an `await` is one only without `experimental.async`.
+    #[must_use]
+    pub fn first_error(
+        &self,
+        component: &Component,
+        experimental_async: bool,
+    ) -> Option<Diagnostic> {
+        let awaits = self
+            .awaits
+            .iter()
+            .filter(|_| !experimental_async)
+            .map(|&span| {
+                let raised = Raised {
+                    phase: Phase::Walk,
+                    section: Section::of(component, span.start_offset),
+                    at: span.start_offset,
+                };
+                (raised, Err(span))
+            });
+        let (_, first) = self
+            .errors
+            .iter()
+            .map(|(raised, error)| (*raised, Ok(error)))
+            .chain(awaits)
+            .min_by_key(|(raised, _)| *raised)?;
+        Some(first.map_or_else(
+            |span| {
+                error(
+                    "experimental_async",
+                    "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`",
+                    span,
+                )
+            },
+            Clone::clone,
+        ))
+    }
 }
 
 impl CompileWarnings {
@@ -270,7 +351,7 @@ fn dollar_names(
     component: &Component,
     resolution: &Resolution,
     source: &str,
-    out: &mut Vec<Diagnostic>,
+    out: &mut Vec<(Raised, Diagnostic)>,
 ) {
     let sem = &resolution.sem;
     let javascript = &component.javascript;
@@ -313,19 +394,27 @@ fn dollar_names(
     }
     found.sort_by_key(|s| s.start_offset);
     for span in found {
-        out.push(if span.text(source) == "$" {
-            error(
-                "dollar_binding_invalid",
-                "The $ name is reserved, and cannot be used for variables and imports",
-                span,
-            )
-        } else {
-            error(
-                "dollar_prefix_invalid",
-                "The $ prefix is reserved, and cannot be used for variables and imports",
-                span,
-            )
-        });
+        let raised = Raised {
+            phase: Phase::Scopes,
+            section: Section::of(component, span.start_offset),
+            at: span.start_offset,
+        };
+        out.push((
+            raised,
+            if span.text(source) == "$" {
+                error(
+                    "dollar_binding_invalid",
+                    "The $ name is reserved, and cannot be used for variables and imports",
+                    span,
+                )
+            } else {
+                error(
+                    "dollar_prefix_invalid",
+                    "The $ prefix is reserved, and cannot be used for variables and imports",
+                    span,
+                )
+            },
+        ));
     }
 }
 
@@ -544,10 +633,20 @@ struct Template<'a> {
     component: &'a Component,
     source: &'a str,
     out: &'a mut Vec<Diagnostic>,
-    errors: &'a mut Vec<Diagnostic>,
+    errors: &'a mut Vec<(Raised, Diagnostic)>,
 }
 
 impl<'a> Template<'a> {
+    /// An error the template walk raises at the node starting at `node`.
+    fn error(&mut self, node: Span, error: Diagnostic) {
+        let raised = Raised {
+            phase: Phase::Walk,
+            section: Section::Template,
+            at: node.start_offset,
+        };
+        self.errors.push((raised, error));
+    }
+
     fn fragment(&mut self, range: Range, parent: a11y::Parent<'a>) {
         for &child in self.component.children(range) {
             self.node(child, parent);
@@ -566,7 +665,7 @@ impl<'a> Template<'a> {
     }
 
     /// `<slot name>`: a static name other than `default`.
-    fn slot(&mut self, attributes: Range) {
+    fn slot(&mut self, element: Span, attributes: Range) {
         let component = self.component;
         for attribute in component.attributes(attributes) {
             if attribute.kind != AttributeKind::Attribute
@@ -581,19 +680,20 @@ impl<'a> Template<'a> {
                 },
                 AttributeValue::True => None,
             };
-            match text {
-                None => self.errors.push(error(
+            let found = match text {
+                None => error(
                     "slot_element_invalid_name",
                     "slot attribute must be a static value",
                     attribute.span,
-                )),
-                Some(name) if name == "default" => self.errors.push(error(
+                ),
+                Some(name) if name == "default" => error(
                     "slot_element_invalid_name_default",
                     "`default` is a reserved word — it cannot be used as a slot name",
                     attribute.span,
-                )),
-                Some(_) => {}
-            }
+                ),
+                Some(_) => continue,
+            };
+            self.error(element, found);
         }
     }
 
@@ -646,7 +746,7 @@ impl<'a> Template<'a> {
                     );
                 }
                 if name == "slot" {
-                    self.slot(attributes);
+                    self.slot(span, attributes);
                 }
                 if dynamic {
                     self.dynamic_this(attributes);
