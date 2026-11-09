@@ -21,7 +21,6 @@ crates/
 │   ├── parser/                source to AST
 │   ├── compiler_syntax_tree/  the template HIR
 │   ├── semantic/              name resolution and component analysis
-│   ├── lint_typed/            type-aware lint rules
 │   ├── typescript_projection/ Svelte to TypeScript, for type checks
 │   ├── typecheck/             type checks and diagnostic mapping
 │   └── compile_vapor/         Svelte compiled for the Vue Vapor runtime

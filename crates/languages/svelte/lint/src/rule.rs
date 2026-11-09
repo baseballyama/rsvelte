@@ -17,7 +17,8 @@ use serde::de::DeserializeOwned;
 use serde_json::value::RawValue;
 
 use crate::LintSettings;
-use crate::computation::{ModuleParents, Parents};
+use crate::computation::{ConditionTypes, ModuleParents, NativeConditionTypes, Parents};
+use crate::types::TypeFacts;
 
 /// A configured rule. It holds its options and the settings it needs.
 pub trait SvelteRule: Send + Sync + std::fmt::Debug {
@@ -209,6 +210,18 @@ impl<'a> File<'a> {
             Source::Module(_) => self.context.get::<rsvelte_typescript::Resolved>().as_ref(),
         };
         semantic.expect("a parsed document resolves")
+    }
+
+    /// The condition type of each node of [`File::javascript`]: the host's type provider's, or
+    /// the built-in prototype's; `None` for a module.
+    #[must_use]
+    pub fn condition_types(&self) -> Option<&'a TypeFacts> {
+        self.component()?;
+        Some(
+            self.context
+                .facet::<ConditionTypes>()
+                .unwrap_or_else(|| self.context.get::<NativeConditionTypes>()),
+        )
     }
 
     /// The parent of each node of [`File::javascript`].

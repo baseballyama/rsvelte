@@ -58,8 +58,8 @@ population, the official JS run and the old `main` run.
 Most of the saving comes from skipping HIR, scopes and parent tables for configurations that
 need only syntax. The rules inspect attributes once, without a vector per element.
 Configurations share storage, and report rule names stream directly to the writer. The recorded
-condition facts used one byte per JS/TS node; that provider now lives in the separate
-`lint_typed` crate. Alias resolution is iterative and visits each binding once. Trees keep their
+condition facts used one byte per JS/TS node; the lint crate computes them only for a type-aware
+rule. Alias resolution is iterative and visits each binding once. Trees keep their
 existing immutable form.
 
 The default rules still need scopes. Their hardware difference is small, and the cache model shows

@@ -208,9 +208,8 @@ fn invalid_configuration_fails_before_compilation() {
     }
 }
 
-#[cfg(feature = "lint-typed")]
 #[test]
-fn typed_lint_configuration_enables_and_disables_its_rule() {
+fn a_type_aware_rule_is_configured_as_any_other_rule() {
     let project = Project::new();
     project.write("Input.svelte", "<script>if (true) console.log(1);</script>");
     for (level, expected) in [("error", true), ("off", false)] {
@@ -218,7 +217,7 @@ fn typed_lint_configuration_enables_and_disables_its_rule() {
             "config.json",
             &format!(
                 r#"{{
-            "plugins": {{"svelte.lint.typed": {{"rules": {{
+            "plugins": {{"svelte.lint": {{"rules": {{
                 "svelte/@typescript-eslint/no-unnecessary-condition": "{level}"
             }}}}}}
         }}"#
@@ -228,7 +227,7 @@ fn typed_lint_configuration_enables_and_disables_its_rule() {
             "--config",
             "config.json",
             "--task",
-            "svelte.lint.typed/default",
+            "svelte.lint/default",
         ]);
         assert!(
             output.status.success(),

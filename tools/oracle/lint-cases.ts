@@ -6,6 +6,7 @@
 // nothing and an invalid one something.
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import os from 'node:os';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import type { Linter as LinterType } from 'eslint';
@@ -34,40 +35,98 @@ function options(input: string): unknown[] {
 	return config.options ?? [];
 }
 
+// A rule is a directory with `valid/` or `invalid/`, possibly under a prefix (`@typescript-eslint/`).
+function rules(directory: string): string[] {
+	if (['valid', 'invalid'].some((kind) => fs.existsSync(path.join(directory, kind))))
+		return [path.relative(ROOT, directory)];
+	return fs
+		.readdirSync(directory, { withFileTypes: true })
+		.filter((entry) => entry.isDirectory())
+		.flatMap((entry) => rules(path.join(directory, entry.name)));
+}
+
+// A type-aware rule reads a TypeScript project.
+const typedRule = (rule: string) => rule.startsWith('@typescript-eslint/');
+
 export async function main(args: string[]): Promise<void> {
 	const { values } = parseArgs({ args, options: { update: { type: 'boolean', default: false } } });
 	const require = createRequire(path.join(import.meta.dirname, 'package.json'));
 	const { Linter } = require('eslint') as typeof import('eslint');
 	const plugin = require('eslint-plugin-svelte').default;
 	const svelteParser = require('svelte-eslint-parser');
+	const typescriptParser = require('@typescript-eslint/parser');
 	const globals = require('globals');
 	const yaml = require('yaml');
 	const linter = new Linter();
+	// Type-aware rules read a strict TypeScript project that holds the input as its only file.
+	const project = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-lint-cases-'));
+	fs.symlinkSync(
+		path.join(import.meta.dirname, 'node_modules'),
+		path.join(project, 'node_modules'),
+	);
+	fs.writeFileSync(
+		path.join(project, 'tsconfig.json'),
+		JSON.stringify({ compilerOptions: { strict: true, types: [] }, include: ['*.svelte'] }),
+	);
+	const projectInput = path.join(project, 'input.svelte');
+	const projectLinter = new Linter({ cwd: project });
 	let written = 0;
 	let cases = 0;
-	for (const rule of fs.readdirSync(ROOT)) {
+	// After a run with a TypeScript project, one without it fails in ESLint (`addGlobals`).
+	const ordered = rules(ROOT).toSorted((a, b) => Number(typedRule(a)) - Number(typedRule(b)));
+	for (const rule of ordered) {
+		const typed = typedRule(rule);
 		for (const kind of ['valid', 'invalid'] as const) {
 			const directory = path.join(ROOT, rule, kind);
 			if (!fs.existsSync(directory)) continue;
 			for (const input of inputs(directory)) {
 				cases++;
-				// upstream's writeFixtures, without a TypeScript project: no case here uses type information.
-				const messages: LinterType.LintMessage[] = linter.verify(
-					fs.readFileSync(input, 'utf8'),
-					{
-						files: ['**'],
-						plugins: { svelte: plugin },
-						rules: { [`svelte/${rule}`]: ['error', ...options(input)] },
-						languageOptions: {
-							globals: globals.browser,
-							ecmaVersion: 'latest',
-							sourceType: 'module',
-							parser: svelteParser,
-							parserOptions: { parser: { ts: '@typescript-eslint/parser', js: 'espree' } },
+				const code = fs.readFileSync(input, 'utf8');
+				const ruleConfig: LinterType.RulesRecord = {
+					[`svelte/${rule}`]: ['error', ...options(input)],
+				};
+				let messages: LinterType.LintMessage[];
+				if (typed) {
+					fs.writeFileSync(projectInput, code);
+					messages = projectLinter.verify(
+						code,
+						[
+							...plugin.configs.base,
+							{
+								files: ['**/*.svelte'],
+								languageOptions: {
+									parserOptions: {
+										parser: typescriptParser,
+										extraFileExtensions: ['.svelte'],
+										project: path.join(project, 'tsconfig.json'),
+										tsconfigRootDir: project,
+										svelteFeatures: { runes: true },
+									},
+								},
+								rules: ruleConfig,
+							},
+						],
+						{ filename: projectInput },
+					);
+				} else {
+					// upstream's writeFixtures, without a TypeScript project.
+					messages = linter.verify(
+						code,
+						{
+							files: ['**'],
+							plugins: { svelte: plugin },
+							rules: ruleConfig,
+							languageOptions: {
+								globals: globals.browser,
+								ecmaVersion: 'latest',
+								sourceType: 'module',
+								parser: svelteParser,
+								parserOptions: { parser: { ts: '@typescript-eslint/parser', js: 'espree' } },
+							},
 						},
-					},
-					input,
-				);
+						input,
+					);
+				}
 				const fatal = messages.find((m) => m.fatal);
 				if (fatal) throw new Error(`${input}: ${fatal.message}`);
 				const relative = path.relative(ROOT, input);

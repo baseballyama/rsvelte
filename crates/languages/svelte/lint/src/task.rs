@@ -7,7 +7,10 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
 
 use crate::Configuration;
-use crate::computation::{LintConfiguration, ModuleParents, Parents};
+use crate::computation::{
+    ConditionTypes, LintConfiguration, ModuleParents, NativeConditionTypes, Parents,
+};
+use crate::types::TypeFacts;
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.lint",
@@ -34,7 +37,19 @@ pub fn register_artifacts(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
     rsvelte_svelte::register(registry);
     rsvelte_typescript::register(registry);
-    registry.artifact::<Parents>().artifact::<ModuleParents>();
+    registry
+        .artifact::<Parents>()
+        .artifact::<ModuleParents>()
+        .artifact::<NativeConditionTypes>();
+}
+
+/// Replaces the built-in prototype's condition types with `provider`'s. A rule that is off never
+/// calls it, and it runs at most once per document.
+pub fn register_type_provider(
+    registry: &mut Registry,
+    provider: impl Fn(&DocumentContext<'_>) -> TypeFacts + Send + Sync + 'static,
+) {
+    registry.provide::<ConditionTypes>("svelte.lint", rsvelte_svelte::matches, provider);
 }
 
 /// Turns on `svelte.lint/default` with `configuration`. It lints modules only when a configured
