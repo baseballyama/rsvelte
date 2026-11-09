@@ -18,6 +18,7 @@ pub mod semantic {
     pub mod globals;
     pub mod number;
     pub mod scope;
+    pub mod static_value;
 }
 pub use semantic::scope;
 
