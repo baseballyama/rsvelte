@@ -6,6 +6,7 @@
 #![expect(clippy::print_stderr, reason = "a test harness reports on stderr")]
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -24,12 +25,29 @@ const UPSTREAM: &str = concat!(
     "/tests/upstream/eslint-plugin-svelte"
 );
 const OWN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/cases");
-/// Cases whose expected output is an upstream bug this crate does not reproduce, by document,
-/// with why. Each is a candidate issue for eslint-plugin-svelte.
-const DEVIATIONS: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/tests/upstream_deviations.json"
-);
+/// Lists of upstream cases, by document, each with why, that run and are counted in their own
+/// column without failing; a listed case that passes fails as stale.
+const LISTS: &[(&str, &str)] = &[
+    // The expected output is an upstream bug this crate does not reproduce; each is a candidate
+    // issue for eslint-plugin-svelte.
+    (
+        "deviate",
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/upstream_deviations.json"
+        ),
+    ),
+    // The case needs syntax the parser does not have yet.
+    (
+        "parser",
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/upstream_parser.json"),
+    ),
+    // The case needs type information, which upstream's runner has through `parserOptions.project`.
+    (
+        "typed",
+        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/upstream_typed.json"),
+    ),
+];
 /// Rules whose verdicts are counted but do not fail: type-aware rules do not follow
 /// `svelte-eslint-parser`'s virtual code.
 const TYPED: &[&str] = &["@typescript-eslint/no-unnecessary-condition"];
@@ -119,22 +137,22 @@ fn main() -> ExitCode {
         "eslint-plugin-svelte {}",
         upstream.versions["eslint-plugin-svelte"]
     );
-    let mut deviations: BTreeMap<String, String> =
-        serde_json::from_str(&read(Path::new(DEVIATIONS))).expect("deviations are an object");
-    let mut failed = suite(
-        &label,
-        Path::new(UPSTREAM),
-        &upstream.versions,
-        &mut deviations,
-    ) + suite(
-        "this crate's cases",
-        Path::new(OWN),
-        &upstream.versions,
-        &mut BTreeMap::new(),
-    );
-    for (document, reason) in &deviations {
-        failed += 1;
-        eprintln!("UNKNOWN DEVIATION {document}: no case of an implemented rule ({reason})");
+    let mut lists: Vec<BTreeMap<String, String>> = LISTS
+        .iter()
+        .map(|(_, path)| serde_json::from_str(&read(Path::new(path))).expect("a list is an object"))
+        .collect();
+    let mut failed = suite(&label, Path::new(UPSTREAM), &upstream.versions, &mut lists)
+        + suite(
+            "this crate's cases",
+            Path::new(OWN),
+            &upstream.versions,
+            &mut vec![BTreeMap::new(); LISTS.len()],
+        );
+    for ((column, _), list) in LISTS.iter().zip(&lists) {
+        for (document, reason) in list {
+            failed += 1;
+            eprintln!("UNKNOWN {column} {document}: no case of an implemented rule ({reason})");
+        }
     }
     if failed == 0 {
         ExitCode::SUCCESS
@@ -148,7 +166,7 @@ fn suite(
     label: &str,
     root: &Path,
     versions: &BTreeMap<String, String>,
-    deviations: &mut BTreeMap<String, String>,
+    lists: &mut [BTreeMap<String, String>],
 ) -> usize {
     let cases = cases(root);
     let mut by_rule: BTreeMap<&str, Counts> = BTreeMap::new();
@@ -164,19 +182,27 @@ fn suite(
             continue;
         }
         let document = case.document();
-        let deviation = deviations.remove(&document);
+        let listed = lists
+            .iter_mut()
+            .enumerate()
+            .find_map(|(index, list)| list.remove(&document).map(|reason| (index, reason)));
         let typed = TYPED.contains(&case.rule.as_str());
         let counts = by_rule.entry(&case.rule).or_default();
         counts.total += 1;
-        match (verdict, deviation) {
+        match (verdict, listed) {
             (Verdict::NotImplemented, _) => unreachable!("counted above"),
             (Verdict::Pass, None) => counts.pass += 1,
-            (Verdict::Pass, Some(reason)) => {
+            (Verdict::Pass, Some((index, reason))) => {
                 counts.fail += 1;
                 failed += 1;
-                eprintln!("STALE DEVIATION {document}: passes, but is listed ({reason})");
+                eprintln!(
+                    "STALE {} {document}: passes, but is listed ({reason})",
+                    LISTS[index].0
+                );
             }
-            (Verdict::Fail(_) | Verdict::Unmeasured(_), Some(_)) => counts.deviation += 1,
+            (Verdict::Fail(_) | Verdict::Unmeasured(_), Some((index, _))) => {
+                counts.listed[index] += 1;
+            }
             (Verdict::Fail(detail), None) => {
                 counts.fail += 1;
                 if !typed {
@@ -206,9 +232,13 @@ fn suite(
         } else {
             ""
         };
+        let mut listed = String::new();
+        for ((column, _), count) in LISTS.iter().zip(&c.listed) {
+            write!(listed, ", {count} {column}").expect("writing to a string");
+        }
         eprintln!(
-            "  {rule}: {} of {} pass, {} fail, {} unmeasured, {} deviate{typed}",
-            c.pass, c.total, c.fail, c.unmeasured, c.deviation
+            "  {rule}: {} of {} pass, {} fail, {} unmeasured{listed}{typed}",
+            c.pass, c.total, c.fail, c.unmeasured
         );
     }
     assert!(
@@ -223,7 +253,8 @@ struct Counts {
     pass: usize,
     fail: usize,
     unmeasured: usize,
-    deviation: usize,
+    /// The cases of each of `LISTS` that do not pass.
+    listed: [usize; LISTS.len()],
     total: usize,
 }
 
