@@ -2,20 +2,7 @@
 
 use rsvelte_kernel::source::positions::Span;
 
-/// JavaScript's `\s`.
-pub(crate) const fn is_js_space(c: char) -> bool {
-    matches!(
-        c,
-        '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'
-            ..='\u{200a}'
-                | '\u{2028}'
-                | '\u{2029}'
-                | '\u{202f}'
-                | '\u{205f}'
-                | '\u{3000}'
-                | '\u{feff}'
-    )
-}
+pub(crate) use rsvelte_svelte::warnings::is_js_whitespace as is_js_space;
 
 /// The runs of `text` between commas and `\s`, as spans of the document `text` starts at `base` in.
 pub(crate) fn words(text: &str, base: u32) -> Vec<Span> {

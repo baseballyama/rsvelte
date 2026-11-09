@@ -225,6 +225,22 @@ impl CompileWarnings {
     ];
 }
 
+/// JavaScript's `\s`, which `trim()` removes.
+#[must_use]
+pub const fn is_js_whitespace(c: char) -> bool {
+    matches!(
+        c,
+        '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ' | '\u{a0}' | '\u{1680}' | '\u{2000}'
+            ..='\u{200a}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{202f}'
+                | '\u{205f}'
+                | '\u{3000}'
+                | '\u{feff}'
+    )
+}
+
 fn warning(code: &'static str, message: &str, span: Span) -> Diagnostic {
     let message = format!("{message}\nhttps://svelte.dev/e/{code}");
     Diagnostic::warning(code, message, span)
@@ -262,6 +278,7 @@ pub fn warnings(
         source,
         out: &mut out.warnings,
         errors: &mut out.errors,
+        shadow_root: false,
     }
     .fragment(component.root, a11y::Parent::None);
     if !runes {
@@ -810,6 +827,8 @@ struct Template<'a> {
     source: &'a str,
     out: &'a mut Vec<Diagnostic>,
     errors: &'a mut Vec<(Raised, Diagnostic)>,
+    /// Inside an element with `shadowrootmode`, where `<slot>` is an ordinary element.
+    shadow_root: bool,
 }
 
 impl<'a> Template<'a> {
@@ -833,7 +852,10 @@ impl<'a> Template<'a> {
     fn branch(&mut self, range: Range, parent: a11y::Parent<'a>) {
         if let [only] = self.component.children(range)
             && let TemplateNode::Text { span } = *self.component.node(*only)
-            && span.text(self.source).trim().is_empty()
+            && span
+                .text(self.source)
+                .trim_matches(is_js_whitespace)
+                .is_empty()
         {
             self.out.push(warning("block_empty", "Empty block", span));
         }
@@ -904,10 +926,9 @@ impl<'a> Template<'a> {
             } => {
                 let name = name.text(self.source);
                 let dynamic = name == "svelte:element";
-                let regular = !dynamic
-                    && !name.starts_with("svelte:")
-                    && name != "slot"
-                    && !is_component_name(name);
+                let slot = name == "slot" && !self.shadow_root;
+                let regular =
+                    !dynamic && !name.starts_with("svelte:") && !slot && !is_component_name(name);
                 if regular || dynamic {
                     a11y::check_element(
                         component,
@@ -921,7 +942,7 @@ impl<'a> Template<'a> {
                         self.out,
                     );
                 }
-                if name == "slot" {
+                if slot {
                     self.slot(span, attributes);
                 }
                 if dynamic {
@@ -934,7 +955,14 @@ impl<'a> Template<'a> {
                 } else {
                     parent
                 };
+                let shadow_root = self.shadow_root;
+                self.shadow_root |= regular
+                    && component.attributes(attributes).iter().any(|a| {
+                        a.kind == AttributeKind::Attribute
+                            && a.name.text(self.source) == "shadowrootmode"
+                    });
                 self.fragment(children, inner);
+                self.shadow_root = shadow_root;
             }
             TemplateNode::If {
                 consequent,

@@ -290,3 +290,21 @@ fn a_let_directive_shadows_an_export() {
         []
     );
 }
+
+#[test]
+fn a_slot_in_a_shadow_root_is_an_element() {
+    assert_eq!(
+        codes(
+            "<template shadowrootmode=\"open\"><slot name={x} tabindex=\"0\"></slot></template>\n"
+        ),
+        [("a11y_no_noninteractive_tabindex".to_owned(), 1, 32)]
+    );
+}
+
+#[test]
+fn an_empty_block_is_empty_by_javascript_trim() {
+    assert_eq!(
+        codes("{#if x}\u{feff}{/if}\n{#if y}\u{85}{/if}\n"),
+        [("block_empty".to_owned(), 1, 7)]
+    );
+}
