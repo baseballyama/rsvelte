@@ -35,6 +35,73 @@ fn squashed(source: &str, target: Target) -> String {
 }
 
 #[test]
+fn a_destructuring_assignment_is_refused_where_the_target_reads_a_signal() {
+    for script in [
+        "let n = $state(0); [n] = [1];",
+        "let { p = $bindable(0) } = $props(); [p] = [1];",
+        "let { a = $bindable({}) } = $props(); [a.x] = [1];",
+        "let { a = $bindable({}) } = $props(); ({ y: a.y } = { y: 2 });",
+        "let n = $state(0); function f() { [[n]] = [[1]]; }",
+    ] {
+        let source = format!("<script>{script}</script>");
+        assert_eq!(
+            compile(&source, Target::Client),
+            Err("unsupported".to_owned()),
+            "{source}"
+        );
+        compiled(&source, Target::Server);
+    }
+    // The server reads a derived through a call, which a pattern cannot assign.
+    for script in [
+        "let d = $derived(1); function f() { [d] = [2]; }",
+        "let d = $derived(1); function f(o) { ({ d } = o); }",
+        "let d = $derived.by(() => 1); function f() { [d] = [2]; }",
+    ] {
+        let source = format!("<script>{script}</script><button onclick={{f}}>{{d}}</button>");
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(
+                compile(&source, target),
+                Err("unsupported".to_owned()),
+                "{source} on {target:?}"
+            );
+        }
+    }
+    let plain = "<script>let a = 1, b = 2; [a, b] = [b, a];</script>{a}{b}";
+    assert!(squashed(plain, Target::Client).contains("[a,b]=[b,a]"));
+}
+
+/// Upstream splits each into one declaration per path, which this port does not do yet.
+#[test]
+fn a_loop_head_that_assigns_a_signal_is_refused_on_both_targets() {
+    for script in [
+        "let n = $state(0); n = 2; function f() { for (n of [1]) {} }",
+        "let n = $state(0); n = 2; function f() { for (n in {}) {} }",
+        "let n = $state(0); n = 2; function f() { for ({ n } of [{}]) {} }",
+        "let { p } = $props(); function f() { for (p of [1]) {} }",
+        "let n = $state(0); let d = $derived(n); function f() { for (d of [1]) {} }",
+        "let { a = $bindable() } = $props(); function f() { for (a.x of [1]) {} }",
+    ] {
+        let source = format!("<script>{script}</script>");
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(
+                compile(&source, target).err().as_deref(),
+                Some("unsupported"),
+                "{source} on {target:?}"
+            );
+        }
+    }
+    for script in [
+        "let x = 0; function f() { for (x of [1]) {} }",
+        "let o = {}; function f() { for (o.k in {}) {} }",
+        "let n = $state(0); function f() { for (const n of [1]) {} }",
+    ] {
+        let source = format!("<script>{script}</script>");
+        compiled(&source, Target::Client);
+        compiled(&source, Target::Server);
+    }
+}
+
+#[test]
 fn a_derived_keeps_its_arrow_only_when_the_callee_may_change() {
     let source = "<script>import A from './A.svelte'; const g = () => 1; let f = () => 1; function swap() { f = () => 2; } let d = $derived(g()); let e = $derived(f()); let l = $derived(h()); const h = () => 3;</script><A a={f()} b={g()} {d} {e} {l} {swap} />";
     let client = squashed(source, Target::Client);

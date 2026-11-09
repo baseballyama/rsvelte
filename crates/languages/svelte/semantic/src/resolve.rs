@@ -82,31 +82,31 @@ pub fn resolve_with_module(
     }
 }
 
-/// The identifiers a binding pattern declares.
-pub fn for_each_pattern_identifier(
+/// The targets a pattern writes: the identifiers it declares, and in an assignment its members.
+pub fn for_each_pattern_target(
     syntax_tree: &SyntaxTree,
     p: NodeIdentifier,
     f: &mut impl FnMut(NodeIdentifier),
 ) {
     match syntax_tree.kind(p) {
-        Kind::Identifier(_) => f(p),
+        Kind::Identifier(_) | Kind::Member { .. } => f(p),
         Kind::ObjectPattern(props) => {
             for &pr in props {
                 match syntax_tree.kind(pr) {
                     Kind::Property { value, .. } => {
-                        for_each_pattern_identifier(syntax_tree, value, f);
+                        for_each_pattern_target(syntax_tree, value, f);
                     }
-                    Kind::Rest(a) => for_each_pattern_identifier(syntax_tree, a, f),
+                    Kind::Rest(a) => for_each_pattern_target(syntax_tree, a, f),
                     _ => {}
                 }
             }
         }
         Kind::ArrayPattern(items) => {
             for &it in items {
-                for_each_pattern_identifier(syntax_tree, it, f);
+                for_each_pattern_target(syntax_tree, it, f);
             }
         }
-        Kind::AssignPattern(l, _) | Kind::Rest(l) => for_each_pattern_identifier(syntax_tree, l, f),
+        Kind::AssignPattern(l, _) | Kind::Rest(l) => for_each_pattern_target(syntax_tree, l, f),
         _ => {}
     }
 }

@@ -2702,7 +2702,7 @@ svelte/flowbite-svelte/src/routes/layouts/component/h2.svelte	refused
 svelte/flowbite-svelte/src/routes/layouts/component/h3.svelte	refused
 svelte/flowbite-svelte/src/routes/utils/AlgoliaSearch.svelte	refused
 svelte/flowbite-svelte/src/routes/utils/CodeWrapper.svelte	refused
-svelte/flowbite-svelte/src/routes/utils/CompoAttributesViewer.svelte	unparseable
+svelte/flowbite-svelte/src/routes/utils/CompoAttributesViewer.svelte	refused
 svelte/flowbite-svelte/src/routes/utils/CopyCliboardInput.svelte	refused
 svelte/flowbite-svelte/src/routes/utils/ExampleWrapper.svelte	refused
 svelte/flowbite-svelte/src/routes/utils/FathomAnalytics.svelte	refused

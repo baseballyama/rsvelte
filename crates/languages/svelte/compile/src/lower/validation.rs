@@ -1,4 +1,4 @@
-use rsvelte_svelte_semantic::resolve::RUNES;
+use rsvelte_svelte_semantic::resolve::{BindingKind, RUNES, for_each_pattern_target};
 use rsvelte_typescript_semantic::scope::{DeclarationKind, ScopeIdentifier};
 use rsvelte_typescript_syntax::syntax_tree::{Control, TypeScriptFeature, TypeScriptRuntime};
 
@@ -267,6 +267,7 @@ pub(super) fn check_runes(
         if matches!(javascript.kind(e), Kind::Declarator { .. }) {
             super::script::check_destructured_rune(javascript, target, e)?;
         }
+        check_pattern_assignment(javascript, res, target, custom_element, e)?;
         let mut children = Vec::new();
         javascript.for_each_child(e, |c| children.push(c));
         let place = Place {
@@ -310,6 +311,60 @@ pub(super) fn check_runes(
         walk(javascript, res, target, custom_element, root, place)?;
     }
     Ok(())
+}
+
+/// Refuses a pattern assigned to a name the target reads through a signal or a call, or to a
+/// member of a `$bindable` prop: a destructuring assignment needs upstream's per-path assignment,
+/// and upstream prints a `for … in` or `for … of` head as invalid JavaScript.
+fn check_pattern_assignment(
+    javascript: &SyntaxTree,
+    res: &Resolution,
+    target: Target,
+    accessors: bool,
+    e: NodeIdentifier,
+) -> Result<(), Diagnostic> {
+    let (pattern, target) = match javascript.kind(e) {
+        Kind::Assign(_, pattern, _)
+            if matches!(
+                javascript.kind(pattern),
+                Kind::ArrayPattern(_) | Kind::ObjectPattern(_)
+            ) =>
+        {
+            (pattern, target)
+        }
+        // Upstream prints any non-plain head as invalid JavaScript, on the server too.
+        Kind::Control(Control::ForEach { left, .. })
+            if !matches!(javascript.kind(left), Kind::VariableDeclaration { .. }) =>
+        {
+            (left, Target::Client)
+        }
+        _ => return Ok(()),
+    };
+    let mut transformed = false;
+    for_each_pattern_target(javascript, pattern, &mut |name| {
+        transformed |= if javascript.is_identifier(name) {
+            res.binding(name)
+                .is_some_and(|(_, information)| match information.kind {
+                    BindingKind::Normal => false,
+                    // The server reads only a derived through a call.
+                    BindingKind::Derived | BindingKind::DerivedBy => true,
+                    _ => target == Target::Client,
+                })
+        } else {
+            target == Target::Client
+                && super::script::mutated_bindable_prop(res, accessors, javascript, name).is_some()
+        };
+    });
+    if !transformed {
+        return Ok(());
+    }
+    let Some(span) = javascript.source_location(e).span() else {
+        unreachable!("an assignment is parsed from source")
+    };
+    unsupported(
+        "an assignment to state, a prop or a derived in a pattern",
+        span,
+    )
 }
 
 /// Upstream `get_rune`: the rune a call's callee names through unbound globals.
