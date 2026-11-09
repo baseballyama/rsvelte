@@ -35,18 +35,16 @@ impl Namespace {
     }
 }
 
+/// Each node's namespace, and each fragment's; nothing when the component has no foreign content.
 #[derive(Debug)]
-pub(super) enum Namespaces {
-    AllDefault,
-    Foreign(Box<Foreign>),
-}
+pub struct Namespaces(Option<Box<Foreign>>);
 
 #[derive(Debug)]
-pub(super) struct Foreign {
+struct Foreign {
     namespaces: IndexVector<CompilerNodeIdentifier, Namespace>,
-    children: IndexVector<CompilerNodeIdentifier, Namespace>,
-    /// Upstream keeps whitespace inside an svg `<text>`.
-    in_text: IndexVector<CompilerNodeIdentifier, bool>,
+    /// What a node's children inherit: their namespace, and whether they are inside an svg
+    /// `<text>`, where upstream keeps whitespace.
+    children: IndexVector<CompilerNodeIdentifier, (Namespace, bool)>,
     /// Upstream `metadata.svg` and `metadata.mathml`, which namespace inference reads instead of
     /// the inherited namespace.
     named: IndexVector<CompilerNodeIdentifier, Namespace>,
@@ -54,52 +52,87 @@ pub(super) struct Foreign {
 }
 
 impl Namespaces {
-    pub(super) fn get(&self, node: CompilerNodeIdentifier) -> Namespace {
-        match self {
-            Self::AllDefault => Namespace::Html,
-            Self::Foreign(foreign) => foreign.namespaces[node],
+    #[must_use]
+    pub fn build(input: &CompileInput<'_>) -> Self {
+        let tree = input.component.compiler_syntax_tree;
+        let configured = tree
+            .elements()
+            .find_map(|(_, element)| {
+                if element.kind != ElementKind::Metadata(Some(MetadataTag::Options)) {
+                    return None;
+                }
+                tree.attributes(element.attributes)
+                    .iter()
+                    .find_map(|attribute| {
+                        if attribute.name.text(input.component.source_text) != "namespace" {
+                            return None;
+                        }
+                        crate::input::static_string(input, &attribute.value).map(Namespace::parse)
+                    })
+            })
+            .unwrap_or(Namespace::Html);
+        let has_foreign = configured != Namespace::Html
+            || tree.elements().any(|(_, element)| {
+                if matches!(
+                    element.name.text(input.component.source_text),
+                    "svg" | "math"
+                ) {
+                    return true;
+                }
+                tree.attributes(element.attributes).iter().any(|attribute| {
+                    if attribute.name.text(input.component.source_text) != "xmlns" {
+                        return false;
+                    }
+                    match &attribute.value {
+                        AttributeValue::Static(value) => Namespace::parse(value) != Namespace::Html,
+                        _ => false,
+                    }
+                })
+            });
+        if !has_foreign {
+            return Self(None);
         }
+        let mut foreign = Foreign {
+            namespaces: IndexVector::from_element_n(Namespace::Html, tree.nodes.len()),
+            children: IndexVector::from_element_n((Namespace::Html, false), tree.nodes.len()),
+            named: IndexVector::from_element_n(Namespace::Html, tree.nodes.len()),
+            configured,
+        };
+        let scope = Scope {
+            namespace: configured,
+            in_text: false,
+            regular: Namespace::Html,
+            dynamic: configured,
+        };
+        foreign.walk(input, tree.root, scope);
+        Self(Some(Box::new(foreign)))
     }
 
-    /// Upstream `infer_namespace` for the fragment `nodes`, which their parent node holds.
-    pub(super) fn infer(
+    #[must_use]
+    pub fn get(&self, node: CompilerNodeIdentifier) -> Namespace {
+        self.0
+            .as_ref()
+            .map_or(Namespace::Html, |foreign| foreign.namespaces[node])
+    }
+
+    /// Upstream `infer_namespace` for the fragment `nodes`, which their parent node holds, and
+    /// whether [`super::clean_nodes`] drops the whitespace between them: in svg, outside an svg
+    /// `<text>`.
+    #[must_use]
+    pub fn fragment(
         &self,
         tree: &CompilerSyntaxTree,
         source_text: &str,
         nodes: &[CompilerNodeIdentifier],
-    ) -> Namespace {
-        let Self::Foreign(foreign) = self else {
-            return Namespace::Html;
+    ) -> (Namespace, bool) {
+        let Some(foreign) = &self.0 else {
+            return (Namespace::Html, false);
         };
         let owner = nodes.first().and_then(|&node| tree.node(node).parent);
-        let inherited = owner.map_or(foreign.configured, |owner| foreign.children[owner]);
-        let checks_nodes = match owner.map(|owner| &tree.node(owner).kind) {
-            Some(NodeKind::Element(element)) if is_dom(element.kind) => return inherited,
-            None | Some(NodeKind::Snippet(_)) => true,
-            Some(NodeKind::Element(element)) => element.kind == ElementKind::Component,
-            Some(_) => false,
-        };
-        if checks_nodes
-            && let Checked::Namespace(namespace) = foreign.check_nodes(tree, source_text, nodes)
-        {
-            return namespace;
-        }
-        foreign.consistent(tree, nodes, inherited)
-    }
-
-    /// Whitespace-only text between nodes is dropped in svg, outside an svg `<text>`.
-    pub(super) fn drops_whitespace(
-        &self,
-        namespace: Namespace,
-        nodes: &[CompilerNodeIdentifier],
-    ) -> bool {
-        match self {
-            Self::AllDefault => false,
-            Self::Foreign(foreign) => {
-                namespace == Namespace::Svg
-                    && !nodes.first().is_some_and(|&node| foreign.in_text[node])
-            }
-        }
+        let (inherited, in_text) =
+            owner.map_or((foreign.configured, false), |owner| foreign.children[owner]);
+        let namespace = foreign.infer(tree, source_text, nodes, owner, inherited);
+        (namespace, namespace == Namespace::Svg && !in_text)
     }
 }
 
@@ -119,6 +152,29 @@ const fn is_dom(kind: ElementKind) -> bool {
 }
 
 impl Foreign {
+    /// Upstream `infer_namespace`, given the fragment's owner and what the owner passes down.
+    fn infer(
+        &self,
+        tree: &CompilerSyntaxTree,
+        source_text: &str,
+        nodes: &[CompilerNodeIdentifier],
+        owner: Option<CompilerNodeIdentifier>,
+        inherited: Namespace,
+    ) -> Namespace {
+        let checks_nodes = match owner.map(|owner| &tree.node(owner).kind) {
+            Some(NodeKind::Element(element)) if is_dom(element.kind) => return inherited,
+            None | Some(NodeKind::Snippet(_)) => true,
+            Some(NodeKind::Element(element)) => element.kind == ElementKind::Component,
+            Some(_) => false,
+        };
+        if checks_nodes
+            && let Checked::Namespace(namespace) = self.check_nodes(tree, source_text, nodes)
+        {
+            return namespace;
+        }
+        self.consistent(tree, nodes, inherited)
+    }
+
     /// Upstream `check_nodes_for_namespace(nodes, 'keep')`: elements and text, looking through
     /// blocks but not into elements or components.
     fn check_nodes(
@@ -196,62 +252,6 @@ impl Foreign {
         }
         shared.unwrap_or(inherited)
     }
-}
-
-pub(super) fn build(input: &CompileInput<'_>) -> Namespaces {
-    let tree = input.component.compiler_syntax_tree;
-    let configured = tree
-        .elements()
-        .find_map(|(_, element)| {
-            if element.kind != ElementKind::Metadata(Some(MetadataTag::Options)) {
-                return None;
-            }
-            tree.attributes(element.attributes)
-                .iter()
-                .find_map(|attribute| {
-                    if attribute.name.text(input.component.source_text) != "namespace" {
-                        return None;
-                    }
-                    crate::input::static_string(input, &attribute.value).map(Namespace::parse)
-                })
-        })
-        .unwrap_or(Namespace::Html);
-    let has_foreign = configured != Namespace::Html
-        || tree.elements().any(|(_, element)| {
-            if matches!(
-                element.name.text(input.component.source_text),
-                "svg" | "math"
-            ) {
-                return true;
-            }
-            tree.attributes(element.attributes).iter().any(|attribute| {
-                if attribute.name.text(input.component.source_text) != "xmlns" {
-                    return false;
-                }
-                match &attribute.value {
-                    AttributeValue::Static(value) => Namespace::parse(value) != Namespace::Html,
-                    _ => false,
-                }
-            })
-        });
-    if !has_foreign {
-        return Namespaces::AllDefault;
-    }
-    let mut foreign = Foreign {
-        namespaces: IndexVector::from_element_n(Namespace::Html, tree.nodes.len()),
-        children: IndexVector::from_element_n(Namespace::Html, tree.nodes.len()),
-        in_text: IndexVector::from_element_n(false, tree.nodes.len()),
-        named: IndexVector::from_element_n(Namespace::Html, tree.nodes.len()),
-        configured,
-    };
-    let scope = Scope {
-        namespace: configured,
-        in_text: false,
-        regular: Namespace::Html,
-        dynamic: configured,
-    };
-    foreign.walk(input, tree.root, scope);
-    Namespaces::Foreign(Box::new(foreign))
 }
 
 /// What a node inherits from its ancestors.
@@ -342,8 +342,7 @@ impl Foreign {
                 _ => {}
             }
             self.namespaces[identifier] = namespace;
-            self.children[identifier] = inner.namespace;
-            self.in_text[identifier] = scope.in_text;
+            self.children[identifier] = (inner.namespace, inner.in_text);
             for children in tree.child_lists(identifier) {
                 self.walk(input, children, inner);
             }

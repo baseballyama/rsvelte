@@ -215,6 +215,7 @@ impl Builder<'_, '_> {
             Parent::Block,
             &children,
             self.i.plan.preserve_whitespace,
+            false,
         );
         if !cleaned.items.is_empty() || !cleaned.hoisted.is_empty() {
             let name = self

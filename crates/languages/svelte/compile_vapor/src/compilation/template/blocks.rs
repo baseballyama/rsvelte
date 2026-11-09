@@ -18,23 +18,21 @@ impl Builder<'_, '_> {
         at: Span,
     ) -> R<vue::Children> {
         let (compiler_syntax_tree, source_text) = (self.i.compiler_syntax_tree, self.i.source_text);
-        let mut cleaned = clean_nodes(
+        let namespaces = self
+            .i
+            .plan
+            .namespaces
+            .as_ref()
+            .expect("translation uses a checked plan");
+        let (_, drops_whitespace) = namespaces.fragment(compiler_syntax_tree, source_text, ids);
+        let cleaned = clean_nodes(
             compiler_syntax_tree,
             source_text,
             parent,
             ids,
             preserve_whitespace,
+            drops_whitespace,
         );
-        if !preserve_whitespace {
-            let namespaces = self
-                .i
-                .plan
-                .namespaces
-                .as_ref()
-                .expect("translation uses a checked plan");
-            let namespace = namespaces.infer(compiler_syntax_tree, source_text, ids);
-            namespaces.drop_foreign_whitespace(&mut cleaned, namespace, ids);
-        }
         if let Some(&tag) = cleaned.hoisted.iter().find(|&&h| {
             !matches!(
                 compiler_syntax_tree.node(h).kind,
@@ -364,6 +362,7 @@ impl Builder<'_, '_> {
             self.i.source_text,
             parent,
             ids,
+            false,
             false,
         );
         if !cleaned.hoisted.is_empty() {

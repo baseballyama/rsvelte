@@ -92,7 +92,7 @@ pub(crate) fn check(
     resolution: &Resolution,
     expressions: &[NodeIdentifier],
     source_text: &str,
-    namespaces: &rsvelte_svelte_compile::render_plan::NamespacePlan,
+    namespaces: &rsvelte_svelte_compile::render_plan::Namespaces,
 ) -> R<super::Options> {
     let options = read_options(compiler_syntax_tree, javascript, source_text)?;
     let option_expressions = option_expressions(compiler_syntax_tree, source_text);

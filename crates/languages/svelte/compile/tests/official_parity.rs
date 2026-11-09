@@ -195,6 +195,12 @@ fn only_svg_outside_an_svg_text_drops_whitespace_between_nodes() {
             "$.from_svg(`<svg></svg><!>`",
             "<!--[0--><svg></svg>`",
         ),
+        // Only HTML whitespace collapses; a no-break space is text.
+        (
+            "<svg><rect/>\u{a0}<rect/></svg>",
+            "$.from_svg(`<svg><rect></rect>\u{a0}<rect></rect></svg>`",
+            "<svg><rect></rect>\u{a0}<rect></rect></svg>",
+        ),
     ] {
         let source =
             format!("<script>import C from './C.svelte'; let x = $state(1);</script>\n{markup}\n");

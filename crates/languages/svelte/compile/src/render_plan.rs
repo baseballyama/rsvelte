@@ -3,7 +3,7 @@
 use rsvelte_kernel::index::IndexVector;
 use rsvelte_kernel::newtype_index;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
-    AttributeValue, Children, ElementKind, MetadataTag, NodeKind,
+    AttributeValue, Children, CompilerNodeIdentifier, ElementKind, MetadataTag, NodeKind,
 };
 use rustc_hash::FxHashMap;
 
@@ -12,6 +12,7 @@ use crate::input::CompileInput;
 mod namespace;
 mod normalize;
 pub use namespace::Namespace;
+pub use namespace::Namespaces;
 pub(crate) use namespace::{is_mathml, is_svg};
 pub use normalize::{Cleaned, Item, Parent, clean_nodes};
 
@@ -21,7 +22,7 @@ newtype_index!(
 
 #[derive(Debug)]
 pub struct Region {
-    pub hoisted: Box<[rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier]>,
+    pub hoisted: Box<[CompilerNodeIdentifier]>,
     pub items: Box<[Item<'static>]>,
     pub text_first: bool,
     /// Upstream's inferred fragment namespace, which picks the template function.
@@ -29,52 +30,8 @@ pub struct Region {
 }
 
 #[derive(Debug)]
-pub struct NamespacePlan(namespace::Namespaces);
-
-impl NamespacePlan {
-    #[must_use]
-    pub fn build(input: &CompileInput<'_>) -> Self {
-        Self(namespace::build(input))
-    }
-
-    #[must_use]
-    pub fn get(
-        &self,
-        node: rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier,
-    ) -> Namespace {
-        self.0.get(node)
-    }
-
-    /// Upstream `infer_namespace` for the fragment `nodes`, which their parent node holds.
-    #[must_use]
-    pub fn infer(
-        &self,
-        tree: &rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree,
-        source_text: &str,
-        nodes: &[rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier],
-    ) -> Namespace {
-        self.0.infer(tree, source_text, nodes)
-    }
-
-    /// Drops the whitespace-only text between `nodes` that their `namespace` drops.
-    pub fn drop_foreign_whitespace(
-        &self,
-        cleaned: &mut Cleaned<'_>,
-        namespace: Namespace,
-        nodes: &[rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier],
-    ) {
-        if self.0.drops_whitespace(namespace, nodes) {
-            cleaned.items.retain(|item| match item {
-                Item::Text { data, .. } => !data.chars().all(char::is_whitespace),
-                _ => true,
-            });
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct RenderPlan {
-    namespaces: NamespacePlan,
+    namespaces: Namespaces,
     regions: IndexVector<RegionIdentifier, Region>,
     source_regions: FxHashMap<Children, RegionIdentifier>,
 }
@@ -83,7 +40,7 @@ impl RenderPlan {
     #[must_use]
     pub fn build(input: &CompileInput<'_>) -> Self {
         let mut plan = Self {
-            namespaces: NamespacePlan::build(input),
+            namespaces: Namespaces::build(input),
             regions: IndexVector::new(),
             source_regions: FxHashMap::default(),
         };
@@ -122,10 +79,7 @@ impl RenderPlan {
     }
 
     #[must_use]
-    pub(crate) fn namespace(
-        &self,
-        node: rsvelte_svelte_semantic::compiler_syntax_tree::CompilerNodeIdentifier,
-    ) -> Namespace {
+    pub(crate) fn namespace(&self, node: CompilerNodeIdentifier) -> Namespace {
         self.namespaces.get(node)
     }
 
@@ -152,21 +106,18 @@ impl RenderPlan {
             return;
         }
         let tree = input.component.compiler_syntax_tree;
-        let mut cleaned = clean_nodes(
+        let nodes = tree.children(children);
+        let (namespace, drops_whitespace) =
+            self.namespaces
+                .fragment(tree, input.component.source_text, nodes);
+        let cleaned = clean_nodes(
             tree,
             input.component.source_text,
             parent,
-            tree.children(children),
+            nodes,
             preserve,
+            drops_whitespace,
         );
-        let nodes = tree.children(children);
-        let namespace = self
-            .namespaces
-            .infer(tree, input.component.source_text, nodes);
-        if !preserve {
-            self.namespaces
-                .drop_foreign_whitespace(&mut cleaned, namespace, nodes);
-        }
         let region = Region {
             hoisted: cleaned.hoisted,
             items: cleaned

@@ -47,6 +47,9 @@ const fn is_ws(c: char) -> bool {
 
 /// Upstream `clean_nodes` (3-transform/utils.js) for the node types this port has, with
 /// `preserveComments: false`.
+///
+/// `drops_foreign_whitespace` is upstream's svg half of `can_remove_entirely`, which needs the
+/// fragment's inferred namespace.
 #[expect(
     clippy::too_many_lines,
     reason = "ports upstream's `clean_nodes` in one piece"
@@ -57,6 +60,7 @@ pub fn clean_nodes<'a>(
     parent: Parent<'_>,
     list: &[CompilerNodeIdentifier],
     preserve_ws: bool,
+    drops_foreign_whitespace: bool,
 ) -> Cleaned<'a> {
     // Upstream's parser reads `template.trimEnd()`; only `preserveWhitespace` can observe it.
     let end = source_text
@@ -144,12 +148,20 @@ pub fn clean_nodes<'a>(
             *data = trim_end_owned(data);
             *raw = trim_end_owned(raw);
         }
-        let can_remove_entirely = matches!(
-            parent,
-            Parent::Element(
-                "select" | "tr" | "table" | "tbody" | "thead" | "tfoot" | "colgroup" | "datalist"
-            )
-        );
+        let can_remove_entirely = drops_foreign_whitespace
+            || matches!(
+                parent,
+                Parent::Element(
+                    "select"
+                        | "tr"
+                        | "table"
+                        | "tbody"
+                        | "thead"
+                        | "tfoot"
+                        | "colgroup"
+                        | "datalist"
+                )
+            );
         let mut out = Vec::with_capacity(regular.len());
         for i in 0..regular.len() {
             let prev_is_expression = i > 0 && is_expression(regular.get(i - 1));

@@ -23,6 +23,7 @@ impl Builder<'_, '_> {
             Parent::Element("select"),
             compiler_syntax_tree.children(children),
             false,
+            false,
         )
         .items;
         let mut out = Vec::with_capacity(items.len());
