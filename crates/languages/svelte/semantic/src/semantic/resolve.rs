@@ -9,7 +9,7 @@ mod classify;
 mod roots;
 mod runes;
 
-pub use runes::{RUNES, rune_call};
+pub use runes::{RUNE_ROOTS, RUNES, rune_call};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BindingKind {

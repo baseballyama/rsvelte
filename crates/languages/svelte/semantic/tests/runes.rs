@@ -1,5 +1,5 @@
 use rsvelte_kernel::source::positions::SourceLocation;
-use rsvelte_svelte_semantic::semantic::resolve::{RUNES, rune_call};
+use rsvelte_svelte_semantic::semantic::resolve::{RUNE_ROOTS, RUNES, rune_call};
 use rsvelte_typescript::SyntaxTree;
 
 #[test]
@@ -24,6 +24,23 @@ fn every_public_rune_is_recognized_in_both_supported_shapes() {
             assert_eq!(rune_call(&tree, call), Some((rune, None)), "{rune}");
         }
     }
+}
+
+#[test]
+fn the_rune_roots_are_the_runes_up_to_their_first_dot_or_parenthesis() {
+    let mut roots: Vec<&str> = RUNES
+        .iter()
+        .map(|rune| {
+            rune.split(['.', '('])
+                .next()
+                .expect("split yields one part")
+        })
+        .collect();
+    roots.sort_unstable();
+    roots.dedup();
+    let mut declared = RUNE_ROOTS.to_vec();
+    declared.sort_unstable();
+    assert_eq!(declared, roots);
 }
 
 #[test]
