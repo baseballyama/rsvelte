@@ -17,6 +17,7 @@ serde_json.workspace = true
 rsvelte_typescript.workspace = true
 rsvelte_svelte.workspace = true
 rsvelte_markup.workspace = true
+regress.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript_lint.workspace = true
 
