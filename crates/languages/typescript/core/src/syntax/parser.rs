@@ -10,7 +10,9 @@
 //! Anything outside the subset is a [`ParseError`], never a panic.
 
 use rsvelte_kernel::source::positions::Span;
-use rustc_hash::FxHashSet;
+use std::cell::RefCell;
+
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::lexer::{LexedToken, Lexer, LexicalError, T, decode_string};
 use crate::operators::{
@@ -37,6 +39,10 @@ impl From<LexicalError> for ParseError {
 }
 
 type R<T> = Result<T, ParseError>;
+
+/// How deeply a parse may nest. A level is one recursive grammar cycle, and a parenthesized
+/// expression takes two; acorn under Node's default stack stops below 7,000 of the shallowest.
+pub const MAX_NESTING: u32 = 1 << 16;
 
 #[derive(Debug)]
 #[expect(
@@ -68,6 +74,15 @@ pub struct Parser<'a, 'b> {
     cover_initializers: FxHashSet<Span>,
     /// [`SyntaxTree::scratch`]'s length when this parse began.
     base: usize,
+    /// How many [`Parser::nested`] calls are open.
+    depth: u32,
+    /// Per lexer position just after an opening bracket: the position after its closing one, as
+    /// [`Parser::lookahead_group`] found it.
+    groups: RefCell<FxHashMap<u32, u32>>,
+    /// The links of the assignment chains being read, innermost last; each chain pops its own.
+    links: Vec<expressions::Link>,
+    /// The prefix operators of the unary expressions being read, likewise.
+    prefixes: Vec<(expressions::Prefix, u32)>,
 }
 
 /// A failed parse leaves its open lists on the scratch stack; they go with it.
@@ -91,7 +106,7 @@ struct Checkpoint<'a> {
 
 /// A list being gathered on [`SyntaxTree::scratch`]. Lists nest, so the one opened last is on top,
 /// and gathering one allocates nothing: the items are copied into the tree when the node is built.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct List(usize);
 
 /// Parses `range` of `source_text` as a module body.
@@ -316,7 +331,23 @@ impl<'a, 'b> Parser<'a, 'b> {
             allow_in: true,
             end: range.end_offset,
             cover_initializers: FxHashSet::default(),
+            depth: 0,
+            groups: RefCell::default(),
+            links: Vec::new(),
+            prefixes: Vec::new(),
         })
+    }
+
+    /// Runs `f` one level deeper. Every recursive cycle of the grammar passes through here, so the
+    /// stack grows as the input nests and the depth is checked in one place.
+    fn nested<X>(&mut self, f: impl FnOnce(&mut Self) -> R<X>) -> R<X> {
+        if self.depth == MAX_NESTING {
+            return self.fail("statements, expressions and types nest too deeply");
+        }
+        self.depth += 1;
+        let result = rsvelte_kernel::performance::stack::grow(|| f(self));
+        self.depth -= 1;
+        result
     }
 
     fn fail<X>(&self, message: impl Into<String>) -> R<X> {

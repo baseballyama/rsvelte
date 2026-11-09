@@ -5,6 +5,10 @@ impl Parser<'_, '_> {
     // ------------------------------------------------------------------------
 
     pub(super) fn binding_target(&mut self) -> R<NodeIdentifier> {
+        self.nested(Self::binding_target_inner)
+    }
+
+    fn binding_target_inner(&mut self) -> R<NodeIdentifier> {
         let start_offset = self.token.span.start_offset;
         match self.token.t {
             T::Identifier => {
@@ -123,6 +127,10 @@ impl Parser<'_, '_> {
 
 impl Parser<'_, '_> {
     pub(super) fn assignment_pattern(&mut self, node: NodeIdentifier) -> R<NodeIdentifier> {
+        self.nested(|p| p.assignment_pattern_inner(node))
+    }
+
+    fn assignment_pattern_inner(&mut self, node: NodeIdentifier) -> R<NodeIdentifier> {
         let span = self.syntax_tree.source_location(node);
         match self.syntax_tree.kind(node) {
             super::Kind::Identifier(_) | super::Kind::Member { .. } | super::Kind::Hole => Ok(node),

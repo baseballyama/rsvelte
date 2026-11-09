@@ -249,7 +249,7 @@ impl Parser<'_, '_> {
             T::RParen | T::Ellipsis => return true,
             T::Identifier => {}
             T::LBrace | T::LBracket => {
-                if Self::lookahead_group(&mut l, &mut scratch).is_err() {
+                if self.lookahead_group(&mut l, &mut scratch).is_err() {
                     return false;
                 }
             }

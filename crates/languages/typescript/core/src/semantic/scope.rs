@@ -14,6 +14,8 @@ use rsvelte_kernel::index::{IndexVector, TypedIndex};
 use rsvelte_kernel::newtype_index;
 use rsvelte_kernel::source::interning::Atom;
 use rsvelte_kernel::source::positions::Span;
+use std::sync::OnceLock;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::operators::AssignmentOperator;
@@ -118,6 +120,18 @@ pub struct HostScope {
     pub body: Vec<HostRoot>,
 }
 
+/// Frees nested bodies in a loop, so dropping scopes as deep as the markup does not recurse.
+impl Drop for HostScope {
+    fn drop(&mut self) {
+        let mut pending = std::mem::take(&mut self.body);
+        while let Some(root) = pending.pop() {
+            if let HostRoot::Scope(mut scope) = root {
+                pending.append(&mut scope.body);
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Semantic {
     pub scopes: IndexVector<ScopeIdentifier, Scope>,
@@ -142,6 +156,8 @@ pub struct Semantic {
     type_referenced: Vec<bool>,
     /// The names that type declarations declare, by the scope they are declared in.
     type_names: FxHashSet<(ScopeIdentifier, Atom)>,
+    /// Built at the first [`Semantic::lookup`].
+    visibility: OnceLock<visibility::Visibility>,
 }
 
 impl Semantic {
@@ -182,13 +198,10 @@ impl Semantic {
 
     /// What `name` refers to in `scope`: its own binding or the nearest enclosing one.
     #[must_use]
-    pub fn lookup(&self, mut scope: ScopeIdentifier, name: Atom) -> Option<BindingIdentifier> {
-        loop {
-            if let Some(&b) = self.names.get(&(scope, name)) {
-                return Some(b);
-            }
-            scope = self.scopes[scope].parent?;
-        }
+    pub fn lookup(&self, scope: ScopeIdentifier, name: Atom) -> Option<BindingIdentifier> {
+        self.visibility
+            .get_or_init(|| visibility::Visibility::new(self))
+            .lookup(scope, name)
     }
 
     pub fn references_to(&self, b: BindingIdentifier) -> impl Iterator<Item = &Reference> {
@@ -293,6 +306,7 @@ pub fn analyze_enclosed(
             by_binding_start: Vec::new(),
             type_referenced: Vec::new(),
             type_names: FxHashSet::default(),
+            visibility: OnceLock::new(),
         },
         stack: vec![ScopeIdentifier::ROOT],
         variable_scopes: vec![ScopeIdentifier::ROOT],
@@ -337,3 +351,4 @@ pub fn analyze_enclosed(
 
 mod declare;
 mod resolve;
+mod visibility;

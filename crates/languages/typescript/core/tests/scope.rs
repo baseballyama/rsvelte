@@ -253,8 +253,7 @@ fn switch_discriminant_is_outside_the_case_scope() {
 
 #[test]
 fn deeply_nested_input_is_analyzed_on_a_small_stack() {
-    // The parser still recurses, so it gets a large stack; the analysis gets the 2 MiB of a
-    // worker thread, which held about 6,500 nested functions while the walk recursed.
+    // The parse and the analysis both get the 2 MiB stack of a worker thread.
     let depth = 50_000;
     for source_text in [
         format!("{}g;{}", "function f(){".repeat(depth), "}".repeat(depth)),
@@ -263,7 +262,7 @@ fn deeply_nested_input_is_analyzed_on_a_small_stack() {
         format!("let g; g{};", " + g".repeat(depth)),
     ] {
         let (tree, program) = std::thread::Builder::new()
-            .stack_size(1 << 30)
+            .stack_size(2 << 20)
             .spawn(move || {
                 let mut tree = SyntaxTree::new();
                 let range = Span::new(0, source_text.len() as u32);
@@ -287,4 +286,51 @@ fn deeply_nested_input_is_analyzed_on_a_small_stack() {
             .expect("analyzed without overflowing the stack");
         assert!(references >= 1);
     }
+}
+
+#[test]
+fn deeply_nested_host_scopes_are_analyzed_on_a_small_stack() {
+    let source_text = "let g;\ng";
+    let mut tree = SyntaxTree::new();
+    let program = parse_program(&mut tree, source_text, Span::new(0, 6), false).unwrap();
+    let g = parse_expression(&mut tree, source_text, Span::new(7, 8), false).unwrap();
+    let references = std::thread::Builder::new()
+        .stack_size(2 << 20)
+        .spawn(move || {
+            let mut host = vec![HostRoot::Expression(g)];
+            for _ in 0..200_000 {
+                host = vec![HostRoot::Scope(HostScope {
+                    node: None,
+                    parameters: Vec::new(),
+                    body: host,
+                })];
+            }
+            let sem = analyze(&tree, program, &host);
+            drop(host);
+            (sem.host_scopes.len(), sem.references.len())
+        })
+        .unwrap()
+        .join()
+        .expect("analyzed and dropped without overflowing the stack");
+    assert_eq!(references, (200_000, 1));
+}
+
+#[test]
+fn lookups_from_deep_scopes_take_linear_time() {
+    let depth = 20_000;
+    let source_text = format!("{}x;{}", "function f(){".repeat(depth), "}".repeat(depth));
+    let mut tree = SyntaxTree::new();
+    let range = Span::new(0, source_text.len() as u32);
+    let program = parse_program(&mut tree, &source_text, range, false).unwrap();
+    let sem = analyze(&tree, program, &[]);
+    let x = tree.atoms.lookup("x").unwrap();
+    let started = std::time::Instant::now();
+    let found = sem
+        .scopes
+        .iter_enumerated()
+        .filter(|&(scope, _)| sem.lookup(scope, x).is_some())
+        .count();
+    assert_eq!(found, 0);
+    // Walking each scope's chain to the root takes over ten seconds here.
+    assert!(started.elapsed().as_secs() < 2, "{:?}", started.elapsed());
 }

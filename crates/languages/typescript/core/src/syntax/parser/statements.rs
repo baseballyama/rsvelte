@@ -5,6 +5,10 @@ impl Parser<'_, '_> {
     // ------------------------------------------------------------------------------
 
     pub(super) fn statement(&mut self) -> R<NodeIdentifier> {
+        self.nested(Self::statement_inner)
+    }
+
+    fn statement_inner(&mut self) -> R<NodeIdentifier> {
         let start_offset = self.token.span.start_offset;
         match self.token.t {
             T::LBrace => return self.block(),
@@ -100,21 +104,45 @@ impl Parser<'_, '_> {
         Ok(self.syntax_tree.return_(arg, self.span_from(start_offset)))
     }
 
+    /// An `if` statement; an `else if` chain is read in a loop and built innermost first.
     fn if_statement(&mut self, start_offset: u32) -> R<NodeIdentifier> {
+        let mut outer = Vec::new();
+        let mut head = self.if_head(start_offset)?;
+        let alternate = loop {
+            if !self.is_kw("else") {
+                break None;
+            }
+            self.bump()?;
+            // `if:` would be a label, which `statement` reads.
+            if !self.is_kw("if") || self.peek().t == T::Colon {
+                break Some(self.statement()?);
+            }
+            outer.push(head);
+            head = self.if_head(self.token.span.start_offset)?;
+        };
+        let (start_offset, test, consequent) = head;
+        let mut statement =
+            self.syntax_tree
+                .if_(test, consequent, alternate, self.span_from(start_offset));
+        while let Some((start_offset, test, consequent)) = outer.pop() {
+            statement = self.syntax_tree.if_(
+                test,
+                consequent,
+                Some(statement),
+                self.span_from(start_offset),
+            );
+        }
+        Ok(statement)
+    }
+
+    /// `if (test) consequent`, from the `if` at `start_offset`.
+    fn if_head(&mut self, start_offset: u32) -> R<(u32, NodeIdentifier, NodeIdentifier)> {
         self.bump()?;
         self.expect(T::LParen, "(")?;
         let test = self.expression()?;
         self.expect(T::RParen, ")")?;
         let consequent = self.statement()?;
-        let alternate = if self.is_kw("else") {
-            self.bump()?;
-            Some(self.statement()?)
-        } else {
-            None
-        };
-        Ok(self
-            .syntax_tree
-            .if_(test, consequent, alternate, self.span_from(start_offset)))
+        Ok((start_offset, test, consequent))
     }
 
     pub(super) fn expression_statement(&mut self) -> R<NodeIdentifier> {
@@ -483,9 +511,9 @@ impl Parser<'_, '_> {
             && self.peek().t == T::Identifier
             && self.text(self.peek()) == "function"
         {
-            let start_offset = self.token.span.start_offset;
+            let function_start = self.token.span.start_offset;
             self.bump()?;
-            let function = self.function(true, start_offset, true)?;
+            let function = self.function(true, function_start, true)?;
             return Ok(self
                 .syntax_tree
                 .export_named(function, self.span_from(start_offset)));

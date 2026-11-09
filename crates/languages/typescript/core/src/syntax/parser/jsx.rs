@@ -29,6 +29,10 @@ impl Parser<'_, '_> {
     /// `<a …>…</a>`, `<a … />` or `<>…</>`, from its `<` up to its last `>`, which stays the
     /// current token.
     fn jsx_element(&mut self) -> R<NodeIdentifier> {
+        self.nested(Self::jsx_element_inner)
+    }
+
+    fn jsx_element_inner(&mut self) -> R<NodeIdentifier> {
         let start = self.token.span.start_offset;
         self.bump()?;
         let name = if self.is_greater() {

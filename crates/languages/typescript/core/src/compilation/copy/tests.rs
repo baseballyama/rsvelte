@@ -138,7 +138,8 @@ fn deep_chains_copy_on_a_small_stack_in_the_order_recursion_offers_them() {
 
 #[test]
 fn deep_blocks_copy_on_a_small_stack_and_each_reaches_the_rewriter_first() {
-    const DEPTH: usize = 100_000;
+    // Below the parser's nesting limit, `crate::parser::MAX_NESTING`.
+    const DEPTH: usize = 60_000;
     let source = format!("{}x;{}", "{".repeat(DEPTH), "}".repeat(DEPTH));
     let (from, outer) = parse_one_statement(&source);
     for (replace, expected) in [(0, (DEPTH, true)), (7, (7, false))] {

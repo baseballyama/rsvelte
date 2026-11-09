@@ -173,3 +173,99 @@ fn an_escaped_identifier_names_what_it_decodes_to() {
     let span = tree.source_location(reference).span().expect("located");
     assert_eq!(span, Span::new(17, 24));
 }
+
+#[test]
+fn an_exported_declaration_starts_at_export() {
+    let source_text = "export async function f() {}\nexport function g() {}";
+    let (tree, statements) = typescript(source_text);
+    let text = |n| {
+        tree.source_location(n)
+            .span()
+            .expect("located")
+            .text(source_text)
+    };
+    let spans: Vec<(&str, &str)> = statements
+        .iter()
+        .map(|&s| {
+            let Kind::ExportNamed(declaration) = tree.kind(s) else {
+                panic!("a named export");
+            };
+            (text(s), text(declaration))
+        })
+        .collect();
+    assert_eq!(
+        spans,
+        [
+            ("export async function f() {}", "async function f() {}"),
+            ("export function g() {}", "function g() {}"),
+        ]
+    );
+}
+
+/// The error parsing `source_text` on a thread with a worker's 2 MiB stack, if any.
+fn error_on_a_small_stack(source_text: String, typescript: bool) -> Option<String> {
+    std::thread::Builder::new()
+        .stack_size(2 << 20)
+        .spawn(move || {
+            let mut syntax_tree = SyntaxTree::new();
+            let range = Span::new(0, source_text.len() as u32);
+            parse_program(&mut syntax_tree, &source_text, range, typescript)
+                .err()
+                .map(|e| e.message)
+        })
+        .expect("spawns")
+        .join()
+        .expect("does not overflow")
+}
+
+#[test]
+fn chains_parse_in_a_loop() {
+    let r = |s: &str| s.repeat(30_000);
+    for source_text in [
+        format!("{}x;", r("a => ")),
+        format!("{}c;", r("a ? b : ")),
+        format!("{}1;", r("a = ")),
+        format!("{}x;", r("!")),
+        format!("{}x;", r("typeof ")),
+        format!("if (a) {{}}{}", r(" else if (a) {}")),
+    ] {
+        assert_eq!(error_on_a_small_stack(source_text, false), None);
+    }
+}
+
+#[test]
+fn nesting_grows_the_stack_up_to_a_limit() {
+    let r = |s: &str| s.repeat(20_000);
+    for (source_text, typescript) in [
+        (format!("{}x{};", r("("), r(")")), false),
+        (format!("{}{};", r("["), r("]")), false),
+        (format!("({}1{});", r("{a:"), r("}")), false),
+        (format!("{}x;{}", r("function f(){"), r("}")), false),
+        (format!("{}x;{}", r("{"), r("}")), false),
+        (format!("a{};", r(" ** a")), false),
+        (
+            format!("x = {}Object{};", r("class extends "), r(" {}")),
+            false,
+        ),
+        (format!("let {}a{} = 1;", r("["), r("]")), false),
+        (format!("{}a{} = 1;", r("["), r("]")), false),
+        (format!("type T = {}X{};", r("("), r(")")), true),
+        (format!("type T = {}X;", r("keyof ")), true),
+        (format!("type T = {}X;", r("() => ")), true),
+    ] {
+        assert_eq!(error_on_a_small_stack(source_text, typescript), None);
+    }
+    let deep = "[".repeat(super::MAX_NESTING as usize + 1);
+    let message = error_on_a_small_stack(deep, false).expect("too deep");
+    assert!(message.contains("nest too deeply"), "{message}");
+}
+
+#[test]
+fn nested_parentheses_are_read_in_linear_time() {
+    let n = 20_000;
+    let source_text = format!("{}x{};", "(".repeat(n), ")".repeat(n));
+    let started = std::time::Instant::now();
+    assert_eq!(error_on_a_small_stack(source_text, false), None);
+    // Looking for `=>` after each `(` from scratch takes over ten seconds here.
+    assert!(started.elapsed().as_secs() < 2, "{:?}", started.elapsed());
+}
