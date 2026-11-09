@@ -10,6 +10,7 @@ use rsvelte_svelte::syntax::syntax_tree::{
 /// `<name …>` or `<name … />`.
 pub(super) struct StartTag<'a> {
     pub(super) span: Span,
+    pub(super) name: Span,
     pub(super) attributes: Attributes<'a>,
 }
 
@@ -78,6 +79,7 @@ pub(super) fn raw_value_is_quoted(tokens: &Tokens<TokenType>, value: Span) -> bo
 pub(super) fn start_tags(component: &Component) -> impl Iterator<Item = StartTag<'_>> {
     let elements = component.nodes.iter().filter_map(|node| {
         let TemplateNode::Element {
+            name,
             attributes,
             start_tag,
             ..
@@ -87,6 +89,7 @@ pub(super) fn start_tags(component: &Component) -> impl Iterator<Item = StartTag
         };
         Some(StartTag {
             span: *start_tag,
+            name: *name,
             attributes: Attributes::Template(component.attributes(*attributes)),
         })
     });
@@ -106,6 +109,7 @@ pub(super) fn start_tags(component: &Component) -> impl Iterator<Item = StartTag
             .expect("a script or style start tag ends with `>`");
         StartTag {
             span: Span::new(span.start_offset, end.span.end_offset),
+            name: tokens[1].span,
             attributes: Attributes::Raw(attributes),
         }
     });
