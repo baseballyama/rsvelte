@@ -10,6 +10,7 @@
 //! Anything outside the subset is a [`ParseError`], never a panic.
 
 use rsvelte_kernel::source::positions::Span;
+use rustc_hash::FxHashSet;
 
 use crate::lexer::{LexedToken, Lexer, LexicalError, T, decode_string};
 use crate::operators::{
@@ -53,7 +54,7 @@ pub struct Parser<'a, 'b> {
     allow_in: bool,
     end: u32,
     /// `{ a = 1 }` shorthand properties not yet read as patterns; any left at the end is an error.
-    cover_initializers: Vec<Span>,
+    cover_initializers: FxHashSet<Span>,
     /// [`SyntaxTree::scratch`]'s length when this parse began.
     base: usize,
 }
@@ -266,7 +267,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             typescript,
             allow_in: true,
             end: range.end_offset,
-            cover_initializers: Vec::new(),
+            cover_initializers: FxHashSet::default(),
         })
     }
 
@@ -284,7 +285,11 @@ impl<'a, 'b> Parser<'a, 'b> {
 
     /// Checks, where a parse succeeds, that it closed every list it opened.
     fn done(&self) -> R<()> {
-        if let Some(&span) = self.cover_initializers.first() {
+        if let Some(&span) = self
+            .cover_initializers
+            .iter()
+            .min_by_key(|s| s.start_offset)
+        {
             return Err(ParseError {
                 message: "a shorthand property cannot have an initializer here".into(),
                 span,

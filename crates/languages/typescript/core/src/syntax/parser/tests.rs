@@ -29,3 +29,13 @@ fn a_shorthand_initializer_is_valid_only_in_a_pattern() {
         assert!(parses(invalid).is_err(), "{invalid}");
     }
 }
+
+#[test]
+fn many_shorthand_initializers_are_read_in_linear_time() {
+    let properties: Vec<String> = (0..10_000).map(|i| format!("a{i}=1")).collect();
+    let source = format!("({{{}}} = v);", properties.join(","));
+    let started = std::time::Instant::now();
+    assert_eq!(parses(&source), Ok(()));
+    // Removing each property from a list of the pending ones takes over ten seconds here.
+    assert!(started.elapsed().as_secs() < 3, "{:?}", started.elapsed());
+}

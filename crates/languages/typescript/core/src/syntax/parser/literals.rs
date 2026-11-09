@@ -248,7 +248,7 @@ impl Parser<'_, '_> {
                             default,
                             self.span_from(plo),
                         );
-                        self.cover_initializers.push(self.span_from(plo));
+                        self.cover_initializers.insert(self.span_from(plo));
                     }
                     let prop =
                         self.syntax_tree
