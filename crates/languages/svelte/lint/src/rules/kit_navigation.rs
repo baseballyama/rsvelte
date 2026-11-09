@@ -178,9 +178,10 @@ impl<'a> Script<'a> {
     }
 }
 
-/// The `href` of an `<a>`.
+/// The `href` of an `<a>`, with the element's attributes.
 pub(super) struct Link<'a> {
     pub(super) href: &'a Attribute,
+    pub(super) attributes: &'a [Attribute],
 }
 
 /// Each `href` attribute of an `<a>` element, in document order.
@@ -200,7 +201,7 @@ pub(super) fn links<'a>(
             .filter(move |attribute| {
                 attribute.kind == AttributeKind::Attribute && attribute.name.text(source) == "href"
             })
-            .map(|href| Link { href })
+            .map(move |href| Link { href, attributes })
     })
 }
 

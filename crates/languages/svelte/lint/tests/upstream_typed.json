@@ -1,1 +1,12 @@
-{}
+{
+	"no-navigation-without-resolve/valid/goto-resolved-pathname01-input.svelte": "the type of a destructured prop is `ResolvedPathname` of `$app/types`",
+	"no-navigation-without-resolve/valid/goto-resolved-pathname02-input.svelte": "the type of a parameter is `ResolvedPathname` of `$app/types`",
+	"no-navigation-without-resolve/valid/link-nullish-resolved-pathname-input.svelte": "the type of a destructured prop is `ResolvedPathname` of `$app/types` or nullish",
+	"no-navigation-without-resolve/valid/link-nullish02-input.svelte": "the type of a destructured prop is `null` or `undefined`",
+	"no-navigation-without-resolve/valid/link-resolved-pathname01-input.svelte": "the type of a destructured prop is `ResolvedPathname` of `$app/types`",
+	"no-navigation-without-resolve/valid/link-resolved-pathname02-input.svelte": "the declared type of a constant is `ResolvedPathname` of `$app/types`",
+	"no-navigation-without-resolve/valid/pushState-resolved-pathname01-input.svelte": "the type of a destructured prop is `ResolvedPathname` of `$app/types`",
+	"no-navigation-without-resolve/valid/pushState-resolved-pathname02-input.svelte": "the type of a parameter is `ResolvedPathname` of `$app/types`",
+	"no-navigation-without-resolve/valid/replaceState-resolved-pathname01-input.svelte": "the type of a destructured prop is `ResolvedPathname` of `$app/types`",
+	"no-navigation-without-resolve/valid/replaceState-resolved-pathname02-input.svelte": "the type of a parameter is `ResolvedPathname` of `$app/types`"
+}
