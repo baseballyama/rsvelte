@@ -113,7 +113,7 @@ impl Task for Lint {
         out.file(
             "lint.json",
             rsvelte_lint_runner::output::render_json(
-                context.line_index(),
+                context.ecmascript_line_index(),
                 // The rules that ran, so a report tells a rule that found nothing from one that
                 // does not run on this file.
                 configuration
@@ -126,3 +126,6 @@ impl Task for Lint {
         );
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -333,7 +333,10 @@ pub enum TokenType {
     AttributeName,
     /// `=`
     Eq,
-    Quote,
+    /// `"`
+    DoubleQuote,
+    /// `'`
+    SingleQuote,
     /// The text chunks of an attribute value.
     AttributeText,
     /// `{`

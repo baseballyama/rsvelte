@@ -90,9 +90,10 @@ impl Parser<'_> {
                                 return self.err("unterminated attribute value");
                             };
                             value = Some(Span::new(value_start as u32, (value_start + len) as u32));
-                            self.eat_token(TokenType::Quote, 1);
+                            let quote = super::attribute::quote_token(quote);
+                            self.eat_token(quote, 1);
                             self.eat_token(TokenType::AttributeText, len);
-                            self.eat_token(TokenType::Quote, 1);
+                            self.eat_token(quote, 1);
                         } else {
                             let value_start = self.position;
                             let len = self

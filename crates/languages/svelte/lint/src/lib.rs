@@ -9,6 +9,8 @@ pub use configuration::{Configuration, ConfiguredRule, check_plugins, definition
 mod extension;
 pub use extension::EXTENSION;
 pub mod external;
+mod pattern;
+pub use pattern::Pattern;
 pub mod rule;
 mod rules;
 mod settings;

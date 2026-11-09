@@ -1,0 +1,4 @@
+- message: Attribute 'b' should go before 'uu'.
+  line: 1
+  column: 9
+  suggestions: null

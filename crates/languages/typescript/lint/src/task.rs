@@ -79,7 +79,7 @@ impl Task for Lint {
         out.file(
             "lint.json",
             rsvelte_lint_runner::output::render_json(
-                context.line_index(),
+                context.ecmascript_line_index(),
                 [NoUnusedVariables.identifier()],
                 &findings,
             ),

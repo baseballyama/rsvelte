@@ -1,9 +1,10 @@
 // `oracle lint-cases [--update]`: write ESLint's verdict for the lint crate's own rule cases
 // (crates/languages/svelte/lint/tests/cases), which follow eslint-plugin-svelte's fixture layout:
 // `<rule>/{valid,invalid}/…/<name>-input.svelte`, options in `<name>-config.json` or
-// `_config.json`, the reports in `<name>-errors.yaml`. As upstream's runner does, a missing
-// errors.yaml is written and an existing one is kept unless --update; a valid case must report
-// nothing and an invalid one something.
+// `_config.json`, the reports in `<name>-errors.yaml` and the code after one pass of fixes in
+// `<name>-output.svelte`. As upstream's runner does, a missing errors.yaml or output is written and
+// an existing one is kept unless --update; a valid case must report nothing and an invalid one
+// something.
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
@@ -57,6 +58,16 @@ export async function main(args: string[]): Promise<void> {
 	const typescriptParser = require('@typescript-eslint/parser');
 	const globals = require('globals');
 	const yaml = require('yaml');
+	// RuleTester's output is one pass of fixes; the fixer is not exported.
+	const fixer = require(
+		path.join(path.dirname(require.resolve('eslint')), 'linter/source-code-fixer.js'),
+	) as {
+		applyFixes(
+			text: string,
+			messages: LinterType.LintMessage[],
+			fix: boolean,
+		): { fixed: boolean; output: string };
+	};
 	const linter = new Linter();
 	// Type-aware rules read a strict TypeScript project that holds the input as its only file.
 	const project = fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-lint-cases-'));
@@ -82,15 +93,15 @@ export async function main(args: string[]): Promise<void> {
 			if (!fs.existsSync(directory)) continue;
 			for (const input of inputs(directory)) {
 				cases++;
-				const code = fs.readFileSync(input, 'utf8');
+				const text = fs.readFileSync(input, 'utf8');
 				const ruleConfig: LinterType.RulesRecord = {
 					[`svelte/${rule}`]: ['error', ...options(input)],
 				};
 				let messages: LinterType.LintMessage[];
 				if (typed) {
-					fs.writeFileSync(projectInput, code);
+					fs.writeFileSync(projectInput, text);
 					messages = projectLinter.verify(
-						code,
+						text,
 						[
 							...plugin.configs.base,
 							{
@@ -112,7 +123,7 @@ export async function main(args: string[]): Promise<void> {
 				} else {
 					// upstream's writeFixtures, without a TypeScript project.
 					messages = linter.verify(
-						code,
+						text,
 						{
 							files: ['**'],
 							plugins: { svelte: plugin },
@@ -137,6 +148,12 @@ export async function main(args: string[]): Promise<void> {
 					continue;
 				}
 				if (!messages.length) throw new Error(`${relative} is invalid but reports nothing`);
+				const fixed = fixer.applyFixes(text, messages, true);
+				const output = sibling(input, 'output.svelte');
+				if (fixed.fixed && (!fs.existsSync(output) || values.update)) {
+					fs.writeFileSync(output, fixed.output);
+					written++;
+				}
 				const errors = sibling(input, 'errors.yaml');
 				if (fs.existsSync(errors) && !values.update) continue;
 				const report = messages.map((m) => ({
@@ -153,5 +170,5 @@ export async function main(args: string[]): Promise<void> {
 		}
 	}
 	if (!cases) throw new Error(`no cases under ${ROOT}`);
-	console.log(`${cases} cases, ${written} errors.yaml written`);
+	console.log(`${cases} cases, ${written} files written`);
 }

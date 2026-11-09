@@ -272,3 +272,42 @@ fn lint_does_not_register_type_services() {
         ["svelte", "svelte.lint", "svelte.parser", "typescript"]
     );
 }
+
+/// The markup layout rules read the surface tree and its tokens only, even on a component where
+/// each of them reports.
+#[test]
+fn markup_layout_rules_request_only_the_surface_tree() {
+    let mut registry = Registry::new();
+    rsvelte_svelte_lint::register(&mut registry);
+    let document = Document::new(
+        "test.svelte".to_owned(),
+        "<script lang='ts'>\nconst x = 1; \n</script>\n<div b a = \"1\"\n  c={ x }  ></div>\n\
+         <!--c-->\n<br>\n"
+            .to_owned(),
+    )
+    .expect("valid input");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let rules = [
+        "svelte/first-attribute-linebreak",
+        "svelte/html-closing-bracket-new-line",
+        "svelte/html-closing-bracket-spacing",
+        "svelte/html-quotes",
+        "svelte/html-self-closing",
+        "svelte/max-attributes-per-line",
+        "svelte/mustache-spacing",
+        "svelte/no-spaces-around-equal-signs-in-attribute",
+        "svelte/no-trailing-spaces",
+        "svelte/sort-attributes",
+        "svelte/spaced-html-comment",
+    ];
+    let configured: Vec<_> = rules.iter().map(|rule| (*rule, Severity::Error)).collect();
+    let findings =
+        rsvelte_svelte_lint::lint(&context, &configuration(&configured)).expect("source parses");
+    assert_eq!(context.computed(), ["svelte.parse"]);
+    for rule in rules {
+        assert!(
+            findings.iter().any(|f| f.diagnostic.code == rule),
+            "{rule} reports"
+        );
+    }
+}
