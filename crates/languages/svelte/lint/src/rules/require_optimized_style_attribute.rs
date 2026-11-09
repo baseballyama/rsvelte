@@ -54,7 +54,7 @@ impl SvelteRule for RequireOptimizedStyleAttribute {
                 continue;
             };
             for node in nodes {
-                match *node {
+                match node {
                     InlineNode::Declaration(declaration) if declaration.other_holes > 0 => {
                         report(COMPLEX, declaration.span);
                     }
@@ -74,9 +74,9 @@ impl SvelteRule for RequireOptimizedStyleAttribute {
                             "comment",
                             "It cannot be optimized because contains comments.",
                         ),
-                        span,
+                        *span,
                     ),
-                    InlineNode::Hole { span, .. } => report(COMPLEX, span),
+                    InlineNode::Hole { span, .. } => report(COMPLEX, *span),
                 }
             }
         }

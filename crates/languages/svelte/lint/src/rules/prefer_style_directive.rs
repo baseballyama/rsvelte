@@ -59,7 +59,7 @@ impl SvelteRule for PreferStyleDirective {
                 };
                 let directive = |name: &str| directives.contains(name);
                 for (index, node) in nodes.iter().enumerate() {
-                    let report = match *node {
+                    let report = match node {
                         InlineNode::Declaration(declaration) => {
                             if declaration.important
                                 || declaration.property_holes > 0
@@ -71,13 +71,13 @@ impl SvelteRule for PreferStyleDirective {
                             let text = format!(
                                 "style:{}=\"{}\"",
                                 declaration.property.text(source),
-                                declaration.value.text(source)
+                                declaration.value_text(source)
                             );
                             Report::range(MESSAGE, declaration.span)
                                 .fix(replace(attribute, nodes, index, &text))
                         }
                         InlineNode::Hole { index: hole, .. } => {
-                            let expression = expression_of_hole(component, attribute, hole);
+                            let expression = expression_of_hole(component, attribute, *hole);
                             let Some((span, text)) = conditional(file, expression, &directive)
                             else {
                                 continue;
@@ -138,7 +138,7 @@ fn conditional(
         format!(
             "{}{}{}",
             &quotes[..1],
-            declaration.value.text(source),
+            declaration.value_text(source),
             &quotes[quotes.len() - 1..]
         )
     };
@@ -199,3 +199,6 @@ fn replace(attribute: &Attribute, nodes: &[InlineNode], index: usize, text: &str
     }
     fix
 }
+
+#[cfg(test)]
+mod tests;

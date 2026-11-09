@@ -53,7 +53,7 @@ pub fn check(source: &str, content: Span, dialect: Dialect) -> Result<(), Syntax
 
 /// A top-level node of an inline style, as `eslint-plugin-svelte` converts `postcss-safe-parser`'s
 /// tree.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum InlineNode {
     Declaration(Declaration),
     Comment(Span),
@@ -62,6 +62,16 @@ pub enum InlineNode {
         index: u32,
         span: Span,
     },
+}
+
+impl Declaration {
+    /// `PostCSS`'s value: the text of [`Declaration::value`] unless it was cleaned.
+    #[must_use]
+    pub fn value_text<'a>(&'a self, source: &'a str) -> &'a str {
+        self.cleaned_value
+            .as_deref()
+            .unwrap_or_else(|| self.value.text(source))
+    }
 }
 
 impl InlineNode {
@@ -74,12 +84,16 @@ impl InlineNode {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Declaration {
     /// From the property to the end of the value, the `;` included.
     pub span: Span,
     pub property: Span,
+    /// The value as written.
     pub value: Span,
+    /// `PostCSS`'s value when it differs from the text of `value`: comments next to a space
+    /// dropped, and a last space.
+    pub cleaned_value: Option<Box<str>>,
     pub important: bool,
     /// Holes in the property.
     pub property_holes: u32,
@@ -99,13 +113,13 @@ pub fn inline(source: &str, content: Span, holes: &[Span]) -> Option<Vec<InlineN
         .enumerate()
         .map(|(index, &span)| (index as u32, span))
         .peekable();
-    for node in &mut parser.nodes {
+    for mut node in std::mem::take(&mut parser.nodes) {
         let span = node.span();
         while let Some(&(index, hole)) = pending.peek() {
             if hole.end_offset <= span.start_offset {
                 out.push(InlineNode::Hole { index, span: hole });
             } else if hole.start_offset < span.end_offset {
-                let InlineNode::Declaration(declaration) = node else {
+                let InlineNode::Declaration(declaration) = &mut node else {
                     return None;
                 };
                 let at = hole.start_offset;
@@ -119,7 +133,7 @@ pub fn inline(source: &str, content: Span, holes: &[Span]) -> Option<Vec<InlineN
             }
             pending.next();
         }
-        out.push(*node);
+        out.push(node);
     }
     out.extend(pending.map(|(index, span)| InlineNode::Hole { index, span }));
     Some(out)
@@ -985,10 +999,17 @@ impl<'a> Parser<'a> {
                 _ => Span::new(after_colon, after_colon),
             }
         };
+        let written = if has_word {
+            value
+        } else {
+            &rest[..first_value + value.len()]
+        };
+        let cleaned = self.raw_value(written, custom_property);
         let declaration = InlineNode::Declaration(Declaration {
             span: Span::new(start, end),
             property,
             value: value_span,
+            cleaned_value: (cleaned != value_span.text(self.source)).then(|| cleaned.into()),
             important,
             property_holes: 0,
             other_holes: 0,

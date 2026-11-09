@@ -14,6 +14,8 @@ mod prefer_style_directive;
 mod require_optimized_style_attribute;
 pub(crate) mod style_attribute;
 pub(crate) mod style_sheet;
+#[cfg(test)]
+mod testing;
 mod valid_each_key;
 mod valid_style_parse;
 

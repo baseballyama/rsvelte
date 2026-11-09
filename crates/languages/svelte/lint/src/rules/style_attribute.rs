@@ -177,13 +177,13 @@ pub(super) fn property_sets<'a>(
             && let Some(nodes) = inline_style(file, attributes.start as usize + offset)
         {
             for node in nodes {
-                match *node {
+                match node {
                     InlineNode::Declaration(declaration) => {
                         visit(&[(declaration.property.text(source), declaration.property)]);
                     }
                     InlineNode::Hole { index, .. } => {
                         set.clear();
-                        let expression = expression_of_hole(component, attribute, index);
+                        let expression = expression_of_hole(component, attribute, *index);
                         expression_properties(&component.javascript, source, expression, &mut set);
                         visit(&set);
                     }
