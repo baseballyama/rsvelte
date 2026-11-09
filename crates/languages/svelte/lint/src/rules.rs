@@ -18,6 +18,7 @@ mod no_unused_variables;
 mod prefer_destructured_store_props;
 mod reactive_statements;
 mod require_store_callbacks_use_set_param;
+mod require_store_reactive_access;
 mod require_stores_init;
 mod svelte_store;
 mod valid_each_key;
@@ -39,6 +40,7 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_store_async::RULE,
     &prefer_destructured_store_props::RULE,
     &require_store_callbacks_use_set_param::RULE,
+    &require_store_reactive_access::RULE,
     &require_stores_init::RULE,
     &valid_each_key::RULE,
 ];
