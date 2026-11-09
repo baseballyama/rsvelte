@@ -1,9 +1,13 @@
 # AGENTS.md
 
-rsvelte (experimental) is a native toolchain written from scratch in Rust. It reads each file
+rsvelte (experimental) is a native toolchain for Svelte, written in Rust. It reads each file
 once and keeps immutable trees and a database of derived facts. Each task (compile, lint, format
 or type check) computes only what it needs, one file per thread. Svelte 5 comes first. The old
 port on `main` is only a diff oracle and a performance baseline; do not copy its design.
+
+Porting a Svelte tool means designing its ideal architecture, not translating its code. When a
+good Rust crate already does a general job, such as parsing JavaScript, use it instead of
+writing our own. Add a dependency only when it saves real work.
 
 ## Principles
 
