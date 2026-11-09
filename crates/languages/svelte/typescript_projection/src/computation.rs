@@ -5,7 +5,6 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_svelte_parser::Parsed;
 
 use crate::syntax_tree::SyntaxTree;
 
@@ -18,7 +17,7 @@ impl Artifact for Projected {
     const NAME: &'static str = "svelte.typescript_projection.ast";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let component = context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
+        let component = rsvelte_svelte_parser::fully_parsed(context).map_err(Clone::clone)?;
         crate::lower(component, context.source_text()).map_err(|unsupported| {
             Diagnostic::error(
                 "check_unsupported",

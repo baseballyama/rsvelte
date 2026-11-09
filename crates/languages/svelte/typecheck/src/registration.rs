@@ -6,7 +6,6 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_parser::Parsed;
 use rsvelte_svelte_typescript_projection::Printed;
 use rsvelte_typescript_check::{
     Check, Documents, TypeScriptDocument, TypeScriptEnv, TypeScriptView,
@@ -65,7 +64,7 @@ fn typescript_view(
     context: &DocumentContext<'_>,
     env: Option<&Arc<TypeScriptEnv>>,
 ) -> Result<TypeScriptDocument, Diagnostic> {
-    let component = context.get::<Parsed>().as_ref().map_err(Clone::clone)?;
+    let component = rsvelte_svelte_parser::fully_parsed(context).map_err(Clone::clone)?;
     if !component
         .instance
         .as_ref()

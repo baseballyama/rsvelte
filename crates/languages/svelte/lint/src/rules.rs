@@ -4,6 +4,8 @@ use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
 use crate::rule::RuleDefinition;
 
 mod button_has_type;
+pub(crate) mod comment_directive;
+mod compile_warnings;
 mod constant_string;
 mod duplicate_directives;
 mod expressions;
@@ -33,6 +35,7 @@ mod no_spaces_around_equal_signs_in_attribute;
 mod no_target_blank;
 mod no_trailing_spaces;
 mod no_unnecessary_condition;
+mod no_unused_svelte_ignore;
 mod no_unused_variables;
 mod no_useless_children_snippet;
 mod no_useless_mustaches;
@@ -44,9 +47,11 @@ mod shorthand_directive;
 mod sort_attributes;
 mod spaced_html_comment;
 mod string_escape;
+pub(crate) mod system;
 mod tags;
 #[cfg(test)]
 mod testing;
+mod valid_compile;
 mod valid_each_key;
 
 /// Every built-in rule.
@@ -86,6 +91,10 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &require_each_key::RULE,
     &shorthand_attribute::RULE,
     &shorthand_directive::RULE,
+    &comment_directive::RULE,
+    &no_unused_svelte_ignore::RULE,
+    &system::RULE,
+    &valid_compile::RULE,
     &valid_each_key::RULE,
 ];
 

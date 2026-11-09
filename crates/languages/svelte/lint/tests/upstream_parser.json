@@ -1,0 +1,3 @@
+{
+	"valid-compile/valid/ts/class01-input.svelte": "the TypeScript parser refuses `abstract class`"
+}

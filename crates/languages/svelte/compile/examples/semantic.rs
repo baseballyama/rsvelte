@@ -27,7 +27,11 @@ impl Case {
             program: self.component.program,
             module: self.component.module.as_ref().map(|module| module.program),
             compiler_syntax_tree: &self.tree,
-            style: self.component.style.as_ref().map(|style| &style.sheet),
+            style: self
+                .component
+                .style
+                .as_ref()
+                .and_then(|style| style.sheet.as_ref().ok()),
             template_expressions: &self.component.template_expressions,
             source_text: &self.source,
             filename: "benchmark.svelte",

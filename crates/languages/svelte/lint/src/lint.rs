@@ -4,9 +4,12 @@ use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 
 use crate::Configuration;
+use crate::directives;
 use crate::rule::File;
+use crate::rules::{comment_directive, system};
 
-/// The findings of `configuration`'s rules on a component or a module, in `ESLint`'s order.
+/// The findings of `configuration`'s rules on a component or a module, in `ESLint`'s order, less
+/// those directive comments turn off.
 ///
 /// # Errors
 ///
@@ -31,5 +34,32 @@ pub(crate) fn check(
             .filter(|rule| rule.applies(file)),
         file,
     );
-    findings.finish()
+    let mut findings = findings.finish()?;
+    // Directive lines are `ESLint`'s, which any ECMAScript line terminator ends.
+    let lines = file.context.ecmascript_line_index();
+    let source = file.source();
+    directives::apply_javascript(&mut findings, &file.javascript().comments, source, lines);
+    let Some(component) = file.component() else {
+        return Ok(findings);
+    };
+    let on = |name: &str| configuration.rules().iter().any(|r| r.name() == name);
+    // Upstream's processor applies the plugin's directives after `ESLint`'s, in rule order.
+    if on(comment_directive::RULE.name) {
+        directives::template(component, source, lines).apply(
+            &mut findings,
+            lines,
+            Some(comment_directive::RULE.name),
+        );
+    }
+    if on(system::RULE.name) {
+        let patterns = configuration.settings().ignored_rules();
+        if !patterns.is_empty() {
+            directives::ignored_in_template(component, patterns, lines).apply(
+                &mut findings,
+                lines,
+                None,
+            );
+        }
+    }
+    Ok(findings)
 }

@@ -897,11 +897,13 @@ name = "rsvelte_svelte"
 version = "0.0.0"
 dependencies = [
  "rsvelte_kernel",
+ "rsvelte_stylesheet",
  "rsvelte_svelte_compiler_syntax_tree",
  "rsvelte_svelte_parser",
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
  "rsvelte_typescript",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -972,6 +974,7 @@ dependencies = [
  "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_lint",
+ "rustc-hash",
  "semver",
  "serde",
  "serde-saphyr",
