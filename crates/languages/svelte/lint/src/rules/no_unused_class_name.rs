@@ -142,3 +142,6 @@ fn selector_classes<'a>(
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -535,3 +535,6 @@ impl Template<'_> {
         selection.len() == all && selected.len() == all
     }
 }
+
+#[cfg(test)]
+mod tests;
