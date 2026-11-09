@@ -15,15 +15,12 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::{Finding, apply_fix, apply_fixes};
 use rsvelte_svelte_lint::computation::{SvelteConfiguration, SvelteKit};
 use rsvelte_svelte_lint::project::{self, Location, SvelteKitProject};
 use rsvelte_svelte_lint::{
-    Configuration, Kit, KitFiles, LintSettings, SvelteConfig, Warning, WarningHandler,
+    Configuration, Kit, LintSettings, SvelteConfig, Warning, WarningHandler,
 };
-use rsvelte_typescript::parser::parse_program;
-use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use serde::Deserialize;
 use serde::de::IgnoredAny;
 use serde_json::value::RawValue;
@@ -790,7 +787,7 @@ fn svelte_config(
         return Ok(javascript);
     }
     svelte_config_file(&case.input, case.root)
-        .map(|file| read_svelte_config(&file))
+        .map(|file| rsvelte_svelte_lint::svelte_config::parse(&read(&file)))
         .transpose()
 }
 
@@ -803,81 +800,6 @@ fn svelte_config_file(input: &Path, root: &Path) -> Option<PathBuf> {
         .take_while(|directory| directory.starts_with(root) && *directory != root)
         .map(|directory| directory.join("svelte.config.js"))
         .find(|path| path.exists())
-}
-
-/// What `svelte-eslint-parser` takes from a `svelte.config.js`: it evaluates `export default`
-/// without running it, keeping `kit.files` when that is static. This reads object literals and
-/// literals; a config it would evaluate through anything else is refused.
-fn read_svelte_config(path: &Path) -> Result<SvelteConfig, String> {
-    let source = read(path);
-    let mut tree = SyntaxTree::new();
-    let end = u32::try_from(source.len()).map_err(|e| e.to_string())?;
-    let program = parse_program(&mut tree, &source, Span::new(0, end), false)
-        .map_err(|e| format!("does not parse: {}", e.message))?;
-    let Kind::Program(statements) = tree.kind(program) else {
-        unreachable!("a program")
-    };
-    let Some(config) = statements.iter().find_map(|&s| match tree.kind(s) {
-        Kind::ExportDefault(declaration) => Some(declaration),
-        _ => None,
-    }) else {
-        return Ok(SvelteConfig::default());
-    };
-    let Some(kit) = property(&tree, &source, config, "kit")? else {
-        return Ok(SvelteConfig::default());
-    };
-    let routes = match property(&tree, &source, kit, "files")? {
-        Some(files) => match property(&tree, &source, files, "routes")? {
-            Some(routes) if matches!(tree.kind(routes), Kind::String) => {
-                Some(tree.str_value(routes, &source).to_owned())
-            }
-            Some(_) => return Err("has a `routes` that is not a string".to_owned()),
-            None => None,
-        },
-        None => None,
-    };
-    Ok(SvelteConfig {
-        kit: Some(Kit {
-            files: KitFiles { routes },
-        }),
-        ..SvelteConfig::default()
-    })
-}
-
-/// The value of property `key` of an object literal; the last one wins, as in JavaScript.
-fn property(
-    tree: &SyntaxTree,
-    source: &str,
-    object: NodeIdentifier,
-    key: &str,
-) -> Result<Option<NodeIdentifier>, String> {
-    let Kind::Object(properties) = tree.kind(object) else {
-        return Err("is not object literals".to_owned());
-    };
-    let mut found = None;
-    for &p in properties {
-        let Kind::Property {
-            key: name,
-            value,
-            computed: false,
-            method: false,
-            getter: false,
-            setter: false,
-            ..
-        } = tree.kind(p)
-        else {
-            return Err("has a property this harness does not evaluate".to_owned());
-        };
-        let name = match tree.kind(name) {
-            Kind::Identifier(atom) => tree.atoms.get(atom),
-            Kind::String => tree.str_value(name, source),
-            _ => return Err("has a key this harness does not evaluate".to_owned()),
-        };
-        if name == key {
-            found = Some(value);
-        }
-    }
-    Ok(found)
 }
 
 /// What a host knows of the document's project, as upstream's run of the case sees it.
