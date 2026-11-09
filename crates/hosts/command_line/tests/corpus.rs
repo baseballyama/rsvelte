@@ -105,6 +105,12 @@ fn main() -> ExitCode {
         .per_project()
         .snapshot("svelte.compile/client", "client")
         .snapshot("svelte.compile/server", "server")
+        .official_file(
+            "svelte.compile.warnings",
+            "warnings",
+            "svelte.compile/client",
+            "warnings.json",
+        )
         .not_implemented("svelte.compileModule/client")
         .not_implemented("svelte.compileModule/server")
         .snapshot("svelte.lint/default", "findings")

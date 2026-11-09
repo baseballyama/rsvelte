@@ -1,7 +1,8 @@
 //! What the compiler warns about, and the analysis errors it raises, without generating code.
 //!
 //! A subset of Svelte 5's: [`CompileWarnings::CODES`] names what is checked, so a consumer can
-//! tell "not warned" from "not checked". `svelte-ignore` comments are not applied here.
+//! tell "not warned" from "not checked". [`CompileWarnings::warnings`] holds every warning;
+//! [`CompileWarnings::compiled`] leaves out the ones a `svelte-ignore` comment ignores.
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
@@ -13,21 +14,31 @@ use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
 
 mod a11y;
 mod exports;
+mod found;
+mod fuzzymatch;
+mod ignore;
 mod runes;
+mod script;
 mod selectors;
+mod setup;
 mod template;
 #[cfg(test)]
 mod tests;
+mod updates;
 
 use exports::unused_exports;
+use found::Found;
+pub use ignore::{LEGACY_REPLACEMENTS, code_for_v5};
 use runes::{custom_element, dollar_names, rune_placement, runes};
 use selectors::unused_selectors;
-use template::{Owner, Template};
+use template::Template;
 
 #[derive(Debug, Default)]
 pub struct CompileWarnings {
-    /// In the order the compiler emits them.
+    /// In the order the compiler emits them, `svelte-ignore` not applied.
     pub warnings: Vec<Diagnostic>,
+    /// Per warning, whether a `svelte-ignore` the compiler reads covers it.
+    pub ignored: Vec<bool>,
     /// Analysis errors, with when the compiler raises each; it stops at the first.
     pub errors: Vec<(Raised, Diagnostic)>,
     /// The `await`s that are `experimental_async` errors unless that option is on.
@@ -117,20 +128,91 @@ impl CompileWarnings {
 }
 
 impl CompileWarnings {
+    /// The warnings `compile` returns: those no `svelte-ignore` of the compiler's covers.
+    pub fn compiled(&self) -> impl Iterator<Item = &Diagnostic> {
+        self.warnings
+            .iter()
+            .zip(&self.ignored)
+            .filter(|(_, ignored)| !**ignored)
+            .map(|(warning, _)| warning)
+    }
+
     /// The warning codes this module checks.
     pub const CODES: &[&str] = &[
         "a11y_accesskey",
+        "a11y_aria_activedescendant_has_tabindex",
+        "a11y_aria_attributes",
+        "a11y_autocomplete_valid",
         "a11y_autofocus",
+        "a11y_click_events_have_key_events",
+        "a11y_consider_explicit_label",
+        "a11y_distracting_elements",
+        "a11y_figcaption_index",
+        "a11y_figcaption_parent",
+        "a11y_hidden",
+        "a11y_img_redundant_alt",
+        "a11y_incorrect_aria_attribute_type",
+        "a11y_incorrect_aria_attribute_type_boolean",
+        "a11y_incorrect_aria_attribute_type_idlist",
+        "a11y_incorrect_aria_attribute_type_integer",
+        "a11y_incorrect_aria_attribute_type_token",
+        "a11y_incorrect_aria_attribute_type_tokenlist",
+        "a11y_incorrect_aria_attribute_type_tristate",
+        "a11y_interactive_supports_focus",
+        "a11y_invalid_attribute",
         "a11y_label_has_associated_control",
+        "a11y_media_has_caption",
+        "a11y_misplaced_role",
         "a11y_misplaced_scope",
         "a11y_missing_attribute",
+        "a11y_missing_content",
+        "a11y_mouse_events_have_key_events",
+        "a11y_no_abstract_role",
+        "a11y_no_interactive_element_to_noninteractive_role",
+        "a11y_no_noninteractive_element_interactions",
+        "a11y_no_noninteractive_element_to_interactive_role",
         "a11y_no_noninteractive_tabindex",
+        "a11y_no_redundant_roles",
+        "a11y_no_static_element_interactions",
         "a11y_positive_tabindex",
+        "a11y_role_has_required_aria_props",
+        "a11y_role_supports_aria_props",
+        "a11y_role_supports_aria_props_implicit",
+        "a11y_unknown_aria_attribute",
+        "a11y_unknown_role",
+        "attribute_avoid_is",
+        "attribute_global_event_reference",
+        "attribute_illegal_colon",
+        "attribute_invalid_property_name",
+        "attribute_quoted",
+        "bidirectional_control_characters",
+        "bind_invalid_each_rest",
         "block_empty",
+        "component_name_lowercase",
         "css_unused_selector",
         "custom_element_props_identifier",
+        "element_implicitly_closed",
+        "element_invalid_self_closing_tag",
+        "event_directive_deprecated",
         "export_let_unused",
+        "legacy_code",
+        "legacy_component_creation",
+        "node_invalid_placement_ssr",
+        "non_reactive_update",
+        "options_deprecated_accessors",
+        "options_deprecated_immutable",
+        "options_missing_custom_element",
+        "perf_avoid_inline_class",
+        "perf_avoid_nested_class",
+        "script_context_deprecated",
+        "script_unknown_attribute",
+        "slot_element_deprecated",
+        "state_referenced_locally",
+        "store_rune_conflict",
+        "svelte_component_deprecated",
         "svelte_element_invalid_this",
+        "svelte_self_deprecated",
+        "unknown_code",
     ];
 
     /// Every code Svelte warns with, the runtime warnings `svelte-ignore` also names included: a
@@ -168,13 +250,39 @@ fn error(code: &'static str, message: &str, span: Span) -> Diagnostic {
     )
 }
 
-/// The warnings of `component`; `analysis` is needed only for its style sheet.
+/// The compile options that change what the compiler warns about.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Options {
+    /// The `runes` option: `None` infers runes mode from the component. `<svelte:options runes>`
+    /// overrides it.
+    pub runes: Option<bool>,
+    /// The `customElement` option.
+    pub custom_element: bool,
+}
+
+impl Options {
+    /// What eslint-plugin-svelte compiles with: no `runes`, and `customElement` when
+    /// `<svelte:options>` names `tag` or `customElement`.
+    #[must_use]
+    pub fn linting(component: &Component, source: &str) -> Self {
+        let names = |name| runes::svelte_option(component, source, name).is_some();
+        Self {
+            runes: None,
+            custom_element: names("tag") || names("customElement"),
+        }
+    }
+}
+
+/// The warnings of `component` from the file `filename`; `analysis` is needed only for its
+/// style sheet.
 #[must_use]
 pub fn warnings(
     component: &Component,
     resolution: &Resolution,
     analysis: Option<&Analysis>,
     source: &str,
+    filename: &str,
+    options: Options,
 ) -> CompileWarnings {
     let mut out = CompileWarnings::default();
     let javascript = &component.javascript;
@@ -185,29 +293,55 @@ pub fn warnings(
         top_level_awaits(javascript, expression, false, &mut out.awaits);
     }
     deprecated_tag(component, source, &mut out.errors);
-    let runes = runes(component, resolution, source, &out.awaits);
+    let runes = runes(component, resolution, source, &out.awaits, options.runes);
     dollar_names(component, resolution, source, runes, &mut out.errors);
     if runes {
         rune_placement(component, &mut out.errors);
     }
-    custom_element(component, resolution, source, &mut out.warnings);
-    Template {
-        component,
-        source,
-        out: &mut out.warnings,
-        errors: &mut out.errors,
-        shadow_root: false,
-        owner: Owner::Other,
-    }
-    .fragment(component.root, a11y::Parent::None);
-    if !runes {
-        unused_exports(component, resolution, source, &mut out.warnings);
+    let mut found = Found::default();
+    let custom_options = runes::svelte_option(component, source, "customElement").is_some();
+    let exported = if runes {
+        exports::exported_by_specifier(component, resolution)
+    } else {
+        rustc_hash::FxHashMap::default()
+    };
+    setup::warnings(component, source, runes, options, &mut found);
+    script::walk(
+        component, source, resolution, runes, options, &exported, &mut found,
+    );
+    custom_element(component, resolution, source, &mut found);
+    let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
+    let name = rsvelte_svelte_syntax::names::component_name(filename);
+    let mut template = Template::new(
+        template::Context {
+            component,
+            source,
+            resolution,
+            runes,
+            custom_element: custom_options || options.custom_element,
+            name: &name,
+            basename,
+        },
+        &mut found,
+        &mut out.errors,
+    );
+    template.fragment(component.root, a11y::Parent::None);
+    let bind_this = std::mem::take(&mut template.bind_this);
+    if runes {
+        updates::non_reactive_updates(component, resolution, &bind_this, &exported, &mut found);
+    } else {
+        unused_exports(component, resolution, source, &mut found);
     }
     if let (Some(Ok(sheet)), Some(analysis)) =
         (component.style.as_ref().map(|s| &s.sheet), analysis)
+        && !selectors::ignored(component, source, runes, &mut found)
     {
-        unused_selectors(&sheet.rules, analysis, source, &mut out.warnings);
+        unused_selectors(&sheet.rules, analysis, source, &mut found);
     }
+    let regions = ignore::regions(component, source, runes, &mut found);
+    let found = found.finish();
+    out.ignored = ignore::ignored(&found, &regions);
+    out.warnings = found.into_iter().map(|(_, warning)| warning).collect();
     out
 }
 

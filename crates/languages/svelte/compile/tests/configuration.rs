@@ -47,8 +47,13 @@ fn client_server_and_stylesheet_share_one_stylesheet_hash_call() {
     );
     assert!(result.panic.is_none(), "{:?}", result.panic);
     assert_eq!(calls.load(Ordering::Relaxed), 1);
-    assert_eq!(result.outputs.len(), 2);
-    for (_, output) in &result.outputs {
+    let compiled: Vec<_> = result
+        .outputs
+        .iter()
+        .filter(|(identifier, _)| identifier.starts_with("svelte.compile/"))
+        .collect();
+    assert_eq!(compiled.len(), 2);
+    for (_, output) in compiled {
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert!(
             output
@@ -98,7 +103,11 @@ fn failed_or_invalid_hashes_are_diagnostics_and_never_fall_back() {
             configuration,
         );
         assert!(result.panic.is_none());
-        for (_, output) in result.outputs {
+        // The warnings read no hash, so only the compiled outputs fail.
+        for (identifier, output) in result.outputs {
+            if !identifier.starts_with("svelte.compile/") {
+                continue;
+            }
             assert!(output.files.is_empty());
             assert_eq!(output.diagnostics.len(), 1);
         }

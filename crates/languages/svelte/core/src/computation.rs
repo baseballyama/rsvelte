@@ -85,6 +85,8 @@ impl Artifact for Warned {
             res,
             analysis,
             context.source_text(),
+            &context.document.path,
+            crate::warnings::Options::linting(c, context.source_text()),
         ))
     }
 }

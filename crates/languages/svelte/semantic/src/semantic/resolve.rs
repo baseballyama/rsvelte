@@ -140,6 +140,12 @@ impl Resolution {
         ) && (s.writes > 0 || info.initial.is_some() || s.mutations > 0)
     }
 
+    /// Upstream `should_proxy`: whether `$state(e)` makes a deep proxy of `e`'s value.
+    #[must_use]
+    pub fn should_proxy(&self, syntax_tree: &SyntaxTree, e: NodeIdentifier) -> bool {
+        proxyable(syntax_tree, Some(self), e)
+    }
+
     /// Evaluates `e` of the component's own tree.
     #[must_use]
     pub fn evaluate(
@@ -164,6 +170,47 @@ impl Resolution {
     ) -> crate::semantic::evaluate::Evaluation {
         crate::semantic::evaluate::Evaluator::new(source, source_text, self)
             .evaluate(crate::semantic::evaluate::Tree::Output(out, scope), e)
+    }
+}
+
+/// `res` is `None` for a binding's initial value, which upstream checks without a scope.
+fn proxyable(syntax_tree: &SyntaxTree, res: Option<&Resolution>, e: NodeIdentifier) -> bool {
+    match syntax_tree.kind(e) {
+        Kind::String
+        | Kind::Regex { .. }
+        | Kind::BigInt
+        | Kind::Number(_)
+        | Kind::Boolean(_)
+        | Kind::Null
+        | Kind::Template { .. }
+        | Kind::Arrow { .. }
+        | Kind::Unary(..)
+        | Kind::Binary(..)
+        | Kind::Function {
+            declaration: false, ..
+        } => false,
+        Kind::Identifier(_) if syntax_tree.name(e) == "undefined" => false,
+        Kind::Identifier(_) => {
+            let Some(res) = res else {
+                return true;
+            };
+            let Some((b, info)) = res.binding(e) else {
+                return true;
+            };
+            let s = &res.sem.bindings[b];
+            if s.writes > 0 {
+                return true;
+            }
+            // Analysis rewires a prop's initial from `$props()` to its default.
+            let initial = match info.kind {
+                BindingKind::Property
+                | BindingKind::BindableProperty
+                | BindingKind::RestProperty => info.initial,
+                _ => s.initializer(syntax_tree),
+            };
+            initial.is_none_or(|initializer| proxyable(syntax_tree, None, initializer))
+        }
+        _ => true,
     }
 }
 
