@@ -44,6 +44,9 @@ impl Parser<'_, '_> {
                         self.span_from(start_offset),
                     );
                 }
+                T::QuestionDot if !calls => {
+                    return self.fail("optional chaining cannot appear in the callee of `new`");
+                }
                 T::QuestionDot => {
                     self.bump()?;
                     optional = true;

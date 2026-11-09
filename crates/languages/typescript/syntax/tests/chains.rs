@@ -42,3 +42,25 @@ fn only_the_outermost_link_of_an_optional_chain_ends_it() {
     assert!(syntax_tree.is_chain(call));
     assert!(!syntax_tree.is_chain(plain));
 }
+
+#[test]
+fn an_optional_chain_is_no_callee_of_new_unless_parenthesized() {
+    for source_text in ["new a?.b();", "new a?.b;", "new a.b?.c();"] {
+        let mut syntax_tree = SyntaxTree::new();
+        let parsed = parse_program(
+            &mut syntax_tree,
+            source_text,
+            Span::new(0, source_text.len() as u32),
+            false,
+        );
+        assert!(parsed.is_err(), "{source_text}");
+    }
+    let mut syntax_tree = SyntaxTree::new();
+    let [new] = expressions(&mut syntax_tree, "new (a?.b)();")[..] else {
+        panic!("one statement")
+    };
+    let Kind::New { callee, .. } = syntax_tree.kind(new) else {
+        panic!("a new expression")
+    };
+    assert!(syntax_tree.is_chain(callee));
+}
