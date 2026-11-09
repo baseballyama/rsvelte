@@ -54,7 +54,6 @@ fn review_d_shapes_the_port_cannot_print_are_refused() {
             &Options::default(),
         ),
         ("<p>{007}</p>\n", &Options::default()),
-        ("<p>{a ?? b || c}</p>\n", &Options::default()),
         ("<p>{a || (b || c)}</p>\n", &Options::default()),
         ("<p>👋🏽</p>\n", &Options::default()),
         // Collapsing whitespace would reach inside the string.
@@ -79,7 +78,6 @@ fn review_d_shapes_the_port_cannot_print_are_refused() {
             "a script language other than JavaScript",
             "a script language other than JavaScript",
             "a legacy octal number",
-            "`??` mixed with `||` or `&&` without parentheses",
             "a logical expression nested on the right of the same operator",
             "an emoji sequence, which Prettier measures as one character",
             "CSS that prettier rewrites",
@@ -219,6 +217,12 @@ fn review_f_shapes_print_as_prettier_does() {
         (
             "<script>\n  (a?.b).c;\n</script>\n",
             "<script>\n  (a?.b).c;\n</script>\n",
+        ),
+        ("<p>{(a ?? b) || c}</p>\n", "<p>{(a ?? b) || c}</p>\n"),
+        ("<p>{a ?? (b && c)}</p>\n", "<p>{a ?? (b && c)}</p>\n"),
+        (
+            "<script>\n  let x = (a || b) ?? c;\n</script>\n",
+            "<script>\n  let x = (a || b) ?? c;\n</script>\n",
         ),
         // In a module `await` is a keyword, so this awaits `-1`.
         ("<p>{await -1}</p>\n", "<p>{await -1}</p>\n"),

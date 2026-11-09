@@ -1,6 +1,6 @@
 use super::{
     Formatter, Kind, LayoutInstructionIdentifier, NodeIdentifier, Op, PatternContext, R, Slot,
-    TypeScriptKind, TypeScriptSyntax, Unsupported, mixes_nullish, op_of, should_flatten,
+    TypeScriptKind, TypeScriptSyntax, Unsupported, op_of, should_flatten,
 };
 
 /// Prettier's `printNumber`.
@@ -341,18 +341,6 @@ impl Formatter<'_> {
             _ => unreachable!("binaryish"),
         };
         let parent = op_of(self.syntax_tree, identifier);
-        for child in [l, r] {
-            let Some(c) = op_of(self.syntax_tree, child) else {
-                continue;
-            };
-            // JavaScript rejects `a ?? b || c`; Svelte's parser does too.
-            if parent.is_some_and(|p| mixes_nullish(p, c)) {
-                return Err(Unsupported::at(
-                    "`??` mixed with `||` or `&&` without parentheses",
-                    self.syntax_tree.source_location(identifier),
-                ));
-            }
-        }
         // Prettier rebalances `a || (b || c)` into `a || b || c`.
         if let (Some(Op::Log(p)), Some(Op::Log(c))) = (parent, op_of(self.syntax_tree, r))
             && p == c

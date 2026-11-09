@@ -206,6 +206,8 @@ impl Parser<'_, '_> {
     pub(super) fn binary(&mut self, min: u8) -> R<NodeIdentifier> {
         let start_offset = self.token.span.start_offset;
         let mut left = self.unary()?;
+        // The logical operator of `left` when it is a logical expression without parentheses.
+        let mut bare_logical = None;
         loop {
             if self.typescript
                 && self.token.t == T::Identifier
@@ -231,8 +233,22 @@ impl Parser<'_, '_> {
             if prec < min {
                 break;
             }
+            let nullish = |op| op == Some(LogicalOperator::Nullish);
+            if bare_logical.is_some() && nullish(bare_logical) != nullish(op.err()) {
+                return self.fail(
+                    "Logical expressions and coalesce expressions cannot be mixed. Wrap either by \
+                     parentheses",
+                );
+            }
+            bare_logical = op.err();
             self.bump()?;
-            let right = self.binary(if right_assoc { prec } else { prec + 1 })?;
+            // The right side of `??` stops before `||` and `&&`, so a mix meets the check above.
+            let right_min = match op {
+                Err(LogicalOperator::Nullish) => LogicalOperator::And.precedence() + 1,
+                _ if right_assoc => prec,
+                _ => prec + 1,
+            };
+            let right = self.binary(right_min)?;
             let span = self.span_from(start_offset);
             left = match op {
                 Ok(b) => self.syntax_tree.binary(b, left, right, span),

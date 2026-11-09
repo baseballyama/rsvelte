@@ -153,3 +153,25 @@ fn a_module_references_no_strict_reserved_word_and_assigns_no_eval() {
         assert!(parses(source_text, false), "{source_text}");
     }
 }
+
+#[test]
+fn nullish_coalescing_does_not_mix_with_logical_operators_without_parentheses() {
+    for source_text in [
+        "a ?? b || c;",
+        "a || b ?? c;",
+        "a && b ?? c;",
+        "a ?? b && c;",
+        "a ?? b + c || d;",
+    ] {
+        assert!(!parses(source_text, false), "{source_text}");
+    }
+    for source_text in [
+        "(a ?? b) || c;",
+        "a ?? (b && c);",
+        "a ?? b ?? c;",
+        "a || b && c;",
+        "a ?? b | c;",
+    ] {
+        assert!(parses(source_text, false), "{source_text}");
+    }
+}
