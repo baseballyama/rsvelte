@@ -363,8 +363,16 @@ impl Check<'_, '_, '_> {
                 for selector in selectors {
                     self.selector(selector);
                 }
+                // A rule whose whole selector is `:global` is a global block.
                 nested = self.rule.check_global
-                    || !matches!(&**selectors, [only] if only.span.text(source) == ":global");
+                    || !matches!(
+                        &**selectors,
+                        [only] if matches!(
+                            &*only.parts,
+                            [part] if part.simple.len() == 1
+                                && part.simple.first().is_global_block(source)
+                        )
+                    );
             }
             RuleKind::At { .. } => {}
             RuleKind::Keyframe { .. } => nested = false,
