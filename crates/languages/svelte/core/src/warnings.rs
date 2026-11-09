@@ -272,6 +272,9 @@ pub fn warnings(
     }
     let runes = runes(component, resolution, source, &out.awaits);
     dollar_names(component, resolution, source, runes, &mut out.errors);
+    if runes {
+        rune_placement(component, &mut out.errors);
+    }
     custom_element(component, resolution, source, &mut out.warnings);
     Template {
         component,
@@ -279,6 +282,7 @@ pub fn warnings(
         out: &mut out.warnings,
         errors: &mut out.errors,
         shadow_root: false,
+        owner: Owner::Other,
     }
     .fragment(component.root, a11y::Parent::None);
     if !runes {
@@ -534,6 +538,93 @@ fn enum_names(component: &Component, source: &str, found: &mut Vec<(Raised, Span
             found.push((raised, name.span));
         }
     }
+}
+
+/// Runes mode's `legacy_export_invalid`, `props_duplicate` and `props_invalid_placement`.
+fn rune_placement(component: &Component, out: &mut Vec<(Raised, Diagnostic)>) {
+    let javascript = &component.javascript;
+    let walk = |section, at| Raised {
+        phase: Phase::Walk,
+        section,
+        at,
+    };
+    for (section, script) in [
+        (Section::Module, &component.module),
+        (Section::Instance, &component.instance),
+    ] {
+        let Some(script) = script else {
+            continue;
+        };
+        let Kind::Program(statements) = javascript.kind(script.program) else {
+            continue;
+        };
+        // The declarators `$props()` may initialize: the instance's own.
+        let mut placed: FxHashSet<NodeIdentifier> = FxHashSet::default();
+        for &statement in statements {
+            let declaration = match javascript.kind(statement) {
+                Kind::ExportNamed(declaration) => declaration,
+                _ => statement,
+            };
+            let Kind::VariableDeclaration { kind, declarations } = javascript.kind(declaration)
+            else {
+                continue;
+            };
+            if section == Section::Instance {
+                for &declarator in declarations {
+                    if let Kind::Declarator {
+                        initializer: Some(init),
+                        ..
+                    } = javascript.kind(declarator)
+                    {
+                        placed.insert(init);
+                    }
+                }
+            }
+            if section == Section::Instance
+                && declaration != statement
+                && kind & 3 == flag::LET
+                && let Some(span) = javascript.source_location(statement).span()
+            {
+                let found = error(
+                    "legacy_export_invalid",
+                    "Cannot use `export let` in runes mode — use `$props()` instead",
+                    span,
+                );
+                out.push((walk(section, span.start_offset), found));
+            }
+        }
+        let mut calls = Vec::new();
+        props_calls(javascript, script.program, &mut calls);
+        for (i, call) in calls.into_iter().enumerate() {
+            let Some(span) = javascript.source_location(call).span() else {
+                continue;
+            };
+            if i > 0 {
+                let found = error(
+                    "props_duplicate",
+                    "Cannot use `$props()` more than once",
+                    span,
+                );
+                out.push((walk(section, span.start_offset), found));
+            }
+            if !placed.contains(&call) {
+                let found = error(
+                    "props_invalid_placement",
+                    "`$props()` can only be used at the top level of components as a variable declaration initializer",
+                    span,
+                );
+                out.push((walk(section, span.start_offset), found));
+            }
+        }
+    }
+}
+
+/// The `$props()` calls under `node`, in source order.
+fn props_calls(javascript: &SyntaxTree, node: NodeIdentifier, out: &mut Vec<NodeIdentifier>) {
+    if rune_call(javascript, node).is_some_and(|(rune, _)| rune == "$props") {
+        out.push(node);
+    }
+    javascript.for_each_child(node, |child| props_calls(javascript, child, out));
 }
 
 /// `custom_element_props_identifier`: a custom element whose `$props()` the compiler cannot
@@ -829,6 +920,19 @@ struct Template<'a> {
     errors: &'a mut Vec<(Raised, Diagnostic)>,
     /// Inside an element with `shadowrootmode`, where `<slot>` is an ordinary element.
     shadow_root: bool,
+    /// What owns the fragment being walked.
+    owner: Owner,
+}
+
+/// The node a fragment belongs to, as far as `{@const}` and `<title>` care.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Owner {
+    /// A block, a component, `<svelte:fragment>`, `<svelte:boundary>` or an element with `slot`,
+    /// where `{@const}` may stand.
+    Declarations,
+    /// `<svelte:head>`, where `<title>` is the title element.
+    Head,
+    Other,
 }
 
 impl<'a> Template<'a> {
@@ -848,6 +952,12 @@ impl<'a> Template<'a> {
         }
     }
 
+    fn fragment_of(&mut self, owner: Owner, range: Range, parent: a11y::Parent<'a>) {
+        let outer = std::mem::replace(&mut self.owner, owner);
+        self.fragment(range, parent);
+        self.owner = outer;
+    }
+
     /// `validate_block_not_empty`: a branch that is one whitespace text.
     fn branch(&mut self, range: Range, parent: a11y::Parent<'a>) {
         if let [only] = self.component.children(range)
@@ -859,7 +969,56 @@ impl<'a> Template<'a> {
         {
             self.out.push(warning("block_empty", "Empty block", span));
         }
-        self.fragment(range, parent);
+        self.fragment_of(Owner::Declarations, range, parent);
+    }
+
+    /// `<svelte:window>`, `<svelte:document>` and `<svelte:body>`: no children, and no
+    /// attributes but event handlers.
+    fn special(&mut self, name: &str, element: Span, attributes: Range, children: Range) {
+        let component = self.component;
+        if let (Some(&first), Some(&last)) = (
+            component.children(children).first(),
+            component.children(children).last(),
+        ) {
+            let content = Span::new(
+                component.node(first).span().start_offset,
+                component.node(last).span().end_offset,
+            );
+            let message = format!("<{name}> cannot have children");
+            self.error(
+                element,
+                error("svelte_meta_invalid_content", &message, content),
+            );
+        }
+        for attribute in component.attributes(attributes) {
+            let event = attribute.kind == AttributeKind::Attribute
+                && attribute.name.text(self.source).starts_with("on")
+                && a11y::is_expression(component, attribute);
+            if event
+                || !matches!(
+                    attribute.kind,
+                    AttributeKind::Attribute | AttributeKind::Spread
+                )
+            {
+                continue;
+            }
+            let found = if name == "svelte:body" {
+                error(
+                    "svelte_body_illegal_attribute",
+                    "`<svelte:body>` does not support non-event attributes or spread attributes",
+                    attribute.span,
+                )
+            } else {
+                error(
+                    "illegal_element_attribute",
+                    &format!(
+                        "`<{name}>` does not support non-event attributes or spread attributes"
+                    ),
+                    attribute.span,
+                )
+            };
+            self.error(element, found);
+        }
     }
 
     /// `<slot name>`: a static name other than `default`.
@@ -914,6 +1073,85 @@ impl<'a> Template<'a> {
         }
     }
 
+    fn element(
+        &mut self,
+        name: &'a str,
+        span: Span,
+        attributes: Range,
+        children: Range,
+        parent: a11y::Parent<'a>,
+    ) {
+        let component = self.component;
+        let dynamic = name == "svelte:element";
+        let slot = name == "slot" && !self.shadow_root;
+        let regular = !dynamic && !name.starts_with("svelte:") && !slot && !is_component_name(name);
+        if regular || dynamic {
+            a11y::check_element(
+                component,
+                self.source,
+                name,
+                span,
+                attributes,
+                children,
+                dynamic,
+                parent,
+                self.out,
+            );
+        }
+        if slot {
+            self.slot(span, attributes);
+        }
+        if matches!(name, "svelte:window" | "svelte:document" | "svelte:body") {
+            self.special(name, span, attributes, children);
+        }
+        if name == "title"
+            && self.owner == Owner::Head
+            && let Some(first) = component.attributes(attributes).first()
+        {
+            let found = error(
+                "title_illegal_attribute",
+                "`<title>` cannot have attributes nor directives",
+                first.span,
+            );
+            self.error(span, found);
+        }
+        if dynamic {
+            self.dynamic_this(attributes);
+        }
+        let inner = if dynamic {
+            a11y::Parent::Dynamic
+        } else if regular {
+            a11y::Parent::Regular(name)
+        } else {
+            parent
+        };
+        let shadow_root = self.shadow_root;
+        self.shadow_root |= regular
+            && component.attributes(attributes).iter().any(|a| {
+                a.kind == AttributeKind::Attribute && a.name.text(self.source) == "shadowrootmode"
+            });
+        let slotted = (regular || dynamic)
+            && component
+                .attributes(attributes)
+                .iter()
+                .any(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "slot");
+        let owner = if name == "svelte:head" {
+            Owner::Head
+        } else if slotted
+            || matches!(
+                name,
+                "svelte:component" | "svelte:fragment" | "svelte:boundary"
+            )
+            || (is_component_name(name) && !name.starts_with("svelte:"))
+        {
+            Owner::Declarations
+        } else {
+            Owner::Other
+        };
+        self.fragment_of(owner, children, inner);
+        self.shadow_root = shadow_root;
+    }
+
     fn node(&mut self, child: u32, parent: a11y::Parent<'a>) {
         let component = self.component;
         match *component.node(child) {
@@ -923,47 +1161,7 @@ impl<'a> Template<'a> {
                 children,
                 span,
                 ..
-            } => {
-                let name = name.text(self.source);
-                let dynamic = name == "svelte:element";
-                let slot = name == "slot" && !self.shadow_root;
-                let regular =
-                    !dynamic && !name.starts_with("svelte:") && !slot && !is_component_name(name);
-                if regular || dynamic {
-                    a11y::check_element(
-                        component,
-                        self.source,
-                        name,
-                        span,
-                        attributes,
-                        children,
-                        dynamic,
-                        parent,
-                        self.out,
-                    );
-                }
-                if slot {
-                    self.slot(span, attributes);
-                }
-                if dynamic {
-                    self.dynamic_this(attributes);
-                }
-                let inner = if dynamic {
-                    a11y::Parent::Dynamic
-                } else if regular {
-                    a11y::Parent::Regular(name)
-                } else {
-                    parent
-                };
-                let shadow_root = self.shadow_root;
-                self.shadow_root |= regular
-                    && component.attributes(attributes).iter().any(|a| {
-                        a.kind == AttributeKind::Attribute
-                            && a.name.text(self.source) == "shadowrootmode"
-                    });
-                self.fragment(children, inner);
-                self.shadow_root = shadow_root;
-            }
+            } => self.element(name.text(self.source), span, attributes, children, parent),
             TemplateNode::If {
                 consequent,
                 alternate,
@@ -999,6 +1197,14 @@ impl<'a> Template<'a> {
                         self.branch(branch, parent);
                     }
                 }
+            }
+            TemplateNode::Const { span, .. } if self.owner != Owner::Declarations => {
+                let found = error(
+                    "const_tag_invalid_placement",
+                    "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`",
+                    span,
+                );
+                self.error(span, found);
             }
             _ => {}
         }

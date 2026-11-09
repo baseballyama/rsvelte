@@ -308,3 +308,53 @@ fn an_empty_block_is_empty_by_javascript_trim() {
         [("block_empty".to_owned(), 1, 7)]
     );
 }
+
+#[test]
+fn analysis_errors_that_silence_every_warning() {
+    let only = |code: &str, line, column| vec![(code.to_owned(), line, column)];
+    let cases = [
+        (
+            "<svelte:window accesskey=\"x\" />\n",
+            only("illegal_element_attribute", 1, 15),
+        ),
+        (
+            "<svelte:window on:resize={f}>\n</svelte:window>\n",
+            only("svelte_meta_invalid_content", 1, 29),
+        ),
+        (
+            "<svelte:body onclick={f} class=\"x\" />\n",
+            only("svelte_body_illegal_attribute", 1, 25),
+        ),
+        (
+            "<svelte:document onclick={f} {...rest} />\n",
+            only("illegal_element_attribute", 1, 29),
+        ),
+        (
+            "<div>{@const a = 1}</div>\n",
+            only("const_tag_invalid_placement", 1, 5),
+        ),
+        (
+            "{#if x}{@const a = 1}{a}{/if}\n<Foo>{@const b = 1}{b}</Foo>\n<Foo><div slot=\"s\">{@const c = 1}{c}</div></Foo>\n",
+            Vec::new(),
+        ),
+        (
+            "<script>\n  let x = $state(0);\n  export let a;\n</script>\n",
+            only("legacy_export_invalid", 3, 2),
+        ),
+        (
+            "<script>\n  let { a } = $props();\n  let { b } = $props();\n</script>\n",
+            only("props_duplicate", 3, 14),
+        ),
+        (
+            "<script>\n  let x = $state(0);\n  function f() { const p = $props(); }\n</script>\n",
+            only("props_invalid_placement", 3, 27),
+        ),
+        (
+            "<svelte:head><title lang=\"en\">x</title></svelte:head>\n",
+            only("title_illegal_attribute", 1, 20),
+        ),
+    ];
+    for (code, expected) in cases {
+        assert_eq!(first_error(code), expected, "{code}");
+    }
+}
