@@ -35,9 +35,10 @@ impl SvelteRule for NoTrailingSpaces {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
         let component = file.component().expect("a component rule");
         let source = file.source();
-        let lines = lines(source);
-        let line_of = |offset: u32| lines.partition_point(|line| line.start_offset <= offset) - 1;
-        let mut ignored = vec![false; lines.len()];
+        // `sourceCode.lines`.
+        let lines = file.context.ecmascript_line_index();
+        let line_of = |offset: u32| lines.line(offset) as usize - 1;
+        let mut ignored = vec![false; lines.line_count()];
         // Lines a token spans, the last one included or not.
         let mut ignore = |span: Span, last: bool| {
             let (start, end) = (line_of(span.start_offset), line_of(span.end_offset));
@@ -63,11 +64,10 @@ impl SvelteRule for NoTrailingSpaces {
                 }
             }
         }
-        for (line, span) in lines.iter().enumerate() {
+        for (line, ignored) in (1..).zip(ignored) {
+            let span = lines.line_span(line).expect("a line of the document");
             let text = span.text(source);
-            if ignored[line]
-                || (self.0.skip_blank_lines && text.chars().all(is_javascript_whitespace))
-            {
+            if ignored || (self.0.skip_blank_lines && text.chars().all(is_javascript_whitespace)) {
                 continue;
             }
             let trimmed = text.trim_end_matches(is_javascript_whitespace);
@@ -80,25 +80,4 @@ impl SvelteRule for NoTrailingSpaces {
             );
         }
     }
-}
-
-/// `sourceCode.lines`: split at `\r\n`, `\r`, `\n`, U+2028 and U+2029, terminators excluded.
-fn lines(source: &str) -> Vec<Span> {
-    let mut lines = Vec::new();
-    let mut start = 0;
-    let mut chars = source.char_indices().peekable();
-    while let Some((i, c)) = chars.next() {
-        if !matches!(c, '\n' | '\r' | '\u{2028}' | '\u{2029}') {
-            continue;
-        }
-        lines.push(Span::new(start as u32, i as u32));
-        let mut next = i + c.len_utf8();
-        if c == '\r' && chars.peek().is_some_and(|&(_, n)| n == '\n') {
-            chars.next();
-            next += 1;
-        }
-        start = next;
-    }
-    lines.push(Span::new(start as u32, source.len() as u32));
-    lines
 }
