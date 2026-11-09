@@ -3,6 +3,7 @@ use crate::rule::RuleDefinition;
 mod button_has_type;
 mod no_at_debug_tags;
 mod no_at_html_tags;
+mod no_nested_style_tag;
 mod no_unused_variables;
 mod valid_each_key;
 
@@ -12,5 +13,6 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &button_has_type::RULE,
     &no_at_debug_tags::RULE,
     &no_at_html_tags::RULE,
+    &no_nested_style_tag::RULE,
     &valid_each_key::RULE,
 ];
