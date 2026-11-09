@@ -1,6 +1,6 @@
 use super::{
-    Kind, LexedToken, List, NodeIdentifier, Parser, R, Span, T, TypeDeclaration,
-    TypeDeclarationKind, TypeScriptFeature, TypeScriptKind, TypeScriptRuntime, TypeScriptSyntax,
+    Kind, List, NodeIdentifier, Parser, R, Span, T, TypeDeclaration, TypeDeclarationKind,
+    TypeScriptFeature, TypeScriptKind, TypeScriptRuntime, TypeScriptSyntax,
 };
 use crate::syntax_tree::Type;
 
@@ -441,85 +441,6 @@ impl Parser<'_, '_> {
             ty,
         );
         Ok(true)
-    }
-
-    /// Whether the `<` here opens a type argument list after an expression. TypeScript reads
-    /// `f<T>(x)` as a call with type arguments where JavaScript reads two comparisons; outside
-    /// brackets, a token no type can contain means a comparison, and so does a `>` that an operand
-    /// follows on the same line (`a < b > c`).
-    pub(super) fn type_arguments_before_call(&self) -> bool {
-        let mut l = self.lex;
-        let mut scratch = Vec::new();
-        let (mut angle, mut nest) = (1i32, 0i32);
-        loop {
-            let Ok(t) = l.next(&mut scratch) else {
-                return false;
-            };
-            match t.t {
-                T::Eof => return false,
-                T::LParen | T::LBracket | T::LBrace => nest += 1,
-                T::RParen | T::RBracket | T::RBrace => {
-                    nest -= 1;
-                    if nest < 0 {
-                        return false;
-                    }
-                }
-                T::Op => {
-                    angle -= match self.text(t) {
-                        "<" => -1,
-                        ">" => 1,
-                        ">>" => 2,
-                        ">>>" => 3,
-                        "|" | "&" | "-" => 0,
-                        _ if nest > 0 => 0,
-                        _ => return false,
-                    };
-                    if angle < 0 || (angle == 0 && nest != 0) {
-                        return false;
-                    }
-                    if angle == 0 {
-                        return l
-                            .next(&mut scratch)
-                            .is_ok_and(|next| self.follows_type_arguments(next));
-                    }
-                }
-                T::Identifier
-                | T::String
-                | T::Number
-                | T::Dot
-                | T::Comma
-                | T::Question
-                | T::Colon
-                | T::Arrow
-                | T::Ellipsis => {}
-                _ if nest > 0 => {}
-                _ => return false,
-            }
-        }
-    }
-
-    /// TypeScript's `canFollowTypeArgumentsInExpression`: whether `next`, the token after a
-    /// closing `>`, leaves the list type arguments.
-    fn follows_type_arguments(&self, next: LexedToken) -> bool {
-        match next.t {
-            T::LParen | T::Template { .. } => true,
-            T::Op if matches!(self.text(next), "<" | ">" | "+" | "-") => false,
-            _ if next.newline_before => true,
-            T::Op => !matches!(self.text(next), "!" | "~" | "++" | "--"),
-            T::Identifier => matches!(self.text(next), "as" | "satisfies" | "in" | "instanceof"),
-            T::RParen
-            | T::RBracket
-            | T::RBrace
-            | T::Semi
-            | T::Comma
-            | T::Colon
-            | T::Question
-            | T::QuestionDot
-            | T::Dot
-            | T::Arrow
-            | T::Eof => true,
-            _ => false,
-        }
     }
 }
 
