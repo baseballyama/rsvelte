@@ -4,28 +4,61 @@ use rsvelte_typescript::{NodeIdentifier, SyntaxTree};
 use crate::rule::RuleDefinition;
 
 mod button_has_type;
+mod constant_string;
+mod duplicate_directives;
+mod expressions;
+mod markup;
+mod no_at_const_tags;
 mod no_at_debug_tags;
 mod no_at_html_tags;
+mod no_bind_value_on_checkable_inputs;
+mod no_dupe_else_if_blocks;
+mod no_dupe_on_directives;
+mod no_dupe_use_directives;
+mod no_dynamic_slot_name;
 mod no_inspect;
 mod no_nested_style_tag;
+mod no_not_function_handler;
+mod no_object_in_text_mustaches;
 mod no_raw_special_elements;
+mod no_restricted_html_elements;
+mod no_target_blank;
 mod no_unused_variables;
 mod no_useless_children_snippet;
+mod no_useless_mustaches;
+mod prefer_attribute_interpolation;
 mod require_each_key;
 mod runes_mode;
+mod shorthand_attribute;
+mod shorthand_directive;
+mod string_escape;
 mod valid_each_key;
 
 /// Every built-in rule.
 pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &no_unused_variables::RULE,
     &button_has_type::RULE,
+    &no_at_const_tags::RULE,
     &no_at_debug_tags::RULE,
     &no_at_html_tags::RULE,
+    &no_bind_value_on_checkable_inputs::RULE,
+    &no_dupe_else_if_blocks::RULE,
+    &no_dupe_on_directives::RULE,
+    &no_dupe_use_directives::RULE,
+    &no_dynamic_slot_name::RULE,
     &no_inspect::RULE,
     &no_nested_style_tag::RULE,
+    &no_not_function_handler::RULE,
+    &no_object_in_text_mustaches::RULE,
     &no_raw_special_elements::RULE,
+    &no_restricted_html_elements::RULE,
+    &no_target_blank::RULE,
     &no_useless_children_snippet::RULE,
+    &no_useless_mustaches::RULE,
+    &prefer_attribute_interpolation::RULE,
     &require_each_key::RULE,
+    &shorthand_attribute::RULE,
+    &shorthand_directive::RULE,
     &valid_each_key::RULE,
 ];
 
