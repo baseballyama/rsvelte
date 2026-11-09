@@ -1,6 +1,7 @@
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript::Kind;
+use rsvelte_typescript::operators::AssignmentOperator;
 
 use super::reactive_statements::reactive_statements;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
@@ -33,7 +34,7 @@ impl SvelteRule for NoReactiveLiterals {
             let Kind::ExpressionStatement(expression) = javascript.kind(body) else {
                 continue;
             };
-            let Kind::Assign(_, _, right) = javascript.kind(expression) else {
+            let Kind::Assign(operator, left, right) = javascript.kind(expression) else {
                 continue;
             };
             // ESTree's `Literal`, `[]` and `{}`.
@@ -52,14 +53,15 @@ impl SvelteRule for NoReactiveLiterals {
                 continue;
             }
             let statement = span(statement);
-            reporter.report(
-                Report::range(
-                    "Do not assign literal values inside reactive statements unless absolutely \
-                     necessary.",
-                    statement,
-                )
-                .message_id("noReactiveLiterals")
-                .suggest(Suggestion {
+            let mut report = Report::range(
+                "Do not assign literal values inside reactive statements unless absolutely \
+                 necessary.",
+                statement,
+            )
+            .message_id("noReactiveLiterals");
+            // Upstream also suggests `let a += 1` and `let obj.x = 1`, which do not parse.
+            if operator == AssignmentOperator::Assign && javascript.is_identifier(left) {
+                report = report.suggest(Suggestion {
                     message_id: Some("fixReactiveLiteral".into()),
                     message: "Move the literal out of the reactive statement into an assignment"
                         .to_owned(),
@@ -67,8 +69,9 @@ impl SvelteRule for NoReactiveLiterals {
                         statement,
                         format!("let {}", span(expression).text(file.source())),
                     ),
-                }),
-            );
+                });
+            }
+            reporter.report(report);
         }
     }
 }

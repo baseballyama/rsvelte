@@ -1,1 +1,3 @@
-{}
+{
+  "no-reactive-literals/invalid/compound-and-member-input.svelte": "upstream suggests `let a += 1` and `let obj.x = 1`, which do not parse (upstream_issues.md)"
+}
