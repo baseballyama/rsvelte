@@ -141,3 +141,97 @@ fn a_leading_byte_order_mark_still_counts_in_line_one_columns() {
         .line_column(error.span.start_offset);
     assert_eq!((start.line, start.column), (1, 5));
 }
+
+fn compiled(source: &str) -> Result<(), rsvelte_kernel::diagnostics::Diagnostic> {
+    let component = rsvelte_svelte_syntax::parse::parse(source)?;
+    let tree = compiler_syntax_tree::lower(&component, source);
+    let input = rsvelte_svelte_semantic::svelte_input(&component, &tree, source, "test.svelte");
+    let resolution = resolve::resolve(&component.javascript, component.program, &tree);
+    let analysis = analyze::analyze(&input, &resolution);
+    compile_input(
+        &CompileInput::from(input),
+        &resolution,
+        &analysis,
+        Target::Client,
+    )
+    .map(|_| ())
+}
+
+/// Each span and message is the official compiler's.
+#[test]
+fn a_tree_the_browser_would_repair_raises_node_invalid_placement() {
+    for (source, span, message) in [
+        (
+            "<table><tr><td>a</td></tr></table>",
+            (7, 26),
+            "`<tr>` cannot be a child of `<table>`. `<table>` only allows these children: `<caption>`, `<colgroup>`, `<tbody>`, `<thead>`, `<tfoot>`, `<style>`, `<script>`, `<template>`",
+        ),
+        (
+            "<p><span><div>a</div></span></p>",
+            (9, 21),
+            "`<div>` cannot be a descendant of `<p>`",
+        ),
+        (
+            "<dt><span><dd>a</dd></span></dt>",
+            (10, 20),
+            "`<dd>` cannot be a descendant of `<dt>`",
+        ),
+        (
+            "<p><my-el><div></div></my-el></p>",
+            (10, 21),
+            "`<div>` cannot be a descendant of `<p>`",
+        ),
+        (
+            "<p><svelte:boundary><div></div></svelte:boundary></p>",
+            (20, 31),
+            "`<div>` cannot be a child of `<p>`",
+        ),
+        (
+            "<table>{#if x}text{/if}</table>",
+            (14, 18),
+            "`<#text>` cannot be a child of `<table>`",
+        ),
+        (
+            "<tr>{x}</tr>",
+            (4, 7),
+            "`<#text>` cannot be a child of `<tr>`",
+        ),
+        (
+            "<div><td></td></div>",
+            (5, 14),
+            "`<td>` must be the child of a `<tr>`, not a `<div>`",
+        ),
+        (
+            "<div><caption></caption></div>",
+            (5, 24),
+            "`<caption>` cannot be a child of `<div>`",
+        ),
+    ] {
+        let error = compiled(source).expect_err(source);
+        assert_eq!(error.code, "node_invalid_placement", "{source}");
+        assert_eq!(
+            (error.span.start_offset, error.span.end_offset),
+            span,
+            "{source}"
+        );
+        assert!(
+            error.message.starts_with(message),
+            "{source}: {}",
+            error.message
+        );
+    }
+    // A block makes upstream only warn; a `<dl>` or a custom element allows `<dt>` again.
+    for source in [
+        "<table><tbody><tr><td>a</td></tr></tbody></table>",
+        "<table>{#if x}<tr><td>a</td></tr>{/if}</table>",
+        "<p><span>{#if x}<div>a</div>{/if}</span></p>",
+        "<dl><dt><dl><dt>a</dt></dl></dt></dl>",
+        "<dt><my-el><dd>a</dd></my-el></dt>",
+        "<dt><dl><span><dd>a</dd></span></dl></dt>",
+        "<a><svelte:element this=\"b\"><a>x</a></svelte:element></a>",
+        "<table> </table>",
+        "<table>&#32;</table>",
+    ] {
+        compiled(source).unwrap_or_else(|error| panic!("{source}: {error:?}"));
+    }
+}

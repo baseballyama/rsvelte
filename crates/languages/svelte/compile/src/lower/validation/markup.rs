@@ -1,9 +1,14 @@
 //! The template errors upstream's parser and analysis raise, one walk for elements and
 //! components.
 
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{ElementKind, MetadataTag};
 use rsvelte_typescript_syntax::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashSet;
+
+mod placement;
+
+use placement::Ancestors;
 
 use super::super::special::invalid;
 use super::super::{
@@ -28,15 +33,28 @@ enum Owner {
     Element,
 }
 
+/// Upstream's `parent_element` and what its `RegularElement` visitor reads from the path above.
+#[derive(Clone, Copy, Default)]
+struct Placement<'a> {
+    /// The nearest regular element, unless a component or snippet is nearer.
+    parent: Option<&'a str>,
+    depth: u32,
+    /// A block lies between the node and `parent`.
+    crossed_block: bool,
+    ancestors: Ancestors,
+}
+
 /// # Errors
 ///
-/// `attribute_duplicate`, `bind_invalid_expression`, `svelte_fragment_invalid_placement` or
-/// `slot_attribute_invalid_placement`, at the first node in document order that has one.
+/// `attribute_duplicate`, `svelte_fragment_invalid_placement`, `slot_attribute_invalid_placement`,
+/// `node_invalid_placement` or `bind_invalid_expression`, at the first node in document order
+/// that has one.
 pub(in crate::lower) fn check(input: &CompileInput<'_>) -> Result<(), Diagnostic> {
     walk(
         input,
         input.component.compiler_syntax_tree.root,
         None,
+        Placement::default(),
         &mut FxHashSet::default(),
     )
 }
@@ -45,45 +63,111 @@ fn walk<'a>(
     input: &CompileInput<'a>,
     children: Children,
     owner: Option<Owner>,
+    placement: Placement<'a>,
     names: &mut FxHashSet<(Namespace, &'a str)>,
 ) -> Result<(), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
+    let source = input.component.source_text;
     for &identifier in tree.children(children) {
-        let inner = match &tree.node(identifier).kind {
-            NodeKind::Element(el) => element(input, identifier, el, owner, names)?,
-            _ => owner,
+        let node = tree.node(identifier);
+        let text = match &node.kind {
+            NodeKind::Text { raw, decoded, .. } => {
+                let data = decoded.as_deref().unwrap_or_else(|| raw.text(source));
+                data.contains(|c| !matches!(c, ' ' | '\t' | '\r' | '\n'))
+            }
+            NodeKind::Expression { .. } => true,
+            _ => false,
+        };
+        if text
+            && let Some(parent) = placement.parent
+            && let Some(message) = placement::invalid_with_parent("#text", parent)
+        {
+            return node_invalid_placement(&message, node.span);
+        }
+        let (inner, inner_placement) = match &node.kind {
+            NodeKind::Element(el) => element(input, identifier, el, owner, placement, names)?,
+            NodeKind::If { .. } | NodeKind::Each(_) | NodeKind::Await(_) | NodeKind::Key { .. } => {
+                (
+                    owner,
+                    Placement {
+                        crossed_block: true,
+                        ancestors: placement.ancestors.cross_block(),
+                        ..placement
+                    },
+                )
+            }
+            NodeKind::Snippet(_) => (owner, Placement::default()),
+            _ => (owner, placement),
         };
         for children in tree.child_lists(identifier) {
-            walk(input, children, inner, names)?;
+            walk(input, children, inner, inner_placement, names)?;
         }
     }
     Ok(())
 }
 
-/// The owner is returned because a child's `slot` attribute is checked against it.
+/// Upstream's `node_invalid_placement` for a regular element, and the placement of its children.
+fn element_placement<'a>(
+    input: &CompileInput<'a>,
+    identifier: CompilerNodeIdentifier,
+    el: &Element,
+    placement: Placement<'a>,
+) -> Result<Placement<'a>, Diagnostic> {
+    match el.kind {
+        ElementKind::Regular => {}
+        kind if kind.renders_component() => return Ok(Placement::default()),
+        ElementKind::Metadata(Some(MetadataTag::Element | MetadataTag::Fragment)) => {
+            return Ok(Placement::default());
+        }
+        _ => return Ok(placement),
+    }
+    let name = el.name.text(input.component.source_text);
+    if let Some(parent) = placement.parent {
+        // Past a block upstream only warns, and every later message is a warning too.
+        let message = placement::invalid_with_parent(name, parent).map_or_else(
+            || placement.ancestors.invalid(name),
+            |message| (!placement.crossed_block).then_some(message),
+        );
+        if let Some(message) = message {
+            let span = input.component.compiler_syntax_tree.node(identifier).span;
+            return node_invalid_placement(&message, span);
+        }
+    }
+    Ok(Placement {
+        parent: Some(name),
+        depth: placement.depth + 1,
+        crossed_block: false,
+        ancestors: placement.parent.map_or(placement.ancestors, |parent| {
+            (placement.ancestors).below((parent, placement.depth, placement.crossed_block), name)
+        }),
+    })
+}
+
+fn node_invalid_placement<T>(message: &str, span: Span) -> Result<T, Diagnostic> {
+    invalid(
+        "node_invalid_placement",
+        &format!(
+            "{message}. The browser will 'repair' the HTML (by moving, removing, or inserting \
+             elements) which breaks Svelte's assumptions about the structure of your components."
+        ),
+        span,
+    )
+}
+
+/// The owner and placement are returned because the children are checked against them.
 fn element<'a>(
     input: &CompileInput<'a>,
     identifier: CompilerNodeIdentifier,
     el: &'a Element,
     owner: Option<Owner>,
+    placement: Placement<'a>,
     names: &mut FxHashSet<(Namespace, &'a str)>,
-) -> Result<Option<Owner>, Diagnostic> {
+) -> Result<(Option<Owner>, Placement<'a>), Diagnostic> {
     let tree = input.component.compiler_syntax_tree;
     let source = input.component.source_text;
     let node = tree.node(identifier);
     let attributes = tree.attributes(el.attributes);
     check_unique(source, attributes, names)?;
-    for a in attributes {
-        if let AttributeValue::Bind(target) = a.value
-            && !binds_a_name(input.component.javascript, target)
-        {
-            return invalid(
-                "bind_invalid_expression",
-                "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair",
-                a.span,
-            );
-        }
-    }
     let parent = node.parent.map(|parent| &tree.node(parent).kind);
     // Upstream's `SvelteFragment` takes a component or `<svelte:component>`, not `<svelte:self>`.
     if el.kind == ElementKind::Metadata(Some(MetadataTag::Fragment))
@@ -117,12 +201,25 @@ fn element<'a>(
             slot.span,
         );
     }
-    Ok(match el.kind {
+    let placement = element_placement(input, identifier, el, placement)?;
+    for a in attributes {
+        if let AttributeValue::Bind(target) = a.value
+            && !binds_a_name(input.component.javascript, target)
+        {
+            return invalid(
+                "bind_invalid_expression",
+                "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair",
+                a.span,
+            );
+        }
+    }
+    let owner = match el.kind {
         kind if kind.renders_component() => Some(Owner::Component(identifier)),
         ElementKind::Metadata(Some(MetadataTag::Element)) => Some(Owner::Element),
         ElementKind::Regular if is_custom_element_node(tree, source, el) => Some(Owner::Element),
         _ => owner,
-    })
+    };
+    Ok((owner, placement))
 }
 
 /// Upstream's parser: an attribute or binding, a `class:` or a `style:` directive named twice
