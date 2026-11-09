@@ -4,8 +4,8 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte::syntax::syntax_tree::TemplateNode;
 use serde::Deserialize;
 
-use super::tags::is_javascript_whitespace;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
+use rsvelte_kernel::source::characters::is_ecmascript_whitespace as is_javascript_whitespace;
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "svelte/spaced-html-comment",

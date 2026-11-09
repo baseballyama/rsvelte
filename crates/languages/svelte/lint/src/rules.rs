@@ -101,7 +101,6 @@ pub(crate) mod style_attribute;
 pub(crate) mod style_sheet;
 mod svelte_store;
 pub(crate) mod system;
-mod tags;
 #[cfg(test)]
 mod testing;
 mod valid_compile;

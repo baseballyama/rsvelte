@@ -6,7 +6,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte::syntax::syntax_tree::{AttributeKind, Component};
 use serde::Deserialize;
 
-use super::tags::{TagAttribute, is_special_this, start_tags};
+use super::markup::{TagAttribute, is_special_this, start_tags};
 use crate::Pattern;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
