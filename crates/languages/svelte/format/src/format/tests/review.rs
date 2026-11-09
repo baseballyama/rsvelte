@@ -223,6 +223,14 @@ fn review_f_shapes_print_as_prettier_does() {
             "<script>\n  (a?.b).c;\n</script>\n",
         ),
         (
+            "<script>\n  new (a?.b)();\n</script>\n",
+            "<script>\n  new (a?.b)();\n</script>\n",
+        ),
+        (
+            "<script>\n  (a?.b)();\n</script>\n",
+            "<script>\n  (a?.b)();\n</script>\n",
+        ),
+        (
             "<script>\n  f(\"a\\\nb\");\n</script>\n",
             "<script>\n  f(\n    \"a\\\nb\",\n  );\n</script>\n",
         ),

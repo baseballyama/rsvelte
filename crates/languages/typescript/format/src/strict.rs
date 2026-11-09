@@ -198,9 +198,6 @@ fn node_error(
                 Some("an update of something that is not a name or a member")
             }
         }
-        Kind::New { callee, .. } => {
-            has_optional_chain(tree, callee).then_some("an optional chain after `new`")
-        }
         Kind::Unary(UnaryOperator::Delete, argument) => {
             matches!(tree.kind(argument), Kind::Identifier(_)).then_some("`delete` of a name")
         }
