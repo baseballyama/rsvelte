@@ -1,12 +1,11 @@
 use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_typescript::scope::Semantic;
-use rsvelte_typescript::semantic::globals::global;
+use rsvelte_typescript::semantic::reference_tracker::{global_references, property_references};
 use rsvelte_typescript::syntax_tree::Control;
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::FxHashMap;
 
 use super::nodes::{span, walk};
-use super::reference_tracker::{Access, Found, ReferenceTracker, Trace};
 use super::runes::is_svelte_file;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -24,77 +23,42 @@ fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
 #[derive(Debug)]
 struct PreferSvelteReactivity;
 
-static CLASSES: Trace<'static> = Trace::properties(&[
-    ("Date", Trace::CONSTRUCT),
-    ("Map", Trace::CONSTRUCT),
-    ("Set", Trace::CONSTRUCT),
-    ("URL", Trace::CONSTRUCT),
-    ("URLSearchParams", Trace::CONSTRUCT),
-]);
+/// The built-in classes whose constructions the rule checks.
+const CLASSES: &[&str] = &["Date", "Map", "Set", "URL", "URLSearchParams"];
 
 /// The methods that change each class's instances.
-static MUTATING_CALLS: &[(&str, Trace<'static>)] = &[
+const MUTATING_CALLS: &[(&str, &[&str])] = &[
     (
         "Date",
-        Trace::properties(&[
-            ("setDate", Trace::CALL),
-            ("setFullYear", Trace::CALL),
-            ("setHours", Trace::CALL),
-            ("setMilliseconds", Trace::CALL),
-            ("setMinutes", Trace::CALL),
-            ("setMonth", Trace::CALL),
-            ("setSeconds", Trace::CALL),
-            ("setTime", Trace::CALL),
-            ("setUTCDate", Trace::CALL),
-            ("setUTCFullYear", Trace::CALL),
-            ("setUTCHours", Trace::CALL),
-            ("setUTCMilliseconds", Trace::CALL),
-            ("setUTCMinutes", Trace::CALL),
-            ("setUTCMonth", Trace::CALL),
-            ("setUTCSeconds", Trace::CALL),
-            ("setYear", Trace::CALL),
-        ]),
+        &[
+            "setDate",
+            "setFullYear",
+            "setHours",
+            "setMilliseconds",
+            "setMinutes",
+            "setMonth",
+            "setSeconds",
+            "setTime",
+            "setUTCDate",
+            "setUTCFullYear",
+            "setUTCHours",
+            "setUTCMilliseconds",
+            "setUTCMinutes",
+            "setUTCMonth",
+            "setUTCSeconds",
+            "setYear",
+        ],
     ),
-    (
-        "Map",
-        Trace::properties(&[
-            ("clear", Trace::CALL),
-            ("delete", Trace::CALL),
-            ("set", Trace::CALL),
-        ]),
-    ),
-    (
-        "Set",
-        Trace::properties(&[
-            ("add", Trace::CALL),
-            ("clear", Trace::CALL),
-            ("delete", Trace::CALL),
-        ]),
-    ),
-    (
-        "URLSearchParams",
-        Trace::properties(&[
-            ("append", Trace::CALL),
-            ("delete", Trace::CALL),
-            ("set", Trace::CALL),
-            ("sort", Trace::CALL),
-        ]),
-    ),
+    ("Map", &["clear", "delete", "set"]),
+    ("Set", &["add", "clear", "delete"]),
+    ("URLSearchParams", &["append", "delete", "set", "sort"]),
 ];
 
 /// The properties whose assignment changes a `URL`.
-static URL_PROPERTIES: Trace<'static> = Trace::properties(&[
-    ("hash", Trace::READ),
-    ("host", Trace::READ),
-    ("hostname", Trace::READ),
-    ("href", Trace::READ),
-    ("password", Trace::READ),
-    ("pathname", Trace::READ),
-    ("port", Trace::READ),
-    ("protocol", Trace::READ),
-    ("search", Trace::READ),
-    ("username", Trace::READ),
-]);
+const URL_PROPERTIES: &[&str] = &[
+    "hash", "host", "hostname", "href", "password", "pathname", "port", "protocol", "search",
+    "username",
+];
 
 impl SvelteRule for PreferSvelteReactivity {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
@@ -109,17 +73,16 @@ impl SvelteRule for PreferSvelteReactivity {
         } else {
             exported_declarations(file, tree, sem, parents)
         };
-        let mut tracker = ReferenceTracker::new(tree, sem, parents, file.source());
-        let mut constructions = Vec::new();
-        tracker.global_references(
-            &CLASSES,
-            &["global", "globalThis", "self", "window"],
-            |name| global(name).is_some(),
-            &mut constructions,
-        );
-        let mut uses = Vec::new();
-        for Found { node, path, .. } in constructions {
-            let class = path[0];
+        let source = file.source();
+        let parent = |node: NodeIdentifier| parents[node.index()].opt();
+        for reference in global_references(tree, sem, parents, source, CLASSES) {
+            let Some(node) = reference
+                .call
+                .filter(|&call| matches!(tree.kind(call), Kind::New { .. }))
+            else {
+                continue;
+            };
+            let class = reference.name;
             let message = format!(
                 "Found a mutable instance of the built-in {class} class. Use Svelte{class} instead."
             );
@@ -138,24 +101,28 @@ impl SvelteRule for PreferSvelteReactivity {
                         Report::range(message.clone(), span(tree, node)).message_id(message_id),
                     );
                 }
-                at = parents[current.index()].opt();
+                at = parent(current);
             }
-            uses.clear();
             let mutated = if class == "URL" {
-                tracker.property_references(node, &[], &URL_PROPERTIES, &mut uses);
-                uses.iter().any(|found| {
-                    found.access == Access::Read
-                        && tracker.parent(found.node).is_some_and(|parent| {
+                property_references(tree, sem, parents, source, node, &[], URL_PROPERTIES)
+                    .iter()
+                    .any(|found| {
+                        parent(found.node).is_some_and(|parent| {
                             matches!(tree.kind(parent), Kind::Assign(_, left, _) if left == found.node)
                         })
-                })
+                    })
             } else {
                 let (_, calls) = MUTATING_CALLS
                     .iter()
                     .find(|(name, _)| *name == class)
                     .expect("every traced class has its mutating calls");
-                tracker.property_references(node, &[], calls, &mut uses);
-                !uses.is_empty()
+                property_references(tree, sem, parents, source, node, &[], calls)
+                    .iter()
+                    .any(|found| {
+                        found
+                            .call
+                            .is_some_and(|call| matches!(tree.kind(call), Kind::Call { .. }))
+                    })
             };
             if mutated {
                 reporter.report(Report::range(message, span(tree, node)).message_id(message_id));

@@ -7,13 +7,15 @@ use rsvelte_typescript::operators::BinaryOperator::{Eq, InstanceOf, NotEq, Stric
 use rsvelte_typescript::operators::{LogicalOperator, UnaryOperator};
 use rsvelte_typescript::scope::Semantic;
 use rsvelte_typescript::semantic::globals::{Global, global};
+use rsvelte_typescript::semantic::reference_tracker::{
+    global_references_matching, import_references, property_references,
+};
 use rsvelte_typescript::semantic::static_value::{StaticValues, Value};
 use rsvelte_typescript::syntax_tree::Control;
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::nodes::{is_named, roots, span, walk};
-use super::reference_tracker::{Access, Found, Properties, ReferenceTracker, Trace};
 use super::runes::is_svelte_file;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -31,28 +33,18 @@ fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
 #[derive(Debug)]
 struct NoTopLevelBrowserGlobals;
 
-static READ: Trace<'static> = Trace::READ;
-
 /// Every browser global that Node.js lacks, and `window` and `document`.
-static BROWSER_GLOBALS: Trace<'static> = Trace {
-    properties: Properties::Lookup(|name| {
-        let browser_only = matches!(global(name), Some(Global::Browser { node: false }));
-        (browser_only || name == "window" || name == "document").then_some(&READ)
-    }),
-    ..Trace::NONE
-};
+fn is_browser_global(name: &str) -> bool {
+    matches!(global(name), Some(Global::Browser { node: false }))
+        || name == "window"
+        || name == "document"
+}
 
-/// `import.meta.env.SSR`, which Vite sets on the server.
-static SSR: Trace<'static> =
-    Trace::properties(&[("env", Trace::properties(&[("SSR", Trace::READ)]))]);
-
-static ENVIRONMENT_MODULES: &[(&str, Trace<'static>)] = &[
-    ("esm-env", Trace::properties(&[("BROWSER", Trace::READ)])),
-    (
-        "$app/environment",
-        Trace::properties(&[("browser", Trace::READ)]),
-    ),
-    ("$app/env", Trace::properties(&[("browser", Trace::READ)])),
+/// The modules that export whether the code runs in a browser, and that export's name.
+const ENVIRONMENT_MODULES: &[(&str, &str)] = &[
+    ("esm-env", "BROWSER"),
+    ("$app/environment", "browser"),
+    ("$app/env", "browser"),
 ];
 
 impl SvelteRule for NoTopLevelBrowserGlobals {
@@ -65,7 +57,6 @@ impl SvelteRule for NoTopLevelBrowserGlobals {
         let parents = file.parents();
         let source = file.source();
         let mut guards = Guards::new(file, tree, sem, parents);
-        let mut tracker = ReferenceTracker::new(tree, sem, parents, source);
         let mut found = Vec::new();
         let mut available: Vec<Available<'_>> = Vec::new();
         let mut functions = Vec::new();
@@ -77,57 +68,57 @@ impl SvelteRule for NoTopLevelBrowserGlobals {
                 && is_named(tree, meta, "import")
                 && is_named(tree, property, "meta")
             {
-                tracker.property_references(node, &[], &SSR, &mut found);
+                // `import.meta.env.SSR`, which Vite sets on the server.
+                found.extend(property_references(
+                    tree,
+                    sem,
+                    parents,
+                    source,
+                    node,
+                    &["env"],
+                    &["SSR"],
+                ));
             }
         });
         guards.not_top_level(functions);
         for reference in std::mem::take(&mut found) {
             available.extend(guards.checker(reference.node, true).map(Available::browser));
         }
-        let mut statements = Vec::new();
-        for root in roots(file) {
-            if let Kind::Program(body) = tree.kind(root) {
-                statements.extend_from_slice(body);
-            }
-        }
-        for (module, trace) in ENVIRONMENT_MODULES {
-            tracker.esm_references(&statements, module, trace, &mut found);
-        }
-        let mut checks = Vec::new();
-        for reference in std::mem::take(&mut found) {
-            match tree.kind(reference.node) {
-                Kind::Identifier(_) | Kind::Member { .. } => checks.push(reference.node),
-                Kind::ImportNamed { local, .. } => {
-                    let Some(binding) = sem.binding_of(local) else {
-                        continue;
-                    };
-                    checks.extend(
-                        sem.references_to(binding)
-                            .filter(|r| r.read && tree.is_identifier(r.node))
-                            .map(|r| r.node),
+        let programs: Vec<NodeIdentifier> = roots(file)
+            .into_iter()
+            .filter(|&root| matches!(tree.kind(root), Kind::Program(_)))
+            .collect();
+        for (module, export) in ENVIRONMENT_MODULES {
+            for reference in
+                import_references(tree, sem, parents, source, &programs, module, &[export])
+            {
+                if matches!(
+                    tree.kind(reference.node),
+                    Kind::Identifier(_) | Kind::Member { .. }
+                ) && guards.is_top_level(reference.node)
+                {
+                    available.extend(
+                        guards
+                            .checker(reference.node, false)
+                            .map(Available::browser),
                     );
                 }
-                _ => {}
             }
         }
-        for node in checks {
-            if guards.is_top_level(node) {
-                available.extend(guards.checker(node, false).map(Available::browser));
-            }
-        }
-        tracker.global_references(
-            &BROWSER_GLOBALS,
-            &["globalThis"],
-            |name| global(name).is_some(),
-            &mut found,
-        );
         let mut candidates = Vec::new();
-        for Found { node, path, access } in found {
-            debug_assert_eq!(access, Access::Read, "the trace reads only");
+        for reference in global_references_matching(
+            tree,
+            sem,
+            parents,
+            source,
+            is_browser_global,
+            &["globalThis"],
+        ) {
+            let node = reference.node;
             if !guards.is_top_level(node) {
                 continue;
             }
-            let name = path[0];
+            let name = reference.name;
             match guards.checker_from_reference(node) {
                 Some(checker) => available.push(Available {
                     checker,

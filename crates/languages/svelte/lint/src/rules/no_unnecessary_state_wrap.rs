@@ -1,10 +1,10 @@
 use rsvelte_lint_runner::finding::{Fix, Suggestion};
 use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_typescript::semantic::reference_tracker::import_references;
 use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use serde::Deserialize;
 
 use super::nodes::{is_named, roots, span, text, walk};
-use super::reference_tracker::{ReferenceTracker, Trace};
 use super::runes::runes_or_undetermined;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -14,20 +14,15 @@ pub(super) static RULE: RuleDefinition = RuleDefinition {
     configure,
 };
 
-const CALL_OR_CONSTRUCT: Trace<'static> = Trace {
-    call: true,
-    construct: true,
-    ..Trace::NONE
-};
-
-static REACTIVE_CLASSES: Trace<'static> = Trace::properties(&[
-    ("SvelteSet", CALL_OR_CONSTRUCT),
-    ("SvelteMap", CALL_OR_CONSTRUCT),
-    ("SvelteURL", CALL_OR_CONSTRUCT),
-    ("SvelteURLSearchParams", CALL_OR_CONSTRUCT),
-    ("SvelteDate", CALL_OR_CONSTRUCT),
-    ("MediaQuery", CALL_OR_CONSTRUCT),
-]);
+/// The classes of `svelte/reactivity`, called or constructed.
+const REACTIVE_CLASSES: &[&str] = &[
+    "SvelteSet",
+    "SvelteMap",
+    "SvelteURL",
+    "SvelteURLSearchParams",
+    "SvelteDate",
+    "MediaQuery",
+];
 
 #[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -108,21 +103,24 @@ impl SvelteRule for NoUnnecessaryStateWrap {
                 }
             }
         });
-        let mut statements = Vec::new();
-        for root in roots(file) {
-            if let Kind::Program(body) = tree.kind(root) {
-                statements.extend_from_slice(body);
-            }
-        }
-        let mut found = Vec::new();
-        ReferenceTracker::new(tree, sem, parents, source).esm_references(
-            &statements,
+        let programs: Vec<NodeIdentifier> = roots(file)
+            .into_iter()
+            .filter(|&root| matches!(tree.kind(root), Kind::Program(_)))
+            .collect();
+        let found = import_references(
+            tree,
+            sem,
+            parents,
+            source,
+            &programs,
             "svelte/reactivity",
-            &REACTIVE_CLASSES,
-            &mut found,
+            REACTIVE_CLASSES,
         );
         for reference in found {
-            let Some(call) = parent(reference.node) else {
+            let Some(construction) = reference.call else {
+                continue;
+            };
+            let Some(call) = parent(construction) else {
                 continue;
             };
             let Kind::Call { callee, .. } = tree.kind(call) else {
@@ -132,8 +130,7 @@ impl SvelteRule for NoUnnecessaryStateWrap {
                 continue;
             }
             if let Some(variable) = declared_identifier(tree, parent(call)) {
-                let class = reference.path.last().expect("a class is on the path");
-                report(reporter, call, reference.node, class, variable);
+                report(reporter, call, construction, reference.name, variable);
             }
         }
     }

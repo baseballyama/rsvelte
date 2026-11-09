@@ -13,7 +13,6 @@ mod prefer_const;
 mod prefer_derived_over_derived_by;
 mod prefer_svelte_reactivity;
 mod prefer_writable_derived;
-mod reference_tracker;
 mod runes;
 mod valid_each_key;
 
