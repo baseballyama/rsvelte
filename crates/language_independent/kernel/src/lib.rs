@@ -33,6 +33,7 @@ pub mod output {
 pub mod performance {
     pub mod buffer_pool;
     pub mod measurement;
+    pub mod stack;
 }
 /// Documents, character classes, source positions, names, and tokens.
 pub mod source {

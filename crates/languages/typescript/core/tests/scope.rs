@@ -253,8 +253,7 @@ fn switch_discriminant_is_outside_the_case_scope() {
 
 #[test]
 fn deeply_nested_input_is_analyzed_on_a_small_stack() {
-    // The parser still recurses, so it gets a large stack; the analysis gets the 2 MiB of a
-    // worker thread, which held about 6,500 nested functions while the walk recursed.
+    // The parse and the analysis both get the 2 MiB stack of a worker thread.
     let depth = 50_000;
     for source_text in [
         format!("{}g;{}", "function f(){".repeat(depth), "}".repeat(depth)),
@@ -263,7 +262,7 @@ fn deeply_nested_input_is_analyzed_on_a_small_stack() {
         format!("let g; g{};", " + g".repeat(depth)),
     ] {
         let (tree, program) = std::thread::Builder::new()
-            .stack_size(1 << 30)
+            .stack_size(2 << 20)
             .spawn(move || {
                 let mut tree = SyntaxTree::new();
                 let range = Span::new(0, source_text.len() as u32);

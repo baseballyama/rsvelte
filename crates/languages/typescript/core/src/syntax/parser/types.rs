@@ -34,7 +34,7 @@ impl Parser<'_, '_> {
 
     fn type_or_conditional(&mut self) -> R<NodeIdentifier> {
         self.in_type += 1;
-        let ty = self.type_inner();
+        let ty = self.nested(Self::type_inner);
         self.in_type -= 1;
         ty
     }
@@ -147,6 +147,10 @@ impl Parser<'_, '_> {
     }
 
     fn operator_type(&mut self) -> R<NodeIdentifier> {
+        self.nested(Self::operator_type_inner)
+    }
+
+    fn operator_type_inner(&mut self) -> R<NodeIdentifier> {
         let start = self.token.span.start_offset;
         if self.token.t == T::Identifier && self.peek_starts_type() {
             match self.text(self.token) {

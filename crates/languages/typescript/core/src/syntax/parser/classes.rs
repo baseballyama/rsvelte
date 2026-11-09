@@ -47,6 +47,10 @@ impl Parser<'_, '_> {
     }
 
     pub(super) fn class_definition(&mut self, declaration: bool, start: u32) -> R<NodeIdentifier> {
+        self.nested(|p| p.class_inner(declaration, start))
+    }
+
+    fn class_inner(&mut self, declaration: bool, start: u32) -> R<NodeIdentifier> {
         self.bump()?;
         let name = if self.token.t == T::Identifier && !self.is_kw("extends") {
             let t = self.bump()?;
