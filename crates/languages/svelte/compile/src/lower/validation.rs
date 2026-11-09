@@ -156,6 +156,7 @@ pub(super) fn check_stores(
     source_text: &str,
     program: NodeIdentifier,
 ) -> Result<(), Diagnostic> {
+    let mut verdicts = rustc_hash::FxHashMap::default();
     for r in &res.sem.references {
         if r.binding.is_some() {
             continue;
@@ -173,21 +174,23 @@ pub(super) fn check_stores(
         if store.is_empty() || store.starts_with('$') {
             continue;
         }
-        let declaration =
-            res.sem.bindings.iter().find(|b| {
+        // The verdict depends only on the name, and every `$state(…)` call is such a reference.
+        let store_sub = *verdicts.entry(name).or_insert_with(|| {
+            let declaration = res.sem.bindings.iter().find(|b| {
                 b.scope == ScopeIdentifier::ROOT && javascript.atoms.get(b.name) == store
             });
-        let store_sub = !RUNES.contains(&name)
-            || declaration.is_some_and(|b| {
-                let rune = b
-                    .initializer(javascript)
-                    .and_then(|initializer| get_rune(javascript, res, initializer));
-                (rune.is_none() || (store != "props" && rune.as_deref() == Some("$props")))
-                    && !(name == "$derived"
-                        && b.kind == DeclarationKind::Import
-                        && import_source(javascript, source_text, program, b.declaration)
-                            == Some("svelte/store"))
-            });
+            !RUNES.contains(&name)
+                || declaration.is_some_and(|b| {
+                    let rune = b
+                        .initializer(javascript)
+                        .and_then(|initializer| get_rune(javascript, res, initializer));
+                    (rune.is_none() || (store != "props" && rune.as_deref() == Some("$props")))
+                        && !(name == "$derived"
+                            && b.kind == DeclarationKind::Import
+                            && import_source(javascript, source_text, program, b.declaration)
+                                == Some("svelte/store"))
+                })
+        });
         if store_sub {
             let Some(span) = javascript.source_location(r.node).span() else {
                 unreachable!("a reference is parsed from source")
