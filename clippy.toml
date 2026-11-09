@@ -3,3 +3,5 @@ allow-unwrap-in-tests = true
 allow-expect-in-tests = true
 allow-panic-in-tests = true
 allow-print-in-tests = true
+# oxc's and wasm-bindgen's proc macros use syn 2, and serde_derive and displaydoc use syn 3.
+allowed-duplicate-crates = ["syn"]

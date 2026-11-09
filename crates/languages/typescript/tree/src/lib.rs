@@ -3,11 +3,6 @@
 //! Every span is an offset into the whole document: a `<script>` element and a template
 //! expression parse in place, so the trees and the embedding language share one position type.
 
-#![expect(
-    clippy::multiple_crate_versions,
-    reason = "oxc's own proc macros need both syn 2 and syn 3"
-)]
-
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Expression, Program};
 use oxc_diagnostics::OxcDiagnostic;
