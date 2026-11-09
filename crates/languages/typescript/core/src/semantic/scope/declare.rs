@@ -202,6 +202,28 @@ impl Analyzer<'_> {
                 }
                 self.current_declaration = None;
             }
+            Kind::TypeScriptDeclaration => {
+                let declarations = &self.syntax_tree.type_declarations;
+                if let Some(at) = self
+                    .syntax_tree
+                    .source_location(identifier)
+                    .span()
+                    .and_then(|span| {
+                        declarations
+                            .binary_search_by_key(&span.start_offset, |d| d.start_offset)
+                            .ok()
+                    })
+                {
+                    let scope = self.cur();
+                    self.s.type_names.insert((scope, declarations[at].name));
+                }
+            }
+            Kind::TypeScriptInterface { name, .. } => {
+                if let Some(name) = self.syntax_tree.atom(name) {
+                    let scope = self.cur();
+                    self.s.type_names.insert((scope, name));
+                }
+            }
             _ => self.declare_children(identifier),
         }
     }

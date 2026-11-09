@@ -197,3 +197,14 @@ fn shadowed_globals_are_variables() {
         Some(Value::Number(3.0))
     );
 }
+
+#[test]
+fn a_variable_that_shares_its_name_with_a_type_has_no_value() {
+    assert_eq!(value("type h = string; const h = 'x'; h"), None);
+    assert_eq!(value("interface h {} const h = 'x'; h"), None);
+    assert_eq!(value("namespace h {} const h = 'x'; h"), None);
+    assert_eq!(value("declare namespace h {} const h = 'x'; h"), None);
+    assert_eq!(value("export type h = string; const h = 'x'; h"), None);
+    assert_eq!(value("{ type h = string; } const h = 'x'; h"), string("x"));
+    assert_eq!(value("type g = string; const h = 'x'; h"), string("x"));
+}

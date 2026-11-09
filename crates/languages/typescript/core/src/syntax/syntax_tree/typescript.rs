@@ -113,6 +113,15 @@ pub struct TypeRef {
     pub span: Span,
 }
 
+/// The name a TypeScript declaration statement declares (`h` in `type h = …`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TypeDeclaration {
+    pub name: Atom,
+    /// Where the statement starts: the start of its [`super::Tag::TypeScriptDeclaration`] or
+    /// [`super::Tag::TypeScriptInterface`] node.
+    pub start_offset: u32,
+}
+
 /// A TypeScript construct that has a runtime value, so it is not type syntax to erase.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TypeScriptRuntime {
