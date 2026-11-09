@@ -7,7 +7,9 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
 
 use crate::Configuration;
-use crate::computation::{LintConfiguration, ModuleParents, Parents};
+use crate::computation::{
+    LintConfiguration, ModuleParents, Parents, SameNamedFile, same_named_file,
+};
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.lint",
@@ -35,6 +37,8 @@ pub fn register_artifacts(registry: &mut Registry) {
     rsvelte_svelte::register(registry);
     rsvelte_typescript::register(registry);
     registry.artifact::<Parents>().artifact::<ModuleParents>();
+    // Computed only when a rule asks, so other rules never touch the file system.
+    registry.provide::<SameNamedFile>("svelte.lint", |_| true, same_named_file);
 }
 
 /// Turns on `svelte.lint/default` with `configuration`. It lints modules only when a configured
