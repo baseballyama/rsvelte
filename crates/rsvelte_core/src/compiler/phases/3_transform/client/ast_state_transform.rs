@@ -27,7 +27,7 @@ use super::async_derived_dev::{
 };
 use super::destructure_transforms::{
     ArrayHelperRead, build_fallback_string, extract_destructure_paths, js_number_to_string,
-    unthunk_string,
+    string_is_simple_expression, unthunk_string,
 };
 use super::expression_utils::{
     async_thunk_text, contains_direct_await_in_expression, extract_enclosing_function_name,
@@ -1551,6 +1551,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     ///   `let tmp = wrapped_expr, $$array = $.derived(() => $.to_array(tmp, 2)), a = $.state($.proxy($.get($$array)[0])), b = ...`
     /// - `$state.raw(...)` skips the inner `$.proxy(...)` wrap (raw → reactive
     ///   but not proxied; raw + skip → just the member access).
+    /// - nested patterns recurse as upstream's `extract_paths` does: every
+    ///   `$$array` comes first, then every leaf.
     ///
     /// Returns `true` if matched; the caller then skips the default walk so
     /// the init expression is not re-visited.
@@ -1617,18 +1619,29 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
         let mut declarations = vec![format!("{} = {}", tmp_name, source_text.trim())];
 
-        match &declarator.id {
-            BindingPattern::ObjectPattern(obj) => {
-                if !self.collect_state_object_pattern(obj, &tmp_name, is_raw, &mut declarations) {
-                    return false;
-                }
-            }
-            BindingPattern::ArrayPattern(arr) => {
-                if !self.collect_state_array_pattern(arr, &tmp_name, is_raw, &mut declarations) {
-                    return false;
-                }
-            }
-            _ => return false,
+        let mut inserts = Vec::new();
+        let mut paths = Vec::new();
+        self.extract_state_paths(&declarator.id, tmp_name, &mut inserts, &mut paths);
+        // Upstream labels every `$$array` by the top-level pattern's kind.
+        let label = if matches!(declarator.id, BindingPattern::ArrayPattern(_)) {
+            "[$state iterable]"
+        } else {
+            "[$state object]"
+        };
+        for (array_var, value) in inserts {
+            let init = format!("$.derived(() => {})", value);
+            let init = if self.dev {
+                format!("$.tag({}, '{}')", init, label)
+            } else {
+                init
+            };
+            declarations.push(format!("{} = {}", array_var, init));
+        }
+        for (var_name, access) in paths {
+            let is_skip = self.is_state_destructure_skip(&var_name);
+            let value_expr = wrap_state_value(&access, is_raw, is_skip);
+            let value_expr = self.maybe_tag_declarator(&var_name, value_expr);
+            declarations.push(format!("{} = {}", var_name, value_expr));
         }
 
         if declarations.len() <= 1 {
@@ -1661,93 +1674,46 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         obj.name == "$state" && member.property.name == "raw"
     }
 
-    /// Walk an ObjectPattern and append `name = $.state(...)` declarations
-    /// for each property. Returns false if any property is unsupported
-    /// (nested pattern beyond simple identifier targets, etc.) so the caller
-    /// can bail back to the text path.
-    fn collect_state_object_pattern(
-        &mut self,
-        obj: &ObjectPattern<'_>,
-        tmp_name: &str,
-        is_raw: bool,
-        declarations: &mut Vec<String>,
-    ) -> bool {
-        for prop in &obj.properties {
-            // Inner target must be a plain BindingIdentifier; nested
-            // destructuring inside state isn't supported by the text path
-            // either (it only handles flat patterns).
-            let value_pattern = match &prop.value {
-                BindingPattern::BindingIdentifier(_) => &prop.value,
-                BindingPattern::AssignmentPattern(_) => &prop.value,
-                _ => return false,
-            };
-            let (var_ident, default_span) = match value_pattern {
-                BindingPattern::BindingIdentifier(id) => (id, None),
-                BindingPattern::AssignmentPattern(assign) => match &assign.left {
-                    BindingPattern::BindingIdentifier(id) => (id, Some(assign.right.span())),
-                    _ => return false,
-                },
-                _ => return false,
-            };
-            let var_name = var_ident.name.as_str();
-
-            let is_skip = self.is_state_destructure_skip(var_name);
-            let member_access = self.state_key_access(tmp_name, prop);
-            let access = self.apply_pattern_default(member_access, default_span);
-            let value_expr = wrap_state_value(&access, is_raw, is_skip);
-            let value_expr = self.maybe_tag_declarator(var_name, value_expr);
-            declarations.push(format!("{} = {}", var_name, value_expr));
-        }
-
-        if let Some(rest) = &obj.rest {
-            let var_ident = match &rest.argument {
-                BindingPattern::BindingIdentifier(id) => id,
-                _ => return false,
-            };
-            let var_name = var_ident.name.as_str();
-            let is_skip = self.is_state_destructure_skip(var_name);
-            let keys: Vec<String> = obj
-                .properties
-                .iter()
-                .map(|prop| self.state_exclude_key_literal(prop))
-                .collect();
-            let access = format!("$.exclude_from_object({}, [{}])", tmp_name, keys.join(", "));
-            let value_expr = if is_raw {
-                access
-            } else if is_skip {
-                format!("$.proxy({})", access)
-            } else {
-                format!("$.state($.proxy({}))", access)
-            };
-            let value_expr = self.maybe_tag_declarator(var_name, value_expr);
-            declarations.push(format!("{} = {}", var_name, value_expr));
-        }
-        true
-    }
-
     /// Member access for a destructured `$state` property key, mirroring
     /// upstream's
     /// `b.member(expression, prop.key, prop.computed || prop.key.type !== 'Identifier')`.
-    /// The key's source text is reused verbatim so a literal keeps its original
-    /// quoting, as upstream's printer does.
-    fn state_key_access(&self, tmp_name: &str, prop: &BindingProperty<'_>) -> String {
+    /// `key_text` is the key's source text, visited when the key is computed,
+    /// so a literal keeps its original quoting as upstream's printer does.
+    fn state_key_access(object: &str, prop: &BindingProperty<'_>, key_text: &str) -> String {
         if !prop.computed
             && let PropertyKey::StaticIdentifier(id) = &prop.key
         {
-            return format!("{}.{}", tmp_name, id.name);
+            return format!("{}.{}", object, id.name);
+        }
+        format!("{}[{}]", object, key_text)
+    }
+
+    /// The key's text after visiting, so a computed key that reads state
+    /// gets the same `$.get` wrap upstream's visit of the path gives it.
+    fn state_key_text(&mut self, prop: &BindingProperty<'_>) -> String {
+        if prop.computed
+            && let Some(expr) = prop.key.as_expression()
+        {
+            return self.visited_text(expr);
         }
         let span = prop.key.span();
-        format!(
-            "{}[{}]",
-            tmp_name,
-            self.source[span.start as usize..span.end as usize].trim()
-        )
+        self.source[span.start as usize..span.end as usize]
+            .trim()
+            .to_string()
+    }
+
+    fn visited_text(&mut self, expr: &Expression<'_>) -> String {
+        self.visit_expression(expr);
+        let span = expr.span();
+        self.apply_and_drain_inner_replacements(span.start, span.end)
+            .trim()
+            .to_string()
     }
 
     /// The `$.exclude_from_object(tmp, [...])` entry for a non-rest property key.
     /// Upstream turns identifier and `Literal` keys into string literals and every
     /// other computed key into `String(<expr>)`, so the rest subtracts it at runtime.
-    fn state_exclude_key_literal(&self, prop: &BindingProperty<'_>) -> String {
+    fn state_exclude_key_literal(prop: &BindingProperty<'_>, key_text: &str) -> String {
         if !prop.computed
             && let PropertyKey::StaticIdentifier(id) = &prop.key
         {
@@ -1758,103 +1724,106 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 format!("'{}'", escape_js_string(&s.value.display().to_string()))
             }
             PropertyKey::NumericLiteral(n) => format!("'{}'", js_number_to_string(n.value)),
-            key => {
-                let span = key.span();
-                format!(
-                    "String({})",
-                    self.source[span.start as usize..span.end as usize].trim()
-                )
+            _ => format!("String({})", key_text),
+        }
+    }
+
+    /// Upstream's `build_fallback` picks the `$.fallback` shape from the
+    /// default as written and visits it afterwards, so the shape is decided on
+    /// the source text and the visited text is what gets printed.
+    fn apply_pattern_default(&mut self, access: String, default: &Expression<'_>) -> String {
+        let span = default.span();
+        let original = self.source[span.start as usize..span.end as usize]
+            .trim()
+            .to_string();
+        let visited = self.visited_text(default);
+        if visited == original {
+            return build_fallback_string(&access, &original);
+        }
+        if string_is_simple_expression(&original) {
+            return format!("$.fallback({}, {})", access, visited);
+        }
+        if let (Some(o), Some(v)) = (
+            original.strip_prefix("await "),
+            visited.strip_prefix("await "),
+        ) && string_is_simple_expression(o)
+        {
+            return format!("await $.fallback({}, {})", access, v.trim());
+        }
+        build_fallback_string(&access, &visited)
+    }
+
+    /// Port of upstream `extract_paths`: every array pattern, however deep,
+    /// gets a `$$array` insert, and leaves are collected in pattern order.
+    fn extract_state_paths(
+        &mut self,
+        pattern: &BindingPattern<'_>,
+        expression: String,
+        inserts: &mut Vec<(String, String)>,
+        paths: &mut Vec<(String, String)>,
+    ) {
+        match pattern {
+            BindingPattern::BindingIdentifier(id) => {
+                paths.push((id.name.to_string(), expression));
+            }
+            BindingPattern::AssignmentPattern(assign) => {
+                let fallback = self.apply_pattern_default(expression, &assign.right);
+                self.extract_state_paths(&assign.left, fallback, inserts, paths);
+            }
+            BindingPattern::ObjectPattern(obj) => {
+                let key_texts: Vec<String> = obj
+                    .properties
+                    .iter()
+                    .map(|prop| self.state_key_text(prop))
+                    .collect();
+                for (prop, key_text) in obj.properties.iter().zip(&key_texts) {
+                    let access = Self::state_key_access(&expression, prop, key_text);
+                    self.extract_state_paths(&prop.value, access, inserts, paths);
+                }
+                if let Some(rest) = &obj.rest {
+                    let keys: Vec<String> = obj
+                        .properties
+                        .iter()
+                        .zip(&key_texts)
+                        .map(|(prop, key_text)| Self::state_exclude_key_literal(prop, key_text))
+                        .collect();
+                    let access = format!(
+                        "$.exclude_from_object({}, [{}])",
+                        expression,
+                        keys.join(", ")
+                    );
+                    self.extract_state_paths(&rest.argument, access, inserts, paths);
+                }
+            }
+            BindingPattern::ArrayPattern(arr) => {
+                let index = SCRIPT_ARRAY_COUNTER.with(|c| {
+                    let cur = c.get();
+                    c.set(cur + 1);
+                    cur
+                });
+                let array_var = if index == 0 {
+                    "$$array".to_string()
+                } else {
+                    format!("$$array_{}", index)
+                };
+                let value = if arr.rest.is_some() {
+                    format!("$.to_array({})", expression)
+                } else {
+                    format!("$.to_array({}, {})", expression, arr.elements.len())
+                };
+                let read = format!("$.get({})", array_var);
+                inserts.push((array_var, value));
+                for (i, elem) in arr.elements.iter().enumerate() {
+                    if let Some(elem) = elem {
+                        self.extract_state_paths(elem, format!("{}[{}]", read, i), inserts, paths);
+                    }
+                }
+                if let Some(rest) = &arr.rest {
+                    let access = format!("{}.slice({})", read, arr.elements.len());
+                    self.extract_state_paths(&rest.argument, access, inserts, paths);
+                }
             }
         }
-    }
-
-    /// Wrap a destructured access in `$.fallback(...)` when the pattern element
-    /// carried a default, mirroring upstream's `AssignmentPattern` →
-    /// `build_fallback` step in `extract_paths`.
-    fn apply_pattern_default(&self, access: String, default_span: Option<Span>) -> String {
-        match default_span {
-            Some(span) => build_fallback_string(
-                &access,
-                self.source[span.start as usize..span.end as usize].trim(),
-            ),
-            None => access,
-        }
-    }
-
-    /// Walk an ArrayPattern and append the `$$array = $.derived(() => $.to_array(...))`
-    /// helper plus per-element declarations. Mirrors
-    /// `process_state_array_pattern` in the text path.
-    fn collect_state_array_pattern(
-        &mut self,
-        arr: &ArrayPattern<'_>,
-        tmp_name: &str,
-        is_raw: bool,
-        declarations: &mut Vec<String>,
-    ) -> bool {
-        let has_rest = arr.rest.is_some();
-        let element_count = arr.elements.len();
-        let global_counter = SCRIPT_ARRAY_COUNTER.with(|c| {
-            let cur = c.get();
-            c.set(cur + 1);
-            cur
-        });
-        let array_var = if global_counter == 0 {
-            "$$array".to_string()
-        } else {
-            format!("$$array_{}", global_counter)
-        };
-
-        let to_array_args = if has_rest {
-            format!("$.to_array({})", tmp_name)
-        } else {
-            format!("$.to_array({}, {})", tmp_name, element_count)
-        };
-        // The temp holding the iterable is labelled by pattern kind, not by a
-        // binding name — it has none. `collect_state_array_pattern` only ever
-        // runs for a top-level array pattern, so the kind is fixed; the sibling
-        // form upstream can emit is `'[$state object]'`.
-        let array_init = if self.dev {
-            format!(
-                "$.tag($.derived(() => {}), '[$state iterable]')",
-                to_array_args
-            )
-        } else {
-            format!("$.derived(() => {})", to_array_args)
-        };
-        declarations.push(format!("{} = {}", array_var, array_init));
-
-        for (index, elem_opt) in arr.elements.iter().enumerate() {
-            let Some(elem) = elem_opt else { continue };
-            let (var_ident, default_span) = match elem {
-                BindingPattern::BindingIdentifier(id) => (id, None),
-                BindingPattern::AssignmentPattern(assign) => match &assign.left {
-                    BindingPattern::BindingIdentifier(id) => (id, Some(assign.right.span())),
-                    _ => return false,
-                },
-                _ => return false,
-            };
-            let var_name = var_ident.name.as_str();
-            let is_skip = self.is_state_destructure_skip(var_name);
-            let element_access = format!("$.get({})[{}]", array_var, index);
-            let element_access = self.apply_pattern_default(element_access, default_span);
-            let value_expr = wrap_state_value(&element_access, is_raw, is_skip);
-            let value_expr = self.maybe_tag_declarator(var_name, value_expr);
-            declarations.push(format!("{} = {}", var_name, value_expr));
-        }
-
-        if let Some(rest) = &arr.rest {
-            let var_ident = match &rest.argument {
-                BindingPattern::BindingIdentifier(id) => id,
-                _ => return false,
-            };
-            let var_name = var_ident.name.as_str();
-            let is_skip = self.is_state_destructure_skip(var_name);
-            let access = format!("$.get({}).slice({})", array_var, element_count);
-            let value_expr = wrap_state_value(&access, is_raw, is_skip);
-            let value_expr = self.maybe_tag_declarator(var_name, value_expr);
-            declarations.push(format!("{} = {}", var_name, value_expr));
-        }
-        true
     }
 
     /// The text destructuring helper passes the `skip_state_vars` list as
