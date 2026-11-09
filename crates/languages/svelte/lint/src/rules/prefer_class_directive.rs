@@ -127,11 +127,7 @@ impl<'a> Values<'a> {
                 let mut text = String::new();
                 for (i, &quasi) in quasis.iter().enumerate() {
                     let raw = self.javascript.str_value(quasi, self.source);
-                    // A template's cooked text differs from its raw one only through escapes.
-                    if raw.contains('\\') {
-                        return None;
-                    }
-                    text.push_str(raw);
+                    text.push_str(&rsvelte_typescript::lexer::cook_template(raw));
                     if let Some(&expression) = expressions.get(i) {
                         text.push_str(&self.constant(expression)?);
                     }
