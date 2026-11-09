@@ -250,3 +250,41 @@ fn switch_discriminant_is_outside_the_case_scope() {
     assert_eq!(values[0].reads, 1);
     assert_eq!(values[1].reads, 1);
 }
+
+#[test]
+fn deeply_nested_input_is_analyzed_on_a_small_stack() {
+    // The parser still recurses, so it gets a large stack; the analysis gets the 2 MiB of a
+    // worker thread, which held about 6,500 nested functions while the walk recursed.
+    let depth = 50_000;
+    for source_text in [
+        format!("{}g;{}", "function f(){".repeat(depth), "}".repeat(depth)),
+        format!("{}g;{}", "{".repeat(depth), "}".repeat(depth)),
+        format!("g{} = 1;", ".b".repeat(depth)),
+        format!("let g; g{};", " + g".repeat(depth)),
+    ] {
+        let (tree, program) = std::thread::Builder::new()
+            .stack_size(1 << 30)
+            .spawn(move || {
+                let mut tree = SyntaxTree::new();
+                let range = Span::new(0, source_text.len() as u32);
+                let program = parse_program(&mut tree, &source_text, range, false).unwrap();
+                (tree, program)
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        let references = std::thread::Builder::new()
+            .stack_size(2 << 20)
+            .spawn(move || {
+                let sem = analyze(&tree, program, &[]);
+                sem.references
+                    .iter()
+                    .filter(|r| tree.atom(r.node).is_some_and(|a| tree.atoms.get(a) == "g"))
+                    .count()
+            })
+            .unwrap()
+            .join()
+            .expect("analyzed without overflowing the stack");
+        assert!(references >= 1);
+    }
+}

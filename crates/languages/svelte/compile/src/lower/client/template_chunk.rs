@@ -1,6 +1,6 @@
 use super::{
     ClientCompilationContext, Frag, Item, Kind, LogicalOperator, NodeIdentifier, Part,
-    SourceLocation, decode_text, sanitize_template_string,
+    SourceLocation, decode_attribute, sanitize_template_string,
 };
 
 impl<'a> ClientCompilationContext<'a> {
@@ -123,7 +123,7 @@ impl<'a> ClientCompilationContext<'a> {
                 Part::Text(s) => {
                     let raw = s.text(self.source_text);
                     Item::Text {
-                        data: decode_text(raw),
+                        data: decode_attribute(raw),
                         raw: raw.into(),
                     }
                 }

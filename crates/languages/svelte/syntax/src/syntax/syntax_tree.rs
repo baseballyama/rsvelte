@@ -455,7 +455,7 @@ impl Component {
     }
 }
 
-pub use super::character_references::{decode_attribute, decode_text};
+pub use rsvelte_markup::{decode_attribute, decode_text};
 
 // Pinned so a change to the surface tree's layout is a decision.
 const _: () = assert!(

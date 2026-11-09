@@ -11,6 +11,7 @@ use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 use rsvelte_lint_runner::rule::{Reporter, Rule};
 use rsvelte_markup::button_type::{Allowed, Problem, check_static};
+use rsvelte_markup::character_references::{Place, Rules, decode};
 use rsvelte_typescript::scope::{DeclarationKind, HostRoot};
 use rsvelte_typescript_lint::JavaScriptFacts;
 use rsvelte_vue::resolve::Resolution;
@@ -185,7 +186,7 @@ impl<'a> Rule<RuleContext<'a>> for MarkupButtonHasType {
                     report(Problem::Empty, a.span);
                     continue;
                 };
-                let text = rsvelte_markup::decode_text(v.text(source_text));
+                let text = decode(v.text(source_text), Place::Attribute, Rules::Html);
                 if let Some(p) = check_static(&text, Allowed::default()) {
                     report(p, value_node(v, a.quoted));
                 }
