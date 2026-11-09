@@ -4,6 +4,9 @@
 //! keeps. Linters that report `PostCSS`'s verdicts read it here; compilation uses
 //! [`crate::parse`].
 //!
+//! It follows the versions eslint-plugin-svelte 3.23.1 resolves in `tools/oracle`: postcss 8.5.32,
+//! postcss-scss 4.0.9 and postcss-safe-parser 7.1.0.
+//!
 //! Text between holes is tokenized as `PostCSS` does; a hole (a template expression) is one word.
 
 use rsvelte_kernel::source::positions::Span;
@@ -186,6 +189,8 @@ struct Parser<'a> {
     /// found. Later searches start further on, so they reuse it and each stays linear.
     close_search: Option<(usize, Option<usize>)>,
     bad_search: Option<(usize, Option<usize>)>,
+    /// `PostCSS` 8.5's `lastBadParen`: every `(` up to the `)` of a bad bracket is a lone `(`.
+    last_bad_paren: Option<usize>,
 }
 
 const fn is_space(c: u8) -> bool {
@@ -208,6 +213,7 @@ impl<'a> Parser<'a> {
             nodes: Vec::new(),
             close_search: None,
             bad_search: None,
+            last_bad_paren: None,
         }
     }
 
@@ -360,12 +366,18 @@ impl<'a> Parser<'a> {
                         None if ignore => self.token(Kind::Brackets, pos, pos + 1),
                         None => return thrown("Unclosed bracket", pos as u32),
                     }
+                } else if !scss && self.last_bad_paren.is_some_and(|bad| pos <= bad) {
+                    self.token(Kind::Open(b'('), pos, pos + 1)
                 } else {
-                    match self.next_close(pos + 1) {
+                    let close = self.next_close(pos + 1);
+                    match close {
                         Some(close) if self.next_bad(pos + 1).is_none_or(|bad| bad > close) => {
                             self.token(Kind::Brackets, pos, close + 1)
                         }
-                        _ => self.token(Kind::Open(b'('), pos, pos + 1),
+                        _ => {
+                            self.last_bad_paren = Some(close.unwrap_or(self.end));
+                            self.token(Kind::Open(b'('), pos, pos + 1)
+                        }
                     }
                 }
             }

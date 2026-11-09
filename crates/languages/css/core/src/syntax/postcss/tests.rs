@@ -106,6 +106,18 @@ fn a_comment_may_hold_any_character() {
 }
 
 #[test]
+fn every_parenthesis_up_to_a_bad_bracket_close_is_alone() {
+    let found = error(":global(:where(.a[b)) {}", Dialect::Css);
+    assert_eq!(
+        (found.reason.as_str(), found.line, found.column),
+        ("Unclosed bracket", 1, 8)
+    );
+    // postcss-scss's tokenizer predates `lastBadParen`.
+    let source = ":global(:where(.a[b)) {}";
+    assert_eq!(check(source, whole(source), Dialect::Scss), Ok(()));
+}
+
+#[test]
 fn many_missed_semicolons_split_without_recursion() {
     let source = "a: b ".repeat(100_000);
     let nodes = inline(&source, whole(&source), &[]).expect("a declaration list");
