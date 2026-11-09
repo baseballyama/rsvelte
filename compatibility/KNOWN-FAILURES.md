@@ -3366,7 +3366,7 @@ format(x)` was invisible to it at any corpus size (#4301, GATES.md 9e). The
 population is the parity set minus `fmt-oracle-excluded.json`. The ratchet may only
 shrink.
 
-**Current baseline: `fmt-idempotency-known-failures.json`, 87 entries.**
+**Current baseline: `fmt-idempotency-known-failures.json`, 88 entries.**
 
 Measured on the tree that introduced the gate (33,644 components, 23 excluded):
 33,531 converge and 90 do not — 82 whose second application writes different
@@ -3417,6 +3417,16 @@ instrument was checked by injection on the introducing tree: a listed id removed
 (red, 1 NEW), a converging id added (red, 1 stale), a first application with
 three trailing newlines appended (red, 1 NEW, `-3 lines`), and a listed refused id
 removed (red, 1 NEW `[error]`); restored, green.
+
+**One entry is added on purpose, and the oracle shares it byte for byte.**
+`appwrite-console/…/billing/planSummary.svelte` (#4912) holds a component whose body is
+only whitespace and whose open tag fits while `></Typography.Text>` does not. The oracle
+drops the body and wraps every attribute; on its own output the body is source-empty, so
+its second application dangles only `>` (`<Typography.Text variant="m-500" color="…"` /
+`></Typography.Text>`, −2 lines). rsvelte now writes the oracle's first application and,
+on that, the oracle's second, so converging here would mean diverging from the oracle on
+the first. `a_component_whose_close_overflows_wraps_then_dangles_like_the_oracle` in
+`crates/rsvelte_formatter/tests/whitespace_body_close_break.rs` pins both applications.
 
 Attribution is pending (`attribution-pending.json`): none of the 90 has a target
 yet, and the 19 the oracle shares are not thereby the oracle's fault — rsvelte's
@@ -5545,7 +5555,7 @@ would mean the axis had silently stopped being exercised.
 
 ## LSP differential known failures
 
-`lsp-known-failures.json` contains 25730 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 25784 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
@@ -5605,13 +5615,13 @@ divergence the configuration was hiding, in three classes:
 None of the three is a property of the gate any more, so they are on the same footing as the rest
 of the ratchet: they stay until they are burned down.
 
-Partition of `lsp-known-failures.json` by key kind: `24236 + 1198 + 296` — real-world corpus
+Partition of `lsp-known-failures.json` by key kind: `24290 + 1198 + 296` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` by request phase: `12870 + 12860`
+Partition of `lsp-known-failures.json` by request phase: `12897 + 12887`
 
 Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
 two addends differ by exactly the session-level keys, which run once per session rather than once per
@@ -5674,7 +5684,7 @@ about the divergences: `documentHighlight` 6 `rsvelte-empty` + 4 `unclassified`,
 **both** sides answered. A method arm for either is a separate change from sending it a valid
 request, and until one exists these 12 are un-attributable by construction.
 
-Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `3868 + 7394 + 258 + 12716`
+Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `3868 + 7394 + 258 + 12770`
 
 bits-ui, flowbite-svelte, melt-ui, shadcn-svelte, in that order. This is the count
 that moves when a corpus submodule is bumped, and it is the reason the population floor is

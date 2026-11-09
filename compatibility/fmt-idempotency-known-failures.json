@@ -1,5 +1,6 @@
 [
 	"adventurelog/frontend/src/lib/components/collections/CollectionMap.svelte",
+	"appwrite-console/src/routes/(console)/organization-[organization]/billing/planSummary.svelte",
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte",
 	"chatgpt-web/src/lib/ChatOptionMenu.svelte",
 	"chatgpt-web/src/lib/ChatSettingsModal.svelte",
