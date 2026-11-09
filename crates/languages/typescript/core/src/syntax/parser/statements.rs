@@ -345,10 +345,10 @@ impl Parser<'_, '_> {
         }
         if self.typescript && self.is_kw("type") && matches!(self.peek().t, T::LBrace | T::Op) {
             self.bump()?;
-            let declaration = self.export_list(start_offset)?;
+            let export = self.export_list(start_offset)?;
             return Ok(self
                 .syntax_tree
-                .typescript_declaration(self.syntax_tree.source_location(declaration)));
+                .type_only_export(export, self.syntax_tree.source_location(export)));
         }
         if self.token.t == T::LBrace || self.is_op("*") {
             return self.export_list(start_offset);

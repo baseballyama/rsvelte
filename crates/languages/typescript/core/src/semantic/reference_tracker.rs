@@ -1,6 +1,7 @@
-//! Where a program uses what it imports from a module or a global variable: eslint-utils'
-//! `ReferenceTracker` (`iterateEsmReferences`, `iterateGlobalReferences`) for names one level
-//! deep.
+//! Where a program uses an import, a global variable or a member of a value.
+//!
+//! This is eslint-utils' `ReferenceTracker` (`iterateEsmReferences`, `iterateGlobalReferences`,
+//! `iteratePropertyReferences`) for names one level deep.
 
 use rustc_hash::FxHashSet;
 
@@ -54,15 +55,15 @@ pub fn import_references<'a>(
                 match syntax_tree.kind(imported) {
                     Kind::ImportNamed { imported, local } => {
                         if let Some(export) = tracker.key(imported, false) {
-                            tracker.lhs(local, Value::Name(export));
+                            tracker.lhs(local, Value::Name(export), true);
                         }
                     }
                     Kind::ImportDefault(local) => {
-                        if let Some(export) = tracker.find("default") {
-                            tracker.lhs(local, Value::Name(export));
+                        if let Some(export) = tracker.names.find("default") {
+                            tracker.lhs(local, Value::Name(export), true);
                         }
                     }
-                    Kind::ImportNamespace(local) => tracker.lhs(local, Value::Object),
+                    Kind::ImportNamespace(local) => tracker.lhs(local, Value::Object, false),
                     _ => {}
                 }
             }
@@ -72,7 +73,7 @@ pub fn import_references<'a>(
 }
 
 /// `ESLint`'s default `globalObjectNames`, whose members are the globals.
-const GLOBAL_OBJECTS: &[&str] = &["global", "globalThis", "self", "window"];
+pub const GLOBAL_OBJECTS: &[&str] = &["global", "globalThis", "self", "window"];
 
 /// The uses of the global variables `names`, directly or as members of `window`, `globalThis`
 /// and `self`, in no particular order.
@@ -87,7 +88,59 @@ pub fn global_references<'a>(
     source_text: &str,
     names: &[&'a str],
 ) -> Vec<TrackedReference<'a>> {
+    globals(
+        Tracker::new(syntax_tree, sem, parents, source_text, names),
+        GLOBAL_OBJECTS,
+    )
+}
+
+/// [`global_references`] for every global that `tracked` accepts, with `global_objects` in place
+/// of `ESLint`'s default `globalObjectNames`.
+#[must_use]
+pub fn global_references_matching<'t>(
+    syntax_tree: &'t SyntaxTree,
+    sem: &'t Semantic,
+    parents: &'t [NodeIdentifier],
+    source_text: &'t str,
+    tracked: impl Fn(&str) -> bool,
+    global_objects: &[&str],
+) -> Vec<TrackedReference<'t>> {
+    let tracked = Matching(tracked);
+    globals(
+        Tracker::new(syntax_tree, sem, parents, source_text, &tracked),
+        global_objects,
+    )
+}
+
+/// The uses of the members `names` of `node`'s value, or of its member `prefix` path
+/// (`iteratePropertyReferences`).
+///
+/// They are found through the variables and expressions that pass the value on, in no
+/// particular order: `node.name`, `x.name` after `const x = node`, or `name` after
+/// `const { name } = node`; with `prefix` `["env"]`, `node.env.name` or `env.name` after
+/// `const { env } = node`.
+#[must_use]
+pub fn property_references<'a>(
+    syntax_tree: &SyntaxTree,
+    sem: &Semantic,
+    parents: &[NodeIdentifier],
+    source_text: &str,
+    node: NodeIdentifier,
+    prefix: &[&str],
+    names: &[&'a str],
+) -> Vec<TrackedReference<'a>> {
     let mut tracker = Tracker::new(syntax_tree, sem, parents, source_text, names);
+    tracker.prefix = prefix;
+    let value = tracker.member_of(None);
+    tracker.pending.push((node, value, false));
+    tracker.run()
+}
+
+fn globals<'t, 'a, N: Names<'t, 'a> + ?Sized>(
+    mut tracker: Tracker<'t, 'a, '_, N>,
+    global_objects: &[&str],
+) -> Vec<TrackedReference<'a>> {
+    let (syntax_tree, sem) = (tracker.syntax_tree, tracker.sem);
     let unresolved = || {
         sem.references
             .iter()
@@ -103,11 +156,11 @@ pub fn global_references<'a>(
         if !usable(name) {
             continue;
         }
-        if let Some(name) = tracker.find(name) {
+        if let Some(name) = tracker.names.find(name) {
             tracker
                 .pending
                 .push((reference.node, Value::Name(name), true));
-        } else if GLOBAL_OBJECTS.contains(&name) {
+        } else if global_objects.contains(&name) {
             tracker.pending.push((reference.node, Value::Object, false));
         }
     }
@@ -121,14 +174,37 @@ enum Value<'a> {
     Name(&'a str),
     /// A namespace or global object, whose members are the tracked names.
     Object,
+    /// A value whose member path `prefix[depth..]` leads to such an object.
+    Prefix(usize),
 }
 
-struct Tracker<'t, 'a> {
+/// How a tracker tells a tracked name: from a list, or by a predicate.
+trait Names<'t, 'a> {
+    fn find(&self, name: &'t str) -> Option<&'a str>;
+}
+
+impl<'t, 'a> Names<'t, 'a> for [&'a str] {
+    fn find(&self, name: &'t str) -> Option<&'a str> {
+        self.iter().copied().find(|tracked| *tracked == name)
+    }
+}
+
+struct Matching<F>(F);
+
+impl<'t, F: Fn(&str) -> bool> Names<'t, 't> for Matching<F> {
+    fn find(&self, name: &'t str) -> Option<&'t str> {
+        (self.0)(name).then_some(name)
+    }
+}
+
+struct Tracker<'t, 'a, 'n, N: Names<'t, 'a> + ?Sized> {
     syntax_tree: &'t SyntaxTree,
     sem: &'t Semantic,
     parents: &'t [NodeIdentifier],
     source_text: &'t str,
-    names: &'t [&'a str],
+    names: &'n N,
+    /// The member path from the starting value to the object whose members are tracked.
+    prefix: &'n [&'n str],
     /// Expressions still to follow, with their value and whether to report them.
     pending: Vec<(NodeIdentifier, Value<'a>, bool)>,
     /// Bindings already followed with a value, so that aliases of each other end.
@@ -136,13 +212,13 @@ struct Tracker<'t, 'a> {
     out: Vec<TrackedReference<'a>>,
 }
 
-impl<'t, 'a> Tracker<'t, 'a> {
+impl<'t, 'a, 'n, N: Names<'t, 'a> + ?Sized> Tracker<'t, 'a, 'n, N> {
     fn new(
         syntax_tree: &'t SyntaxTree,
         sem: &'t Semantic,
         parents: &'t [NodeIdentifier],
         source_text: &'t str,
-        names: &'t [&'a str],
+        names: &'n N,
     ) -> Self {
         Self {
             syntax_tree,
@@ -150,14 +226,11 @@ impl<'t, 'a> Tracker<'t, 'a> {
             parents,
             source_text,
             names,
+            prefix: &[],
             pending: Vec::new(),
             visited: FxHashSet::default(),
             out: Vec::new(),
         }
-    }
-
-    fn find(&self, name: &str) -> Option<&'a str> {
-        self.names.iter().copied().find(|tracked| *tracked == name)
     }
 
     fn parent(&self, node: NodeIdentifier) -> Option<NodeIdentifier> {
@@ -167,20 +240,42 @@ impl<'t, 'a> Tracker<'t, 'a> {
     /// The tracked name a key asks for (`getPropertyName`): `a` in `x.a`, `{ a }` or
     /// `{ "a": b }`, or a constant string in brackets.
     fn key(&self, key: NodeIdentifier, computed: bool) -> Option<&'a str> {
+        self.names.find(self.key_text(key, computed)?)
+    }
+
+    fn key_text(&self, key: NodeIdentifier, computed: bool) -> Option<&'t str> {
         let tree = self.syntax_tree;
         match tree.kind(key) {
-            Kind::Identifier(_) if !computed => self.find(tree.name(key)),
-            Kind::String => self.find(tree.str_value(key, self.source_text)),
+            Kind::Identifier(_) if !computed => Some(tree.name(key)),
+            Kind::String => Some(tree.str_value(key, self.source_text)),
             Kind::Template {
                 quasis: [quasi],
                 expressions: [],
-            } if computed => self.find(tree.str_value(*quasi, self.source_text)),
+            } if computed => Some(tree.str_value(*quasi, self.source_text)),
             _ => None,
         }
     }
 
-    /// Follows what a pattern assigned `value` declares (`_iterateLhsReferences`).
-    fn lhs(&mut self, mut pattern: NodeIdentifier, value: Value<'a>) {
+    /// The value of the member `key` of a value on the prefix path at `depth`, or the starting
+    /// value for `None`.
+    fn member_of(&self, depth: Option<usize>) -> Value<'a> {
+        let next = depth.map_or(0, |depth| depth + 1);
+        if next == self.prefix.len() {
+            Value::Object
+        } else {
+            Value::Prefix(next)
+        }
+    }
+
+    /// Whether `key` is the next member on the prefix path at `depth`.
+    fn on_prefix(&self, depth: usize, key: NodeIdentifier, computed: bool) -> bool {
+        self.key_text(key, computed) == Some(self.prefix[depth])
+    }
+
+    /// Follows what a pattern assigned `value` declares (`_iterateLhsReferences`). Its
+    /// references are themselves uses of the name only for an import (`shouldReport`); an alias
+    /// reports only what is done with it.
+    fn lhs(&mut self, mut pattern: NodeIdentifier, value: Value<'a>, report: bool) {
         let tree = self.syntax_tree;
         while let Kind::AssignPattern(left, _) = tree.kind(pattern) {
             pattern = left;
@@ -195,21 +290,37 @@ impl<'t, 'a> Tracker<'t, 'a> {
                 }
                 for reference in self.sem.references_to(binding) {
                     if reference.read {
-                        self.pending.push((reference.node, value, true));
+                        self.pending.push((reference.node, value, report));
                     }
                 }
             }
-            Kind::ObjectPattern(properties) if value == Value::Object => {
+            Kind::ObjectPattern(properties) if !matches!(value, Value::Name(_)) => {
                 for &property in properties {
-                    if let Kind::Property {
+                    let Kind::Property {
                         key,
                         value: target,
                         computed,
                         ..
                     } = tree.kind(property)
-                        && let Some(name) = self.key(key, computed)
-                    {
-                        self.lhs(target, Value::Name(name));
+                    else {
+                        continue;
+                    };
+                    match value {
+                        Value::Object => {
+                            if let Some(name) = self.key(key, computed) {
+                                // Destructuring reads the member, as `x.name` does.
+                                self.out.push(TrackedReference {
+                                    node: property,
+                                    name,
+                                    call: None,
+                                });
+                                self.lhs(target, Value::Name(name), false);
+                            }
+                        }
+                        Value::Prefix(depth) if self.on_prefix(depth, key, computed) => {
+                            self.lhs(target, self.member_of(Some(depth)), false);
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -256,20 +367,27 @@ impl<'t, 'a> Tracker<'t, 'a> {
                     property,
                     computed,
                     ..
-                } if object == top && value == Value::Object => {
-                    if let Some(name) = self.key(property, computed) {
-                        self.pending.push((parent, Value::Name(name), true));
+                } if object == top => match value {
+                    Value::Object => {
+                        if let Some(name) = self.key(property, computed) {
+                            self.pending.push((parent, Value::Name(name), true));
+                        }
                     }
-                }
+                    Value::Prefix(depth) if self.on_prefix(depth, property, computed) => {
+                        let next = self.member_of(Some(depth));
+                        self.pending.push((parent, next, false));
+                    }
+                    _ => {}
+                },
                 Kind::Assign(_, left, right) if right == top => {
-                    self.lhs(left, value);
+                    self.lhs(left, value, false);
                     self.pending.push((parent, value, false));
                 }
-                Kind::AssignPattern(left, right) if right == top => self.lhs(left, value),
+                Kind::AssignPattern(left, right) if right == top => self.lhs(left, value, false),
                 Kind::Declarator {
                     identifier,
                     initializer: Some(initializer),
-                } if initializer == top => self.lhs(identifier, value),
+                } if initializer == top => self.lhs(identifier, value, false),
                 _ => {}
             }
         }

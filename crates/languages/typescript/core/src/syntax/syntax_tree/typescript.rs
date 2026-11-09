@@ -1,4 +1,34 @@
-use super::{Atom, NodeIdentifier, Span};
+use super::{Atom, NodeIdentifier, SourceLocation, Span, SyntaxTree, Tag};
+
+#[cfg(test)]
+mod tests;
+
+impl SyntaxTree {
+    /// `export type { … }` or `export type * from …`: erased, but keeping the export it drops.
+    pub fn type_only_export(
+        &mut self,
+        export: NodeIdentifier,
+        source_location: impl Into<SourceLocation>,
+    ) -> NodeIdentifier {
+        self.push(
+            Tag::TypeScriptDeclaration,
+            TYPE_ONLY_EXPORT,
+            [export.0, 0],
+            source_location,
+        )
+    }
+
+    /// The export a [`Self::type_only_export`] declaration drops.
+    #[must_use]
+    pub fn exported_types(&self, declaration: NodeIdentifier) -> Option<NodeIdentifier> {
+        let i = declaration.index();
+        (self.tags[i] == Tag::TypeScriptDeclaration && self.flags[i] == TYPE_ONLY_EXPORT)
+            .then(|| NodeIdentifier(self.data[i][0]))
+    }
+}
+
+/// The flag of a [`Tag::TypeScriptDeclaration`] that holds a type-only export.
+const TYPE_ONLY_EXPORT: u8 = 1;
 
 /// One piece of erased TypeScript syntax, attached to the node it belongs to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,9 +72,24 @@ pub struct TypeRef {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TypeDeclaration {
     pub name: Atom,
+    pub kind: TypeDeclarationKind,
     /// Where the statement starts: the start of its [`super::Tag::TypeScriptDeclaration`] or
-    /// [`super::Tag::TypeScriptInterface`] node.
+    /// [`super::Tag::TypeScriptInterface`] node, or for a nested one, of its statement in the
+    /// namespace body, which no node of this tree starts at.
     pub start_offset: u32,
+    /// Declared in the body of a namespace, `declare module` or `declare global`, which keeps
+    /// it in a scope of its own.
+    pub nested: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TypeDeclarationKind {
+    /// `type X = …`.
+    Alias,
+    Interface,
+    Enum,
+    /// `namespace N { … }` or `module N { … }`.
+    Namespace,
 }
 
 /// A TypeScript construct that has a runtime value, so it is not type syntax to erase.

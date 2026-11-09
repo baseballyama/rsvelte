@@ -9,12 +9,14 @@ mod compile_warnings;
 mod constant_string;
 mod derived_has_same_inputs_outputs;
 mod duplicate_directives;
+mod experimental_require_slot_types;
 mod expressions;
 mod first_attribute_linebreak;
 mod html_closing_bracket_new_line;
 mod html_closing_bracket_spacing;
 mod html_quotes;
 mod html_self_closing;
+mod inactive;
 mod infinite_reactive_loop;
 mod javascript;
 mod legacy_reactivity;
@@ -34,6 +36,7 @@ mod no_dynamic_slot_name;
 mod no_extra_reactive_curlies;
 mod no_ignored_unsubscribe;
 mod no_immutable_reactive_statements;
+mod no_inner_declarations;
 mod no_inspect;
 mod no_nested_style_tag;
 mod no_not_function_handler;
@@ -45,20 +48,29 @@ mod no_reactive_reassign;
 mod no_restricted_html_elements;
 mod no_spaces_around_equal_signs_in_attribute;
 mod no_store_async;
+mod no_svelte_internal;
 mod no_target_blank;
+mod no_top_level_browser_globals;
 mod no_trailing_spaces;
 mod no_unnecessary_condition;
+mod no_unnecessary_state_wrap;
 mod no_unused_svelte_ignore;
 mod no_unused_variables;
 mod no_useless_children_snippet;
 mod no_useless_mustaches;
+mod nodes;
 mod prefer_attribute_interpolation;
+mod prefer_const;
+mod prefer_derived_over_derived_by;
 mod prefer_destructured_store_props;
+mod prefer_svelte_reactivity;
+mod prefer_writable_derived;
 mod reactive_statements;
 mod require_each_key;
 mod require_store_callbacks_use_set_param;
 mod require_store_reactive_access;
 mod require_stores_init;
+mod runes;
 mod runes_mode;
 mod shorthand_attribute;
 mod shorthand_directive;
@@ -129,6 +141,19 @@ pub(crate) static BUILT_IN: &[&RuleDefinition] = &[
     &require_store_callbacks_use_set_param::RULE,
     &require_store_reactive_access::RULE,
     &require_stores_init::RULE,
+    &experimental_require_slot_types::RULE,
+    &inactive::EXPERIMENTAL_REQUIRE_STRICT_EVENTS,
+    &no_inner_declarations::RULE,
+    &no_svelte_internal::RULE,
+    &no_top_level_browser_globals::RULE,
+    &no_unnecessary_state_wrap::RULE,
+    &inactive::NO_UNUSED_PROPS,
+    &prefer_const::RULE,
+    &prefer_derived_over_derived_by::RULE,
+    &prefer_svelte_reactivity::RULE,
+    &prefer_writable_derived::RULE,
+    &inactive::REQUIRE_EVENT_DISPATCHER_TYPES,
+    &inactive::REQUIRE_EVENT_PREFIX,
     &valid_each_key::RULE,
 ];
 

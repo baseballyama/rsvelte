@@ -567,6 +567,6 @@ mod traverse;
 
 mod typescript;
 pub use typescript::{
-    TypeDeclaration, TypeRef, TypeScriptFeature, TypeScriptKind, TypeScriptRuntime,
-    TypeScriptSyntax,
+    TypeDeclaration, TypeDeclarationKind, TypeRef, TypeScriptFeature, TypeScriptKind,
+    TypeScriptRuntime, TypeScriptSyntax,
 };
