@@ -1,4 +1,4 @@
-use super::{NodeIdentifier, Parser, R, RESERVED, Span, T, flag};
+use super::{Kind, NodeIdentifier, Parser, R, RESERVED, Span, T, flag};
 
 impl Parser<'_, '_> {
     #[expect(clippy::too_many_lines, reason = "one arm per primary expression kind")]
@@ -86,6 +86,14 @@ impl Parser<'_, '_> {
                 let e = self.expression()?;
                 self.allow_in = previous;
                 self.expect(T::RParen, ")")?;
+                // `(a?.b).c` ends the chain at `)`; without the mark it reads as `a?.b.c`.
+                let continues = matches!(
+                    self.token.t,
+                    T::Dot | T::LBracket | T::LParen | T::Template { .. }
+                );
+                if continues && self.ends_optional_chain(e) {
+                    return Ok(self.syntax_tree.grouped(e));
+                }
                 Ok(e)
             }
             T::LBracket => {
@@ -283,6 +291,20 @@ impl Parser<'_, '_> {
 }
 
 impl Parser<'_, '_> {
+    /// Whether `e` is a member or call chain with a `?.` in it.
+    fn ends_optional_chain(&self, mut e: NodeIdentifier) -> bool {
+        loop {
+            match self.syntax_tree.kind(e) {
+                Kind::Member { optional: true, .. } | Kind::Call { optional: true, .. } => {
+                    return true;
+                }
+                Kind::Member { object, .. } => e = object,
+                Kind::Call { callee, .. } => e = callee,
+                _ => return false,
+            }
+        }
+    }
+
     fn import_primary(&mut self) -> R<NodeIdentifier> {
         let token = self.bump()?;
         if self.eat(T::Dot)? {
