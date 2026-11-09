@@ -388,7 +388,15 @@ impl RuneWalk<'_> {
         if let Some(rune) = rune(javascript, e, Some(&self.res.sem)) {
             self.check_rune(e, rune, place)?;
         }
-        if matches!(javascript.kind(e), Kind::Declarator { .. }) {
+        if let Kind::Declarator {
+            identifier,
+            initializer,
+        } = javascript.kind(e)
+        {
+            if initializer.and_then(|i| rune(javascript, i, Some(&self.res.sem))) == Some("$props")
+            {
+                check_props_pattern(javascript, e, identifier)?;
+            }
             super::script::check_destructured_rune(javascript, e)?;
         }
         check_pattern_assignment(javascript, self.res, self.target, self.custom_element, e)?;
@@ -624,6 +632,43 @@ fn check_rune_arguments(
         &format!("`{rune}` must be called with {expected}"),
         span_of(javascript, e),
     )
+}
+
+/// Upstream `VariableDeclarator`: `$props()` binds a name or flat object pattern, checked before
+/// the call and its `$bindable` defaults.
+fn check_props_pattern(
+    javascript: &SyntaxTree,
+    declarator: NodeIdentifier,
+    pattern: NodeIdentifier,
+) -> Result<(), Diagnostic> {
+    let properties = match javascript.kind(pattern) {
+        Kind::Identifier(_) => return Ok(()),
+        Kind::ObjectPattern(properties) => properties,
+        _ => {
+            return super::special::invalid(
+                "props_invalid_identifier",
+                "`$props()` can only be used with an object destructuring pattern",
+                span_of(javascript, declarator),
+            );
+        }
+    };
+    for &property in properties {
+        let Kind::Property { value, .. } = javascript.kind(property) else {
+            continue;
+        };
+        let value = match javascript.kind(value) {
+            Kind::AssignPattern(left, _) => left,
+            _ => value,
+        };
+        if javascript.flags(property) & flag::COMPUTED != 0 || !javascript.is_identifier(value) {
+            return super::special::invalid(
+                "props_invalid_pattern",
+                "`$props()` assignment must not contain nested properties or computed keys",
+                span_of(javascript, property),
+            );
+        }
+    }
+    Ok(())
 }
 
 /// The span of a node an error names; a frontend writes rune calls only where none is raised.

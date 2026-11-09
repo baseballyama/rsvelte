@@ -93,6 +93,14 @@ fn misplaced_runes_and_wrong_rune_arguments_raise_upstream_errors_on_both_target
         ("let h = $host(1);", "rune_invalid_arguments"),
         ("let h = $host();", "host_invalid_placement"),
         ("class K { [await 1] = 2; }", "experimental_async"),
+        ("let { a: { b } } = $props();", "props_invalid_pattern"),
+        ("let { [k]: a } = $props();", "props_invalid_pattern"),
+        ("let { a: [b] = [] } = $props();", "props_invalid_pattern"),
+        (
+            "let { a: { b = $bindable() } } = $props();",
+            "props_invalid_pattern",
+        ),
+        ("let [a] = $props();", "props_invalid_identifier"),
         ("class K extends (await x) {}", "experimental_async"),
     ] {
         let source = format!("<script>{script}</script>");
