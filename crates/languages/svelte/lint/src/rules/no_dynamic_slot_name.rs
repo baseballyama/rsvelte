@@ -93,3 +93,6 @@ fn is_safe(text: &str, quote: Option<&str>) -> bool {
         None => !(c.is_ascii_whitespace() || matches!(c, '"' | '\'' | '=' | '<' | '>' | '`')),
     })
 }
+
+#[cfg(test)]
+mod tests;

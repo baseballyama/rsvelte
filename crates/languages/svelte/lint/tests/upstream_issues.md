@@ -68,3 +68,21 @@ Test: `no_not_function_handler::tests::a_destructured_name_is_not_its_initialize
 definition is not a script `const`. A `{@const}` is just as constant, so this crate follows it and
 reports "Unexpected number value in event handler.".
 Test: `no_not_function_handler::tests::a_const_tag_is_followed`.
+
+## svelte/shorthand-directive: with `prefer: never`, the value lands before the modifiers
+
+Upstream fixes `<div style:color|important>` to `<div style:color={color}|important>`. The compiler
+accepts that, but it reads the value as the text `{color}|important`, so the directive loses
+`|important`. This crate writes `style:color|important={color}`.
+Test: `shorthand_directive::tests::the_value_goes_after_the_modifiers`.
+
+## svelte/no-dynamic-slot-name: the fix breaks the attribute
+
+| Input                         | Upstream fix          | What breaks                                 |
+| ----------------------------- | --------------------- | ------------------------------------------- |
+| `<slot name={'a"b'} />`       | `<slot name="a"b" />` | the inner `"` ends the value                |
+| `<slot name="x{'a"b'}" />`    | `<slot name="xa"b" />` | the inner `"` ends the value               |
+| `<slot name=x{"a b"}y />`     | `<slot name=xa by />` | the space makes `by` a second attribute     |
+
+This crate reports these and writes no fix.
+Test: `no_dynamic_slot_name::tests::a_name_that_the_markup_cannot_hold_as_written_is_not_fixed`.
