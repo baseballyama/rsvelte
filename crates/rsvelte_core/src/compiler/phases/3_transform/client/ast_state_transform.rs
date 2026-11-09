@@ -217,6 +217,125 @@ fn init_without_parens<'x, 'ast>(init: &'x Expression<'ast>) -> (&'x Expression<
     (init.without_parentheses(), init.span())
 }
 
+/// One piece of a destructured `$state` path. Nodes stay unvisited until the
+/// declarators are printed, because upstream visits them only then.
+#[derive(Clone)]
+enum StatePathPart<'p, 'a> {
+    Text(String),
+    /// The name of the n-th `$$array`, assigned when its declarator is printed.
+    Array(usize),
+    Visit(&'p Expression<'a>),
+    Fallback(Vec<StatePathPart<'p, 'a>>, &'p Expression<'a>),
+}
+
+fn with_part<'p, 'a>(
+    expression: &[StatePathPart<'p, 'a>],
+    tail: impl IntoIterator<Item = StatePathPart<'p, 'a>>,
+) -> Vec<StatePathPart<'p, 'a>> {
+    expression.iter().cloned().chain(tail).collect()
+}
+
+/// Port of upstream `extract_paths`: every array pattern, however deep, gets a
+/// `$$array` insert, and leaves are collected in pattern order.
+fn extract_state_paths<'p, 'a>(
+    source: &str,
+    pattern: &'p BindingPattern<'a>,
+    expression: Vec<StatePathPart<'p, 'a>>,
+    inserts: &mut Vec<Vec<StatePathPart<'p, 'a>>>,
+    paths: &mut Vec<(String, Vec<StatePathPart<'p, 'a>>)>,
+) {
+    use StatePathPart::{Array, Fallback, Text, Visit};
+    match pattern {
+        BindingPattern::BindingIdentifier(id) => {
+            paths.push((id.name.to_string(), expression));
+        }
+        BindingPattern::AssignmentPattern(assign) => {
+            let fallback = vec![Fallback(expression, &assign.right)];
+            extract_state_paths(source, &assign.left, fallback, inserts, paths);
+        }
+        BindingPattern::ObjectPattern(obj) => {
+            // `b.member(expression, prop.key, prop.computed || prop.key.type !== 'Identifier')`;
+            // a literal key keeps its source quoting, as upstream's printer does.
+            let key = |prop: &'p BindingProperty<'a>| -> StatePathPart<'p, 'a> {
+                if prop.computed
+                    && let Some(expr) = prop.key.as_expression()
+                {
+                    return Visit(expr);
+                }
+                let span = prop.key.span();
+                Text(
+                    source[span.start as usize..span.end as usize]
+                        .trim()
+                        .to_string(),
+                )
+            };
+            for prop in &obj.properties {
+                let access = if !prop.computed
+                    && let PropertyKey::StaticIdentifier(id) = &prop.key
+                {
+                    with_part(&expression, [Text(format!(".{}", id.name))])
+                } else {
+                    with_part(&expression, [Text("[".into()), key(prop), Text("]".into())])
+                };
+                extract_state_paths(source, &prop.value, access, inserts, paths);
+            }
+            if let Some(rest) = &obj.rest {
+                let mut access = with_part(&expression, []);
+                access.insert(0, Text("$.exclude_from_object(".into()));
+                access.push(Text(", [".into()));
+                for (i, prop) in obj.properties.iter().enumerate() {
+                    if i > 0 {
+                        access.push(Text(", ".into()));
+                    }
+                    // Identifier and `Literal` keys become string literals, every
+                    // other computed key `String(<key>)`.
+                    match &prop.key {
+                        PropertyKey::StaticIdentifier(id) if !prop.computed => {
+                            access.push(Text(format!("'{}'", escape_js_string(id.name.as_str()))));
+                        }
+                        PropertyKey::StringLiteral(s) => access.push(Text(format!(
+                            "'{}'",
+                            escape_js_string(&s.value.display().to_string())
+                        ))),
+                        PropertyKey::NumericLiteral(n) => {
+                            access.push(Text(format!("'{}'", js_number_to_string(n.value))));
+                        }
+                        _ => {
+                            access.push(Text("String(".into()));
+                            access.push(key(prop));
+                            access.push(Text(")".into()));
+                        }
+                    }
+                }
+                access.push(Text("])".into()));
+                extract_state_paths(source, &rest.argument, access, inserts, paths);
+            }
+        }
+        BindingPattern::ArrayPattern(arr) => {
+            let index = inserts.len();
+            let mut value = with_part(&expression, []);
+            value.insert(0, Text("$.to_array(".into()));
+            value.push(Text(if arr.rest.is_some() {
+                ")".to_string()
+            } else {
+                format!(", {})", arr.elements.len())
+            }));
+            inserts.push(value);
+            let read = [Text("$.get(".into()), Array(index), Text(")".into())];
+            for (i, elem) in arr.elements.iter().enumerate() {
+                if let Some(elem) = elem {
+                    let access = with_part(&read, [Text(format!("[{}]", i))]);
+                    extract_state_paths(source, elem, access, inserts, paths);
+                }
+            }
+            if let Some(rest) = &arr.rest {
+                let access = with_part(&read, [Text(format!(".slice({})", arr.elements.len()))]);
+                extract_state_paths(source, &rest.argument, access, inserts, paths);
+            }
+        }
+    }
+}
+
 /// Execute a closure with a freshly-reset thread-local OXC allocator.
 fn with_ast_transform_allocator<F, R>(f: F) -> R
 where
@@ -1621,31 +1740,50 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
         let mut inserts = Vec::new();
         let mut paths = Vec::new();
-        self.extract_state_paths(&declarator.id, tmp_name, &mut inserts, &mut paths);
+        extract_state_paths(
+            self.source,
+            &declarator.id,
+            vec![StatePathPart::Text(tmp_name)],
+            &mut inserts,
+            &mut paths,
+        );
         // Upstream labels every `$$array` by the top-level pattern's kind.
         let label = if matches!(declarator.id, BindingPattern::ArrayPattern(_)) {
             "[$state iterable]"
         } else {
             "[$state object]"
         };
-        for (array_var, value) in inserts {
+        // Upstream names each `$$array` and visits its value in turn, and only
+        // then visits the leaves, so a default or computed key is visited (and
+        // generates names) after every `$$array` before it has its name.
+        let mut array_names = Vec::with_capacity(inserts.len());
+        let mut visited = FxHashMap::default();
+        for value in &inserts {
+            let index = SCRIPT_ARRAY_COUNTER.with(|c| {
+                let cur = c.get();
+                c.set(cur + 1);
+                cur
+            });
+            array_names.push(if index == 0 {
+                "$$array".to_string()
+            } else {
+                format!("$$array_{}", index)
+            });
+            let value = self.render_state_path(value, &array_names, &mut visited);
             let init = format!("$.derived(() => {})", value);
             let init = if self.dev {
                 format!("$.tag({}, '{}')", init, label)
             } else {
                 init
             };
-            declarations.push(format!("{} = {}", array_var, init));
+            declarations.push(format!("{} = {}", array_names[array_names.len() - 1], init));
         }
-        for (var_name, access) in paths {
-            let is_skip = self.is_state_destructure_skip(&var_name);
+        for (var_name, access) in &paths {
+            let access = self.render_state_path(access, &array_names, &mut visited);
+            let is_skip = self.is_state_destructure_skip(var_name);
             let value_expr = wrap_state_value(&access, is_raw, is_skip);
-            let value_expr = self.maybe_tag_declarator(&var_name, value_expr);
+            let value_expr = self.maybe_tag_declarator(var_name, value_expr);
             declarations.push(format!("{} = {}", var_name, value_expr));
-        }
-
-        if declarations.len() <= 1 {
-            return false;
         }
 
         let replacement = declarations.join(", ");
@@ -1674,69 +1812,62 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         obj.name == "$state" && member.property.name == "raw"
     }
 
-    /// Member access for a destructured `$state` property key, mirroring
-    /// upstream's
-    /// `b.member(expression, prop.key, prop.computed || prop.key.type !== 'Identifier')`.
-    /// `key_text` is the key's source text, visited when the key is computed,
-    /// so a literal keeps its original quoting as upstream's printer does.
-    fn state_key_access(object: &str, prop: &BindingProperty<'_>, key_text: &str) -> String {
-        if !prop.computed
-            && let PropertyKey::StaticIdentifier(id) = &prop.key
-        {
-            return format!("{}.{}", object, id.name);
-        }
-        format!("{}[{}]", object, key_text)
-    }
-
-    /// The key's text after visiting, so a computed key that reads state
-    /// gets the same `$.get` wrap upstream's visit of the path gives it.
-    fn state_key_text(&mut self, prop: &BindingProperty<'_>) -> String {
-        if prop.computed
-            && let Some(expr) = prop.key.as_expression()
-        {
-            return self.visited_text(expr);
-        }
-        let span = prop.key.span();
-        self.source[span.start as usize..span.end as usize]
-            .trim()
-            .to_string()
-    }
-
-    fn visited_text(&mut self, expr: &Expression<'_>) -> String {
-        self.visit_expression(expr);
+    /// A node is visited once, where upstream first visits it; a default that
+    /// upstream's object pattern copies into several paths reuses that text.
+    fn visited_text(
+        &mut self,
+        expr: &Expression<'_>,
+        visited: &mut FxHashMap<(u32, u32), String>,
+    ) -> String {
         let span = expr.span();
-        self.apply_and_drain_inner_replacements(span.start, span.end)
+        if let Some(text) = visited.get(&(span.start, span.end)) {
+            return text.clone();
+        }
+        self.visit_expression(expr);
+        let text = self
+            .apply_and_drain_inner_replacements(span.start, span.end)
             .trim()
-            .to_string()
+            .to_string();
+        visited.insert((span.start, span.end), text.clone());
+        text
     }
 
-    /// The `$.exclude_from_object(tmp, [...])` entry for a non-rest property key.
-    /// Upstream turns identifier and `Literal` keys into string literals and every
-    /// other computed key into `String(<expr>)`, so the rest subtracts it at runtime.
-    fn state_exclude_key_literal(prop: &BindingProperty<'_>, key_text: &str) -> String {
-        if !prop.computed
-            && let PropertyKey::StaticIdentifier(id) = &prop.key
-        {
-            return format!("'{}'", escape_js_string(id.name.as_str()));
-        }
-        match &prop.key {
-            PropertyKey::StringLiteral(s) => {
-                format!("'{}'", escape_js_string(&s.value.display().to_string()))
+    fn render_state_path(
+        &mut self,
+        parts: &[StatePathPart<'_, '_>],
+        array_names: &[String],
+        visited: &mut FxHashMap<(u32, u32), String>,
+    ) -> String {
+        let mut out = String::new();
+        for part in parts {
+            match part {
+                StatePathPart::Text(text) => out.push_str(text),
+                StatePathPart::Array(index) => out.push_str(&array_names[*index]),
+                StatePathPart::Visit(expr) => out.push_str(&self.visited_text(expr, visited)),
+                StatePathPart::Fallback(access, default) => {
+                    let access = self.render_state_path(access, array_names, visited);
+                    let fallback = self.apply_pattern_default(access, default, visited);
+                    out.push_str(&fallback);
+                }
             }
-            PropertyKey::NumericLiteral(n) => format!("'{}'", js_number_to_string(n.value)),
-            _ => format!("String({})", key_text),
         }
+        out
     }
 
     /// Upstream's `build_fallback` picks the `$.fallback` shape from the
     /// default as written and visits it afterwards, so the shape is decided on
     /// the source text and the visited text is what gets printed.
-    fn apply_pattern_default(&mut self, access: String, default: &Expression<'_>) -> String {
+    fn apply_pattern_default(
+        &mut self,
+        access: String,
+        default: &Expression<'_>,
+        visited: &mut FxHashMap<(u32, u32), String>,
+    ) -> String {
         let span = default.span();
         let original = self.source[span.start as usize..span.end as usize]
             .trim()
             .to_string();
-        let visited = self.visited_text(default);
+        let visited = self.visited_text(default, visited);
         if visited == original {
             return build_fallback_string(&access, &original);
         }
@@ -1751,79 +1882,6 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             return format!("await $.fallback({}, {})", access, v.trim());
         }
         build_fallback_string(&access, &visited)
-    }
-
-    /// Port of upstream `extract_paths`: every array pattern, however deep,
-    /// gets a `$$array` insert, and leaves are collected in pattern order.
-    fn extract_state_paths(
-        &mut self,
-        pattern: &BindingPattern<'_>,
-        expression: String,
-        inserts: &mut Vec<(String, String)>,
-        paths: &mut Vec<(String, String)>,
-    ) {
-        match pattern {
-            BindingPattern::BindingIdentifier(id) => {
-                paths.push((id.name.to_string(), expression));
-            }
-            BindingPattern::AssignmentPattern(assign) => {
-                let fallback = self.apply_pattern_default(expression, &assign.right);
-                self.extract_state_paths(&assign.left, fallback, inserts, paths);
-            }
-            BindingPattern::ObjectPattern(obj) => {
-                let key_texts: Vec<String> = obj
-                    .properties
-                    .iter()
-                    .map(|prop| self.state_key_text(prop))
-                    .collect();
-                for (prop, key_text) in obj.properties.iter().zip(&key_texts) {
-                    let access = Self::state_key_access(&expression, prop, key_text);
-                    self.extract_state_paths(&prop.value, access, inserts, paths);
-                }
-                if let Some(rest) = &obj.rest {
-                    let keys: Vec<String> = obj
-                        .properties
-                        .iter()
-                        .zip(&key_texts)
-                        .map(|(prop, key_text)| Self::state_exclude_key_literal(prop, key_text))
-                        .collect();
-                    let access = format!(
-                        "$.exclude_from_object({}, [{}])",
-                        expression,
-                        keys.join(", ")
-                    );
-                    self.extract_state_paths(&rest.argument, access, inserts, paths);
-                }
-            }
-            BindingPattern::ArrayPattern(arr) => {
-                let index = SCRIPT_ARRAY_COUNTER.with(|c| {
-                    let cur = c.get();
-                    c.set(cur + 1);
-                    cur
-                });
-                let array_var = if index == 0 {
-                    "$$array".to_string()
-                } else {
-                    format!("$$array_{}", index)
-                };
-                let value = if arr.rest.is_some() {
-                    format!("$.to_array({})", expression)
-                } else {
-                    format!("$.to_array({}, {})", expression, arr.elements.len())
-                };
-                let read = format!("$.get({})", array_var);
-                inserts.push((array_var, value));
-                for (i, elem) in arr.elements.iter().enumerate() {
-                    if let Some(elem) = elem {
-                        self.extract_state_paths(elem, format!("{}[{}]", read, i), inserts, paths);
-                    }
-                }
-                if let Some(rest) = &arr.rest {
-                    let access = format!("{}.slice({})", read, arr.elements.len());
-                    self.extract_state_paths(&rest.argument, access, inserts, paths);
-                }
-            }
-        }
     }
 
     /// The text destructuring helper passes the `skip_state_vars` list as
