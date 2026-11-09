@@ -45,7 +45,14 @@ impl Task for Warn {
         } else {
             None
         };
-        let found = warnings::warnings(component, resolution, analysis, source, OPTIONS);
+        let found = warnings::warnings(
+            component,
+            resolution,
+            analysis,
+            source,
+            &context.document.path,
+            OPTIONS,
+        );
         if let Some(error) = found.first_error(component, false) {
             out.diagnostics.push(error);
             return;

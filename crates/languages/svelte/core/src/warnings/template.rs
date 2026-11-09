@@ -1,25 +1,56 @@
-//! The template's warnings and errors, in one walk.
+//! The template's warnings and errors, in one walk in the compiler's order.
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
+use rsvelte_svelte_semantic::semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::names::is_component_name;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Component, Part, Range, TemplateNode, decode_attribute,
 };
+use rsvelte_typescript::NodeIdentifier;
+use rustc_hash::FxHashSet;
 
 use super::a11y;
+use super::found::{Found, Stage};
 use super::{Phase, Raised, Section, error, slot_name_error, warning};
 
-pub(super) struct Template<'a> {
+mod element;
+mod placement;
+
+/// What the walk of the template reads besides the tree.
+pub(super) struct Context<'a> {
     pub(super) component: &'a Component,
     pub(super) source: &'a str,
-    pub(super) out: &'a mut Vec<Diagnostic>,
+    pub(super) resolution: &'a Resolution,
+    pub(super) runes: bool,
+    /// Upstream `analysis.custom_element`: `<svelte:options customElement>` or the option.
+    pub(super) custom_element: bool,
+    /// The component's name and file name, which `<svelte:self>`'s warning suggests.
+    pub(super) name: &'a str,
+    pub(super) basename: &'a str,
+}
+
+pub(super) struct Template<'a> {
+    pub(super) context: Context<'a>,
+    pub(super) found: &'a mut Found,
     pub(super) errors: &'a mut Vec<(Raised, Diagnostic)>,
     /// Inside an element with `shadowrootmode`, where `<slot>` is an ordinary element.
-    pub(super) shadow_root: bool,
+    shadow_root: bool,
     /// What owns the fragment being walked.
-    pub(super) owner: Owner,
+    owner: Owner,
+    /// How many `{#if}`, `{#each}`, `{#await}` and `{#key}` blocks enclose the walk.
+    blocks: u32,
+    /// Each `bind:this` expression, and whether a block encloses it.
+    pub(super) bind_this: Vec<(Span, bool)>,
+    /// The identifiers an `{#each}` context declares inside a rest element.
+    each_rest: FxHashSet<NodeIdentifier>,
+    /// The nearest enclosing element with its own end tag, which closes the open ones inside.
+    closer: Option<&'a str>,
+    /// Upstream `parent_element`: the enclosing regular element, until a component or snippet.
+    parent_element: Option<&'a str>,
+    /// The elements, blocks and boundaries around the walk, outermost first.
+    ancestry: Vec<placement::Ancestor<'a>>,
 }
 
 /// The node a fragment belongs to, as far as `{@const}` and `<title>` care.
@@ -33,7 +64,34 @@ pub(super) enum Owner {
     Other,
 }
 
+const STAGE: Stage = Stage::Walk(Section::Template);
+
 impl<'a> Template<'a> {
+    pub(super) fn new(
+        context: Context<'a>,
+        found: &'a mut Found,
+        errors: &'a mut Vec<(Raised, Diagnostic)>,
+    ) -> Self {
+        Self {
+            context,
+            found,
+            errors,
+            shadow_root: false,
+            owner: Owner::Other,
+            blocks: 0,
+            bind_this: Vec::new(),
+            each_rest: FxHashSet::default(),
+            closer: None,
+            parent_element: None,
+            ancestry: Vec::new(),
+        }
+    }
+
+    /// A warning the visitor of the node starting at `at` emits.
+    fn warn(&mut self, at: u32, warning: Diagnostic) {
+        self.found.push(STAGE, at, warning);
+    }
+
     /// An error the template walk raises at the node starting at `node`.
     pub(super) fn error(&mut self, node: Span, error: Diagnostic) {
         let raised = Raised {
@@ -45,41 +103,83 @@ impl<'a> Template<'a> {
     }
 
     pub(super) fn fragment(&mut self, range: Range, parent: a11y::Parent<'a>) {
-        for &child in self.component.children(range) {
-            self.node(child, parent);
+        let component = self.context.component;
+        let children = component.children(range);
+        for (i, &child) in children.iter().enumerate() {
+            if let TemplateNode::Text { span } = *component.node(child) {
+                self.text(span, &children[..i]);
+            } else {
+                self.node(child, children.get(i + 1).copied(), parent);
+            }
         }
     }
 
-    pub(super) fn fragment_of(&mut self, owner: Owner, range: Range, parent: a11y::Parent<'a>) {
+    /// Walks `range` inside `ancestor`, with `parent_element` as the elements inside see it.
+    fn within(
+        &mut self,
+        ancestor: placement::Ancestor<'a>,
+        parent_element: Option<&'a str>,
+        walk: impl FnOnce(&mut Self),
+    ) {
+        self.ancestry.push(ancestor);
+        let outer = std::mem::replace(&mut self.parent_element, parent_element);
+        walk(self);
+        self.parent_element = outer;
+        self.ancestry.pop();
+    }
+
+    fn fragment_of(&mut self, owner: Owner, range: Range, parent: a11y::Parent<'a>) {
         let outer = std::mem::replace(&mut self.owner, owner);
         self.fragment(range, parent);
         self.owner = outer;
     }
 
-    /// `validate_block_not_empty`: a branch that is one whitespace text.
-    pub(super) fn branch(&mut self, range: Range, parent: a11y::Parent<'a>) {
-        if let [only] = self.component.children(range)
-            && let TemplateNode::Text { span } = *self.component.node(*only)
+    /// `validate_block_not_empty` of the block at `block`, then the branch.
+    fn branch(&mut self, block: u32, range: Range, parent: a11y::Parent<'a>) {
+        let component = self.context.component;
+        if let [only] = component.children(range)
+            && let TemplateNode::Text { span } = *component.node(*only)
             && span
-                .text(self.source)
+                .text(self.context.source)
                 .trim_matches(is_ecmascript_whitespace)
                 .is_empty()
         {
-            self.out.push(warning("block_empty", "Empty block", span));
+            self.warn(block, warning("block_empty", "Empty block", span));
         }
         self.fragment_of(Owner::Declarations, range, parent);
     }
 
+    /// `Text`: bidirectional control characters, unless a `svelte-ignore` before it in the
+    /// fragment names them.
+    fn text(&mut self, span: Span, before: &[u32]) {
+        let source = self.context.source;
+        let text = span.text(source);
+        let mut runs = bidirectional_runs(text).peekable();
+        if runs.peek().is_none() {
+            return;
+        }
+        let code = "bidirectional_control_characters";
+        let ignored = before.iter().any(|&sibling| {
+            matches!(*self.context.component.node(sibling), TemplateNode::Comment { data, .. }
+                if super::ignore::extract(data.start_offset, data.text(source), self.context.runes, |_| {})
+                    .iter()
+                    .any(|c| c == code))
+        });
+        if ignored {
+            return;
+        }
+        let runs: Vec<(usize, usize)> = runs.collect();
+        for (start, end) in runs {
+            let at = span.start_offset + start as u32;
+            let found = Span::new(at, span.start_offset + end as u32);
+            self.warn(at, bidirectional(found));
+        }
+    }
+
     /// `<svelte:window>`, `<svelte:document>` and `<svelte:body>`: no children, and no
     /// attributes but event handlers.
-    pub(super) fn special(
-        &mut self,
-        name: &str,
-        element: Span,
-        attributes: Range,
-        children: Range,
-    ) {
-        let component = self.component;
+    fn special(&mut self, name: &str, element: Span, attributes: Range, children: Range) {
+        let component = self.context.component;
         if let (Some(&first), Some(&last)) = (
             component.children(children).first(),
             component.children(children).last(),
@@ -96,8 +196,11 @@ impl<'a> Template<'a> {
         }
         for attribute in component.attributes(attributes) {
             let event = attribute.kind == AttributeKind::Attribute
-                && attribute.name.text(self.source).starts_with("on")
+                && attribute.name.text(self.context.source).starts_with("on")
                 && a11y::is_expression(component, attribute);
+            if event {
+                self.global_event_reference(element.start_offset, attribute);
+            }
             if event
                 || !matches!(
                     attribute.kind,
@@ -126,17 +229,17 @@ impl<'a> Template<'a> {
     }
 
     /// `<slot name>`: a static name other than `default`.
-    pub(super) fn slot(&mut self, element: Span, attributes: Range) {
-        let component = self.component;
+    fn slot(&mut self, element: Span, attributes: Range) {
+        let component = self.context.component;
         for attribute in component.attributes(attributes) {
             if attribute.kind != AttributeKind::Attribute
-                || attribute.name.text(self.source) != "name"
+                || attribute.name.text(self.context.source) != "name"
             {
                 continue;
             }
             let text = match attribute.value {
                 AttributeValue::Parts(parts) => match component.parts(parts) {
-                    [Part::Text(span)] => Some(decode_attribute(span.text(self.source))),
+                    [Part::Text(span)] => Some(decode_attribute(span.text(self.context.source))),
                     _ => None,
                 },
                 AttributeValue::True => None,
@@ -147,149 +250,83 @@ impl<'a> Template<'a> {
         }
     }
 
-    /// `<svelte:element this="div">`: a string where an expression belongs.
-    pub(super) fn dynamic_this(&mut self, attributes: Range) {
-        let component = self.component;
-        let this = component
-            .attributes(attributes)
-            .iter()
-            .find(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "this");
-        if let Some(this) = this
-            && !matches!(this.value, AttributeValue::True)
-            && !a11y::is_expression(component, this)
-        {
-            self.out.push(warning(
-                "svelte_element_invalid_this",
-                "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte",
-                this.span,
-            ));
-        }
-    }
-
-    pub(super) fn element(
-        &mut self,
-        name: &'a str,
-        span: Span,
-        attributes: Range,
-        children: Range,
-        parent: a11y::Parent<'a>,
-    ) {
-        let component = self.component;
-        let dynamic = name == "svelte:element";
-        let slot = name == "slot" && !self.shadow_root;
-        let regular = !dynamic && !name.starts_with("svelte:") && !slot && !is_component_name(name);
-        if regular || dynamic {
-            a11y::check_element(
-                component,
-                self.source,
-                name,
-                span,
-                attributes,
-                children,
-                dynamic,
-                parent,
-                self.out,
-            );
-        }
-        if slot {
-            self.slot(span, attributes);
-        }
-        if matches!(name, "svelte:window" | "svelte:document" | "svelte:body") {
-            self.special(name, span, attributes, children);
-        }
-        if name == "title"
-            && self.owner == Owner::Head
-            && let Some(first) = component.attributes(attributes).first()
-        {
-            let found = error(
-                "title_illegal_attribute",
-                "`<title>` cannot have attributes nor directives",
-                first.span,
-            );
-            self.error(span, found);
-        }
-        if dynamic {
-            self.dynamic_this(attributes);
-        }
-        let inner = if dynamic {
-            a11y::Parent::Dynamic
-        } else if regular {
-            a11y::Parent::Regular(name)
-        } else {
-            parent
+    /// One node of a fragment, and the sibling after it.
+    pub(super) fn node(&mut self, child: u32, next: Option<u32>, parent: a11y::Parent<'a>) {
+        let component = self.context.component;
+        let node = component.node(child);
+        let ancestor = match *node {
+            TemplateNode::If { .. }
+            | TemplateNode::Each { .. }
+            | TemplateNode::Key { .. }
+            | TemplateNode::Await { .. } => Some((placement::Ancestor::Block, self.parent_element)),
+            TemplateNode::Snippet { .. } => Some((placement::Ancestor::Boundary, None)),
+            _ => None,
         };
-        let shadow_root = self.shadow_root;
-        self.shadow_root |= regular
-            && component.attributes(attributes).iter().any(|a| {
-                a.kind == AttributeKind::Attribute && a.name.text(self.source) == "shadowrootmode"
+        if let Some((ancestor, parent_element)) = ancestor {
+            self.within(ancestor, parent_element, |walk| {
+                walk.node_inside(child, next, parent);
             });
-        let slotted = (regular || dynamic)
-            && component
-                .attributes(attributes)
-                .iter()
-                .any(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "slot");
-        let owner = if name == "svelte:head" {
-            Owner::Head
-        } else if slotted
-            || matches!(
-                name,
-                "svelte:component" | "svelte:fragment" | "svelte:boundary"
-            )
-            || (is_component_name(name) && !name.starts_with("svelte:"))
-        {
-            Owner::Declarations
         } else {
-            Owner::Other
-        };
-        self.fragment_of(owner, children, inner);
-        self.shadow_root = shadow_root;
+            self.node_inside(child, next, parent);
+        }
     }
 
-    pub(super) fn node(&mut self, child: u32, parent: a11y::Parent<'a>) {
-        let component = self.component;
-        match *component.node(child) {
-            TemplateNode::Element {
-                name,
-                attributes,
-                children,
-                span,
-                ..
-            } => self.element(name.text(self.source), span, attributes, children, parent),
+    fn node_inside(&mut self, child: u32, next: Option<u32>, parent: a11y::Parent<'a>) {
+        let component = self.context.component;
+        let node = component.node(child);
+        let at = node.span().start_offset;
+        match *node {
+            TemplateNode::Element { .. } => self.element(child, next, parent),
             TemplateNode::If {
                 consequent,
                 alternate,
+                elseif,
                 ..
             } => {
-                self.branch(consequent, parent);
+                // An `{:else if}` is part of the outer block, already counted.
+                self.blocks += u32::from(!elseif);
+                self.branch(at, consequent, parent);
                 if let Some(alternate) = alternate {
-                    self.branch(alternate, parent);
+                    self.branch(at, alternate, parent);
                 }
+                self.blocks -= u32::from(!elseif);
             }
             TemplateNode::Each {
+                context,
                 body,
                 fallback,
                 has_fallback,
                 ..
             } => {
-                self.branch(body, parent);
-                if has_fallback {
-                    self.branch(fallback, parent);
+                if !context.is_none() {
+                    self.each_rest_names(context, false);
                 }
+                self.blocks += 1;
+                self.branch(at, body, parent);
+                if has_fallback {
+                    self.branch(at, fallback, parent);
+                }
+                self.blocks -= 1;
             }
-            TemplateNode::Key { body, .. } | TemplateNode::Snippet { body, .. } => {
-                self.branch(body, parent);
+            TemplateNode::Key { body, .. } => {
+                self.blocks += 1;
+                self.branch(at, body, parent);
+                self.blocks -= 1;
             }
+            TemplateNode::Snippet { body, .. } => self.branch(at, body, parent),
             TemplateNode::Await {
                 pending,
                 then,
                 catch,
                 ..
             } => {
+                self.blocks += 1;
                 for branch in [pending, then, catch] {
                     if let Some(branch) = branch.present() {
-                        self.branch(branch, parent);
+                        self.branch(at, branch, parent);
                     }
                 }
+                self.blocks -= 1;
             }
             TemplateNode::Const { span, .. } if self.owner != Owner::Declarations => {
                 let found = error(
@@ -302,4 +339,51 @@ impl<'a> Template<'a> {
             _ => {}
         }
     }
+
+    /// Records the identifiers of an `{#each}` context that a rest element declares.
+    fn each_rest_names(&mut self, pattern: NodeIdentifier, inside_rest: bool) {
+        use rsvelte_typescript::syntax_tree::Kind;
+        let javascript = &self.context.component.javascript;
+        match javascript.kind(pattern) {
+            Kind::Identifier(_) if inside_rest => {
+                self.each_rest.insert(pattern);
+            }
+            Kind::Rest(argument) => self.each_rest_names(argument, true),
+            _ => javascript.for_each_child(pattern, |child| {
+                self.each_rest_names(child, inside_rest);
+            }),
+        }
+    }
+}
+
+/// A warning about one run of bidirectional control characters.
+pub(super) fn bidirectional(span: Span) -> Diagnostic {
+    warning(
+        "bidirectional_control_characters",
+        "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences",
+        span,
+    )
+}
+
+/// Upstream `regex_bidirectional_control_characters`: each run's byte range in `text`.
+pub(super) fn bidirectional_runs(text: &str) -> impl Iterator<Item = (usize, usize)> + '_ {
+    let is_control = |c: char| matches!(c, '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}');
+    let mut chars = text.char_indices().peekable();
+    std::iter::from_fn(move || {
+        let (start, first) = chars.by_ref().find(|&(_, c)| is_control(c))?;
+        let mut end = start + first.len_utf8();
+        while let Some(&(i, c)) = chars.peek() {
+            if !is_control(c) {
+                break;
+            }
+            end = i + c.len_utf8();
+            chars.next();
+        }
+        Some((start, end))
+    })
+}
+
+/// Whether `name` is a component tag: a capitalized or dotted name, not a `svelte:` one.
+fn is_component(name: &str) -> bool {
+    is_component_name(name) && !name.starts_with("svelte:")
 }

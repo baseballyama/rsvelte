@@ -1,7 +1,5 @@
-//! Svelte's `check_element` (`a11y/index.js`): the checks of an element's own attributes and
-//! content. Only `a11y_accesskey`, `a11y_autofocus`, `a11y_misplaced_scope`,
-//! `a11y_positive_tabindex`, `a11y_missing_attribute`, `a11y_no_noninteractive_tabindex` and
-//! `a11y_label_has_associated_control` are ported.
+//! Svelte's `check_element` (`a11y/index.js`): the checks of an element's own attributes,
+//! handlers and content.
 
 use std::borrow::Cow;
 
@@ -9,13 +7,19 @@ use rustc_hash::FxHashMap;
 
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_svelte_syntax::names::is_component_name;
 use rsvelte_svelte_syntax::syntax_tree::{
-    Attribute, AttributeKind, AttributeValue, Component, Part, Range, TemplateNode,
-    decode_attribute,
+    Attribute, AttributeKind, AttributeValue, Component, Part, Range, decode_attribute,
 };
 
+mod elements;
+mod handlers;
+mod roles;
 mod tables;
+mod values;
+
+use elements::has_content;
+
+use values::number;
 
 /// An element and the attributes it must be named by: aria-query's `ARIARoleRelationConcept`.
 type Schema = (
@@ -32,38 +36,87 @@ pub(super) enum Parent<'a> {
     Dynamic,
 }
 
+impl Parent<'_> {
+    /// `is_parent`: an unknown parent counts as any.
+    fn is(self, names: &[&str]) -> bool {
+        match self {
+            Self::None => false,
+            Self::Regular(name) => names.contains(&name),
+            Self::Dynamic => true,
+        }
+    }
+}
+
 /// One element's attributes, the way `check_element` collects them.
 struct Attributes<'a> {
-    /// `Attribute`s that are not event handlers, last one of a name winning.
+    /// `Attribute`s that are not event handlers, in order.
+    list: Vec<&'a Attribute>,
+    /// The same, last one of a name winning.
     map: FxHashMap<&'a str, &'a Attribute>,
+    /// The events of `on…={…}` attributes and `on:` directives, first occurrence first.
+    handlers: Vec<&'a str>,
     spread: bool,
+    contenteditable_attribute: bool,
+    contenteditable_binding: bool,
     source: &'a str,
     component: &'a Component,
 }
 
 impl<'a> Attributes<'a> {
     fn new(component: &'a Component, source: &'a str, range: Range) -> Self {
-        let mut map: FxHashMap<&str, &Attribute> = FxHashMap::default();
-        let mut spread = false;
+        let mut out = Self {
+            list: Vec::new(),
+            map: FxHashMap::default(),
+            handlers: Vec::new(),
+            spread: false,
+            contenteditable_attribute: false,
+            contenteditable_binding: false,
+            source,
+            component,
+        };
         for attribute in component.attributes(range) {
+            let directive = || {
+                attribute
+                    .directive_name(&component.modifiers)
+                    .map(|n| n.text(source))
+            };
             match attribute.kind {
-                AttributeKind::Spread => spread = true,
+                AttributeKind::Spread => out.spread = true,
                 AttributeKind::Attribute => {
                     let name = attribute.name.text(source);
-                    if name.starts_with("on") && is_expression(component, attribute) {
+                    if let Some(event) = name.strip_prefix("on")
+                        && is_expression(component, attribute)
+                    {
+                        out.handler(event);
                         continue;
                     }
-                    map.insert(name, attribute);
+                    out.list.push(attribute);
+                    out.map.insert(name, attribute);
+                    out.contenteditable_attribute |= name == "contenteditable";
+                }
+                AttributeKind::Bind => {
+                    out.contenteditable_binding |=
+                        matches!(directive(), Some("textContent" | "innerHTML" | "innerText"));
+                }
+                AttributeKind::On => {
+                    if let Some(event) = directive() {
+                        out.handler(event);
+                    }
                 }
                 _ => {}
             }
         }
-        Self {
-            map,
-            spread,
-            source,
-            component,
+        out
+    }
+
+    fn handler(&mut self, event: &'a str) {
+        if !self.handlers.contains(&event) {
+            self.handlers.push(event);
         }
+    }
+
+    fn handles(&self, event: &str) -> bool {
+        self.handlers.contains(&event)
     }
 
     fn get(&self, name: &str) -> Option<&'a Attribute> {
@@ -74,6 +127,7 @@ impl<'a> Attributes<'a> {
         self.get(name).is_some()
     }
 
+    /// `get_static_value`.
     fn value(&self, name: &str) -> Static<'a> {
         self.get(name).map_or(Static::Unknown, |attribute| {
             static_value(self.component, self.source, attribute)
@@ -95,6 +149,11 @@ impl<'a> Attributes<'a> {
             Static::Text(text) => !text.is_empty(),
             Static::Unknown => false,
         }
+    }
+
+    /// `get_static_value(…) === 'true'`.
+    fn is_true(&self, name: &str) -> bool {
+        self.text(name).as_deref() == Some("true")
     }
 }
 
@@ -124,23 +183,24 @@ pub(super) fn is_expression(component: &Component, attribute: &Attribute) -> boo
         if matches!(component.parts(parts), [Part::Expression { .. }]))
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Interactivity {
     Interactive,
     NonInteractive,
     Static,
 }
 
-fn interactivity(name: &str, attributes: &Attributes<'_>) -> Interactivity {
-    let any = |schemas: &[Schema]| {
-        schemas.iter().any(|(tag, required)| {
-            *tag == name
-                && required.iter().all(|(attribute, value)| {
-                    attributes.has(attribute)
-                        && value.is_none_or(|v| attributes.text(attribute).as_deref() == Some(v))
-                })
+/// `match_schema`: a schema compares an attribute's value only when it names one.
+fn matches_schema(name: &str, attributes: &Attributes<'_>, (tag, required): &Schema) -> bool {
+    *tag == name
+        && required.iter().all(|(attribute, value)| {
+            attributes.has(attribute)
+                && value.is_none_or(|v| attributes.text(attribute).as_deref() == Some(v))
         })
-    };
+}
+
+fn interactivity(name: &str, attributes: &Attributes<'_>) -> Interactivity {
+    let any = |schemas: &[Schema]| schemas.iter().any(|s| matches_schema(name, attributes, s));
     if any(tables::INTERACTIVE_ELEMENT_ROLES) {
         Interactivity::Interactive
     } else if name != "header" && any(tables::NON_INTERACTIVE_ELEMENT_ROLES) {
@@ -154,259 +214,175 @@ fn interactivity(name: &str, attributes: &Attributes<'_>) -> Interactivity {
     }
 }
 
-/// JavaScript's `Number(text)`.
-fn number(text: &str) -> f64 {
-    let text = text.trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}');
-    if text.is_empty() {
-        return 0.0;
-    }
-    if let Some(radix) = ["0x", "0X", "0o", "0O", "0b", "0B"]
-        .iter()
-        .any(|p| text.starts_with(p))
-        .then(|| match text.as_bytes()[1] {
-            b'x' | b'X' => 16,
-            b'o' | b'O' => 8,
-            _ => 2,
-        })
-    {
-        let digits = &text[2..];
-        if digits.is_empty() {
-            return f64::NAN;
-        }
-        return digits
-            .chars()
-            .try_fold(0.0_f64, |n, c| {
-                c.to_digit(radix)
-                    .map(|d| n.mul_add(f64::from(radix), f64::from(d)))
-            })
-            .unwrap_or(f64::NAN);
-    }
-    match text.strip_prefix(['+', '-']).unwrap_or(text) {
-        "Infinity" if text.starts_with('-') => return f64::NEG_INFINITY,
-        "Infinity" => return f64::INFINITY,
-        _ => {}
-    }
-    let numeric = text
-        .bytes()
-        .all(|b| b.is_ascii_digit() || matches!(b, b'+' | b'-' | b'.' | b'e' | b'E'));
-    if numeric {
-        text.parse::<f64>().unwrap_or(f64::NAN)
-    } else {
-        f64::NAN
-    }
+/// One element being checked.
+struct Element<'a, 'o> {
+    component: &'a Component,
+    source: &'a str,
+    name: &'a str,
+    span: Span,
+    children: Range,
+    dynamic: bool,
+    parent: Parent<'a>,
+    attributes: Attributes<'a>,
+    interactivity: Interactivity,
+    out: &'o mut Vec<Diagnostic>,
 }
-
-const REQUIRED: &[(&str, &[&str])] = &[
-    ("area", &["alt", "aria-label", "aria-labelledby"]),
-    ("html", &["lang"]),
-    ("iframe", &["title"]),
-    ("img", &["alt"]),
-    ("object", &["title", "aria-label", "aria-labelledby"]),
-];
-
-const LABELABLE: &[&str] = &[
-    "button", "input", "keygen", "meter", "output", "progress", "select", "textarea",
-];
 
 /// Checks a `RegularElement` or, with `dynamic`, a `<svelte:element>`.
 #[expect(
     clippy::too_many_arguments,
     reason = "one element's parts, as the surface tree stores them"
 )]
-pub(super) fn check_element(
-    component: &Component,
-    source: &str,
-    name: &str,
+pub(super) fn check_element<'a>(
+    component: &'a Component,
+    source: &'a str,
+    name: &'a str,
     span: Span,
     attributes: Range,
     children: Range,
     dynamic: bool,
-    parent: Parent<'_>,
+    parent: Parent<'a>,
     out: &mut Vec<Diagnostic>,
 ) {
-    let map = Attributes::new(component, source, attributes);
-    let interactivity = interactivity(name, &map);
-    attribute_checks(component, source, name, attributes, dynamic, parent, out);
-    let role = map.text("role");
-    let interactive_role = role
-        .as_deref()
-        .is_some_and(|role| tables::INTERACTIVE_ROLES.contains(&role));
-    if !dynamic
-        && interactivity != Interactivity::Interactive
-        && !interactive_role
-        && map.has("tabindex")
-        && map
-            .text("tabindex")
-            .is_none_or(|value| number(&value) >= 0.0)
-    {
-        out.push(warning(
-            "a11y_no_noninteractive_tabindex",
-            "noninteractive element cannot have nonnegative tabIndex value",
-            span,
-        ));
-    }
-    match name {
-        "a" => {
-            if !map.has("href") && !map.has("xlink:href") && !map.spread {
-                let id = map.truthy("id");
-                let named = map.truthy("name");
-                let disabled = map.text("aria-disabled").as_deref() == Some("true");
-                if !id && !named && !disabled {
-                    missing(name, &["href"], span, out);
-                }
-            }
-        }
-        "input" => {
-            let required = ["alt", "aria-label", "aria-labelledby"];
-            if map.text("type").as_deref() == Some("image")
-                && !map.spread
-                && !required.iter().any(|r| map.has(r))
-            {
-                missing("input type=\"image\"", &required, span, out);
-            }
-        }
-        "label"
-            if !map.spread && !map.has("for") && !has_input_child(component, source, children) =>
-        {
-            out.push(warning(
-                "a11y_label_has_associated_control",
-                "A form label must be associated with a control",
-                span,
-            ));
-        }
-        _ => {}
-    }
-    if !map.spread
-        && let Some((_, required)) = REQUIRED.iter().find(|(tag, _)| *tag == name)
-        && !required.iter().any(|r| map.has(r))
-    {
-        missing(name, required, span, out);
-    }
+    let attributes = Attributes::new(component, source, attributes);
+    let interactivity = interactivity(name, &attributes);
+    let mut element = Element {
+        component,
+        source,
+        name,
+        span,
+        children,
+        dynamic,
+        parent,
+        attributes,
+        interactivity,
+        out,
+    };
+    element.check();
 }
 
-/// The checks of one attribute at a time.
-fn attribute_checks(
-    component: &Component,
-    source: &str,
-    name: &str,
-    attributes: Range,
-    dynamic: bool,
-    parent: Parent<'_>,
-    out: &mut Vec<Diagnostic>,
-) {
-    for attribute in component.attributes(attributes) {
-        if attribute.kind != AttributeKind::Attribute {
-            continue;
+impl Element<'_, '_> {
+    fn warn(&mut self, code: &'static str, message: &str, span: Span) {
+        self.out.push(super::warning(code, message, span));
+    }
+
+    fn interactive(&self) -> bool {
+        self.interactivity == Interactivity::Interactive
+    }
+
+    fn check(&mut self) {
+        let attributes = self.attributes.list.clone();
+        for attribute in attributes {
+            self.attribute(attribute);
         }
-        let attribute_name = attribute.name.text(source).to_ascii_lowercase();
-        match attribute_name.as_str() {
-            "accesskey" => out.push(warning(
-                "a11y_accesskey",
-                "Avoid using accesskey",
-                attribute.span,
-            )),
-            "autofocus" => {
-                let in_dialog = match parent {
-                    Parent::None => false,
-                    Parent::Regular(parent) => parent == "dialog",
-                    Parent::Dynamic => true,
-                };
-                if name != "dialog" && !in_dialog {
-                    out.push(warning(
-                        "a11y_autofocus",
-                        "Avoid using autofocus",
-                        attribute.span,
-                    ));
-                }
+        self.handlers();
+        if self.element_specific() {
+            return;
+        }
+        let a = &self.attributes;
+        let name = self.name;
+        if !a.spread
+            && name != "a"
+            && let Some((_, required)) =
+                tables::REQUIRED_ATTRIBUTES.iter().find(|(t, _)| *t == name)
+            && !required.iter().any(|r| a.has(r))
+        {
+            self.missing(name, required);
+        }
+        if tables::DISTRACTING_ELEMENTS.contains(&name) {
+            let message = format!("Avoid `<{name}>` elements");
+            self.warn("a11y_distracting_elements", &message, self.span);
+        }
+        let a = &self.attributes;
+        if !a.spread
+            && !self.labelled()
+            && !a.contenteditable_binding
+            && tables::REQUIRED_CONTENT.contains(&name)
+            && !has_content(self.component, self.source, self.children)
+        {
+            let message = format!("`<{name}>` element should contain text");
+            self.warn("a11y_missing_content", &message, self.span);
+        }
+    }
+
+    fn labelled(&self) -> bool {
+        let a = &self.attributes;
+        a.has("aria-label") || a.has("aria-labelledby") || a.has("title")
+    }
+
+    /// The checks of one attribute, in the order the attributes are written.
+    fn attribute(&mut self, attribute: &Attribute) {
+        let name = attribute.name.text(self.source).to_ascii_lowercase();
+        let element = self.name;
+        let span = attribute.span;
+        if let Some(property) = name.strip_prefix("aria-") {
+            if tables::INVISIBLE_ELEMENTS.contains(&element) {
+                let message = format!("`<{element}>` should not have aria-* attributes");
+                self.warn("a11y_aria_attributes", &message, span);
             }
-            "scope" if !dynamic && name != "th" => out.push(warning(
+            if !tables::ARIA_ATTRIBUTES.contains(&property) {
+                let message = super::fuzzymatch::fuzzymatch(property, tables::ARIA_ATTRIBUTES)
+                    .map_or_else(
+                        || format!("Unknown aria attribute 'aria-{property}'"),
+                        |suggestion| {
+                            format!(
+                                "Unknown aria attribute 'aria-{property}'. Did you mean '{suggestion}'?"
+                            )
+                        },
+                    );
+                self.warn("a11y_unknown_aria_attribute", &message, span);
+            }
+            let heading = matches!(element.as_bytes(), [b'h', b'1'..=b'6']);
+            if name == "aria-hidden" && heading {
+                let message = format!("`<{element}>` element should not be hidden");
+                self.warn("a11y_hidden", &message, span);
+            }
+            let value = static_value(self.component, self.source, attribute);
+            if let Some(&(_, kind, allowed)) = tables::PROPERTIES.iter().find(|(p, ..)| *p == name)
+                && let Some(found) = values::aria_value(&name, kind, allowed, &value, span)
+            {
+                self.out.push(found);
+            }
+            if name == "aria-activedescendant"
+                && !self.dynamic
+                && !self.interactive()
+                && !self.attributes.has("tabindex")
+                && !self.attributes.spread
+            {
+                self.warn(
+                    "a11y_aria_activedescendant_has_tabindex",
+                    "An element with an aria-activedescendant attribute should have a tabindex value",
+                    span,
+                );
+            }
+        }
+        match name.as_str() {
+            "role" => self.role_attribute(attribute),
+            "accesskey" => self.warn("a11y_accesskey", "Avoid using accesskey", span),
+            "autofocus" if element != "dialog" && !self.parent.is(&["dialog"]) => {
+                self.warn("a11y_autofocus", "Avoid using autofocus", span);
+            }
+            "scope" if !self.dynamic && element != "th" => self.warn(
                 "a11y_misplaced_scope",
                 "The scope attribute should only be used with `<th>` elements",
-                attribute.span,
-            )),
+                span,
+            ),
             "tabindex" => {
-                // `+value > 0`, where a valueless attribute's value is `true`.
-                let positive = match static_value(component, source, attribute) {
+                // `!isNaN(value) && +value > 0`, where a valueless attribute's value is `true`.
+                let positive = match static_value(self.component, self.source, attribute) {
                     Static::Bare => true,
                     Static::Text(text) => number(&text) > 0.0,
                     Static::Unknown => false,
                 };
                 if positive {
-                    out.push(warning(
+                    self.warn(
                         "a11y_positive_tabindex",
                         "Avoid tabindex values above zero",
-                        attribute.span,
-                    ));
+                        span,
+                    );
                 }
             }
             _ => {}
         }
     }
-}
-
-fn missing(name: &str, attributes: &[&str], span: Span, out: &mut Vec<Diagnostic>) {
-    let first = attributes[0];
-    let article = if first.starts_with(['a', 'e', 'i', 'o', 'u']) || first == "href" {
-        "an"
-    } else {
-        "a"
-    };
-    let sequence = match attributes {
-        [only] => (*only).to_owned(),
-        [init @ .., last] => format!("{} or {last}", init.join(", ")),
-        [] => unreachable!("an element requires at least one attribute"),
-    };
-    out.push(warning(
-        "a11y_missing_attribute",
-        &format!("`<{name}>` element should have {article} {sequence} attribute"),
-        span,
-    ));
-}
-
-/// Whether a label holds something that can be its control.
-fn has_input_child(component: &Component, source: &str, children: Range) -> bool {
-    component
-        .children(children)
-        .iter()
-        .any(|&child| match *component.node(child) {
-            TemplateNode::Render { .. } => true,
-            TemplateNode::Element { name, children, .. } => {
-                let name = name.text(source);
-                let control = name == "svelte:element"
-                    || name == "slot"
-                    || (is_component_name(name) && !name.starts_with("svelte:"))
-                    || LABELABLE.contains(&name);
-                control || has_input_child(component, source, children)
-            }
-            TemplateNode::If {
-                consequent,
-                alternate,
-                ..
-            } => {
-                has_input_child(component, source, consequent)
-                    || alternate.is_some_and(|a| has_input_child(component, source, a))
-            }
-            TemplateNode::Each { body, fallback, .. } => {
-                has_input_child(component, source, body)
-                    || has_input_child(component, source, fallback)
-            }
-            TemplateNode::Key { body, .. } | TemplateNode::Snippet { body, .. } => {
-                has_input_child(component, source, body)
-            }
-            TemplateNode::Await {
-                pending,
-                then,
-                catch,
-                ..
-            } => [pending, then, catch].into_iter().any(|branch| {
-                branch
-                    .present()
-                    .is_some_and(|b| has_input_child(component, source, b))
-            }),
-            _ => false,
-        })
-}
-
-fn warning(code: &'static str, message: &str, span: Span) -> Diagnostic {
-    super::warning(code, message, span)
 }

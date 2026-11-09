@@ -1,6 +1,5 @@
 //! `export_let_unused`: legacy mode's exports that nothing reads or writes.
 
-use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::semantic::resolve::{Resolution, for_each_pattern_identifier};
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Component, TemplateNode};
@@ -10,14 +9,47 @@ use rsvelte_typescript::scope::DeclarationKind;
 use rsvelte_typescript::syntax_tree::{Control, Kind, flag};
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use super::found::{Found, Stage};
 use super::warning;
+
+/// In runes mode, each binding the instance's `export { … }` names, with where the specifier
+/// starts: upstream's `ExportSpecifier` visitor marks it reassigned from there on.
+pub(super) fn exported_by_specifier(
+    component: &Component,
+    resolution: &Resolution,
+) -> FxHashMap<BindingIdentifier, u32> {
+    let mut out = FxHashMap::default();
+    let javascript = &component.javascript;
+    let Some(instance) = &component.instance else {
+        return out;
+    };
+    let Kind::Program(statements) = javascript.kind(instance.program) else {
+        return out;
+    };
+    for &statement in statements {
+        let Kind::Control(Control::ExportList { specifiers, .. }) = javascript.kind(statement)
+        else {
+            continue;
+        };
+        for &specifier in specifiers {
+            if let Kind::Control(Control::ExportSpecifier { local, .. }) =
+                javascript.kind(specifier)
+                && let Some(binding) = resolution.sem.binding_of(local)
+                && let Some(span) = javascript.source_location(specifier).span()
+            {
+                out.entry(binding).or_insert(span.start_offset);
+            }
+        }
+    }
+    out
+}
 
 /// `export_let_unused`: in legacy mode, an `export let` nothing reads or writes.
 pub(super) fn unused_exports(
     component: &Component,
     resolution: &Resolution,
     source: &str,
-    out: &mut Vec<Diagnostic>,
+    out: &mut Found,
 ) {
     let Some(instance) = &component.instance else {
         return;
@@ -102,7 +134,7 @@ pub(super) fn unused_exports(
             && !subscribed.contains(text)
             && let Some(span) = javascript.source_location(node).span()
         {
-            out.push(warning(
+            out.push(Stage::Bindings, 0, warning(
                 "export_let_unused",
                 &format!(
                     "Component has unused export property '{text}'. If it is for external reference only, please consider using `export const {text}`"
