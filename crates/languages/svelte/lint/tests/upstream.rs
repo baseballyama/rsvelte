@@ -13,8 +13,11 @@ use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::Severity;
 use rsvelte_kernel::source::document::Document;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::finding::{Finding, apply_fix, apply_fixes};
-use rsvelte_svelte_lint::{Configuration, LintSettings, SvelteConfig};
+use rsvelte_svelte_lint::{Configuration, Kit, KitFiles, LintSettings, SvelteConfig};
+use rsvelte_typescript::parser::parse_program;
+use rsvelte_typescript::{Kind, NodeIdentifier, SyntaxTree};
 use serde::Deserialize;
 use serde::de::IgnoredAny;
 use serde_json::value::RawValue;
@@ -33,6 +36,9 @@ const DEVIATIONS: &str = concat!(
 /// Rules whose verdicts are counted but do not fail: type-aware rules do not follow
 /// `svelte-eslint-parser`'s virtual code.
 const TYPED: &[&str] = &["@typescript-eslint/no-unnecessary-condition"];
+/// Cases whose verdict depends on a type fact no provider gives this crate yet, by document,
+/// with the fact. They run and are counted, but do not fail.
+const TYPED_CASES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/upstream_typed.json");
 
 #[derive(Deserialize)]
 struct Upstream {
@@ -78,7 +84,7 @@ struct ParserOptions {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CaseSvelteConfig {
-    kit: Option<rsvelte_svelte_lint::Kit>,
+    kit: Option<Kit>,
 }
 
 #[derive(Deserialize, PartialEq, Eq, Debug)]
@@ -121,20 +127,29 @@ fn main() -> ExitCode {
     );
     let mut deviations: BTreeMap<String, String> =
         serde_json::from_str(&read(Path::new(DEVIATIONS))).expect("deviations are an object");
+    let mut typed: BTreeMap<String, String> =
+        serde_json::from_str(&read(Path::new(TYPED_CASES))).expect("typed cases are an object");
     let mut failed = suite(
         &label,
         Path::new(UPSTREAM),
         &upstream.versions,
         &mut deviations,
+        &mut typed,
     ) + suite(
         "this crate's cases",
         Path::new(OWN),
         &upstream.versions,
         &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
     );
     for (document, reason) in &deviations {
         failed += 1;
         eprintln!("UNKNOWN DEVIATION {document}: no case of an implemented rule ({reason})");
+    }
+    failed += conflicting_module_names();
+    for (document, reason) in &typed {
+        failed += 1;
+        eprintln!("UNKNOWN TYPED CASE {document}: no case of an implemented rule ({reason})");
     }
     if failed == 0 {
         ExitCode::SUCCESS
@@ -149,6 +164,7 @@ fn suite(
     root: &Path,
     versions: &BTreeMap<String, String>,
     deviations: &mut BTreeMap<String, String>,
+    typed_cases: &mut BTreeMap<String, String>,
 ) -> usize {
     let cases = cases(root);
     let mut by_rule: BTreeMap<&str, Counts> = BTreeMap::new();
@@ -168,6 +184,23 @@ fn suite(
         let typed = TYPED.contains(&case.rule.as_str());
         let counts = by_rule.entry(&case.rule).or_default();
         counts.total += 1;
+        if let Some(fact) = typed_cases.remove(&document) {
+            counts.typed += 1;
+            match verdict {
+                Verdict::Pass => {
+                    counts.typed_pass += 1;
+                    eprintln!("TYPED PASS {document} (needs {fact})");
+                }
+                Verdict::Fail(detail) => {
+                    eprintln!("TYPED FAIL {document} (needs {fact}): {detail}");
+                }
+                Verdict::Unmeasured(reason) => {
+                    eprintln!("TYPED UNMEASURED {document} (needs {fact}): {reason}");
+                }
+                Verdict::NotImplemented => unreachable!("counted above"),
+            }
+            continue;
+        }
         match (verdict, deviation) {
             (Verdict::NotImplemented, _) => unreachable!("counted above"),
             (Verdict::Pass, None) => counts.pass += 1,
@@ -207,8 +240,9 @@ fn suite(
             ""
         };
         eprintln!(
-            "  {rule}: {} of {} pass, {} fail, {} unmeasured, {} deviate{typed}",
-            c.pass, c.total, c.fail, c.unmeasured, c.deviation
+            "  {rule}: {} of {} pass, {} fail, {} unmeasured, {} deviate, \
+             {} typed (not required, {} pass){typed}",
+            c.pass, c.total, c.fail, c.unmeasured, c.deviation, c.typed, c.typed_pass
         );
     }
     assert!(
@@ -224,6 +258,9 @@ struct Counts {
     fail: usize,
     unmeasured: usize,
     deviation: usize,
+    /// Cases in [`TYPED_CASES`], and how many of them pass.
+    typed: usize,
+    typed_pass: usize,
     total: usize,
 }
 
@@ -399,19 +436,15 @@ fn run(case: &Case<'_>) -> Verdict {
             settings: None,
         },
     };
-    if svelte_config_file(&case.input, case.root).is_some() {
-        return Verdict::Unmeasured("a svelte.config.js".to_owned());
-    }
     let mut settings: LintSettings = config
         .settings
         .and_then(|s| s.svelte)
         .map(|raw| serde_json::from_str(raw.get()).expect("svelte settings"))
         .unwrap_or_default();
-    settings.svelte_config = config
-        .language_options
-        .and_then(|l| l.parser_options)
-        .and_then(|p| p.svelte_config)
-        .map(|c| SvelteConfig { kit: c.kit });
+    settings.svelte_config = match svelte_config(case, config.language_options) {
+        Ok(svelte_config) => svelte_config,
+        Err(why) => return Verdict::Unmeasured(format!("a svelte.config.js {why}")),
+    };
     let mut configuration = Configuration::new(settings);
     if let Err(error) = configuration.rule(&name, Severity::Error, &config.options, &[]) {
         return Verdict::Fail(format!("the options do not configure the rule: {error}"));
@@ -485,8 +518,133 @@ fn run(case: &Case<'_>) -> Verdict {
     }
 }
 
+/// The cases of `no-conflicting-module-names`, which upstream writes in
+/// `tests/src/rules/no-conflicting-module-names.ts` rather than as fixtures: the rule looks at the
+/// files beside the document, so each case lints a real file of the fixture directory, at its
+/// absolute path as upstream's do.
+fn conflicting_module_names() -> usize {
+    const RULE: &str = "svelte/no-conflicting-module-names";
+    if rsvelte_svelte_lint::definition(RULE, &[]).is_none() {
+        return 0;
+    }
+    let root = Path::new(UPSTREAM).join("no-conflicting-module-names");
+    let component = |module: &str| {
+        format!(
+            "The module `{module}` has the same name as this component. TypeScript resolves the \
+             import `./Foo.svelte` to that module, not to this component. Rename `{module}`."
+        )
+    };
+    let module = "This module has the same name as the component `Foo.svelte`. TypeScript \
+                  resolves the import `./Foo.svelte` to this module, not to the component. \
+                  Rename this file.";
+    // (file, the code when the file does not exist, the expected message)
+    let mut cases: Vec<(String, Option<&str>, Option<String>)> = vec![
+        ("valid/no-sibling/Foo.svelte".to_owned(), None, None),
+        ("valid/different-module/Foo.svelte".to_owned(), None, None),
+        (
+            "valid/declaration-sibling/Foo.svelte".to_owned(),
+            None,
+            None,
+        ),
+        (
+            "valid/declaration-sibling-d-svelte/Bar.svelte".to_owned(),
+            None,
+            None,
+        ),
+        (
+            "does-not-exist/Foo.svelte".to_owned(),
+            Some("<p>virtual</p>"),
+            None,
+        ),
+        (
+            "valid/different-module/foo-state.svelte.ts".to_owned(),
+            None,
+            None,
+        ),
+        (
+            "valid/declaration-sibling/Foo.svelte.d.ts".to_owned(),
+            None,
+            None,
+        ),
+        (
+            "valid/declaration-sibling-d-svelte/Bar.d.svelte.ts".to_owned(),
+            None,
+            None,
+        ),
+        (
+            "does-not-exist/Foo.svelte.ts".to_owned(),
+            Some("export const value = 1;"),
+            None,
+        ),
+    ];
+    let extensions = ["ts", "tsx", "js", "jsx", "mts", "cts", "mjs", "cjs"];
+    for extension in extensions {
+        cases.push((
+            format!("invalid/{extension}/Foo.svelte"),
+            None,
+            Some(component(&format!("Foo.svelte.{extension}"))),
+        ));
+    }
+    for extension in extensions {
+        cases.push((
+            format!("invalid/{extension}/Foo.svelte.{extension}"),
+            None,
+            Some(module.to_owned()),
+        ));
+    }
+    let mut configuration = Configuration::new(LintSettings::default());
+    configuration
+        .rule(RULE, Severity::Error, &[], &[])
+        .expect("the rule takes no options");
+    let mut failed = 0;
+    for (file, code, expected) in &cases {
+        let path = root.join(file);
+        let source = code.map_or_else(|| read(&path), str::to_owned);
+        let document = Document::new(path.to_str().expect("UTF-8 path").to_owned(), source)
+            .expect("a case is small");
+        let actual: Vec<(String, u32)> = match lint(&document, &configuration) {
+            Ok(findings) => findings
+                .iter()
+                .map(|f| (f.diagnostic.message.clone(), f.diagnostic.span.start_offset))
+                .collect(),
+            Err(error) => vec![(format!("does not lint: {}", error.message), 0)],
+        };
+        // Upstream expects line 1, column 1.
+        let expected: Vec<(String, u32)> = expected.iter().map(|m| (m.clone(), 0)).collect();
+        if actual != expected {
+            failed += 1;
+            eprintln!(
+                "FAIL no-conflicting-module-names/{file}: expected {expected:?}, found {actual:?}"
+            );
+        }
+    }
+    eprintln!(
+        "  no-conflicting-module-names (inline cases): {} of {} pass",
+        cases.len() - failed,
+        cases.len()
+    );
+    failed
+}
+
+/// `svelte-eslint-parser`'s `svelteConfig` option, else what it reads from the nearest file; the
+/// host gives rsvelte the same as [`LintSettings::svelte_config`].
+fn svelte_config(
+    case: &Case<'_>,
+    language_options: Option<LanguageOptions>,
+) -> Result<Option<SvelteConfig>, String> {
+    if let Some(c) = language_options
+        .and_then(|l| l.parser_options)
+        .and_then(|p| p.svelte_config)
+    {
+        return Ok(Some(SvelteConfig { kit: c.kit }));
+    }
+    svelte_config_file(&case.input, case.root)
+        .map(|file| read_svelte_config(&file))
+        .transpose()
+}
+
 /// A `svelte.config.js` that `svelte-eslint-parser` would load for the input: in its directory or
-/// one above it, up to the fixture root.
+/// one above it, up to the fixture root (upstream's repository has none above its fixtures).
 fn svelte_config_file(input: &Path, root: &Path) -> Option<PathBuf> {
     input
         .ancestors()
@@ -494,6 +652,80 @@ fn svelte_config_file(input: &Path, root: &Path) -> Option<PathBuf> {
         .take_while(|directory| directory.starts_with(root) && *directory != root)
         .map(|directory| directory.join("svelte.config.js"))
         .find(|path| path.exists())
+}
+
+/// What `svelte-eslint-parser` takes from a `svelte.config.js`: it evaluates `export default`
+/// without running it, keeping `kit.files` when that is static. This reads object literals and
+/// literals; a config it would evaluate through anything else is refused.
+fn read_svelte_config(path: &Path) -> Result<SvelteConfig, String> {
+    let source = read(path);
+    let mut tree = SyntaxTree::new();
+    let end = u32::try_from(source.len()).map_err(|e| e.to_string())?;
+    let program = parse_program(&mut tree, &source, Span::new(0, end), false)
+        .map_err(|e| format!("does not parse: {}", e.message))?;
+    let Kind::Program(statements) = tree.kind(program) else {
+        unreachable!("a program")
+    };
+    let Some(config) = statements.iter().find_map(|&s| match tree.kind(s) {
+        Kind::ExportDefault(declaration) => Some(declaration),
+        _ => None,
+    }) else {
+        return Ok(SvelteConfig::default());
+    };
+    let Some(kit) = property(&tree, &source, config, "kit")? else {
+        return Ok(SvelteConfig::default());
+    };
+    let routes = match property(&tree, &source, kit, "files")? {
+        Some(files) => match property(&tree, &source, files, "routes")? {
+            Some(routes) if matches!(tree.kind(routes), Kind::String) => {
+                Some(tree.str_value(routes, &source).to_owned())
+            }
+            Some(_) => return Err("has a `routes` that is not a string".to_owned()),
+            None => None,
+        },
+        None => None,
+    };
+    Ok(SvelteConfig {
+        kit: Some(Kit {
+            files: KitFiles { routes },
+        }),
+    })
+}
+
+/// The value of property `key` of an object literal; the last one wins, as in JavaScript.
+fn property(
+    tree: &SyntaxTree,
+    source: &str,
+    object: NodeIdentifier,
+    key: &str,
+) -> Result<Option<NodeIdentifier>, String> {
+    let Kind::Object(properties) = tree.kind(object) else {
+        return Err("is not object literals".to_owned());
+    };
+    let mut found = None;
+    for &p in properties {
+        let Kind::Property {
+            key: name,
+            value,
+            computed: false,
+            method: false,
+            getter: false,
+            setter: false,
+            ..
+        } = tree.kind(p)
+        else {
+            return Err("has a property this harness does not evaluate".to_owned());
+        };
+        let name = match tree.kind(name) {
+            Kind::Identifier(atom) => tree.atoms.get(atom),
+            Kind::String => tree.str_value(name, source),
+            _ => return Err("has a key this harness does not evaluate".to_owned()),
+        };
+        if name == key {
+            found = Some(value);
+        }
+    }
+    Ok(found)
 }
 
 /// The findings, or the parse error.
