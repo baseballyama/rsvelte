@@ -348,6 +348,8 @@ pub enum TokenType {
     Whitespace,
     /// A style sheet's content, until the CSS parser records its own tokens.
     Stylesheet,
+    /// A leading U+FEFF, which belongs to no node.
+    ByteOrderMark,
 }
 
 impl TokenKind for TokenType {

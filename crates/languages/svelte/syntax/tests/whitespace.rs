@@ -47,3 +47,23 @@ fn whitespace_lookahead_keeps_blocks_expressions_and_comments() {
         source.find('\"').expect("quote")
     );
 }
+
+#[test]
+fn a_leading_byte_order_mark_is_one_token_outside_every_node() {
+    let source = "\u{feff}<p>a</p>";
+    let component = parse(source).expect("parses");
+    component.tokens.check_lossless(source).expect("all bytes");
+    let first = component.tokens.iter().next().expect("a token");
+    assert_eq!(
+        first.kind,
+        rsvelte_svelte_syntax::syntax_tree::TokenType::ByteOrderMark
+    );
+    assert_eq!(first.span.text(source), "\u{feff}");
+    assert!(
+        component
+            .nodes
+            .iter()
+            .all(|node| node.span().start_offset >= 3),
+        "no node covers the mark"
+    );
+}

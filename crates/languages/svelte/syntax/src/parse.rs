@@ -65,6 +65,10 @@ pub fn parse(source_text: &str) -> ParseResult<Component> {
         typescript: false,
         pending_children: buffer_pool::take_keyed::<Parser<'static>, _>(),
     };
+    // Upstream removes a leading byte order mark before parsing, so no node covers it.
+    if source_text.starts_with('\u{feff}') {
+        parser.eat_token(TokenType::ByteOrderMark, '\u{feff}'.len_utf8());
+    }
     // The script's language decides how template expressions parse, so read it first.
     parser.typescript = script::script_is_typescript(source_text);
     let root = parser.fragment(End::Eof);

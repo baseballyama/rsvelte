@@ -2,13 +2,11 @@ import 'svelte/internal/disclose-version';
 
 import * as $ from 'svelte/internal/client';
 
-var root = $.from_html(`﻿ <p></p>`, 1);
+var root = $.from_html(`<p></p>`);
 
 export default function Byte_order_mark($$anchor) {
 	let x = "a";
-	$.next();
-	var fragment = root();
-	var p = $.sibling($.first_child(fragment));
+	var p = root();
 	p.textContent = 'a';
-	$.append($$anchor, fragment);
+	$.append($$anchor, p);
 }
