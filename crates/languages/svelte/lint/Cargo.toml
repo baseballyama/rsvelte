@@ -19,6 +19,7 @@ rsvelte_svelte.workspace = true
 rsvelte_markup.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript_lint.workspace = true
+rustc-hash.workspace = true
 
 [dev-dependencies]
 rsvelte_test_harness.workspace = true

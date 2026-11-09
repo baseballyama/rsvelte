@@ -945,6 +945,7 @@ dependencies = [
  "rsvelte_test_harness",
  "rsvelte_typescript",
  "rsvelte_typescript_lint",
+ "rustc-hash",
  "semver",
  "serde",
  "serde-saphyr",

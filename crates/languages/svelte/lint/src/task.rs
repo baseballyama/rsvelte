@@ -7,7 +7,7 @@ use rsvelte_kernel::computation::task::{Task, TaskOutput};
 use rsvelte_kernel::source::document::Document;
 
 use crate::Configuration;
-use crate::computation::{LintConfiguration, ModuleParents, Parents};
+use crate::computation::{LegacyReactivity, LintConfiguration, ModuleParents, Parents};
 
 pub static PLUGIN: Plugin = Plugin {
     identifier: "svelte.lint",
@@ -34,7 +34,10 @@ pub fn register_artifacts(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
     rsvelte_svelte::register(registry);
     rsvelte_typescript::register(registry);
-    registry.artifact::<Parents>().artifact::<ModuleParents>();
+    registry
+        .artifact::<Parents>()
+        .artifact::<ModuleParents>()
+        .artifact::<LegacyReactivity>();
 }
 
 /// Turns on `svelte.lint/default` with `configuration`. It lints modules only when a configured
