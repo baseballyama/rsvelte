@@ -1174,6 +1174,14 @@ impl TsgoOverlay {
         }) {
             mappings.insert(module.clone(), json!([path_for_tsconfig(target)]));
         }
+        // A shadow's nearest package.json is the one above the cache directory,
+        // not the project's, so a `#` import resolved from a shadow reads the
+        // wrong `imports` (or none), and its `.svelte.tsx` target exists only
+        // under `shadow_dir` anyway. TypeScript tries `paths` before `imports`,
+        // and falls through to `imports` when no candidate exists.
+        for (pattern, candidates) in self.package_imports_paths() {
+            mappings.insert(pattern, serde_json::Value::Array(candidates));
+        }
         let Some(source) = self.source_tsconfig.as_deref() else {
             return (!mappings.is_empty()).then_some(serde_json::Value::Object(mappings));
         };
@@ -1226,6 +1234,37 @@ impl TsgoOverlay {
             );
         }
         (!mappings.is_empty()).then(|| serde_json::Value::Object(mappings))
+    }
+
+    /// The project package's `imports` as `paths` patterns, each target beside
+    /// its shadow-tree twin. The package is the one whose scope holds the
+    /// project's tsconfig (or the workspace, without one).
+    fn package_imports_paths(&self) -> Vec<(String, Vec<serde_json::Value>)> {
+        let project_dir = self
+            .source_tsconfig
+            .as_deref()
+            .and_then(Path::parent)
+            .unwrap_or(&self.workspace);
+        let Some(manifest) = project_dir
+            .ancestors()
+            .map(|dir| dir.join("package.json"))
+            .find(|path| path.is_file())
+        else {
+            return Vec::new();
+        };
+        let package_dir = manifest.parent().unwrap_or(project_dir);
+        rsvelte_check::overlay::package_imports_targets(&manifest, self.source_tsconfig.as_deref())
+            .into_iter()
+            .filter(|(key, target)| key.matches('*').count() == target.matches('*').count())
+            .map(|(key, target)| {
+                let absolute = absolute_normalized(&package_dir.join(target));
+                let mut candidates = vec![json!(path_for_tsconfig(&absolute))];
+                if let Ok(relative) = absolute.strip_prefix(&self.mirror_root) {
+                    candidates.push(json!(path_for_tsconfig(&self.shadow_dir.join(relative))));
+                }
+                (key, candidates)
+            })
+            .collect()
     }
 
     /// The project's `baseUrl` as an absolute path, when it declares one.
@@ -3679,6 +3718,70 @@ mod tests {
             json!([
                 format!("{}/*", path_for_tsconfig(overlay.workspace())),
                 format!("{}/*", path_for_tsconfig(&overlay.shadow_dir))
+            ])
+        );
+    }
+
+    #[test]
+    fn package_imports_resolve_into_the_shadow_tree() {
+        // bits-ui moved `$lib` to `#lib`: a shadow's nearest package.json is
+        // not the project's, so `#lib/x.svelte` lost its definition target.
+        let workspace = TestWorkspace::new("package-imports");
+        write(
+            &workspace.0.join("package.json"),
+            r##"{ "type": "module", "imports": {
+                "#lib": "./src/lib/index.js",
+                "#lib/*": "./src/lib/*",
+                "#conditional/*": { "types": "./types/*", "default": "./src/*" },
+                "#excluded/*": null,
+                "#external": "some-package"
+            } }"##,
+        );
+        write(
+            &workspace.0.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "moduleResolution": "NodeNext" } }"#,
+        );
+        write(&workspace.0.join("src/lib/Card.svelte"), "<p />");
+        write(
+            &workspace.0.join("src/App.svelte"),
+            r##"<script lang="ts">import Card from "#lib/Card.svelte";</script><Card />"##,
+        );
+
+        let overlay = build_overlay(&workspace.0).unwrap();
+        let paths = overlay_config(&overlay)["compilerOptions"]["paths"].clone();
+        let pair = |target: &str| {
+            json!([
+                path_for_tsconfig(&overlay.workspace().join(target)),
+                path_for_tsconfig(&overlay.shadow_dir.join(target))
+            ])
+        };
+        assert_eq!(paths["#lib/*"], pair("src/lib/*"));
+        assert_eq!(paths["#lib"], pair("src/lib/index.js"));
+        assert_eq!(paths["#conditional/*"], pair("types/*"));
+        assert!(paths["#excluded/*"].is_null());
+        assert!(paths["#external"].is_null());
+    }
+
+    #[test]
+    fn a_project_that_maps_a_package_import_itself_keeps_its_own() {
+        let workspace = TestWorkspace::new("package-imports-user-paths");
+        write(
+            &workspace.0.join("package.json"),
+            r##"{ "imports": { "#lib/*": "./src/lib/*" } }"##,
+        );
+        write(
+            &workspace.0.join("tsconfig.json"),
+            r##"{ "compilerOptions": { "paths": { "#lib/*": ["./vendor/*"] } } }"##,
+        );
+        write(&workspace.0.join("src/App.svelte"), "<p />");
+
+        let overlay = build_overlay(&workspace.0).unwrap();
+        let paths = overlay_config(&overlay)["compilerOptions"]["paths"].clone();
+        assert_eq!(
+            paths["#lib/*"],
+            json!([
+                path_for_tsconfig(&overlay.workspace().join("vendor/*")),
+                path_for_tsconfig(&overlay.shadow_dir.join("vendor/*"))
             ])
         );
     }
