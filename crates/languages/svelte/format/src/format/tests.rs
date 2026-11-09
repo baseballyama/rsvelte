@@ -234,7 +234,7 @@ fn modifiers_the_plugin_would_drop_are_refused() {
 #[test]
 fn typescript_in_blocks_matches_the_plugin() {
     // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
-    let ts = "<script lang=\"ts\"></script>\n\n";
+    let typescript = "<script lang=\"ts\"></script>\n\n";
     for (input, expected) in [
         (
             "{#each items as item: Item, i}x{/each}\n",
@@ -258,13 +258,16 @@ fn typescript_in_blocks_matches_the_plugin() {
         ("{let a;}\n", "{let a;}\n"),
     ] {
         assert_eq!(
-            formatted(&format!("{ts}{input}")),
-            format!("{ts}{expected}"),
+            formatted(&format!("{typescript}{input}")),
+            format!("{typescript}{expected}"),
             "{input}"
         );
     }
     assert_eq!(
-        refusal(&format!("{ts}{{#snippet f<T>(a: T)}}x{{/snippet}}\n")).0,
+        refusal(&format!(
+            "{typescript}{{#snippet f<T>(a: T)}}x{{/snippet}}\n"
+        ))
+        .0,
         "a snippet's type parameters"
     );
     assert_eq!(

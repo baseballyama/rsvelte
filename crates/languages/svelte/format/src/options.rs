@@ -28,7 +28,8 @@ pub struct Options {
     pub object_wrap: ObjectWrap,
     pub bracket_same_line: bool,
     pub arrow_parens: ArrowParens,
-    pub html_whitespace_sensitivity: WhitespaceSensitivity,
+    #[serde(rename = "htmlWhitespaceSensitivity")]
+    pub markup_whitespace_sensitivity: WhitespaceSensitivity,
     pub end_of_line: EndOfLine,
     pub embedded_language_formatting: EmbeddedLanguageFormatting,
     pub single_attribute_per_line: bool,
@@ -64,7 +65,7 @@ impl Default for Options {
             object_wrap: ObjectWrap::Preserve,
             bracket_same_line: false,
             arrow_parens: ArrowParens::Always,
-            html_whitespace_sensitivity: WhitespaceSensitivity::Css,
+            markup_whitespace_sensitivity: WhitespaceSensitivity::Display,
             end_of_line: EndOfLine::Lf,
             embedded_language_formatting: EmbeddedLanguageFormatting::Auto,
             single_attribute_per_line: false,
@@ -139,7 +140,9 @@ pub enum ArrowParens {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum WhitespaceSensitivity {
-    Css,
+    /// Prettier's `css`: as each element's CSS `display` makes its whitespace significant.
+    #[serde(rename = "css")]
+    Display,
     Strict,
     Ignore,
 }

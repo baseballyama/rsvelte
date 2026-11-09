@@ -418,7 +418,7 @@ fn declarations_error(
     statements: &[NodeIdentifier],
     parameters: &HashSet<&str>,
 ) -> Option<&'static str> {
-    let (mut lexical, mut vars, mut functions) = (Vec::new(), Vec::new(), Vec::new());
+    let (mut lexical, mut variables, mut functions) = (Vec::new(), Vec::new(), Vec::new());
     for &s in statements {
         let s = match tree.kind(s) {
             Kind::ExportNamed(d) => d,
@@ -427,7 +427,7 @@ fn declarations_error(
         match tree.kind(s) {
             Kind::VariableDeclaration { kind, declarations } => {
                 let out = if kind == flag::VAR {
-                    &mut vars
+                    &mut variables
                 } else {
                     &mut lexical
                 };
@@ -447,7 +447,7 @@ fn declarations_error(
     }
     let mut seen = HashSet::new();
     let clash = !lexical.iter().all(|n| seen.insert(*n))
-        || vars.iter().chain(&functions).any(|n| seen.contains(n))
+        || variables.iter().chain(&functions).any(|n| seen.contains(n))
         || lexical.iter().any(|n| parameters.contains(n));
     clash.then_some("a name declared twice")
 }

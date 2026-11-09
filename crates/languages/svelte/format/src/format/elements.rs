@@ -344,7 +344,7 @@ impl Printer<'_, '_> {
         }) else {
             return true;
         };
-        if self.options.html_whitespace_sensitivity == WhitespaceSensitivity::Ignore {
+        if self.options.markup_whitespace_sensitivity == WhitespaceSensitivity::Ignore {
             return false;
         }
         if start {
