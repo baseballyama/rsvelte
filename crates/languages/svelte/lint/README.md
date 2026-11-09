@@ -76,7 +76,7 @@ mise exec -- node tools/oracle/oracle.ts lint-cases   # write errors.yaml and ou
 
 To add a rule, add it to `IMPLEMENTED` in `tests/upstream.rs`. ESLint writes `errors.yaml` and
 the output; never write them by hand. The one exception is a case where ESLint's answer is an
-upstream bug: list it with the reason in `tests/cases_deviations.json`, write this crate's answer
+upstream bug. List it with the reason in `tests/cases_deviations.json`, write this crate's answer
 in its files, and add the bug to `tests/upstream_issues.md`. `lint-cases` never writes a listed
 case and fails once ESLint agrees with it. The test counts it as a deviation and fails on a listed
 case that does not exist.
