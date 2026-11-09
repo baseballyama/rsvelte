@@ -98,6 +98,14 @@ fn a_missed_semicolon_splits_an_inline_declaration() {
 }
 
 #[test]
+fn a_comment_may_hold_any_character() {
+    let source = "/* é */ a { b: c }";
+    assert_eq!(check(source, whole(source), Dialect::Css), Ok(()));
+    let source = "/* é */ color: red";
+    assert!(inline(source, whole(source), &[]).is_some());
+}
+
+#[test]
 fn many_open_parentheses_stay_linear() {
     let source = format!("a {{ b: {} }}", "(".repeat(200_000));
     assert!(check(&source, whole(&source), Dialect::Css).is_err());

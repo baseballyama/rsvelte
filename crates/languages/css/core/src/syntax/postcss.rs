@@ -445,7 +445,7 @@ impl<'a> Parser<'a> {
                 self.token(Kind::Word, pos, end + 1)
             }
             b'/' if next == Some(b'*') => {
-                let close = self.find(pos + 2, |i| self.source[i..].starts_with("*/"));
+                let close = self.find(pos + 2, |i| self.b[i..].starts_with(b"*/"));
                 match close {
                     Some(close) => self.token(Kind::Comment, pos, close + 2),
                     None if ignore => self.token(Kind::Comment, pos, self.end),
